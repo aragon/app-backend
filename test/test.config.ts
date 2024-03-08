@@ -1,0 +1,74 @@
+import './environment'
+import * as path from 'path'
+import * as chai from 'chai'
+import chaiAsPromised from 'chai-as-promised'
+import { glob } from 'glob'
+import { argv } from 'process'
+import Mocha from 'mocha'
+import { MockDB } from '@test/lib/mockDb'
+import logger from '@logger'
+
+logger.transports[0].level = 'silly'
+chai.use(chaiAsPromised)
+declare const global: any
+global.chai = chai
+global.expect = chai.expect
+
+let testFolder = ''
+if (argv.includes('--unit')) {
+  testFolder = 'unit'
+} else if (argv.includes('--manual')) {
+  testFolder = 'manual'
+} else {
+  console.error('Please type the correct params')
+  process.exit(1)
+}
+
+async function runTests() {
+  const mocha = new Mocha({
+    timeout: 60000,
+    color: true,
+    diff: true,
+    fullTrace: true,
+  })
+
+  // MockDB setup
+  console.log('Using MockDB...') // eslint-disable-line no-console
+  mocha.suite.beforeAll(async () => {
+    await MockDB.connect()
+  })
+
+  mocha.suite.beforeEach(async () => {
+    await MockDB.drop()
+  })
+
+  mocha.suite.afterAll(() => {})
+
+  // Resolve and add test files
+  const pattern = path.join(__dirname, testFolder, '**', '*.ts')
+  glob(pattern, (err, files) => {
+    if (err) {
+      console.error('Could not find test files', err)
+      return
+    }
+
+    files.forEach(file => mocha.addFile(file))
+
+    // Run the tests
+    mocha.run(failures => {
+      process.exitCode = failures ? 1 : 0
+      if (failures) {
+        console.error(failures)
+        process.exit(1)
+      } else {
+        console.log('All tests passed!') // eslint-disable-line no-console
+        process.exit(0)
+      }
+    })
+  })
+}
+
+runTests().catch(error => {
+  console.error('Unhandled Rejection at: Promise', error)
+  process.exit(1)
+})

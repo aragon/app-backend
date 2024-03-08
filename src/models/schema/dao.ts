@@ -1,0 +1,184 @@
+import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { ENS, HexAddress, type ItxOpts, NetworksEnum } from '@types'
+import { Model, type SaveOptions } from 'mongoose'
+import * as _ from 'lodash'
+import ModelUtils from '@models/utils/models'
+
+const customName = 'Dao'
+
+class Link {
+  @prop({ default: null })
+  public name!: string
+
+  @prop({ default: null })
+  public url!: string
+}
+
+@modelOptions({
+  schemaOptions: {
+    timestamps: true,
+    collection: 'dao',
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
+  options: {
+    customName,
+  },
+})
+@index({
+  daoAddress: 1,
+  tvlUSD: 1,
+  proposalsCreated: 1,
+  members: 1,
+  network: 1,
+  pluginName: 1,
+  hideDao: 1,
+})
+export default class Dao extends Model {
+  @prop({ type: () => String, required: true, unique: true })
+  public daoAddress!: HexAddress
+
+  @prop({ type: () => String, required: true })
+  public creatorAddress!: HexAddress
+
+  @prop({ default: null })
+  public ens!: ENS
+
+  @prop({ default: 0 })
+  public members!: number
+
+  @prop({ default: null })
+  public metadataIpfs!: string
+
+  @prop({ default: null })
+  public name!: string
+
+  @prop({ default: null })
+  public description!: string
+
+  @prop({ default: null })
+  public avatar!: string
+
+  @prop({ default: null })
+  public logo!: string
+
+  @prop({ enum: NetworksEnum, required: true })
+  public network!: NetworksEnum
+
+  @prop({ type: () => String, required: true })
+  public pluginName!: string
+
+  @prop({ required: true })
+  public proposalsCreated!: number
+
+  @prop({ required: true })
+  public proposalsExecuted!: number
+
+  @prop({ required: true })
+  public tvlUSD!: number
+
+  @prop({ required: true })
+  public uniqueVoters!: number
+
+  @prop({ required: true })
+  public votes!: number
+
+  @prop({ type: () => String, required: true })
+  public txHash!: HexAddress
+
+  @prop({ required: true })
+  public hideDao!: boolean
+
+  @prop({ default: null })
+  public lastUpdatedAt!: Date
+
+  @prop({ type: () => [Link], default: [] })
+  public links?: Link[]
+
+  static async create(rawData: Partial<Dao>, tOpts?: SaveOptions) {
+    const data = new this(rawData)
+    return data.save(tOpts)
+  }
+
+  static async findByDaoAddress(daoAddress: HexAddress) {
+    return await this.findOne({ daoAddress })
+  }
+
+  static async findByDaoAddressAndNetwork(
+    daoAddress: HexAddress,
+    network: NetworksEnum,
+  ) {
+    return await this.findOne({ daoAddress, network })
+  }
+
+  static async findWithPagination({ networks, pluginNames }, opts: ItxOpts) {
+    const params = Object.assign(
+      {},
+      ModelUtils.parseParams(opts, [
+        'daoAddress',
+        'creatorAddress',
+        'ens',
+        'name',
+        'txHash',
+      ]),
+    )
+    params.hideDao = { $ne: true }
+
+    if (pluginNames?.length > 0) {
+      params.pluginName = { $in: pluginNames }
+    }
+
+    if (networks?.length > 0) {
+      params.network = { $in: networks }
+    }
+
+    const request = Object.assign({}, ModelUtils.requestPaginate(opts))
+    const currentPage = opts.offset || 1
+
+    const [daos, totRecords] = await Promise.all([
+      this.find(params, null, request),
+      this.countDocuments(params),
+    ])
+
+    const totPages = Math.ceil(totRecords / request.limit)
+
+    if (currentPage > totPages) {
+      return {
+        data: [],
+        totRecords: 0,
+        currentPage: 1,
+        totPages: 1,
+      }
+    }
+
+    return {
+      data: daos,
+      totRecords,
+      currentPage,
+      totPages,
+    }
+  }
+
+  async update(params: Partial<Dao>, tOpts?: SaveOptions) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (this.schema.tree[key]) {
+        if (
+          !this.schema.tree[key].required ||
+          (this.schema.tree[key].required && value)
+        ) {
+          const parsedObj = this.toObject()
+
+          if (!_.isEqual(parsedObj[key], value)) {
+            this[key] = value
+          }
+        }
+      }
+    })
+
+    return this.save(tOpts)
+  }
+
+  async reload(tOpts?: SaveOptions) {
+    return this.model(customName).findById(this._id, tOpts)
+  }
+}
