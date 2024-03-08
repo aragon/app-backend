@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./",
+    "baseUrl": "./",
+    "paths": {
+      "@package": ["./package.json"],
+      "@src/*": ["./src/*"],
+      "@config": ["./config/index"],
+      "@types": ["./src/types/index"],
+      "@helpers/*": ["./src/helpers/*"],
+      "@dbModels": ["./src/models/index"],
+      "@logger": ["./src/logger/index"],
+      "@errors": ["./src/helpers/errors"],
+      "@runners/*": ["./runners/*"],
+      "@models/*": ["./src/models/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@services/*": ["./src/services/*"],
+      "@api/*": ["./src/services/api/*"],
+      "@test/*": ["./test/*"]
+    },
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  },
+  "include": ["./**/*", "./utils/**/*"],
+  "exclude": ["node_modules", "types"],
+}

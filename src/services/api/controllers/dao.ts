@@ -1,0 +1,39 @@
+import { Models } from '@dbModels'
+import {
+  type EnumPluginType,
+  type IResponseWithPagination,
+  type ItxOpts,
+  type NetworksEnum,
+} from '@types'
+
+const DaoController = {
+  getWithPagination: async(
+    params: ItxOpts & { network: NetworksEnum, plugin: EnumPluginType },
+  ): Promise<IResponseWithPagination> => {
+    const { data, currentPage, totPages, totRecords } =
+      await Models.Dao.findWithPagination(
+        {
+          networks: params.network ? [params.network] : [],
+          pluginNames: params.plugin ? [params.plugin] : [],
+        },
+        {
+          search: params.search,
+          toDate: params.toDate,
+          fromDate: params.fromDate,
+          limit: params.limit,
+          offset: params.offset,
+          order: params.order,
+          orderProp: params.orderProp,
+        },
+      )
+
+    return {
+      data,
+      currentPage,
+      totPages,
+      totRecords,
+    }
+  },
+}
+
+export default DaoController
