@@ -11,3 +11,14 @@
 - **Access Rights:** Configure distinct access levels for production and development environments.
 - **Security:** IP whitelisting, SCRAM authentication, role-based access control
 
+#### **Example Connection URIs**
+
+- *DNS Seed List Connection Format*
+```plaintext
+mongodb+srv://<username>:<password>@your-cluster-hostname/db-aragon-prod?replicaSet=rs0&authSource=admin
+```
+
+- *Standard Connection String Format*
+```plaintext
+mongodb://<username>:<password>@mongo1:27017,mongo2:27017,mongo3:27017/db-aragon-prod?replicaSet=rs0
+```
