@@ -1,4 +1,10 @@
 import type Transport from 'winston-transport'
+import {type Logger} from 'winston';
+
+export interface ILogger extends Logger {
+  purge?: any
+  logMeta?: any
+}
 
 export interface ExternalLoggerOptions
   extends Transport.TransportStreamOptions {
