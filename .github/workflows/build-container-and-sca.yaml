@@ -139,8 +139,8 @@ jobs:
 
       - name: Setup Trivy and Plugin before transforming Trivy report to SonarQube
         run: |
-          wget https://github.com/aquasecurity/trivy/releases/download/v0.18.3/trivy_0.18.3_Linux-64bit.deb
-          sudo dpkg -i trivy_0.18.3_Linux-64bit.deb
+          wget -q https://github.com/aquasecurity/trivy/releases/download/v0.49.1/trivy_0.49.1_Linux-64bit.deb
+          sudo dpkg -i trivy_0.49.1_Linux-64bit.deb
           trivy plugin install github.com/umax/trivy-plugin-sonarqube
           trivy plugin list
 
