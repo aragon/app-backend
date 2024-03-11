@@ -3,7 +3,7 @@ import {type IConfig, NetworksEnum} from '@types';
 
 const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
-    APP_NAME: utils.configParser(sourceConfig, 'string', 'APP_NAME', 'Aragon'),
+    APP_NAME: utils.configParser(sourceConfig, 'string', 'APP_NAME', 'Aragon Backend'),
     ENVIRONMENT: utils.configParser(sourceConfig, 'string', 'ENVIRONMENT', 'local'),
     NODE_ENV: utils.configParser(sourceConfig, 'string', 'NODE_ENV', 'development'),
     TIMEZONE: utils.configParser(sourceConfig, 'string', 'TIMEZONE', 'Europe/London'),
