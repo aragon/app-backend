@@ -5,6 +5,7 @@ import IPFSHelper from '@helpers/ipfs'
 import axios from 'axios'
 import { NetworksEnum } from '@types'
 import { aragonGateway } from '@helpers/aragonGateway'
+import logger from '@logger'
 
 describe('Helpers: IPFS', () => {
   let sandbox: SinonSandbox
@@ -57,6 +58,10 @@ describe('Helpers: IPFS', () => {
       ),
     ).to.be.true
     expect(IPFSHelper.isValidIpfsUrl('ipfs://invalidCID')).to.be.false
+
+    expect(IPFSHelper.isValidIpfsUrl(undefined as any)).to.be.false
+    expect(IPFSHelper.isValidIpfsUrl('')).to.be.false
+    expect(IPFSHelper.isValidIpfsUrl(null as any)).to.be.false
   })
 
   it('_parseMetadata', () => {
@@ -112,6 +117,19 @@ describe('Helpers: IPFS', () => {
       .true
   })
 
+  it('should warn when fetching metadata via gateway fails', async () => {
+    const cid = 'QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+    const network = NetworksEnum.ethereum
+    const error = new Error('IPFS gateway error')
+    sandbox.stub(aragonGateway, 'getIpfsClient').throws(error)
+    const loggerWarnStub = sandbox.stub(logger, 'warn')
+
+    const result = await IPFSHelper.fetchMetadataViaGateway(cid, network)
+
+    expect(result).to.be.null
+    expect(loggerWarnStub.args[0][0]).to.eq('Cannot fetch or decode metadata')
+  })
+
   it('fetchMetadataViaRequest', async () => {
     const stubReq = sandbox.stub(axios, 'get').returns({ data: 'ok' } as any)
     const stubParseMetadata = sandbox
@@ -125,6 +143,18 @@ describe('Helpers: IPFS', () => {
     expect(stubReq.calledWith(`https://ipfs.io/ipfs/${cid}`)).to.be.true
     expect(stubParseMetadata.calledOnce).to.be.true
     expect(stubParseMetadata.calledWith('ok' as any)).to.be.true
+  })
+
+  it('should log an error when fetching metadata via request fails', async () => {
+    const cid = 'bafkreiinvalidcid'
+    const error = new Error('Network error')
+    sandbox.stub(axios, 'get').rejects(error)
+    const loggerErrorStub = sandbox.stub(logger, 'error')
+
+    const result = await IPFSHelper.fetchMetadataViaRequest(cid)
+
+    expect(result).to.be.null
+    expect(loggerErrorStub.args[0][0]).to.eq('Failed to fetch metadata from IPFS')
   })
 
   describe('fetchMetadata', function () {
