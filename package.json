@@ -1,9 +1,9 @@
 {
   "name": "aragon-backend",
-  "description": "OpenSource backend services for Aragon OSx/App",
+  "description": "OpenSource backend services",
   "version": "1.0.0",
   "main": "index.ts",
-  "license": "ISC",
+  "license": "GNU AGPLv3",
   "author": "Aragon Development Team",
   "scripts": {
     "start": "yarn run service:main",
