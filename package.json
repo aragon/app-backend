@@ -9,19 +9,41 @@
     "start": "yarn run service:main",
     "service:main": "ts-node -r tsconfig-paths/register runners/main.ts",
     "service:api": "ts-node -r tsconfig-paths/register runners/api.ts",
+    "service:data-sync": "ts-node -r tsconfig-paths/register runners/dataSync.ts",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check .",
+    "format:fix": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "test:dotonly": "dot-only-hunter test",
     "test:manual": "ts-node -r tsconfig-paths/register test/test.config.ts --manual",
-    "test:unit": "ts-node -r tsconfig-paths/register test/test.config.ts --unit"
+    "test:unit": "ts-node -r tsconfig-paths/register test/test.config.ts --unit",
+    "test:unit:coverage": "nyc --no-clean --temp-dir=.nyc_output/ yarn test:unit",
+    "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 90 --branches 80 --functions 60 --lines 60",
+    "docker:dependencies": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica",
+    "docker:services": "docker-compose up --build -d service-api service-data-sync",
+    "wait:db": "bash test/lib/scripts/waitUp.sh mongo1 27017 && bash test/lib/scripts/waitUp.sh mongo2 27017 && bash test/lib/scripts/waitUp.sh mongo3 27017"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/aragon/aragon-backend.git"
+    "url": "git+https://github.com/aragon/app-backend.git"
   },
   "bugs": {
-    "url": "https://github.com/aragon/aragon-backend/issues"
+    "url": "https://github.com/aragon/app-backend/issues"
+  },
+  "nyc": {
+    "cache": true,
+    "extension": [
+      ".ts"
+    ],
+    "reporter": [
+      "html",
+      "json",
+      "text-summary"
+    ],
+    "include": [
+      "src"
+    ],
+    "exclude": []
   },
   "dependencies": {
     "@aragon/sdk-common": "^1.7.0",
@@ -81,6 +103,7 @@
     "eslint-plugin-promise": "^6.1.1",
     "mocha": "^10.3.0",
     "mongodb-memory-server": "^9.1.6",
+    "nyc": "^15.1.0",
     "prettier": "^3.2.5",
     "sinon": "^17.0.1",
     "ts-mocha": "^10.0.0",

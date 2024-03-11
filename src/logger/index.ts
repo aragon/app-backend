@@ -3,7 +3,7 @@ import ExternalLogger from './external'
 import config from '@config'
 import Formats from './format'
 import Utils from '@helpers/utils'
-import { EnumLogLevel } from '@types'
+import {EnumLogLevel, type ILogger} from '@types'
 
 const format = winston.format.combine(
   ...[
@@ -33,7 +33,7 @@ const consoleLogger = new winston.transports.Console({
 
 const transports = [externalLogger, consoleLogger]
 
-const logger: any = winston.createLogger({
+const logger: ILogger = winston.createLogger({
   level: EnumLogLevel.DEBUG,
   exitOnError: true,
   format,

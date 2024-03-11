@@ -1,0 +1,88 @@
+version: '3.7'
+
+services:
+  ### Services
+
+  service-api:
+    build:
+      context: ./
+    ports:
+      - ${SERVICE_API_PORT:-3000}:${SERVICE_API_PORT:-3000}
+    environment:
+      PORT: ${SERVICE_API_PORT:-3000}
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    env_file:
+      - ./docker.env
+    command: bash -c 'yarn wait:db & wait && yarn service:api'
+
+  service-data-sync:
+    build:
+      context: ./
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    env_file:
+      - ./docker.env
+    command: bash -c 'yarn wait:db & wait && yarn service:data-sync'
+
+  ### Dependencies
+
+  mongo1:
+    image: mongo:7.0.0
+    ports:
+      - "27017:27017"
+    command: ["mongod", "--replSet", "rs0", "--port", "27017", "--bind_ip_all"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--port", "27017", "--eval", "db.runCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo2:
+    image: mongo:7.0.0
+    ports:
+      - "27018:27017"
+    command: ["mongod", "--replSet", "rs0", "--port", "27017", "--bind_ip_all"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--port", "27017", "--eval", "db.runCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo3:
+    image: mongo:7.0.0
+    ports:
+      - "27019:27017"
+    command: ["mongod", "--replSet", "rs0", "--port", "27017", "--bind_ip_all"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--port", "27017", "--eval", "db.runCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo-init-replica:
+    image: mongo:7.0.0
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    command: >
+      bash -c "
+        echo 'Waiting for MongoDB nodes to be available...';
+        sleep 10;
+        mongosh --host mongo1:27017 --eval '
+          rs.initiate({
+            _id: \"rs0\",
+            members: [
+              { _id: 0, host: \"mongo1:27017\" },
+              { _id: 1, host: \"mongo2:27017\" },
+              { _id: 2, host: \"mongo3:27017\" }
+            ]
+          });
+        ';
+        echo 'Replica set initiated';
+      "

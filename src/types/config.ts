@@ -74,6 +74,7 @@ export interface IConfig {
 
   SERVICES: {
     API: {
+      BASE_URL: string
       NAME: string
       PORT: number
       TIMEOUT: number
