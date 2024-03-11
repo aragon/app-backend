@@ -1,0 +1,22 @@
+version: '3.7'
+
+services:
+  ### Services
+
+  service-api:
+    build:
+      context: ./
+    ports:
+      - ${SERVICE_API_PORT:-3000}:${SERVICE_API_PORT:-3000}
+    environment:
+      PORT: ${SERVICE_API_PORT:-3000}
+    env_file:
+      - ./.env
+    command: bash -c 'yarn service:api'
+
+  service-data-sync:
+    build:
+      context: ./
+    env_file:
+      - ./.env
+    command: bash -c 'yarn service:data-sync'
