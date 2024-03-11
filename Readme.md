@@ -128,4 +128,4 @@ Join our [Developer Community](https://aragonproject.typeform.com/to/LngekEhU) t
 
 ## License
 
-[GNU](./LICENSE)
+[GNU AGPLv3](./LICENSE)
