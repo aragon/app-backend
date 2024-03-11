@@ -51,6 +51,7 @@ describe.skip('Module: runner', () => {
 
     expect(mockAppStart.calledOnce).to.be.true
     expect(stubError.calledOnce).to.be.true
-    expect(stubError.calledWith('Unable to start application' as any)).to.be.true
+    expect(stubError.calledWith('Unable to start application' as any)).to.be
+      .true
   })
 })

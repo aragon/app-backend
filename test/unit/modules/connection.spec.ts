@@ -49,7 +49,8 @@ describe('Module: connection', () => {
         'Unknown service to connect to',
       )
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Unable to open connections' as any)).to.be.true
+      expect(stubLogger.calledWith('Unable to open connections' as any)).to.be
+        .true
       expect(Connections.openedConnections).to.be.deep.eq([])
     })
 
@@ -62,7 +63,8 @@ describe('Module: connection', () => {
         'fake-error',
       )
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Unable to open connections' as any)).to.be.true
+      expect(stubLogger.calledWith('Unable to open connections' as any)).to.be
+        .true
       expect(Connections.openedConnections).to.be.deep.eq([])
     })
 
@@ -116,7 +118,8 @@ describe('Module: connection', () => {
         'Unknown service to disconnect from',
       )
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Unable to close connections' as any)).to.be.true
+      expect(stubLogger.calledWith('Unable to close connections' as any)).to.be
+        .true
     })
   })
 })

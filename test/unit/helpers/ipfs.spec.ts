@@ -154,7 +154,9 @@ describe('Helpers: IPFS', () => {
     const result = await IPFSHelper.fetchMetadataViaRequest(cid)
 
     expect(result).to.be.null
-    expect(loggerErrorStub.args[0][0]).to.eq('Failed to fetch metadata from IPFS')
+    expect(loggerErrorStub.args[0][0]).to.eq(
+      'Failed to fetch metadata from IPFS',
+    )
   })
 
   describe('fetchMetadata', function () {

@@ -3,7 +3,7 @@ import ExternalLogger from './external'
 import config from '@config'
 import Formats from './format'
 import Utils from '@helpers/utils'
-import {EnumLogLevel, type ILogger} from '@types'
+import { EnumLogLevel, type ILogger } from '@types'
 
 const format = winston.format.combine(
   ...[
