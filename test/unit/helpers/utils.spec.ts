@@ -77,7 +77,7 @@ describe('Helpers:Utils', () => {
     expect(rs).to.be.true
     expect(th).to.be.true
 
-    const errorObj = logerror.args[0] as any;
+    const errorObj = logerror.args[0] as any
     expect(errorObj[0]).to.eq(error.message)
     expect(errorObj[1].error).to.eq(error)
   })
@@ -309,7 +309,7 @@ describe('Helpers:Utils', () => {
       expect(fn.args.length).to.eq(2)
       expect(error.calledOnce).to.be.true
 
-      const errorObj = error.args[0] as any;
+      const errorObj = error.args[0] as any
       expect(errorObj[0]).to.eq('pascontent')
       expect(errorObj[1].error).to.eq(e)
     })
