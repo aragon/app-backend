@@ -19,9 +19,9 @@
     "test:unit": "ts-node -r tsconfig-paths/register test/test.config.ts --unit",
     "test:unit:coverage": "nyc --no-clean --temp-dir=.nyc_output/ yarn test:unit",
     "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 90 --branches 80 --functions 60 --lines 60",
-    "docker:dependencies": "docker-compose up -d --build db",
-    "docker:services": "docker-compose up --build -d service-api",
-    "wait:db": "test/lib/scripts/waitUp.sh db 27017"
+    "docker:dependencies": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica",
+    "docker:services": "docker-compose up --build -d service-api service-data-sync",
+    "wait:db": "bash test/lib/scripts/waitUp.sh mongo1 27017 && bash test/lib/scripts/waitUp.sh mongo2 27017 && bash test/lib/scripts/waitUp.sh mongo3 27017"
   },
   "repository": {
     "type": "git",
