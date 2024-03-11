@@ -33,6 +33,7 @@ describe('Helpers:Web3', () => {
     const result = Web3Utils.parseAddress(address)
 
     expect(result).to.be.null
-    expect(stubLogger.calledWith('Error checksum dao address')).to.be.true
+    expect(stubLogger.calledWith('Error checksum dao address' as any)).to.be
+      .true
   })
 })

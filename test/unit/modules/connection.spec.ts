@@ -29,7 +29,7 @@ describe('Module: connection', () => {
       expect(res).to.be.true
       expect(stubDBConnect.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Connections open')).to.be.true
+      expect(stubLogger.calledWith('Connections open' as any)).to.be.true
     })
 
     it('Should open all', async () => {
@@ -39,7 +39,7 @@ describe('Module: connection', () => {
       expect(res).to.be.true
       expect(stubDBConnect.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Connections open')).to.be.true
+      expect(stubLogger.calledWith('Connections open' as any)).to.be.true
     })
 
     it('Should throw when unknown connection', async () => {
@@ -49,7 +49,8 @@ describe('Module: connection', () => {
         'Unknown service to connect to',
       )
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Unable to open connections')).to.be.true
+      expect(stubLogger.calledWith('Unable to open connections' as any)).to.be
+        .true
       expect(Connections.openedConnections).to.be.deep.eq([])
     })
 
@@ -62,7 +63,8 @@ describe('Module: connection', () => {
         'fake-error',
       )
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Unable to open connections')).to.be.true
+      expect(stubLogger.calledWith('Unable to open connections' as any)).to.be
+        .true
       expect(Connections.openedConnections).to.be.deep.eq([])
     })
 
@@ -88,7 +90,7 @@ describe('Module: connection', () => {
       expect(stubDBDisconnect.callCount).to.eq(0)
 
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Connections closed')).to.be.true
+      expect(stubLogger.calledWith('Connections closed' as any)).to.be.true
       expect(stubLoggerPurge.calledOnce).to.be.true
       expect(Connections.openedConnections).to.be.deep.eq([])
     })
@@ -103,7 +105,7 @@ describe('Module: connection', () => {
       expect(stubDBDisconnect.calledOnce).to.be.true
 
       // expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Connections closed')).to.be.true
+      expect(stubLogger.calledWith('Connections closed' as any)).to.be.true
       expect(stubLoggerPurge.calledOnce).to.be.true
       expect(Connections.openedConnections).to.be.deep.eq([])
     })
@@ -116,7 +118,8 @@ describe('Module: connection', () => {
         'Unknown service to disconnect from',
       )
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Unable to close connections')).to.be.true
+      expect(stubLogger.calledWith('Unable to close connections' as any)).to.be
+        .true
     })
   })
 })

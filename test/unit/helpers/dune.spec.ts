@@ -30,6 +30,21 @@ describe('Helpers: Dune', () => {
       .true
   })
 
+  it('Should handle errors in _rpCall', async () => {
+    const expectedError = new Error('RPC Call Failed')
+    const rpcCallStub = sandbox
+      .stub(DuneHelper.axiosInstance, 'get')
+      .rejects(expectedError)
+
+    const loggerStub = sandbox.stub(logger, 'error')
+
+    await expect(DuneHelper._rpCall('/path')).to.be.rejectedWith(expectedError)
+    expect(rpcCallStub.calledOnce).to.be.true
+    expect(rpcCallStub.calledWith(`/path?api_key=${config.DUNE.API_KEY}`)).to.be
+      .true
+    expect(loggerStub.args[0][0]).to.eq('Error in DuneHelper RPC Call')
+  })
+
   it('should getDaos', async () => {
     const mockDao = {
       creator_address: '0xBb048E05E69eef8781eB0ddD4B81579c7fBC6Be2',
