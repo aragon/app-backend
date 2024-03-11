@@ -294,7 +294,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.ARABOT_PKG_WRITE_PAT }}
+          password: ${{ secrets.ARABOT_PKG_WRITE_PAT_APPBE }}
 
       - name: Build and Push Container ( ${{ needs.build.outputs.SHORT_ENV_OUT }} )
         uses: docker/build-push-action@v5
