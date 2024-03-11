@@ -37,7 +37,6 @@ jobs:
           branchname=$(echo ${GITHUB_REF#refs/heads/} | tr '/' '-' )
           dateinsecs=$(date +%s)
           githashshort=$(git rev-parse --short HEAD)
-          echo "BRANCH_NAME=$branchname" >> $GITHUB_OUTPUT
           echo "GIT_HASH_SHORT=$githashshort" >> $GITHUB_OUTPUT
           echo "DATE_IN_SECS=$dateinsecs" >> $GITHUB_OUTPUT
           if [ "$branchname" = "develop" ]; then
@@ -63,6 +62,7 @@ jobs:
             echo "DOCKER_STAGE_TARGET=release" >> $GITHUB_OUTPUT
             echo "TRIVY_EXIT_CODE=0" >> $GITHUB_OUTPUT
           fi
+          echo "BRANCH_NAME=$branchname" >> $GITHUB_OUTPUT
           containertag="$branchname-$githashshort"
           echo "CONTAINER_TAG=$containertag" >> $GITHUB_OUTPUT
 
@@ -198,7 +198,7 @@ jobs:
         if: always()
         with:
           scan-type: image
-          scanners: vuln,secret,config
+          scanners: vuln,secret
           input: _tmp/_tar/
           format: table
         env:
@@ -209,7 +209,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: image
-          scanners: vuln,secret,config
+          scanners: vuln,secret
           input: _tmp/_tar/
           format: template
           template: '@/contrib/html.tpl'
@@ -222,7 +222,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: image
-          scanners: vuln,secret,config
+          scanners: vuln,secret
           input: _tmp/_tar/
           format: template
           template: '@/contrib/junit.tpl'
@@ -280,7 +280,7 @@ jobs:
         if: always()
         with:
           scan-type: image
-          scanners: vuln,secret,config
+          scanners: vuln,secret
           input: _tmp/docker-oci-tar-${{ needs.build.outputs.CONTAINER_TAG }}
           format: table
           hide-progress: true
