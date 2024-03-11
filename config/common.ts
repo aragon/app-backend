@@ -71,6 +71,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     SERVICES: {
       API: {
+        BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_API_BASE_URL', 'http://localhost:3000'),
         NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_API_NAME', 'API'),
         PORT: utils.configParser(sourceConfig, 'number', 'SERVICES_API_PORT', 3000),
         TIMEOUT: utils.configParser(sourceConfig, 'number', 'SERVICES_API_TIMEOUT', 30), // seconds
