@@ -77,8 +77,9 @@ describe('Helpers:Utils', () => {
     expect(rs).to.be.true
     expect(th).to.be.true
 
-    expect(logerror.args[0][0]).to.eq(error.message)
-    expect(logerror.args[0][1].error).to.eq(error)
+    const errorObj = logerror.args[0] as any;
+    expect(errorObj[0]).to.eq(error.message)
+    expect(errorObj[1].error).to.eq(error)
   })
 
   it('configParser', () => {
@@ -177,7 +178,7 @@ describe('Helpers:Utils', () => {
   it('Should asyncForEach and break on false', async () => {
     const stubFn = sandbox
       .stub()
-      .callsFake(async (item: any, i: number) => i !== 1)
+      .callsFake(async (_item: any, i: number) => i !== 1)
     await Utils.asyncForEach([0, 1, 2, 3], stubFn, true)
     expect(stubFn.callCount).to.be.eq(2)
   })
@@ -307,8 +308,10 @@ describe('Helpers:Utils', () => {
 
       expect(fn.args.length).to.eq(2)
       expect(error.calledOnce).to.be.true
-      expect(error.args[0][0]).to.eq('pascontent')
-      expect(error.args[0][1].error).to.eq(e)
+
+      const errorObj = error.args[0] as any;
+      expect(errorObj[0]).to.eq('pascontent')
+      expect(errorObj[1].error).to.eq(e)
     })
   })
 

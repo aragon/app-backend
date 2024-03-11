@@ -57,7 +57,7 @@ describe('Services: IPFS pin metadata', () => {
 
     console.log(stubLogger.args)
     expect(stubLogger.calledOnce).to.be.true
-    expect(stubLogger.calledWith('Sync dao error')).to.be.true
+    expect(stubLogger.calledWith('Sync dao error' as any)).to.be.true
     await DataSync.stop()
     config.SERVICES.SYNC_DAO.INTERVAL = configBk
   })

@@ -55,4 +55,56 @@ describe('Helpers:Errors', () => {
       })
     }).not.throw()
   })
+
+  it('Should handle unknown error code in throwExposable', () => {
+    let capturedError: any
+    try {
+      Errors.throwExposable('non_existent_code')
+    } catch (error) {
+      capturedError = error
+    }
+    expect(capturedError).to.have.property(
+      'message',
+      Errors.ErrorKey.unknownErrorCode,
+    )
+  })
+
+  it('Should cast a standard error to an exposable error', () => {
+    const standardError = new Error('badParams')
+    let capturedError: any
+    try {
+      Errors.castExposable(standardError)
+    } catch (error) {
+      capturedError = error
+    }
+    expect(capturedError).to.have.property('exposeCustom_', true)
+    expect(capturedError).to.have.property('message', 'badParams')
+    expect(capturedError).to.have.property('description', 'Bad parameters')
+  })
+
+  it('Should handle entity too large error from body parser', () => {
+    const largeEntityError = { type: 'entity.too.large' }
+    let capturedError: any
+    try {
+      Errors.bodyParserError(largeEntityError)
+    } catch (error) {
+      capturedError = error
+    }
+    expect(capturedError).to.have.property(
+      'message',
+      Errors.ErrorKey.entityTooLarge,
+    )
+  })
+
+  it('Should handle other errors from body parser as bad parameters', () => {
+    const otherError = { message: 'Other error' }
+    let capturedError: any
+    try {
+      Errors.bodyParserError(otherError)
+    } catch (error) {
+      capturedError = error
+    }
+    expect(capturedError).to.have.property('message', Errors.ErrorKey.badParams)
+    expect(capturedError).to.have.property('description', 'Other error')
+  })
 })
