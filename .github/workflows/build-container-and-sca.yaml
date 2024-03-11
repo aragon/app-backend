@@ -146,7 +146,7 @@ jobs:
 
       - name: Transform Trivy report to SonarQube
         run: |
-          trivy sonarqube trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.json > trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.sonarqube.json
+          trivy sonarqube trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.json --filePath=Dockerfile > trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.sonarqube.json
 
       - name: Upload Repo scan results as Artifacts
         uses: actions/upload-artifact@v4
@@ -161,7 +161,7 @@ jobs:
         if: always()
         with:
           files: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.junit
-          check_name: List of vulns in Repo
+          check_name: 'List of vulns in Repo'
           comment_mode: always 
           job_summary: true 
           compare_to_earlier_commit: true
@@ -244,7 +244,7 @@ jobs:
         if: always()
         with:
           files: trivy-results-docker-${{ needs.build.outputs.GIT_HASH_SHORT }}.junit
-          check_name: List of vulns in Docker
+          check_name: 'List of vulns in Docker'
           comment_mode: always 
           job_summary: true 
           compare_to_earlier_commit: true
