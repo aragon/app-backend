@@ -2,10 +2,12 @@ import { type Model } from 'mongoose'
 import type Dao from '@models/schema/dao'
 import type Network from '@models/schema/network'
 import { type IDao } from '@src/types/daos'
+import type Token from '@models/schema/token'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
   Dao: Model<InstanceType<typeof Dao>>
+  Token: Model<InstanceType<typeof Token>>
 }
 
 export interface ItxOpts {

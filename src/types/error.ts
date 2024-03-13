@@ -38,4 +38,5 @@ export enum ErrorKey {
   methodNotAllowed = 'methodNotAllowed',
   badParams = 'badParams',
   unknownErrorCode = 'unknownErrorCode',
+  notFound = 'notFound',
 }

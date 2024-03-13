@@ -43,6 +43,10 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'Bad parameters',
   },
+  [ErrorKey.notFound]: {
+    status: 400,
+    description: 'Not found',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

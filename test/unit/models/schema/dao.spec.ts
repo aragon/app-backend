@@ -99,6 +99,15 @@ describe('Model: Dao', () => {
     expect(dao?.daoAddress).to.eq(createdDao.daoAddress)
   })
 
+  it('Should find DAO by address and networks', async () => {
+    const createdDao = await Models.Dao.create(rawDao)
+    const dao = await Models.Dao.findByDaoAddressAndNetwork(
+      createdDao.daoAddress,
+      rawDao.network as NetworksEnum,
+    )
+    expect(dao?.daoAddress).to.eq(createdDao.daoAddress)
+  })
+
   it('Should reload', async () => {
     const createdDao = await Models.Dao.create(rawDao)
     await createdDao.reload()
