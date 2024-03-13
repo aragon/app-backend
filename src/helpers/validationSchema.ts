@@ -1,5 +1,6 @@
 import { ErrorKey, throwExposable } from '@helpers/errors'
 import Joi from 'joi'
+import { getAddress } from 'ethers'
 
 const ValidationSchema = {
   Joi,
@@ -7,6 +8,15 @@ const ValidationSchema = {
   joiEmail: Joi.string().regex(
     /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}$/,
   ),
+  joiAddress: Joi.string()
+    .required()
+    .custom((value, helpers) => {
+      try {
+        return getAddress(value)
+      } catch (error) {
+        return helpers.error('string.invalid', { value })
+      }
+    }, 'Ethereum Address Validation'),
 
   generateJoiPagination: (fromDate?: string) => ({
     search: Joi.string().allow('').optional(),
@@ -28,10 +38,6 @@ const ValidationSchema = {
       const validationError = {
         params,
         errors: error.details.map((detail: any) => detail.message),
-      }
-
-      if (validationError.params.password) {
-        delete validationError.params.password
       }
 
       throwExposable(ErrorKey.badParams, undefined, undefined, {
