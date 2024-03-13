@@ -1,0 +1,93 @@
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import { expect } from 'chai'
+import { NetworksEnum } from '@types'
+import Network from '@models/schema/network'
+import { Models } from '@dbModels'
+import dayjs from 'dayjs'
+import Token from '@models/schema/token'
+
+describe('Model: Token', () => {
+  let sandbox: SinonSandbox
+  let rawToken: Partial<Token>
+  let ethereumNetwork: Network
+
+  beforeEach(async () => {
+    sandbox = sinon.createSandbox()
+
+    ethereumNetwork = await Models.Network.create({
+      name: NetworksEnum.ethereum,
+      status: 'healthy',
+    })
+
+    rawToken = {
+      address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+      network: ethereumNetwork.name,
+      logo: 'fake-logo',
+      name: 'ethereum',
+      symbol: 'WETH',
+      decimals: 18,
+      holders: 10,
+      totalSupply: 100,
+      priceChangeOnDayUsd: 1,
+      priceUsd: '1',
+      lastUpdatedAt: dayjs().toDate(),
+    }
+  })
+
+  afterEach(() => {
+    sandbox?.restore()
+  })
+
+  it('Should create Token', async () => {
+    const createdToken = await Models.Token.create(rawToken)
+
+    expect(createdToken.id).to.exist
+    expect(createdToken.address).to.eq(rawToken.address)
+    expect(createdToken.network).to.eq(rawToken.network)
+    expect(createdToken.logo).to.eq(rawToken.logo)
+    expect(createdToken.name).to.eq(rawToken.name)
+    expect(createdToken.symbol).to.eq(rawToken.symbol)
+    expect(createdToken.decimals).to.eq(rawToken.decimals)
+    expect(createdToken.holders).to.eq(rawToken.holders)
+    expect(createdToken.totalSupply).to.eq(rawToken.totalSupply)
+    expect(createdToken.priceChangeOnDayUsd).to.eq(rawToken.priceChangeOnDayUsd)
+    expect(createdToken.priceUsd).to.eq(rawToken.priceUsd)
+    expect(createdToken.lastUpdatedAt).to.eq(rawToken.lastUpdatedAt)
+  })
+
+  it('Should update Token', async () => {
+    const createdToken = await Models.Token.create(rawToken)
+    expect(createdToken.address).to.eq(rawToken.address)
+
+    await createdToken.update({
+      address: '0x162433c934aA74ba147E05150B1206b2C922f71d',
+    })
+
+    expect(createdToken.address).to.eq(
+      '0x162433c934aA74ba147E05150B1206b2C922f71d',
+    )
+  })
+
+  it('Should find Token by address', async () => {
+    const createdToken = await Models.Token.create(rawToken)
+    const token = await Models.Token.findByTokenAddress(createdToken.address)
+    expect(token?.address).to.eq(createdToken.address)
+  })
+
+  it('Should find Token by address and networks', async () => {
+    const createdToken = await Models.Token.create(rawToken)
+    const token = await Models.Token.findByTokenAddressAndNetwork(
+      createdToken.address,
+      rawToken.network as NetworksEnum,
+    )
+    expect(token?.address).to.eq(createdToken.address)
+  })
+
+  it('Should reload', async () => {
+    const createdToken = await Models.Token.create(rawToken)
+    await createdToken.reload()
+
+    expect(createdToken.address).to.eq(rawToken.address)
+  })
+})

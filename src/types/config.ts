@@ -20,7 +20,7 @@ export interface IConfig {
   REMOTE_EXECUTION: boolean
   PROXY: string | null
   SUPPORTED_NETWORKS: INetworks[]
-  DEFAULT_CURRENCY: string | null
+  DEFAULT_CURRENCY: string
   MONGO_DB: {
     NAME: string
     URI: string
@@ -70,6 +70,13 @@ export interface IConfig {
   IPFS: {
     METADATA_FETCH_RETRY: number
     METADATA_FETCH_DELAY: number
+  }
+
+  ALCHEMY: {
+    MAINNET: string
+    POLYGON: string
+    MUMBAI: string
+    GOERLI: string
   }
 
   SERVICES: {

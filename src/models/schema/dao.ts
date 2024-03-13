@@ -7,10 +7,10 @@ import ModelUtils from '@models/utils/models'
 const customName = 'Dao'
 
 class Link {
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public name!: string
 
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public url!: string
 }
 
@@ -41,55 +41,55 @@ export default class Dao extends Model {
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress
 
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public ens!: ENS
 
-  @prop({ default: 0 })
+  @prop({ type: () => Number, default: 0 })
   public members!: number
 
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public metadataIpfs!: string
 
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public name!: string
 
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public description!: string
 
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public avatar!: string
 
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public logo!: string
 
-  @prop({ enum: NetworksEnum, required: true })
+  @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
   @prop({ type: () => String, required: true })
   public pluginName!: string
 
-  @prop({ required: true })
+  @prop({ type: () => Number, required: true })
   public proposalsCreated!: number
 
-  @prop({ required: true })
+  @prop({ type: () => Number, required: true })
   public proposalsExecuted!: number
 
-  @prop({ required: true })
+  @prop({ type: () => Number, required: true })
   public tvlUSD!: number
 
-  @prop({ required: true })
+  @prop({ type: () => Number, required: true })
   public uniqueVoters!: number
 
-  @prop({ required: true })
+  @prop({ type: () => Number, required: true })
   public votes!: number
 
   @prop({ type: () => String, required: true })
   public txHash!: HexAddress
 
-  @prop({ required: true })
+  @prop({ type: () => Boolean, required: true })
   public hideDao!: boolean
 
-  @prop({ default: null })
+  @prop({ type: () => Date, default: null })
   public lastUpdatedAt!: Date
 
   @prop({ type: () => [Link], default: [] })

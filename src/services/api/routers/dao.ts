@@ -29,10 +29,10 @@ const DaoRouter = {
     const router = new Router()
 
     /**
-     * @api {get} / Get Transactions
-     * @apiName transactions
-     * @apiGroup Transactions
-     * @apiDescription Get Transactions
+     * @api {get} / Get Daos
+     * @apiName Dao
+     * @apiGroup Dao
+     * @apiDescription Get Daos
      *
      * @apiSampleRequest /
      *

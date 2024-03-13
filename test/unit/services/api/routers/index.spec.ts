@@ -5,6 +5,7 @@ import Router from '@koa/router'
 import MainRouter from '@services/api/routers/index'
 import StatusRouter from '@services/api/routers/status'
 import DaoRouter from '@services/api/routers/dao'
+import TokenRouter from '@services/api/routers/token'
 import utils from '@helpers/utils'
 
 describe('Router: MainRouter', () => {
@@ -29,6 +30,7 @@ describe('Router: MainRouter', () => {
     }
 
     stubRouter(DaoRouter, 'dao')
+    stubRouter(TokenRouter, 'token')
     stubRouter(StatusRouter, 'status')
 
     await utils.wait(1000)
@@ -36,7 +38,7 @@ describe('Router: MainRouter', () => {
     const mainRouter = MainRouter.router()
     expect(mainRouter instanceof Router).to.be.true
 
-    expect(use.callCount).to.be.eq(2)
+    expect(use.callCount).to.be.eq(3)
     expect(use.calledWith(`statusRoutes`, `statusAllowedMethod`)).to.be.true
 
     function expectRouter(name: string) {
@@ -46,5 +48,6 @@ describe('Router: MainRouter', () => {
     }
 
     expectRouter('dao')
+    expectRouter('token')
   })
 })

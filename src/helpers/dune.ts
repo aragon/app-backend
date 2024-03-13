@@ -16,9 +16,7 @@ const DuneHelper = {
   _rpCall: async(path: string) => {
     try {
       const url = `${path}?api_key=${config.DUNE.API_KEY}`
-      const response = await DuneHelper.axiosInstance.get(url, {
-        headers: { 'Content-Type': 'application/json' },
-      })
+      const response = await DuneHelper.axiosInstance.get(url)
       return response
     } catch (error) {
       logger.error('Error in DuneHelper RPC Call', llo({ error }))
