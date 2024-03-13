@@ -23,7 +23,7 @@ const TokenController = {
       token = await Models.Token.create(cToken)
     }
 
-    return token
+    return token.filterKeys()
   },
 }
 

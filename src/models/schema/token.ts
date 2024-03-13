@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, NetworksEnum } from '@types'
+import { HexAddress, type IToken, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 
@@ -91,5 +91,11 @@ export default class Token extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return this.model(customName).findById(this._id, tOpts)
+  }
+
+  filterKeys() {
+    const obj = this.toObject()
+    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
+    return filtered as IToken
   }
 }
