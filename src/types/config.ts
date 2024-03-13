@@ -72,13 +72,6 @@ export interface IConfig {
     METADATA_FETCH_DELAY: number
   }
 
-  ALCHEMY: {
-    MAINNET: string
-    POLYGON: string
-    MUMBAI: string
-    GOERLI: string
-  }
-
   SERVICES: {
     API: {
       BASE_URL: string
