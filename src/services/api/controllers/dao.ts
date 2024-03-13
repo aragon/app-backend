@@ -5,6 +5,7 @@ import {
   type ItxOpts,
   type NetworksEnum,
 } from '@types'
+import type Dao from '@models/schema/dao'
 
 const DaoController = {
   getWithPagination: async(
@@ -28,10 +29,10 @@ const DaoController = {
       )
 
     return {
-      data,
       currentPage,
       totPages,
       totRecords,
+      data: data.map((dao: Dao) => dao.filterKeys()),
     }
   },
 }

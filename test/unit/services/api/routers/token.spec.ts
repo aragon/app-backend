@@ -20,7 +20,7 @@ describe('Router: Token', () => {
   it('Should get token', async () => {
     const params = {
       network: NetworksEnum.ethereum,
-      address: '0xe0bd0fe4e70478d5aaf9df546fc76b964ce0bc54',
+      address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
     }
 
     const stubCtrl = sandbox

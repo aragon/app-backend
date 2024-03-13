@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { ENS, HexAddress, type ItxOpts, NetworksEnum } from '@types'
+import { ENS, HexAddress, type IDao, type ItxOpts, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import ModelUtils from '@models/utils/models'
@@ -180,5 +180,11 @@ export default class Dao extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return this.model(customName).findById(this._id, tOpts)
+  }
+
+  filterKeys() {
+    const obj = this.toObject()
+    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
+    return filtered as IDao
   }
 }

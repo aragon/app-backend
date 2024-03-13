@@ -18,7 +18,9 @@ describe('Controller: Dao', () => {
 
   it('get dao with pagination', async () => {
     const stupReq = sandbox.stub(Models.Dao, 'findWithPagination').resolves({
-      data: [{ id: 1, name: 'Test DAO' }],
+      data: [
+        { id: 1, name: 'Test DAO', filterKeys: () => ({ name: 'Test DAO' }) },
+      ],
       currentPage: 1,
       totPages: 1,
       totRecords: 1,
@@ -57,10 +59,9 @@ describe('Controller: Dao', () => {
       ),
     ).to.be.true
     expect(response).to.have.property('data').with.lengthOf(1)
-    expect(response.data[0]).to.have.property('id', 1)
-    expect(response.data[0]).to.have.property('name', 'Test DAO')
-    expect(response).to.have.property('currentPage', 1)
-    expect(response).to.have.property('totPages', 1)
-    expect(response).to.have.property('totRecords', 1)
+    expect(response.data[0].name).to.eq('Test DAO')
+    expect(response.currentPage).to.eq(1)
+    expect(response.totPages).to.eq(1)
+    expect(response.totRecords).to.eq(1)
   })
 })

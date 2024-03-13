@@ -290,4 +290,16 @@ describe('Model: Dao', () => {
       expect(result.totPages).to.eq(1)
     })
   })
+
+  it('Should filterKeys', async () => {
+    const createdDao = await Models.Dao.create(rawDao)
+    const filterDao = createdDao.filterKeys()
+
+    expect(filterDao.id).to.be.undefined
+    expect(filterDao._id).to.be.undefined
+    expect(filterDao.__v).to.be.undefined
+    expect(filterDao.createdAt).to.be.undefined
+    expect(filterDao.updatedAt).to.be.undefined
+    expect(Object.keys(filterDao).length).to.eq(20)
+  })
 })

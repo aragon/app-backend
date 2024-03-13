@@ -90,4 +90,16 @@ describe('Model: Token', () => {
 
     expect(createdToken.address).to.eq(rawToken.address)
   })
+
+  it('Should filterKeys', async () => {
+    const createdToken = await Models.Token.create(rawToken)
+    const filterToken = createdToken.filterKeys()
+
+    expect(filterToken.id).to.be.undefined
+    expect(filterToken._id).to.be.undefined
+    expect(filterToken.__v).to.be.undefined
+    expect(filterToken.createdAt).to.be.undefined
+    expect(filterToken.updatedAt).to.be.undefined
+    expect(Object.keys(filterToken).length).to.eq(11)
+  })
 })
