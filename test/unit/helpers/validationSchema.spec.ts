@@ -80,6 +80,26 @@ describe('Helpers:ValidationSchema', () => {
       expect(result.offset).to.eq(1)
       expect(result.order).to.eq('asc')
     })
+
+    it('joiAddress', async () => {
+      const validAddress = '0xb794f5ea0ba39494ce839613fffba74279579268'
+      const checksumAddress = '0xb794F5eA0ba39494cE839613fffBA74279579268'
+
+      const res = await ValidationSchema.joiAddress.validateAsync(validAddress)
+      expect(res).to.equal(checksumAddress)
+    })
+
+    it('should allow toDate to be after fromDate', async () => {
+      const fromDate = '2023-01-01'
+      const toDate = '2023-01-02'
+
+      const schema = Joi.object(ValidationSchema.generateJoiPagination())
+
+      const result = await schema.validateAsync({ fromDate, toDate })
+
+      expect(result.fromDate).to.deep.equal(new Date(fromDate))
+      expect(result.toDate).to.deep.equal(new Date(toDate))
+    })
   })
 
   describe('Validate schema', () => {

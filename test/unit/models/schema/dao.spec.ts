@@ -84,13 +84,17 @@ describe('Model: Dao', () => {
 
   it('Should update DAO', async () => {
     const createdDao = await Models.Dao.create(rawDao)
-    expect(createdDao).to.have.property('members', rawDao.members)
+    expect(createdDao.creatorAddress).to.eq(
+      '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+    )
 
     await createdDao.update({
-      members: 30,
+      creatorAddress: '0x558c9997f8d382f02dfce79e275af637d8bb19e6',
     })
 
-    expect(createdDao).to.have.property('members', 30)
+    expect(createdDao.creatorAddress).to.eq(
+      '0x558c9997f8d382f02dfce79e275af637d8bb19e6',
+    )
   })
 
   it('Should find DAO by address', async () => {
