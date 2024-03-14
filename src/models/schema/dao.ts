@@ -2,7 +2,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { ENS, HexAddress, type IDao, type ItxOpts, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import ModelUtils from '@models/utils/models'
+import ModelUtils, { utcDateProp } from '@models/utils/models'
 
 const customName = 'Dao'
 
@@ -89,7 +89,7 @@ export default class Dao extends Model {
   @prop({ type: () => Boolean, required: true })
   public hideDao!: boolean
 
-  @prop({ type: () => Date, default: null })
+  @utcDateProp({ default: null })
   public lastUpdatedAt!: Date
 
   @prop({ type: () => [Link], default: [] })
@@ -97,7 +97,7 @@ export default class Dao extends Model {
 
   static async create(rawData: Partial<Dao>, tOpts?: SaveOptions) {
     const data = new this(rawData)
-    return data.save(tOpts)
+    return await data.save(tOpts)
   }
 
   static async findByDaoAddress(daoAddress: HexAddress) {
@@ -175,11 +175,11 @@ export default class Dao extends Model {
       }
     })
 
-    return this.save(tOpts)
+    return await this.save(tOpts)
   }
 
   async reload(tOpts?: SaveOptions) {
-    return this.model(customName).findById(this._id, tOpts)
+    return await this.model(customName).findById(this._id, tOpts)
   }
 
   filterKeys() {

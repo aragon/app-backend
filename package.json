@@ -18,7 +18,7 @@
     "test:manual": "ts-node -r tsconfig-paths/register test/test.config.ts --manual",
     "test:unit": "ts-node -r tsconfig-paths/register test/test.config.ts --unit",
     "test:unit:coverage": "nyc --no-clean --temp-dir=.nyc_output/ yarn test:unit",
-    "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 84 --branches 67 --functions 81 --lines 84",
+    "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 84 --branches 67 --functions 83 --lines 84",
     "docker:dependencies": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica",
     "docker:services": "docker-compose up --build -d service-api service-data-sync",
     "wait:db": "bash test/lib/scripts/waitUp.sh mongo1 27017 && bash test/lib/scripts/waitUp.sh mongo2 27017 && bash test/lib/scripts/waitUp.sh mongo3 27017"
@@ -56,6 +56,7 @@
     "axios": "^1.6.7",
     "class-validator": "^0.14.1",
     "dayjs": "^1.11.10",
+    "dayjs-plugin-utc": "^0.1.2",
     "dot-only-hunter": "^1.0.3",
     "dotenv": "^16.4.5",
     "ethers": "^6.11.1",

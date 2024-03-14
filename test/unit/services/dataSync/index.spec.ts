@@ -21,8 +21,8 @@ describe('Services: IPFS pin metadata', () => {
   it('Should start wallets fetchers & repeat', async () => {
     expect(DataSync.NEED_CONNECTIONS).to.be.deep.eq(['mongodb'])
 
-    const configBk = config.SERVICES.SYNC_DAO.INTERVAL
-    config.SERVICES.SYNC_DAO.INTERVAL = 200
+    const configBk = config.SERVICES.SYNC_DATA.DAO_INTERVAL
+    config.SERVICES.SYNC_DATA.DAO_INTERVAL = 200
 
     const fetchDaos = sandbox.stub(SyncDao, 'fetchAll').resolves()
 
@@ -42,12 +42,12 @@ describe('Services: IPFS pin metadata', () => {
     expect(DataSync.repeaters.daos).not.to.exist
     expect(fetchDaos.calledTwice).to.be.true
 
-    config.SERVICES.SYNC_DAO.INTERVAL = configBk
+    config.SERVICES.SYNC_DATA.DAO_INTERVAL = configBk
   })
 
   it('Should Sync dao error', async () => {
-    const configBk = config.SERVICES.SYNC_DAO.INTERVAL
-    config.SERVICES.SYNC_DAO.INTERVAL = 100
+    const configBk = config.SERVICES.SYNC_DATA.DAO_INTERVAL
+    config.SERVICES.SYNC_DATA.DAO_INTERVAL = 100
 
     const stubLogger = sandbox.stub(logger, 'error')
     const testError = new Error('Test fetchAll error')
@@ -59,6 +59,6 @@ describe('Services: IPFS pin metadata', () => {
     expect(stubLogger.calledOnce).to.be.true
     expect(stubLogger.calledWith('Sync dao error' as any)).to.be.true
     await DataSync.stop()
-    config.SERVICES.SYNC_DAO.INTERVAL = configBk
+    config.SERVICES.SYNC_DATA.DAO_INTERVAL = configBk
   })
 })

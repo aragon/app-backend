@@ -1,5 +1,5 @@
 import config from '@config'
-import dayjs from 'dayjs'
+import dayjs from '@helpers/dayjs'
 import * as packageJson from '@package'
 import { type IStatusResponse } from '@types'
 

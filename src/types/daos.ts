@@ -44,7 +44,7 @@ export interface IDao extends IDaoMetadata {
   creatorAddress: HexAddress
   daoAddress: HexAddress
   block: number
-  createdAt: string
+  createdAt: Date
   ens: ENS
   members: number
   metadataIpfs: string | null

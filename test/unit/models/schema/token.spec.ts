@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import Network from '@models/schema/network'
 import { Models } from '@dbModels'
-import dayjs from 'dayjs'
+import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
 
 describe('Model: Token', () => {
@@ -31,7 +31,7 @@ describe('Model: Token', () => {
       totalSupply: 100,
       priceChangeOnDayUsd: 1,
       priceUsd: '1',
-      lastUpdatedAt: dayjs().toDate(),
+      lastUpdatedAt: dayjs.utc().toDate(),
     }
   })
 
@@ -53,7 +53,9 @@ describe('Model: Token', () => {
     expect(createdToken.totalSupply).to.eq(rawToken.totalSupply)
     expect(createdToken.priceChangeOnDayUsd).to.eq(rawToken.priceChangeOnDayUsd)
     expect(createdToken.priceUsd).to.eq(rawToken.priceUsd)
-    expect(createdToken.lastUpdatedAt).to.eq(rawToken.lastUpdatedAt)
+    expect(createdToken.lastUpdatedAt.getTime()).to.eq(
+      rawToken?.lastUpdatedAt!.getTime(),
+    )
   })
 
   it('Should update Token', async () => {

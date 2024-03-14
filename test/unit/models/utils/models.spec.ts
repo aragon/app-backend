@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ModelUtils from '@models/utils/models'
-import dayjs from 'dayjs'
+import dayjs from '@helpers/dayjs'
 
 describe('Model/Utils: models', () => {
   let sandbox: SinonSandbox
@@ -38,12 +38,12 @@ describe('Model/Utils: models', () => {
       const opts = { fromDate, toDate }
       const result = ModelUtils.parseParams(opts)
 
-      expect(result.createdAt)
-        .to.have.property('$gte')
-        .that.equals(dayjs(fromDate).toISOString())
-      expect(result.createdAt)
-        .to.have.property('$lte')
-        .that.equals(dayjs(toDate).toISOString())
+      expect(dayjs(result.createdAt.$gte).toISOString()).to.equal(
+        dayjs.utc(fromDate).startOf('day').toISOString(),
+      )
+      expect(dayjs(result.createdAt.$lte).toISOString()).to.equal(
+        dayjs.utc(toDate).endOf('day').toISOString(),
+      )
     })
   })
 

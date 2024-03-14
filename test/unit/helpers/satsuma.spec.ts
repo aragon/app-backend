@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import SatsumaHelper from '@helpers/satsuma'
-import dayjs from 'dayjs'
+import dayjs from '@helpers/dayjs'
 import { DaoList } from '@test/lib/fakeGraphDaos'
 import { NetworksEnum } from '@types'
 import utils from '@helpers/utils'
@@ -68,7 +68,7 @@ describe('Helpers: Satsuma', () => {
   //     .stub(SatsumaHelper, '_rpCall')
   //     .resolves(fakeResponse)
   //   const network = NetworksEnum.ethereum
-  //   const fromDate = dayjs().subtract(1, 'year').format()
+  //   const fromDate = dayjs().utc().subtract(1, 'year').format()
   //   const limit = 100
   //
   //   const res = await SatsumaHelper.getDaos(network, { fromDate, limit })
@@ -77,14 +77,14 @@ describe('Helpers: Satsuma', () => {
   //   expect(stubRequest.args[0][0]).to.eq(network)
   //   expect(stubRequest.args[0][2]).to.deep.equal({
   //     where: {
-  //       createdAt_gt: dayjs(fromDate).unix().toString(),
+  //       createdAt_gt: dayjs(fromDate).utc().format(),
   //     },
   //     first: limit,
   //   })
   //   expect(res[0].creatorAddress).to.eq(fakeDao.creator)
   //   expect(res[0].daoAddress).to.eq(fakeDao.id)
   //   expect(res[0].createdAt).to.eq(
-  //     dayjs(Number(fakeDao.createdAt) * 1000).toISOString(),
+  //     dayjs(Number(fakeDao.createdAt) * 1000).format(),
   //   )
   //   expect(res[0].ens).to.eq(fakeDao.daoURI)
   //   expect(res[0].members).to.eq(fakeDao.plugins[0].plugin.members.length)
@@ -111,7 +111,7 @@ describe('Helpers: Satsuma', () => {
       creatorAddress: Web3Utils.parseAddress(rawDao?.creator as any),
       daoAddress: Web3Utils.parseAddress(rawDao.id as any),
       block: Number(rawDao.createdAt),
-      createdAt: dayjs(Number(rawDao.createdAt) * 1000).toISOString(),
+      createdAt: dayjs.utc(Number(rawDao.createdAt) * 1000).toDate(),
       ens: rawDao.daoURI,
       members: rawDao.plugins[0].plugin.members.length,
       metadataIpfs: rawDao.metadata,

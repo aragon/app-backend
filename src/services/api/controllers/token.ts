@@ -3,6 +3,7 @@ import { ErrorKey, type HexAddress, type NetworksEnum } from '@types'
 import { type IToken } from '@src/types/token'
 import CovalentHelper from '@helpers/covalent'
 import { assertExposable } from '@errors'
+import dayjs from '@helpers/dayjs'
 
 const TokenController = {
   getTokenByAddressAndNetwork: async(params: {
@@ -20,7 +21,10 @@ const TokenController = {
         params.network,
       )
       assertExposable(!!cToken, ErrorKey.notFound, undefined, undefined, params)
-      token = await Models.Token.create(cToken)
+      token = await Models.Token.create({
+        ...cToken,
+        lastUpdatedAt: dayjs().utc().toDate(),
+      })
     }
 
     return token.filterKeys()
