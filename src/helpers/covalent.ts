@@ -8,7 +8,7 @@ import {
   type TokensBalancesType,
 } from '@types'
 import config from '@config'
-import dayjs from 'dayjs'
+import dayjs from '@helpers/dayjs'
 import axios from 'axios'
 import logger from '@logger'
 import utils from '@helpers/utils'
@@ -117,7 +117,7 @@ const CovalentHelper = {
       holders: 0,
       totalSupply: 0,
       priceChangeOnDayUsd,
-      lastUpdatedAt: dayjs().toDate(),
+      lastUpdatedAt: dayjs().utc().toDate(),
     }
   },
 

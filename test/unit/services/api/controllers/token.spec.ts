@@ -97,7 +97,7 @@ describe('Controller: Token', () => {
       expect(dbToken.holders).to.eq(rawToken.holders)
       expect(dbToken.totalSupply).to.eq(rawToken.totalSupply)
       expect(dbToken.priceChangeOnDayUsd).to.eq(rawToken.priceChangeOnDayUsd)
-      expect(dbToken.lastUpdatedAt.toISOString()).to.eq(rawToken.lastUpdatedAt)
+      expect(dbToken.lastUpdatedAt).to.eq(rawToken.lastUpdatedAt)
     })
 
     it('getTokenByAddressAndNetwork not found', async () => {

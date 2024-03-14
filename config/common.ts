@@ -69,6 +69,13 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       METADATA_FETCH_DELAY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_DELAY', 5000),
     },
 
+    ALCHEMY: {
+      MAINNET: utils.configParser(sourceConfig, 'string', 'ALCHEMY_MAINNET', null),
+      POLYGON: utils.configParser(sourceConfig, 'string', 'ALCHEMY_POLYGON', null),
+      MUMBAI: utils.configParser(sourceConfig, 'string', 'ALCHEMY_MUMBAI', null),
+      GOERLI: utils.configParser(sourceConfig, 'string', 'ALCHEMY_GOERLI', null),
+    },
+
     SERVICES: {
       API: {
         BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_API_BASE_URL', 'http://localhost:3000'),
@@ -78,9 +85,11 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         CORS: utils.configParser(sourceConfig, 'array', 'SERVICES_API_CORS_ORIGIN', []),
       },
 
-      SYNC_DAO: {
-        INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DAO_INTERVAL', 3 * 60 * 60 * 1000), // 3 hours
-        FETCH_BATCH_SIZE: utils.configParser(sourceConfig, 'string', 'SERVICES_SYNC_DAO_FETCH_BATCH_SIZE', 2000),
+      SYNC_DATA: {
+        DAO_INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_DAO_INTERVAL', 3 * 60 * 60 * 1000), // 3 hours
+        DAO_FETCH_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_DAO_FETCH_BATCH_SIZE', 2000),
+        TOKEN_INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_TOKEN_INTERVAL', 24 * 60 * 60 * 1000), // 24 hours
+        TOKEN_FETCH_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_TOKEN_FETCH_BATCH_SIZE', 500),
       },
     },
   };

@@ -2,6 +2,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, type IToken, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
+import { utcDateProp } from '@models/utils/models'
 
 const customName = 'Token'
 
@@ -51,7 +52,7 @@ export default class Token extends Model {
   @prop({ type: () => String, default: '0' })
   public priceUsd!: string
 
-  @prop({ type: () => Date, default: null })
+  @utcDateProp({ default: null })
   public lastUpdatedAt!: Date
 
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {

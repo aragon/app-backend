@@ -11,7 +11,7 @@ export interface IToken {
   totalSupply: number
   priceChangeOnDayUsd: number
   priceUsd: string
-  lastUpdatedAt: Date
+  lastUpdatedAt: string
   createdAt: string
 }
 

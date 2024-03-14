@@ -1,6 +1,7 @@
 import _ from 'lodash'
 import { type ItxOpts } from '@types'
-import dayjs from 'dayjs'
+import dayjs from '@helpers/dayjs'
+import { prop } from '@typegoose/typegoose'
 
 const ModelUtils = {
   parseParams(opts: ItxOpts, searchBy: string[] = []) {
@@ -21,17 +22,19 @@ const ModelUtils = {
     }
 
     if (params.fromDate && !params.toDate) {
-      request.createdAt = { $gte: dayjs(opts.fromDate).toISOString() }
+      request.createdAt = {
+        $gte: dayjs.utc(opts.fromDate).startOf('day').toDate(),
+      }
     }
 
     if (opts.toDate && !opts.fromDate) {
-      request.createdAt = { $lte: dayjs(opts.toDate).toISOString() }
+      request.createdAt = { $lte: dayjs.utc(opts.toDate).endOf('day').toDate() }
     }
 
     if (opts.toDate && opts.fromDate) {
       request.createdAt = {
-        $gte: dayjs(opts.fromDate).toISOString(),
-        $lte: dayjs(opts.toDate).toISOString(),
+        $gte: dayjs.utc(opts.fromDate).startOf('day').toDate(),
+        $lte: dayjs.utc(opts.toDate).endOf('day').toDate(),
       }
     }
 
@@ -68,6 +71,23 @@ const ModelUtils = {
 
     return request
   },
+}
+
+export function utcDateProp(options = {}) {
+  return prop({
+    ...options,
+    type: () => Date,
+    // Custom getter
+    get: (val: Date | null) => {
+      if (val) return dayjs.utc(val).toDate()
+      return val
+    },
+    // Custom setter
+    set: (val: Date | string | null) => {
+      if (val) return dayjs.utc(val).toDate()
+      return val
+    },
+  })
 }
 
 export default ModelUtils

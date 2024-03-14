@@ -5,7 +5,7 @@ import { NetworksEnum, EnumPluginType } from '@types'
 import Dao from '@models/schema/dao'
 import Network from '@models/schema/network'
 import { Models } from '@dbModels'
-import dayjs from 'dayjs'
+import dayjs from '@helpers/dayjs'
 
 describe('Model: Dao', () => {
   let sandbox: SinonSandbox
@@ -205,12 +205,12 @@ describe('Model: Dao', () => {
         pluginName: EnumPluginType.TokenVotingPlugin,
         hideDao: false,
         txHash: '0x0',
-        createdAt: dayjs().subtract(5, 'day').toDate(),
+        createdAt: dayjs().utc().subtract(5, 'day').toDate(),
       })
 
       const result = await Models.Dao.findWithPagination(
         { networks: [], pluginNames: [] },
-        { fromDate: dayjs().subtract(4, 'day').toString() },
+        { fromDate: dayjs().utc().subtract(4, 'day').toDate() },
       )
 
       expect(result.data.length).to.eq(3)
@@ -221,8 +221,8 @@ describe('Model: Dao', () => {
       const result2 = await Models.Dao.findWithPagination(
         { networks: [], pluginNames: [] },
         {
-          fromDate: dayjs().subtract(6, 'days').toString(),
-          toDate: dayjs().add(6, 'days').toString(),
+          fromDate: dayjs().utc().subtract(6, 'days').toDate(),
+          toDate: dayjs().utc().add(6, 'days').toDate(),
         },
       )
 

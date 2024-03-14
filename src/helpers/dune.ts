@@ -1,7 +1,7 @@
 import logger from '@logger'
 import axios from 'axios'
 import config from '@config'
-import dayjs from 'dayjs'
+import dayjs from '@helpers/dayjs'
 import { type IDao, type IDaoDune } from '@types'
 import Web3Utils from '@helpers/web3'
 
@@ -49,7 +49,7 @@ const DuneHelper = {
         service: 'dune',
       })!,
       block: Number(dao.block_time),
-      createdAt: dayjs(dao.block_time).toISOString(),
+      createdAt: dayjs.utc(dao.block_time).toDate(),
       ens: dao.ens,
       members: dao.members,
       metadataIpfs: dao.metadata_ipfs?.replace(/\0/g, ''),

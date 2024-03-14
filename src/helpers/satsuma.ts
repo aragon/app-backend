@@ -12,7 +12,7 @@ import {
   type SubgraphQueryParam,
 } from '@types'
 import type { TypedDocumentNode } from '@graphql-typed-document-node/core'
-import dayjs from 'dayjs'
+import dayjs from '@helpers/dayjs'
 import utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3'
 
@@ -262,7 +262,7 @@ const SatsumaHelper = {
         service: 'satsuma',
       })!,
       block: Number(dao.createdAt),
-      createdAt: dayjs(Number(dao.createdAt) * 1000).toISOString(),
+      createdAt: dayjs.utc(Number(dao.createdAt) * 1000).toDate(),
       ens: dao.daoURI,
       members: plugin?.membersCount ? Number(plugin.membersCount) : 0,
       metadataIpfs: dao?.metadata,
