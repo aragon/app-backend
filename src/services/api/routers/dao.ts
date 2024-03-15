@@ -17,7 +17,10 @@ const DaoRouter = {
       plugin: ctx.query.plugin,
     }
 
-    const formattedParams = await ValidationSchema.validateParams(DaoSchema.getWithPagination, params)
+    const formattedParams = await ValidationSchema.validateParams(
+      DaoSchema.getWithPagination,
+      params,
+    )
 
     ctx.body = await DaoController.getWithPagination(formattedParams)
   },

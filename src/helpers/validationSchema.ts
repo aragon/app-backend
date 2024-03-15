@@ -19,7 +19,7 @@ const ValidationSchema = {
       }
     }, 'Ethereum Address Validation'),
 
-  generateJoiPagination: Joi.object({
+  generateJoiPagination: {
     search: Joi.string()
       .allow('')
       .optional()
@@ -38,7 +38,7 @@ const ValidationSchema = {
     toDate: Joi.date()
       .min(Joi.ref('fromDate', { adjust: value => new Date(value) }))
       .optional(),
-  }),
+  },
 
   async validateParams(schema: Joi.Schema, params: any) {
     try {
