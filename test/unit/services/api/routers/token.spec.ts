@@ -35,8 +35,6 @@ describe('Router: Token', () => {
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
-    console.log(stubCtrl.args)
-    console.log(params)
 
     expect(
       stubCtrl.calledWith({
