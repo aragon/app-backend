@@ -4,6 +4,7 @@ import { expect } from 'chai'
 import ValidationSchema from '@helpers/validationSchema'
 import Joi from 'joi'
 import { ErrorKeyEnum } from '@types'
+import DaoSchema from '@api/routers/schema/dao'
 
 describe('Helpers:ValidationSchema', () => {
   let sandbox: SinonSandbox
@@ -65,11 +66,9 @@ describe('Helpers:ValidationSchema', () => {
     })
 
     it('generateJoiPagination', async () => {
-      const result = await ValidationSchema.generateJoiPagination.validateAsync(
-        {
-          search: '0xb794F5eA0ba39494cE839613fffBA74279579268',
-        },
-      )
+      const result = await DaoSchema.getWithPagination.validateAsync({
+        search: '0xb794F5eA0ba39494cE839613fffBA74279579268',
+      })
 
       expect(result.search).to.eq('0xb794F5eA0ba39494cE839613fffBA74279579268')
       expect(result.error).to.be.undefined
@@ -79,13 +78,11 @@ describe('Helpers:ValidationSchema', () => {
     })
 
     it('generateJoiPagination wrong address', async () => {
-      const result = await ValidationSchema.generateJoiPagination.validateAsync(
-        {
-          search: 'not_a_valid_address',
-          offset: 1,
-          limit: 12,
-        },
-      )
+      const result = await DaoSchema.getWithPagination.validateAsync({
+        search: 'not_a_valid_address',
+        offset: 1,
+        limit: 12,
+      })
 
       expect(result.search).to.eq('not_a_valid_address')
       expect(result.error).to.be.undefined
@@ -106,7 +103,7 @@ describe('Helpers:ValidationSchema', () => {
       const fromDate = '2023-01-01'
       const toDate = '2023-01-02'
 
-      const schema = ValidationSchema.generateJoiPagination
+      const schema = DaoSchema.getWithPagination
 
       const result = await schema.validateAsync({ fromDate, toDate })
 

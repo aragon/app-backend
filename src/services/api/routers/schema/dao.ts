@@ -3,14 +3,16 @@ import ValidationSchema from '@helpers/validationSchema'
 import { NetworksEnum, EnumPluginType } from '@types'
 
 const DaoSchema = {
-  getWithPagination: Object.assign(ValidationSchema.generateJoiPagination, {
-    network: Joi.string()
-      .valid(...Object.values(NetworksEnum))
-      .optional(),
-    plugin: Joi.string()
-      .valid(...Object.values(EnumPluginType))
-      .optional(),
-  }),
+  getWithPagination: Joi.object(
+    Object.assign(ValidationSchema.generateJoiPagination, {
+      network: Joi.string()
+        .valid(...Object.values(NetworksEnum))
+        .optional(),
+      plugin: Joi.string()
+        .valid(...Object.values(EnumPluginType))
+        .optional(),
+    }),
+  ),
 }
 
 export default DaoSchema
