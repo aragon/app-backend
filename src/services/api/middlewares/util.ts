@@ -1,5 +1,6 @@
 import type Koa from 'koa'
-import { ErrorKey, throwExposable } from '@helpers/errors'
+import { throwExposable } from '@helpers/errors'
+import { ErrorKeyEnum } from '@types'
 import { type IUtilMiddleware } from '@types'
 
 const UtilMiddleware: IUtilMiddleware = {
@@ -7,9 +8,9 @@ const UtilMiddleware: IUtilMiddleware = {
 
   onBodyParserError: (error: any) => {
     if (error.type === 'entity.too.large') {
-      throwExposable(ErrorKey.entityTooLarge)
+      throwExposable(ErrorKeyEnum.entityTooLarge)
     } else {
-      throwExposable(ErrorKey.badParams, 400, error.message)
+      throwExposable(ErrorKeyEnum.badParams, 400, error.message)
     }
   },
 }

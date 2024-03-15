@@ -41,6 +41,7 @@ const logger: ILogger = winston.createLogger({
 })
 
 logger.purge = () => {
+  /* istanbul ignore next */
   externalLogger.purge()
 }
 

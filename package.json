@@ -3,7 +3,7 @@
   "description": "OpenSource backend services",
   "version": "1.0.0",
   "main": "index.ts",
-  "license": "GNU AGPLv3",
+  "license": "AGPL-3.0",
   "author": "Aragon Development Team",
   "scripts": {
     "start": "yarn run service:main",
@@ -17,7 +17,7 @@
     "test:dotonly": "dot-only-hunter test",
     "test:manual": "ts-node -r tsconfig-paths/register test/test.config.ts --manual",
     "test:unit": "ts-node -r tsconfig-paths/register test/test.config.ts --unit",
-    "test:unit:coverage": "nyc --no-clean --temp-dir=.nyc_output/ yarn test:unit",
+    "test:unit:coverage": "rm -r coverage & rm -r .nyc_output & nyc --no-clean --temp-dir=.nyc_output/ yarn test:unit",
     "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 84 --branches 67 --functions 83 --lines 84",
     "docker:dependencies": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica",
     "docker:services": "docker-compose up --build -d service-api service-data-sync",

@@ -2,9 +2,10 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TokenController from '@services/api/controllers/token'
-import { ErrorKey, NetworksEnum } from '@types'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
 import CovalentHelper from '@helpers/covalent'
 import { Models } from '@dbModels'
+import dayjs from '@helpers/dayjs'
 
 describe('Controller: Token', () => {
   let sandbox: SinonSandbox
@@ -17,7 +18,7 @@ describe('Controller: Token', () => {
     sandbox?.restore()
   })
 
-  it('getTokenByAddressAndNetwork', async () => {
+  describe('getTokenByAddressAndNetwork', async () => {
     it('getTokenByAddressAndNetwork new token', async () => {
       const fakeRes = {
         address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
@@ -30,8 +31,9 @@ describe('Controller: Token', () => {
         holders: 0,
         totalSupply: 0,
         priceChangeOnDayUsd: 22.262699999999768,
-        lastUpdatedAt: '2024-03-12T00:28:29.991Z',
+        lastUpdatedAt: dayjs().toISOString(),
       }
+
       const stubHelper = sandbox
         .stub(CovalentHelper, 'getToken')
         .resolves(fakeRes as any)
@@ -59,7 +61,9 @@ describe('Controller: Token', () => {
       expect(dbToken.holders).to.eq(fakeRes.holders)
       expect(dbToken.totalSupply).to.eq(fakeRes.totalSupply)
       expect(dbToken.priceChangeOnDayUsd).to.eq(fakeRes.priceChangeOnDayUsd)
-      expect(dbToken.lastUpdatedAt.toISOString()).to.eq(fakeRes.lastUpdatedAt)
+      expect(dayjs(dbToken.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss')).to.eq(
+        dayjs(fakeRes.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss'),
+      )
     })
 
     it('getTokenByAddressAndNetwork existing token', async () => {
@@ -97,7 +101,9 @@ describe('Controller: Token', () => {
       expect(dbToken.holders).to.eq(rawToken.holders)
       expect(dbToken.totalSupply).to.eq(rawToken.totalSupply)
       expect(dbToken.priceChangeOnDayUsd).to.eq(rawToken.priceChangeOnDayUsd)
-      expect(dbToken.lastUpdatedAt).to.eq(rawToken.lastUpdatedAt)
+      expect(dayjs(dbToken.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss')).to.eq(
+        dayjs(rawToken.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss'),
+      )
     })
 
     it('getTokenByAddressAndNetwork not found', async () => {
@@ -110,7 +116,7 @@ describe('Controller: Token', () => {
           address,
           network: NetworksEnum.ethereum,
         }),
-      ).to.be.rejectedWith(Error, ErrorKey.notFound)
+      ).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
       expect(stubHelper.calledOnce).to.be.true
     })
   })

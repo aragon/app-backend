@@ -1,5 +1,5 @@
 import { Models } from '@dbModels'
-import { ErrorKey, type HexAddress, type NetworksEnum } from '@types'
+import { ErrorKeyEnum, type HexAddress, type NetworksEnum } from '@types'
 import { type IToken } from '@src/types/token'
 import CovalentHelper from '@helpers/covalent'
 import { assertExposable } from '@errors'
@@ -20,7 +20,13 @@ const TokenController = {
         params.address,
         params.network,
       )
-      assertExposable(!!cToken, ErrorKey.notFound, undefined, undefined, params)
+      assertExposable(
+        !!cToken,
+        ErrorKeyEnum.notFound,
+        undefined,
+        undefined,
+        params,
+      )
       token = await Models.Token.create({
         ...cToken,
         lastUpdatedAt: dayjs().utc().toDate(),
