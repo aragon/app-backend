@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { ErrorKey } from '@types'
+import { ErrorKeyEnum } from '@types'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import dayjs from '@helpers/dayjs'
@@ -37,7 +37,7 @@ export const SyncToken = {
           token.address,
           token.network,
         )
-        assert(!!cToken, ErrorKey.notFound)
+        assert(!!cToken, ErrorKeyEnum.notFound)
 
         await token.update(
           { ...cToken, lastUpdatedAt: dayjs().utc().toDate() },
