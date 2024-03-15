@@ -6,7 +6,7 @@ export interface ICustomError extends Error {
 }
 
 export interface IErrorResponse {
-  code: ErrorKey
+  code: ErrorKeyEnum
   description: string
   meta?: any
 }
@@ -27,7 +27,7 @@ export interface IErrorConfig {
 
 export type IErrorMap = Record<string, IErrorConfig>
 
-export enum ErrorKey {
+export enum ErrorKeyEnum {
   invalidOrigin = 'invalidOrigin',
   tooBusy = 'tooBusy',
   unknownError = 'unknownError',
