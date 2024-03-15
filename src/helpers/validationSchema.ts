@@ -1,4 +1,5 @@
-import { ErrorKey, throwExposable } from '@helpers/errors'
+import { ErrorKeyEnum } from '@types'
+import { throwExposable } from '@helpers/errors'
 import Joi from 'joi'
 import { getAddress } from 'ethers'
 
@@ -18,8 +19,17 @@ const ValidationSchema = {
       }
     }, 'Ethereum Address Validation'),
 
-  generateJoiPagination: (fromDate?: string) => ({
-    search: Joi.string().allow('').optional(),
+  generateJoiPagination: Joi.object({
+    search: Joi.string()
+      .allow('')
+      .optional()
+      .custom((value, helpers) => {
+        try {
+          return getAddress(value)
+        } catch {
+          return value
+        }
+      }, 'Ethereum Address or General Search Validation'),
     limit: Joi.number().integer().optional().default(10),
     offset: Joi.number().integer().greater(-1).optional().default(0),
     order: Joi.string().valid('asc', 'desc').optional().default('asc'),
@@ -40,7 +50,7 @@ const ValidationSchema = {
         errors: error.details.map((detail: any) => detail.message),
       }
 
-      throwExposable(ErrorKey.badParams, undefined, undefined, {
+      throwExposable(ErrorKeyEnum.badParams, undefined, undefined, {
         validationError,
       })
     }

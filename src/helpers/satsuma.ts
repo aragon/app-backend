@@ -203,7 +203,7 @@ const SatsumaHelper = {
         nextCursor,
       }
     } catch (error) {
-      logger.error('Error fetching DAO member', llo({ network, params, error }))
+      logger.error('Error fetching DAOs', llo({ network, params, error }))
       return {
         daos: [],
         limit,
@@ -226,23 +226,21 @@ const SatsumaHelper = {
       ].includes(p.plugin?.__typename || 'none'),
     )?.plugin
 
-    if (!pluginType) {
-      return undefined
-    }
-
-    if (pluginType.__typename === EnumPluginType.TokenVotingPlugin) {
+    if (pluginType?.__typename === EnumPluginType.TokenVotingPlugin) {
       return {
         pluginType: EnumPluginType.TokenVotingPlugin,
         membersCount: pluginType.members.length,
       }
-    } else if (pluginType.__typename === EnumPluginType.MultisigPlugin) {
+    }
+
+    if (pluginType?.__typename === EnumPluginType.MultisigPlugin) {
       return {
         pluginType: EnumPluginType.MultisigPlugin,
         membersCount: pluginType.members.length,
       }
-    } else {
-      return undefined
     }
+
+    return undefined
   },
 
   _parseDao: (dao: IDaoSubgraph, network: NetworksEnum): IDao | undefined => {

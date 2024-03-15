@@ -1,23 +1,25 @@
-import * as Toobusy from 'toobusy-js'
+import Toobusy from 'toobusy-js'
 import logger from '@logger'
-import { ErrorKey, type ITooBusyConfig } from '@types'
+import { ErrorKeyEnum } from '@types'
 
-const tooBusyConfig: ITooBusyConfig = {
-  maxLag: 600, // Maximum lag threshold in milliseconds
-  interval: 2000, // Interval in milliseconds (2 seconds)
-}
+export class TooBusyMonitor {
+  public maxLag: number // Maximum lag threshold in milliseconds
+  public interval: number // Interval in milliseconds (2 seconds)
 
-function initializeTooBusy({ maxLag, interval }: ITooBusyConfig): void {
-  Toobusy.maxLag(maxLag)
-  Toobusy.interval(interval)
-
-  const handleLag = (currentLag: number): void => {
-    logger.warn(ErrorKey.tooBusy, { currentLag })
+  constructor(maxLag: number = 600, interval: number = 2000) {
+    this.maxLag = maxLag
+    this.interval = interval
   }
 
-  Toobusy.onLag(handleLag)
+  public init = (): void => {
+    Toobusy.maxLag(this.maxLag)
+    Toobusy.interval(this.interval)
+    Toobusy.onLag(this.handleLag)
+  }
+
+  public handleLag = (currentLag: number): void => {
+    logger.warn(ErrorKeyEnum.tooBusy, { currentLag })
+  }
 }
 
-initializeTooBusy(tooBusyConfig)
-
-export default Toobusy
+export default TooBusyMonitor

@@ -9,6 +9,7 @@ const Utils = {
   zeroAddress: '0x0000000000000000000000000000000000000000' as HexAddress,
 
   defaultError(error: any): void {
+    /* istanbul ignore next */
     console.error(error) // eslint-disable-line no-console
   },
 
