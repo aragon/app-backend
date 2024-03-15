@@ -71,4 +71,30 @@ describe('Module: DbTx', () => {
     expect(result).to.equal('success')
     expect(fn.calledTwice).to.be.true
   })
+
+  it('handleTxError throws on not supported error', async () => {
+    const error = new Error('Current topology does not support sessions')
+    const retryFn = sandbox.stub()
+
+    try {
+      await DbTx.handleTxError(error, retryFn, 0)
+      throw new Error('Expected handleTxError to throw')
+    } catch (err) {
+      expect(err).to.equal(error)
+      expect(retryFn.called).to.be.false // Ensure retryFn was not called
+    }
+  })
+
+  it('handleTxError throws on generic error', async () => {
+    const error = new Error('Generic error')
+    const retryFn = sandbox.stub()
+
+    try {
+      await DbTx.handleTxError(error, retryFn, 0)
+      throw new Error('Expected handleTxError to throw')
+    } catch (err) {
+      expect(err).to.equal(error)
+      expect(retryFn.called).to.be.false // Ensure retryFn was not called
+    }
+  })
 })
