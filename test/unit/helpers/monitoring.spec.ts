@@ -1,45 +1,62 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import Monitoring from '@helpers/monitoring'
+import TooBusyMonitor from '@helpers/monitoring'
+import Toobusy from 'toobusy-js'
 import logger from '@logger'
-import { ErrorKey } from '@types'
 
-function tightWork(duration: number) {
-  const start = Date.now()
-  while (Date.now() - start < duration) {
-    for (let i = 0; i < 1e5; ) i++
-  }
-}
-
-describe('Module:Monitoring', () => {
+describe('Module:Monitoring - TooBusyMonitor', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    Monitoring.maxLag(10)
-    Monitoring.interval(50)
   })
 
-  after(() => {
-    Monitoring.maxLag(70)
-    Monitoring.interval(500)
-    sandbox?.restore()
+  afterEach(() => {
+    sandbox.restore()
   })
 
-  it.skip('logs if too much work', done => {
-    const warn = sandbox.stub(logger, 'warn')
+  it('should initialize with default maxLag and interval', () => {
+    const tooBusyMonitor = new TooBusyMonitor()
+    expect(tooBusyMonitor.maxLag).to.equal(600)
+    expect(tooBusyMonitor.interval).to.equal(2000)
+  })
 
-    function load() {
-      if (warn.callCount > 0) {
-        expect(warn.args[0][0]).to.eq(ErrorKey.tooBusy)
-        done()
-        return
-      }
-      tightWork(100)
-      setTimeout(load, 0)
-    }
+  it('should accept and set custom maxLag and interval values', () => {
+    const customMaxLag = 100
+    const customInterval = 1000
+    const tooBusyMonitor = new TooBusyMonitor(customMaxLag, customInterval)
 
-    load()
+    expect(tooBusyMonitor.maxLag).to.equal(customMaxLag)
+    expect(tooBusyMonitor.interval).to.equal(customInterval)
+  })
+
+  it('should properly configure Toobusy-js with maxLag and interval', () => {
+    const customMaxLag = 100
+    const customInterval = 1000
+    const tooBusyMonitor = new TooBusyMonitor(customMaxLag, customInterval)
+
+    const maxLagSpy = sandbox.spy(Toobusy, 'maxLag')
+    const intervalSpy = sandbox.spy(Toobusy, 'interval')
+
+    tooBusyMonitor.init()
+
+    expect(maxLagSpy.calledWith(customMaxLag)).to.be.true
+    expect(intervalSpy.calledWith(customInterval)).to.be.true
+  })
+
+  it('should log warning with current lag when handleLag is called', () => {
+    const tooBusyMonitor = new TooBusyMonitor()
+    tooBusyMonitor.init()
+
+    const currentLag = 1200
+    const loggerWarnStub = sandbox.stub(logger, 'warn')
+
+    tooBusyMonitor.handleLag(currentLag)
+
+    expect(loggerWarnStub.calledOnce).to.be.true
+    const args: any = loggerWarnStub.args[0]
+    expect(args[0]).to.eq('tooBusy')
+    expect(args[1].currentLag).to.eq(1200)
   })
 })

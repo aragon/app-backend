@@ -3,7 +3,7 @@
   "description": "OpenSource backend services",
   "version": "1.0.0",
   "main": "index.ts",
-  "license": "GNU AGPLv3",
+  "license": "AGPL-3.0",
   "author": "Aragon Development Team",
   "scripts": {
     "start": "yarn run service:main",
@@ -17,8 +17,8 @@
     "test:dotonly": "dot-only-hunter test",
     "test:manual": "ts-node -r tsconfig-paths/register test/test.config.ts --manual",
     "test:unit": "ts-node -r tsconfig-paths/register test/test.config.ts --unit",
-    "test:unit:coverage": "nyc --no-clean --temp-dir=.nyc_output/ yarn test:unit",
-    "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 83 --branches 67 --functions 78 --lines 83",
+    "test:unit:coverage": "rm -rf coverage .nyc_output && nyc --debug --no-clean --temp-dir=.nyc_output/ yarn test:unit",
+    "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 97 --branches 83 --functions 96 --lines 97",
     "docker:dependencies": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica",
     "docker:services": "docker-compose up --build -d service-api service-data-sync",
     "wait:db": "bash test/lib/scripts/waitUp.sh mongo1 27017 && bash test/lib/scripts/waitUp.sh mongo2 27017 && bash test/lib/scripts/waitUp.sh mongo3 27017"
@@ -31,19 +31,20 @@
     "url": "https://github.com/aragon/app-backend/issues"
   },
   "nyc": {
-    "cache": true,
+    "all": true,
     "extension": [
       ".ts"
     ],
+    "include": [
+      "src/**"
+    ],
     "reporter": [
+      "text",
+      "lcov",
       "html",
       "json",
       "text-summary"
-    ],
-    "include": [
-      "src"
-    ],
-    "exclude": []
+    ]
   },
   "dependencies": {
     "@aragon/sdk-common": "^1.7.0",
@@ -56,6 +57,7 @@
     "axios": "^1.6.7",
     "class-validator": "^0.14.1",
     "dayjs": "^1.11.10",
+    "dayjs-plugin-utc": "^0.1.2",
     "dot-only-hunter": "^1.0.3",
     "dotenv": "^16.4.5",
     "ethers": "^6.11.1",
@@ -88,6 +90,7 @@
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.20",
     "@types/sinon": "^17.0.3",
+    "@types/supertest": "^6.0.1",
     "@types/toobusy-js": "^0.5.4",
     "@types/ua-parser-js": "^0.7.39",
     "@types/uuid": "^9.0.8",
@@ -106,6 +109,7 @@
     "nyc": "^15.1.0",
     "prettier": "^3.2.5",
     "sinon": "^17.0.1",
+    "supertest": "^6.0.1",
     "ts-mocha": "^10.0.0",
     "ts-node-dev": "^2.0.0",
     "tsc-alias": "^1.8.8",

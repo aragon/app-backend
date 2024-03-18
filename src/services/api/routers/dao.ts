@@ -18,7 +18,7 @@ const DaoRouter = {
     }
 
     const formattedParams = await ValidationSchema.validateParams(
-      DaoSchema.getWithPagination(params),
+      DaoSchema.getWithPagination,
       params,
     )
 
@@ -29,10 +29,10 @@ const DaoRouter = {
     const router = new Router()
 
     /**
-     * @api {get} / Get Transactions
-     * @apiName transactions
-     * @apiGroup Transactions
-     * @apiDescription Get Transactions
+     * @api {get} / Get Daos
+     * @apiName Dao
+     * @apiGroup Dao
+     * @apiDescription Get Daos
      *
      * @apiSampleRequest /
      *

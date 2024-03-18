@@ -3,7 +3,8 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ValidationSchema from '@helpers/validationSchema'
 import Joi from 'joi'
-import { ErrorKey } from '@types'
+import { ErrorKeyEnum } from '@types'
+import DaoSchema from '@api/routers/schema/dao'
 
 describe('Helpers:ValidationSchema', () => {
   let sandbox: SinonSandbox
@@ -65,20 +66,60 @@ describe('Helpers:ValidationSchema', () => {
     })
 
     it('generateJoiPagination', async () => {
-      const schema = Joi.object(
-        Object.assign(ValidationSchema.generateJoiPagination(), {}),
-      )
-
-      const result = await ValidationSchema.validateParams(schema, {
-        limit: 10,
-        offset: 1,
-        order: 'asc',
+      const result = await DaoSchema.getWithPagination.validateAsync({
+        search: '0xb794F5eA0ba39494cE839613fffBA74279579268',
       })
 
+      expect(result.search).to.eq('0xb794F5eA0ba39494cE839613fffBA74279579268')
       expect(result.error).to.be.undefined
       expect(result.limit).to.eq(10)
+      expect(result.offset).to.eq(0)
+      expect(result.order).to.eq('asc')
+    })
+
+    it('generateJoiPagination wrong address', async () => {
+      const result = await DaoSchema.getWithPagination.validateAsync({
+        search: 'not_a_valid_address',
+        offset: 1,
+        limit: 12,
+      })
+
+      expect(result.search).to.eq('not_a_valid_address')
+      expect(result.error).to.be.undefined
+      expect(result.limit).to.eq(12)
       expect(result.offset).to.eq(1)
       expect(result.order).to.eq('asc')
+    })
+
+    it('joiAddress', async () => {
+      const validAddress = '0xb794f5ea0ba39494ce839613fffba74279579268'
+      const checksumAddress = '0xb794F5eA0ba39494cE839613fffBA74279579268'
+
+      const res = await ValidationSchema.joiAddress.validateAsync(validAddress)
+      expect(res).to.equal(checksumAddress)
+    })
+
+    it('should allow toDate to be after fromDate', async () => {
+      const fromDate = '2023-01-01'
+      const toDate = '2023-01-02'
+
+      const schema = DaoSchema.getWithPagination
+
+      const result = await schema.validateAsync({ fromDate, toDate })
+
+      expect(result.fromDate).to.deep.equal(new Date(fromDate))
+      expect(result.toDate).to.deep.equal(new Date(toDate))
+    })
+
+    it('joiAddress should handle invalid Ethereum address', async () => {
+      const invalidAddress = '0x123'
+
+      try {
+        await ValidationSchema.joiAddress.validateAsync(invalidAddress)
+        throw new Error('Should have thrown an error for invalid address')
+      } catch (error: any) {
+        expect(error.message).to.include('string.invalid')
+      }
     })
   })
 
@@ -114,7 +155,7 @@ describe('Helpers:ValidationSchema', () => {
         await ValidationSchema.validateParams(schema, params)
       } catch (error: any) {
         isThrowing = true
-        expect(error.message).to.eq(ErrorKey.badParams)
+        expect(error.message).to.eq(ErrorKeyEnum.badParams)
         expect(error.exposeMeta.validationError.params.date).to.eq(params.date)
         expect(error.exposeMeta.validationError.params.age).to.eq(params.age)
         expect(error.exposeMeta.validationError.errors.length).to.eq(1)
@@ -142,7 +183,7 @@ describe('Helpers:ValidationSchema', () => {
         await ValidationSchema.validateParams(schema, params)
       } catch (error: any) {
         isThrowing = true
-        expect(error.message).to.eq(ErrorKey.badParams)
+        expect(error.message).to.eq(ErrorKeyEnum.badParams)
         expect(error.exposeMeta.validationError.params.date).to.eq(params.date)
         expect(error.exposeMeta.validationError.params.age).to.eq(params.age)
         expect(error.exposeMeta.validationError.errors.length).to.eq(1)

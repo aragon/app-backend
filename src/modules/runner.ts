@@ -1,4 +1,5 @@
-import '@helpers/monitoring'
+/* istanbul ignore file */
+import { TooBusyMonitor } from '@helpers/monitoring'
 import { type IService } from '@types'
 import logger from '@logger'
 import Connections from './connections'
@@ -77,7 +78,7 @@ async function runApps(instances: Array<{ app: IService }>) {
 
 function Runner(apps: Array<{ app: IService }>) {
   if (!apps || apps.length === 0) throw new Error('need app')
-
+  new TooBusyMonitor().init()
   runApps(apps).catch(error => logger.error('run error', llo({ error })))
 }
 

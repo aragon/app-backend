@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import DuneHelper from '@helpers/dune'
 import logger from '@logger'
 import config from '@config'
-import dayjs from 'dayjs'
+import dayjs from '@helpers/dayjs'
 
 describe('Helpers: Dune', () => {
   let sandbox: SinonSandbox
@@ -68,7 +68,7 @@ describe('Helpers: Dune', () => {
     const expectedDao = {
       creatorAddress: mockDao.creator_address,
       daoAddress: mockDao.dao_address,
-      createdAt: dayjs(mockDao.block_time).toISOString(),
+      createdAt: dayjs.utc(mockDao.block_time).toDate(),
       members: mockDao.members,
       metadataIpfs: mockDao.metadata_ipfs.replace(/\0/g, ''),
       network: mockDao.network,

@@ -1,16 +1,16 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { ENS, HexAddress, type ItxOpts, NetworksEnum } from '@types'
+import { ENS, HexAddress, type IDao, type ItxOpts, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import ModelUtils from '@models/utils/models'
+import ModelUtils, { utcDateProp } from '@models/utils/models'
 
 const customName = 'Dao'
 
 class Link {
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public name!: string
 
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public url!: string
 }
 
@@ -41,55 +41,55 @@ export default class Dao extends Model {
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress
 
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public ens!: ENS
 
-  @prop({ default: 0 })
+  @prop({ type: () => Number, default: 0 })
   public members!: number
 
-  @prop({ default: null })
+  @prop({ type: () => Number, default: 0 })
+  public block!: number
+
+  @prop({ type: () => String, default: null })
   public metadataIpfs!: string
 
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public name!: string
 
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public description!: string
 
-  @prop({ default: null })
+  @prop({ type: () => String, default: null })
   public avatar!: string
 
-  @prop({ default: null })
-  public logo!: string
-
-  @prop({ enum: NetworksEnum, required: true })
+  @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
   @prop({ type: () => String, required: true })
   public pluginName!: string
 
-  @prop({ required: true })
+  @prop({ type: () => Number, required: true })
   public proposalsCreated!: number
 
-  @prop({ required: true })
+  @prop({ type: () => Number, required: true })
   public proposalsExecuted!: number
 
-  @prop({ required: true })
+  @prop({ type: () => Number, required: true })
   public tvlUSD!: number
 
-  @prop({ required: true })
+  @prop({ type: () => Number, required: true })
   public uniqueVoters!: number
 
-  @prop({ required: true })
+  @prop({ type: () => Number, required: true })
   public votes!: number
 
   @prop({ type: () => String, required: true })
   public txHash!: HexAddress
 
-  @prop({ required: true })
+  @prop({ type: () => Boolean, required: true })
   public hideDao!: boolean
 
-  @prop({ default: null })
+  @utcDateProp({ default: null })
   public lastUpdatedAt!: Date
 
   @prop({ type: () => [Link], default: [] })
@@ -97,7 +97,7 @@ export default class Dao extends Model {
 
   static async create(rawData: Partial<Dao>, tOpts?: SaveOptions) {
     const data = new this(rawData)
-    return data.save(tOpts)
+    return await data.save(tOpts)
   }
 
   static async findByDaoAddress(daoAddress: HexAddress) {
@@ -175,10 +175,16 @@ export default class Dao extends Model {
       }
     })
 
-    return this.save(tOpts)
+    return await this.save(tOpts)
   }
 
   async reload(tOpts?: SaveOptions) {
-    return this.model(customName).findById(this._id, tOpts)
+    return await this.model(customName).findById(this._id, tOpts)
+  }
+
+  filterKeys() {
+    const obj = this.toObject()
+    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
+    return filtered as IDao
   }
 }

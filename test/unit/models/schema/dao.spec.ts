@@ -5,7 +5,7 @@ import { NetworksEnum, EnumPluginType } from '@types'
 import Dao from '@models/schema/dao'
 import Network from '@models/schema/network'
 import { Models } from '@dbModels'
-import dayjs from 'dayjs'
+import dayjs from '@helpers/dayjs'
 
 describe('Model: Dao', () => {
   let sandbox: SinonSandbox
@@ -84,18 +84,31 @@ describe('Model: Dao', () => {
 
   it('Should update DAO', async () => {
     const createdDao = await Models.Dao.create(rawDao)
-    expect(createdDao).to.have.property('members', rawDao.members)
+    expect(createdDao.creatorAddress).to.eq(
+      '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+    )
 
     await createdDao.update({
-      members: 30,
+      creatorAddress: '0x558c9997f8d382f02dfce79e275af637d8bb19e6',
     })
 
-    expect(createdDao).to.have.property('members', 30)
+    expect(createdDao.creatorAddress).to.eq(
+      '0x558c9997f8d382f02dfce79e275af637d8bb19e6',
+    )
   })
 
   it('Should find DAO by address', async () => {
     const createdDao = await Models.Dao.create(rawDao)
     const dao = await Models.Dao.findByDaoAddress(createdDao.daoAddress)
+    expect(dao?.daoAddress).to.eq(createdDao.daoAddress)
+  })
+
+  it('Should find DAO by address and networks', async () => {
+    const createdDao = await Models.Dao.create(rawDao)
+    const dao = await Models.Dao.findByDaoAddressAndNetwork(
+      createdDao.daoAddress,
+      rawDao.network as NetworksEnum,
+    )
     expect(dao?.daoAddress).to.eq(createdDao.daoAddress)
   })
 
@@ -178,6 +191,22 @@ describe('Model: Dao', () => {
       expect(totPages).to.eq(1)
     })
 
+    it('Should find Pagination with networks and plugin', async () => {
+      const { data, totRecords, currentPage, totPages } =
+        await Models.Dao.findWithPagination(
+          {
+            networks: [NetworksEnum.ethereum],
+            pluginNames: [EnumPluginType.MultisigPlugin],
+          },
+          {},
+        )
+
+      expect(data.length).to.eq(1)
+      expect(totRecords).to.eq(1)
+      expect(currentPage).to.eq(1)
+      expect(totPages).to.eq(1)
+    })
+
     it('Should find Pagination with from to date', async () => {
       await Models.Dao.create({
         daoAddress: '0xee0627bA21e9114336977482372486d084497efa',
@@ -192,12 +221,12 @@ describe('Model: Dao', () => {
         pluginName: EnumPluginType.TokenVotingPlugin,
         hideDao: false,
         txHash: '0x0',
-        createdAt: dayjs().subtract(5, 'day').toDate(),
+        createdAt: dayjs().utc().subtract(5, 'day').toDate(),
       })
 
       const result = await Models.Dao.findWithPagination(
         { networks: [], pluginNames: [] },
-        { fromDate: dayjs().subtract(4, 'day').toString() },
+        { fromDate: dayjs().utc().subtract(4, 'day').toDate() },
       )
 
       expect(result.data.length).to.eq(3)
@@ -208,8 +237,8 @@ describe('Model: Dao', () => {
       const result2 = await Models.Dao.findWithPagination(
         { networks: [], pluginNames: [] },
         {
-          fromDate: dayjs().subtract(6, 'days').toString(),
-          toDate: dayjs().add(6, 'days').toString(),
+          fromDate: dayjs().utc().subtract(6, 'days').toDate(),
+          toDate: dayjs().utc().add(6, 'days').toDate(),
         },
       )
 
@@ -280,5 +309,17 @@ describe('Model: Dao', () => {
       expect(result.currentPage).to.eq(1)
       expect(result.totPages).to.eq(1)
     })
+  })
+
+  it('Should filterKeys', async () => {
+    const createdDao = await Models.Dao.create(rawDao)
+    const filterDao = createdDao.filterKeys()
+
+    expect(filterDao.id).to.be.undefined
+    expect(filterDao._id).to.be.undefined
+    expect(filterDao.__v).to.be.undefined
+    expect(filterDao.createdAt).to.be.undefined
+    expect(filterDao.updatedAt).to.be.undefined
+    expect(Object.keys(filterDao).length).to.eq(20)
   })
 })

@@ -23,13 +23,18 @@ const customName = 'Network'
   isActive: 1,
 })
 export default class Network extends Model {
-  @prop({ enum: NetworksEnum, required: true, unique: true })
+  @prop({
+    type: () => String,
+    enum: NetworksEnum,
+    required: true,
+    unique: true,
+  })
   public name!: NetworksEnum
 
-  @prop({ enum: StatusNetworkEnum, required: true })
+  @prop({ type: () => String, enum: StatusNetworkEnum, required: true })
   public status!: StatusNetworkEnum
 
-  @prop({ required: true, default: true })
+  @prop({ type: () => Boolean, required: true, default: true })
   public isActive!: boolean
 
   static NETWORKS = Utils.enumToObject(NetworksEnum)

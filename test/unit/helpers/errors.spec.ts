@@ -1,6 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
+import { ErrorKeyEnum } from '@types'
 import * as Errors from '@errors'
 
 describe('Helpers:Errors', () => {
@@ -65,7 +66,7 @@ describe('Helpers:Errors', () => {
     }
     expect(capturedError).to.have.property(
       'message',
-      Errors.ErrorKey.unknownErrorCode,
+      ErrorKeyEnum.unknownErrorCode,
     )
   })
 
@@ -82,6 +83,17 @@ describe('Helpers:Errors', () => {
     expect(capturedError).to.have.property('description', 'Bad parameters')
   })
 
+  it('calls throwExposable with exposeCustom_ property', () => {
+    const standardError: Error | any = new Error(ErrorKeyEnum.badParams)
+    try {
+      standardError.exposeCustom_ = true
+      Errors.castExposable(standardError)
+    } catch (error: any) {
+      expect(error.exposeCustom_).to.be.true
+      expect(error.message).to.eq(ErrorKeyEnum.badParams)
+    }
+  })
+
   it('Should handle entity too large error from body parser', () => {
     const largeEntityError = { type: 'entity.too.large' }
     let capturedError: any
@@ -92,7 +104,7 @@ describe('Helpers:Errors', () => {
     }
     expect(capturedError).to.have.property(
       'message',
-      Errors.ErrorKey.entityTooLarge,
+      ErrorKeyEnum.entityTooLarge,
     )
   })
 
@@ -104,7 +116,36 @@ describe('Helpers:Errors', () => {
     } catch (error) {
       capturedError = error
     }
-    expect(capturedError).to.have.property('message', Errors.ErrorKey.badParams)
+    expect(capturedError).to.have.property('message', ErrorKeyEnum.badParams)
     expect(capturedError).to.have.property('description', 'Other error')
+  })
+
+  describe('assertExposable function', () => {
+    it('does not throw an error when the condition is true', () => {
+      expect(() => {
+        Errors.assertExposable(true, ErrorKeyEnum.badParams)
+      }).not.to.throw()
+    })
+
+    it('throws an exposable error with correct properties when the condition is false', () => {
+      try {
+        Errors.assertExposable(
+          false,
+          ErrorKeyEnum.badParams,
+          400,
+          'Bad parameters',
+          { additional: 'info' },
+        )
+        throw new Error('assertExposable did not throw')
+      } catch (error) {
+        expect(error).to.have.property('exposeCustom_', true)
+        expect(error).to.have.property('message', ErrorKeyEnum.badParams)
+        expect(error).to.have.property('status', 400)
+        expect(error).to.have.property('description', 'Bad parameters')
+        expect(error)
+          .to.have.property('exposeMeta')
+          .that.deep.equals({ additional: 'info' })
+      }
+    })
   })
 })

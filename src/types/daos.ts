@@ -44,7 +44,7 @@ export interface IDao extends IDaoMetadata {
   creatorAddress: HexAddress
   daoAddress: HexAddress
   block: number
-  createdAt: string
+  createdAt: Date
   ens: ENS
   members: number
   metadataIpfs: string | null
@@ -53,7 +53,7 @@ export interface IDao extends IDaoMetadata {
   proposalsCreated: number
   proposalsExecuted: number
   tvlUSD: number
-  txHash: HexAddress
+  txHash: HexAddress | null
   uniqueVoters: number
   votes: number
   hideDao: boolean
