@@ -31,7 +31,7 @@ export const SyncToken = {
   },
 
   async _updateToken(token: Token) {
-    await DbTx.executeTxFn(async({ session }) => {
+    return await DbTx.executeTxFn(async({ session }) => {
       const cToken = await CovalentHelper.getToken(token.address, token.network)
       assert(!!cToken, ErrorKeyEnum.notFound)
 
@@ -41,11 +41,10 @@ export const SyncToken = {
       )
       await session.commitTransaction()
       await session.endSession()
-      logger.verbose('Token updated', { token })
+      logger.verbose('Token updated', llo({ token }))
+
+      return token
     })
-    // .catch(error => {
-    //   logger.error('Error updating token', { error, token })
-    // })
   },
 
   _onError(token: Token, error: any) {
