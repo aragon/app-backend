@@ -1,7 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import mongoose from 'mongoose'
 import DbTx from '@modules/dbTx'
 
 describe('Module: DbTx', () => {
@@ -23,27 +22,19 @@ describe('Module: DbTx', () => {
   })
 
   it('transactionOptions', async () => {
-    const sessionMock = {
-      startTransaction: sandbox.stub().resolves(),
-      commitTransaction: sandbox.stub().resolves(),
-      abortTransaction: sandbox.stub().resolves(),
-      endSession: sandbox.stub().resolves(),
-    }
-    const stubStart = sandbox
-      .stub(mongoose, 'startSession')
-      .resolves(sessionMock as any)
+    const session: any = await DbTx.transactionOptions()
 
-    const session = await DbTx.transactionOptions()
-
-    expect(stubStart.calledOnce).to.be.true
-    expect(session).to.equal(sessionMock)
-    expect(sessionMock.startTransaction.calledOnce).to.be.true
+    expect(session.defaultTransactionOptions.readConcern.level).to.equal(
+      'snapshot',
+    )
+    expect(session.defaultTransactionOptions.writeConcern.w).to.equal(
+      'majority',
+    )
   })
 
   it('executeTxFn', async () => {
     const fn = sandbox.stub().resolves('result')
-    const dbTxInstance = new DbTx()
-    const result = await dbTxInstance.executeTxFn(fn)
+    const result = await DbTx.executeTxFn(fn)
     expect(result).to.equal('result')
     expect(fn.calledOnce).to.be.true
   })
@@ -58,10 +49,10 @@ describe('Module: DbTx', () => {
       .resolves('success') // Simulate a failure followed by a success
     const retryFn = async () => {
       try {
-        return await new DbTx().executeTxFn(fn)
+        return await DbTx.executeTxFn(fn)
       } catch (err) {
         if (DbTx.isErrorConflict(err)) {
-          return await new DbTx().executeTxFn(fn) // Retry once
+          return await DbTx.executeTxFn(fn) // Retry once
         }
         throw err
       }

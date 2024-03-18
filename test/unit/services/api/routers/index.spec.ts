@@ -7,6 +7,8 @@ import StatusRouter from '@services/api/routers/status'
 import DaoRouter from '@services/api/routers/dao'
 import TokenRouter from '@services/api/routers/token'
 import utils from '@helpers/utils'
+import Koa from 'koa'
+import supertest from 'supertest'
 
 describe('Router: MainRouter', () => {
   let sandbox: SinonSandbox
@@ -49,5 +51,13 @@ describe('Router: MainRouter', () => {
 
     expectRouter('dao')
     expectRouter('token')
+  })
+
+  it('Should setup main router with all child routers', async () => {
+    const app = new Koa()
+    app.use(MainRouter.router().routes())
+    const request = supertest(app.callback())
+
+    await request.get('/').expect(200)
   })
 })

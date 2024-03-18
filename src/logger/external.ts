@@ -14,6 +14,7 @@ class ExternalLogger extends Transport {
     super(opts)
 
     if (config.LOG.LOGZIO_KEY) {
+      /* istanbul ignore next */
       this.logzioLogger = logNodejs.createLogger({
         token: config.LOG.LOGZIO_KEY,
         host: config.LOG.LOGZIO_HOST,

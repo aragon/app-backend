@@ -47,6 +47,9 @@ export default class Dao extends Model {
   @prop({ type: () => Number, default: 0 })
   public members!: number
 
+  @prop({ type: () => Number, default: 0 })
+  public block!: number
+
   @prop({ type: () => String, default: null })
   public metadataIpfs!: string
 
@@ -58,9 +61,6 @@ export default class Dao extends Model {
 
   @prop({ type: () => String, default: null })
   public avatar!: string
-
-  @prop({ type: () => String, default: null })
-  public logo!: string
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
