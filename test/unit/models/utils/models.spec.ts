@@ -1,8 +1,9 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import ModelUtils from '@models/utils/models'
+import ModelUtils, { utcDateProp } from '@models/utils/models'
 import dayjs from '@helpers/dayjs'
+import { getModelForClass } from '@typegoose/typegoose'
 
 describe('Model/Utils: models', () => {
   let sandbox: SinonSandbox
@@ -45,6 +46,16 @@ describe('Model/Utils: models', () => {
         dayjs.utc(toDate).endOf('day').toISOString(),
       )
     })
+
+    it('should generate date range query for createdAt', function () {
+      const toDate = '2021-01-31'
+      const opts = { toDate }
+      const result = ModelUtils.parseParams(opts)
+
+      expect(dayjs(result.createdAt.$lte).toISOString()).to.equal(
+        dayjs.utc(toDate).endOf('day').toISOString(),
+      )
+    })
   })
 
   describe('requestPaginate', function () {
@@ -64,8 +75,20 @@ describe('Model/Utils: models', () => {
       const result = ModelUtils.requestPaginate(opts)
 
       expect(result.limit).to.equal(15)
-      expect(result.skip).to.equal(0) // (15 * (1 - 1))
+      expect(result.skip).to.equal(0)
       expect(result.sort).to.deep.equal({ createdAt: -1 })
     })
+  })
+
+  it('should return null when setting a null value', async function () {
+    class MockModel {
+      @utcDateProp()
+      public date?: Date
+    }
+    const MockModelClass = getModelForClass(MockModel)
+
+    const instance: any = new MockModelClass()
+    instance.date = null
+    expect(instance.date).to.equal(null)
   })
 })

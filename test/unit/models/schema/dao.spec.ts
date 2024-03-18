@@ -191,6 +191,22 @@ describe('Model: Dao', () => {
       expect(totPages).to.eq(1)
     })
 
+    it('Should find Pagination with networks and plugin', async () => {
+      const { data, totRecords, currentPage, totPages } =
+        await Models.Dao.findWithPagination(
+          {
+            networks: [NetworksEnum.ethereum],
+            pluginNames: [EnumPluginType.MultisigPlugin],
+          },
+          {},
+        )
+
+      expect(data.length).to.eq(1)
+      expect(totRecords).to.eq(1)
+      expect(currentPage).to.eq(1)
+      expect(totPages).to.eq(1)
+    })
+
     it('Should find Pagination with from to date', async () => {
       await Models.Dao.create({
         daoAddress: '0xee0627bA21e9114336977482372486d084497efa',

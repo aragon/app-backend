@@ -99,53 +99,51 @@ export const SyncDao = {
     networkName: NetworksEnum,
     metadata?: IDaoMetadata,
   ) {
-    await new DbTx()
-      .executeTxFn(async({ session }) => {
-        const duneDao = SyncDao.duneDaos.find(
-          d => d.daoAddress === dao.daoAddress && d.network === networkName,
-        )
+    const duneDao = SyncDao.duneDaos.find(
+      d => d.daoAddress === dao.daoAddress && d.network === networkName,
+    )
 
-        const rawDao: any = {
-          name: metadata?.name,
-          logo: metadata?.avatar,
-          description: metadata?.description,
-          links: metadata?.links || [],
-          creatorAddress: dao.creatorAddress,
-          daoAddress: dao.daoAddress,
-          ens: duneDao?.ens ?? dao?.ens,
-          members: dao.members || 0,
-          metadataIpfs: dao.metadataIpfs,
-          network: networkName as NetworksEnum,
-          pluginName: dao.pluginName,
-          proposalsCreated: dao.proposalsCreated,
-          proposalsExecuted: dao.proposalsExecuted,
-          tvlUSD: duneDao?.tvlUSD ?? dao.tvlUSD,
-          txHash: duneDao?.txHash ?? dao.txHash,
-          uniqueVoters: duneDao?.uniqueVoters ?? dao.uniqueVoters,
-          votes: duneDao?.votes ?? dao.votes,
-          hideDao: dao.hideDao,
-          createdAt: dao.createdAt,
-        }
+    const rawDao: any = {
+      name: metadata?.name,
+      avatar: metadata?.avatar,
+      description: metadata?.description,
+      links: metadata?.links || [],
+      block: dao?.block,
+      creatorAddress: dao.creatorAddress,
+      daoAddress: dao.daoAddress,
+      ens: duneDao?.ens ?? dao?.ens,
+      members: dao.members || 0,
+      metadataIpfs: dao.metadataIpfs,
+      network: networkName as NetworksEnum,
+      pluginName: dao.pluginName,
+      proposalsCreated: dao.proposalsCreated,
+      proposalsExecuted: dao.proposalsExecuted,
+      tvlUSD: duneDao?.tvlUSD ?? dao.tvlUSD,
+      txHash: duneDao?.txHash ?? dao.txHash,
+      uniqueVoters: duneDao?.uniqueVoters ?? dao.uniqueVoters,
+      votes: duneDao?.votes ?? dao.votes,
+      hideDao: dao.hideDao,
+      createdAt: dao.createdAt,
+    }
 
-        const existingDao = await Models.Dao.findByDaoAddressAndNetwork(
-          dao.daoAddress,
-          networkName,
-        )
+    const existingDao = await Models.Dao.findByDaoAddressAndNetwork(
+      dao.daoAddress,
+      networkName,
+    )
 
-        if (existingDao) {
-          await existingDao.update(rawDao, { session })
-        } else {
-          await Models.Dao.create(rawDao, { session })
-        }
-
-        logger.verbose('Dao updated', llo(dao))
-      })
-      .catch(error => {
-        logger.error(
-          'Error createOrUpdate daos',
-          llo({ error, dao, networkName, metadata }),
-        )
-      })
+    return DbTx.executeTxFn(async({ session }) => {
+      let dbDao = null
+      if (existingDao) {
+        dbDao = await existingDao.update(rawDao, { session })
+        logger.verbose('Updated DAO', llo({ daoAddress: dao.daoAddress }))
+      } else {
+        dbDao = await Models.Dao.create(rawDao, { session })
+        logger.verbose('Created DAO', llo({ daoAddress: dao.daoAddress }))
+      }
+      await session.commitTransaction()
+      await session.endSession()
+      return dbDao
+    })
   },
 
   _reset() {
