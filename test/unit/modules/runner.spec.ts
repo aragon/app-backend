@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import Connections from '@modules/connections'
-import Runner, { stopApps } from '@modules/runner'
+import Runner from '@modules/runner'
 import { expect } from 'chai'
 import utils from '@helpers/utils'
 

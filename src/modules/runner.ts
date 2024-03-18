@@ -1,4 +1,4 @@
-/* istanbul ignore */
+/* istanbul ignore file */
 import { TooBusyMonitor } from '@helpers/monitoring'
 import { type IService } from '@types'
 import logger from '@logger'
