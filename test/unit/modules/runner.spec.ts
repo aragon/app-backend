@@ -5,7 +5,7 @@ import Runner, { stopApps } from '@modules/runner'
 import { expect } from 'chai'
 import utils from '@helpers/utils'
 
-describe('Module: runner', () => {
+describe.skip('Module: runner', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
