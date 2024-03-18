@@ -20,7 +20,7 @@ export interface IConfig {
   REMOTE_EXECUTION: boolean
   PROXY: string | null
   SUPPORTED_NETWORKS: INetworks[]
-  DEFAULT_CURRENCY: string | null
+  DEFAULT_CURRENCY: string
   MONGO_DB: {
     NAME: string
     URI: string
@@ -72,6 +72,13 @@ export interface IConfig {
     METADATA_FETCH_DELAY: number
   }
 
+  ALCHEMY: {
+    MAINNET: string
+    POLYGON: string
+    MUMBAI: string
+    GOERLI: string
+  }
+
   SERVICES: {
     API: {
       BASE_URL: string
@@ -80,9 +87,11 @@ export interface IConfig {
       TIMEOUT: number
       CORS: string[]
     }
-    SYNC_DAO: {
-      INTERVAL: number
-      FETCH_BATCH_SIZE: number
+    SYNC_DATA: {
+      TOKEN_INTERVAL: number
+      TOKEN_FETCH_BATCH_SIZE: number
+      DAO_INTERVAL: number
+      DAO_FETCH_BATCH_SIZE: number
     }
   }
 }

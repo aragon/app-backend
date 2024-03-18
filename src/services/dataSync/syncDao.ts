@@ -3,11 +3,10 @@ import { type IDao, type IDaoMetadata, type NetworksEnum } from '@types'
 import SatsumaHelper from '@helpers/satsuma'
 import Network from '@models/schema/network'
 import config from '@config'
-import mongo from '@modules/mongo'
 import IPFSHelper from '@helpers/ipfs'
-import type { SaveOptions } from 'mongoose'
 import { Models } from '@dbModels'
 import DuneHelper from '@helpers/dune'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'service:sync:SyncDao' })
 
@@ -18,6 +17,8 @@ export const SyncDao = {
   },
 
   async fetchAll() {
+    logger.verbose('Start fetching DAOs', llo(SyncDao.extraLog))
+
     const resp = await DuneHelper.getDaos()
     SyncDao.duneDaos = resp.daos
 
@@ -25,10 +26,10 @@ export const SyncDao = {
       logger.verbose('Starting DAO fetch', llo({ networkName }))
       await SyncDao._fetchDaosByNetwork(
         networkName as NetworksEnum,
-        config.SERVICES.SYNC_DAO.FETCH_BATCH_SIZE,
+        config.SERVICES.SYNC_DATA.DAO_FETCH_BATCH_SIZE,
       )
     }
-    logger.verbose('Completed fetching DAOs', llo(SyncDao.extraLog))
+    logger.verbose('Finish fetching DAOs', llo(SyncDao.extraLog))
     SyncDao._reset()
   },
 
@@ -98,46 +99,50 @@ export const SyncDao = {
     networkName: NetworksEnum,
     metadata?: IDaoMetadata,
   ) {
-    await mongo.executeTxFn(async(tOpts: SaveOptions) => {
-      const duneDao = SyncDao.duneDaos.find(
-        d => d.daoAddress === dao.daoAddress && d.network === networkName,
-      )
+    const duneDao = SyncDao.duneDaos.find(
+      d => d.daoAddress === dao.daoAddress && d.network === networkName,
+    )
 
-      const rawDao: any = {
-        name: metadata?.name,
-        logo: metadata?.avatar,
-        description: metadata?.description,
-        links: metadata?.links || [],
-        creatorAddress: dao.creatorAddress,
-        daoAddress: dao.daoAddress,
-        ens: duneDao?.ens ?? dao?.ens,
-        members: dao.members || 0,
-        metadataIpfs: dao.metadataIpfs,
-        network: networkName as NetworksEnum,
-        pluginName: dao.pluginName,
-        proposalsCreated: dao.proposalsCreated,
-        proposalsExecuted: dao.proposalsExecuted,
-        tvlUSD: duneDao?.tvlUSD ?? dao.tvlUSD,
-        txHash: duneDao?.txHash ?? dao.txHash,
-        uniqueVoters: duneDao?.uniqueVoters ?? dao.uniqueVoters,
-        votes: duneDao?.votes ?? dao.votes,
-        hideDao: dao.hideDao,
-        createdAt: dao.createdAt,
-      }
+    const rawDao: any = {
+      name: metadata?.name,
+      avatar: metadata?.avatar,
+      description: metadata?.description,
+      links: metadata?.links || [],
+      block: dao?.block,
+      creatorAddress: dao.creatorAddress,
+      daoAddress: dao.daoAddress,
+      ens: duneDao?.ens ?? dao?.ens,
+      members: dao.members || 0,
+      metadataIpfs: dao.metadataIpfs,
+      network: networkName as NetworksEnum,
+      pluginName: dao.pluginName,
+      proposalsCreated: dao.proposalsCreated,
+      proposalsExecuted: dao.proposalsExecuted,
+      tvlUSD: duneDao?.tvlUSD ?? dao.tvlUSD,
+      txHash: duneDao?.txHash ?? dao.txHash,
+      uniqueVoters: duneDao?.uniqueVoters ?? dao.uniqueVoters,
+      votes: duneDao?.votes ?? dao.votes,
+      hideDao: dao.hideDao,
+      createdAt: dao.createdAt,
+    }
 
-      const existingDao = await Models.Dao.findByDaoAddressAndNetwork(
-        dao.daoAddress,
-        networkName,
-      )
+    const existingDao = await Models.Dao.findByDaoAddressAndNetwork(
+      dao.daoAddress,
+      networkName,
+    )
 
+    return DbTx.executeTxFn(async({ session }) => {
+      let dbDao = null
       if (existingDao) {
-        existingDao.update(rawDao, tOpts)
+        dbDao = await existingDao.update(rawDao, { session })
+        logger.verbose('Updated DAO', llo({ daoAddress: dao.daoAddress }))
       } else {
-        await Models.Dao.create(rawDao, tOpts)
+        dbDao = await Models.Dao.create(rawDao, { session })
+        logger.verbose('Created DAO', llo({ daoAddress: dao.daoAddress }))
       }
-
-      await tOpts?.session?.commitTransaction()
-      tOpts?.session?.endSession()
+      await session.commitTransaction()
+      await session.endSession()
+      return dbDao
     })
   },
 

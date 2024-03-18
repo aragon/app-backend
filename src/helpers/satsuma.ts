@@ -12,7 +12,7 @@ import {
   type SubgraphQueryParam,
 } from '@types'
 import type { TypedDocumentNode } from '@graphql-typed-document-node/core'
-import dayjs from 'dayjs'
+import dayjs from '@helpers/dayjs'
 import utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3'
 
@@ -203,7 +203,7 @@ const SatsumaHelper = {
         nextCursor,
       }
     } catch (error) {
-      logger.error('Error fetching DAO member', llo({ network, params, error }))
+      logger.error('Error fetching DAOs', llo({ network, params, error }))
       return {
         daos: [],
         limit,
@@ -226,23 +226,21 @@ const SatsumaHelper = {
       ].includes(p.plugin?.__typename || 'none'),
     )?.plugin
 
-    if (!pluginType) {
-      return undefined
-    }
-
-    if (pluginType.__typename === EnumPluginType.TokenVotingPlugin) {
+    if (pluginType?.__typename === EnumPluginType.TokenVotingPlugin) {
       return {
         pluginType: EnumPluginType.TokenVotingPlugin,
         membersCount: pluginType.members.length,
       }
-    } else if (pluginType.__typename === EnumPluginType.MultisigPlugin) {
+    }
+
+    if (pluginType?.__typename === EnumPluginType.MultisigPlugin) {
       return {
         pluginType: EnumPluginType.MultisigPlugin,
         membersCount: pluginType.members.length,
       }
-    } else {
-      return undefined
     }
+
+    return undefined
   },
 
   _parseDao: (dao: IDaoSubgraph, network: NetworksEnum): IDao | undefined => {
@@ -262,7 +260,7 @@ const SatsumaHelper = {
         service: 'satsuma',
       })!,
       block: Number(dao.createdAt),
-      createdAt: dayjs(Number(dao.createdAt) * 1000).toISOString(),
+      createdAt: dayjs.utc(Number(dao.createdAt) * 1000).toDate(),
       ens: dao.daoURI,
       members: plugin?.membersCount ? Number(plugin.membersCount) : 0,
       metadataIpfs: dao?.metadata,

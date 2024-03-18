@@ -1,6 +1,6 @@
 import { type Next } from 'koa'
 import { type RouterContext } from '@koa/router'
-import { ErrorKey, type ICustomError, type IErrorResponse } from '@types'
+import { ErrorKeyEnum, type ICustomError, type IErrorResponse } from '@types'
 
 export default () => async(ctx: RouterContext, next: Next) => {
   try {
@@ -10,7 +10,7 @@ export default () => async(ctx: RouterContext, next: Next) => {
 
     let status = 500
     const response: IErrorResponse = {
-      code: ErrorKey.unknownError, // Default error code
+      code: ErrorKeyEnum.unknownError, // Default error code
       description: 'Internal server error', // Default error message
     }
 
@@ -19,7 +19,7 @@ export default () => async(ctx: RouterContext, next: Next) => {
       status = customError.status || 500
 
       response.code =
-        (ErrorKey as any)[customError.message] || ErrorKey.unknownError
+        (ErrorKeyEnum as any)[customError.message] || ErrorKeyEnum.unknownError
 
       if (customError.description) {
         response.description = customError.description

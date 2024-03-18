@@ -133,6 +133,17 @@ describe('Helpers:Utils', () => {
     expect(Utils.configParser(configSource, 'number', 'unkn', 2)).to.eq(2)
   })
 
+  it('configParser should throw error on unknown type', () => {
+    const configSource = {
+      test: 'value',
+    }
+    const key = 'test'
+
+    expect(() =>
+      Utils.configParser(configSource, 'unknownType' as any, key),
+    ).to.throw('Unknown variable type')
+  })
+
   it('Should parse json circular', () => {
     const child: any = {}
     const obj = { a: 1, child }

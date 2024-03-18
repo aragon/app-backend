@@ -6,6 +6,7 @@ import Formats from '@src/logger/format'
 import config from '@config'
 import * as logNodejs from 'logzio-nodejs'
 import * as sentry from '@sentry/node'
+import Transport from 'winston-transport'
 
 const sentryInitOriginal = sentry.init
 
@@ -224,8 +225,13 @@ describe('Logger: ExternalLogger', () => {
           userId: 'userId1',
         }
 
+        externalLogger.logzioLogger = {
+          log: sandbox.stub(),
+        }
+
         externalLogger.log(log, stubCallback)
 
+        expect(externalLogger.logzioLogger.log.calledOnce).to.be.true
         expect(mockSentry.setExtra.calledOnce).to.be.true
         expect(mockSentry.setExtra.args[0][0]).to.eq('info')
         expect(mockSentry.setExtra.args[0][1]).to.be.deep.eq(log)
@@ -270,5 +276,17 @@ describe('Logger: ExternalLogger', () => {
 
       expect(externalLogger.sentry.close.calledOnce).to.be.true
     })
+  })
+
+  it('end', () => {
+    const stubWinston = sinon.stub(Transport.prototype, 'end')
+
+    const externalLogger = new ExternalLogger()
+    const testArgs = ['arg1', 'arg2']
+
+    externalLogger.end(...testArgs)
+    expect(stubWinston.calledOnce).to.be.true
+    expect(stubWinston.args[0][0]).to.eq(testArgs[0])
+    expect(stubWinston.args[0][1]).to.eq(testArgs[1])
   })
 })

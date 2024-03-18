@@ -1,0 +1,156 @@
+import {
+  type HexAddress,
+  type IToken,
+  type ITokenCovalentResponse,
+  type INetworks,
+  type NetworksEnum,
+  type ITokenBalanceResponse,
+  type TokensBalancesType,
+} from '@types'
+import config from '@config'
+import dayjs from '@helpers/dayjs'
+import axios from 'axios'
+import logger from '@logger'
+import utils from '@helpers/utils'
+import { assert } from '@errors'
+import Web3Utils from '@helpers/web3'
+
+const llo = logger.logMeta.bind(null, { service: 'covalent' })
+
+const CovalentHelper = {
+  axiosInstance: axios.create({
+    baseURL: config.COVALENT.URI,
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${config.COVALENT.API_KEY}:`).toString('base64')}`,
+      'Content-Type': 'application/json',
+    },
+  }),
+
+  networksMap: {
+    ethereum: 'eth-mainnet',
+    goerli: 'eth-goerli',
+    sepolia: 'eth-sepolia',
+    polygon: 'matic-mainnet',
+    mumbai: 'matic-mumbai',
+    base: 'base-mainnet',
+    baseGoerli: 'base-testnet',
+    arbitrum: 'arbitrum-mainnet',
+    arbitrumGoerli: 'arbitrum-goerli',
+  },
+
+  nativeTokenAddress:
+    '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as HexAddress,
+
+  networkToCovalent: (network: INetworks) => {
+    return CovalentHelper.networksMap[network]
+  },
+
+  networkFromCovalent: (covalentNetwork: string) => {
+    return Object.entries(CovalentHelper.networksMap).find(
+      ([, cov]) => cov === covalentNetwork,
+    )?.[0] as INetworks | undefined
+  },
+
+  _rpCall: async <T>(path: string): Promise<T> => {
+    try {
+      const response = await CovalentHelper.axiosInstance.get(
+        `${config.COVALENT.URI}${path}`,
+      )
+      return response.data.data
+    } catch (error) {
+      logger.error('Error in Covalent RPC Call', llo({ path, error }))
+      throw error
+    }
+  },
+
+  getToken: async(
+    tokenContractAddress: string,
+    network: NetworksEnum,
+  ): Promise<Partial<IToken> | false> => {
+    if (tokenContractAddress === utils.zeroAddress) {
+      tokenContractAddress = CovalentHelper.nativeTokenAddress
+    }
+
+    const networkId = CovalentHelper.networkToCovalent(network)
+    const back2Days = dayjs().subtract(2, 'day').format('YYYY-MM-DD')
+    const path = `/pricing/historical_by_addresses_v2/${networkId}/${config.DEFAULT_CURRENCY}/${tokenContractAddress}/?from=${back2Days}`
+
+    try {
+      const response =
+        await CovalentHelper._rpCall<ITokenCovalentResponse[]>(path)
+      assert(response.length > 0, 'Price data not complete')
+
+      return CovalentHelper._parseToken(response[0], network)
+    } catch (error) {
+      logger.error(
+        'Error fetching token',
+        llo({ error, network, tokenContractAddress }),
+      )
+      return false
+    }
+  },
+
+  _parseToken: (
+    token: ITokenCovalentResponse,
+    network: NetworksEnum,
+  ): Partial<any> => {
+    const mostRecentPrice =
+      token.prices && token.prices.length > 0 ? token.prices[0].price : 0
+    const dayBeforePrice =
+      token.prices && token.prices.length > 1
+        ? token.prices[1].price
+        : mostRecentPrice
+    const priceChangeOnDayUsd = mostRecentPrice - dayBeforePrice
+
+    return {
+      address: Web3Utils.parseAddress(token.contract_address, {
+        ...token,
+        service: 'covalent',
+      })!,
+      network,
+      logo: token.logo_url,
+      name: token.contract_name,
+      symbol: token.contract_ticker_symbol,
+      decimals: token.contract_decimals,
+      priceUsd:
+        token?.prices?.length > 0 ? token?.prices[0].price.toString() : '0',
+      holders: 0,
+      totalSupply: 0,
+      priceChangeOnDayUsd,
+      lastUpdatedAt: dayjs().utc().toDate(),
+    }
+  },
+
+  getTokenBalance: async(
+    address: HexAddress,
+    network: INetworks,
+    currency: string,
+  ): Promise<TokensBalancesType | false> => {
+    const networkId = CovalentHelper.networkToCovalent(network)
+    const path = `/${networkId}/address/${address}/balances_v2/?quote-currency=${currency}`
+
+    try {
+      const response = await CovalentHelper._rpCall<ITokenBalanceResponse>(path)
+      return {
+        updatedAt: response.updated_at,
+        items: response.items.map(w => ({
+          contractAddress: w.contract_address,
+          contractName: w.contract_name,
+          contractTickerSymbol: w.contract_ticker_symbol,
+          contractDecimals: w.contract_decimals,
+          nativeToken: w.native_token || false,
+          balance: w.balance,
+          logoUrl: w.logo_url,
+        })),
+      }
+    } catch (error) {
+      logger.error(
+        'Error fetching token balance',
+        llo({ error, network, address }),
+      )
+      return false
+    }
+  },
+}
+
+export default CovalentHelper
