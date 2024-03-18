@@ -53,7 +53,7 @@ export interface IDao extends IDaoMetadata {
   proposalsCreated: number
   proposalsExecuted: number
   tvlUSD: number
-  txHash: HexAddress
+  txHash: HexAddress | null
   uniqueVoters: number
   votes: number
   hideDao: boolean
