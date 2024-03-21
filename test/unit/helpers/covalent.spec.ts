@@ -5,7 +5,7 @@ import CovalentHelper from '@helpers/covalent'
 import logger from '@logger'
 import config from '@config'
 import { IToken, NetworksEnum } from '@types'
-import { TokenList } from '@test/lib/fakeCovalentTokens'
+import { TokenList } from '@test/mock/fakeCovalentTokens'
 
 describe('Helpers: Covalent', () => {
   let sandbox: SinonSandbox

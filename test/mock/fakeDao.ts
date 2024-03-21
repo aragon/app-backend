@@ -1,0 +1,153 @@
+import { EnumPluginType } from '@types'
+
+export const DaoList = [
+  {
+    links: [],
+    block: 1677529415,
+    creatorAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+    daoAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
+    ens: 'management.dao.eth',
+    members: 5,
+    metadataIpfs: null,
+    network: 'ethereum',
+    plugins: [
+      {
+        type: EnumPluginType.MultisigPlugin,
+        address: '0x4423f3a76d2090e1388cb67fb7b2ae162f754281',
+      },
+    ],
+    proposalsCreated: 5,
+    proposalsExecuted: 5,
+    tvlUSD: 0,
+    txHash:
+      '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9c',
+    uniqueVoters: 4,
+    votes: 7,
+    hideDao: false,
+    createdAt: '2023-02-27T20:23:35.000Z',
+  },
+  {
+    name: 'sioDAO',
+    avatar: null,
+    description:
+      "This is sio.eth's personal testing DAO. The goal is to test out every new feature of the Aragon App that is made available on the mainnet. 🦅",
+    links: [
+      {
+        name: 'Website',
+        url: 'https://sio.gg/',
+      },
+      {
+        name: 'Twitter',
+        url: 'https://twitter.com/sio_eth',
+      },
+    ],
+    block: 1677697751,
+    creatorAddress: '0xd5fb864ACfD6BB2f72939f122e89fF7F475924f5',
+    daoAddress: '0x8DA012d74Aa21dCb0121610dfE5cadC0f0C3c198',
+    ens: 'sio.dao.eth',
+    members: 1,
+    metadataIpfs: 'ipfs://Qmdp234RLHFjyTUrTx2958abFEbJs6ChpzPSMJovGhvR4V',
+    network: 'ethereum',
+    plugins: [
+      {
+        type: EnumPluginType.MultisigPlugin,
+        address: '0x0673c13d48023efa609c20e5e351763b99dd67de',
+      },
+    ],
+    proposalsCreated: 1,
+    proposalsExecuted: 1,
+    tvlUSD: 0,
+    txHash:
+      '0xf982eeb27979afda22ba06613e52bf0e164a56a9d8d949b19878830097987303',
+    uniqueVoters: 1,
+    votes: 1,
+    hideDao: false,
+    createdAt: '2023-03-01T19:09:11.000Z',
+  },
+  {
+    name: 'barukimang',
+    avatar: null,
+    description: 'barukimang\n',
+    links: [],
+    block: 1677589847,
+    creatorAddress: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+    daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+    ens: 'barukimang.dao.eth',
+    members: 1,
+    metadataIpfs: 'ipfs://QmZzLpfYavuXVcFHuqDG7PkTWpfZ8tKDvtFjxVLbkQwz6o',
+    network: 'ethereum',
+    plugins: [
+      {
+        type: EnumPluginType.MultisigPlugin,
+        address: '0x563ebb4972bb6fabb1128c5895a31b6fac2f6e14',
+      },
+    ],
+    proposalsCreated: 12,
+    proposalsExecuted: 7,
+    tvlUSD: 56.653524513813046,
+    txHash:
+      '0x8c325e119c9728b60094a13cdc76a06a3821364259596dc968b60c31010e4988',
+    uniqueVoters: 1,
+    votes: 7,
+    hideDao: false,
+    createdAt: '2023-02-28T13:10:47.000Z',
+  },
+  {
+    creatorAddress: '0x826976d7C600d45FB8287CA1d7c76FC8eb732030',
+    daoAddress: '0x71a9924745E1D28E90811ee3D8f3193686026333',
+    block: null,
+    createdAt: '2023-02-28T22:38:59.000Z',
+    ens: 'giveth.dao.eth',
+    members: 2,
+    metadataIpfs: 'ipfs://QmNitNJ28bKL8rg7qQqeZKG3EXsnv3a3Qb3dDsn3Y82WaT',
+    network: 'ethereum',
+    plugins: [
+      {
+        type: EnumPluginType.TokenVotingPlugin,
+        address: '0xabcc395dd4533b4e787b1318fc6d16ec8e62facb',
+      },
+    ],
+    proposalsCreated: 0,
+    proposalsExecuted: 0,
+    tvlUSD: 0,
+    txHash:
+      '0xb9ae60e2bd728c035fe1e597c6660a0c063854d24b38392cd9f02cae19b9ddf4',
+    uniqueVoters: 0,
+    votes: 0,
+    hideDao: false,
+  },
+  {
+    name: 'TOTAL DEINSURANCE',
+    avatar: 'ipfs://QmT1L9UQw7xHkCvZE3T58j82APd5JHvxKx1B7RAtAAfWX9',
+    description:
+      "This TOTAL DEINSURANCE DAO's is new era of insurance industry whereby the insurance policy is no longer controlled by centralized agency or particular party. \nIt promote a fair distribution of wealth and also the claims submitted by insured. All the insurance premium also allocate accordingly to promising project instead being controlled by some mastermind behind the scene which is unfair to insurance policy holder. \nThe increasing of cost of living and inflation rate can be resolved through this DAOs as the participation is based on market value. \nThis DAOs also enhance fair distribution of wealth build this DAOs to all the holders.",
+    links: [
+      {
+        name: 'TOTALGROUP',
+        url: 'http://www.totalgroup.com.my',
+      },
+    ],
+    block: 1683530039,
+    creatorAddress: '0x8031D00E242dD3f5e2AD180083d3Ad2d5B161450',
+    daoAddress: '0x87D17aB888d5140F2b911a081ED209d06e7a890E',
+    ens: 'totaldeinsurance.dao.eth',
+    members: 14,
+    metadataIpfs: 'ipfs://QmVfthHgGvr1kKqhkBZwYxPDc2t9adA4YwAMAnTzvUyQP1',
+    network: 'ethereum',
+    plugins: [
+      {
+        type: EnumPluginType.TokenVotingPlugin,
+        address: '0x0',
+      },
+    ],
+    proposalsCreated: 2,
+    proposalsExecuted: 1,
+    tvlUSD: 424.81185800142185,
+    txHash:
+      '0xd90d7bdefc6a0207a8e3c7009fd0515ddd7ed98bbe0b3d0b71cf89c2b9c52795',
+    uniqueVoters: 1,
+    votes: 2,
+    hideDao: false,
+    createdAt: '2023-05-08T07:13:59.000Z',
+  },
+]

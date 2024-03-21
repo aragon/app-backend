@@ -1,11 +1,6 @@
 // DAO MEMBER
 import { type ENS, type HexAddress } from '@src/types/networks'
 
-export interface IDaosOfMember {
-  tokenVotingMembers: SubgraphMemberOfDao[]
-  multisigApprovers: SubgraphMemberOfDao[]
-}
-
 export interface SubgraphQueryParam {
   where: any
   block?: number | null
@@ -13,20 +8,6 @@ export interface SubgraphQueryParam {
   skip?: number
   orderBy?: string
   orderDirection?: string
-}
-
-export interface SubgraphMemberOfDao {
-  address: string
-  plugin: {
-    pluginAddress: string
-    dao: {
-      id: string
-      metadata: string
-      subdomain: string
-      createdAt: string
-      proposals: { __typename: string, id: string }[]
-    }
-  }
 }
 
 // DAOs
