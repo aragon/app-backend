@@ -54,7 +54,9 @@ const DuneHelper = {
       members: dao.members,
       metadataIpfs: dao.metadata_ipfs?.replace(/\0/g, ''),
       network: dao.network,
-      pluginName: dao.plugin_name,
+      links: [],
+      plugins: [],
+      // pluginName: dao.plugin_name,
       proposalsCreated: dao.proposals_created,
       proposalsExecuted: dao.proposals_executed,
       tvlUSD: dao.tvl_usd, // only from dune
