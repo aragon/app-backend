@@ -43,21 +43,27 @@ export enum EnumPluginType {
 }
 
 export interface SubgraphTokenVotingPlugin {
+  pluginAddress: HexAddress
   __typename: EnumPluginType.TokenVotingPlugin
   members: { votingPower?: number }[]
 }
 
 export interface SubgraphMultisigPlugin {
+  pluginAddress: HexAddress
   __typename: EnumPluginType.MultisigPlugin
   members: { address?: string }[]
 }
 
 export interface SubgraphAddresslistVotingPlugin {
+  pluginAddress: HexAddress
   __typename: EnumPluginType.AddresslistVotingPlugin
+  members: undefined
 }
 
 export interface SubgraphAdminPlugin {
+  pluginAddress: HexAddress
   __typename: EnumPluginType.AdminPlugin
+  members: undefined
 }
 
 export interface SubgraphProposal {
