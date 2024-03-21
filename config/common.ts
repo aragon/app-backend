@@ -69,11 +69,16 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       METADATA_FETCH_DELAY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_DELAY', 5000),
     },
 
-    ALCHEMY: {
-      MAINNET: utils.configParser(sourceConfig, 'string', 'ALCHEMY_MAINNET', null),
-      POLYGON: utils.configParser(sourceConfig, 'string', 'ALCHEMY_POLYGON', null),
-      MUMBAI: utils.configParser(sourceConfig, 'string', 'ALCHEMY_MUMBAI', null),
-      GOERLI: utils.configParser(sourceConfig, 'string', 'ALCHEMY_GOERLI', null),
+    BLOCKCHAIN_NODES: {
+      ETHEREUM: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ETHEREUM', 'wss://anonymous:jea2cqw5PWX_fwu0fyb@geth.cloud'),
+      GOERLI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_GOERLI', null),
+      SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_SEPOLIA', null),
+      MUMBAI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_MUMBAI', null),
+      POLYGON: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_POLYGON', null),
+      BASE: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE', null),
+      BASE_GOERLI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE_GOERLI', null),
+      ARBITRUM: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM', null),
+      ARBITRUM_GOERLI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM_GOERLI', null),
     },
 
     SERVICES: {
