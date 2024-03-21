@@ -116,7 +116,13 @@ describe('DataSync: syncDao', () => {
       members: 12,
       metadataIpfs: null,
       network: NetworksEnum.ethereum,
-      pluginName: EnumPluginType.MultisigPlugin,
+      links: [],
+      plugins: [
+        {
+          address: '0x00',
+          type: EnumPluginType.MultisigPlugin,
+        },
+      ],
       proposalsCreated: dayjs().unix(),
       proposalsExecuted: dayjs().unix(),
       tvlUSD: 0,
@@ -155,7 +161,9 @@ describe('DataSync: syncDao', () => {
     expect(dbDao.members).to.eq(dao.members)
     expect(dbDao.metadataIpfs).to.eq(dao.metadataIpfs)
     expect(dbDao.network).to.eq(dao.network)
-    expect(dbDao.pluginName).to.eq(dao.pluginName)
+    expect(dbDao.plugins.length).to.eq(1)
+    expect(dbDao.plugins[0].type).to.eq(dao.plugins[0].type)
+    expect(dbDao.plugins[0].address).to.eq(dao.plugins[0].address)
     expect(dbDao.proposalsCreated).to.eq(dao.proposalsCreated)
     expect(dbDao.proposalsExecuted).to.eq(dao.proposalsExecuted)
     expect(dbDao.tvlUSD).to.eq(10)
@@ -182,7 +190,13 @@ describe('DataSync: syncDao', () => {
       members: 12,
       metadataIpfs: null,
       network: NetworksEnum.ethereum,
-      pluginName: EnumPluginType.MultisigPlugin,
+      links: [],
+      plugins: [
+        {
+          address: '0x00',
+          type: EnumPluginType.MultisigPlugin,
+        },
+      ],
       proposalsCreated: dayjs().unix(),
       proposalsExecuted: dayjs().unix(),
       tvlUSD: 10,

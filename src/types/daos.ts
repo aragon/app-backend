@@ -58,6 +58,22 @@ export interface IDaoMemberParams {
   orderDirection: string
 }
 
+export interface IDaoMultiSigMember {
+  address: HexAddress
+}
+
+export interface IDaoTokenVotingMember {
+  address: HexAddress
+  balance: string
+  votingPower: string
+  delegatee: { address: HexAddress }
+  delegators: { address: HexAddress, balance: string }[]
+}
+
+export interface IDaoMembersResponse {
+  members: IDaoMultiSigMember[] | IDaoTokenVotingMember[]
+}
+
 export interface IDao extends IDaoMetadata {
   creatorAddress: HexAddress
   daoAddress: HexAddress

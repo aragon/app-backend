@@ -14,14 +14,6 @@ describe('Manual: Satsuma', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should getDaosOfMember', async () => {
-    const network = NetworksEnum.ethereum
-    const address = '0xe0bd0fe4e70478d5aaf9df546fc76b964ce0bc54'
-
-    const response = await SatsumaHelper.getDaosOfMember(network, address)
-    console.log(response) // eslint-disable-line no-console
-  })
-
   it('should getDaos', async () => {
     const network = NetworksEnum.ethereum
 

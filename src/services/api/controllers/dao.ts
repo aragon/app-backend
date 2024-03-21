@@ -1,7 +1,10 @@
 import { Models } from '@dbModels'
 import {
   EnumPluginType,
+  ErrorKeyEnum,
   type HexAddress,
+  type IDaoMemberParams,
+  type IDaoMembersResponse,
   type IPlugin,
   type IResponseWithPagination,
   type ItxOpts,
@@ -42,53 +45,57 @@ const DaoController = {
 
   getDao: async(network: NetworksEnum, address: HexAddress) => {
     const dao = await Models.Dao.findByDaoAddressAndNetwork(address, network)
-    assertExposable(dao, 'not_found')
+    assertExposable(dao, ErrorKeyEnum.notFound)
 
     return dao.filterKeys()
   },
 
-  getDaoMembers: async(network: NetworksEnum, address: HexAddress) => {
+  getDaoMembersMultiSig: async(
+    network: NetworksEnum,
+    address: HexAddress,
+    memberFilters: IDaoMemberParams,
+  ): Promise<IDaoMembersResponse> => {
     const dao = await Models.Dao.findByDaoAddressAndNetwork(address, network)
-    assertExposable(dao, 'not_found')
-
-    const daoMembers = await Promise.all(
-      dao.plugins.map(async(plugin: IPlugin) => {
-        const result = {
-          tokenVotingMembers: [],
-          multisigApprovers: [],
-        }
-
-        if (plugin.type === EnumPluginType.MultisigPlugin) {
-          result.multisigApprovers = await Satsuma.getMultiSigMembers(
-            network,
-            plugin.address,
-            {
-              limit: 10,
-              skip: 0,
-              orderBy: 'address',
-              orderDirection: 'asc',
-            },
-          )
-        }
-
-        if (plugin.type === EnumPluginType.TokenVotingPlugin) {
-          result.tokenVotingMembers = await Satsuma.getTokenVotingMembers(
-            network,
-            plugin.address,
-            {
-              limit: 10,
-              skip: 0,
-              orderBy: 'address',
-              orderDirection: 'asc',
-            },
-          )
-        }
-
-        return result
-      }),
+    const multiSigPlugin = dao.plugins.find(
+      (w: IPlugin) => w.type === EnumPluginType.MultisigPlugin,
     )
 
-    return daoMembers
+    assertExposable(dao, ErrorKeyEnum.notFound)
+    assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
+
+    const members = await Satsuma.getMultiSigMembers(
+      network,
+      multiSigPlugin.address,
+      memberFilters,
+    )
+
+    return {
+      members,
+    }
+  },
+
+  getDaoMembersTokenVoting: async(
+    network: NetworksEnum,
+    address: HexAddress,
+    memberFilters: IDaoMemberParams,
+  ): Promise<IDaoMembersResponse> => {
+    const dao = await Models.Dao.findByDaoAddressAndNetwork(address, network)
+    const multiSigPlugin = dao.plugins.find(
+      w => w.type === EnumPluginType.TokenVotingPlugin,
+    )
+
+    assertExposable(dao, ErrorKeyEnum.notFound)
+    assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
+
+    const members = await Satsuma.getTokenVotingMembers(
+      network,
+      multiSigPlugin.address,
+      memberFilters,
+    )
+
+    return {
+      members,
+    }
   },
 }
 

@@ -3,11 +3,12 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import SatsumaHelper from '@helpers/satsuma'
 import dayjs from '@helpers/dayjs'
-import { DaoList } from '@test/lib/fakeGraphDaos'
-import { NetworksEnum } from '@types'
+import { DaoList } from '@test/mock/fakeGraphDaos'
+import { HexAddress, NetworksEnum } from '@types'
 import utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3'
 import logger from '@logger'
+import Satsuma from '@helpers/satsuma'
 
 describe('Helpers: Satsuma', () => {
   let sandbox: SinonSandbox
@@ -55,48 +56,6 @@ describe('Helpers: Satsuma', () => {
     })
   })
 
-  describe('getDaosOfMember', async () => {
-    it('should getDaosOfMember', async () => {
-      const stubRequest = sandbox.stub(SatsumaHelper, '_rpCall').resolves({
-        tokenVotingMembers: [],
-        multisigApprovers: [],
-      })
-      const network = NetworksEnum.ethereum
-      const address = '0xe0bd0fe4e70478d5aaf9df546fc76b964ce0bc54'
-
-      const res = await SatsumaHelper.getDaosOfMember(network, address)
-
-      expect(res).to.deep.equal({
-        tokenVotingMembers: [],
-        multisigApprovers: [],
-      })
-      expect(stubRequest.calledOnce).to.be.true
-      expect(stubRequest.args[0][0]).to.eq(network)
-      expect(stubRequest.args[0][2]).to.deep.equal({
-        where: {
-          address,
-        },
-      })
-    })
-
-    it('handles error fetching DAO member in getDaosOfMember', async () => {
-      const testError = new Error('Test error fetching DAO member')
-      sandbox.stub(SatsumaHelper, '_rpCall').rejects(testError)
-      const stubLogger = sandbox.stub(logger, 'error')
-
-      const response = await SatsumaHelper.getDaosOfMember(
-        NetworksEnum.ethereum,
-        '0x...',
-      )
-
-      expect(response.tokenVotingMembers).to.deep.equal([])
-      expect(response.multisigApprovers).to.deep.equal([])
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Error fetching DAO member' as any)).to.be
-        .true
-    })
-  })
-
   describe('getDaos', async () => {
     it('should getDaos', async () => {
       const limit = 2
@@ -116,6 +75,7 @@ describe('Helpers: Satsuma', () => {
             plugins: [
               {
                 plugin: {
+                  pluginAddress: '0xa96b5f30132bb56bd6faee2fdf4a4e14ad413206',
                   __typename: 'TokenVotingPlugin',
                   members: [{ votingPower: 100 }],
                 },
@@ -136,6 +96,7 @@ describe('Helpers: Satsuma', () => {
             plugins: [
               {
                 plugin: {
+                  pluginAddress: '0xa96b5f30132bb56bd6faee2fdf4a4e14ad413206',
                   __typename: 'MultisigPlugin',
                   members: [{ votingPower: 100 }],
                 },
@@ -189,9 +150,9 @@ describe('Helpers: Satsuma', () => {
       )
       expect(res.daos[0].metadataIpfs).to.eq(fakeResponse.daos[0].metadata)
       expect(res.daos[0].network).to.eq(network)
-      expect(res.daos[0].pluginName).to.eq(
-        fakeResponse.daos[0].plugins[0].plugin.__typename,
-      )
+      // expect(res.daos[0].pluginName).to.eq(
+      //   fakeResponse.daos[0].plugins[0].plugin.__typename,
+      // )
       expect(res.daos[0].proposalsCreated).to.eq(
         fakeResponse.daos[0].proposals.length,
       )
@@ -249,6 +210,9 @@ describe('Helpers: Satsuma', () => {
       const processedDao = SatsumaHelper._parseDao(rawDao as any, network) // This assumes _parseDao is accessible
 
       const expectedDao = {
+        avatar: null,
+        description: null,
+        name: null,
         creatorAddress: Web3Utils.parseAddress(rawDao?.creator as any),
         daoAddress: Web3Utils.parseAddress(rawDao.id as any),
         block: Number(rawDao.createdAt),
@@ -257,7 +221,13 @@ describe('Helpers: Satsuma', () => {
         members: rawDao.plugins[0].plugin.members.length,
         metadataIpfs: rawDao.metadata,
         network: network,
-        pluginName: rawDao.plugins[0].plugin.__typename,
+        links: [],
+        plugins: [
+          {
+            address: rawDao.plugins[0].plugin.pluginAddress,
+            pluginType: rawDao.plugins[0].plugin.__typename,
+          },
+        ],
         proposalsCreated: rawDao.proposals?.length,
         proposalsExecuted: rawDao.proposals?.filter(p => p.executed).length,
         tvlUSD: 0,
@@ -311,14 +281,16 @@ describe('Helpers: Satsuma', () => {
     it('should _getPluginInfo', () => {
       const rawDao = DaoList[0]
 
-      const pluginInfo = SatsumaHelper._getPluginInfo(rawDao as any)
+      const pluginInfo = SatsumaHelper._parsePlugins(rawDao as any)
 
       const expectedResult = {
+        address: '0xa96b5f30132bb56bd6faee2fdf4a4e14ad413206',
         pluginType: 'MultisigPlugin',
         membersCount: 1,
       }
 
-      expect(pluginInfo).to.deep.equal(expectedResult)
+      expect(pluginInfo.length).to.eq(1)
+      expect(pluginInfo[0]).to.deep.equal(expectedResult)
     })
 
     it('returns undefined for _getPluginInfo when pluginType is not found', () => {
@@ -330,8 +302,8 @@ describe('Helpers: Satsuma', () => {
         ],
       }
 
-      const result = SatsumaHelper._getPluginInfo(dao as any)
-      expect(result).to.be.undefined
+      const result = SatsumaHelper._parsePlugins(dao as any)
+      expect(result.length).to.eq(0)
     })
 
     it('returns undefined for _getPluginInfo when pluginType is unrecognized', () => {
@@ -345,8 +317,194 @@ describe('Helpers: Satsuma', () => {
         ],
       }
 
-      const result = SatsumaHelper._getPluginInfo(dao as any)
-      expect(result).to.be.undefined
+      const result = SatsumaHelper._parsePlugins(dao as any)
+      expect(result.length).to.eq(0)
+    })
+
+    it('returns Invalid plugins structure', () => {
+      const dao = {}
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      const result = SatsumaHelper._parsePlugins(dao as any)
+      expect(result.length).to.eq(0)
+      expect(stubLogger.calledOnceWith('Invalid DAO plugins structure' as any)).to.be.true
+    })
+  })
+
+  describe('getTokenVotingMembers', async () => {
+    it('should getTokenVotingMembers', async () => {
+      const mockDao = DaoList[3]
+
+      const fakeResponse = [
+        {
+          address: '0x826976d7c600d45fb8287ca1d7c76fc8eb732030',
+          balance: '69000000000000000000',
+          votingPower: '69000000000000000000',
+          delegatee: {
+            address: '0x826976d7c600d45fb8287ca1d7c76fc8eb732030',
+          },
+          delegators: [
+            {
+              address: '0x826976d7c600d45fb8287ca1d7c76fc8eb732030',
+              balance: '69000000000000000000',
+            },
+          ],
+        },
+        {
+          address: '0x839395e20bbb182fa440d08f850e6c7a8f6f0780',
+          balance: '69000000000000000000',
+          votingPower: '69000000000000000000',
+          delegatee: {
+            address: '0x839395e20bbb182fa440d08f850e6c7a8f6f0780',
+          },
+          delegators: [
+            {
+              address: '0x839395e20bbb182fa440d08f850e6c7a8f6f0780',
+              balance: '69000000000000000000',
+            },
+          ],
+        },
+      ]
+      const stubRequest = sandbox
+        .stub(SatsumaHelper, '_rpCall')
+        .resolves({ tokenVotingMembers: fakeResponse })
+      const network = NetworksEnum.ethereum
+      const pluginAddress = mockDao.plugins[0].plugin
+        .pluginAddress as HexAddress
+      const filters = {
+        limit: 10,
+        skip: 0,
+        orderBy: 'address',
+        orderDirection: 'asc',
+      }
+
+      const res = await SatsumaHelper.getTokenVotingMembers(
+        network,
+        pluginAddress,
+        filters,
+      )
+
+      expect(res).to.deep.equal(fakeResponse)
+      expect(stubRequest.calledOnce).to.be.true
+      expect(stubRequest.args[0][0]).to.eq(network)
+      expect(stubRequest.args[0][2]).to.deep.equal({
+        where: { plugin: pluginAddress.toLowerCase() },
+        block: null,
+        limit: filters.limit,
+        skip: filters.skip,
+        sortBy: filters.orderBy,
+        direction: filters.orderDirection,
+      })
+    })
+
+    it('handles error getTokenVotingMembers', async () => {
+      const mockDao = DaoList[3]
+      const pluginAddress = mockDao.plugins[0].plugin
+        .pluginAddress as HexAddress
+      const network = NetworksEnum.ethereum
+      const filters = {
+        limit: 10,
+        skip: 0,
+        orderBy: 'address',
+        orderDirection: 'asc',
+      }
+
+      const testError = new Error('Test error fetching DAO member')
+      sandbox.stub(SatsumaHelper, '_rpCall').rejects(testError)
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const response = await SatsumaHelper.getTokenVotingMembers(
+        network,
+        '0x...',
+        filters,
+      )
+
+      expect(response).to.deep.equal([])
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Error fetching TokenVoting members' as any))
+        .to.be.true
+    })
+  })
+
+  describe('getMultiSigMembers', async () => {
+    it('should getMultiSigMembers', async () => {
+      const mockDao = DaoList[1]
+
+      const fakeResponse = [
+        {
+          address: '0x25cd4b8a02a8f9e920eb02fac38c2954694a3fa5',
+        },
+        {
+          address: '0x3ffe3f16d47a54b1c6a3f47c9e6ff5c2c1b32859',
+        },
+        {
+          address: '0x42342037e0fc34c130cdb079139f8ae56d38453f',
+        },
+        {
+          address: '0xaf2c536f9af22548829b20e9afc567259c820c62',
+        },
+        {
+          address: '0xdf62645a2c714febbf6060d1fb607e7eccef0659',
+        },
+      ]
+      const stubRequest = sandbox
+        .stub(SatsumaHelper, '_rpCall')
+        .resolves({ multisigApprovers: fakeResponse })
+      const network = NetworksEnum.ethereum
+      const pluginAddress = mockDao.plugins[0].plugin
+        .pluginAddress as HexAddress
+      const filters = {
+        limit: 10,
+        skip: 0,
+        orderBy: 'address',
+        orderDirection: 'asc',
+      }
+
+      const res = await SatsumaHelper.getMultiSigMembers(
+        network,
+        pluginAddress,
+        filters,
+      )
+
+      expect(res).to.deep.equal(fakeResponse)
+      expect(stubRequest.calledOnce).to.be.true
+      expect(stubRequest.args[0][0]).to.eq(network)
+      expect(stubRequest.args[0][2]).to.deep.equal({
+        where: { plugin: pluginAddress.toLowerCase() },
+        block: null,
+        limit: filters.limit,
+        skip: filters.skip,
+        sortBy: filters.orderBy,
+        direction: filters.orderDirection,
+      })
+    })
+
+    it('handles error getMultiSigMembers', async () => {
+      const mockDao = DaoList[3]
+      const pluginAddress = mockDao.plugins[0].plugin
+        .pluginAddress as HexAddress
+      const network = NetworksEnum.ethereum
+      const filters = {
+        limit: 10,
+        skip: 0,
+        orderBy: 'address',
+        orderDirection: 'asc',
+      }
+
+      const testError = new Error('Test error fetching DAO member')
+      sandbox.stub(SatsumaHelper, '_rpCall').rejects(testError)
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const response = await SatsumaHelper.getMultiSigMembers(
+        network,
+        '0x...',
+        filters,
+      )
+
+      expect(response).to.deep.equal([])
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Error fetching MultiSig members' as any)).to
+        .be.true
     })
   })
 })
