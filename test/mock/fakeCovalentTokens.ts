@@ -4,13 +4,11 @@ export const TokenList = [
     contract_ticker_symbol: 'WETH',
     contract_address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
     supports_erc: ['erc20'],
-    logo_url:
-      'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
+    logo_url: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
     update_at: '2024-03-12T00:31:45.583318168Z',
     quote_currency: 'USD',
     logo_urls: {
-      token_logo_url:
-        'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
+      token_logo_url: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
       protocol_logo_url: null,
       chain_logo_url: 'https://www.datocms-assets.com/86369/1669653891-eth.svg',
     },
@@ -22,8 +20,7 @@ export const TokenList = [
           contract_ticker_symbol: 'WETH',
           contract_address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           supports_erc: ['erc20'],
-          logo_url:
-            'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
+          logo_url: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         },
         date: '2024-03-12',
         price: 4086.604,
@@ -36,8 +33,7 @@ export const TokenList = [
           contract_ticker_symbol: 'WETH',
           contract_address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           supports_erc: ['erc20'],
-          logo_url:
-            'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
+          logo_url: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         },
         date: '2024-03-11',
         price: 4064.3413,
@@ -50,8 +46,7 @@ export const TokenList = [
           contract_ticker_symbol: 'WETH',
           contract_address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           supports_erc: ['erc20'],
-          logo_url:
-            'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
+          logo_url: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         },
         date: '2024-03-10',
         price: 3884.9846,
@@ -66,8 +61,7 @@ export const TokenList = [
           contract_ticker_symbol: 'WETH',
           contract_address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           supports_erc: ['erc20'],
-          logo_url:
-            'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
+          logo_url: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         },
         date: '2024-03-12',
         price: 4086.604,
@@ -80,8 +74,7 @@ export const TokenList = [
           contract_ticker_symbol: 'WETH',
           contract_address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           supports_erc: ['erc20'],
-          logo_url:
-            'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
+          logo_url: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         },
         date: '2024-03-11',
         price: 4064.3413,
@@ -94,8 +87,7 @@ export const TokenList = [
           contract_ticker_symbol: 'WETH',
           contract_address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           supports_erc: ['erc20'],
-          logo_url:
-            'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
+          logo_url: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         },
         date: '2024-03-10',
         price: 3884.9846,
@@ -113,8 +105,7 @@ export const TokenList = [
     update_at: '2024-03-13T02:42:01.295816705Z',
     quote_currency: 'USD',
     logo_urls: {
-      token_logo_url:
-        'https://logos.covalenthq.com/tokens/1/0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.png',
+      token_logo_url: 'https://logos.covalenthq.com/tokens/1/0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.png',
       protocol_logo_url: null,
       chain_logo_url: 'https://www.datocms-assets.com/86369/1669653891-eth.svg',
     },
@@ -126,8 +117,7 @@ export const TokenList = [
           contract_ticker_symbol: 'ETH',
           contract_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
           supports_erc: null,
-          logo_url:
-            'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
+          logo_url: 'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
         },
         date: '2024-03-13',
         price: 4021.0115,
@@ -140,8 +130,7 @@ export const TokenList = [
           contract_ticker_symbol: 'ETH',
           contract_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
           supports_erc: null,
-          logo_url:
-            'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
+          logo_url: 'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
         },
         date: '2024-03-12',
         price: 3978.5828,
@@ -154,8 +143,7 @@ export const TokenList = [
           contract_ticker_symbol: 'ETH',
           contract_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
           supports_erc: null,
-          logo_url:
-            'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
+          logo_url: 'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
         },
         date: '2024-03-11',
         price: 4066.1802,
@@ -170,8 +158,7 @@ export const TokenList = [
           contract_ticker_symbol: 'ETH',
           contract_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
           supports_erc: null,
-          logo_url:
-            'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
+          logo_url: 'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
         },
         date: '2024-03-13',
         price: 4021.0115,
@@ -184,8 +171,7 @@ export const TokenList = [
           contract_ticker_symbol: 'ETH',
           contract_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
           supports_erc: null,
-          logo_url:
-            'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
+          logo_url: 'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
         },
         date: '2024-03-12',
         price: 3978.5828,
@@ -198,8 +184,7 @@ export const TokenList = [
           contract_ticker_symbol: 'ETH',
           contract_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
           supports_erc: null,
-          logo_url:
-            'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
+          logo_url: 'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
         },
         date: '2024-03-11',
         price: 4066.1802,

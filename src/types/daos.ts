@@ -67,7 +67,7 @@ export interface IDaoTokenVotingMember {
   balance: string
   votingPower: string
   delegatee: { address: HexAddress }
-  delegators: { address: HexAddress, balance: string }[]
+  delegators: { address: HexAddress; balance: string }[]
 }
 
 export interface IDaoMembersResponse {

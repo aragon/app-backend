@@ -19,8 +19,7 @@ export const DaoList = [
     proposalsCreated: 5,
     proposalsExecuted: 5,
     tvlUSD: 0,
-    txHash:
-      '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9c',
+    txHash: '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9c',
     uniqueVoters: 4,
     votes: 7,
     hideDao: false,
@@ -57,8 +56,7 @@ export const DaoList = [
     proposalsCreated: 1,
     proposalsExecuted: 1,
     tvlUSD: 0,
-    txHash:
-      '0xf982eeb27979afda22ba06613e52bf0e164a56a9d8d949b19878830097987303',
+    txHash: '0xf982eeb27979afda22ba06613e52bf0e164a56a9d8d949b19878830097987303',
     uniqueVoters: 1,
     votes: 1,
     hideDao: false,
@@ -85,8 +83,7 @@ export const DaoList = [
     proposalsCreated: 12,
     proposalsExecuted: 7,
     tvlUSD: 56.653524513813046,
-    txHash:
-      '0x8c325e119c9728b60094a13cdc76a06a3821364259596dc968b60c31010e4988',
+    txHash: '0x8c325e119c9728b60094a13cdc76a06a3821364259596dc968b60c31010e4988',
     uniqueVoters: 1,
     votes: 7,
     hideDao: false,
@@ -110,8 +107,7 @@ export const DaoList = [
     proposalsCreated: 0,
     proposalsExecuted: 0,
     tvlUSD: 0,
-    txHash:
-      '0xb9ae60e2bd728c035fe1e597c6660a0c063854d24b38392cd9f02cae19b9ddf4',
+    txHash: '0xb9ae60e2bd728c035fe1e597c6660a0c063854d24b38392cd9f02cae19b9ddf4',
     uniqueVoters: 0,
     votes: 0,
     hideDao: false,
@@ -143,8 +139,7 @@ export const DaoList = [
     proposalsCreated: 2,
     proposalsExecuted: 1,
     tvlUSD: 424.81185800142185,
-    txHash:
-      '0xd90d7bdefc6a0207a8e3c7009fd0515ddd7ed98bbe0b3d0b71cf89c2b9c52795',
+    txHash: '0xd90d7bdefc6a0207a8e3c7009fd0515ddd7ed98bbe0b3d0b71cf89c2b9c52795',
     uniqueVoters: 1,
     votes: 2,
     hideDao: false,

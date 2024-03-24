@@ -84,17 +84,13 @@ describe('Model: Dao', () => {
 
   it('Should update DAO', async () => {
     const createdDao = await Models.Dao.create(rawDao)
-    expect(createdDao.creatorAddress).to.eq(
-      '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-    )
+    expect(createdDao.creatorAddress).to.eq('0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969')
 
     await createdDao.update({
       creatorAddress: '0x558c9997f8d382f02dfce79e275af637d8bb19e6',
     })
 
-    expect(createdDao.creatorAddress).to.eq(
-      '0x558c9997f8d382f02dfce79e275af637d8bb19e6',
-    )
+    expect(createdDao.creatorAddress).to.eq('0x558c9997f8d382f02dfce79e275af637d8bb19e6')
   })
 
   it('Should find DAO by address', async () => {
@@ -105,10 +101,7 @@ describe('Model: Dao', () => {
 
   it('Should find DAO by address and networks', async () => {
     const createdDao = await Models.Dao.create(rawDao)
-    const dao = await Models.Dao.findByDaoAddressAndNetwork(
-      createdDao.daoAddress,
-      rawDao.network as NetworksEnum,
-    )
+    const dao = await Models.Dao.findByDaoAddressAndNetwork(createdDao.daoAddress, rawDao.network as NetworksEnum)
     expect(dao?.daoAddress).to.eq(createdDao.daoAddress)
   })
 
@@ -194,11 +187,10 @@ describe('Model: Dao', () => {
     })
 
     it('Should find Pagination', async () => {
-      const { data, totRecords, currentPage, totPages } =
-        await Models.Dao.findWithPagination(
-          { networks: [], pluginTypes: [] },
-          {},
-        )
+      const { data, totRecords, currentPage, totPages } = await Models.Dao.findWithPagination(
+        { networks: [], pluginTypes: [] },
+        {},
+      )
 
       expect(data.length).to.eq(3)
       expect(totRecords).to.eq(3)
@@ -207,14 +199,13 @@ describe('Model: Dao', () => {
     })
 
     it('Should find Pagination with networks and plugin', async () => {
-      const { data, totRecords, currentPage, totPages } =
-        await Models.Dao.findWithPagination(
-          {
-            networks: [NetworksEnum.ethereum],
-            pluginTypes: [EnumPluginType.MultisigPlugin],
-          },
-          {},
-        )
+      const { data, totRecords, currentPage, totPages } = await Models.Dao.findWithPagination(
+        {
+          networks: [NetworksEnum.ethereum],
+          pluginTypes: [EnumPluginType.MultisigPlugin],
+        },
+        {},
+      )
 
       expect(data.length).to.eq(1)
       expect(totRecords).to.eq(1)
@@ -285,10 +276,7 @@ describe('Model: Dao', () => {
         limit: 2,
       }
 
-      const result = await Models.Dao.findWithPagination(
-        { networks: [], pluginTypes: [] },
-        params,
-      )
+      const result = await Models.Dao.findWithPagination({ networks: [], pluginTypes: [] }, params)
 
       expect(result.data.length).to.eq(2)
       expect(result.totRecords).to.eq(3)
@@ -302,10 +290,7 @@ describe('Model: Dao', () => {
         limit: 2,
       }
 
-      const result = await Models.Dao.findWithPagination(
-        { networks: [], pluginTypes: [] },
-        opts,
-      )
+      const result = await Models.Dao.findWithPagination({ networks: [], pluginTypes: [] }, opts)
 
       expect(result.data.length).to.eq(2)
       expect(result.totRecords).to.eq(3)
@@ -319,10 +304,7 @@ describe('Model: Dao', () => {
         limit: 2,
       }
 
-      const result = await Models.Dao.findWithPagination(
-        { networks: [], pluginTypes: [] },
-        opts,
-      )
+      const result = await Models.Dao.findWithPagination({ networks: [], pluginTypes: [] }, opts)
 
       expect(result.data.length).to.eq(0)
       expect(result.totRecords).to.eq(0)

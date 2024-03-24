@@ -20,9 +20,7 @@ describe('Helpers: Covalent', () => {
 
   describe('_rpCall', () => {
     it('Should _rpCall', async () => {
-      const rpcCallStub = sandbox
-        .stub(CovalentHelper.axiosInstance, 'get')
-        .resolves({ data: { data: true } })
+      const rpcCallStub = sandbox.stub(CovalentHelper.axiosInstance, 'get').resolves({ data: { data: true } })
 
       const response = await CovalentHelper._rpCall('/path')
 
@@ -33,15 +31,11 @@ describe('Helpers: Covalent', () => {
 
     it('Should handle errors in _rpCall', async () => {
       const expectedError = new Error('RPC Call Failed')
-      const rpcCallStub = sandbox
-        .stub(CovalentHelper.axiosInstance, 'get')
-        .rejects(expectedError)
+      const rpcCallStub = sandbox.stub(CovalentHelper.axiosInstance, 'get').rejects(expectedError)
 
       const loggerStub = sandbox.stub(logger, 'error')
 
-      await expect(CovalentHelper._rpCall('/path')).to.be.rejectedWith(
-        expectedError,
-      )
+      await expect(CovalentHelper._rpCall('/path')).to.be.rejectedWith(expectedError)
       expect(rpcCallStub.calledOnce).to.be.true
       expect(rpcCallStub.calledWith(`${config.COVALENT.URI}/path`)).to.be.true
       expect(loggerStub.args[0][0]).to.eq('Error in Covalent RPC Call')
@@ -65,24 +59,16 @@ describe('Helpers: Covalent', () => {
       }
       const mockResponse = TokenList
 
-      const rpcCallStub = sandbox
-        .stub(CovalentHelper, '_rpCall')
-        .resolves(mockResponse as any)
+      const rpcCallStub = sandbox.stub(CovalentHelper, '_rpCall').resolves(mockResponse as any)
       const loggerStub = sandbox.stub(logger, 'error')
 
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-      const token = (await CovalentHelper.getToken(
-        address,
-        NetworksEnum.ethereum,
-      )) as Partial<IToken>
+      const token = (await CovalentHelper.getToken(address, NetworksEnum.ethereum)) as Partial<IToken>
       expect(loggerStub.notCalled).to.be.true
       expect(rpcCallStub.calledOnce).to.be.true
 
-      expect(
-        rpcCallStub.args[0][0].startsWith(
-          `/pricing/historical_by_addresses_v2/eth-mainnet/USD/${address}/?from=`,
-        ),
-      ).to.be.true
+      expect(rpcCallStub.args[0][0].startsWith(`/pricing/historical_by_addresses_v2/eth-mainnet/USD/${address}/?from=`))
+        .to.be.true
       expect(token.address).to.equal(expectedToken.address)
     })
 
@@ -102,16 +88,11 @@ describe('Helpers: Covalent', () => {
       }
       const mockResponse = [TokenList[1]]
 
-      const rpcCallStub = sandbox
-        .stub(CovalentHelper, '_rpCall')
-        .resolves(mockResponse as any)
+      const rpcCallStub = sandbox.stub(CovalentHelper, '_rpCall').resolves(mockResponse as any)
       const loggerStub = sandbox.stub(logger, 'error')
 
       const address = '0x0000000000000000000000000000000000000000'
-      const token = (await CovalentHelper.getToken(
-        address,
-        NetworksEnum.ethereum,
-      )) as Partial<IToken>
+      const token = (await CovalentHelper.getToken(address, NetworksEnum.ethereum)) as Partial<IToken>
       expect(loggerStub.notCalled).to.be.true
       expect(rpcCallStub.calledOnce).to.be.true
 
@@ -130,15 +111,11 @@ describe('Helpers: Covalent', () => {
 
       const network = NetworksEnum.ethereum
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-      const result = (await CovalentHelper.getToken(
-        address,
-        network,
-      )) as Partial<IToken>
+      const result = (await CovalentHelper.getToken(address, network)) as Partial<IToken>
 
       expect(result).to.be.false
       expect(loggerErrorStub.calledOnce).to.be.true
-      expect(loggerErrorStub.calledWith('Error fetching token' as any)).to.be
-        .true
+      expect(loggerErrorStub.calledWith('Error fetching token' as any)).to.be.true
     })
   })
 
@@ -158,15 +135,12 @@ describe('Helpers: Covalent', () => {
             contract_ticker_symbol: 'ETH',
             contract_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
             supports_erc: null,
-            logo_url:
-              'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
+            logo_url: 'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
             contract_display_name: 'Ether',
             logo_urls: {
-              token_logo_url:
-                'https://logos.covalenthq.com/tokens/1/0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.png',
+              token_logo_url: 'https://logos.covalenthq.com/tokens/1/0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.png',
               protocol_logo_url: null,
-              chain_logo_url:
-                'https://www.datocms-assets.com/86369/1669653891-eth.svg',
+              chain_logo_url: 'https://www.datocms-assets.com/86369/1669653891-eth.svg',
             },
             last_transferred_at: '2024-03-12T01:00:23Z',
             native_token: true,
@@ -202,9 +176,7 @@ describe('Helpers: Covalent', () => {
         ],
       }
 
-      const rpcCallStub = sandbox
-        .stub(CovalentHelper, '_rpCall')
-        .resolves(fakeResponse as any)
+      const rpcCallStub = sandbox.stub(CovalentHelper, '_rpCall').resolves(fakeResponse as any)
 
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const tokenBalanceType = await CovalentHelper.getTokenBalance(
@@ -223,24 +195,17 @@ describe('Helpers: Covalent', () => {
     })
 
     it('should fail getTokenBalance', async () => {
-      sandbox
-        .stub(CovalentHelper, '_rpCall')
-        .rejects(new Error('Token balance fetch failed'))
+      sandbox.stub(CovalentHelper, '_rpCall').rejects(new Error('Token balance fetch failed'))
 
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
       const address = '0x0000000000000000000000000000000000000000'
       const network = NetworksEnum.ethereum
-      const result = await CovalentHelper.getTokenBalance(
-        address,
-        network,
-        'USD',
-      )
+      const result = await CovalentHelper.getTokenBalance(address, network, 'USD')
 
       expect(result).to.be.false
       expect(loggerErrorStub.calledOnce).to.be.true
-      expect(loggerErrorStub.calledWith('Error fetching token balance' as any))
-        .to.be.true
+      expect(loggerErrorStub.calledWith('Error fetching token balance' as any)).to.be.true
     })
   })
 

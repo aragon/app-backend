@@ -1,1 +1,1 @@
-import './runners/main';
+import './runners/main'

@@ -27,7 +27,7 @@ const Mongo = {
     })
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    mongoose.connection.on('connected', async() => {
+    mongoose.connection.on('connected', async () => {
       await Promise.all(
         Object.keys(mongoose.models).map(async name => {
           await mongoose.models[name].syncIndexes()
@@ -39,7 +39,7 @@ const Mongo = {
 
     mongoose.set('debug', config.MONGO_DB.DEBUGGER)
 
-    return await retry(async() => {
+    return await retry(async () => {
       logger.verbose(
         'MongoDB try connecting',
         llo({

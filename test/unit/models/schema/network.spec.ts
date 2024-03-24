@@ -40,10 +40,7 @@ describe('Model: Network', () => {
       status: StatusNetworkEnum.maintenance,
     })
 
-    expect(createdNetwork).to.have.property(
-      'status',
-      StatusNetworkEnum.maintenance,
-    )
+    expect(createdNetwork).to.have.property('status', StatusNetworkEnum.maintenance)
   })
 
   it('Should get statics', async () => {

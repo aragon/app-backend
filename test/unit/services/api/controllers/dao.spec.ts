@@ -20,9 +20,7 @@ describe('Controller: Dao', () => {
 
   it('get daos with pagination', async () => {
     const stupReq = sandbox.stub(Models.Dao, 'findWithPagination').resolves({
-      data: [
-        { id: 1, name: 'Test DAO', filterKeys: () => ({ name: 'Test DAO' }) },
-      ],
+      data: [{ id: 1, name: 'Test DAO', filterKeys: () => ({ name: 'Test DAO' }) }],
       currentPage: 1,
       totPages: 1,
       totRecords: 1,
@@ -68,7 +66,6 @@ describe('Controller: Dao', () => {
   })
 
   it('get dao', async () => {
-
     const mockDao = DaoList[1]
     const dbDao = await Models.Dao.create(mockDao)
 
@@ -110,15 +107,9 @@ describe('Controller: Dao', () => {
         address: '0xdf62645a2c714febbf6060d1fb607e7eccef0659',
       },
     ]
-    const stubSatsuma = sandbox
-      .stub(Satsuma, 'getMultiSigMembers')
-      .resolves(fakeResponse as any)
+    const stubSatsuma = sandbox.stub(Satsuma, 'getMultiSigMembers').resolves(fakeResponse as any)
 
-    const result = await DaoController.getDaoMembersMultiSig(
-      network as NetworksEnum,
-      daoAddress as HexAddress,
-      filters,
-    )
+    const result = await DaoController.getDaoMembersMultiSig(network as NetworksEnum, daoAddress as HexAddress, filters)
 
     expect(result.members.length).to.eq(5)
     expect(stubSatsuma.calledOnce).to.be.true
@@ -171,9 +162,7 @@ describe('Controller: Dao', () => {
         ],
       },
     ]
-    const stubSatsuma = sandbox
-      .stub(Satsuma, 'getTokenVotingMembers')
-      .resolves(fakeResponse as any)
+    const stubSatsuma = sandbox.stub(Satsuma, 'getTokenVotingMembers').resolves(fakeResponse as any)
 
     const result = await DaoController.getDaoMembersTokenVoting(
       network as NetworksEnum,

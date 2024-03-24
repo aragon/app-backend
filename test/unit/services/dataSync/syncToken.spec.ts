@@ -90,9 +90,7 @@ describe('DataSync: syncToken', () => {
       priceUsd: '0.2',
     }
 
-    const stubUpdateToken = sandbox
-      .stub(CovalentHelper, 'getToken')
-      .resolves(mockCovalentTokenData)
+    const stubUpdateToken = sandbox.stub(CovalentHelper, 'getToken').resolves(mockCovalentTokenData)
     const stubLogger = sandbox.stub(logger, 'verbose')
 
     const updatedToken = await SyncToken._updateToken(token)
@@ -111,7 +109,6 @@ describe('DataSync: syncToken', () => {
 
     SyncToken._onError({ id: 'x' } as any, 'error')
     expect(stubLogger.calledOnce).to.be.true
-    expect(stubLogger.calledWith('Error while fetching token' as any)).to.be
-      .true
+    expect(stubLogger.calledWith('Error while fetching token' as any)).to.be.true
   })
 })

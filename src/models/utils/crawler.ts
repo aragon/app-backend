@@ -6,10 +6,7 @@ const llo = logger.logMeta.bind(null, { service: 'modules: Crawler' })
 
 class DBCrawler {
   private readonly model: Model<Document>
-  private readonly onDocument: (
-    document: Document,
-    stat: { nbWorked: number, nbTotal: number },
-  ) => Promise<void>
+  private readonly onDocument: (document: Document, stat: { nbWorked: number; nbTotal: number }) => Promise<void>
 
   private readonly where: object
   private readonly stopOnError: boolean
@@ -27,7 +24,7 @@ class DBCrawler {
   private isOnError: boolean
   private nbWorked: number
   private nbTotal: number
-  private crawlResult: { nbSuccess: number, nbError: number, nbTotal: number }
+  private crawlResult: { nbSuccess: number; nbError: number; nbTotal: number }
   private readonly queue: async.AsyncQueue<Document[]>
 
   constructor(opts: any) {
@@ -147,22 +144,13 @@ class DBCrawler {
     const aggregate = this.aggregate
 
     if (useAggregate) {
-      const aggregateWithSkipLimit: any = [
-        ...aggregate,
-        { $skip: offset },
-        { $limit: limit },
-      ]
+      const aggregateWithSkipLimit: any = [...aggregate, { $skip: offset }, { $limit: limit }]
 
       const response = this.model.aggregate(aggregateWithSkipLimit)
 
       return await response.exec()
     } else {
-      let response = this.model
-        .find(where)
-        .select(select)
-        .populate(populate)
-        .limit(limit)
-        .skip(offset)
+      let response = this.model.find(where).select(select).populate(populate).limit(limit).skip(offset)
 
       if (this.sort) {
         response = response.sort(this.sort)
@@ -222,7 +210,7 @@ class DBCrawler {
       const limit = this.batchSize
       let offset = this.offset
 
-      const fillQueue = async(): Promise<any> => {
+      const fillQueue = async (): Promise<any> => {
         if (this.isOnError || !this.crawling) {
           resolve(this.crawlResult)
           return true

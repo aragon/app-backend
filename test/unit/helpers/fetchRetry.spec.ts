@@ -25,12 +25,7 @@ describe('Helpers: FetchRetry', () => {
   })
 
   it('should succeed on a subsequent attempt', async () => {
-    const action = sandbox
-      .stub()
-      .onFirstCall()
-      .rejects(new Error('fail'))
-      .onSecondCall()
-      .resolves('success')
+    const action = sandbox.stub().onFirstCall().rejects(new Error('fail')).onSecondCall().resolves('success')
     sandbox.stub(utils, 'wait').resolves()
 
     const result = await retry(action, { retries: 2, delay: 1000 })

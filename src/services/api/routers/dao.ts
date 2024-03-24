@@ -4,7 +4,7 @@ import ValidationSchema from '@helpers/validationSchema'
 import DaoSchema from '@services/api/routers/schema/dao'
 
 const DaoRouter = {
-  getWithPagination: async function(ctx: RouterContext) {
+  getWithPagination: async function (ctx: RouterContext) {
     const params: any = {
       search: ctx.query.search,
       limit: ctx.query.limit || 10,
@@ -17,10 +17,7 @@ const DaoRouter = {
       plugin: ctx.query.plugin,
     }
 
-    const formattedParams = await ValidationSchema.validateParams(
-      DaoSchema.getWithPagination,
-      params,
-    )
+    const formattedParams = await ValidationSchema.validateParams(DaoSchema.getWithPagination, params)
 
     ctx.body = await DaoController.getWithPagination(formattedParams)
   },
