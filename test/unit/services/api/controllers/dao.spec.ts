@@ -18,51 +18,95 @@ describe('Controller: Dao', () => {
     sandbox?.restore()
   })
 
-  it('get daos with pagination', async () => {
-    const stupReq = sandbox.stub(Models.Dao, 'findWithPagination').resolves({
-      data: [{ id: 1, name: 'Test DAO', filterKeys: () => ({ name: 'Test DAO' }) }],
-      currentPage: 1,
-      totPages: 1,
-      totRecords: 1,
+  describe('get daos getWithPagination', async () => {
+    it('get daos with pagination - all params', async () => {
+      const stupReq = sandbox.stub(Models.Dao, 'findWithPagination').resolves({
+        data: [{ id: 1, name: 'Test DAO', filterKeys: () => ({ name: 'Test DAO' }) }],
+        currentPage: 1,
+        totPages: 1,
+        totRecords: 1,
+      })
+
+      const params: ItxOpts & {
+        network: NetworksEnum
+        plugin: EnumPluginType
+      } = {
+        network: NetworksEnum.ethereum,
+        plugin: EnumPluginType.MultisigPlugin,
+        search: '',
+        toDate: '',
+        fromDate: '',
+        limit: 10,
+        offset: 1,
+        order: 'asc',
+        orderProp: 'createdAt',
+      }
+
+      const response = await DaoController.getWithPagination(params as any)
+
+      expect(stupReq.calledOnce).to.be.true
+      expect(
+        stupReq.calledWith(
+          { networks: [params.network], pluginTypes: [params.plugin] },
+          {
+            search: '',
+            toDate: '',
+            fromDate: '',
+            limit: 10,
+            offset: 1,
+            order: 'asc',
+            orderProp: 'createdAt',
+          },
+        ),
+      ).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].name).to.eq('Test DAO')
+      expect(response.currentPage).to.eq(1)
+      expect(response.totPages).to.eq(1)
+      expect(response.totRecords).to.eq(1)
     })
 
-    const params: ItxOpts & {
-      network: NetworksEnum
-      plugin: EnumPluginType
-    } = {
-      network: NetworksEnum.ethereum,
-      plugin: EnumPluginType.MultisigPlugin,
-      search: '',
-      toDate: '',
-      fromDate: '',
-      limit: 10,
-      offset: 1,
-      order: 'asc',
-      orderProp: 'createdAt',
-    }
+    it('get daos with pagination - missing network, plugin', async () => {
+      const stupReq = sandbox.stub(Models.Dao, 'findWithPagination').resolves({
+        data: [{ id: 1, name: 'Test DAO', filterKeys: () => ({ name: 'Test DAO' }) }],
+        currentPage: 1,
+        totPages: 1,
+        totRecords: 1,
+      })
 
-    const response = await DaoController.getWithPagination(params as any)
+      const params: any = {
+        search: '',
+        toDate: '',
+        fromDate: '',
+        limit: 10,
+        offset: 1,
+        order: 'asc',
+        orderProp: 'createdAt',
+      }
 
-    expect(stupReq.calledOnce).to.be.true
-    expect(
-      stupReq.calledWith(
-        { networks: [params.network], pluginTypes: [params.plugin] },
-        {
-          search: '',
-          toDate: '',
-          fromDate: '',
-          limit: 10,
-          offset: 1,
-          order: 'asc',
-          orderProp: 'createdAt',
-        },
-      ),
-    ).to.be.true
-    expect(response).to.have.property('data').with.lengthOf(1)
-    expect(response.data[0].name).to.eq('Test DAO')
-    expect(response.currentPage).to.eq(1)
-    expect(response.totPages).to.eq(1)
-    expect(response.totRecords).to.eq(1)
+      const response = await DaoController.getWithPagination(params as any)
+
+      expect(stupReq.calledOnce).to.be.true
+      expect(
+        stupReq.calledWith(
+          { networks: [], pluginTypes: [] },
+          {
+            search: '',
+            toDate: '',
+            fromDate: '',
+            limit: 10,
+            offset: 1,
+            order: 'asc',
+            orderProp: 'createdAt',
+          },
+        ),
+      ).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].name).to.eq('Test DAO')
+      expect(response.currentPage).to.eq(1)
+      expect(response.totPages).to.eq(1)
+      expect(response.totRecords).to.eq(1)
+    })
   })
 
   it('get dao', async () => {
