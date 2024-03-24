@@ -41,16 +41,13 @@ describe('Manual: IPFS', () => {
         }),
       )
 
-      const response = await fetch(
-        'https://prod.ipfs.aragon.network/api/v0/add',
-        {
-          method: 'POST',
-          headers: {
-            'X-API-Key': apyKey,
-          },
-          body: formData,
+      const response = await fetch('https://prod.ipfs.aragon.network/api/v0/add', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': apyKey,
         },
-      )
+        body: formData,
+      })
 
       const req: any = await response.json()
       expect(req.Hash).to.exist
