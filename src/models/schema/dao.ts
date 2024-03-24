@@ -90,7 +90,7 @@ export default class Dao extends Model {
   @prop({ type: () => Number, required: true })
   public votes!: number
 
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, default: null })
   public txHash!: HexAddress
 
   @prop({ type: () => Boolean, required: true })
