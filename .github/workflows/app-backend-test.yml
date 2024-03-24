@@ -12,7 +12,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -20,6 +19,8 @@ jobs:
           cache: 'yarn'
       - name: Install dependencies
         run: yarn install --pure-lockfile
+      - name: Format
+        run: yarn format:check
       - name: Lint
         run: yarn lint
       - name: Test Unit
