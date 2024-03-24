@@ -42,13 +42,7 @@ const ModelUtils = {
   },
 
   requestPaginate(opts: ItxOpts) {
-    const paginateParams = _.pick(
-      opts || {},
-      'limit',
-      'offset',
-      'orderProp',
-      'order',
-    )
+    const paginateParams = _.pick(opts || {}, 'limit', 'offset', 'orderProp', 'order')
     const params = _.defaults(paginateParams, {
       limit: 15,
       offset: 1,
@@ -62,8 +56,7 @@ const ModelUtils = {
       request.limit = parseInt(String(params.limit))
     }
     if (params.offset) {
-      request.skip =
-        parseInt(String(params.limit)) * (parseInt(String(params.offset)) - 1)
+      request.skip = parseInt(String(params.limit)) * (parseInt(String(params.offset)) - 1)
     }
     if (params.order || params.orderProp) {
       request.sort = { [params.orderProp]: params.order === 'desc' ? -1 : 1 }

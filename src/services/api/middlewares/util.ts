@@ -4,7 +4,7 @@ import { ErrorKeyEnum } from '@types'
 import { type IUtilMiddleware } from '@types'
 
 const UtilMiddleware: IUtilMiddleware = {
-  noop: async(ctx: Koa.Context, next: Koa.Next) => await next(),
+  noop: async (ctx: Koa.Context, next: Koa.Next) => await next(),
 
   onBodyParserError: (error: any) => {
     if (error.type === 'entity.too.large') {

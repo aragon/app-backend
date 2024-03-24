@@ -26,9 +26,7 @@ describe('Router: Dao', () => {
       orderProp: 'createdAt',
     }
 
-    const stubCtrl = sandbox
-      .stub(DaoController, 'getWithPagination')
-      .returns(true as any)
+    const stubCtrl = sandbox.stub(DaoController, 'getWithPagination').returns(true as any)
 
     const ctx: any = {
       query: params,

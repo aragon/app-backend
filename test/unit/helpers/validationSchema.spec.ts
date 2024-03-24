@@ -24,9 +24,7 @@ describe('Helpers:ValidationSchema', () => {
       const res = await ValidationSchema.joiUuid.validateAsync(uuid)
       expect(res).to.eq(uuid)
 
-      await expect(
-        ValidationSchema.joiUuid.validateAsync('5d5a111b294952b1543d'),
-      ).to.be.rejectedWith(
+      await expect(ValidationSchema.joiUuid.validateAsync('5d5a111b294952b1543d')).to.be.rejectedWith(
         Error,
         '"value" with value "5d5a111b294952b1543d" fails to match the required pattern: /^[0-9a-fA-F]{24}$/',
       )
@@ -36,12 +34,10 @@ describe('Helpers:ValidationSchema', () => {
       const res = await ValidationSchema.joiEmail.validateAsync('cris@me.com')
       expect(res).to.eq('cris@me.com')
 
-      const res1 =
-        await ValidationSchema.joiEmail.validateAsync('cris@me.comee')
+      const res1 = await ValidationSchema.joiEmail.validateAsync('cris@me.comee')
       expect(res1).to.eq('cris@me.comee')
 
-      const res2 =
-        await ValidationSchema.joiEmail.validateAsync('cris@me.comeea')
+      const res2 = await ValidationSchema.joiEmail.validateAsync('cris@me.comeea')
       expect(res2).to.eq('cris@me.comeea')
 
       const res3 = await ValidationSchema.joiEmail.validateAsync('+cris@me.com')
@@ -50,16 +46,12 @@ describe('Helpers:ValidationSchema', () => {
       const res4 = await ValidationSchema.joiEmail.validateAsync('213te@me.com')
       expect(res4).to.eq('213te@me.com')
 
-      await expect(
-        ValidationSchema.joiEmail.validateAsync('te@me.com213123123'),
-      ).to.be.rejectedWith(
+      await expect(ValidationSchema.joiEmail.validateAsync('te@me.com213123123')).to.be.rejectedWith(
         Error,
         '"value" with value "te@me.com213123123" fails to match the required pattern: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$/',
       )
 
-      await expect(
-        ValidationSchema.joiEmail.validateAsync('213te@me.comcomo'),
-      ).to.be.rejectedWith(
+      await expect(ValidationSchema.joiEmail.validateAsync('213te@me.comcomo')).to.be.rejectedWith(
         Error,
         '"value" with value "213te@me.comcomo" fails to match the required pattern: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$/',
       )
@@ -159,9 +151,7 @@ describe('Helpers:ValidationSchema', () => {
         expect(error.exposeMeta.validationError.params.date).to.eq(params.date)
         expect(error.exposeMeta.validationError.params.age).to.eq(params.age)
         expect(error.exposeMeta.validationError.errors.length).to.eq(1)
-        expect(error.exposeMeta.validationError.errors[0]).to.eq(
-          '"age" must be a number',
-        )
+        expect(error.exposeMeta.validationError.errors[0]).to.eq('"age" must be a number')
       }
 
       expect(isThrowing).to.be.true
@@ -187,9 +177,7 @@ describe('Helpers:ValidationSchema', () => {
         expect(error.exposeMeta.validationError.params.date).to.eq(params.date)
         expect(error.exposeMeta.validationError.params.age).to.eq(params.age)
         expect(error.exposeMeta.validationError.errors.length).to.eq(1)
-        expect(error.exposeMeta.validationError.errors[0]).to.eq(
-          '"age" must be a number',
-        )
+        expect(error.exposeMeta.validationError.errors[0]).to.eq('"age" must be a number')
       }
 
       expect(isThrowing).to.be.true

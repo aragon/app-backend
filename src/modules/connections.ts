@@ -9,12 +9,9 @@ const Connections = {
   openedConnections: [] as string[],
 
   async open(needConnections: string[]): Promise<any> {
-    return Utils.asyncForEach(needConnections, async(connection: string) => {
+    return Utils.asyncForEach(needConnections, async (connection: string) => {
       try {
-        if (
-          !connection ||
-          Connections.openedConnections.find(c => c === connection)
-        ) {
+        if (!connection || Connections.openedConnections.find(c => c === connection)) {
           await Promise.resolve()
           return
         }
@@ -48,21 +45,18 @@ const Connections = {
   },
 
   async close(): Promise<any> {
-    return Utils.asyncForEach(
-      Connections.openedConnections,
-      async(connection: string) => {
-        switch (connection) {
-          case 'mongodb': {
-            await MongoDB.disconnect()
-            return
-          }
-          default: {
-            throw new Error('Unknown service to disconnect from')
-          }
+    return Utils.asyncForEach(Connections.openedConnections, async (connection: string) => {
+      switch (connection) {
+        case 'mongodb': {
+          await MongoDB.disconnect()
+          return
         }
-      },
-    )
-      .then(async() => {
+        default: {
+          throw new Error('Unknown service to disconnect from')
+        }
+      }
+    })
+      .then(async () => {
         Connections.openedConnections = []
         logger.verbose('Connections closed', llo({}))
         logger.purge()

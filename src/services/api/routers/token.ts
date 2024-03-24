@@ -5,16 +5,12 @@ import TokenSchema from '@services/api/routers/schema/token'
 import { pick } from 'lodash'
 
 const TokenRouter = {
-  getToken: async function(ctx: RouterContext) {
+  getToken: async function (ctx: RouterContext) {
     const params = pick(ctx.query, ['address', 'network'])
 
-    const formattedParams = await ValidationSchema.validateParams(
-      TokenSchema.getToken,
-      params,
-    )
+    const formattedParams = await ValidationSchema.validateParams(TokenSchema.getToken, params)
 
-    ctx.body =
-      await TokenController.getTokenByAddressAndNetwork(formattedParams)
+    ctx.body = await TokenController.getTokenByAddressAndNetwork(formattedParams)
   },
 
   router() {

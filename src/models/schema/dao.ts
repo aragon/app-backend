@@ -1,12 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import {
-  ENS,
-  EnumPluginType,
-  HexAddress,
-  type IDao,
-  type ItxOpts,
-  NetworksEnum,
-} from '@types'
+import { ENS, EnumPluginType, HexAddress, type IDao, type ItxOpts, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import ModelUtils, { utcDateProp } from '@models/utils/models'
@@ -118,23 +111,14 @@ export default class Dao extends Model {
     return await this.findOne({ daoAddress })
   }
 
-  static async findByDaoAddressAndNetwork(
-    daoAddress: HexAddress,
-    network: NetworksEnum,
-  ) {
+  static async findByDaoAddressAndNetwork(daoAddress: HexAddress, network: NetworksEnum) {
     return await this.findOne({ daoAddress, network })
   }
 
   static async findWithPagination({ networks, pluginTypes }, opts: ItxOpts) {
     const params = Object.assign(
       {},
-      ModelUtils.parseParams(opts, [
-        'daoAddress',
-        'creatorAddress',
-        'ens',
-        'name',
-        'txHash',
-      ]),
+      ModelUtils.parseParams(opts, ['daoAddress', 'creatorAddress', 'ens', 'name', 'txHash']),
     )
     params.hideDao = { $ne: true }
 
@@ -149,10 +133,7 @@ export default class Dao extends Model {
     const request = Object.assign({}, ModelUtils.requestPaginate(opts))
     const currentPage = opts.offset || 1
 
-    const [daos, totRecords] = await Promise.all([
-      this.find(params, null, request),
-      this.countDocuments(params),
-    ])
+    const [daos, totRecords] = await Promise.all([this.find(params, null, request), this.countDocuments(params)])
 
     const totPages = Math.ceil(totRecords / request.limit)
 
@@ -176,10 +157,7 @@ export default class Dao extends Model {
   async update(params: Partial<Dao>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
-        if (
-          !this.schema.tree[key].required ||
-          (this.schema.tree[key].required && value)
-        ) {
+        if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
           const parsedObj = this.toObject()
 
           if (!_.isEqual(parsedObj[key], value)) {

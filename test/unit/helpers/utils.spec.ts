@@ -93,39 +93,23 @@ describe('Helpers:Utils', () => {
       decimal: 12.12,
     }
     expect(Utils.configParser(configSource, 'string', 'string')).to.eq('coucou')
-    expect(Utils.configParser(configSource, 'string', 'string', 'def')).to.eq(
-      'coucou',
-    )
-    expect(Utils.configParser(configSource, 'string', 'array')).to.eq(
-      'coucou,caca',
-    )
+    expect(Utils.configParser(configSource, 'string', 'string', 'def')).to.eq('coucou')
+    expect(Utils.configParser(configSource, 'string', 'array')).to.eq('coucou,caca')
     expect(Utils.configParser(configSource, 'string', 'unknown')).to.eq('')
-    expect(Utils.configParser(configSource, 'string', 'unknown', 'def')).to.eq(
-      'def',
-    )
+    expect(Utils.configParser(configSource, 'string', 'unknown', 'def')).to.eq('def')
 
-    expect(Utils.configParser(configSource, 'array', 'array')).to.deep.eq([
-      'coucou',
-      'caca',
-    ])
-    expect(
-      Utils.configParser(configSource, 'array', 'array', ['def']),
-    ).to.deep.eq(['coucou', 'caca'])
-    expect(Utils.configParser(configSource, 'array', 'string')).to.deep.eq([
-      'coucou',
-    ])
+    expect(Utils.configParser(configSource, 'array', 'array')).to.deep.eq(['coucou', 'caca'])
+    expect(Utils.configParser(configSource, 'array', 'array', ['def'])).to.deep.eq(['coucou', 'caca'])
+    expect(Utils.configParser(configSource, 'array', 'string')).to.deep.eq(['coucou'])
     expect(Utils.configParser(configSource, 'array', 'unknown')).to.deep.eq([])
-    expect(
-      Utils.configParser(configSource, 'array', 'unknown', ['def']),
-    ).to.deep.eq(['def'])
+    expect(Utils.configParser(configSource, 'array', 'unknown', ['def'])).to.deep.eq(['def'])
 
     expect(Utils.configParser(configSource, 'bool', 'boolt')).to.be.true
     expect(Utils.configParser(configSource, 'bool', 'boolt', false)).to.be.true
     expect(Utils.configParser(configSource, 'bool', 'boolf')).to.be.false
     expect(Utils.configParser(configSource, 'bool', 'boolu')).to.be.false
     expect(Utils.configParser(configSource, 'bool', 'boolunnn')).to.be.false
-    expect(Utils.configParser(configSource, 'bool', 'boolunnn', true)).to.be
-      .true
+    expect(Utils.configParser(configSource, 'bool', 'boolunnn', true)).to.be.true
 
     expect(Utils.configParser(configSource, 'number', 'integer')).to.eq(12)
     expect(Utils.configParser(configSource, 'number', 'decimal')).to.eq(12.12)
@@ -139,18 +123,14 @@ describe('Helpers:Utils', () => {
     }
     const key = 'test'
 
-    expect(() =>
-      Utils.configParser(configSource, 'unknownType' as any, key),
-    ).to.throw('Unknown variable type')
+    expect(() => Utils.configParser(configSource, 'unknownType' as any, key)).to.throw('Unknown variable type')
   })
 
   it('Should parse json circular', () => {
     const child: any = {}
     const obj = { a: 1, child }
     child.obj = obj
-    expect(Utils.JSONStringifyCircular(obj)).to.be.eq(
-      '{\n  "a": 1,\n  "child": {}\n}',
-    )
+    expect(Utils.JSONStringifyCircular(obj)).to.be.eq('{\n  "a": 1,\n  "child": {}\n}')
   })
 
   it('enum to object', () => {
@@ -187,9 +167,7 @@ describe('Helpers:Utils', () => {
   })
 
   it('Should asyncForEach and break on false', async () => {
-    const stubFn = sandbox
-      .stub()
-      .callsFake(async (_item: any, i: number) => i !== 1)
+    const stubFn = sandbox.stub().callsFake(async (_item: any, i: number) => i !== 1)
     await Utils.asyncForEach([0, 1, 2, 3], stubFn, true)
     expect(stubFn.callCount).to.be.eq(2)
   })

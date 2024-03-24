@@ -64,10 +64,7 @@ describe('Helpers:Errors', () => {
     } catch (error) {
       capturedError = error
     }
-    expect(capturedError).to.have.property(
-      'message',
-      ErrorKeyEnum.unknownErrorCode,
-    )
+    expect(capturedError).to.have.property('message', ErrorKeyEnum.unknownErrorCode)
   })
 
   it('Should cast a standard error to an exposable error', () => {
@@ -102,10 +99,7 @@ describe('Helpers:Errors', () => {
     } catch (error) {
       capturedError = error
     }
-    expect(capturedError).to.have.property(
-      'message',
-      ErrorKeyEnum.entityTooLarge,
-    )
+    expect(capturedError).to.have.property('message', ErrorKeyEnum.entityTooLarge)
   })
 
   it('Should handle other errors from body parser as bad parameters', () => {
@@ -129,22 +123,16 @@ describe('Helpers:Errors', () => {
 
     it('throws an exposable error with correct properties when the condition is false', () => {
       try {
-        Errors.assertExposable(
-          false,
-          ErrorKeyEnum.badParams,
-          400,
-          'Bad parameters',
-          { additional: 'info' },
-        )
+        Errors.assertExposable(false, ErrorKeyEnum.badParams, 400, 'Bad parameters', {
+          additional: 'info',
+        })
         throw new Error('assertExposable did not throw')
       } catch (error) {
         expect(error).to.have.property('exposeCustom_', true)
         expect(error).to.have.property('message', ErrorKeyEnum.badParams)
         expect(error).to.have.property('status', 400)
         expect(error).to.have.property('description', 'Bad parameters')
-        expect(error)
-          .to.have.property('exposeMeta')
-          .that.deep.equals({ additional: 'info' })
+        expect(error).to.have.property('exposeMeta').that.deep.equals({ additional: 'info' })
       }
     })
   })

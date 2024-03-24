@@ -64,20 +64,14 @@ export default class Token extends Model {
     return await this.findOne({ address })
   }
 
-  static async findByTokenAddressAndNetwork(
-    address: HexAddress,
-    network: NetworksEnum,
-  ) {
+  static async findByTokenAddressAndNetwork(address: HexAddress, network: NetworksEnum) {
     return await this.findOne({ address, network })
   }
 
   async update(params: Partial<Token>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
-        if (
-          !this.schema.tree[key].required ||
-          (this.schema.tree[key].required && value)
-        ) {
+        if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
           const parsedObj = this.toObject()
 
           if (!_.isEqual(parsedObj[key], value)) {

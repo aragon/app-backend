@@ -62,10 +62,6 @@ export interface IDaoSubgraph {
   createdAt: number
   proposals: SubgraphProposal[]
   plugins: {
-    plugin:
-      | SubgraphTokenVotingPlugin
-      | SubgraphMultisigPlugin
-      | SubgraphAddresslistVotingPlugin
-      | SubgraphAdminPlugin
+    plugin: SubgraphTokenVotingPlugin | SubgraphMultisigPlugin | SubgraphAddresslistVotingPlugin | SubgraphAdminPlugin
   }[]
 }

@@ -37,9 +37,7 @@ describe('Model/Utils: crawler', () => {
       concurrency: 1,
     })
 
-    const simulatedDocuments = new Array(10)
-      .fill(null)
-      .map((_, index) => ({ _id: index.toString() }))
+    const simulatedDocuments = new Array(10).fill(null).map((_, index) => ({ _id: index.toString() }))
     mockModel.exec.onFirstCall().resolves(simulatedDocuments)
     mockModel.exec.onSecondCall().resolves([])
 
@@ -50,8 +48,6 @@ describe('Model/Utils: crawler', () => {
 
   it('throws an error if required options are missing', function () {
     expect(() => new DBCrawler({})).to.throw('Need onDocument method')
-    expect(() => new DBCrawler({ onDocument: () => {} })).to.throw(
-      'Need model to crawl',
-    )
+    expect(() => new DBCrawler({ onDocument: () => {} })).to.throw('Need model to crawl')
   })
 })
