@@ -1,5 +1,5 @@
-import utils from '@helpers/utils';
-import {type IConfig, NetworksEnum} from '@types';
+import utils from '@helpers/utils'
+import { type IConfig, NetworksEnum } from '@types'
 
 const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
@@ -53,15 +53,60 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     SUBGRAPH: {
-      SUBGRAPH_ARBITRUM_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_ARBITRUM_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-arbitrum/version/v1.4.0/api'),
-      SUBGRAPH_ARBITRUM_GOERLI_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_ARBITRUM_GOERLI_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-arbitrumGoerli/version/v1.4.0/api'),
-      SUBGRAPH_BASE_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_BASE_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-baseMainnet/version/v1.4.0/api'),
-      SUBGRAPH_BASE_GOERLI_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_BASE_GOERLI_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-baseGoerli/version/v1.4.0/api'),
-      SUBGRAPH_ETHEREUM_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_ETHEREUM_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-mainnet/version/v1.4.0/api'),
-      SUBGRAPH_GOERLI_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_GOERLI_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-goerli/version/v1.4.0/api'),
-      SUBGRAPH_MUMBAI_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_MUMBAI_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-mumbai/version/v1.4.0/api'),
-      SUBGRAPH_POLYGON_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_POLYGON_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-polygon/version/v1.4.0/api'),
-      SUBGRAPH_SEPOLIA_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_SEPOLIA_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-sepolia/version/v1.4.0/api'),
+      SUBGRAPH_ARBITRUM_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_ARBITRUM_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-arbitrum/version/v1.4.0/api',
+      ),
+      SUBGRAPH_ARBITRUM_GOERLI_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_ARBITRUM_GOERLI_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-arbitrumGoerli/version/v1.4.0/api',
+      ),
+      SUBGRAPH_BASE_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_BASE_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-baseMainnet/version/v1.4.0/api',
+      ),
+      SUBGRAPH_BASE_GOERLI_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_BASE_GOERLI_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-baseGoerli/version/v1.4.0/api',
+      ),
+      SUBGRAPH_ETHEREUM_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_ETHEREUM_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-mainnet/version/v1.4.0/api',
+      ),
+      SUBGRAPH_GOERLI_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_GOERLI_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-goerli/version/v1.4.0/api',
+      ),
+      SUBGRAPH_MUMBAI_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_MUMBAI_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-mumbai/version/v1.4.0/api',
+      ),
+      SUBGRAPH_POLYGON_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_POLYGON_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-polygon/version/v1.4.0/api',
+      ),
+      SUBGRAPH_SEPOLIA_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_SEPOLIA_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-sepolia/version/v1.4.0/api',
+      ),
     },
 
     IPFS: {
@@ -70,7 +115,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     BLOCKCHAIN_NODES: {
-      ETHEREUM: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ETHEREUM', 'wss://anonymous:jea2cqw5PWX_fwu0fyb@geth.cloud'),
+      ETHEREUM: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ETHEREUM', null),
       GOERLI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_GOERLI', null),
       SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_SEPOLIA', null),
       MUMBAI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_MUMBAI', null),
@@ -92,12 +137,27 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
       SYNC_DATA: {
         DAO_INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_DAO_INTERVAL', 3 * 60 * 60 * 1000), // 3 hours
-        DAO_FETCH_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_DAO_FETCH_BATCH_SIZE', 2000),
-        TOKEN_INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_TOKEN_INTERVAL', 24 * 60 * 60 * 1000), // 24 hours
-        TOKEN_FETCH_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_TOKEN_FETCH_BATCH_SIZE', 500),
+        DAO_FETCH_BATCH_SIZE: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_SYNC_DATA_DAO_FETCH_BATCH_SIZE',
+          2000,
+        ),
+        TOKEN_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_SYNC_DATA_TOKEN_INTERVAL',
+          24 * 60 * 60 * 1000,
+        ), // 24 hours
+        TOKEN_FETCH_BATCH_SIZE: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_SYNC_DATA_TOKEN_FETCH_BATCH_SIZE',
+          500,
+        ),
       },
     },
-  };
-};
+  }
+}
 
-export { getConfigObject };
+export { getConfigObject }

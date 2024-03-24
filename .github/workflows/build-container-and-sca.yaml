@@ -9,7 +9,7 @@ on:
       - 'DOPS-*'
     paths-ignore:
       - '.gitignore'
-      #- '.github/**' 
+      #- '.github/**'
 
 jobs:
   build:
@@ -118,7 +118,7 @@ jobs:
         with:
           scan-type: fs
           scanners: vuln,secret,config
-          image-ref: ghcr.io/${{ github.repository }}:${{ needs.build.outputs.CONTAINER_TAG }} 
+          image-ref: ghcr.io/${{ github.repository }}:${{ needs.build.outputs.CONTAINER_TAG }}
           format: template
           template: '@/contrib/junit.tpl'
           output: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.junit
@@ -128,7 +128,7 @@ jobs:
         with:
           scan-type: fs
           scanners: vuln,secret,config
-          image-ref: ghcr.io/${{ github.repository }}:${{ needs.build.outputs.CONTAINER_TAG }} 
+          image-ref: ghcr.io/${{ github.repository }}:${{ needs.build.outputs.CONTAINER_TAG }}
           format: json
           output: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.json
 
@@ -162,8 +162,8 @@ jobs:
         with:
           files: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.junit
           check_name: 'List of vulns in Repo'
-          comment_mode: always 
-          job_summary: true 
+          comment_mode: always
+          job_summary: true
           compare_to_earlier_commit: true
           report_individual_runs: true
           report_suite_logs: any
@@ -245,8 +245,8 @@ jobs:
         with:
           files: trivy-results-docker-${{ needs.build.outputs.GIT_HASH_SHORT }}.junit
           check_name: 'List of vulns in Docker'
-          comment_mode: always 
-          job_summary: true 
+          comment_mode: always
+          job_summary: true
           compare_to_earlier_commit: true
           report_individual_runs: true
           report_suite_logs: any
@@ -273,7 +273,7 @@ jobs:
         uses: geekyeggo/delete-artifact@v4
         with:
           name: docker-img-*
-          failOnError: false     ## 'false' avoids stop execution and errors are logged
+          failOnError: false ## 'false' avoids stop execution and errors are logged
 
       - name: Vuln scan in Docker again (table)
         uses: aquasecurity/trivy-action@master
@@ -284,7 +284,7 @@ jobs:
           input: _tmp/docker-oci-tar-${{ needs.build.outputs.CONTAINER_TAG }}
           format: table
           hide-progress: true
-          exit-code: ${{ needs.build.outputs.TRIVY_EXIT_CODE }}    ## if trivy found vulns, the next steps never will be executed because 'exit-code=1' (branch main/master)
+          exit-code: ${{ needs.build.outputs.TRIVY_EXIT_CODE }} ## if trivy found vulns, the next steps never will be executed because 'exit-code=1' (branch main/master)
         env:
           TRIVY_USERNAME: ${{ github.repository_owner }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
@@ -312,4 +312,3 @@ jobs:
             ${{ needs.build.outputs.LASTEST_DOCKER_IMAGE }}
             ghcr.io/${{ github.repository }}:${{ needs.build.outputs.BRANCH_NAME }}
             ghcr.io/${{ github.repository }}:${{ needs.build.outputs.BRANCH_NAME }}-${{ needs.build.outputs.GIT_HASH_SHORT }}
-
