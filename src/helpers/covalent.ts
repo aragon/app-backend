@@ -38,24 +38,21 @@ const CovalentHelper = {
     arbitrumGoerli: 'arbitrum-goerli',
   },
 
-  nativeTokenAddress:
-    '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as HexAddress,
+  nativeTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as HexAddress,
 
   networkToCovalent: (network: INetworks) => {
     return CovalentHelper.networksMap[network]
   },
 
   networkFromCovalent: (covalentNetwork: string) => {
-    return Object.entries(CovalentHelper.networksMap).find(
-      ([, cov]) => cov === covalentNetwork,
-    )?.[0] as INetworks | undefined
+    return Object.entries(CovalentHelper.networksMap).find(([, cov]) => cov === covalentNetwork)?.[0] as
+      | INetworks
+      | undefined
   },
 
   _rpCall: async <T>(path: string): Promise<T> => {
     try {
-      const response = await CovalentHelper.axiosInstance.get(
-        `${config.COVALENT.URI}${path}`,
-      )
+      const response = await CovalentHelper.axiosInstance.get(`${config.COVALENT.URI}${path}`)
       return response.data.data
     } catch (error) {
       logger.error('Error in Covalent RPC Call', llo({ path, error }))
@@ -63,10 +60,7 @@ const CovalentHelper = {
     }
   },
 
-  getToken: async(
-    tokenContractAddress: string,
-    network: NetworksEnum,
-  ): Promise<Partial<IToken> | false> => {
+  getToken: async (tokenContractAddress: string, network: NetworksEnum): Promise<Partial<IToken> | false> => {
     if (tokenContractAddress === utils.zeroAddress) {
       tokenContractAddress = CovalentHelper.nativeTokenAddress
     }
@@ -76,30 +70,19 @@ const CovalentHelper = {
     const path = `/pricing/historical_by_addresses_v2/${networkId}/${config.DEFAULT_CURRENCY}/${tokenContractAddress}/?from=${back2Days}`
 
     try {
-      const response =
-        await CovalentHelper._rpCall<ITokenCovalentResponse[]>(path)
+      const response = await CovalentHelper._rpCall<ITokenCovalentResponse[]>(path)
       assert(response.length > 0, 'Price data not complete')
 
       return CovalentHelper._parseToken(response[0], network)
     } catch (error) {
-      logger.error(
-        'Error fetching token',
-        llo({ error, network, tokenContractAddress }),
-      )
+      logger.error('Error fetching token', llo({ error, network, tokenContractAddress }))
       return false
     }
   },
 
-  _parseToken: (
-    token: ITokenCovalentResponse,
-    network: NetworksEnum,
-  ): Partial<any> => {
-    const mostRecentPrice =
-      token.prices && token.prices.length > 0 ? token.prices[0].price : 0
-    const dayBeforePrice =
-      token.prices && token.prices.length > 1
-        ? token.prices[1].price
-        : mostRecentPrice
+  _parseToken: (token: ITokenCovalentResponse, network: NetworksEnum): Partial<any> => {
+    const mostRecentPrice = token.prices && token.prices.length > 0 ? token.prices[0].price : 0
+    const dayBeforePrice = token.prices && token.prices.length > 1 ? token.prices[1].price : mostRecentPrice
     const priceChangeOnDayUsd = mostRecentPrice - dayBeforePrice
 
     return {
@@ -112,8 +95,7 @@ const CovalentHelper = {
       name: token.contract_name,
       symbol: token.contract_ticker_symbol,
       decimals: token.contract_decimals,
-      priceUsd:
-        token?.prices?.length > 0 ? token?.prices[0].price.toString() : '0',
+      priceUsd: token?.prices?.length > 0 ? token?.prices[0].price.toString() : '0',
       holders: 0,
       totalSupply: 0,
       priceChangeOnDayUsd,
@@ -121,7 +103,7 @@ const CovalentHelper = {
     }
   },
 
-  getTokenBalance: async(
+  getTokenBalance: async (
     address: HexAddress,
     network: INetworks,
     currency: string,
@@ -144,10 +126,7 @@ const CovalentHelper = {
         })),
       }
     } catch (error) {
-      logger.error(
-        'Error fetching token balance',
-        llo({ error, network, address }),
-      )
+      logger.error('Error fetching token balance', llo({ error, network, address }))
       return false
     }
   },

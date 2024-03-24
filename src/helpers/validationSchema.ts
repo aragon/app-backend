@@ -6,9 +6,7 @@ import { getAddress } from 'ethers'
 const ValidationSchema = {
   Joi,
   joiUuid: Joi.string().regex(/^[0-9a-fA-F]{24}$/),
-  joiEmail: Joi.string().regex(
-    /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}$/,
-  ),
+  joiEmail: Joi.string().regex(/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}$/),
   joiAddress: Joi.string()
     .required()
     .custom((value, helpers) => {

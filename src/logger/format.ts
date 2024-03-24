@@ -85,15 +85,11 @@ const Format: ILogFormat = {
 
     let detailString = ''
     if (opts.showDetails && Object.keys(filteredInfo).length > 0) {
-      const detail = Utils.JSONStringifyCircular(filteredInfo).replace(
-        /\\n/g,
-        '\n',
-      )
+      const detail = Utils.JSONStringifyCircular(filteredInfo).replace(/\\n/g, '\n')
       detailString = `\nDetail : ${detail}`
     }
 
-    info[MESSAGE] =
-      `${info.timestamp} [${info.level}] ${info.message}${detailString}`
+    info[MESSAGE] = `${info.timestamp} [${info.level}] ${info.message}${detailString}`
     return info
   }),
 }

@@ -1,4 +1,4 @@
-import Runner from '@modules/runner';
-import DataSyncService from '@services/dataSync';
+import Runner from '@modules/runner'
+import DataSyncService from '@services/dataSync'
 
-Runner([{ app: DataSyncService }]);
+Runner([{ app: DataSyncService }])
