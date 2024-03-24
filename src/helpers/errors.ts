@@ -1,10 +1,4 @@
-import {
-  ErrorKeyEnum,
-  type IErrorMap,
-  type IErrorDetail,
-  type IErrorConfig,
-  type IExposableError,
-} from '@types'
+import { ErrorKeyEnum, type IErrorMap, type IErrorDetail, type IErrorConfig, type IExposableError } from '@types'
 
 const ERRORS: IErrorMap = {
   [ErrorKeyEnum.invalidOrigin]: {
@@ -57,12 +51,7 @@ const throwError = (message: string, detail: IErrorDetail = {}) => {
   throw err
 }
 
-const throwExposable = (
-  code: string,
-  status?: number | null,
-  description?: string | null,
-  exposeMeta?: any,
-) => {
+const throwExposable = (code: string, status?: number | null, description?: string | null, exposeMeta?: any) => {
   const error: IErrorConfig = ERRORS[code]
   if (!error) {
     throwError(ErrorKeyEnum.unknownErrorCode, {
@@ -90,11 +79,7 @@ function castExposable(error: Error) {
     throw error
   }
 
-  throwExposable(
-    error.message,
-    (error as IExposableError).status,
-    (error as IExposableError).description,
-  )
+  throwExposable(error.message, (error as IExposableError).status, (error as IExposableError).description)
 }
 
 function assert(condition: boolean, message: string, detail?: IErrorDetail) {
@@ -123,15 +108,7 @@ function bodyParserError(error: any) {
   }
 }
 
-export {
-  throwError,
-  throwExposable,
-  bodyParserError,
-  assert,
-  assertExposable,
-  castExposable,
-  ERRORS,
-}
+export { throwError, throwExposable, bodyParserError, assert, assertExposable, castExposable, ERRORS }
 
 /****
  HTTP ERROR CODES

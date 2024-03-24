@@ -10,14 +10,11 @@ const defaultOptions: RetryOptions = {
   delay: 3000,
 }
 
-export const retry = async <T>(
-  action: () => Promise<T>,
-  options: Partial<RetryOptions> = {},
-): Promise<T> => {
+export const retry = async <T>(action: () => Promise<T>, options: Partial<RetryOptions> = {}): Promise<T> => {
   const { retries, delay } = { ...defaultOptions, ...options }
   let attempt = 0
 
-  const execute = async(): Promise<T> => {
+  const execute = async (): Promise<T> => {
     try {
       return await action()
     } catch (error) {

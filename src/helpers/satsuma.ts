@@ -35,28 +35,17 @@ const SatsumaHelper = {
     [NetworksEnum.sepolia]: config.SUBGRAPH.SUBGRAPH_SEPOLIA_URI,
   },
 
-  _rpCall: async <T>(
-    network: NetworksEnum,
-    query: TypedDocumentNode,
-    params: SubgraphQueryParam | any,
-  ): Promise<T> => {
+  _rpCall: async <T>(network: NetworksEnum, query: TypedDocumentNode, params: SubgraphQueryParam | any): Promise<T> => {
     try {
-      const response: T = await SatsumaHelper.graphRequest<T>(
-        SatsumaHelper.subgraphUrls[network],
-        query,
-        params,
-      )
+      const response: T = await SatsumaHelper.graphRequest<T>(SatsumaHelper.subgraphUrls[network], query, params)
       return response
     } catch (error) {
-      logger.error(
-        'Error in SatsumaHelper RPC Call',
-        llo({ network, error, params, query }),
-      )
+      logger.error('Error in SatsumaHelper RPC Call', llo({ network, error, params, query }))
       throw error
     }
   },
 
-  getTokenVotingMembers: async(
+  getTokenVotingMembers: async (
     network: NetworksEnum,
     pluginAddress: HexAddress,
     {
@@ -112,22 +101,15 @@ const SatsumaHelper = {
     }
 
     try {
-      const response = await SatsumaHelper._rpCall<any>(
-        network,
-        query,
-        variables,
-      )
+      const response = await SatsumaHelper._rpCall<any>(network, query, variables)
       return response.tokenVotingMembers
     } catch (error) {
-      logger.error(
-        'Error fetching TokenVoting members',
-        llo({ network, error }),
-      )
+      logger.error('Error fetching TokenVoting members', llo({ network, error }))
       return []
     }
   },
 
-  getMultiSigMembers: async(
+  getMultiSigMembers: async (
     network: NetworksEnum,
     pluginAddress: HexAddress,
     {
@@ -174,11 +156,7 @@ const SatsumaHelper = {
     }
 
     try {
-      const response = await SatsumaHelper._rpCall<any>(
-        network,
-        query,
-        variables,
-      )
+      const response = await SatsumaHelper._rpCall<any>(network, query, variables)
       return response.multisigApprovers
     } catch (error) {
       logger.error('Error fetching MultiSig members', llo({ network, error }))
@@ -186,7 +164,7 @@ const SatsumaHelper = {
     }
   },
 
-  getDaos: async(
+  getDaos: async (
     network: NetworksEnum,
     {
       limit,
@@ -201,20 +179,8 @@ const SatsumaHelper = {
     },
   ): Promise<IDaoSatsumaResponse> => {
     const query = parse(gql`
-      query Daos(
-        $where: Dao_filter!
-        $first: Int!
-        $skip: Int
-        $orderBy: String!
-        $orderDirection: String!
-      ) {
-        daos(
-          where: $where
-          first: $first
-          skip: $skip
-          orderBy: $orderBy
-          orderDirection: $orderDirection
-        ) {
+      query Daos($where: Dao_filter!, $first: Int!, $skip: Int, $orderBy: String!, $orderDirection: String!) {
+        daos(where: $where, first: $first, skip: $skip, orderBy: $orderBy, orderDirection: $orderDirection) {
           id
           subdomain
           creator
@@ -294,7 +260,7 @@ const SatsumaHelper = {
   _parsePlugins: (
     dao: IDaoSubgraph,
   ): {
-    pluginType: EnumPluginType
+    type: EnumPluginType
     membersCount: number
     address: HexAddress
   }[] => {
@@ -305,7 +271,7 @@ const SatsumaHelper = {
 
     return dao.plugins.reduce<
       Array<{
-        pluginType: EnumPluginType
+        type: EnumPluginType
         membersCount: number
         address: HexAddress
       }>
@@ -315,18 +281,11 @@ const SatsumaHelper = {
       }
 
       // Only process specified plugin types
-      if (
-        [
-          EnumPluginType.MultisigPlugin,
-          EnumPluginType.TokenVotingPlugin,
-        ].includes(plugin.__typename)
-      ) {
+      if ([EnumPluginType.MultisigPlugin, EnumPluginType.TokenVotingPlugin].includes(plugin.__typename)) {
         acc.push({
           address: plugin.pluginAddress,
-          pluginType: plugin.__typename as EnumPluginType,
-          membersCount: Array.isArray(plugin?.members)
-            ? plugin?.members.length
-            : 0,
+          type: plugin.__typename as EnumPluginType,
+          membersCount: Array.isArray(plugin?.members) ? plugin?.members.length : 0,
         })
       }
 
@@ -341,15 +300,12 @@ const SatsumaHelper = {
       return undefined
     }
 
-    const totalMembers = plugins.reduce(
-      (sum, plugin) => sum + plugin.membersCount,
-      0,
-    )
+    const totalMembers = plugins.reduce((sum, plugin) => sum + plugin.membersCount, 0)
 
     const parsedPlugins = plugins.map(
       p =>
         ({
-          pluginType: p.pluginType,
+          type: p.type,
           address: p.address,
         }) as unknown as IPlugin,
     )
