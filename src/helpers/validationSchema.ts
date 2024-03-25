@@ -28,7 +28,7 @@ const ValidationSchema = {
     search: Joi.string()
       .allow('')
       .optional()
-      .custom((value) => {
+      .custom(value => {
         try {
           return getAddress(value)
         } catch {
