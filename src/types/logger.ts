@@ -6,8 +6,7 @@ export interface ILogger extends Logger {
   logMeta?: any
 }
 
-export interface ExternalLoggerOptions
-  extends Transport.TransportStreamOptions {
+export interface ExternalLoggerOptions extends Transport.TransportStreamOptions {
   name?: string
   level?: string
 }

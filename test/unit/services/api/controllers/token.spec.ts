@@ -34,9 +34,7 @@ describe('Controller: Token', () => {
         lastUpdatedAt: dayjs().toISOString(),
       }
 
-      const stubHelper = sandbox
-        .stub(CovalentHelper, 'getToken')
-        .resolves(fakeRes as any)
+      const stubHelper = sandbox.stub(CovalentHelper, 'getToken').resolves(fakeRes as any)
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const token = await TokenController.getTokenByAddressAndNetwork({
         address,
@@ -47,10 +45,7 @@ describe('Controller: Token', () => {
       expect(stubHelper.calledOnce).to.be.true
       expect(stubHelper.calledWith(address, NetworksEnum.ethereum)).to.be.true
 
-      const dbToken = await Models.Token.findByTokenAddressAndNetwork(
-        address,
-        NetworksEnum.ethereum,
-      )
+      const dbToken = await Models.Token.findByTokenAddressAndNetwork(address, NetworksEnum.ethereum)
       expect(dbToken.address).to.eq(address)
       expect(dbToken.network).to.eq(NetworksEnum.ethereum)
       expect(dbToken.logo).to.eq(fakeRes.logo)
@@ -107,9 +102,7 @@ describe('Controller: Token', () => {
     })
 
     it('getTokenByAddressAndNetwork not found', async () => {
-      const stubHelper = sandbox
-        .stub(CovalentHelper, 'getToken')
-        .resolves(undefined)
+      const stubHelper = sandbox.stub(CovalentHelper, 'getToken').resolves(undefined)
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       await expect(
         TokenController.getTokenByAddressAndNetwork({

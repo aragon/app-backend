@@ -63,16 +63,10 @@ function makeChainableVerify(mockResult: any) {
   mockResult.verify = chainedVerify
 }
 
-const oldMock: any = (sinon.mock(sinon as any).mock = function mock(
-  object: any,
-) {
+const oldMock: any = (sinon.mock(sinon as any).mock = function mock(object: any) {
   const mockResult = oldMock.apply(this, arguments)
 
-  if (
-    object &&
-    (object instanceof mongoose.Model ||
-      object.schema instanceof mongoose.Schema)
-  ) {
+  if (object && (object instanceof mongoose.Model || object.schema instanceof mongoose.Schema)) {
     makeChainable(mockResult, object)
     makeChainableVerify(mockResult)
   }
@@ -82,11 +76,7 @@ const oldMock: any = (sinon.mock(sinon as any).mock = function mock(
 function sandboxMock(object: any) {
   const mockResult = oldMock.apply(null, arguments)
 
-  if (
-    object &&
-    (object instanceof mongoose.Model ||
-      object.schema instanceof mongoose.Schema)
-  ) {
+  if (object && (object instanceof mongoose.Model || object.schema instanceof mongoose.Schema)) {
     makeChainable(mockResult, object)
     makeChainableVerify(mockResult)
   }

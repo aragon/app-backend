@@ -16,6 +16,7 @@ export const DaoList = [
     plugins: [
       {
         plugin: {
+          pluginAddress: '0xa96b5f30132bb56bd6faee2fdf4a4e14ad413206',
           __typename: 'MultisigPlugin',
           members: [
             {
@@ -53,6 +54,7 @@ export const DaoList = [
     plugins: [
       {
         plugin: {
+          pluginAddress: '0x84e1dfa5ae9f679fcb441b9097d14be8fd37f3a7',
           __typename: 'MultisigPlugin',
           members: [
             {
@@ -74,6 +76,7 @@ export const DaoList = [
     plugins: [
       {
         plugin: {
+          pluginAddress: '0x0d67a03b25059cc444779d291a30b95bf0226c5e',
           __typename: 'TokenVotingPlugin',
           members: [
             {
@@ -101,6 +104,7 @@ export const DaoList = [
     plugins: [
       {
         plugin: {
+          pluginAddress: '0x38a1219f8db6d5c9b6a307aa6310d5f95bb182a9',
           __typename: 'TokenVotingPlugin',
           members: [
             {
@@ -122,6 +126,7 @@ export const DaoList = [
     plugins: [
       {
         plugin: {
+          pluginAddress: '0x1095a7e60c9cb08457f94c328ecdb55836b4cf08',
           __typename: 'MultisigPlugin',
           members: [
             {

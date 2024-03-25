@@ -21,8 +21,5 @@
     "outDir": "./dist",
     "sourceMap": true
   },
-  "exclude": [
-    "node_modules",
-    "**/node_modules/*"
-  ]
+  "exclude": ["node_modules", "**/node_modules/*"]
 }

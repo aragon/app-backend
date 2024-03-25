@@ -6,12 +6,10 @@ import MainRouter from '@services/api/routers/index'
 
 const llo = logger.logMeta.bind(null, { service: 'api' })
 
-const API = async(): Promise<Koa> =>
+const API = async (): Promise<Koa> =>
   await new Promise(resolve => {
     const app = new Koa()
-    app.on('error', (error: any) =>
-      logger.error('Unexpected API error', llo({ error })),
-    )
+    app.on('error', (error: any) => logger.error('Unexpected API error', llo({ error })))
 
     app.use(MainMiddleware(MainRouter.router()))
 

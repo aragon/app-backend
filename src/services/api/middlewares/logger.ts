@@ -12,7 +12,7 @@ function cleanQuery(query: any) {
   return clean
 }
 
-export default () => async(ctx: Context, next: Next) => {
+export default () => async (ctx: Context, next: Next) => {
   if (ctx.request.method === 'OPTIONS') {
     return await next()
   }

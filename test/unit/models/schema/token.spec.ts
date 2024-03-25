@@ -53,9 +53,7 @@ describe('Model: Token', () => {
     expect(createdToken.totalSupply).to.eq(rawToken.totalSupply)
     expect(createdToken.priceChangeOnDayUsd).to.eq(rawToken.priceChangeOnDayUsd)
     expect(createdToken.priceUsd).to.eq(rawToken.priceUsd)
-    expect(createdToken.lastUpdatedAt.getTime()).to.eq(
-      rawToken?.lastUpdatedAt!.getTime(),
-    )
+    expect(createdToken.lastUpdatedAt.getTime()).to.eq(rawToken?.lastUpdatedAt!.getTime())
   })
 
   it('Should update Token', async () => {
@@ -66,9 +64,7 @@ describe('Model: Token', () => {
       address: '0x162433c934aA74ba147E05150B1206b2C922f71d',
     })
 
-    expect(createdToken.address).to.eq(
-      '0x162433c934aA74ba147E05150B1206b2C922f71d',
-    )
+    expect(createdToken.address).to.eq('0x162433c934aA74ba147E05150B1206b2C922f71d')
   })
 
   it('Should find Token by address', async () => {

@@ -9,10 +9,7 @@ const Web3Utils = {
     try {
       return getAddress(address) as HexAddress
     } catch (error) {
-      logger.error(
-        'Error checksum dao address',
-        llo({ address, error, extraLog }),
-      )
+      logger.error('Error checksum dao address', llo({ address, error, extraLog }))
       return null
     }
   },

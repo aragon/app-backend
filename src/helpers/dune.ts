@@ -13,7 +13,7 @@ const DuneHelper = {
     headers: { 'Content-Type': 'application/json' },
   }),
 
-  _rpCall: async(path: string) => {
+  _rpCall: async (path: string) => {
     try {
       const url = `${path}?api_key=${config.DUNE.API_KEY}`
       const response = await DuneHelper.axiosInstance.get(url)
@@ -25,15 +25,13 @@ const DuneHelper = {
   },
 
   // Dune only support base, polygon, ethereum, arbitrum networks
-  getDaos: async(): Promise<{ daos: IDao[], total: number }> => {
+  getDaos: async (): Promise<{ daos: IDao[]; total: number }> => {
     const resp = await DuneHelper._rpCall('/query/3208626/results')
 
     const { rows: daos, metadata } = resp.data.result
 
     return {
-      daos: daos
-        .map((dao: IDaoDune) => DuneHelper._parseDao(dao))
-        .filter((dao: IDao) => dao?.daoAddress),
+      daos: daos.map((dao: IDaoDune) => DuneHelper._parseDao(dao)).filter((dao: IDao) => dao?.daoAddress),
       total: metadata?.row_count,
     }
   },
@@ -54,7 +52,9 @@ const DuneHelper = {
       members: dao.members,
       metadataIpfs: dao.metadata_ipfs?.replace(/\0/g, ''),
       network: dao.network,
-      pluginName: dao.plugin_name,
+      links: [],
+      plugins: [],
+      // pluginName: dao.plugin_name,
       proposalsCreated: dao.proposals_created,
       proposalsExecuted: dao.proposals_executed,
       tvlUSD: dao.tvl_usd, // only from dune

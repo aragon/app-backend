@@ -39,12 +39,8 @@ describe('Model/Utils: models', () => {
       const opts = { fromDate, toDate }
       const result = ModelUtils.parseParams(opts)
 
-      expect(dayjs(result.createdAt.$gte).toISOString()).to.equal(
-        dayjs.utc(fromDate).startOf('day').toISOString(),
-      )
-      expect(dayjs(result.createdAt.$lte).toISOString()).to.equal(
-        dayjs.utc(toDate).endOf('day').toISOString(),
-      )
+      expect(dayjs(result.createdAt.$gte).toISOString()).to.equal(dayjs.utc(fromDate).startOf('day').toISOString())
+      expect(dayjs(result.createdAt.$lte).toISOString()).to.equal(dayjs.utc(toDate).endOf('day').toISOString())
     })
 
     it('should generate date range query for createdAt', function () {
@@ -52,15 +48,13 @@ describe('Model/Utils: models', () => {
       const opts = { toDate }
       const result = ModelUtils.parseParams(opts)
 
-      expect(dayjs(result.createdAt.$lte).toISOString()).to.equal(
-        dayjs.utc(toDate).endOf('day').toISOString(),
-      )
+      expect(dayjs(result.createdAt.$lte).toISOString()).to.equal(dayjs.utc(toDate).endOf('day').toISOString())
     })
   })
 
   describe('requestPaginate', function () {
     it('should generate pagination and sorting query', function () {
-      const opts = { limit: '10', offset: '2', orderProp: 'name', order: 'asc' }
+      const opts = { limit: '10', skip: '2', orderProp: 'name', order: 'asc' }
       const result = ModelUtils.requestPaginate(opts as any)
 
       expect(result).to.deep.equal({

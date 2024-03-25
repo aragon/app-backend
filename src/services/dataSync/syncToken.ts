@@ -31,14 +31,11 @@ export const SyncToken = {
   },
 
   async _updateToken(token: Token) {
-    return await DbTx.executeTxFn(async({ session }) => {
+    return await DbTx.executeTxFn(async ({ session }) => {
       const cToken = await CovalentHelper.getToken(token.address, token.network)
       assert(!!cToken, ErrorKeyEnum.notFound)
 
-      await token.update(
-        { ...cToken, lastUpdatedAt: dayjs().utc().toDate() },
-        { session },
-      )
+      await token.update({ ...cToken, lastUpdatedAt: dayjs().utc().toDate() }, { session })
       await session.commitTransaction()
       await session.endSession()
       logger.verbose('Token updated', llo({ token }))

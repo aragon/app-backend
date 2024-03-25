@@ -1,11 +1,6 @@
 // DAO MEMBER
 import { type ENS, type HexAddress } from '@src/types/networks'
 
-export interface IDaosOfMember {
-  tokenVotingMembers: SubgraphMemberOfDao[]
-  multisigApprovers: SubgraphMemberOfDao[]
-}
-
 export interface SubgraphQueryParam {
   where: any
   block?: number | null
@@ -13,20 +8,6 @@ export interface SubgraphQueryParam {
   skip?: number
   orderBy?: string
   orderDirection?: string
-}
-
-export interface SubgraphMemberOfDao {
-  address: string
-  plugin: {
-    pluginAddress: string
-    dao: {
-      id: string
-      metadata: string
-      subdomain: string
-      createdAt: string
-      proposals: { __typename: string, id: string }[]
-    }
-  }
 }
 
 // DAOs
@@ -43,21 +24,27 @@ export enum EnumPluginType {
 }
 
 export interface SubgraphTokenVotingPlugin {
+  pluginAddress: HexAddress
   __typename: EnumPluginType.TokenVotingPlugin
   members: { votingPower?: number }[]
 }
 
 export interface SubgraphMultisigPlugin {
+  pluginAddress: HexAddress
   __typename: EnumPluginType.MultisigPlugin
   members: { address?: string }[]
 }
 
 export interface SubgraphAddresslistVotingPlugin {
+  pluginAddress: HexAddress
   __typename: EnumPluginType.AddresslistVotingPlugin
+  members: undefined
 }
 
 export interface SubgraphAdminPlugin {
+  pluginAddress: HexAddress
   __typename: EnumPluginType.AdminPlugin
+  members: undefined
 }
 
 export interface SubgraphProposal {
@@ -75,10 +62,6 @@ export interface IDaoSubgraph {
   createdAt: number
   proposals: SubgraphProposal[]
   plugins: {
-    plugin:
-      | SubgraphTokenVotingPlugin
-      | SubgraphMultisigPlugin
-      | SubgraphAddresslistVotingPlugin
-      | SubgraphAdminPlugin
+    plugin: SubgraphTokenVotingPlugin | SubgraphMultisigPlugin | SubgraphAddresslistVotingPlugin | SubgraphAdminPlugin
   }[]
 }

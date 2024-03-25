@@ -44,9 +44,7 @@ describe('Router: MainRouter', () => {
     expect(use.calledWith(`statusRoutes`, `statusAllowedMethod`)).to.be.true
 
     function expectRouter(name: string) {
-      expect(
-        use.calledWith(`/${name}`, `${name}Routes`, `${name}AllowedMethod`),
-      ).to.be.true
+      expect(use.calledWith(`/${name}`, `${name}Routes`, `${name}AllowedMethod`)).to.be.true
     }
 
     expectRouter('dao')

@@ -24,12 +24,8 @@ describe('Module: DbTx', () => {
   it('transactionOptions', async () => {
     const session: any = await DbTx.transactionOptions()
 
-    expect(session.defaultTransactionOptions.readConcern.level).to.equal(
-      'snapshot',
-    )
-    expect(session.defaultTransactionOptions.writeConcern.w).to.equal(
-      'majority',
-    )
+    expect(session.defaultTransactionOptions.readConcern.level).to.equal('snapshot')
+    expect(session.defaultTransactionOptions.writeConcern.w).to.equal('majority')
   })
 
   it('executeTxFn', async () => {
@@ -41,12 +37,7 @@ describe('Module: DbTx', () => {
 
   it('executeTxFn retries on conflict error', async () => {
     const error = new Error('WriteConflict')
-    const fn = sandbox
-      .stub()
-      .onFirstCall()
-      .rejects(error)
-      .onSecondCall()
-      .resolves('success') // Simulate a failure followed by a success
+    const fn = sandbox.stub().onFirstCall().rejects(error).onSecondCall().resolves('success') // Simulate a failure followed by a success
     const retryFn = async () => {
       try {
         return await DbTx.executeTxFn(fn)

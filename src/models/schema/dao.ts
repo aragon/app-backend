@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { ENS, HexAddress, type IDao, type ItxOpts, NetworksEnum } from '@types'
+import { ENS, EnumPluginType, HexAddress, type IDao, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import ModelUtils, { utcDateProp } from '@models/utils/models'
@@ -12,6 +12,14 @@ class Link {
 
   @prop({ type: () => String, default: null })
   public url!: string
+}
+
+class Plugin {
+  @prop({ type: () => String, enum: EnumPluginType, required: true })
+  public type!: EnumPluginType
+
+  @prop({ type: () => String, required: true })
+  public address!: HexAddress
 }
 
 @modelOptions({
@@ -31,7 +39,6 @@ class Link {
   proposalsCreated: 1,
   members: 1,
   network: 1,
-  pluginName: 1,
   hideDao: 1,
 })
 export default class Dao extends Model {
@@ -65,8 +72,8 @@ export default class Dao extends Model {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
-  @prop({ type: () => String, required: true })
-  public pluginName!: string
+  @prop({ type: () => [Plugin], default: [] })
+  public plugins?: Plugin[]
 
   @prop({ type: () => Number, required: true })
   public proposalsCreated!: number
@@ -83,7 +90,7 @@ export default class Dao extends Model {
   @prop({ type: () => Number, required: true })
   public votes!: number
 
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, default: null })
   public txHash!: HexAddress
 
   @prop({ type: () => Boolean, required: true })
@@ -104,28 +111,19 @@ export default class Dao extends Model {
     return await this.findOne({ daoAddress })
   }
 
-  static async findByDaoAddressAndNetwork(
-    daoAddress: HexAddress,
-    network: NetworksEnum,
-  ) {
+  static async findByDaoAddressAndNetwork(daoAddress: HexAddress, network: NetworksEnum) {
     return await this.findOne({ daoAddress, network })
   }
 
-  static async findWithPagination({ networks, pluginNames }, opts: ItxOpts) {
+  static async findWithPagination({ networks, pluginTypes }, opts: IPaginationParams) {
     const params = Object.assign(
       {},
-      ModelUtils.parseParams(opts, [
-        'daoAddress',
-        'creatorAddress',
-        'ens',
-        'name',
-        'txHash',
-      ]),
+      ModelUtils.parseParams(opts, ['daoAddress', 'creatorAddress', 'ens', 'name', 'txHash']),
     )
     params.hideDao = { $ne: true }
 
-    if (pluginNames?.length > 0) {
-      params.pluginName = { $in: pluginNames }
+    if (pluginTypes?.length > 0) {
+      params['plugins.type'] = { $in: pluginTypes }
     }
 
     if (networks?.length > 0) {
@@ -133,12 +131,9 @@ export default class Dao extends Model {
     }
 
     const request = Object.assign({}, ModelUtils.requestPaginate(opts))
-    const currentPage = opts.offset || 1
+    const currentPage = opts.skip || 1
 
-    const [daos, totRecords] = await Promise.all([
-      this.find(params, null, request),
-      this.countDocuments(params),
-    ])
+    const [daos, totRecords] = await Promise.all([this.find(params, null, request), this.countDocuments(params)])
 
     const totPages = Math.ceil(totRecords / request.limit)
 
@@ -162,10 +157,7 @@ export default class Dao extends Model {
   async update(params: Partial<Dao>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
-        if (
-          !this.schema.tree[key].required ||
-          (this.schema.tree[key].required && value)
-        ) {
+        if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
           const parsedObj = this.toObject()
 
           if (!_.isEqual(parsedObj[key], value)) {

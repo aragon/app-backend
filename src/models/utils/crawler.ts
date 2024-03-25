@@ -6,17 +6,14 @@ const llo = logger.logMeta.bind(null, { service: 'modules: Crawler' })
 
 class DBCrawler {
   private readonly model: Model<Document>
-  private readonly onDocument: (
-    document: Document,
-    stat: { nbWorked: number, nbTotal: number },
-  ) => Promise<void>
+  private readonly onDocument: (document: Document, stat: { nbWorked: number; nbTotal: number }) => Promise<void>
 
   private readonly where: object
   private readonly stopOnError: boolean
   private readonly useAggregate: boolean
   private readonly aggregate: object[]
   private readonly select: string
-  private readonly offset: number
+  private readonly skip: number
   private readonly sort: string
   private readonly raw: boolean
   private readonly populate: string
@@ -27,7 +24,7 @@ class DBCrawler {
   private isOnError: boolean
   private nbWorked: number
   private nbTotal: number
-  private crawlResult: { nbSuccess: number, nbError: number, nbTotal: number }
+  private crawlResult: { nbSuccess: number; nbError: number; nbTotal: number }
   private readonly queue: async.AsyncQueue<Document[]>
 
   constructor(opts: any) {
@@ -66,7 +63,7 @@ class DBCrawler {
      * @param {stopOnError}
      * @example true
      */
-    this.stopOnError = false
+    this.stopOnError = opts.stopOnError
 
     /**
      * @description useAggregate
@@ -90,11 +87,11 @@ class DBCrawler {
     this.select = opts.select || ''
 
     /**
-     * @description set offset documents
-     * @param {offset}
+     * @description set skip documents
+     * @param {skip}
      * @example 100
      */
-    this.offset = opts.offset || 0
+    this.skip = opts.skip || 0
 
     /**
      * @description sort documents
@@ -139,7 +136,7 @@ class DBCrawler {
     )
   }
 
-  async _fetchNext(limit = 10, offset = 0): Promise<any> {
+  async _fetchNext(limit = 10, skip = 0): Promise<any> {
     const where = this.where
     const select = this.select
     const populate = this.populate
@@ -147,22 +144,13 @@ class DBCrawler {
     const aggregate = this.aggregate
 
     if (useAggregate) {
-      const aggregateWithSkipLimit: any = [
-        ...aggregate,
-        { $skip: offset },
-        { $limit: limit },
-      ]
+      const aggregateWithSkipLimit: any = [...aggregate, { $skip: skip }, { $limit: limit }]
 
       const response = this.model.aggregate(aggregateWithSkipLimit)
 
       return await response.exec()
     } else {
-      let response = this.model
-        .find(where)
-        .select(select)
-        .populate(populate)
-        .limit(limit)
-        .skip(offset)
+      let response = this.model.find(where).select(select).populate(populate).limit(limit).skip(skip)
 
       if (this.sort) {
         response = response.sort(this.sort)
@@ -220,22 +208,22 @@ class DBCrawler {
 
     return await new Promise((resolve, reject) => {
       const limit = this.batchSize
-      let offset = this.offset
+      let skip = this.skip
 
-      const fillQueue = async(): Promise<any> => {
+      const fillQueue = async (): Promise<any> => {
         if (this.isOnError || !this.crawling) {
           resolve(this.crawlResult)
           return true
         }
 
-        this._fetchNext(limit, offset)
+        this._fetchNext(limit, skip)
           .then((items: any) => {
             if (items.length > 0) {
               // eslint-disable-next-line
               this.queue.push(items)
-              offset += limit
+              skip += limit
 
-              logger.silly(`Offset ${offset}`, llo({ offset }))
+              logger.silly(`Skip ${skip}`, llo({ skip }))
             } else {
               this.crawling = false
               resolve(this.crawlResult)

@@ -1,5 +1,5 @@
-import utils from '@helpers/utils';
-import {type IConfig, NetworksEnum} from '@types';
+import utils from '@helpers/utils'
+import { type IConfig, NetworksEnum } from '@types'
 
 const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
@@ -53,15 +53,60 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     SUBGRAPH: {
-      SUBGRAPH_ARBITRUM_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_ARBITRUM_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-arbitrum/version/v1.4.0/api'),
-      SUBGRAPH_ARBITRUM_GOERLI_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_ARBITRUM_GOERLI_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-arbitrumGoerli/version/v1.4.0/api'),
-      SUBGRAPH_BASE_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_BASE_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-baseMainnet/version/v1.4.0/api'),
-      SUBGRAPH_BASE_GOERLI_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_BASE_GOERLI_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-baseGoerli/version/v1.4.0/api'),
-      SUBGRAPH_ETHEREUM_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_ETHEREUM_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-mainnet/version/v1.4.0/api'),
-      SUBGRAPH_GOERLI_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_GOERLI_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-goerli/version/v1.4.0/api'),
-      SUBGRAPH_MUMBAI_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_MUMBAI_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-mumbai/version/v1.4.0/api'),
-      SUBGRAPH_POLYGON_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_POLYGON_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-polygon/version/v1.4.0/api'),
-      SUBGRAPH_SEPOLIA_URI: utils.configParser(sourceConfig, 'string', 'SUBGRAPH_SEPOLIA_URI', 'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-sepolia/version/v1.4.0/api'),
+      SUBGRAPH_ARBITRUM_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_ARBITRUM_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-arbitrum/version/v1.4.0/api',
+      ),
+      SUBGRAPH_ARBITRUM_GOERLI_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_ARBITRUM_GOERLI_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-arbitrumGoerli/version/v1.4.0/api',
+      ),
+      SUBGRAPH_BASE_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_BASE_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-baseMainnet/version/v1.4.0/api',
+      ),
+      SUBGRAPH_BASE_GOERLI_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_BASE_GOERLI_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-baseGoerli/version/v1.4.0/api',
+      ),
+      SUBGRAPH_ETHEREUM_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_ETHEREUM_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-mainnet/version/v1.4.0/api',
+      ),
+      SUBGRAPH_GOERLI_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_GOERLI_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-goerli/version/v1.4.0/api',
+      ),
+      SUBGRAPH_MUMBAI_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_MUMBAI_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-mumbai/version/v1.4.0/api',
+      ),
+      SUBGRAPH_POLYGON_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_POLYGON_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-polygon/version/v1.4.0/api',
+      ),
+      SUBGRAPH_SEPOLIA_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'SUBGRAPH_SEPOLIA_URI',
+        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-sepolia/version/v1.4.0/api',
+      ),
     },
 
     IPFS: {
@@ -69,11 +114,16 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       METADATA_FETCH_DELAY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_DELAY', 5000),
     },
 
-    ALCHEMY: {
-      MAINNET: utils.configParser(sourceConfig, 'string', 'ALCHEMY_MAINNET', null),
-      POLYGON: utils.configParser(sourceConfig, 'string', 'ALCHEMY_POLYGON', null),
-      MUMBAI: utils.configParser(sourceConfig, 'string', 'ALCHEMY_MUMBAI', null),
-      GOERLI: utils.configParser(sourceConfig, 'string', 'ALCHEMY_GOERLI', null),
+    BLOCKCHAIN_NODES: {
+      ETHEREUM: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ETHEREUM', null),
+      GOERLI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_GOERLI', null),
+      SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_SEPOLIA', null),
+      MUMBAI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_MUMBAI', null),
+      POLYGON: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_POLYGON', null),
+      BASE: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE', null),
+      BASE_GOERLI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE_GOERLI', null),
+      ARBITRUM: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM', null),
+      ARBITRUM_GOERLI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM_GOERLI', null),
     },
 
     SERVICES: {
@@ -87,12 +137,27 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
       SYNC_DATA: {
         DAO_INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_DAO_INTERVAL', 3 * 60 * 60 * 1000), // 3 hours
-        DAO_FETCH_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_DAO_FETCH_BATCH_SIZE', 2000),
-        TOKEN_INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_TOKEN_INTERVAL', 24 * 60 * 60 * 1000), // 24 hours
-        TOKEN_FETCH_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_TOKEN_FETCH_BATCH_SIZE', 500),
+        DAO_FETCH_BATCH_SIZE: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_SYNC_DATA_DAO_FETCH_BATCH_SIZE',
+          2000,
+        ),
+        TOKEN_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_SYNC_DATA_TOKEN_INTERVAL',
+          24 * 60 * 60 * 1000,
+        ), // 24 hours
+        TOKEN_FETCH_BATCH_SIZE: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_SYNC_DATA_TOKEN_FETCH_BATCH_SIZE',
+          500,
+        ),
       },
     },
-  };
-};
+  }
+}
 
-export { getConfigObject };
+export { getConfigObject }

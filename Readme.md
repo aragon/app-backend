@@ -14,15 +14,19 @@
 # Aragon App Backend
 
 The Aragon App Backend is a vital component designed to empower the Aragon App.
-It ensures efficient on-chain data retrieval and continuous synchronization, acting as a pivotal bridge to the blockchain. 
-This backend solution optimizes the app's performance, guaranteeing users access to the latest, most precise data without compromising on speed or efficiency.
+It ensures efficient on-chain data retrieval and continuous synchronization, acting as a pivotal bridge to the
+blockchain.
+This backend solution optimizes the app's performance, guaranteeing users access to the latest, most precise data
+without compromising on speed or efficiency.
 
 ## Prerequisites
 
 - Docker ([https://docs.docker.com/install](https://docs.docker.com/install))
-- NodeJS find version in `.nvmrc` file (prefer install with [https://github.com/nvm-sh/nvm](https://github.com/nvm-sh/nvm))
+- NodeJS find version in `.nvmrc` file (prefer install
+  with [https://github.com/nvm-sh/nvm](https://github.com/nvm-sh/nvm))
 - MongoDB v7 (prefer install with [https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-os-x/))
 - IDE (prefer [https://www.jetbrains.com/webstorm/download](https://www.jetbrains.com/webstorm/download))
+
 ## Getting Started
 
 Follow these steps to set up the Aragon App-Backend locally:
@@ -43,15 +47,16 @@ yarn install
 
 You can set environment variables in the `.env` file, you can find examples in .env.sample
 
-
 ## Run locally
 
 - Run service API
+
 ```bash
 yarn service:api
 ```
 
 - Run service DataSync
+
 ```bash
 yarn service:data-sync
 ```
@@ -59,29 +64,33 @@ yarn service:data-sync
 ## Run with Docker
 
 - Run dependencies (mongoDb)
+
 ```bash
 yarn docker:dependencies
 ```
 
 - Run all services
+
 ```bash
 yarn docker:services
 ```
 
 - Run only service API
+
 ```bash
 docker-compose up --build -d service-api
 ```
 
 - Run only service DataSync
+
 ```bash
 docker-compose up --build -d service-data-sync
 ```
 
 Access the Aragon App by opening [http://localhost:3000](http://localhost:3000) in your web browser.
 
-
 #### Tests
+
 - Format all files
 
 ```bash
@@ -114,7 +123,8 @@ Please make sure to update tests as appropriate.
 
 ## Security
 
-If you believe you've found a security issue, we encourage you to notify us. We welcome working with you to resolve the issue promptly.
+If you believe you've found a security issue, we encourage you to notify us. We welcome working with you to resolve the
+issue promptly.
 
 Security Contact Email: sirt@aragon.org
 
@@ -122,9 +132,11 @@ Please do not use the issue tracker for security issues.
 
 ## Learn More
 
-For more information about Aragon and its ecosystem, please visit the [Aragon website](https://aragon.org/) and explore our [Developer Portal](https://devs.aragon.org/).
+For more information about Aragon and its ecosystem, please visit the [Aragon website](https://aragon.org/) and explore
+our [Developer Portal](https://devs.aragon.org/).
 
-Join our [Developer Community](https://aragonproject.typeform.com/to/LngekEhU) to stay updated and contribute to the growth of decentralized governance.
+Join our [Developer Community](https://aragonproject.typeform.com/to/LngekEhU) to stay updated and contribute to the
+growth of decentralized governance.
 
 ## License
 

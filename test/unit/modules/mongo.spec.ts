@@ -25,8 +25,7 @@ describe('Module: mongo', () => {
 
     expect(stubSetModels.calledOnce).to.be.true
     expect(stubConnect.calledOnce).to.be.true
-    expect(stubConnect.calledWith(config.MONGO_DB.URI, sandbox.match.object)).to
-      .be.true
+    expect(stubConnect.calledWith(config.MONGO_DB.URI, sandbox.match.object)).to.be.true
   })
 
   it('disconnects from MongoDB', async () => {

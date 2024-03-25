@@ -1,8 +1,9 @@
 import { type Next } from 'koa'
 import { type RouterContext } from '@koa/router'
 import { ErrorKeyEnum, type ICustomError, type IErrorResponse } from '@types'
+import { ERRORS } from '@errors'
 
-export default () => async(ctx: RouterContext, next: Next) => {
+export default () => async (ctx: RouterContext, next: Next) => {
   try {
     await next()
   } catch (error: any) {
@@ -16,10 +17,8 @@ export default () => async(ctx: RouterContext, next: Next) => {
 
     if (error.exposeCustom_) {
       const customError = error as ICustomError
-      status = customError.status || 500
-
-      response.code =
-        (ErrorKeyEnum as any)[customError.message] || ErrorKeyEnum.unknownError
+      status = ERRORS[customError.message || ErrorKeyEnum.unknownError].status
+      response.code = (ErrorKeyEnum as any)[customError.message] || ErrorKeyEnum.unknownError
 
       if (customError.description) {
         response.description = customError.description
@@ -29,6 +28,7 @@ export default () => async(ctx: RouterContext, next: Next) => {
       }
     }
 
+    response.status = status
     ctx.status = status
     ctx.body = response
   }

@@ -4,10 +4,14 @@ import request, { gql } from 'graphql-request'
 import { parse } from 'graphql'
 import {
   EnumPluginType,
+  type HexAddress,
   type IDao,
+  type IDaoMultiSigMember,
   type IDaoSatsumaResponse,
-  type IDaosOfMember,
   type IDaoSubgraph,
+  type IDaoTokenVotingMember,
+  type IPaginationParams,
+  type IPlugin,
   NetworksEnum,
   type SubgraphQueryParam,
 } from '@types'
@@ -32,115 +36,104 @@ const SatsumaHelper = {
     [NetworksEnum.sepolia]: config.SUBGRAPH.SUBGRAPH_SEPOLIA_URI,
   },
 
-  _rpCall: async <T>(
-    network: NetworksEnum,
-    query: TypedDocumentNode,
-    params: SubgraphQueryParam | any,
-  ): Promise<T> => {
+  _rpCall: async <T>(network: NetworksEnum, query: TypedDocumentNode, params: SubgraphQueryParam | any): Promise<T> => {
     try {
-      const response: T = await SatsumaHelper.graphRequest<T>(
-        SatsumaHelper.subgraphUrls[network],
-        query,
-        params,
-      )
+      const response: T = await SatsumaHelper.graphRequest<T>(SatsumaHelper.subgraphUrls[network], query, params)
       return response
     } catch (error) {
-      logger.error(
-        'Error in SatsumaHelper RPC Call',
-        llo({ network, error, params, query }),
-      )
+      logger.error('Error in SatsumaHelper RPC Call', llo({ network, error, params, query }))
       throw error
     }
   },
 
-  getDaosOfMember: async(
+  getTokenVotingMembers: async (
     network: NetworksEnum,
-    address: string,
-  ): Promise<IDaosOfMember> => {
+    pluginAddress: HexAddress,
+    { limit = 100, skip = 0, orderProp = 'address', order = 'asc' }: IPaginationParams,
+  ): Promise<IDaoTokenVotingMember[]> => {
     const query = parse(gql`
-      query MultisigApprovers($where: TokenVotingMember_filter!) {
-        multisigApprovers(where: $where) {
-          plugin {
-            dao {
-              id
-              metadata
-              subdomain
-              createdAt
-              proposals {
-                __typename
-                id
-              }
-            }
+      query TokenVotingMembers(
+        $where: TokenVotingMember_filter!
+        $limit: Int!
+        $skip: Int!
+        $sortBy: TokenVotingMember_orderBy!
+        $direction: OrderDirection!
+      ) {
+        tokenVotingMembers(where: $where, first: $limit, skip: $skip, orderBy: $sortBy, orderDirection: $direction) {
+          address
+          balance
+          votingPower
+          delegatee {
+            address
           }
-        }
-        tokenVotingMembers(where: $where) {
-          plugin {
-            dao {
-              id
-              metadata
-              subdomain
-              createdAt
-              proposals {
-                __typename
-                id
-              }
-            }
+          delegators {
+            address
+            balance
           }
         }
       }
     `)
-    const params: SubgraphQueryParam = {
-      where: { address: address.toLowerCase() },
+
+    const variables = {
+      where: { plugin: pluginAddress.toLowerCase() },
+      limit,
+      skip,
+      sortBy: orderProp,
+      direction: order,
     }
 
     try {
-      const response = await SatsumaHelper._rpCall<any>(network, query, params)
-      return {
-        tokenVotingMembers: response.tokenVotingMembers,
-        multisigApprovers: response.multisigApprovers,
-      }
+      const response = await SatsumaHelper._rpCall<any>(network, query, variables)
+      return response.tokenVotingMembers
     } catch (error) {
-      logger.error(
-        'Error fetching DAO member',
-        llo({ network, address, error }),
-      )
-      return {
-        tokenVotingMembers: [],
-        multisigApprovers: [],
-      }
+      logger.error('Error fetching TokenVoting members', llo({ network, error }))
+      return []
     }
   },
 
-  getDaos: async(
+  getMultiSigMembers: async (
     network: NetworksEnum,
-    {
+    pluginAddress: HexAddress,
+    { limit = 100, skip = 0, orderProp = 'address', order = 'asc' }: IPaginationParams,
+  ): Promise<IDaoMultiSigMember[]> => {
+    const query = parse(gql`
+      query MultisigMembers(
+        $where: MultisigApprover_filter!
+        $limit: Int!
+        $skip: Int!
+        $sortBy: MultisigApprover_orderBy!
+        $direction: OrderDirection!
+      ) {
+        multisigApprovers(where: $where, first: $limit, skip: $skip, orderBy: $sortBy, orderDirection: $direction) {
+          address
+        }
+      }
+    `)
+
+    const variables = {
+      where: { plugin: pluginAddress.toLowerCase() },
       limit,
       skip,
-      orderBy,
-      orderDirection,
-    }: {
-      fromDate?: number
-      limit: number
-      skip: number
-      orderBy?: string
-      orderDirection?: string
-    },
+      sortBy: orderProp,
+      direction: order,
+    }
+
+    try {
+      const response = await SatsumaHelper._rpCall<any>(network, query, variables)
+      return response.multisigApprovers
+    } catch (error) {
+      logger.error('Error fetching MultiSig members', llo({ network, error }))
+      return []
+    }
+  },
+
+  getDaos: async (
+    network: NetworksEnum,
+    { limit = 100, skip = 0, orderProp = 'address', order = 'asc' }: IPaginationParams,
   ): Promise<IDaoSatsumaResponse> => {
     const query = parse(gql`
-      query Daos(
-        $where: Dao_filter!
-        $first: Int!
-        $skip: Int
-        $orderBy: String!
-        $orderDirection: String!
-      ) {
-        daos(
-          where: $where
-          first: $first
-          skip: $skip
-          orderBy: $orderBy
-          orderDirection: $orderDirection
-        ) {
+      query Daos($where: Dao_filter!, $first: Int!, $skip: Int, $orderBy: String!, $orderDirection: String!) {
+        daos(where: $where, first: $first, skip: $skip, orderBy: $orderBy, orderDirection: $orderDirection) {
           id
           subdomain
           creator
@@ -154,6 +147,7 @@ const SatsumaHelper = {
           }
           plugins {
             plugin {
+              pluginAddress
               __typename
               ... on TokenVotingPlugin {
                 members {
@@ -174,9 +168,9 @@ const SatsumaHelper = {
     const params: SubgraphQueryParam = {
       where: {},
       first: limit,
-      skip: skip || 0,
-      orderBy: orderBy || 'createdAt',
-      orderDirection: orderDirection || 'asc',
+      skip,
+      orderBy: orderProp,
+      orderDirection: order,
     }
 
     try {
@@ -186,7 +180,6 @@ const SatsumaHelper = {
       const filteredDaos = fetchedDaos
         .map((dao: IDaoSubgraph) => SatsumaHelper._parseDao(dao, network))
         .filter((dao: IDao | undefined) => dao !== undefined)
-        .sort((a: IDao, b: IDao) => a.block - b.block)
 
       let nextCursor = 0
       if (fetchedDaos.length === limit) {
@@ -216,41 +209,64 @@ const SatsumaHelper = {
     }
   },
 
-  _getPluginInfo: (
+  _parsePlugins: (
     dao: IDaoSubgraph,
-  ): { pluginType: EnumPluginType, membersCount: number } | undefined => {
-    const pluginType = dao.plugins.find(p =>
-      [
-        EnumPluginType.MultisigPlugin,
-        EnumPluginType.TokenVotingPlugin,
-      ].includes(p.plugin?.__typename || 'none'),
-    )?.plugin
-
-    if (pluginType?.__typename === EnumPluginType.TokenVotingPlugin) {
-      return {
-        pluginType: EnumPluginType.TokenVotingPlugin,
-        membersCount: pluginType.members.length,
-      }
+  ): {
+    type: EnumPluginType
+    membersCount: number
+    address: HexAddress
+  }[] => {
+    if (!Array.isArray(dao.plugins) || dao.plugins.length === 0) {
+      logger.warn('Invalid DAO plugins structure', llo({ dao }))
+      return []
     }
 
-    if (pluginType?.__typename === EnumPluginType.MultisigPlugin) {
-      return {
-        pluginType: EnumPluginType.MultisigPlugin,
-        membersCount: pluginType.members.length,
+    return dao.plugins.reduce<
+      Array<{
+        type: EnumPluginType
+        membersCount: number
+        address: HexAddress
+      }>
+    >((acc, { plugin }) => {
+      if (!plugin?.__typename || !plugin.pluginAddress) {
+        return acc
       }
-    }
 
-    return undefined
+      // Only process specified plugin types
+      if ([EnumPluginType.MultisigPlugin, EnumPluginType.TokenVotingPlugin].includes(plugin.__typename)) {
+        acc.push({
+          address: plugin.pluginAddress,
+          type: plugin.__typename as EnumPluginType,
+          membersCount: Array.isArray(plugin?.members) ? plugin?.members.length : 0,
+        })
+      }
+
+      return acc
+    }, [])
   },
 
   _parseDao: (dao: IDaoSubgraph, network: NetworksEnum): IDao | undefined => {
-    const plugin = SatsumaHelper._getPluginInfo(dao)
+    const plugins = SatsumaHelper._parsePlugins(dao)
 
-    if (!plugin) {
+    if (plugins?.length === 0) {
       return undefined
     }
 
+    const totalMembers = plugins.reduce((sum, plugin) => sum + plugin.membersCount, 0)
+
+    const parsedPlugins = plugins.map(
+      p =>
+        ({
+          type: p.type,
+          address: p.address,
+        }) as unknown as IPlugin,
+    )
+
     return {
+      avatar: null,
+      description: null,
+      name: null,
+      links: [],
       creatorAddress: Web3Utils.parseAddress(dao.creator, {
         ...dao,
         service: 'satsuma',
@@ -262,17 +278,17 @@ const SatsumaHelper = {
       block: Number(dao.createdAt),
       createdAt: dayjs.utc(Number(dao.createdAt) * 1000).toDate(),
       ens: dao.daoURI,
-      members: plugin?.membersCount ? Number(plugin.membersCount) : 0,
+      members: totalMembers,
       metadataIpfs: dao?.metadata,
       network,
-      pluginName: plugin?.pluginType || null,
+      plugins: parsedPlugins,
       proposalsCreated: dao.proposals?.length,
       proposalsExecuted: dao.proposals?.filter(p => p.executed).length,
       tvlUSD: 0,
       txHash: utils.zeroAddress,
       uniqueVoters: 0,
       votes: 0,
-      hideDao: !plugin?.pluginType,
+      hideDao: plugins?.length === 0,
     }
   },
 }

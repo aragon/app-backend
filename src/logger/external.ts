@@ -44,12 +44,7 @@ class ExternalLogger extends Transport {
       this.logzioLogger.log(msg)
     }
 
-    if (
-      info.level === 'error' &&
-      this.sentry != null &&
-      info.error instanceof Error &&
-      !info.error.exposeCustom_
-    ) {
+    if (info.level === 'error' && this.sentry != null && info.error instanceof Error && !info.error.exposeCustom_) {
       info.error.message = `${info.message} - ${info.error.message}`
       this.sentry.setExtra('info', info)
       this.sentry.captureMessage(info.error)
