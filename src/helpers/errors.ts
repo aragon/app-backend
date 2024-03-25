@@ -41,6 +41,10 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'Not found',
   },
+  [ErrorKeyEnum.pluginNotFound]: {
+    status: 400,
+    description: 'Plugin not found',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

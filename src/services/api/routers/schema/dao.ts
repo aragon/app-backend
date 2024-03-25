@@ -17,7 +17,7 @@ const DaoSchema = {
   getDaoByAddressAndNetwork: Joi.object({
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
-      .optional(),
+      .required(),
     address: ValidationSchema.joiAddress.required(),
   }),
 
@@ -25,7 +25,7 @@ const DaoSchema = {
     Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
       network: Joi.string()
         .valid(...Object.values(NetworksEnum))
-        .optional(),
+        .required(),
       address: ValidationSchema.joiAddress.required(),
     }),
   ),
@@ -34,7 +34,7 @@ const DaoSchema = {
     Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
       network: Joi.string()
         .valid(...Object.values(NetworksEnum))
-        .optional(),
+        .required(),
       address: ValidationSchema.joiAddress.required(),
     }),
   ),

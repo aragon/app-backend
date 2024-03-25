@@ -54,9 +54,9 @@ const DaoController = {
     memberFilters: IPaginationParams,
   ): Promise<IDaoMembersResponse> => {
     const dao = await Models.Dao.findByDaoAddressAndNetwork(address, network)
-    const multiSigPlugin = dao.plugins.find((w: IPlugin) => w.type === EnumPluginType.MultisigPlugin)
-
     assertExposable(dao, ErrorKeyEnum.notFound)
+
+    const multiSigPlugin = dao.plugins.find((w: IPlugin) => w.type === EnumPluginType.MultisigPlugin)
     assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
 
     const members = await Satsuma.getMultiSigMembers(network, multiSigPlugin.address, memberFilters)

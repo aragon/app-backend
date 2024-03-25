@@ -8,9 +8,9 @@ const DaoRouter = {
   getWithPagination: async function (ctx: RouterContext) {
     const params: any = {
       search: ctx.query.search,
-      limit: ctx.query.limit || 10,
+      limit: Number(ctx.query.limit || 10),
+      skip: Number(ctx.query.skip || 0),
       order: ctx.query.order || 'desc',
-      skip: ctx.query.skip || 0,
       orderProp: ctx.query.orderProp,
       fromDate: ctx.query.fromDate,
       toDate: ctx.query.toDate,
@@ -36,8 +36,8 @@ const DaoRouter = {
 
   getDaoMembersMultiSigWithPagination: async function (ctx: RouterContext) {
     const filterParams: any = {
-      limit: ctx.query.limit || 10,
-      skip: ctx.query.skip || 0,
+      limit: Number(ctx.query.limit || 10),
+      skip: Number(ctx.query.skip || 0),
       order: ctx.query.order || 'desc',
       orderProp: ctx.query.orderProp,
     }
@@ -54,8 +54,8 @@ const DaoRouter = {
 
   getDaoMembersTokenVotingWithPagination: async function (ctx: RouterContext) {
     const filterParams: any = {
-      limit: ctx.query.limit || 10,
-      skip: ctx.query.skip || 0,
+      limit: Number(ctx.query.limit || 10),
+      skip: Number(ctx.query.skip || 0),
       order: ctx.query.order || 'desc',
       orderProp: ctx.query.orderProp,
     }
