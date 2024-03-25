@@ -8,6 +8,7 @@ export interface ICustomError extends Error {
 export interface IErrorResponse {
   code: ErrorKeyEnum
   description: string
+  status?: number
   meta?: any
 }
 

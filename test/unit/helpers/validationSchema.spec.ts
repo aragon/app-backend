@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ValidationSchema from '@helpers/validationSchema'
 import Joi from 'joi'
-import { ErrorKeyEnum } from '@types'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
 import DaoSchema from '@api/routers/schema/dao'
 
 describe('Helpers:ValidationSchema', () => {
@@ -58,7 +58,10 @@ describe('Helpers:ValidationSchema', () => {
     })
 
     it('generateJoiDaoPluginPagination', async () => {
-      const result = await DaoSchema.getDaoMultisigMembersWithPagination.validateAsync({})
+      const result = await DaoSchema.getDaoMultisigMembersWithPagination.validateAsync({
+        network: NetworksEnum.ethereum,
+        address: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
+      })
 
       expect(result.error).to.be.undefined
       expect(result.limit).to.eq(10)
