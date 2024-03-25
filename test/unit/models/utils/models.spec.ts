@@ -54,7 +54,7 @@ describe('Model/Utils: models', () => {
 
   describe('requestPaginate', function () {
     it('should generate pagination and sorting query', function () {
-      const opts = { limit: '10', offset: '2', orderProp: 'name', order: 'asc' }
+      const opts = { limit: '10', skip: '2', orderProp: 'name', order: 'asc' }
       const result = ModelUtils.requestPaginate(opts as any)
 
       expect(result).to.deep.equal({

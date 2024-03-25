@@ -10,6 +10,7 @@ import {
   type IDaoSatsumaResponse,
   type IDaoSubgraph,
   type IDaoTokenVotingMember,
+  type IPaginationParams,
   type IPlugin,
   NetworksEnum,
   type SubgraphQueryParam,
@@ -48,35 +49,17 @@ const SatsumaHelper = {
   getTokenVotingMembers: async (
     network: NetworksEnum,
     pluginAddress: HexAddress,
-    {
-      limit = 100,
-      skip = 0,
-      orderBy = 'address',
-      orderDirection = 'asc',
-    }: {
-      limit: number
-      skip: number
-      orderBy?: string
-      orderDirection?: string
-    },
+    { limit = 100, skip = 0, orderProp = 'address', order = 'asc' }: IPaginationParams,
   ): Promise<IDaoTokenVotingMember[]> => {
     const query = parse(gql`
       query TokenVotingMembers(
         $where: TokenVotingMember_filter!
-        $block: Block_height
         $limit: Int!
         $skip: Int!
         $sortBy: TokenVotingMember_orderBy!
         $direction: OrderDirection!
       ) {
-        tokenVotingMembers(
-          where: $where
-          block: $block
-          first: $limit
-          skip: $skip
-          orderBy: $sortBy
-          orderDirection: $direction
-        ) {
+        tokenVotingMembers(where: $where, first: $limit, skip: $skip, orderBy: $sortBy, orderDirection: $direction) {
           address
           balance
           votingPower
@@ -93,11 +76,10 @@ const SatsumaHelper = {
 
     const variables = {
       where: { plugin: pluginAddress.toLowerCase() },
-      block: null,
       limit,
       skip,
-      sortBy: orderBy,
-      direction: orderDirection,
+      sortBy: orderProp,
+      direction: order,
     }
 
     try {
@@ -112,35 +94,17 @@ const SatsumaHelper = {
   getMultiSigMembers: async (
     network: NetworksEnum,
     pluginAddress: HexAddress,
-    {
-      limit = 100,
-      skip = 0,
-      orderBy = 'address',
-      orderDirection = 'asc',
-    }: {
-      limit: number
-      skip: number
-      orderBy?: string
-      orderDirection?: string
-    },
+    { limit = 100, skip = 0, orderProp = 'address', order = 'asc' }: IPaginationParams,
   ): Promise<IDaoMultiSigMember[]> => {
     const query = parse(gql`
       query MultisigMembers(
         $where: MultisigApprover_filter!
-        $block: Block_height
         $limit: Int!
         $skip: Int!
         $sortBy: MultisigApprover_orderBy!
         $direction: OrderDirection!
       ) {
-        multisigApprovers(
-          where: $where
-          block: $block
-          first: $limit
-          skip: $skip
-          orderBy: $sortBy
-          orderDirection: $direction
-        ) {
+        multisigApprovers(where: $where, first: $limit, skip: $skip, orderBy: $sortBy, orderDirection: $direction) {
           address
         }
       }
@@ -148,11 +112,10 @@ const SatsumaHelper = {
 
     const variables = {
       where: { plugin: pluginAddress.toLowerCase() },
-      block: null,
       limit,
       skip,
-      sortBy: orderBy,
-      direction: orderDirection,
+      sortBy: orderProp,
+      direction: order,
     }
 
     try {
@@ -166,17 +129,7 @@ const SatsumaHelper = {
 
   getDaos: async (
     network: NetworksEnum,
-    {
-      limit,
-      skip,
-      orderBy,
-      orderDirection,
-    }: {
-      limit: number
-      skip: number
-      orderBy?: string
-      orderDirection?: string
-    },
+    { limit = 100, skip = 0, orderProp = 'address', order = 'asc' }: IPaginationParams,
   ): Promise<IDaoSatsumaResponse> => {
     const query = parse(gql`
       query Daos($where: Dao_filter!, $first: Int!, $skip: Int, $orderBy: String!, $orderDirection: String!) {
@@ -215,9 +168,9 @@ const SatsumaHelper = {
     const params: SubgraphQueryParam = {
       where: {},
       first: limit,
-      skip: skip || 0,
-      orderBy: orderBy || 'createdAt',
-      orderDirection: orderDirection || 'asc',
+      skip,
+      orderBy: orderProp,
+      orderDirection: order,
     }
 
     try {
@@ -227,7 +180,6 @@ const SatsumaHelper = {
       const filteredDaos = fetchedDaos
         .map((dao: IDaoSubgraph) => SatsumaHelper._parseDao(dao, network))
         .filter((dao: IDao | undefined) => dao !== undefined)
-        .sort((a: IDao, b: IDao) => a.block - b.block)
 
       let nextCursor = 0
       if (fetchedDaos.length === limit) {

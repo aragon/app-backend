@@ -57,6 +57,15 @@ describe('Helpers:ValidationSchema', () => {
       )
     })
 
+    it('generateJoiDaoPluginPagination', async () => {
+      const result = await DaoSchema.getDaoMultisigMembersWithPagination.validateAsync({})
+
+      expect(result.error).to.be.undefined
+      expect(result.limit).to.eq(10)
+      expect(result.skip).to.eq(0)
+      expect(result.order).to.eq('asc')
+    })
+
     it('generateJoiPagination', async () => {
       const result = await DaoSchema.getWithPagination.validateAsync({
         search: '0xb794F5eA0ba39494cE839613fffBA74279579268',
@@ -65,21 +74,21 @@ describe('Helpers:ValidationSchema', () => {
       expect(result.search).to.eq('0xb794F5eA0ba39494cE839613fffBA74279579268')
       expect(result.error).to.be.undefined
       expect(result.limit).to.eq(10)
-      expect(result.offset).to.eq(0)
+      expect(result.skip).to.eq(0)
       expect(result.order).to.eq('asc')
     })
 
     it('generateJoiPagination wrong address', async () => {
       const result = await DaoSchema.getWithPagination.validateAsync({
         search: 'not_a_valid_address',
-        offset: 1,
+        skip: 1,
         limit: 12,
       })
 
       expect(result.search).to.eq('not_a_valid_address')
       expect(result.error).to.be.undefined
       expect(result.limit).to.eq(12)
-      expect(result.offset).to.eq(1)
+      expect(result.skip).to.eq(1)
       expect(result.order).to.eq('asc')
     })
 

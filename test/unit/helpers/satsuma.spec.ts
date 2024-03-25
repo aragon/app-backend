@@ -8,7 +8,6 @@ import { HexAddress, NetworksEnum } from '@types'
 import utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3'
 import logger from '@logger'
-import Satsuma from '@helpers/satsuma'
 
 describe('Helpers: Satsuma', () => {
   let sandbox: SinonSandbox
@@ -43,7 +42,6 @@ describe('Helpers: Satsuma', () => {
 
       try {
         await SatsumaHelper._rpCall(NetworksEnum.ethereum, {} as any, {})
-        throw new Error('Expected method to reject.')
       } catch (error) {
         expect(error).to.equal(testError)
       }
@@ -105,8 +103,8 @@ describe('Helpers: Satsuma', () => {
       const params = {
         limit,
         skip: 0,
-        orderBy: 'createdAt',
-        orderDirection: 'asc',
+        orderProp: 'createdAt',
+        order: 'asc',
       }
 
       const res = await SatsumaHelper.getDaos(network, params)
@@ -120,8 +118,8 @@ describe('Helpers: Satsuma', () => {
         where: {},
         first: params.limit,
         skip: params.skip,
-        orderBy: params.orderBy,
-        orderDirection: params.orderDirection,
+        orderBy: params.orderProp,
+        orderDirection: params.order,
       })
 
       // Validate the structure of the returned DAO object matches your expectations
@@ -156,8 +154,8 @@ describe('Helpers: Satsuma', () => {
       const params = {
         limit: 10,
         skip: 0,
-        orderBy: 'createdAt',
-        orderDirection: 'asc',
+        orderProp: 'createdAt',
+        order: 'asc',
       }
 
       const response = await SatsumaHelper.getDaos(network, params)
@@ -344,8 +342,8 @@ describe('Helpers: Satsuma', () => {
       const filters = {
         limit: 10,
         skip: 0,
-        orderBy: 'address',
-        orderDirection: 'asc',
+        orderProp: 'address',
+        order: 'asc',
       }
 
       const res = await SatsumaHelper.getTokenVotingMembers(network, pluginAddress, filters)
@@ -355,11 +353,10 @@ describe('Helpers: Satsuma', () => {
       expect(stubRequest.args[0][0]).to.eq(network)
       expect(stubRequest.args[0][2]).to.deep.equal({
         where: { plugin: pluginAddress.toLowerCase() },
-        block: null,
         limit: filters.limit,
         skip: filters.skip,
-        sortBy: filters.orderBy,
-        direction: filters.orderDirection,
+        sortBy: filters.orderProp,
+        direction: filters.order,
       })
     })
 
@@ -370,8 +367,8 @@ describe('Helpers: Satsuma', () => {
       const filters = {
         limit: 10,
         skip: 0,
-        orderBy: 'address',
-        orderDirection: 'asc',
+        orderProp: 'address',
+        order: 'asc',
       }
 
       const testError = new Error('Test error fetching DAO member')
@@ -413,8 +410,8 @@ describe('Helpers: Satsuma', () => {
       const filters = {
         limit: 10,
         skip: 0,
-        orderBy: 'address',
-        orderDirection: 'asc',
+        orderProp: 'address',
+        order: 'asc',
       }
 
       const res = await SatsumaHelper.getMultiSigMembers(network, pluginAddress, filters)
@@ -424,11 +421,10 @@ describe('Helpers: Satsuma', () => {
       expect(stubRequest.args[0][0]).to.eq(network)
       expect(stubRequest.args[0][2]).to.deep.equal({
         where: { plugin: pluginAddress.toLowerCase() },
-        block: null,
         limit: filters.limit,
         skip: filters.skip,
-        sortBy: filters.orderBy,
-        direction: filters.orderDirection,
+        sortBy: filters.orderProp,
+        direction: filters.order,
       })
     })
 
@@ -439,8 +435,8 @@ describe('Helpers: Satsuma', () => {
       const filters = {
         limit: 10,
         skip: 0,
-        orderBy: 'address',
-        orderDirection: 'asc',
+        orderProp: 'address',
+        order: 'asc',
       }
 
       const testError = new Error('Test error fetching DAO member')
