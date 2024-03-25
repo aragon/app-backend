@@ -44,13 +44,9 @@ describe('Module: connection', () => {
 
     it('Should throw when unknown connection', async () => {
       const stubLogger = sandbox.stub(logger, 'warn')
-      await expect(Connections.open(['unknown'])).to.be.rejectedWith(
-        Error,
-        'Unknown service to connect to',
-      )
+      await expect(Connections.open(['unknown'])).to.be.rejectedWith(Error, 'Unknown service to connect to')
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Unable to open connections' as any)).to.be
-        .true
+      expect(stubLogger.calledWith('Unable to open connections' as any)).to.be.true
       expect(Connections.openedConnections).to.be.deep.eq([])
     })
 
@@ -58,13 +54,9 @@ describe('Module: connection', () => {
       const stubLogger = sandbox.stub(logger, 'warn')
       stubDBConnect.rejects(new Error('fake-error'))
 
-      await expect(Connections.open(['mongodb'])).to.be['rejectedWith'](
-        Error,
-        'fake-error',
-      )
+      await expect(Connections.open(['mongodb'])).to.be['rejectedWith'](Error, 'fake-error')
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Unable to open connections' as any)).to.be
-        .true
+      expect(stubLogger.calledWith('Unable to open connections' as any)).to.be.true
       expect(Connections.openedConnections).to.be.deep.eq([])
     })
 
@@ -113,13 +105,9 @@ describe('Module: connection', () => {
     it('Should throw to close unknown connection', async () => {
       Connections.openedConnections = ['unknown']
       const stubLogger = sandbox.stub(logger, 'error')
-      await expect(Connections.close()).to.be.rejectedWith(
-        Error,
-        'Unknown service to disconnect from',
-      )
+      await expect(Connections.close()).to.be.rejectedWith(Error, 'Unknown service to disconnect from')
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Unable to close connections' as any)).to.be
-        .true
+      expect(stubLogger.calledWith('Unable to close connections' as any)).to.be.true
     })
   })
 })

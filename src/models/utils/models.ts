@@ -1,10 +1,10 @@
 import _ from 'lodash'
-import { type ItxOpts } from '@types'
+import { type IPaginationParams } from '@types'
 import dayjs from '@helpers/dayjs'
 import { prop } from '@typegoose/typegoose'
 
 const ModelUtils = {
-  parseParams(opts: ItxOpts, searchBy: string[] = []) {
+  parseParams(opts: IPaginationParams, searchBy: string[] = []) {
     const queryParams = _.pick(opts || {}, 'search', 'fromDate', 'toDate')
     const params = _.defaults(queryParams, {
       search: undefined,
@@ -41,17 +41,11 @@ const ModelUtils = {
     return request
   },
 
-  requestPaginate(opts: ItxOpts) {
-    const paginateParams = _.pick(
-      opts || {},
-      'limit',
-      'offset',
-      'orderProp',
-      'order',
-    )
+  requestPaginate(opts: IPaginationParams) {
+    const paginateParams = _.pick(opts || {}, 'limit', 'skip', 'orderProp', 'order')
     const params = _.defaults(paginateParams, {
       limit: 15,
-      offset: 1,
+      skip: 1,
       orderProp: 'createdAt',
       order: 'desc',
     })
@@ -61,9 +55,8 @@ const ModelUtils = {
     if (params.limit) {
       request.limit = parseInt(String(params.limit))
     }
-    if (params.offset) {
-      request.skip =
-        parseInt(String(params.limit)) * (parseInt(String(params.offset)) - 1)
+    if (params.skip) {
+      request.skip = parseInt(String(params.limit)) * (parseInt(String(params.skip)) - 1)
     }
     if (params.order || params.orderProp) {
       request.sort = { [params.orderProp]: params.order === 'desc' ? -1 : 1 }

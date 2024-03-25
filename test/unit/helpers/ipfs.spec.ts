@@ -19,44 +19,20 @@ describe('Helpers: IPFS', () => {
   })
 
   it('_isValidCIDv0', () => {
-    expect(
-      IPFSHelper._isValidCIDv0(
-        'QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM',
-      ),
-    ).to.be.true
-    expect(
-      IPFSHelper._isValidCIDv0(
-        'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme',
-      ),
-    ).to.be.false
+    expect(IPFSHelper._isValidCIDv0('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+    expect(IPFSHelper._isValidCIDv0('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')).to.be.false
     expect(IPFSHelper._isValidCIDv0('invalidCID')).to.be.false
   })
 
   it('_isValidCIDv1', () => {
-    expect(
-      IPFSHelper._isValidCIDv1(
-        'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme',
-      ),
-    ).to.be.true
-    expect(
-      IPFSHelper._isValidCIDv1(
-        'QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM',
-      ),
-    ).to.be.false
+    expect(IPFSHelper._isValidCIDv1('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')).to.be.true
+    expect(IPFSHelper._isValidCIDv1('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.false
     expect(IPFSHelper._isValidCIDv1('invalidCID')).to.be.false
   })
 
   it('isValidIpfsUrl', () => {
-    expect(
-      IPFSHelper.isValidIpfsUrl(
-        'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM',
-      ),
-    ).to.be.true
-    expect(
-      IPFSHelper.isValidIpfsUrl(
-        'ipfs://bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme',
-      ),
-    ).to.be.true
+    expect(IPFSHelper.isValidIpfsUrl('ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+    expect(IPFSHelper.isValidIpfsUrl('ipfs://bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')).to.be.true
     expect(IPFSHelper.isValidIpfsUrl('ipfs://invalidCID')).to.be.false
 
     expect(IPFSHelper.isValidIpfsUrl(undefined as any)).to.be.false
@@ -101,20 +77,15 @@ describe('Helpers: IPFS', () => {
 
     const catStub = sandbox.stub().returns(Promise.resolve(bytes))
 
-    sandbox
-      .stub(aragonGateway, 'getIpfsClient')
-      .returns({ cat: catStub } as any)
+    sandbox.stub(aragonGateway, 'getIpfsClient').returns({ cat: catStub } as any)
 
-    const parseMetadataStub = sandbox
-      .stub(IPFSHelper, '_parseMetadata')
-      .callsFake(metadata => metadata)
+    const parseMetadataStub = sandbox.stub(IPFSHelper, '_parseMetadata').callsFake(metadata => metadata)
 
     const metadata = await IPFSHelper.fetchMetadataViaGateway(cid, network)
 
     expect(metadata).to.deep.equal(mockMetadata)
     expect(catStub.calledOnceWithExactly(cid, sinon.match.any)).to.be.true
-    expect(parseMetadataStub.calledOnceWithExactly(mockMetadata as any)).to.be
-      .true
+    expect(parseMetadataStub.calledOnceWithExactly(mockMetadata as any)).to.be.true
   })
 
   it('should warn when fetching metadata via gateway fails', async () => {
@@ -132,9 +103,7 @@ describe('Helpers: IPFS', () => {
 
   it('fetchMetadataViaRequest', async () => {
     const stubReq = sandbox.stub(axios, 'get').returns({ data: 'ok' } as any)
-    const stubParseMetadata = sandbox
-      .stub(IPFSHelper, '_parseMetadata')
-      .returns(true as any)
+    const stubParseMetadata = sandbox.stub(IPFSHelper, '_parseMetadata').returns(true as any)
     const cid = 'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
     const metadata = await IPFSHelper.fetchMetadataViaRequest(cid)
 
@@ -154,9 +123,7 @@ describe('Helpers: IPFS', () => {
     const result = await IPFSHelper.fetchMetadataViaRequest(cid)
 
     expect(result).to.be.null
-    expect(loggerErrorStub.args[0][0]).to.eq(
-      'Failed to fetch metadata from IPFS',
-    )
+    expect(loggerErrorStub.args[0][0]).to.eq('Failed to fetch metadata from IPFS')
   })
 
   describe('fetchMetadata', function () {
@@ -165,52 +132,32 @@ describe('Helpers: IPFS', () => {
       const network = NetworksEnum.ethereum
       const expectedMetadata = { name: 'Example' }
 
-      const stubV0 = sandbox
-        .stub(IPFSHelper, 'fetchMetadataViaGateway')
-        .resolves(expectedMetadata)
+      const stubV0 = sandbox.stub(IPFSHelper, 'fetchMetadataViaGateway').resolves(expectedMetadata)
       sandbox.stub(IPFSHelper, 'fetchMetadataViaRequest').resolves(null)
 
       const result = await IPFSHelper.fetchMetadata(cidV0, network)
 
-      expect(
-        stubV0.calledOnceWithExactly(
-          'QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM',
-          network,
-        ),
-      ).to.be.true
+      expect(stubV0.calledOnceWithExactly('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM', network)).to.be.true
       expect(result).to.deep.equal(expectedMetadata)
     })
 
     it('should call fetchMetadataViaRequest for CIDv1', async function () {
-      const cidV1 =
-        'ipfs://bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
+      const cidV1 = 'ipfs://bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
       const expectedMetadata = { name: 'Example' }
 
       sandbox.stub(IPFSHelper, 'fetchMetadataViaGateway').resolves(null)
-      const stubV1 = sandbox
-        .stub(IPFSHelper, 'fetchMetadataViaRequest')
-        .resolves(expectedMetadata)
+      const stubV1 = sandbox.stub(IPFSHelper, 'fetchMetadataViaRequest').resolves(expectedMetadata)
 
-      const result = await IPFSHelper.fetchMetadata(
-        cidV1,
-        NetworksEnum.ethereum,
-      )
+      const result = await IPFSHelper.fetchMetadata(cidV1, NetworksEnum.ethereum)
 
-      expect(
-        stubV1.calledOnceWithExactly(
-          'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme',
-        ),
-      ).to.be.true
+      expect(stubV1.calledOnceWithExactly('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')).to.be.true
       expect(result).to.deep.equal(expectedMetadata)
     })
 
     it('should return null for invalid CID', async function () {
       const invalidCid = 'ipfs://invalidCID'
 
-      const result = await IPFSHelper.fetchMetadata(
-        invalidCid,
-        NetworksEnum.ethereum,
-      )
+      const result = await IPFSHelper.fetchMetadata(invalidCid, NetworksEnum.ethereum)
 
       expect(result).to.be.null
     })

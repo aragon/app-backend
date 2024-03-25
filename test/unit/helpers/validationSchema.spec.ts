@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ValidationSchema from '@helpers/validationSchema'
 import Joi from 'joi'
-import { ErrorKeyEnum } from '@types'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
 import DaoSchema from '@api/routers/schema/dao'
 
 describe('Helpers:ValidationSchema', () => {
@@ -24,9 +24,7 @@ describe('Helpers:ValidationSchema', () => {
       const res = await ValidationSchema.joiUuid.validateAsync(uuid)
       expect(res).to.eq(uuid)
 
-      await expect(
-        ValidationSchema.joiUuid.validateAsync('5d5a111b294952b1543d'),
-      ).to.be.rejectedWith(
+      await expect(ValidationSchema.joiUuid.validateAsync('5d5a111b294952b1543d')).to.be.rejectedWith(
         Error,
         '"value" with value "5d5a111b294952b1543d" fails to match the required pattern: /^[0-9a-fA-F]{24}$/',
       )
@@ -36,12 +34,10 @@ describe('Helpers:ValidationSchema', () => {
       const res = await ValidationSchema.joiEmail.validateAsync('cris@me.com')
       expect(res).to.eq('cris@me.com')
 
-      const res1 =
-        await ValidationSchema.joiEmail.validateAsync('cris@me.comee')
+      const res1 = await ValidationSchema.joiEmail.validateAsync('cris@me.comee')
       expect(res1).to.eq('cris@me.comee')
 
-      const res2 =
-        await ValidationSchema.joiEmail.validateAsync('cris@me.comeea')
+      const res2 = await ValidationSchema.joiEmail.validateAsync('cris@me.comeea')
       expect(res2).to.eq('cris@me.comeea')
 
       const res3 = await ValidationSchema.joiEmail.validateAsync('+cris@me.com')
@@ -50,19 +46,27 @@ describe('Helpers:ValidationSchema', () => {
       const res4 = await ValidationSchema.joiEmail.validateAsync('213te@me.com')
       expect(res4).to.eq('213te@me.com')
 
-      await expect(
-        ValidationSchema.joiEmail.validateAsync('te@me.com213123123'),
-      ).to.be.rejectedWith(
+      await expect(ValidationSchema.joiEmail.validateAsync('te@me.com213123123')).to.be.rejectedWith(
         Error,
         '"value" with value "te@me.com213123123" fails to match the required pattern: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$/',
       )
 
-      await expect(
-        ValidationSchema.joiEmail.validateAsync('213te@me.comcomo'),
-      ).to.be.rejectedWith(
+      await expect(ValidationSchema.joiEmail.validateAsync('213te@me.comcomo')).to.be.rejectedWith(
         Error,
         '"value" with value "213te@me.comcomo" fails to match the required pattern: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$/',
       )
+    })
+
+    it('generateJoiDaoPluginPagination', async () => {
+      const result = await DaoSchema.getDaoMultisigMembersWithPagination.validateAsync({
+        network: NetworksEnum.ethereum,
+        address: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
+      })
+
+      expect(result.error).to.be.undefined
+      expect(result.limit).to.eq(10)
+      expect(result.skip).to.eq(0)
+      expect(result.order).to.eq('asc')
     })
 
     it('generateJoiPagination', async () => {
@@ -73,21 +77,21 @@ describe('Helpers:ValidationSchema', () => {
       expect(result.search).to.eq('0xb794F5eA0ba39494cE839613fffBA74279579268')
       expect(result.error).to.be.undefined
       expect(result.limit).to.eq(10)
-      expect(result.offset).to.eq(0)
+      expect(result.skip).to.eq(0)
       expect(result.order).to.eq('asc')
     })
 
     it('generateJoiPagination wrong address', async () => {
       const result = await DaoSchema.getWithPagination.validateAsync({
         search: 'not_a_valid_address',
-        offset: 1,
+        skip: 1,
         limit: 12,
       })
 
       expect(result.search).to.eq('not_a_valid_address')
       expect(result.error).to.be.undefined
       expect(result.limit).to.eq(12)
-      expect(result.offset).to.eq(1)
+      expect(result.skip).to.eq(1)
       expect(result.order).to.eq('asc')
     })
 
@@ -159,9 +163,7 @@ describe('Helpers:ValidationSchema', () => {
         expect(error.exposeMeta.validationError.params.date).to.eq(params.date)
         expect(error.exposeMeta.validationError.params.age).to.eq(params.age)
         expect(error.exposeMeta.validationError.errors.length).to.eq(1)
-        expect(error.exposeMeta.validationError.errors[0]).to.eq(
-          '"age" must be a number',
-        )
+        expect(error.exposeMeta.validationError.errors[0]).to.eq('"age" must be a number')
       }
 
       expect(isThrowing).to.be.true
@@ -187,9 +189,7 @@ describe('Helpers:ValidationSchema', () => {
         expect(error.exposeMeta.validationError.params.date).to.eq(params.date)
         expect(error.exposeMeta.validationError.params.age).to.eq(params.age)
         expect(error.exposeMeta.validationError.errors.length).to.eq(1)
-        expect(error.exposeMeta.validationError.errors[0]).to.eq(
-          '"age" must be a number',
-        )
+        expect(error.exposeMeta.validationError.errors[0]).to.eq('"age" must be a number')
       }
 
       expect(isThrowing).to.be.true

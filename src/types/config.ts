@@ -72,11 +72,16 @@ export interface IConfig {
     METADATA_FETCH_DELAY: number
   }
 
-  ALCHEMY: {
-    MAINNET: string
-    POLYGON: string
-    MUMBAI: string
+  BLOCKCHAIN_NODES: {
+    ETHEREUM: string
     GOERLI: string
+    SEPOLIA: string
+    MUMBAI: string
+    POLYGON: string
+    BASE: string
+    BASE_GOERLI: string
+    ARBITRUM: string
+    ARBITRUM_GOERLI: string
   }
 
   SERVICES: {

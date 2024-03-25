@@ -18,30 +18,24 @@ describe('Helpers: Dune', () => {
   })
 
   it('Should _rpCall', async () => {
-    const rpcCallStub = sandbox
-      .stub(DuneHelper.axiosInstance, 'get')
-      .resolves(true)
+    const rpcCallStub = sandbox.stub(DuneHelper.axiosInstance, 'get').resolves(true)
 
     const response = await DuneHelper._rpCall('/path')
 
     expect(response).to.be.true
     expect(rpcCallStub.calledOnce).to.be.true
-    expect(rpcCallStub.calledWith(`/path?api_key=${config.DUNE.API_KEY}`)).to.be
-      .true
+    expect(rpcCallStub.calledWith(`/path?api_key=${config.DUNE.API_KEY}`)).to.be.true
   })
 
   it('Should handle errors in _rpCall', async () => {
     const expectedError = new Error('RPC Call Failed')
-    const rpcCallStub = sandbox
-      .stub(DuneHelper.axiosInstance, 'get')
-      .rejects(expectedError)
+    const rpcCallStub = sandbox.stub(DuneHelper.axiosInstance, 'get').rejects(expectedError)
 
     const loggerStub = sandbox.stub(logger, 'error')
 
     await expect(DuneHelper._rpCall('/path')).to.be.rejectedWith(expectedError)
     expect(rpcCallStub.calledOnce).to.be.true
-    expect(rpcCallStub.calledWith(`/path?api_key=${config.DUNE.API_KEY}`)).to.be
-      .true
+    expect(rpcCallStub.calledWith(`/path?api_key=${config.DUNE.API_KEY}`)).to.be.true
     expect(loggerStub.args[0][0]).to.eq('Error in DuneHelper RPC Call')
   })
 
@@ -57,8 +51,7 @@ describe('Helpers: Dune', () => {
       proposals_created: 0,
       proposals_executed: 0,
       tvl_usd: 0,
-      tx_hash:
-        '0xc9c50eb035307a5e3f63343c169332589737da155356a1ad5d461247c54fee3a',
+      tx_hash: '0xc9c50eb035307a5e3f63343c169332589737da155356a1ad5d461247c54fee3a',
       unique_voters: 0,
       votes: 0,
       hide_dao: false,
@@ -72,7 +65,8 @@ describe('Helpers: Dune', () => {
       members: mockDao.members,
       metadataIpfs: mockDao.metadata_ipfs.replace(/\0/g, ''),
       network: mockDao.network,
-      pluginName: mockDao.plugin_name,
+      plugins: [],
+      // pluginName: mockDao.plugin_name,
       proposalsCreated: mockDao.proposals_created,
       proposalsExecuted: mockDao.proposals_executed,
       tvlUSD: mockDao.tvl_usd,
@@ -92,9 +86,7 @@ describe('Helpers: Dune', () => {
       },
     }
 
-    const rpcCallStub = sandbox
-      .stub(DuneHelper, '_rpCall')
-      .resolves(mockResponse as any)
+    const rpcCallStub = sandbox.stub(DuneHelper, '_rpCall').resolves(mockResponse as any)
     const loggerStub = sandbox.stub(logger, 'error')
 
     const res = await DuneHelper.getDaos()
@@ -106,10 +98,7 @@ describe('Helpers: Dune', () => {
 
     const parsedDao = res.daos[0]
     Object.keys(expectedDao).forEach(key => {
-      expect(parsedDao[key]).to.eql(
-        expectedDao[key],
-        `Field ${key} did not match.`,
-      )
+      expect(parsedDao[key]).to.eql(expectedDao[key], `Field ${key} did not match.`)
     })
     expect(res.total).to.equal(1)
   })

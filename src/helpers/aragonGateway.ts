@@ -1,19 +1,6 @@
-import {
-  type Chain,
-  type ClientConfig,
-  type HttpTransport,
-  type PublicClient,
-  createPublicClient,
-  http,
-} from 'viem'
+import { type Chain, type ClientConfig, type HttpTransport, type PublicClient, createPublicClient, http } from 'viem'
 import { Client } from '@aragon/sdk-ipfs'
-import {
-  ChainRpcGateway,
-  type INetworks,
-  type NetworksEnum,
-  TestNetworks,
-  ViemChains,
-} from '@types'
+import { ChainRpcGateway, type INetworks, type NetworksEnum, TestNetworks, ViemChains } from '@types'
 import config from '@config'
 
 class AragonGateway {
@@ -28,9 +15,7 @@ class AragonGateway {
     },
   }
 
-  public getRpcClient = (
-    network: INetworks,
-  ): PublicClient<HttpTransport, Chain> => {
+  public getRpcClient = (network: INetworks): PublicClient<HttpTransport, Chain> => {
     const url = this._buildRpcUrl(network)
     const chain = ViemChains[network]
     const transport = http(url)

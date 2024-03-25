@@ -68,9 +68,7 @@ describe('Logger: ExternalLogger', () => {
         log: sandbox.stub(),
       }
 
-      const stubLogzioCreateLogger = sandbox
-        .stub(logNodejs, 'createLogger')
-        .returns(mockLogzio as any)
+      const stubLogzioCreateLogger = sandbox.stub(logNodejs, 'createLogger').returns(mockLogzio as any)
 
       const externalLogger: any = new ExternalLogger({
         name: 'external-logger',
@@ -126,9 +124,7 @@ describe('Logger: ExternalLogger', () => {
         }
 
         stubSentryInit =
-          sentry.init === sentryInitOriginal
-            ? sandbox.stub(sentry, 'init').returns(mockSentry)
-            : sentry.init
+          sentry.init === sentryInitOriginal ? sandbox.stub(sentry, 'init').returns(mockSentry) : sentry.init
 
         externalLogger = new ExternalLogger({
           name: 'external-logger',
@@ -208,9 +204,7 @@ describe('Logger: ExternalLogger', () => {
         expect(mockSentry.setExtra.args[0][1]).to.be.deep.eq(log)
 
         expect(mockSentry.captureMessage.calledOnce).to.be.true
-        expect(mockSentry.captureMessage.args[0][0].message).to.eq(
-          'message1 - fake-error1',
-        )
+        expect(mockSentry.captureMessage.args[0][0].message).to.eq('message1 - fake-error1')
         expect(stubCallback.calledOnce).to.be.true
       })
 
@@ -237,9 +231,7 @@ describe('Logger: ExternalLogger', () => {
         expect(mockSentry.setExtra.args[0][1]).to.be.deep.eq(log)
 
         expect(mockSentry.captureMessage.calledOnce).to.be.true
-        expect(mockSentry.captureMessage.args[0][0].message).to.eq(
-          'message1 - fake-error1',
-        )
+        expect(mockSentry.captureMessage.args[0][0].message).to.eq('message1 - fake-error1')
         expect(stubCallback.calledOnce).to.be.true
       })
     })

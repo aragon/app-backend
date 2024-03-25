@@ -35,9 +35,7 @@ describe('Helpers: AragonGateway', () => {
     const client = aragonGateway.getIpfsClient(network)
 
     expect(client.url.toString()).to.equal(expectedUrl)
-    expect(client.headers['X-API-KEY']).to.equal(
-      config.ARAGON.GATEWAY_IPFS_API_KEY,
-    )
+    expect(client.headers['X-API-KEY']).to.equal(config.ARAGON.GATEWAY_IPFS_API_KEY)
   })
 
   it('_buildRpcUrl', function () {

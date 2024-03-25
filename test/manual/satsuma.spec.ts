@@ -14,20 +14,39 @@ describe('Manual: Satsuma', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should getDaosOfMember', async () => {
+  it('should getDaos', async () => {
     const network = NetworksEnum.ethereum
-    const address = '0xe0bd0fe4e70478d5aaf9df546fc76b964ce0bc54'
-
-    const response = await SatsumaHelper.getDaosOfMember(network, address)
+    const response = await SatsumaHelper.getDaos(network, {
+      limit: 10,
+      skip: 0,
+      orderProp: 'id',
+      order: 'desc',
+    })
     console.log(response) // eslint-disable-line no-console
   })
 
-  it('should getDaos', async () => {
+  it('should getTokenVotingMembers', async () => {
+    // const daoaddress = '0x59447788F9dCf2df550F257F3692a07f05b922D7'
+    const pluginAddress = '0xb85380977ec3435aebc13e29b01af990393bded9'
     const network = NetworksEnum.ethereum
-
-    const response = await SatsumaHelper.getDaos(network, {
+    const response = await SatsumaHelper.getTokenVotingMembers(network, pluginAddress, {
       limit: 100,
       skip: 0,
+      orderProp: 'address',
+      order: 'asc',
+    })
+    console.log(response) // eslint-disable-line no-console
+  })
+
+  it('should getMultiSigMembers', async () => {
+    // const daoaddress = '0x59447788F9dCf2df550F257F3692a07f05b922D7'
+    const pluginAddress = '0x0673c13d48023efa609c20e5e351763b99dd67de'
+    const network = NetworksEnum.ethereum
+    const response = await SatsumaHelper.getMultiSigMembers(network, pluginAddress, {
+      limit: 100,
+      skip: 0,
+      orderProp: 'address',
+      order: 'asc',
     })
     console.log(response) // eslint-disable-line no-console
   })

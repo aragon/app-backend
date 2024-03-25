@@ -4,8 +4,7 @@ import async from 'async'
 
 const Utils = {
   noop: (): number => 0,
-  wait: async(time: number) =>
-    await new Promise(resolve => setTimeout(resolve, time)),
+  wait: async (time: number) => await new Promise(resolve => setTimeout(resolve, time)),
   zeroAddress: '0x0000000000000000000000000000000000000000' as HexAddress,
 
   defaultError(error: any): void {
@@ -63,7 +62,7 @@ const Utils = {
     const cache: any[] = []
     return JSON.stringify(
       object,
-      function(key: string, value: any) {
+      function (key: string, value: any) {
         if (typeof value === 'object' && value !== null) {
           if (cache.includes(value)) {
             return
@@ -76,11 +75,7 @@ const Utils = {
     )
   },
 
-  async asyncForEach(
-    array: any[],
-    fn: any,
-    breakOnFalse = false,
-  ): Promise<any[]> {
+  async asyncForEach(array: any[], fn: any, breakOnFalse = false): Promise<any[]> {
     const results: boolean[] = []
     for (let index = 0; index < array.length; index++) {
       const res = await fn(array[index], index, array)
@@ -104,9 +99,7 @@ const Utils = {
       let resolveNoop = Utils.noop
 
       try {
-        endPromise = new Promise(resolve => (resolveNoop = resolve)).catch(
-          Utils.noop,
-        )
+        endPromise = new Promise(resolve => (resolveNoop = resolve)).catch(Utils.noop)
 
         await fn()
         resolveNoop()
@@ -115,17 +108,14 @@ const Utils = {
         resolveNoop()
       } finally {
         if (running) {
-          timeout = setTimeout(
-            async() => await launchAndWait(fn, delay),
-            delay,
-          )
+          timeout = setTimeout(async () => await launchAndWait(fn, delay), delay)
         }
       }
     }
 
     launchAndWait(fn, delay).catch(errorHandler)
 
-    return async(wait = false) => {
+    return async (wait = false) => {
       running = false
       clearTimeout(timeout)
       if (wait) {
@@ -136,30 +126,20 @@ const Utils = {
     }
   },
 
-  asyncMap: async(array: any[], fn: any, onError: any): Promise<any> => {
+  asyncMap: async (array: any[], fn: any, onError: any): Promise<any> => {
     assert(!!array && !!fn && !!onError, 'missing parameters')
-    const tasks = array.map(element => async() => fn(element)) as any[]
+    const tasks = array.map(element => async () => fn(element)) as any[]
 
     return Utils.asyncParallel(tasks, onError)
   },
 
-  asyncParallel: async(
-    tasks: Array<() => Promise<any>>,
-    onError: (error: Error) => void,
-  ): Promise<any[]> => {
+  asyncParallel: async (tasks: Array<() => Promise<any>>, onError: (error: Error) => void): Promise<any[]> => {
     return await new Promise(resolve => {
       const wrappedTasks = tasks.map(task => async.reflect(task))
 
-      const callback = (
-        _: Error | null,
-        results: Array<{ error?: Error, value?: any }>,
-      ) => {
-        const successResults = results
-          .filter(result => result.value !== undefined)
-          .map(result => result.value)
-        const errorResults = results
-          .filter(result => result.error !== undefined)
-          .map(result => result.error)
+      const callback = (_: Error | null, results: Array<{ error?: Error; value?: any }>) => {
+        const successResults = results.filter(result => result.value !== undefined).map(result => result.value)
+        const errorResults = results.filter(result => result.error !== undefined).map(result => result.error)
 
         errorResults.forEach(error => onError(error!))
         resolve(successResults)

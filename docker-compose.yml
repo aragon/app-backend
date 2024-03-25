@@ -34,10 +34,10 @@ services:
   mongo1:
     image: mongo:7.0.0
     ports:
-      - "27017:27017"
-    command: ["mongod", "--replSet", "rs0", "--port", "27017", "--bind_ip_all"]
+      - '27017:27017'
+    command: ['mongod', '--replSet', 'rs0', '--port', '27017', '--bind_ip_all']
     healthcheck:
-      test: ["CMD", "mongosh", "--port", "27017", "--eval", "db.runCommand('ping').ok"]
+      test: ['CMD', 'mongosh', '--port', '27017', '--eval', "db.runCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -45,10 +45,10 @@ services:
   mongo2:
     image: mongo:7.0.0
     ports:
-      - "27018:27017"
-    command: ["mongod", "--replSet", "rs0", "--port", "27017", "--bind_ip_all"]
+      - '27018:27017'
+    command: ['mongod', '--replSet', 'rs0', '--port', '27017', '--bind_ip_all']
     healthcheck:
-      test: ["CMD", "mongosh", "--port", "27017", "--eval", "db.runCommand('ping').ok"]
+      test: ['CMD', 'mongosh', '--port', '27017', '--eval', "db.runCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,10 +56,10 @@ services:
   mongo3:
     image: mongo:7.0.0
     ports:
-      - "27019:27017"
-    command: ["mongod", "--replSet", "rs0", "--port", "27017", "--bind_ip_all"]
+      - '27019:27017'
+    command: ['mongod', '--replSet', 'rs0', '--port', '27017', '--bind_ip_all']
     healthcheck:
-      test: ["CMD", "mongosh", "--port", "27017", "--eval", "db.runCommand('ping').ok"]
+      test: ['CMD', 'mongosh', '--port', '27017', '--eval', "db.runCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5

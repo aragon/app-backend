@@ -10,12 +10,12 @@ export interface IMongoModel {
   Token: Model<InstanceType<typeof Token>>
 }
 
-export interface ItxOpts {
+export interface IPaginationParams {
   search?: string
   fromDate?: string
   toDate?: string
   limit?: number
-  offset?: number
+  skip?: number
   order?: string
   orderProp?: string
 }

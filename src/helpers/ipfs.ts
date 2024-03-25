@@ -8,10 +8,7 @@ import axios from 'axios'
 const llo = logger.logMeta.bind(null, { service: 'helpers:IPFSHelper' })
 
 const IPFSHelper = {
-  fetchMetadata: async(
-    ipfsUrl: string,
-    network: NetworksEnum,
-  ): Promise<IDaoMetadata | null> => {
+  fetchMetadata: async (ipfsUrl: string, network: NetworksEnum): Promise<IDaoMetadata | null> => {
     // Extract the CID from the IPFS URL
     const cid = ipfsUrl?.replace('ipfs://', '')
 
@@ -25,7 +22,7 @@ const IPFSHelper = {
     }
   },
 
-  fetchMetadataViaRequest: async(cid: string) => {
+  fetchMetadataViaRequest: async (cid: string) => {
     try {
       const url = `https://ipfs.io/ipfs/${cid}`
       const response = await axios.get(url)
@@ -37,14 +34,11 @@ const IPFSHelper = {
     }
   },
 
-  fetchMetadataViaGateway: async(
-    cid: string,
-    network: NetworksEnum,
-  ): Promise<IDaoMetadata | null> => {
+  fetchMetadataViaGateway: async (cid: string, network: NetworksEnum): Promise<IDaoMetadata | null> => {
     try {
       const ipfsClient = aragonGateway.getIpfsClient(network)
       const bytes = await retry(
-        async() => {
+        async () => {
           const controller = new AbortController()
           return await ipfsClient.cat(cid, { signal: controller.signal })
         },
@@ -59,10 +53,7 @@ const IPFSHelper = {
 
       return IPFSHelper._parseMetadata(metadata)
     } catch (error) {
-      logger.warn(
-        'Cannot fetch or decode metadata',
-        llo({ cid, network, error }),
-      )
+      logger.warn('Cannot fetch or decode metadata', llo({ cid, network, error }))
       return null
     }
   },
@@ -76,10 +67,7 @@ const IPFSHelper = {
     const potentialCid = url.replace(/^ipfs:\/\//, '')
 
     // Check if it's a valid CIDv0 or CIDv1
-    return (
-      IPFSHelper._isValidCIDv0(potentialCid) ||
-      IPFSHelper._isValidCIDv1(potentialCid)
-    )
+    return IPFSHelper._isValidCIDv0(potentialCid) || IPFSHelper._isValidCIDv1(potentialCid)
   },
 
   _isValidCIDv0: (cid: string) => {
@@ -96,24 +84,15 @@ const IPFSHelper = {
   },
 
   _parseMetadata(metadata: IDaoMetadata): IDaoMetadata {
-    if (
-      !metadata.avatar ||
-      (metadata.avatar && typeof metadata.avatar !== 'string')
-    ) {
+    if (!metadata.avatar || (metadata.avatar && typeof metadata.avatar !== 'string')) {
       metadata.avatar = null
     }
 
-    if (
-      !metadata.description ||
-      (metadata.description && typeof metadata.description !== 'string')
-    ) {
+    if (!metadata.description || (metadata.description && typeof metadata.description !== 'string')) {
       metadata.description = null
     }
 
-    if (
-      !metadata.name ||
-      (metadata.name && typeof metadata.name !== 'string')
-    ) {
+    if (!metadata.name || (metadata.name && typeof metadata.name !== 'string')) {
       metadata.name = null
     }
 

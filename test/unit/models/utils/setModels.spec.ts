@@ -29,9 +29,7 @@ describe('Model/Utils: setModels', () => {
   })
 
   it('successfully loads models', async function () {
-    const stubPromise = sandbox
-      .stub(fs.promises, 'readdir')
-      .resolves(['User.js', 'Post.js'] as any)
+    const stubPromise = sandbox.stub(fs.promises, 'readdir').resolves(['User.js', 'Post.js'] as any)
     const stubLogger = sandbox.stub(logger, 'error')
 
     const schemas = await setMongoModels()

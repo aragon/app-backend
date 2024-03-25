@@ -24,10 +24,7 @@ export const SyncDao = {
 
     for (const networkName of Object.values(Network.NETWORKS)) {
       logger.verbose('Starting DAO fetch', llo({ networkName }))
-      await SyncDao._fetchDaosByNetwork(
-        networkName as NetworksEnum,
-        config.SERVICES.SYNC_DATA.DAO_FETCH_BATCH_SIZE,
-      )
+      await SyncDao._fetchDaosByNetwork(networkName as NetworksEnum, config.SERVICES.SYNC_DATA.DAO_FETCH_BATCH_SIZE)
     }
     logger.verbose('Finish fetching DAOs', llo(SyncDao.extraLog))
     SyncDao._reset()
@@ -50,10 +47,12 @@ export const SyncDao = {
       const result = await SatsumaHelper.getDaos(networkName, {
         skip,
         limit: batchSize,
+        orderProp: 'createdAt',
+        order: 'asc',
       })
 
       await Promise.all(
-        result.daos.map(async(dao, index) => {
+        result.daos.map(async (dao, index) => {
           SyncDao.extraLog.totalDaosAllNetworks += 1
           SyncDao.extraLog[networkName].totalDaos += 1
           if (dao.hideDao) {
@@ -64,10 +63,7 @@ export const SyncDao = {
 
           let metadata: IDaoMetadata | null = null
           if (IPFSHelper.isValidIpfsUrl(dao?.metadataIpfs!)) {
-            metadata = await IPFSHelper.fetchMetadata(
-              dao?.metadataIpfs!,
-              networkName,
-            )
+            metadata = await IPFSHelper.fetchMetadata(dao?.metadataIpfs!, networkName)
 
             if (metadata) {
               SyncDao.extraLog[networkName].metadataFetched += 1
@@ -88,20 +84,11 @@ export const SyncDao = {
         skip = skip + batchSize
       }
     }
-    logger.verbose(
-      'DAO Metrics ',
-      llo(SyncDao.extraLog[networkName], { networkName }),
-    )
+    logger.verbose('DAO Metrics ', llo(SyncDao.extraLog[networkName], { networkName }))
   },
 
-  async _createOrUpdate(
-    dao: IDao,
-    networkName: NetworksEnum,
-    metadata?: IDaoMetadata,
-  ) {
-    const duneDao = SyncDao.duneDaos.find(
-      d => d.daoAddress === dao.daoAddress && d.network === networkName,
-    )
+  async _createOrUpdate(dao: IDao, networkName: NetworksEnum, metadata?: IDaoMetadata) {
+    const duneDao = SyncDao.duneDaos.find(d => d.daoAddress === dao.daoAddress && d.network === networkName)
 
     const rawDao: any = {
       name: metadata?.name,
@@ -115,7 +102,8 @@ export const SyncDao = {
       members: dao.members || 0,
       metadataIpfs: dao.metadataIpfs,
       network: networkName as NetworksEnum,
-      pluginName: dao.pluginName,
+      plugins: dao.plugins || [],
+      // pluginName: dao.pluginName,
       proposalsCreated: dao.proposalsCreated,
       proposalsExecuted: dao.proposalsExecuted,
       tvlUSD: duneDao?.tvlUSD ?? dao.tvlUSD,
@@ -126,12 +114,9 @@ export const SyncDao = {
       createdAt: dao.createdAt,
     }
 
-    const existingDao = await Models.Dao.findByDaoAddressAndNetwork(
-      dao.daoAddress,
-      networkName,
-    )
+    const existingDao = await Models.Dao.findByDaoAddressAndNetwork(dao.daoAddress, networkName)
 
-    return DbTx.executeTxFn(async({ session }) => {
+    return DbTx.executeTxFn(async ({ session }) => {
       let dbDao = null
       if (existingDao) {
         dbDao = await existingDao.update(rawDao, { session })

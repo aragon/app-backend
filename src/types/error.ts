@@ -8,6 +8,7 @@ export interface ICustomError extends Error {
 export interface IErrorResponse {
   code: ErrorKeyEnum
   description: string
+  status?: number
   meta?: any
 }
 
@@ -39,4 +40,5 @@ export enum ErrorKeyEnum {
   badParams = 'badParams',
   unknownErrorCode = 'unknownErrorCode',
   notFound = 'notFound',
+  pluginNotFound = 'pluginNotFound',
 }
