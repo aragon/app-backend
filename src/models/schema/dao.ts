@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { ENS, EnumPluginType, HexAddress, type IDao, type ItxOpts, NetworksEnum } from '@types'
+import { ENS, EnumPluginType, HexAddress, type IDao, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import ModelUtils, { utcDateProp } from '@models/utils/models'
@@ -115,7 +115,7 @@ export default class Dao extends Model {
     return await this.findOne({ daoAddress, network })
   }
 
-  static async findWithPagination({ networks, pluginTypes }, opts: ItxOpts) {
+  static async findWithPagination({ networks, pluginTypes }, opts: IPaginationParams) {
     const params = Object.assign(
       {},
       ModelUtils.parseParams(opts, ['daoAddress', 'creatorAddress', 'ens', 'name', 'txHash']),
@@ -131,7 +131,7 @@ export default class Dao extends Model {
     }
 
     const request = Object.assign({}, ModelUtils.requestPaginate(opts))
-    const currentPage = opts.offset || 1
+    const currentPage = opts.skip || 1
 
     const [daos, totRecords] = await Promise.all([this.find(params, null, request), this.countDocuments(params)])
 

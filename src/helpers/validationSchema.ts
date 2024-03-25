@@ -17,11 +17,18 @@ const ValidationSchema = {
       }
     }, 'Ethereum Address Validation'),
 
+  generateJoiDaoPluginPagination: {
+    limit: Joi.number().integer().optional().default(10),
+    skip: Joi.number().integer().greater(-1).optional().default(0),
+    order: Joi.string().valid('asc', 'desc').optional().default('asc'),
+    orderProp: Joi.string().optional().default('createdAt'),
+  },
+
   generateJoiPagination: {
     search: Joi.string()
       .allow('')
       .optional()
-      .custom((value, helpers) => {
+      .custom((value) => {
         try {
           return getAddress(value)
         } catch {
@@ -29,9 +36,9 @@ const ValidationSchema = {
         }
       }, 'Ethereum Address or General Search Validation'),
     limit: Joi.number().integer().optional().default(10),
-    offset: Joi.number().integer().greater(-1).optional().default(0),
+    skip: Joi.number().integer().greater(-1).optional().default(0),
     order: Joi.string().valid('asc', 'desc').optional().default('asc'),
-    orderProp: Joi.string().valid('createdAt').optional().default('createdAt'),
+    orderProp: Joi.string().optional().default('createdAt'),
     fromDate: Joi.date().optional(),
     toDate: Joi.date()
       .min(Joi.ref('fromDate', { adjust: value => new Date(value) }))

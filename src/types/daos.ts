@@ -51,13 +51,6 @@ export interface IPlugin {
   address: HexAddress
 }
 
-export interface IDaoMemberParams {
-  limit: number
-  skip: number
-  orderBy: string
-  orderDirection: string
-}
-
 export interface IDaoMultiSigMember {
   address: HexAddress
 }
@@ -72,6 +65,10 @@ export interface IDaoTokenVotingMember {
 
 export interface IDaoMembersResponse {
   members: IDaoMultiSigMember[] | IDaoTokenVotingMember[]
+  limit?: number
+  skip?: number
+  orderProp?: string
+  order?: string
 }
 
 export interface IDao extends IDaoMetadata {

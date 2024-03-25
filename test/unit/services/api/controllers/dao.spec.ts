@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DaoController from '@services/api/controllers/dao'
-import { EnumPluginType, HexAddress, ItxOpts, NetworksEnum } from '@types'
+import { EnumPluginType, HexAddress, IPaginationParams, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { DaoList } from '@test/mock/fakeDao'
 import Satsuma from '@helpers/satsuma'
@@ -27,7 +27,7 @@ describe('Controller: Dao', () => {
         totRecords: 1,
       })
 
-      const params: ItxOpts & {
+      const params: IPaginationParams & {
         network: NetworksEnum
         plugin: EnumPluginType
       } = {
@@ -37,7 +37,7 @@ describe('Controller: Dao', () => {
         toDate: '',
         fromDate: '',
         limit: 10,
-        offset: 1,
+        skip: 1,
         order: 'asc',
         orderProp: 'createdAt',
       }
@@ -53,7 +53,7 @@ describe('Controller: Dao', () => {
             toDate: '',
             fromDate: '',
             limit: 10,
-            offset: 1,
+            skip: 1,
             order: 'asc',
             orderProp: 'createdAt',
           },
@@ -79,7 +79,7 @@ describe('Controller: Dao', () => {
         toDate: '',
         fromDate: '',
         limit: 10,
-        offset: 1,
+        skip: 1,
         order: 'asc',
         orderProp: 'createdAt',
       }
@@ -95,7 +95,7 @@ describe('Controller: Dao', () => {
             toDate: '',
             fromDate: '',
             limit: 10,
-            offset: 1,
+            skip: 1,
             order: 'asc',
             orderProp: 'createdAt',
           },
@@ -130,8 +130,8 @@ describe('Controller: Dao', () => {
     const filters = {
       limit: 10,
       skip: 0,
-      orderBy: 'address',
-      orderDirection: 'asc',
+      orderProp: 'address',
+      order: 'asc',
     }
 
     const fakeResponse = [
@@ -155,6 +155,10 @@ describe('Controller: Dao', () => {
 
     const result = await DaoController.getDaoMembersMultiSig(network as NetworksEnum, daoAddress as HexAddress, filters)
 
+    expect(result.limit).to.eq(10)
+    expect(result.skip).to.eq(0)
+    expect(result.orderProp).to.eq('address')
+    expect(result.order).to.eq('asc')
     expect(result.members.length).to.eq(5)
     expect(stubSatsuma.calledOnce).to.be.true
     expect(stubSatsuma.args[0][0]).to.eq(network)
@@ -172,8 +176,8 @@ describe('Controller: Dao', () => {
     const filters = {
       limit: 10,
       skip: 0,
-      orderBy: 'address',
-      orderDirection: 'asc',
+      orderProp: 'address',
+      order: 'asc',
     }
 
     const fakeResponse = [
@@ -214,6 +218,10 @@ describe('Controller: Dao', () => {
       filters,
     )
 
+    expect(result.limit).to.eq(10)
+    expect(result.skip).to.eq(0)
+    expect(result.orderProp).to.eq('address')
+    expect(result.order).to.eq('asc')
     expect(result.members.length).to.eq(2)
     expect(stubSatsuma.calledOnce).to.be.true
     expect(stubSatsuma.args[0][0]).to.eq(network)

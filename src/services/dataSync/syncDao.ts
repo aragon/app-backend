@@ -47,6 +47,8 @@ export const SyncDao = {
       const result = await SatsumaHelper.getDaos(networkName, {
         skip,
         limit: batchSize,
+        orderProp: 'createdAt',
+        order: 'asc',
       })
 
       await Promise.all(

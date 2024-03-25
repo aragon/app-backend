@@ -284,9 +284,9 @@ describe('Model: Dao', () => {
       expect(result.currentPage).to.eq(1)
     })
 
-    it('Should find Pagination with offset and limit', async () => {
+    it('Should find Pagination with skip and limit', async () => {
       const opts = {
-        offset: 1,
+        skip: 1,
         limit: 2,
       }
 
@@ -300,7 +300,7 @@ describe('Model: Dao', () => {
 
     it('Should not found documents', async () => {
       const opts = {
-        offset: 7,
+        skip: 7,
         limit: 2,
       }
 
