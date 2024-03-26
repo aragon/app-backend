@@ -50,9 +50,8 @@ export interface IConfig {
     API_KEY: string
   }
 
-  ARAGON: {
-    GATEWAY_URL: string
-    GATEWAY_IPFS_API_KEY: string
+  PINATA: {
+    JWT: string
   }
 
   SUBGRAPH: {

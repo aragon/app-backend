@@ -377,4 +377,12 @@ describe('Helpers:Utils', () => {
     expect(onError.args[0][0].message).to.eq('1')
     expect(onError.args[1][0].message).to.eq('2')
   })
+
+  it('generateRandomName', async () => {
+    const length = 10
+
+    const result = Utils.generateRandomName(length)
+
+    expect(result.length).to.eq(length)
+  })
 })

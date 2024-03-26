@@ -7,7 +7,7 @@ import dayjs from '@helpers/dayjs'
 import DuneHelper from '@helpers/dune'
 import logger from '@logger'
 import SatsumaHelper from '@helpers/satsuma'
-import IPFSHelper from '@helpers/ipfs'
+import IPFSModule from '@modules/ipfs'
 
 describe('DataSync: syncDao', () => {
   let sandbox: SinonSandbox
@@ -59,7 +59,7 @@ describe('DataSync: syncDao', () => {
       .resolves({ daos: [daosMock[2]], nextCursor: null } as any)
 
     const fetchMetadataStub = sandbox
-      .stub(IPFSHelper, 'fetchMetadata')
+      .stub(IPFSModule, 'fetchMetadata')
       .onFirstCall()
       .resolves(metadataMock)
       .onSecondCall()
@@ -67,7 +67,7 @@ describe('DataSync: syncDao', () => {
       .onThirdCall()
       .resolves(metadataMock)
 
-    const isValidIpfsUrlStub = sandbox.stub(IPFSHelper, 'isValidIpfsUrl').callsFake(url => url === 'validIpfsUrl')
+    const isValidIpfsUrlStub = sandbox.stub(IPFSModule, 'isValidIpfsUrl').callsFake(url => url === 'validIpfsUrl')
     const _createOrUpdateStub = sandbox.stub(SyncDao, '_createOrUpdate').resolves()
 
     await SyncDao._fetchDaosByNetwork(networkName, batchSize)
