@@ -47,9 +47,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       API_KEY: utils.configParser(sourceConfig, 'string', 'DUNE_API_KEY', null),
     },
 
-    ARAGON: {
-      GATEWAY_URL: utils.configParser(sourceConfig, 'string', 'ARAGON_GATEWAY_URL', 'https://beapp.gwstg.aragon.in'),
-      GATEWAY_IPFS_API_KEY: utils.configParser(sourceConfig, 'string', 'ARAGON_GATEWAY_IPFS_API_KEY', null),
+    PINATA: {
+      JWT: utils.configParser(sourceConfig, 'string', 'PINATA_JWT', null),
     },
 
     SUBGRAPH: {

@@ -41,7 +41,7 @@ export interface IDaoMetadata {
   links?: DaoResourceLink[]
 }
 
-export interface Link {
+export interface ILink {
   name: string
   url: string
 }
@@ -88,5 +88,5 @@ export interface IDao extends IDaoMetadata {
   uniqueVoters: number
   votes: number
   hideDao: boolean
-  links: Link[]
+  links: ILink[]
 }
