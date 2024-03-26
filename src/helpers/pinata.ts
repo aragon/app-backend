@@ -1,0 +1,66 @@
+import Pinata, { type PinataPin, type PinataPinOptions } from '@pinata/sdk'
+import config from '@config'
+import logger from '@logger'
+import { type IDaoMetadata } from '@types'
+import utils from '@helpers/utils'
+
+const llo = logger.logMeta.bind(null, { service: 'helpers:PinataHelper' })
+
+const PinataHelper = {
+  pinata: new Pinata({ pinataJWTKey: config.PINATA.JWT }),
+
+  async uploadAndPinMetadata(metadata: IDaoMetadata): Promise<string | null> {
+    try {
+      const body = {
+        name: metadata.name || null,
+        description: metadata.description || null,
+        avatar: metadata.avatar || null,
+        links: metadata.links || [],
+      }
+
+      const options: PinataPinOptions = {
+        pinataMetadata: {
+          name: metadata.name || utils.generateRandomName(10),
+        },
+        pinataOptions: {
+          cidVersion: 1,
+        },
+      }
+
+      const data = await this.pinata.pinJSONToIPFS(body, options)
+      return data.IpfsHash
+    } catch (error) {
+      logger.error('Failed to upload and pin metadata', llo({ error }))
+      return null
+    }
+  },
+
+  async unPin(hashToUnpin: string): Promise<boolean> {
+    try {
+      await this.pinata.unpin(hashToUnpin)
+      logger.info('Successfully unpinned', llo({ hashToUnpin }))
+      return true
+    } catch (error) {
+      logger.error('Failed to unpin', llo({ hashToUnpin, error }))
+      return false
+    }
+  },
+
+  async pinList(cid?: string): Promise<PinataPin[]> {
+    try {
+      const params: any = {}
+      if (cid) {
+        params.hashContains = cid
+      }
+
+      const { rows } = await this.pinata.pinList(params)
+
+      return rows
+    } catch (error) {
+      logger.error('Failed to fetch pinList', llo({ cid, error }))
+      return []
+    }
+  },
+}
+
+export default PinataHelper
