@@ -3,7 +3,7 @@ import { type IDao, type IDaoMetadata, type NetworksEnum } from '@types'
 import SatsumaHelper from '@helpers/satsuma'
 import Network from '@models/schema/network'
 import config from '@config'
-import IPFSHelper from '@helpers/ipfs'
+import IPFSModule from '@modules/ipfs'
 import { Models } from '@dbModels'
 import DuneHelper from '@helpers/dune'
 import DbTx from '@modules/dbTx'
@@ -62,8 +62,8 @@ export const SyncDao = {
           }
 
           let metadata: IDaoMetadata | null = null
-          if (IPFSHelper.isValidIpfsUrl(dao?.metadataIpfs!)) {
-            metadata = await IPFSHelper.fetchMetadata(dao?.metadataIpfs!, networkName)
+          if (IPFSModule.isValidIpfsUrl(dao?.metadataIpfs!)) {
+            metadata = await IPFSModule.fetchMetadata(dao?.metadataIpfs!)
 
             if (metadata) {
               SyncDao.extraLog[networkName].metadataFetched += 1
