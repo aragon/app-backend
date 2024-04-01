@@ -152,7 +152,7 @@ describe('Model: Dao', () => {
           plugins: [
             {
               type: EnumPluginType.MultisigPlugin,
-              address: '0x0',
+              address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
             },
           ],
           hideDao: false,
@@ -196,7 +196,7 @@ describe('Model: Dao', () => {
           plugins: [
             {
               type: EnumPluginType.TokenVotingPlugin,
-              address: '0x0',
+              address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1962',
             },
           ],
           hideDao: false,
@@ -211,7 +211,7 @@ describe('Model: Dao', () => {
       const { data, totRecords, currentPage, totPages } = await Models.Dao.findWithPagination(
         {
           networks: [],
-          pluginTypes: [],
+          pluginAddress: undefined,
         },
         {},
       )
@@ -226,7 +226,7 @@ describe('Model: Dao', () => {
       const { data, totRecords, currentPage, totPages } = await Models.Dao.findWithPagination(
         {
           networks: [NetworksEnum.ethereum],
-          pluginTypes: [EnumPluginType.MultisigPlugin],
+          pluginAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
         },
         {},
       )
@@ -275,7 +275,7 @@ describe('Model: Dao', () => {
       const result2 = await Models.Dao.findWithPagination(
         {
           networks: [],
-          pluginTypes: [],
+          pluginAddress: undefined,
         },
         {
           fromDate: dayjs().utc().subtract(6, 'days').toDate(),
@@ -291,7 +291,7 @@ describe('Model: Dao', () => {
       const result3 = await Models.Dao.findWithPagination(
         {
           networks: [],
-          pluginTypes: [],
+          pluginAddress: undefined,
         },
         {
           fromDate: new Date().setDate(new Date().getDate() - 4).toString(),
@@ -312,7 +312,7 @@ describe('Model: Dao', () => {
       const result = await Models.Dao.findWithPagination(
         {
           networks: [],
-          pluginTypes: [],
+          pluginAddress: undefined,
         },
         params,
       )
@@ -332,7 +332,7 @@ describe('Model: Dao', () => {
       const result = await Models.Dao.findWithPagination(
         {
           networks: [],
-          pluginTypes: [],
+          pluginAddress: undefined,
         },
         opts,
       )
@@ -352,7 +352,7 @@ describe('Model: Dao', () => {
       const result = await Models.Dao.findWithPagination(
         {
           networks: [],
-          pluginTypes: [],
+          pluginAddress: undefined,
         },
         opts,
       )

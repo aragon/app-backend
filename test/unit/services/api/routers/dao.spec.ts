@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DaoRouter from '@services/api/routers/dao'
 import DaoController from '@services/api/controllers/dao'
-import { NetworksEnum, EnumPluginType, HexAddress } from '@types'
+import { NetworksEnum, HexAddress } from '@types'
 
 describe('Router: Dao', () => {
   let sandbox: SinonSandbox
@@ -20,7 +20,7 @@ describe('Router: Dao', () => {
     it('Should get dao with pagination - all params', async () => {
       const params = {
         network: NetworksEnum.ethereum,
-        plugin: EnumPluginType.MultisigPlugin,
+        pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
         limit: 10,
         skip: 1,
         order: 'asc',
@@ -50,7 +50,6 @@ describe('Router: Dao', () => {
     it('Should get dao with pagination - missing pagination params', async () => {
       const params = {
         network: NetworksEnum.ethereum,
-        plugin: EnumPluginType.MultisigPlugin,
         orderProp: 'createdAt',
       }
 
@@ -70,6 +69,7 @@ describe('Router: Dao', () => {
         search: undefined,
         fromDate: undefined,
         toDate: undefined,
+        pluginAddress: undefined,
         limit: 10,
         skip: 0,
         order: 'desc',

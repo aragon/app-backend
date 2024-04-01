@@ -15,12 +15,12 @@ import Satsuma from '@helpers/satsuma'
 
 const DaoController = {
   getWithPagination: async (
-    params: IPaginationParams & { network: NetworksEnum; plugin: EnumPluginType },
+    params: IPaginationParams & { network: NetworksEnum; pluginAddress: HexAddress },
   ): Promise<IResponseWithPagination> => {
     const { data, currentPage, totPages, totRecords } = await Models.Dao.findWithPagination(
       {
         networks: params.network ? [params.network] : [],
-        pluginTypes: params.plugin ? [params.plugin] : [],
+        pluginAddress: params.pluginAddress,
       },
       {
         search: params.search,
