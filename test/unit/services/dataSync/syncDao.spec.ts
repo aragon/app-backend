@@ -95,6 +95,7 @@ describe('DataSync: syncDao', () => {
       const dao: IDao = {
         creatorAddress: '0x00',
         daoAddress: '0x01',
+        permalink: `${NetworksEnum.ethereum}-test.eth`,
         block: 1111,
         createdAt: dayjs().toDate(),
         ens: 'test.eth',
@@ -210,6 +211,7 @@ describe('DataSync: syncDao', () => {
       const dao: IDao = {
         creatorAddress: '0x00',
         daoAddress: '0x01',
+        permalink: `${NetworksEnum.ethereum}-test.eth`,
         block: 1111,
         createdAt: dayjs().toDate(),
         ens: 'test.eth',

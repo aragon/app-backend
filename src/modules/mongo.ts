@@ -8,7 +8,7 @@ const llo = logger.logMeta.bind(null, { service: 'mongo' })
 
 const mongoOptions: ConnectOptions = {
   dbName: config.MONGO_DB.NAME,
-  autoIndex: false, // Don't build indexes
+  autoIndex: true, // Don't build indexes
   maxPoolSize: 50,
 }
 

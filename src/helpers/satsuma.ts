@@ -266,6 +266,7 @@ const SatsumaHelper = {
       avatar: null,
       description: null,
       name: null,
+      permalink: null,
       links: [],
       creatorAddress: Web3Utils.parseAddress(dao.creator, {
         ...dao,

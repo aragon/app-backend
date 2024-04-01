@@ -2,7 +2,7 @@ import Router, { type RouterContext } from '@koa/router'
 import DaoController from '@services/api/controllers/dao'
 import ValidationSchema from '@helpers/validationSchema'
 import DaoSchema from '@services/api/routers/schema/dao'
-import { type HexAddress, type NetworksEnum } from '@types'
+import { type HexAddress } from '@types'
 
 const DaoRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -23,15 +23,14 @@ const DaoRouter = {
     ctx.body = await DaoController.getWithPagination(formattedParams)
   },
 
-  getDaoByAddressAndNetwork: async function (ctx: RouterContext) {
+  getDaoByPermalink: async function (ctx: RouterContext) {
     const params = {
-      address: ctx.params.address as HexAddress,
-      network: ctx.params.network as NetworksEnum,
+      permalink: ctx.params.permalink,
     }
 
-    await ValidationSchema.validateParams(DaoSchema.getDaoByAddressAndNetwork, params)
+    await ValidationSchema.validateParams(DaoSchema.getDaoByPermalink, params)
 
-    ctx.body = await DaoController.getDao(params.network, params.address)
+    ctx.body = await DaoController.getDaoByPermalink(params.permalink)
   },
 
   getDaoMembersMultiSigWithPagination: async function (ctx: RouterContext) {
@@ -43,13 +42,13 @@ const DaoRouter = {
     }
 
     const params = {
-      address: ctx.params.address as HexAddress,
-      network: ctx.params.network as NetworksEnum,
+      permalink: ctx.params.permalink,
+      pluginAddress: ctx.params.pluginAddress as HexAddress,
     }
 
     await ValidationSchema.validateParams(DaoSchema.getDaoMultisigMembersWithPagination, { ...filterParams, ...params })
 
-    ctx.body = await DaoController.getDaoMembersMultiSig(params.network, params.address, filterParams)
+    ctx.body = await DaoController.getDaoMembersMultiSig(params.permalink, params.pluginAddress, filterParams)
   },
 
   getDaoMembersTokenVotingWithPagination: async function (ctx: RouterContext) {
@@ -61,8 +60,8 @@ const DaoRouter = {
     }
 
     const params = {
-      address: ctx.params.address as HexAddress,
-      network: ctx.params.network as NetworksEnum,
+      permalink: ctx.params.permalink,
+      pluginAddress: ctx.params.pluginAddress as HexAddress,
     }
 
     await ValidationSchema.validateParams(DaoSchema.getDaoTokenVotingMembersWithPagination, {
@@ -70,7 +69,7 @@ const DaoRouter = {
       ...params,
     })
 
-    ctx.body = await DaoController.getDaoMembersTokenVoting(params.network, params.address, filterParams)
+    ctx.body = await DaoController.getDaoMembersTokenVoting(params.permalink, params.pluginAddress, filterParams)
   },
 
   router() {
@@ -88,24 +87,24 @@ const DaoRouter = {
     router.get('/', DaoRouter.getWithPagination)
 
     /**
-     * @api {get} /:address/:network Get Dao
+     * @api {get} /:permalink Get Dao
      * @apiName Dao
      * @apiGroup Dao
      * @apiDescription Get Dao
      *
-     * @apiSampleRequest /:address/:network
+     * @apiSampleRequest /:permalink
      */
-    router.get('/:address/:network', DaoRouter.getDaoByAddressAndNetwork)
+    router.get('/:permalink', DaoRouter.getDaoByPermalink)
 
     /**
-     * @api {get} /multisig-members Get Dao multisig-members
+     * @api {get} /:permalink/multisig-members/:pluginAddress Get multisig members
      * @apiName Dao
      * @apiGroup Dao
-     * @apiDescription Get Dao multisig-members
+     * @apiDescription Get multisig members
      *
-     * @apiSampleRequest /multisig-members
+     * @apiSampleRequest /:permalink/multisig-members/:pluginAddress
      */
-    router.get('/multisig-members/:address/:network', DaoRouter.getDaoMembersMultiSigWithPagination)
+    router.get('/:permalink/multisig-members/:pluginAddress', DaoRouter.getDaoMembersMultiSigWithPagination)
 
     /**
      * @api {get} /token-voting-members Get Dao token-voting-members

@@ -187,6 +187,7 @@ describe('Helpers: Satsuma', () => {
         avatar: null,
         description: null,
         name: null,
+        permalink: null,
         creatorAddress: Web3Utils.parseAddress(rawDao?.creator as any),
         daoAddress: Web3Utils.parseAddress(rawDao.id as any),
         block: Number(rawDao.createdAt),
@@ -194,7 +195,7 @@ describe('Helpers: Satsuma', () => {
         ens: rawDao.daoURI,
         members: rawDao.plugins[0].plugin.members.length,
         metadataIpfs: rawDao.metadata,
-        network: network,
+        network,
         links: [],
         plugins: [
           {
