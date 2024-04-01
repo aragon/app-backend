@@ -128,15 +128,15 @@ export default class Dao extends Model {
     return await this.findOne({ permalink })
   }
 
-  static async findWithPagination({ networks, pluginTypes }, opts: IPaginationParams) {
+  static async findWithPagination({ networks, pluginAddress }, opts: IPaginationParams) {
     const params = Object.assign(
       {},
-      ModelUtils.parseParams(opts, ['daoAddress', 'creatorAddress', 'ens', 'name', 'txHash']),
+      ModelUtils.parseParams(opts, ['permalink', 'daoAddress', 'creatorAddress', 'ens', 'name', 'txHash']),
     )
     params.hideDao = { $ne: true }
 
-    if (pluginTypes?.length > 0) {
-      params['plugins.type'] = { $in: pluginTypes }
+    if (pluginAddress) {
+      params['plugins.address'] = pluginAddress
     }
 
     if (networks?.length > 0) {

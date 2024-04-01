@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DaoController from '@services/api/controllers/dao'
-import { EnumPluginType, HexAddress, IPaginationParams, NetworksEnum } from '@types'
+import { HexAddress, IPaginationParams, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { DaoList } from '@test/mock/fakeDao'
 import Satsuma from '@helpers/satsuma'
@@ -29,10 +29,10 @@ describe('Controller: Dao', () => {
 
       const params: IPaginationParams & {
         network: NetworksEnum
-        plugin: EnumPluginType
+        pluginAddress: HexAddress
       } = {
         network: NetworksEnum.ethereum,
-        plugin: EnumPluginType.MultisigPlugin,
+        pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
         search: '',
         toDate: '',
         fromDate: '',
@@ -47,7 +47,7 @@ describe('Controller: Dao', () => {
       expect(stupReq.calledOnce).to.be.true
       expect(
         stupReq.calledWith(
-          { networks: [params.network], pluginTypes: [params.plugin] },
+          { networks: [params.network], pluginAddress: params.pluginAddress },
           {
             search: '',
             toDate: '',
@@ -89,7 +89,7 @@ describe('Controller: Dao', () => {
       expect(stupReq.calledOnce).to.be.true
       expect(
         stupReq.calledWith(
-          { networks: [], pluginTypes: [] },
+          { networks: [], pluginAddress: undefined },
           {
             search: '',
             toDate: '',

@@ -15,7 +15,7 @@ const DaoRouter = {
       fromDate: ctx.query.fromDate,
       toDate: ctx.query.toDate,
       network: ctx.query.network,
-      plugin: ctx.query.plugin,
+      pluginAddress: ctx.query.pluginAddress,
     }
 
     const formattedParams = await ValidationSchema.validateParams(DaoSchema.getWithPagination, params)

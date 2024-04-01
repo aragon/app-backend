@@ -8,9 +8,7 @@ const DaoSchema = {
       network: Joi.string()
         .valid(...Object.values(NetworksEnum))
         .optional(),
-      plugin: Joi.string()
-        .valid(...Object.values(EnumPluginType))
-        .optional(),
+      pluginAddress: ValidationSchema.joiAddress.optional(),
     }),
   ),
 
