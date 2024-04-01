@@ -1,6 +1,6 @@
 import Joi from 'joi'
 import ValidationSchema from '@helpers/validationSchema'
-import { NetworksEnum, EnumPluginType } from '@types'
+import { NetworksEnum } from '@types'
 
 const DaoSchema = {
   getWithPagination: Joi.object(

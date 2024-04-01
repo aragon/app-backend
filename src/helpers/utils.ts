@@ -1,4 +1,4 @@
-import { type HexAddress, IDao } from '@types'
+import type { HexAddress, IDao } from '@types'
 import { assert } from '@errors'
 import async from 'async'
 
