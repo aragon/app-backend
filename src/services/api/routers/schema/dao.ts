@@ -14,28 +14,21 @@ const DaoSchema = {
     }),
   ),
 
-  getDaoByAddressAndNetwork: Joi.object({
-    network: Joi.string()
-      .valid(...Object.values(NetworksEnum))
-      .required(),
-    address: ValidationSchema.joiAddress.required(),
+  getDaoByPermalink: Joi.object({
+    permalink: Joi.string().required(),
   }),
 
   getDaoMultisigMembersWithPagination: Joi.object(
     Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
-      network: Joi.string()
-        .valid(...Object.values(NetworksEnum))
-        .required(),
-      address: ValidationSchema.joiAddress.required(),
+      permalink: Joi.string().required(),
+      pluginAddress: ValidationSchema.joiAddress.required(),
     }),
   ),
 
   getDaoTokenVotingMembersWithPagination: Joi.object(
     Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
-      network: Joi.string()
-        .valid(...Object.values(NetworksEnum))
-        .required(),
-      address: ValidationSchema.joiAddress.required(),
+      permalink: Joi.string().required(),
+      pluginAddress: ValidationSchema.joiAddress.required(),
     }),
   ),
 }

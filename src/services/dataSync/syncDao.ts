@@ -7,6 +7,8 @@ import IPFSModule from '@modules/ipfs'
 import { Models } from '@dbModels'
 import DuneHelper from '@helpers/dune'
 import DbTx from '@modules/dbTx'
+import utils from '@helpers/utils'
+import { type ClientSession } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'service:sync:SyncDao' })
 
@@ -91,6 +93,7 @@ export const SyncDao = {
     const duneDao = SyncDao.duneDaos.find(d => d.daoAddress === dao.daoAddress && d.network === networkName)
 
     const rawDao: any = {
+      permalink: utils.getDaoPermalink(dao),
       name: metadata?.name,
       avatar: metadata?.avatar,
       description: metadata?.description,
@@ -103,7 +106,6 @@ export const SyncDao = {
       metadataIpfs: dao.metadataIpfs,
       network: networkName as NetworksEnum,
       plugins: dao.plugins || [],
-      // pluginName: dao.pluginName,
       proposalsCreated: dao.proposalsCreated,
       proposalsExecuted: dao.proposalsExecuted,
       tvlUSD: duneDao?.tvlUSD ?? dao.tvlUSD,
@@ -114,9 +116,9 @@ export const SyncDao = {
       createdAt: dao.createdAt,
     }
 
-    const existingDao = await Models.Dao.findByDaoAddressAndNetwork(dao.daoAddress, networkName)
+    const existingDao = await Models.Dao.findByPermalink(rawDao.permalink)
 
-    return DbTx.executeTxFn(async ({ session }) => {
+    return DbTx.executeTxFn(async ({ session }: { session: ClientSession }) => {
       let dbDao = null
       if (existingDao) {
         dbDao = await existingDao.update(rawDao, { session })

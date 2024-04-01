@@ -74,6 +74,7 @@ export interface IDaoMembersResponse {
 export interface IDao extends IDaoMetadata {
   creatorAddress: HexAddress
   daoAddress: HexAddress
+  permalink: string | null
   block: number
   createdAt: Date
   ens: ENS

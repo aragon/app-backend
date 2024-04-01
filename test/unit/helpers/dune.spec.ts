@@ -59,6 +59,7 @@ describe('Helpers: Dune', () => {
     }
 
     const expectedDao = {
+      permalink: null,
       creatorAddress: mockDao.creator_address,
       daoAddress: mockDao.dao_address,
       createdAt: dayjs.utc(mockDao.block_time).toDate(),

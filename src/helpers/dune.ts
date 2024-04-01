@@ -48,6 +48,7 @@ const DuneHelper = {
       })!,
       block: Number(dao.block_time),
       createdAt: dayjs.utc(dao.block_time).toDate(),
+      permalink: null,
       ens: dao.ens,
       members: dao.members,
       metadataIpfs: dao.metadata_ipfs?.replace(/\0/g, ''),

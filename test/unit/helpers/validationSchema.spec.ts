@@ -59,8 +59,8 @@ describe('Helpers:ValidationSchema', () => {
 
     it('generateJoiDaoPluginPagination', async () => {
       const result = await DaoSchema.getDaoMultisigMembersWithPagination.validateAsync({
-        network: NetworksEnum.ethereum,
-        address: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
+        permalink: 'xxx',
+        pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
       })
 
       expect(result.error).to.be.undefined
