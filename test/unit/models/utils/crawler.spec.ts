@@ -14,7 +14,7 @@ describe('Model/Utils: crawler', () => {
     mockModel = {
       find: sandbox.stub().returnsThis(),
       aggregate: sandbox.stub().returnsThis(),
-      countDocuments: sandbox.stub().resolves(100),
+      countDocuments: sandbox.stub().resolves(10),
       exec: sandbox.stub().resolves([]),
       select: sandbox.stub().returnsThis(),
       populate: sandbox.stub().returnsThis(),
@@ -29,8 +29,13 @@ describe('Model/Utils: crawler', () => {
     sandbox?.restore()
   })
 
-  it('processes documents successfully', async () => {
+  it('processes documents', async () => {
     const onDocumentStub = sandbox.stub().resolves()
+    onDocumentStub.onCall(9).rejects(new Error('Failure on the last call'))
+
+    const simulatedDocuments = new Array(10).fill(null).map((_, index) => ({ _id: index.toString() }))
+    mockModel.exec = sandbox.stub().onFirstCall().resolves(simulatedDocuments).onSecondCall().resolves([])
+
     const crawler = new DBCrawler({
       model: mockModel,
       onDocument: onDocumentStub,
@@ -38,18 +43,58 @@ describe('Model/Utils: crawler', () => {
       concurrency: 1,
     })
 
-    const simulatedDocuments = new Array(10).fill(null).map((_, index) => ({ _id: index.toString() }))
-    mockModel.exec.onFirstCall().resolves(simulatedDocuments)
-    mockModel.exec.onSecondCall().resolves([])
-
-    await crawler.crawl()
+    const crawlResult = await crawler.crawl()
 
     expect(onDocumentStub.callCount).to.equal(10)
+    expect(crawlResult.nbError).to.equal(1)
+    expect(crawlResult.nbTotal).to.equal(10)
+  })
+
+  it('rejects the promise if _fetchNext encounters an error', async () => {
+    const mockError = new Error('Fetch error')
+    mockModel.exec = sandbox.stub().rejects(mockError)
+
+    const crawler = new DBCrawler({
+      model: mockModel,
+      onDocument: sandbox.stub().resolves(),
+      batchSize: 10,
+      concurrency: 1,
+    })
+
+    try {
+      await crawler.crawl()
+      expect.fail('Expected crawl to throw an error')
+    } catch (error) {
+      expect(error).to.equal(mockError)
+    }
   })
 
   it('throws an error if required options are missing', () => {
     expect(() => new DBCrawler({})).to.throw('Need onDocument method')
     expect(() => new DBCrawler({ onDocument: () => {} })).to.throw('Need model to crawl')
+  })
+
+  it('resolves with crawlResult when an error occurs and stopOnError is true', async () => {
+    const onDocumentStub = sandbox.stub()
+    onDocumentStub.resolves()
+    onDocumentStub.onCall(5).rejects(new Error('Simulated error'))
+
+    const crawler = new DBCrawler({
+      model: mockModel,
+      onDocument: onDocumentStub,
+      stopOnError: true,
+      batchSize: 2,
+      concurrency: 1,
+    })
+
+    const simulatedDocuments = new Array(10).fill(null).map((_, index) => ({ _id: index.toString() }))
+    mockModel.exec = sandbox.stub().resolves(simulatedDocuments)
+
+    const crawlResult = await crawler.crawl()
+
+    expect(crawlResult.nbError).to.equal(1)
+    expect(crawlResult.nbSuccess).to.equal(9)
+    expect(crawlResult.nbTotal).to.equal(10)
   })
 
   it('correctly handles useAggregate = true', async () => {

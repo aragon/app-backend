@@ -13,6 +13,17 @@ const DuneHelper = {
     headers: { 'Content-Type': 'application/json' },
   }),
 
+  networksMap: {
+    ethereum: 'mainnet',
+    polygon: 'polygon',
+    base: 'base',
+    arbitrum: 'arbitrum',
+  },
+
+  _parseNetwork: (network: string) => {
+    return DuneHelper.networksMap[network]
+  },
+
   _rpCall: async (path: string) => {
     try {
       const url = `${path}?api_key=${config.DUNE.API_KEY}`
@@ -48,10 +59,11 @@ const DuneHelper = {
       })!,
       block: Number(dao.block_time),
       createdAt: dayjs.utc(dao.block_time).toDate(),
+      permalink: null,
       ens: dao.ens,
       members: dao.members,
       metadataIpfs: dao.metadata_ipfs?.replace(/\0/g, ''),
-      network: dao.network,
+      network: DuneHelper._parseNetwork(dao.network),
       links: [],
       plugins: [],
       // pluginName: dao.plugin_name,

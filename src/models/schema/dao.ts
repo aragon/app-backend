@@ -42,11 +42,14 @@ class Plugin {
   hideDao: 1,
 })
 export default class Dao extends Model {
-  @prop({ type: () => String, required: true, unique: true })
+  @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
 
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress
+
+  @prop({ type: () => String, required: true, unique: true })
+  public permalink!: string
 
   @prop({ type: () => String, default: null })
   public ens!: ENS
@@ -103,6 +106,12 @@ export default class Dao extends Model {
   public links?: Link[]
 
   static async create(rawData: Partial<Dao>, tOpts?: SaveOptions) {
+    if (!rawData.permalink) {
+      const network = rawData.network
+      const ensOrAddress = rawData.ens || rawData.daoAddress
+      rawData.permalink = `${network}-${ensOrAddress}`
+    }
+
     const data = new this(rawData)
     return await data.save(tOpts)
   }
@@ -115,15 +124,19 @@ export default class Dao extends Model {
     return await this.findOne({ daoAddress, network })
   }
 
-  static async findWithPagination({ networks, pluginTypes }, opts: IPaginationParams) {
+  static async findByPermalink(permalink: string) {
+    return await this.findOne({ permalink })
+  }
+
+  static async findWithPagination({ networks, pluginAddress }, opts: IPaginationParams) {
     const params = Object.assign(
       {},
-      ModelUtils.parseParams(opts, ['daoAddress', 'creatorAddress', 'ens', 'name', 'txHash']),
+      ModelUtils.parseParams(opts, ['permalink', 'daoAddress', 'creatorAddress', 'ens', 'name', 'txHash']),
     )
     params.hideDao = { $ne: true }
 
-    if (pluginTypes?.length > 0) {
-      params['plugins.type'] = { $in: pluginTypes }
+    if (pluginAddress) {
+      params['plugins.address'] = pluginAddress
     }
 
     if (networks?.length > 0) {
