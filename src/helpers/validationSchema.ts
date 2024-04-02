@@ -15,7 +15,10 @@ const ValidationSchema = {
       } catch (error) {
         return helpers.error('string.invalid', { value })
       }
-    }, 'Address Validation'),
+    }, 'Address Validation')
+    .messages({
+      'string.invalid': '{{#label}} is not a valid address',
+    }),
 
   generateJoiDaoPluginPagination: {
     limit: Joi.number().integer().optional().default(10),
