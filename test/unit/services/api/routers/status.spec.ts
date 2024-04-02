@@ -22,7 +22,7 @@ describe('Router: Status', () => {
       appName: 'appName',
       nodeVersion: 'nodeVersion',
       environment: 'environment',
-      supportedNetworks: [NetworksEnum.ethereum],
+      supportedNetworks: [NetworksEnum.mainnet],
       appVersionPackage: 'appVersionPackage',
       time: 'time',
     }

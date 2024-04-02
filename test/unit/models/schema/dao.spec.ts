@@ -18,7 +18,7 @@ describe('Model: Dao', () => {
     sandbox = sinon.createSandbox()
 
     ethereumNetwork = await Models.Network.create({
-      name: NetworksEnum.ethereum,
+      name: NetworksEnum.mainnet,
       status: 'healthy',
     })
     polygonNetwork = await Models.Network.create({
@@ -225,7 +225,7 @@ describe('Model: Dao', () => {
     it('Should find Pagination with networks and plugin', async () => {
       const { data, totRecords, currentPage, totPages } = await Models.Dao.findWithPagination(
         {
-          networks: [NetworksEnum.ethereum],
+          networks: [NetworksEnum.mainnet],
           pluginAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
         },
         {},

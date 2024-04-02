@@ -16,7 +16,7 @@ describe('Model: Token', () => {
     sandbox = sinon.createSandbox()
 
     ethereumNetwork = await Models.Network.create({
-      name: NetworksEnum.ethereum,
+      name: NetworksEnum.mainnet,
       status: 'healthy',
     })
 

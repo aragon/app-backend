@@ -27,7 +27,7 @@ const CovalentHelper = {
   }),
 
   networksMap: {
-    ethereum: 'eth-mainnet',
+    mainnet: 'eth-mainnet',
     goerli: 'eth-goerli',
     sepolia: 'eth-sepolia',
     polygon: 'matic-mainnet',

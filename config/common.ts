@@ -114,7 +114,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     BLOCKCHAIN_NODES: {
-      ETHEREUM: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ETHEREUM', null),
+      MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_MAINNET', null),
       GOERLI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_GOERLI', null),
       SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_SEPOLIA', null),
       MUMBAI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_MUMBAI', null),

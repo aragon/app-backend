@@ -22,7 +22,7 @@ describe('Controller: Token', () => {
     it('getTokenByAddressAndNetwork new token', async () => {
       const fakeRes = {
         address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        network: 'ethereum',
+        network: NetworksEnum.mainnet,
         logo: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         name: 'Wrapped Ether',
         symbol: 'WETH',
@@ -38,16 +38,16 @@ describe('Controller: Token', () => {
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const token = await TokenController.getTokenByAddressAndNetwork({
         address,
-        network: NetworksEnum.ethereum,
+        network: NetworksEnum.mainnet,
       })
 
       expect(token.address).to.eq(address)
       expect(stubHelper.calledOnce).to.be.true
-      expect(stubHelper.calledWith(address, NetworksEnum.ethereum)).to.be.true
+      expect(stubHelper.calledWith(address, NetworksEnum.mainnet)).to.be.true
 
-      const dbToken = await Models.Token.findByTokenAddressAndNetwork(address, NetworksEnum.ethereum)
+      const dbToken = await Models.Token.findByTokenAddressAndNetwork(address, NetworksEnum.mainnet)
       expect(dbToken.address).to.eq(address)
-      expect(dbToken.network).to.eq(NetworksEnum.ethereum)
+      expect(dbToken.network).to.eq(NetworksEnum.mainnet)
       expect(dbToken.logo).to.eq(fakeRes.logo)
       expect(dbToken.name).to.eq(fakeRes.name)
       expect(dbToken.symbol).to.eq(fakeRes.symbol)
@@ -64,7 +64,7 @@ describe('Controller: Token', () => {
     it('getTokenByAddressAndNetwork existing token', async () => {
       const rawToken = {
         address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        network: 'ethereum',
+        network: NetworksEnum.mainnet,
         logo: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         name: 'Wrapped Ether',
         symbol: 'WETH',
@@ -82,12 +82,12 @@ describe('Controller: Token', () => {
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const dbToken = await TokenController.getTokenByAddressAndNetwork({
         address,
-        network: NetworksEnum.ethereum,
+        network: NetworksEnum.mainnet,
       })
 
       expect(stubHelper.notCalled).to.be.true
       expect(dbToken.address).to.eq(address)
-      expect(dbToken.network).to.eq(NetworksEnum.ethereum)
+      expect(dbToken.network).to.eq(NetworksEnum.mainnet)
       expect(dbToken.logo).to.eq(rawToken.logo)
       expect(dbToken.name).to.eq(rawToken.name)
       expect(dbToken.symbol).to.eq(rawToken.symbol)
@@ -107,7 +107,7 @@ describe('Controller: Token', () => {
       await expect(
         TokenController.getTokenByAddressAndNetwork({
           address,
-          network: NetworksEnum.ethereum,
+          network: NetworksEnum.mainnet,
         }),
       ).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
       expect(stubHelper.calledOnce).to.be.true

@@ -31,7 +31,7 @@ describe('Controller: Dao', () => {
         network: NetworksEnum
         pluginAddress: HexAddress
       } = {
-        network: NetworksEnum.ethereum,
+        network: NetworksEnum.mainnet,
         pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
         search: '',
         toDate: '',
