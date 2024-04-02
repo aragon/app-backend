@@ -51,7 +51,7 @@ describe('Module: mongo', () => {
     mongoose.connection.emit('error')
     await Utils.wait(10)
 
-    expect(loggerVerboseStub.calledTwice).to.be.true
+    expect(loggerVerboseStub.calledThrice).to.be.true
     expect(stubSetModels.calledOnce).to.be.true
     expect(stubConnect.calledOnce).to.be.true
     expect(stubConnect.calledWith(config.MONGO_DB.URI, sandbox.match.object)).to.be.true
