@@ -114,7 +114,7 @@ const DaoRouter = {
      *
      * @apiSampleRequest /token-voting-members
      */
-    router.get('/token-voting-members/:address/:network', DaoRouter.getDaoMembersTokenVotingWithPagination)
+    router.get('/:permalink/token-voting-members/:pluginAddress', DaoRouter.getDaoMembersTokenVotingWithPagination)
 
     return router
   },
