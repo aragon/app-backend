@@ -218,7 +218,7 @@ class DBCrawler {
 
         this._fetchNext(limit, skip)
           .then((items: any) => {
-            if (items.length > 0) {
+            if (items?.length > 0) {
               // eslint-disable-next-line
               this.queue.push(items)
               skip += limit

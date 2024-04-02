@@ -2,6 +2,8 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DbTx from '@modules/dbTx'
+import Logger from '@logger'
+import config from '@config'
 
 describe('Module: DbTx', () => {
   let sandbox: SinonSandbox
@@ -76,7 +78,45 @@ describe('Module: DbTx', () => {
       throw new Error('Expected handleTxError to throw')
     } catch (err) {
       expect(err).to.equal(error)
-      expect(retryFn.called).to.be.false // Ensure retryFn was not called
+      expect(retryFn.called).to.be.false
     }
+  })
+
+  it('logs a warning if unable to rollback transaction', async () => {
+    const sessionStub = {
+      startTransaction: sandbox.stub(),
+      abortTransaction: sandbox.stub().rejects(new Error('Mock abort transaction error')), // Simulate error on abort
+      endSession: sandbox.stub(),
+    }
+    sandbox.stub(DbTx, 'transactionOptions').resolves(sessionStub as any)
+
+    const fn = sandbox.stub().rejects(new Error('Mock transaction error'))
+
+    const loggerStub = sandbox.stub(Logger, 'warn')
+
+    try {
+      await DbTx.executeTxFn(fn)
+      expect.fail('Expected executeTxFn to throw due to transaction error')
+    } catch (error: any) {
+      expect(error.message).to.equal('Mock transaction error')
+    }
+
+    expect(loggerStub.calledOnce).to.be.true
+    expect(loggerStub.calledWith('unable to rollback transaction' as any)).to.be.true
+  })
+
+  it('recursively handles retryable errors up to the max retry count', async () => {
+    sandbox.stub(config.MONGO_DB, 'RETRY_CONCURRENT_INTERVAL').value(3)
+    sandbox.stub(config.MONGO_DB, 'RETRY_CONCURRENT_TIME').value(1)
+
+    const retryFn = sandbox.stub()
+    retryFn.onFirstCall().rejects(new Error('WriteConflict'))
+    retryFn.onSecondCall().rejects(new Error('WriteConflict'))
+    retryFn.onThirdCall().resolves('success')
+
+    const result = await DbTx.handleTxError(new Error('WriteConflict'), retryFn)
+
+    expect(result).to.equal('success')
+    expect(retryFn.callCount).to.equal(3) // Initial call + 2 retries
   })
 })
