@@ -122,7 +122,7 @@ describe('Helpers:ValidationSchema', () => {
         await ValidationSchema.joiAddress.validateAsync(invalidAddress)
         throw new Error('Should have thrown an error for invalid address')
       } catch (error: any) {
-        expect(error.message).to.include('string.invalid')
+        expect(error.message).to.include('is not a valid address')
       }
     })
   })
