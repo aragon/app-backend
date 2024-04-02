@@ -92,7 +92,7 @@ export const SyncDao = {
   async _createOrUpdate(dao: IDao, networkName: NetworksEnum, metadata?: IDaoMetadata) {
     const duneDao = SyncDao.duneDaos.find(d => d.daoAddress === dao.daoAddress && d.network === networkName)
 
-    dao.ens = duneDao?.ens ?? dao?.ens;
+    dao.ens = duneDao?.ens ?? dao?.ens
     const rawDao: any = {
       permalink: utils.getDaoPermalink(dao),
       name: metadata?.name,
