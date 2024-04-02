@@ -13,7 +13,7 @@ describe('Model: Network', () => {
     sandbox = sinon.createSandbox()
 
     rawNetwork = {
-      name: NetworksEnum.ethereum,
+      name: NetworksEnum.mainnet,
       status: StatusNetworkEnum.healthy,
       isActive: true,
     }
@@ -46,7 +46,7 @@ describe('Model: Network', () => {
   it('Should get statics', async () => {
     const networks = Models.Network.NETWORKS
 
-    expect(networks.ethereum).to.eq('ethereum')
+    expect(networks.mainnet).to.eq(NetworksEnum.mainnet)
     expect(Object.keys(networks).length).to.eq(9)
 
     const statusNetworks = Models.Network.STATUS_NETWORKS
@@ -92,6 +92,6 @@ describe('Model: Network', () => {
     const createdNetwork = await Models.Network.create(rawNetwork)
     await createdNetwork.reload()
 
-    expect(createdNetwork.name).to.eq(NetworksEnum.ethereum)
+    expect(createdNetwork.name).to.eq(NetworksEnum.mainnet)
   })
 })

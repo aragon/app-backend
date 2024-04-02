@@ -19,7 +19,7 @@ describe('Router: Dao', () => {
   describe('getWithPagination', async () => {
     it('Should get dao with pagination - all params', async () => {
       const params = {
-        network: NetworksEnum.ethereum,
+        network: NetworksEnum.mainnet,
         pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
         limit: 10,
         skip: 1,
@@ -49,7 +49,7 @@ describe('Router: Dao', () => {
 
     it('Should get dao with pagination - missing pagination params', async () => {
       const params = {
-        network: NetworksEnum.ethereum,
+        network: NetworksEnum.mainnet,
         orderProp: 'createdAt',
       }
 

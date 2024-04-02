@@ -1,16 +1,16 @@
-import { EnumPluginType } from '@types'
+import { EnumPluginType, NetworksEnum } from '@types'
 
 export const DaoList = [
   {
     links: [],
     block: 1677529415,
-    permalink: 'ethereum-management.dao.eth',
+    permalink: 'mainnet-management.dao.eth',
     creatorAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
     daoAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
     ens: 'management.dao.eth',
     members: 5,
     metadataIpfs: null,
-    network: 'ethereum',
+    network: NetworksEnum.mainnet,
     plugins: [
       {
         type: EnumPluginType.MultisigPlugin,
@@ -44,11 +44,11 @@ export const DaoList = [
     block: 1677697751,
     creatorAddress: '0xd5fb864ACfD6BB2f72939f122e89fF7F475924f5',
     daoAddress: '0x8DA012d74Aa21dCb0121610dfE5cadC0f0C3c198',
-    permalink: 'ethereum-sio.dao.eth',
+    permalink: 'mainnet-sio.dao.eth',
     ens: 'sio.dao.eth',
     members: 1,
     metadataIpfs: 'ipfs://Qmdp234RLHFjyTUrTx2958abFEbJs6ChpzPSMJovGhvR4V',
-    network: 'ethereum',
+    network: 'mainnet',
     plugins: [
       {
         type: EnumPluginType.MultisigPlugin,
@@ -73,10 +73,10 @@ export const DaoList = [
     creatorAddress: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
     daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
     ens: 'barukimang.dao.eth',
-    permalink: 'ethereum-barukimang.dao.eth',
+    permalink: 'mainnet-barukimang.dao.eth',
     members: 1,
     metadataIpfs: 'ipfs://QmZzLpfYavuXVcFHuqDG7PkTWpfZ8tKDvtFjxVLbkQwz6o',
-    network: 'ethereum',
+    network: NetworksEnum.mainnet,
     plugins: [
       {
         type: EnumPluginType.MultisigPlugin,
@@ -97,11 +97,11 @@ export const DaoList = [
     daoAddress: '0x71a9924745E1D28E90811ee3D8f3193686026333',
     block: null,
     createdAt: '2023-02-28T22:38:59.000Z',
-    permalink: 'ethereum-giveth.dao.eth',
+    permalink: 'mainnet-giveth.dao.eth',
     ens: 'giveth.dao.eth',
     members: 2,
     metadataIpfs: 'ipfs://QmNitNJ28bKL8rg7qQqeZKG3EXsnv3a3Qb3dDsn3Y82WaT',
-    network: 'ethereum',
+    network: NetworksEnum.mainnet,
     plugins: [
       {
         type: EnumPluginType.TokenVotingPlugin,
@@ -131,10 +131,10 @@ export const DaoList = [
     creatorAddress: '0x8031D00E242dD3f5e2AD180083d3Ad2d5B161450',
     daoAddress: '0x87D17aB888d5140F2b911a081ED209d06e7a890E',
     ens: 'totaldeinsurance.dao.eth',
-    permalink: 'ethereum-totaldeinsurance.dao.eth',
+    permalink: 'mainnet-totaldeinsurance.dao.eth',
     members: 14,
     metadataIpfs: 'ipfs://QmVfthHgGvr1kKqhkBZwYxPDc2t9adA4YwAMAnTzvUyQP1',
-    network: 'ethereum',
+    network: NetworksEnum.mainnet,
     plugins: [
       {
         type: EnumPluginType.TokenVotingPlugin,

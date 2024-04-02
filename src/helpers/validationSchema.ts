@@ -15,7 +15,7 @@ const ValidationSchema = {
       } catch (error) {
         return helpers.error('string.invalid', { value })
       }
-    }, 'Ethereum Address Validation'),
+    }, 'Address Validation'),
 
   generateJoiDaoPluginPagination: {
     limit: Joi.number().integer().optional().default(10),
@@ -34,7 +34,7 @@ const ValidationSchema = {
         } catch {
           return value
         }
-      }, 'Ethereum Address or General Search Validation'),
+      }, 'Address or General Search Validation'),
     limit: Joi.number().integer().optional().default(10),
     skip: Joi.number().integer().greater(-1).optional().default(0),
     order: Joi.string().valid('asc', 'desc').optional().default('asc'),

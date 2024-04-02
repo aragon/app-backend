@@ -115,7 +115,7 @@ describe('Helpers:ValidationSchema', () => {
       expect(result.toDate).to.deep.equal(new Date(toDate))
     })
 
-    it('joiAddress should handle invalid Ethereum address', async () => {
+    it('joiAddress should handle invalid mainnet address', async () => {
       const invalidAddress = '0x123'
 
       try {
