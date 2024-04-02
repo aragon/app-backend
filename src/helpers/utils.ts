@@ -1,4 +1,4 @@
-import { type HexAddress } from '@types'
+import type { HexAddress, IDao } from '@types'
 import { assert } from '@errors'
 import async from 'async'
 
@@ -158,6 +158,19 @@ const Utils = {
     }
 
     return result
+  },
+
+  getDaoPermalink(dao: IDao): string {
+    const path: any = {
+      network: dao.network,
+      address: dao.daoAddress,
+    }
+
+    if (dao.ens?.length > 0) {
+      path.address = dao.ens
+    }
+
+    return `${path.network}-${path.address}`
   },
 }
 

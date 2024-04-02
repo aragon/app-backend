@@ -15,12 +15,12 @@ import Satsuma from '@helpers/satsuma'
 
 const DaoController = {
   getWithPagination: async (
-    params: IPaginationParams & { network: NetworksEnum; plugin: EnumPluginType },
+    params: IPaginationParams & { network: NetworksEnum; pluginAddress: HexAddress },
   ): Promise<IResponseWithPagination> => {
     const { data, currentPage, totPages, totRecords } = await Models.Dao.findWithPagination(
       {
         networks: params.network ? [params.network] : [],
-        pluginTypes: params.plugin ? [params.plugin] : [],
+        pluginAddress: params.pluginAddress,
       },
       {
         search: params.search,
@@ -34,6 +34,7 @@ const DaoController = {
     )
 
     return {
+      ...params,
       currentPage,
       totPages,
       totRecords,
@@ -41,25 +42,27 @@ const DaoController = {
     }
   },
 
-  getDao: async (network: NetworksEnum, address: HexAddress) => {
-    const dao = await Models.Dao.findByDaoAddressAndNetwork(address, network)
+  getDaoByPermalink: async (permalink: string) => {
+    const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
     return dao.filterKeys()
   },
 
   getDaoMembersMultiSig: async (
-    network: NetworksEnum,
-    address: HexAddress,
+    permalink: string,
+    pluginAddress: HexAddress,
     memberFilters: IPaginationParams,
   ): Promise<IDaoMembersResponse> => {
-    const dao = await Models.Dao.findByDaoAddressAndNetwork(address, network)
+    const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
-    const multiSigPlugin = dao.plugins.find((w: IPlugin) => w.type === EnumPluginType.MultisigPlugin)
+    const multiSigPlugin = dao.plugins.find(
+      (w: IPlugin) => w.type === EnumPluginType.MultisigPlugin && w.address === pluginAddress,
+    )
     assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
 
-    const members = await Satsuma.getMultiSigMembers(network, multiSigPlugin.address, memberFilters)
+    const members = await Satsuma.getMultiSigMembers(dao.network, multiSigPlugin.address, memberFilters)
 
     return {
       ...memberFilters,
@@ -68,17 +71,19 @@ const DaoController = {
   },
 
   getDaoMembersTokenVoting: async (
-    network: NetworksEnum,
-    address: HexAddress,
+    permalink: string,
+    pluginAddress: HexAddress,
     memberFilters: IPaginationParams,
   ): Promise<IDaoMembersResponse> => {
-    const dao = await Models.Dao.findByDaoAddressAndNetwork(address, network)
-    const multiSigPlugin = dao.plugins.find((w: IPlugin) => w.type === EnumPluginType.TokenVotingPlugin)
-
+    const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
+
+    const multiSigPlugin = dao.plugins.find(
+      (w: IPlugin) => w.type === EnumPluginType.TokenVotingPlugin && w.address === pluginAddress,
+    )
     assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
 
-    const members = await Satsuma.getTokenVotingMembers(network, multiSigPlugin.address, memberFilters)
+    const members = await Satsuma.getTokenVotingMembers(dao.network, multiSigPlugin.address, memberFilters)
 
     return {
       ...memberFilters,

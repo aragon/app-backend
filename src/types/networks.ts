@@ -4,7 +4,7 @@ export type ENS = `${string}.eth`
 export type INetworks = keyof typeof NetworksEnum
 
 export enum NetworksEnum {
-  ethereum = 'ethereum',
+  mainnet = 'mainnet',
   goerli = 'goerli',
   sepolia = 'sepolia',
   mumbai = 'mumbai',

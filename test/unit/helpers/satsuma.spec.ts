@@ -23,7 +23,7 @@ describe('Helpers: Satsuma', () => {
   describe('_rpCall', async () => {
     it('Should _rpCall', async () => {
       const rpcCallStub = sandbox.stub(SatsumaHelper, 'graphRequest').resolves(true)
-      const network = NetworksEnum.ethereum
+      const network = NetworksEnum.mainnet
       const query = { test: 1 }
       const params = { test: 2 }
 
@@ -41,7 +41,7 @@ describe('Helpers: Satsuma', () => {
       sandbox.stub(SatsumaHelper, 'graphRequest').rejects(testError)
 
       try {
-        await SatsumaHelper._rpCall(NetworksEnum.ethereum, {} as any, {})
+        await SatsumaHelper._rpCall(NetworksEnum.mainnet, {} as any, {})
       } catch (error) {
         expect(error).to.equal(testError)
       }
@@ -99,7 +99,7 @@ describe('Helpers: Satsuma', () => {
       }
 
       const stubRequest = sandbox.stub(SatsumaHelper, '_rpCall').resolves(fakeResponse)
-      const network = NetworksEnum.ethereum
+      const network = NetworksEnum.mainnet
       const params = {
         limit,
         skip: 0,
@@ -150,7 +150,7 @@ describe('Helpers: Satsuma', () => {
       const stubRequest = sandbox.stub(SatsumaHelper, '_rpCall').rejects(testError)
       const stubLogger = sandbox.stub(logger, 'error')
 
-      const network = NetworksEnum.ethereum
+      const network = NetworksEnum.mainnet
       const params = {
         limit: 10,
         skip: 0,
@@ -179,7 +179,7 @@ describe('Helpers: Satsuma', () => {
   describe('_parseDao', () => {
     it('should _parseDao', () => {
       const rawDao = DaoList[0]
-      const network = NetworksEnum.ethereum
+      const network = NetworksEnum.mainnet
 
       const processedDao = SatsumaHelper._parseDao(rawDao as any, network) // This assumes _parseDao is accessible
 
@@ -187,6 +187,7 @@ describe('Helpers: Satsuma', () => {
         avatar: null,
         description: null,
         name: null,
+        permalink: null,
         creatorAddress: Web3Utils.parseAddress(rawDao?.creator as any),
         daoAddress: Web3Utils.parseAddress(rawDao.id as any),
         block: Number(rawDao.createdAt),
@@ -194,7 +195,7 @@ describe('Helpers: Satsuma', () => {
         ens: rawDao.daoURI,
         members: rawDao.plugins[0].plugin.members.length,
         metadataIpfs: rawDao.metadata,
-        network: network,
+        network,
         links: [],
         plugins: [
           {
@@ -228,7 +229,7 @@ describe('Helpers: Satsuma', () => {
         ],
       }
 
-      const result = SatsumaHelper._parseDao(dao as any, NetworksEnum.ethereum)
+      const result = SatsumaHelper._parseDao(dao as any, NetworksEnum.mainnet)
       expect(result).to.be.undefined
     })
 
@@ -243,7 +244,7 @@ describe('Helpers: Satsuma', () => {
         plugins: [{ plugin: { __typename: 'UnrecognizedPluginType' } }],
       }
 
-      const parsedDao = SatsumaHelper._parseDao(rawDao as any, NetworksEnum.ethereum)
+      const parsedDao = SatsumaHelper._parseDao(rawDao as any, NetworksEnum.mainnet)
       expect(parsedDao).to.be.undefined
     })
   })
@@ -337,7 +338,7 @@ describe('Helpers: Satsuma', () => {
         },
       ]
       const stubRequest = sandbox.stub(SatsumaHelper, '_rpCall').resolves({ tokenVotingMembers: fakeResponse })
-      const network = NetworksEnum.ethereum
+      const network = NetworksEnum.mainnet
       const pluginAddress = mockDao.plugins[0].plugin.pluginAddress as HexAddress
       const filters = {
         limit: 10,
@@ -363,7 +364,7 @@ describe('Helpers: Satsuma', () => {
     it('handles error getTokenVotingMembers', async () => {
       const mockDao = DaoList[3]
       const pluginAddress = mockDao.plugins[0].plugin.pluginAddress as HexAddress
-      const network = NetworksEnum.ethereum
+      const network = NetworksEnum.mainnet
       const filters = {
         limit: 10,
         skip: 0,
@@ -405,7 +406,7 @@ describe('Helpers: Satsuma', () => {
         },
       ]
       const stubRequest = sandbox.stub(SatsumaHelper, '_rpCall').resolves({ multisigApprovers: fakeResponse })
-      const network = NetworksEnum.ethereum
+      const network = NetworksEnum.mainnet
       const pluginAddress = mockDao.plugins[0].plugin.pluginAddress as HexAddress
       const filters = {
         limit: 10,
@@ -431,7 +432,7 @@ describe('Helpers: Satsuma', () => {
     it('handles error getMultiSigMembers', async () => {
       const mockDao = DaoList[3]
       const pluginAddress = mockDao.plugins[0].plugin.pluginAddress as HexAddress
-      const network = NetworksEnum.ethereum
+      const network = NetworksEnum.mainnet
       const filters = {
         limit: 10,
         skip: 0,

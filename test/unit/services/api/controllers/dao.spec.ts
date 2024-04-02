@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DaoController from '@services/api/controllers/dao'
-import { EnumPluginType, HexAddress, IPaginationParams, NetworksEnum } from '@types'
+import { HexAddress, IPaginationParams, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { DaoList } from '@test/mock/fakeDao'
 import Satsuma from '@helpers/satsuma'
@@ -29,10 +29,10 @@ describe('Controller: Dao', () => {
 
       const params: IPaginationParams & {
         network: NetworksEnum
-        plugin: EnumPluginType
+        pluginAddress: HexAddress
       } = {
-        network: NetworksEnum.ethereum,
-        plugin: EnumPluginType.MultisigPlugin,
+        network: NetworksEnum.mainnet,
+        pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
         search: '',
         toDate: '',
         fromDate: '',
@@ -47,7 +47,7 @@ describe('Controller: Dao', () => {
       expect(stupReq.calledOnce).to.be.true
       expect(
         stupReq.calledWith(
-          { networks: [params.network], pluginTypes: [params.plugin] },
+          { networks: [params.network], pluginAddress: params.pluginAddress },
           {
             search: '',
             toDate: '',
@@ -89,7 +89,7 @@ describe('Controller: Dao', () => {
       expect(stupReq.calledOnce).to.be.true
       expect(
         stupReq.calledWith(
-          { networks: [], pluginTypes: [] },
+          { networks: [], pluginAddress: undefined },
           {
             search: '',
             toDate: '',
@@ -109,22 +109,24 @@ describe('Controller: Dao', () => {
     })
   })
 
-  it('get dao', async () => {
+  it('getDaoByPermalink', async () => {
     const mockDao = DaoList[1]
     const dbDao = await Models.Dao.create(mockDao)
 
-    const dao = await DaoController.getDao(dbDao.network, dbDao.daoAddress)
+    const dao = await DaoController.getDaoByPermalink(dbDao.permalink)
 
     expect(dao.id).not.to.exist
     expect(dao.daoAddress).to.eq(mockDao.daoAddress)
     expect(dao.network).to.eq(mockDao.network)
+    expect(dao.permalink).to.eq(mockDao.permalink)
   })
 
   it('getDaoMembers with multiSigMembers', async () => {
     const mockDao = DaoList[1]
     await Models.Dao.create(mockDao)
 
-    const daoAddress = mockDao.daoAddress
+    const pluginAddress = mockDao.plugins[0].address
+    const permalink = mockDao.permalink
     const network = mockDao.network
 
     const filters = {
@@ -153,7 +155,7 @@ describe('Controller: Dao', () => {
     ]
     const stubSatsuma = sandbox.stub(Satsuma, 'getMultiSigMembers').resolves(fakeResponse as any)
 
-    const result = await DaoController.getDaoMembersMultiSig(network as NetworksEnum, daoAddress as HexAddress, filters)
+    const result = await DaoController.getDaoMembersMultiSig(permalink as any, pluginAddress as HexAddress, filters)
 
     expect(result.limit).to.eq(10)
     expect(result.skip).to.eq(0)
@@ -170,7 +172,8 @@ describe('Controller: Dao', () => {
     const mockDao = DaoList[3]
     await Models.Dao.create(mockDao)
 
-    const daoAddress = mockDao.daoAddress
+    const pluginAddress = mockDao.plugins[0].address
+    const permalink = mockDao.permalink
     const network = mockDao.network
 
     const filters = {
@@ -212,11 +215,7 @@ describe('Controller: Dao', () => {
     ]
     const stubSatsuma = sandbox.stub(Satsuma, 'getTokenVotingMembers').resolves(fakeResponse as any)
 
-    const result = await DaoController.getDaoMembersTokenVoting(
-      network as NetworksEnum,
-      daoAddress as HexAddress,
-      filters,
-    )
+    const result = await DaoController.getDaoMembersTokenVoting(permalink, pluginAddress as HexAddress, filters)
 
     expect(result.limit).to.eq(10)
     expect(result.skip).to.eq(0)

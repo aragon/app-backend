@@ -21,7 +21,7 @@ describe('DataSync: syncDao', () => {
   })
 
   it('fetchAll', async () => {
-    const duneDaosMock = [{ daoAddress: '0x123', network: NetworksEnum.ethereum }]
+    const duneDaosMock = [{ daoAddress: '0x123', network: NetworksEnum.mainnet }]
     const getDaosStub = sandbox.stub(DuneHelper, 'getDaos').resolves({ daos: duneDaosMock } as any)
     const _fetchDaosByNetworkStub = sandbox.stub(SyncDao, '_fetchDaosByNetwork').resolves()
     const _resetStub = sandbox.spy(SyncDao, '_reset')
@@ -36,7 +36,7 @@ describe('DataSync: syncDao', () => {
   })
 
   it('_fetchDaosByNetwork', async () => {
-    const networkName = NetworksEnum.ethereum
+    const networkName = NetworksEnum.mainnet
     const batchSize = 1
     const daosMock = [
       { daoAddress: '0x123', metadataIpfs: 'validIpfsUrl', hideDao: false },
@@ -95,12 +95,13 @@ describe('DataSync: syncDao', () => {
       const dao: IDao = {
         creatorAddress: '0x00',
         daoAddress: '0x01',
+        permalink: `${NetworksEnum.mainnet}-test.eth`,
         block: 1111,
         createdAt: dayjs().toDate(),
         ens: 'test.eth',
         members: 12,
         metadataIpfs: null,
-        network: NetworksEnum.ethereum,
+        network: NetworksEnum.mainnet,
         links: [],
         plugins: [
           {
@@ -121,7 +122,7 @@ describe('DataSync: syncDao', () => {
         {
           daoAddress: '0x01',
           ens: 'test.eth',
-          network: NetworksEnum.ethereum,
+          network: NetworksEnum.mainnet,
           tvlUSD: 10,
           txHash: '0x00001',
           uniqueVoters: 12,
@@ -129,7 +130,7 @@ describe('DataSync: syncDao', () => {
         } as any,
       ]
 
-      const dbDao = await SyncDao._createOrUpdate(dao, NetworksEnum.ethereum, metadata)
+      const dbDao = await SyncDao._createOrUpdate(dao, NetworksEnum.mainnet, metadata)
 
       expect(dbDao.name).to.eq(metadata.name)
       expect(dbDao.avatar).to.eq(metadata.avatar)
@@ -163,7 +164,7 @@ describe('DataSync: syncDao', () => {
         createdAt: dayjs().toDate(),
         ens: 'test.eth',
         metadataIpfs: null,
-        network: NetworksEnum.ethereum,
+        network: NetworksEnum.mainnet,
         links: [],
         proposalsCreated: dayjs().unix(),
         proposalsExecuted: dayjs().unix(),
@@ -176,7 +177,7 @@ describe('DataSync: syncDao', () => {
 
       SyncDao.duneDaos = []
 
-      const dbDao = await SyncDao._createOrUpdate(dao, NetworksEnum.ethereum)
+      const dbDao = await SyncDao._createOrUpdate(dao, NetworksEnum.mainnet)
 
       expect(dbDao.name).to.eq(null)
       expect(dbDao.avatar).to.eq(null)
@@ -210,12 +211,13 @@ describe('DataSync: syncDao', () => {
       const dao: IDao = {
         creatorAddress: '0x00',
         daoAddress: '0x01',
+        permalink: `${NetworksEnum.mainnet}-test.eth`,
         block: 1111,
         createdAt: dayjs().toDate(),
         ens: 'test.eth',
         members: 12,
         metadataIpfs: null,
-        network: NetworksEnum.ethereum,
+        network: NetworksEnum.mainnet,
         links: [],
         plugins: [
           {
@@ -231,19 +233,19 @@ describe('DataSync: syncDao', () => {
         votes: 1,
         hideDao: false,
       }
-      const dbDao = await SyncDao._createOrUpdate(dao, NetworksEnum.ethereum, metadata)
+      const dbDao = await SyncDao._createOrUpdate(dao, NetworksEnum.mainnet, metadata)
 
       expect(dbDao.name).to.eq(metadata.name)
 
       metadata.name = 'new-name'
-      const updatedDao = await SyncDao._createOrUpdate(dao, NetworksEnum.ethereum, metadata)
+      const updatedDao = await SyncDao._createOrUpdate(dao, NetworksEnum.mainnet, metadata)
 
       expect(updatedDao.name).to.eq('new-name')
     })
   })
 
   it('should reset', () => {
-    SyncDao.duneDaos = [{ daoAddress: '0x123', network: NetworksEnum.ethereum } as any]
+    SyncDao.duneDaos = [{ daoAddress: '0x123', network: NetworksEnum.mainnet } as any]
     SyncDao.extraLog = { totalDaosAllNetworks: 1 }
 
     SyncDao._reset()

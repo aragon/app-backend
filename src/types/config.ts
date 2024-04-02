@@ -72,7 +72,7 @@ export interface IConfig {
   }
 
   BLOCKCHAIN_NODES: {
-    ETHEREUM: string
+    MAINNET: string
     GOERLI: string
     SEPOLIA: string
     MUMBAI: string

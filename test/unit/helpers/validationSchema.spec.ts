@@ -59,8 +59,8 @@ describe('Helpers:ValidationSchema', () => {
 
     it('generateJoiDaoPluginPagination', async () => {
       const result = await DaoSchema.getDaoMultisigMembersWithPagination.validateAsync({
-        network: NetworksEnum.ethereum,
-        address: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
+        permalink: 'xxx',
+        pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
       })
 
       expect(result.error).to.be.undefined
@@ -115,14 +115,14 @@ describe('Helpers:ValidationSchema', () => {
       expect(result.toDate).to.deep.equal(new Date(toDate))
     })
 
-    it('joiAddress should handle invalid Ethereum address', async () => {
+    it('joiAddress should handle invalid mainnet address', async () => {
       const invalidAddress = '0x123'
 
       try {
         await ValidationSchema.joiAddress.validateAsync(invalidAddress)
         throw new Error('Should have thrown an error for invalid address')
       } catch (error: any) {
-        expect(error.message).to.include('string.invalid')
+        expect(error.message).to.include('is not a valid address')
       }
     })
   })
