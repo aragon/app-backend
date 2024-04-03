@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    "typeRoots": ["./node_modules/@types"],
     "outDir": "./dist",
     "rootDir": "./",
     "baseUrl": "./",
@@ -17,6 +18,7 @@
       "@models/*": ["./src/models/*"],
       "@modules/*": ["./src/modules/*"],
       "@services/*": ["./src/services/*"],
+      "@state/*": ["./src/state/*"],
       "@api/*": ["./src/services/api/*"],
       "@test/*": ["./test/*"]
     },
