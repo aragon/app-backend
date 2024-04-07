@@ -26,12 +26,8 @@ const SatsumaHelper = {
   graphRequest: request,
   subgraphUrls: {
     [NetworksEnum.arbitrum]: config.SUBGRAPH.SUBGRAPH_ARBITRUM_URI,
-    [NetworksEnum.arbitrumGoerli]: config.SUBGRAPH.SUBGRAPH_ARBITRUM_GOERLI_URI,
     [NetworksEnum.base]: config.SUBGRAPH.SUBGRAPH_BASE_URI,
-    [NetworksEnum.baseGoerli]: config.SUBGRAPH.SUBGRAPH_BASE_GOERLI_URI,
     [NetworksEnum.mainnet]: config.SUBGRAPH.SUBGRAPH_ETHEREUM_URI,
-    [NetworksEnum.goerli]: config.SUBGRAPH.SUBGRAPH_GOERLI_URI,
-    [NetworksEnum.mumbai]: config.SUBGRAPH.SUBGRAPH_MUMBAI_URI,
     [NetworksEnum.polygon]: config.SUBGRAPH.SUBGRAPH_POLYGON_URI,
     [NetworksEnum.sepolia]: config.SUBGRAPH.SUBGRAPH_SEPOLIA_URI,
   },
