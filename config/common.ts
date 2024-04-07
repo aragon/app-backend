@@ -58,41 +58,17 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'SUBGRAPH_ARBITRUM_URI',
         'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-arbitrum/version/v1.4.0/api',
       ),
-      SUBGRAPH_ARBITRUM_GOERLI_URI: utils.configParser(
-        sourceConfig,
-        'string',
-        'SUBGRAPH_ARBITRUM_GOERLI_URI',
-        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-arbitrumGoerli/version/v1.4.0/api',
-      ),
       SUBGRAPH_BASE_URI: utils.configParser(
         sourceConfig,
         'string',
         'SUBGRAPH_BASE_URI',
         'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-baseMainnet/version/v1.4.0/api',
       ),
-      SUBGRAPH_BASE_GOERLI_URI: utils.configParser(
-        sourceConfig,
-        'string',
-        'SUBGRAPH_BASE_GOERLI_URI',
-        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-baseGoerli/version/v1.4.0/api',
-      ),
       SUBGRAPH_ETHEREUM_URI: utils.configParser(
         sourceConfig,
         'string',
         'SUBGRAPH_ETHEREUM_URI',
         'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-mainnet/version/v1.4.0/api',
-      ),
-      SUBGRAPH_GOERLI_URI: utils.configParser(
-        sourceConfig,
-        'string',
-        'SUBGRAPH_GOERLI_URI',
-        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-goerli/version/v1.4.0/api',
-      ),
-      SUBGRAPH_MUMBAI_URI: utils.configParser(
-        sourceConfig,
-        'string',
-        'SUBGRAPH_MUMBAI_URI',
-        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-mumbai/version/v1.4.0/api',
       ),
       SUBGRAPH_POLYGON_URI: utils.configParser(
         sourceConfig,
@@ -115,14 +91,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     BLOCKCHAIN_NODES: {
       MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_MAINNET', null),
-      GOERLI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_GOERLI', null),
       SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_SEPOLIA', null),
-      MUMBAI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_MUMBAI', null),
       POLYGON: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_POLYGON', null),
       BASE: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE', null),
-      BASE_GOERLI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE_GOERLI', null),
       ARBITRUM: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM', null),
-      ARBITRUM_GOERLI: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM_GOERLI', null),
     },
 
     SERVICES: {

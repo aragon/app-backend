@@ -47,7 +47,7 @@ describe('Model: Network', () => {
     const networks = Models.Network.NETWORKS
 
     expect(networks.mainnet).to.eq(NetworksEnum.mainnet)
-    expect(Object.keys(networks).length).to.eq(9)
+    expect(Object.keys(networks).length).to.eq(5)
 
     const statusNetworks = Models.Network.STATUS_NETWORKS
     expect(statusNetworks.healthy).to.eq('healthy')
@@ -56,13 +56,13 @@ describe('Model: Network', () => {
 
   it('Should find a Network by name', async () => {
     const rawNetwork = {
-      name: NetworksEnum.goerli,
+      name: NetworksEnum.sepolia,
       status: StatusNetworkEnum.maintenance,
       isActive: true,
     }
     await Models.Network.create(rawNetwork)
 
-    const foundNetwork = await Models.Network.findByName(NetworksEnum.goerli)
+    const foundNetwork = await Models.Network.findByName(NetworksEnum.sepolia)
 
     expect(foundNetwork).to.not.be.null
     expect(foundNetwork).to.have.property('name', rawNetwork.name)
@@ -72,13 +72,13 @@ describe('Model: Network', () => {
 
   it('Should findAll', async () => {
     const rawNetwork = {
-      name: NetworksEnum.goerli,
+      name: NetworksEnum.base,
       status: StatusNetworkEnum.maintenance,
       isActive: true,
     }
     await Models.Network.create(rawNetwork)
     await Models.Network.create({
-      name: NetworksEnum.mumbai,
+      name: NetworksEnum.polygon,
       status: StatusNetworkEnum.maintenance,
       isActive: false,
     })

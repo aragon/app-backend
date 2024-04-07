@@ -56,12 +56,8 @@ export interface IConfig {
 
   SUBGRAPH: {
     SUBGRAPH_ARBITRUM_URI: string
-    SUBGRAPH_ARBITRUM_GOERLI_URI: string
     SUBGRAPH_BASE_URI: string
-    SUBGRAPH_BASE_GOERLI_URI: string
     SUBGRAPH_ETHEREUM_URI: string
-    SUBGRAPH_GOERLI_URI: string
-    SUBGRAPH_MUMBAI_URI: string
     SUBGRAPH_POLYGON_URI: string
     SUBGRAPH_SEPOLIA_URI: string
   }
@@ -73,14 +69,10 @@ export interface IConfig {
 
   BLOCKCHAIN_NODES: {
     MAINNET: string
-    GOERLI: string
     SEPOLIA: string
-    MUMBAI: string
     POLYGON: string
     BASE: string
-    BASE_GOERLI: string
     ARBITRUM: string
-    ARBITRUM_GOERLI: string
   }
 
   SERVICES: {
