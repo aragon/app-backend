@@ -8,18 +8,12 @@ const logMeta = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
 const ProviderHelper = {
   configState: ConfigState.getInstance(),
-  maxReconnectAttempts: 5,
-  reconnectAttempts: {},
   networksMap: {
     MAINNET: 'mainnet',
-    GOERLI: 'goerli',
     SEPOLIA: 'sepolia',
     POLYGON: 'polygon',
-    MUMBAI: 'mumbai',
     BASE: 'base',
-    BASE_GOERLI: 'baseGoerli',
     ARBITRUM: 'arbitrum',
-    ARBITRUM_GOERLI: 'arbitrumGoerli',
   },
 
   parseNetwork: (network: string) => {
@@ -48,47 +42,23 @@ const ProviderHelper = {
         provider.websocket.onopen = () => {
           logger.info(`WebSocket connected successfully to ${network}`, logMeta({ network }))
           ProviderHelper.configState.setConfigItem(network, provider)
-          ProviderHelper.reconnectAttempts[network] = 0
           resolve(provider)
         }
-
         provider.websocket.onerror = error => {
           logger.error(
-            `WebSocket error for ${network}`,
+            'WebSocket error',
             logMeta({
               network,
               error,
             }),
           )
-          ProviderHelper.scheduleReconnect(network, nodeUrl, reject)
+          reject(error)
         }
       } catch (error) {
-        logger.error(
-          `Failed to create WebSocketProvider for ${network}.`,
-          logMeta({
-            network,
-            error,
-          }),
-        )
-        ProviderHelper.scheduleReconnect(network, nodeUrl, reject)
+        logger.error('Failed to create WebSocketProvider', logMeta({ network, error }))
+        reject(error)
       }
     })
-  },
-
-  scheduleReconnect(network: NetworksEnum, nodeUrl: string, reject: any) {
-    if (ProviderHelper.reconnectAttempts[network] === undefined) {
-      ProviderHelper.reconnectAttempts[network] = 0
-    }
-    if (ProviderHelper.reconnectAttempts[network] < ProviderHelper.maxReconnectAttempts) {
-      const delay = Math.min(1000 * 2 ** ProviderHelper.reconnectAttempts[network], 30000) // Max 30s delay
-      setTimeout(() => {
-        ProviderHelper.reconnectAttempts[network]++
-        ProviderHelper.connectToNetwork(network, nodeUrl).then(reject, reject)
-      }, delay)
-    } else {
-      logger.error(`Max reconnection attempts reached for ${network}`, logMeta({ network }))
-      reject(new Error(`Max reconnection attempts reached for ${network}`))
-    }
   },
 }
 
