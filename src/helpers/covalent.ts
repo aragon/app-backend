@@ -28,14 +28,10 @@ const CovalentHelper = {
 
   networksMap: {
     mainnet: 'eth-mainnet',
-    goerli: 'eth-goerli',
     sepolia: 'eth-sepolia',
     polygon: 'matic-mainnet',
-    mumbai: 'matic-mumbai',
     base: 'base-mainnet',
-    baseGoerli: 'base-testnet',
     arbitrum: 'arbitrum-mainnet',
-    arbitrumGoerli: 'arbitrum-goerli',
   },
 
   nativeTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as HexAddress,
