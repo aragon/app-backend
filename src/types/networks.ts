@@ -5,14 +5,10 @@ export type INetworks = keyof typeof NetworksEnum
 
 export enum NetworksEnum {
   mainnet = 'mainnet',
-  goerli = 'goerli',
   sepolia = 'sepolia',
-  mumbai = 'mumbai',
   polygon = 'polygon',
   base = 'base',
-  baseGoerli = 'baseGoerli',
   arbitrum = 'arbitrum',
-  arbitrumGoerli = 'arbitrumGoerli',
 }
 
 export enum StatusNetworkEnum {
@@ -21,10 +17,4 @@ export enum StatusNetworkEnum {
   offline = 'offline',
 }
 
-export const TestNetworks = [
-  NetworksEnum.goerli,
-  NetworksEnum.sepolia,
-  NetworksEnum.mumbai,
-  NetworksEnum.arbitrumGoerli,
-  NetworksEnum.baseGoerli,
-]
+export const TestNetworks = [NetworksEnum.sepolia]
