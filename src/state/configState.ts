@@ -13,9 +13,8 @@ export enum ConfigEvents {
  * It extends EventEmitter to allow other parts of the application to listen for config updates.
  */
 export class ConfigState extends EventEmitter {
-  private static instance: ConfigState
-
-  private config: IConfig = {}
+  static instance: ConfigState
+  config: IConfig = {}
 
   private constructor() {
     super()
