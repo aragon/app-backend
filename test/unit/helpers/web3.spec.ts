@@ -2,11 +2,11 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Web3Utils from '@helpers/web3'
-import logger from '@logger'
 import Web3Helper from '@helpers/web3'
 import { NetworksEnum } from '@types'
 import { ConfigState } from '@state/configState'
 import Logger from '@logger'
+import * as proxyquire from 'proxyquire'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -23,7 +23,7 @@ describe('Helpers:Web3', () => {
     it('should parseAddress', function () {
       const address = '0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359'
       const expectedChecksumAddress = '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359'
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'error')
 
       const result = Web3Utils.parseAddress(address)
 
@@ -33,7 +33,7 @@ describe('Helpers:Web3', () => {
 
     it('error parseAddress', function () {
       const address = '0xInvalidAddress'
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'error')
 
       const result = Web3Utils.parseAddress(address)
 
@@ -97,6 +97,65 @@ describe('Helpers:Web3', () => {
       expect(ensName).to.eq(null)
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Error looking up address' as any)).to.be.true
+    })
+  })
+
+  describe('ensExists', function () {
+    it('should check if ensExists', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubRecordExistsStub = sandbox.stub().resolves(true)
+      const { default: MockedWeb3Utils } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { recordExists: stubRecordExistsStub }
+          },
+          namehash: function () {
+            return '0xb9b3537ea1117f65799f21b36bbc6357724953d5bf9cca09f0757b7ac3e81f37'
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const ensName = 'aavegotchi.dao.eth'
+      const result = await MockedWeb3Utils.ensExists(ensName, NetworksEnum.mainnet)
+
+      expect(result).to.be.true
+      expect(stubRecordExistsStub.calledOnce).to.be.true
+    })
+
+    it('should log an error if checking ENS existence fails', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const error = new Error('Contract call failed')
+      const stubRecordExistsStub = sandbox.stub().rejects(error) // Simulate error
+      const stubLoggerError = sandbox.stub(Logger, 'error') // Stub logger's error to verify it's called
+
+      const { default: MockedWeb3Utils } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { recordExists: stubRecordExistsStub }
+          },
+          namehash: function () {
+            return '0xb9b3537ea1117f65799f21b36bbc6357724953d5bf9cca09f0757b7ac3e81f37'
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+        '@logger': Logger, // Ensure the real logger is replaced by the stubbed one
+      })
+
+      const ensName = 'aavegotchi.dao.eth'
+      const result = await MockedWeb3Utils.ensExists(ensName, NetworksEnum.mainnet)
+
+      expect(result).to.be.false
+      expect(stubLoggerError.calledOnce).to.be.true
+      expect(stubLoggerError.calledWith('Error ensExists' as any)).to.be.true
     })
   })
 })
