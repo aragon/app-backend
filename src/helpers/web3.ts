@@ -1,10 +1,9 @@
 import type { HexAddress, NetworksEnum } from '@types'
-import { getAddress, type WebSocketProvider, Contract, namehash } from 'ethers'
+import { type Log, type Filter, getAddress, type WebSocketProvider, Contract, namehash } from 'ethers'
 import { ConfigState } from '@state/configState'
 import { ensRegistryABI } from '@abis/ensRegistryABI'
 import logger from '@logger'
 import config from '@config'
-
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Utils' })
 
 const Web3Utils = {
@@ -54,6 +53,18 @@ const Web3Utils = {
     } catch (error) {
       logger.error('Error ensExists', llo({ ensName, network }))
       return false
+    }
+  },
+
+  async queryLogs(filter: Filter, network: NetworksEnum): Promise<Log[]> {
+    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+
+    try {
+      const logs = await provider.getLogs(filter)
+      return logs
+    } catch (error) {
+      logger.error('Error querying logs', llo({ filter, network, error }))
+      return []
     }
   },
 }
