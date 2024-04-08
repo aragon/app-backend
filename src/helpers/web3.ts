@@ -1,7 +1,6 @@
-import { ENS, type HexAddress, NetworksEnum } from '@types'
-import { getAddress, WebSocketProvider, Contract, namehash, ZeroAddress } from 'ethers'
+import type { HexAddress, NetworksEnum } from '@types'
+import { getAddress, type WebSocketProvider, Contract, namehash } from 'ethers'
 import { ConfigState } from '@state/configState'
-import { assert } from '@errors'
 import { ensRegistryABI } from '@abis/ensRegistryABI'
 import logger from '@logger'
 import config from '@config'
@@ -25,7 +24,7 @@ const Web3Utils = {
       const address = (await provider.resolveName(name)) as HexAddress | null
       return address
     } catch (error) {
-      logger.error(`Error resolving ENS name`, llo({ name, network }))
+      logger.error('Error resolving ENS name', llo({ name, network }))
       return null
     }
   },
@@ -34,10 +33,10 @@ const Web3Utils = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      const ensName = (await provider.lookupAddress(address)) as string | null
+      const ensName = await provider.lookupAddress(address)
       return ensName
     } catch (error) {
-      logger.error(`Error looking up address`, llo({ address, network }))
+      logger.error('Error looking up address', llo({ address, network }))
       return null
     }
   },
@@ -48,12 +47,12 @@ const Web3Utils = {
     try {
       const ensContract = new Contract(config.CONTRACTS.ENS_REGISTRY, ensRegistryABI, provider)
 
-      const nameHashed = namehash(ensName as string)
+      const nameHashed = namehash(ensName)
       const recordExists = await ensContract.recordExists(nameHashed)
 
       return recordExists
     } catch (error) {
-      logger.error(`Error ensExists`, llo({ ensName, network }))
+      logger.error('Error ensExists', llo({ ensName, network }))
       return false
     }
   },
