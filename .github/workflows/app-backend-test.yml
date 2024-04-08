@@ -23,6 +23,8 @@ jobs:
         run: yarn format:check
       - name: Lint
         run: yarn lint
+      - name: Dot only
+        run: yarn test:dotonly
       - name: Test Unit
         run: yarn test:unit:coverage
       - name: Unit Coverage
