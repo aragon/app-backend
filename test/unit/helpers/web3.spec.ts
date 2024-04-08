@@ -9,7 +9,7 @@ import { ConfigState } from '@state/configState'
 import Logger from '@logger'
 import proxyquire from 'proxyquire'
 
-describe.only('Helpers:Web3', () => {
+describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
