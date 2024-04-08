@@ -54,6 +54,10 @@ export interface IConfig {
     JWT: string
   }
 
+  CONTRACTS: {
+    ENS_REGISTRY: string
+  }
+
   SUBGRAPH: {
     SUBGRAPH_ARBITRUM_URI: string
     SUBGRAPH_BASE_URI: string
