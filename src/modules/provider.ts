@@ -6,7 +6,7 @@ import { type NetworksEnum } from '@types'
 
 const logMeta = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
-const ProviderHelper = {
+const ProviderModule = {
   configState: ConfigState.getInstance(),
   networksMap: {
     MAINNET: 'mainnet',
@@ -17,7 +17,7 @@ const ProviderHelper = {
   },
 
   parseNetwork: (network: string) => {
-    return ProviderHelper.networksMap[network]
+    return ProviderModule.networksMap[network]
   },
 
   async connectToAllNetworks() {
@@ -25,7 +25,7 @@ const ProviderHelper = {
     await Promise.all(
       Object.entries(networks).map(async ([network, nodeUrl]) => {
         if (nodeUrl) {
-          return ProviderHelper.connectToNetwork(ProviderHelper.parseNetwork(network) as NetworksEnum, nodeUrl)
+          return ProviderModule.connectToNetwork(ProviderModule.parseNetwork(network) as NetworksEnum, nodeUrl)
         } else {
           logger.warn(`Node URL for ${network} is not configured.`, logMeta({ network }))
           return Promise.resolve()
@@ -37,14 +37,15 @@ const ProviderHelper = {
   async connectToNetwork(network: NetworksEnum, nodeUrl: string) {
     return new Promise((resolve, reject) => {
       try {
-        const provider = new WebSocketProvider(nodeUrl)
+        const provider: WebSocketProvider | any = new WebSocketProvider(nodeUrl)
 
-        provider.websocket.onopen = () => {
+        provider.websocket.on('open', async () => {
           logger.info(`WebSocket connected successfully to ${network}`, logMeta({ network }))
-          ProviderHelper.configState.setConfigItem(network, provider)
+          ProviderModule.configState.setConfigItem(network, provider)
           resolve(provider)
-        }
-        provider.websocket.onerror = error => {
+        })
+
+        provider.websocket.on('error', (error: any) => {
           logger.error(
             'WebSocket error',
             logMeta({
@@ -53,7 +54,7 @@ const ProviderHelper = {
             }),
           )
           reject(error)
-        }
+        })
       } catch (error) {
         logger.error('Failed to create WebSocketProvider', logMeta({ network, error }))
         reject(error)
@@ -62,4 +63,4 @@ const ProviderHelper = {
   },
 }
 
-export default ProviderHelper
+export default ProviderModule
