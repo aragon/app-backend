@@ -51,6 +51,15 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       JWT: utils.configParser(sourceConfig, 'string', 'PINATA_JWT', null),
     },
 
+    CONTRACTS: {
+      ENS_REGISTRY: utils.configParser(
+        sourceConfig,
+        'string',
+        'CONTRACTS_ENS_REGISTRY',
+        '0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e',
+      ),
+    },
+
     SUBGRAPH: {
       SUBGRAPH_ARBITRUM_URI: utils.configParser(
         sourceConfig,
