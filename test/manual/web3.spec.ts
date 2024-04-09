@@ -18,7 +18,7 @@ describe('Manual: Web3', () => {
   })
 
   it('should get address from ens', async () => {
-    config.BLOCKCHAIN_NODES.MAINNET = 'wss://eth-mainnet.g.alchemy.com/v2/REDACTED_ALCHEMY'
+    config.BLOCKCHAIN_NODES.MAINNET = ''
     await ProviderModule.connectToAllNetworks()
     const aavegotchiAddress = '0xF1cf9aFc900Ce3426A235212e164587A6274736A'
     const name = 'aavegotchi.dao.eth'
@@ -27,7 +27,7 @@ describe('Manual: Web3', () => {
   })
 
   it.skip('should get ens from address', async () => {
-    config.BLOCKCHAIN_NODES.MAINNET = 'wss://eth-mainnet.g.alchemy.com/v2/REDACTED_ALCHEMY'
+    config.BLOCKCHAIN_NODES.MAINNET = ''
     await ProviderModule.connectToAllNetworks()
     const aavegotchiAddress = '0xF1cf9aFc900Ce3426A235212e164587A6274736A'
     const name = 'aavegotchi.dao.eth'
