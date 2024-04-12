@@ -5,7 +5,7 @@ import EtherscanHelper from '@helpers/etherscan'
 import logger from '@logger'
 import config from '@config'
 
-describe.only('Helpers: Etherscan', () => {
+describe('Helpers: Etherscan', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {

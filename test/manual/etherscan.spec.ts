@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import EtherscanHelper from '@helpers/etherscan'
 
-describe.only('Manual: Ethersca', () => {
+describe('Manual: Etherscan', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
