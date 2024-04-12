@@ -118,11 +118,11 @@ export interface IConfig {
   }
 
   BLOCKCHAIN_NODES: {
-    MAINNET: string
-    SEPOLIA: string
-    POLYGON: string
-    BASE: string
-    ARBITRUM: string
+    MAINNET: string | null
+    SEPOLIA: string | null
+    POLYGON: string | null
+    BASE: string | null
+    ARBITRUM: string | null
   }
 
   SERVICES: {
