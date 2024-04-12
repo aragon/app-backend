@@ -82,4 +82,41 @@ describe('Module: provider', () => {
 
     expect(stubConneect.callCount).to.eq(1)
   })
+
+  describe('closeAllNetworks', () => {
+    it('should close all WebSocket connections', async () => {
+      const networks = {
+        MAINNET: 'wss://mainnet.infura.io/ws/v3/YOUR_PROJECT_ID',
+        SEPOLIA: 'wss://sepolia.infura.io/ws/v3/YOUR_PROJECT_ID',
+        POLYGON: null,
+        BASE: null,
+        ARBITRUM: null,
+      }
+
+      const backupConfig = config.BLOCKCHAIN_NODES
+      config.BLOCKCHAIN_NODES = networks
+
+      const fakeProviders = {
+        mainnet: { destroy: sinon.stub().resolves() },
+        sepolia: { destroy: sinon.stub().resolves() },
+      }
+
+      const getConfigStub = sandbox
+        .stub(Provider.configState, 'getConfigItem')
+        .callsFake(network => fakeProviders[network])
+      const loggerInfoStub = sandbox.stub(Logger, 'info')
+
+      await Provider.closeAllNetworks()
+
+      Object.keys(fakeProviders).forEach(network => {
+        expect(fakeProviders[network].destroy.calledOnce).to.be.true
+        expect(loggerInfoStub.calledWith(`WebSocket connection closed for ${network}` as any)).to.be.true
+      })
+
+      expect(getConfigStub.calledWith('mainnet')).to.be.true
+      expect(getConfigStub.calledWith('sepolia')).to.be.true
+
+      config.BLOCKCHAIN_NODES = backupConfig
+    })
+  })
 })
