@@ -1,4 +1,4 @@
-import type { HexAddress, NetworksEnum } from '@types'
+import type { HexAddress, IDaoMetadata, NetworksEnum } from '@types'
 import { type Log, type Filter, getAddress, type WebSocketProvider, Contract, namehash } from 'ethers'
 import { ConfigState } from '@state/configState'
 import { ensRegistryABI } from '@abis/ensRegistryABI'
@@ -7,6 +7,33 @@ import config from '@config'
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Utils' })
 
 const Web3Utils = {
+  parseMetadata(metadata: IDaoMetadata): IDaoMetadata {
+    const parsedMetadata: IDaoMetadata = {
+      name: null,
+      description: null,
+      avatar: null,
+      links: [],
+    }
+
+    if (metadata.name) {
+      parsedMetadata.name = metadata.name
+    }
+
+    if (metadata.description) {
+      parsedMetadata.description = metadata.description
+    }
+
+    if (metadata.avatar) {
+      parsedMetadata.avatar = metadata.avatar
+    }
+
+    if (metadata.links && metadata.links.length > 0) {
+      parsedMetadata.links = metadata.links
+    }
+
+    return parsedMetadata
+  },
+
   parseAddress(address: HexAddress, extraLog?: any): HexAddress | null {
     try {
       return getAddress(address) as HexAddress
@@ -53,6 +80,30 @@ const Web3Utils = {
     } catch (error) {
       logger.error('Error ensExists', llo({ ensName, network }))
       return false
+    }
+  },
+
+  async getTransaction(txHash: string, network: NetworksEnum) {
+    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+
+    try {
+      const transaction = await provider.getTransaction(txHash)
+      return transaction
+    } catch (error) {
+      logger.error('Error get transaction receipt', llo({ txHash, error }))
+      return null
+    }
+  },
+
+  async getTransactionReceipt(txHash: string, network: NetworksEnum) {
+    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+
+    try {
+      const transactionDetails = await provider.getTransactionReceipt(txHash)
+      return transactionDetails
+    } catch (error) {
+      logger.error('Error get transaction receipt', llo({ txHash, error }))
+      return null
     }
   },
 
