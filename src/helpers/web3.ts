@@ -90,7 +90,7 @@ const Web3Utils = {
       const transaction = await provider.getTransaction(txHash)
       return transaction
     } catch (error) {
-      logger.error('Error get transaction receipt', llo({ txHash, error }))
+      logger.error('Error get transaction', llo({ txHash, error }))
       return null
     }
   },
