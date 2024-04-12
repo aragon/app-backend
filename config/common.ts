@@ -140,7 +140,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           500,
         ),
       },
-    }
+    },
   }
 }
 
