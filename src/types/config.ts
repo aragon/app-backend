@@ -12,6 +12,48 @@ export enum IEnumNodeEnv {
   production = 'production',
 }
 
+interface ContractEventFilter {
+  address: string
+  blockNumber: number
+  deploymentTx: string
+}
+
+interface ContractEvent {
+  AddresslistVotingSetup: ContractEventFilter
+  AddresslistVotingSetupImplementation: ContractEventFilter
+  AdminSetup: ContractEventFilter
+  AdminSetupImplementation: ContractEventFilter
+  DAOBase: ContractEventFilter
+  DAOFactory: ContractEventFilter
+  DAORegistryProxy: ContractEventFilter
+  DAORegistryImplementation: ContractEventFilter
+  DAOENSSubdomainRegistrarProxy: ContractEventFilter
+  DAOENSSubdomainRegistrarImplementation: ContractEventFilter
+  GovernanceERC20: ContractEventFilter
+  GovernanceWrappedERC20: ContractEventFilter
+  MultisigSetup: ContractEventFilter
+  MultisigSetupImplementation: ContractEventFilter
+  PluginRepoBase: ContractEventFilter
+  PluginRepoFactory: ContractEventFilter
+  PluginRepoRegistryProxy: ContractEventFilter
+  PluginRepoRegistryImplementation: ContractEventFilter
+  PluginSetupProcessor: ContractEventFilter
+  PluginENSSubdomainRegistrarProxy: ContractEventFilter
+  PluginENSSubdomainRegistrarImplementation: ContractEventFilter
+  TokenVotingSetup: ContractEventFilter
+  TokenVotingSetupImplementation: ContractEventFilter
+  AddresslistVotingRepoProxy: ContractEventFilter
+  AddresslistVotingRepoImplementation: ContractEventFilter
+  AdminRepoProxy: ContractEventFilter
+  AdminRepoImplementation: ContractEventFilter
+  ManagementDAOProxy: ContractEventFilter
+  ManagementDAOImplementation: ContractEventFilter
+  MultisigRepoProxy: ContractEventFilter
+  MultisigRepoImplementation: ContractEventFilter
+  TokenVotingRepoProxy: ContractEventFilter
+  TokenVotingRepoImplementation: ContractEventFilter
+}
+
 export interface IConfig {
   APP_NAME: string
   ENVIRONMENT: IEnumEnvironment
@@ -38,6 +80,10 @@ export interface IConfig {
 
   COVALENT: {
     URI: string
+    API_KEY: string
+  }
+
+  ETHERSCAN: {
     API_KEY: string
   }
 
@@ -92,6 +138,37 @@ export interface IConfig {
       TOKEN_FETCH_BATCH_SIZE: number
       DAO_INTERVAL: number
       DAO_FETCH_BATCH_SIZE: number
+    }
+  }
+
+  ARAGON_CONTRACTS: {
+    ARBITRUM: {
+      'v1.0.0'?: ContractEvent
+      'v1.3.0': ContractEvent
+    }
+    ARBITRUM_SEPOLIA: {
+      'v1.0.0'?: ContractEvent
+      'v1.3.0': ContractEvent
+    }
+    BASE: {
+      'v1.0.0'?: ContractEvent
+      'v1.3.0': ContractEvent
+    }
+    BASE_SEPOLIA: {
+      'v1.0.0'?: ContractEvent
+      'v1.3.0': ContractEvent
+    }
+    MAINNET: {
+      'v1.0.0'?: ContractEvent
+      'v1.3.0': ContractEvent
+    }
+    POLYGON: {
+      'v1.0.0'?: ContractEvent
+      'v1.3.0': ContractEvent
+    }
+    SEPOLIA: {
+      'v1.0.0'?: ContractEvent
+      'v1.3.0': ContractEvent
     }
   }
 }
