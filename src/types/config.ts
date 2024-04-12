@@ -143,31 +143,26 @@ export interface IConfig {
 
   ARAGON_CONTRACTS: {
     ARBITRUM: {
-      'v1.0.0'?: ContractEvent
       'v1.3.0': ContractEvent
     }
     ARBITRUM_SEPOLIA: {
-      'v1.0.0'?: ContractEvent
       'v1.3.0': ContractEvent
     }
     BASE: {
-      'v1.0.0'?: ContractEvent
       'v1.3.0': ContractEvent
     }
     BASE_SEPOLIA: {
-      'v1.0.0'?: ContractEvent
       'v1.3.0': ContractEvent
     }
     MAINNET: {
-      'v1.0.0'?: ContractEvent
+      'v1.0.0': ContractEvent
       'v1.3.0': ContractEvent
     }
     POLYGON: {
-      'v1.0.0'?: ContractEvent
+      'v1.0.0': ContractEvent
       'v1.3.0': ContractEvent
     }
     SEPOLIA: {
-      'v1.0.0'?: ContractEvent
       'v1.3.0': ContractEvent
     }
   }
