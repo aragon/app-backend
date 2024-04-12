@@ -4,6 +4,7 @@ import Connections from '@modules/connections'
 import Runner from '@modules/runner'
 import { expect } from 'chai'
 import utils from '@helpers/utils'
+import { EnumConnection } from '@types'
 
 describe.skip('Module: runner', () => {
   let sandbox: SinonSandbox
@@ -20,7 +21,7 @@ describe.skip('Module: runner', () => {
     const appMock = {
       start: sandbox.stub().resolves(),
       stop: sandbox.stub().resolves(),
-      NEED_CONNECTIONS: ['mongodb'],
+      NEED_CONNECTIONS: [EnumConnection.MONGODB],
     }
 
     const connectionsMock = sandbox.stub(Connections, 'open').resolves()
@@ -31,14 +32,14 @@ describe.skip('Module: runner', () => {
     await utils.wait(100)
     expect(appMock.start.calledOnce).to.be.true
     expect(connectionsMock.calledOnce).to.be.true
-    expect(connectionsMock.args[0][0][0]).to.eq('mongodb')
+    expect(connectionsMock.args[0][0][0]).to.eq(EnumConnection.MONGODB)
   })
 
   it('handles errors when starting apps', async function () {
     const appMock = {
       start: sandbox.stub().resolves(),
       stop: sandbox.stub().resolves(),
-      NEED_CONNECTIONS: ['mongodb'],
+      NEED_CONNECTIONS: [EnumConnection.MONGODB],
     }
     const apps = [{ app: appMock }]
 

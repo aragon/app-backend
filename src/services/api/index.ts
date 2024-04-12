@@ -1,9 +1,9 @@
 import Utils from '@helpers/utils'
-import { type IService } from '@types'
+import { EnumConnection, type IService } from '@types'
 import app from '@services/api/app'
 
 const APIService: IService = {
-  NEED_CONNECTIONS: ['mongodb'],
+  NEED_CONNECTIONS: [EnumConnection.MONGODB],
 
   async start() {
     return await app()
