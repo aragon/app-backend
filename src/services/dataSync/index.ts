@@ -1,4 +1,4 @@
-import { type IService } from '@types'
+import { EnumConnection, type IService } from '@types'
 import config from '@config'
 import Utils from '@helpers/utils'
 import { SyncDao } from '@services/dataSync/syncDao'
@@ -8,7 +8,7 @@ import logger from '@logger'
 const llo = logger.logMeta.bind(null, { service: 'service:dataSync' })
 
 const DataSync: IService & { repeaters: any } = {
-  NEED_CONNECTIONS: ['mongodb'],
+  NEED_CONNECTIONS: [EnumConnection.MONGODB],
   repeaters: {},
 
   async start() {
