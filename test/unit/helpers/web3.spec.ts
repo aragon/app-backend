@@ -44,7 +44,7 @@ describe('Helpers:Web3', () => {
       })
     })
 
-    it('error parseAddress', function () {
+    it('error parseAddress', () => {
       const address = '0xInvalidAddress'
       const stubLogger = sandbox.stub(Logger, 'error')
 
