@@ -1,3 +1,10 @@
+import * as arbitrumJson from './contracts/arbitrum.json'
+import * as arbitrumSepoliaJson from './contracts/arbitrumSepolia.json'
+import * as baseJson from './contracts/base.json'
+import * as baseSepoliaJson from './contracts/baseSepolia.json'
+import * as mainnetJson from './contracts/mainnet.json'
+import * as polygonJson from './contracts/polygon.json'
+import * as sepoliaJson from './contracts/sepolia.json'
 import utils from '@helpers/utils'
 import { type IConfig, NetworksEnum } from '@types'
 
@@ -36,6 +43,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     COVALENT: {
       URI: utils.configParser(sourceConfig, 'string', 'COVALENT_URI', 'https://api.covalenthq.com/v1'),
       API_KEY: utils.configParser(sourceConfig, 'string', 'COVALENT_API_KEY', null),
+    },
+
+    ETHERSCAN: {
+      API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_KEY', null),
     },
 
     COINGECKO: {
@@ -136,6 +147,16 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           500,
         ),
       },
+    },
+
+    ARAGON_CONTRACTS: {
+      ARBITRUM: arbitrumJson,
+      ARBITRUM_SEPOLIA: arbitrumSepoliaJson,
+      BASE: baseJson,
+      BASE_SEPOLIA: baseSepoliaJson,
+      MAINNET: mainnetJson,
+      POLYGON: polygonJson,
+      SEPOLIA: sepoliaJson,
     },
   }
 }
