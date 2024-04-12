@@ -41,6 +41,10 @@ export interface IConfig {
     API_KEY: string
   }
 
+  ETHERSCAN: {
+    API_KEY: string
+  }
+
   COINGECKO: {
     URI: string
   }

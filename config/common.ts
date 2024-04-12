@@ -38,6 +38,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       API_KEY: utils.configParser(sourceConfig, 'string', 'COVALENT_API_KEY', null),
     },
 
+    ETHERSCAN: {
+      API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_KEY', null),
+    },
+
     COINGECKO: {
       URI: utils.configParser(sourceConfig, 'string', 'COINGECKO_URI', 'https://api.coingecko.com/api/v3'),
     },
@@ -136,7 +140,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           500,
         ),
       },
-    },
+    }
   }
 }
 
