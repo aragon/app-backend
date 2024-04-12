@@ -20,8 +20,8 @@ describe('Helpers:Web3', () => {
     sandbox?.restore()
   })
 
-  describe('parseMetadata', function () {
-    it('should parseMetadata', function () {
+  describe('parseMetadata', () => {
+    it('should parseMetadata', () => {
       expect(
         Web3Utils.parseMetadata({
           name: 'test',
@@ -55,8 +55,8 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('parseAddress', function () {
-    it('should parseAddress', function () {
+  describe('parseAddress', () => {
+    it('should parseAddress', () => {
       const address = '0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359'
       const expectedChecksumAddress = '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359'
       const stubLogger = sandbox.stub(Logger, 'error')
@@ -67,7 +67,7 @@ describe('Helpers:Web3', () => {
       expect(stubLogger.notCalled).to.be.true
     })
 
-    it('error parseAddress', function () {
+    it('error parseAddress', () => {
       const address = '0xInvalidAddress'
       const stubLogger = sandbox.stub(Logger, 'error')
 
@@ -78,7 +78,7 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('getAddressFromEns', function () {
+  describe('getAddressFromEns', () => {
     it('should get address from ens', async () => {
       const resolveName = sandbox.stub().resolves('0x000001')
       const stubInstance = sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
@@ -107,7 +107,7 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('getEnsFromAddress', function () {
+  describe('getEnsFromAddress', () => {
     it('should get address from ens', async () => {
       const lookupAddress = sandbox.stub().resolves('aavegotchi.dao.eth')
       const stubInstance = sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
@@ -136,7 +136,7 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('ensExists', function () {
+  describe('ensExists', () => {
     it('should check if ensExists', async () => {
       const stubConfigState = {
         getConfigItem: sandbox.stub().returns({}),
@@ -147,7 +147,7 @@ describe('Helpers:Web3', () => {
           Contract: function () {
             return { recordExists: stubRecordExistsStub }
           },
-          namehash: function () {
+          namehash: () => {
             return '0xb9b3537ea1117f65799f21b36bbc6357724953d5bf9cca09f0757b7ac3e81f37'
           },
         },
@@ -173,10 +173,10 @@ describe('Helpers:Web3', () => {
 
       const { default: MockedWeb3Utils } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
-          Contract: function () {
+          Contract: () => {
             return { recordExists: stubRecordExistsStub }
           },
-          namehash: function () {
+          namehash: () => {
             return '0xb9b3537ea1117f65799f21b36bbc6357724953d5bf9cca09f0757b7ac3e81f37'
           },
         },
@@ -195,7 +195,7 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('queryLogs', function () {
+  describe('queryLogs', () => {
     it('should query logs successfully', async () => {
       const fakeLogs = [{ logIndex: 0, data: '0x', topics: ['0x123'] }]
       const getLogsStub = sandbox.stub().resolves(fakeLogs)
