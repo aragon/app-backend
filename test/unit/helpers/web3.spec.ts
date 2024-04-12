@@ -238,4 +238,63 @@ describe('Helpers:Web3', () => {
       expect(stubLoggerError.firstCall.args[0]).to.include('Error querying logs')
     })
   })
+
+  describe('getTransaction', () => {
+    it('should getTransaction successfully', async () => {
+      const txHash = '0x0'
+      const getTransactionStub = sandbox.stub().resolves(true)
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+        getTransaction: getTransactionStub,
+      })
+
+      const result = await Web3Utils.getTransaction(txHash, NetworksEnum.mainnet)
+
+      expect(result).to.be.true
+    })
+
+    it('should fails getTransaction', async () => {
+      const txHash = '0x0'
+      const stubLogger = sandbox.stub(Logger, 'error')
+      const getTransactionStub = sandbox.stub().rejects(new Error('fake-error'))
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+        getTransaction: getTransactionStub,
+      })
+
+      const result = await Web3Utils.getTransaction(txHash, NetworksEnum.mainnet)
+
+      expect(result).to.be.null
+      expect(getTransactionStub.calledOnce).to.be.true
+      expect(stubLogger.calledOnceWith('Error get transaction' as any)).to.be.true
+    })
+  })
+
+  describe('getTransactionReceipt', () => {
+    it('should getTransactionReceipt successfully', async () => {
+      const txHash = '0x0'
+      const getTransactionReceiptStubStub = sandbox.stub().resolves(true)
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+        getTransactionReceipt: getTransactionReceiptStubStub,
+      })
+
+      const result = await Web3Utils.getTransactionReceipt(txHash, NetworksEnum.mainnet)
+
+      expect(result).to.be.true
+      expect(getTransactionReceiptStubStub.calledOnceWith(txHash)).to.be.true
+    })
+
+    it('should fails getTransactionReceipt', async () => {
+      const txHash = '0x0'
+      const stubLogger = sandbox.stub(Logger, 'error')
+      const getTransactionReceiptStub = sandbox.stub().rejects(new Error('fake-error'))
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+        getTransactionReceipt: getTransactionReceiptStub,
+      })
+
+      const result = await Web3Utils.getTransactionReceipt(txHash, NetworksEnum.mainnet)
+
+      expect(result).to.be.null
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(stubLogger.calledOnceWith('Error get transaction receipt' as any)).to.be.true
+    })
+  })
 })
