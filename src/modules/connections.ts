@@ -1,7 +1,9 @@
 import Utils from '@helpers/utils'
 import logger from '@logger'
 import MongoDB from './mongo'
+import ProviderModule from '@modules/provider'
 import { throwError } from '@errors'
+import { EnumConnection } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'connection' })
 
@@ -19,8 +21,12 @@ const Connections = {
         Connections.openedConnections.push(connection)
 
         switch (connection) {
-          case 'mongodb': {
+          case EnumConnection.MONGODB: {
             await MongoDB.connect()
+            return true
+          }
+          case EnumConnection.BLOCKCHAIN: {
+            await ProviderModule.connectToAllNetworks()
             return true
           }
           default: {
@@ -37,7 +43,7 @@ const Connections = {
         logger.verbose('Connections open', llo({}))
         return true
       })
-      .catch(error => {
+      .catch((error: any) => {
         Connections.openedConnections.pop()
         logger.warn('Unable to open connections', { error })
         throw error
@@ -47,9 +53,13 @@ const Connections = {
   async close(): Promise<any> {
     return Utils.asyncForEach(Connections.openedConnections, async (connection: string) => {
       switch (connection) {
-        case 'mongodb': {
+        case EnumConnection.MONGODB: {
           await MongoDB.disconnect()
           return
+        }
+        case EnumConnection.BLOCKCHAIN: {
+          await ProviderModule.closeAllNetworks()
+          return true
         }
         default: {
           throw new Error('Unknown service to disconnect from')

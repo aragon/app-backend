@@ -1,5 +1,10 @@
+export enum EnumConnection {
+  MONGODB = 'MONGODB',
+  BLOCKCHAIN = 'BLOCKCHAIN',
+}
+
 export interface IService {
-  NEED_CONNECTIONS: string[]
+  NEED_CONNECTIONS: EnumConnection[]
 
   start: () => Promise<any>
 
