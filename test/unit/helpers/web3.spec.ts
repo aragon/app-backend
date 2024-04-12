@@ -20,6 +20,41 @@ describe('Helpers:Web3', () => {
     sandbox?.restore()
   })
 
+  describe('parseMetadata', function () {
+    it('should parseMetadata', function () {
+      expect(
+        Web3Utils.parseMetadata({
+          name: 'test',
+          description: 'test',
+          avatar: 'test',
+          links: [{ name: 'test', url: 'test' }],
+        }),
+      ).to.deep.equal({
+        name: 'test',
+        description: 'test',
+        avatar: 'test',
+        links: [{ name: 'test', url: 'test' }],
+      })
+
+      expect(Web3Utils.parseMetadata({})).to.deep.equal({
+        name: null,
+        description: null,
+        avatar: null,
+        links: [],
+      })
+    })
+
+    it('error parseAddress', function () {
+      const address = '0xInvalidAddress'
+      const stubLogger = sandbox.stub(Logger, 'error')
+
+      const result = Web3Utils.parseAddress(address)
+
+      expect(result).to.be.null
+      expect(stubLogger.calledWith('Error checksum dao address' as any)).to.be.true
+    })
+  })
+
   describe('parseAddress', function () {
     it('should parseAddress', function () {
       const address = '0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359'
