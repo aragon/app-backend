@@ -7,6 +7,7 @@ import config from '@config'
 import utils from '@helpers/utils'
 import logger from '@logger'
 import { SyncToken } from '@services/dataSync/syncToken'
+import { EnumConnection } from '@types'
 
 describe('DataSync: index', () => {
   let sandbox: SinonSandbox
@@ -20,7 +21,7 @@ describe('DataSync: index', () => {
   })
 
   it('Should start wallets fetchers & repeat', async () => {
-    expect(DataSync.NEED_CONNECTIONS).to.be.deep.eq(['mongodb'])
+    expect(DataSync.NEED_CONNECTIONS).to.be.deep.eq([EnumConnection.MONGODB])
 
     const configBk = config.SERVICES.SYNC_DATA.DAO_INTERVAL
     config.SERVICES.SYNC_DATA.DAO_INTERVAL = 200
