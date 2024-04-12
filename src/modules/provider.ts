@@ -2,7 +2,7 @@ import { WebSocketProvider } from 'ethers'
 import config from '@config'
 import logger from '@logger'
 import { ConfigState } from '@state/configState'
-import { type NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 
 const logMeta = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
@@ -58,6 +58,17 @@ const ProviderModule = {
       } catch (error) {
         logger.error('Failed to create WebSocketProvider', logMeta({ network, error }))
         reject(error)
+      }
+    })
+  },
+
+  async closeAllNetworks() {
+    const networks = Object.values(NetworksEnum)
+    networks.map(async network => {
+      const provider: WebSocketProvider = ProviderModule.configState.getConfigItem(network)
+      if (provider) {
+        await provider.destroy()
+        logger.info(`WebSocket connection closed for ${network}`, logMeta({ network }))
       }
     })
   },
