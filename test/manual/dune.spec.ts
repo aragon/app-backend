@@ -15,6 +15,6 @@ describe('Manual: Dune', () => {
 
   it('should getDaos', async () => {
     const response = await DuneHelper.getDaos()
-    console.log(response)
+    console.log(response) // eslint-disable-line no-console
   })
 })
