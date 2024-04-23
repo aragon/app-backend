@@ -1,0 +1,171 @@
+import logger from '@logger'
+import { type Filter, type Log, type WebSocketProvider } from 'ethers'
+import { ConfigState } from '@state/configState'
+import { NetworksEnum } from '@types'
+
+const logMeta = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' })
+
+class BlockchainLogCrawler {
+  private readonly fromBlock: number | string
+  private readonly toBlock: number | string
+  private readonly provider: WebSocketProvider
+  private readonly onLog: (log: Log) => Promise<void>
+  private readonly onError: (error: any, log?: Log) => void
+  private readonly filter: Filter
+  private readonly stopOnError: boolean
+  private readonly crawlResult: { nbSuccess: number; nbError: number; nbTotal: number }
+  private batchSize: number
+  private crawling: boolean
+  private isOnError: boolean
+
+  constructor(opts: {
+    network: NetworksEnum
+    filter: Filter | any
+    batchSize?: number
+    onLog: (log: Log) => Promise<void>
+    onError?: (error: Error, log?: Log) => void
+    stopOnError?: boolean
+  }) {
+    this.provider = ConfigState.getInstance().getConfigItem(opts.network) as WebSocketProvider
+    if (!this.provider) {
+      throw new Error('Provider not configured for network: ' + opts.network)
+    }
+
+    this.filter = {
+      ...opts.filter,
+      fromBlock: opts.filter.fromBlock || 0,
+      toBlock: opts.filter.toBlock || 'latest',
+    }
+
+    this.fromBlock = this.filter.fromBlock as any
+    this.toBlock = this.filter.toBlock as any
+
+    this.batchSize = opts.batchSize || this.calculateBatchSize(opts.network)
+    this.onLog = opts.onLog
+    this.onError = opts.onError || BlockchainLogCrawler.defaultOnError
+    this.stopOnError = opts.stopOnError ?? true
+    this.crawling = false
+    this.isOnError = false
+    this.crawlResult = {
+      nbSuccess: 0,
+      nbError: 0,
+      nbTotal: 0,
+    }
+  }
+
+  static defaultOnError(error: Error, log?: Log): void {
+    logger.error(
+      'Error in BlockchainLogCrawler',
+      logMeta({
+        error: error.message,
+        logId: log?.transactionHash ?? null,
+      }),
+    )
+  }
+
+  async getBlockNumber(blockNumber: string | number | undefined): Promise<number> {
+    if (blockNumber === 'latest' || blockNumber === undefined) {
+      try {
+        return await this.provider.getBlockNumber()
+      } catch (error) {
+        logger.error(
+          'Error get block number',
+          logMeta({
+            blockNumber,
+            error,
+          }),
+        )
+        return -1
+      }
+    } else {
+      return Number(blockNumber)
+    }
+  }
+
+  calculateBatchSize(network: NetworksEnum): number {
+    const secondsInMonth = 30 * 24 * 3600
+    switch (network) {
+      case NetworksEnum.mainnet:
+      case NetworksEnum.arbitrum:
+      case NetworksEnum.base:
+        return Math.floor(secondsInMonth / 14) // Average block time ~14 seconds
+      case NetworksEnum.polygon:
+        return Math.floor(secondsInMonth / 2) // Average block time ~2 seconds
+      case NetworksEnum.sepolia:
+        return Math.floor(secondsInMonth / 12) // Average block time ~12 seconds
+      default:
+        throw new Error(`Unsupported network: ${network}`)
+    }
+  }
+
+  async updateAndCheckConditions(currentBlock: number, latestBlock: number): Promise<boolean> {
+    return this.crawling && !this.isOnError && currentBlock >= 0 && latestBlock > 0 && currentBlock <= latestBlock
+  }
+
+  async crawl(): Promise<void> {
+    if (this.crawling) {
+      throw new Error('Already crawling')
+    }
+
+    this.crawling = true
+    let currentBlock = await this.getBlockNumber(this.filter.fromBlock as any)
+    const latestBlock = await this.getBlockNumber(this.filter.toBlock as any)
+
+    while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
+      const toBlock = Math.min(currentBlock + this.batchSize - 1, latestBlock)
+
+      logger.info(
+        'Querying logs',
+        logMeta({
+          fromBlock: this.fromBlock,
+          toBlock: this.toBlock,
+          currentQueryFromBlock: currentBlock,
+          currentQueryToBlock: toBlock,
+        }),
+      )
+
+      try {
+        const logs = await this.provider.getLogs({
+          ...this.filter,
+          fromBlock: currentBlock,
+          toBlock,
+        })
+        await this.processLogs(logs)
+        currentBlock = toBlock + 1
+      } catch (error) {
+        if (this.isBatchSizeError(error)) {
+          this.batchSize = Math.max(1, Math.floor(this.batchSize / 2))
+          logger.warn('Reducing batch size due to error', logMeta({ newBatchSize: this.batchSize }))
+        } else {
+          this.onError(error)
+          if (this.stopOnError) break
+        }
+      }
+    }
+
+    this.crawling = false
+    logger.info('Finished crawling logs', logMeta({ crawlResult: this.crawlResult }))
+  }
+
+  async processLogs(logs: Log[]): Promise<void> {
+    for (const log of logs) {
+      try {
+        await this.onLog(log)
+        this.crawlResult.nbSuccess++
+      } catch (error) {
+        this.onError(error, log)
+        this.crawlResult.nbError++
+        if (this.stopOnError) {
+          this.isOnError = true
+          break
+        }
+      }
+    }
+  }
+
+  isBatchSizeError(error: any): boolean {
+    return error.message.includes('Log response size exceeded')
+  }
+}
+
+export default BlockchainLogCrawler
