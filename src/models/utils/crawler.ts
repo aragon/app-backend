@@ -25,7 +25,7 @@ class DBCrawler {
   private nbWorked: number
   private nbTotal: number
   private crawlResult: { nbSuccess: number; nbError: number; nbTotal: number }
-  private readonly queue: async.AsyncQueue<Document[]>
+  private readonly queue: async.QueueObject<Document[]>
 
   constructor(opts: any) {
     if (!opts.onDocument) {
