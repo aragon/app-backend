@@ -20,10 +20,10 @@ describe('Helpers:Web3', () => {
     sandbox?.restore()
   })
 
-  describe('parseMetadata', () => {
+  describe('parseDaoMetadata', () => {
     it('should parseMetadata', () => {
       expect(
-        Web3Utils.parseMetadata({
+        Web3Utils.parseDaoMetadata({
           name: 'test',
           description: 'test',
           avatar: 'test',
@@ -36,7 +36,7 @@ describe('Helpers:Web3', () => {
         links: [{ name: 'test', url: 'test' }],
       })
 
-      expect(Web3Utils.parseMetadata({})).to.deep.equal({
+      expect(Web3Utils.parseDaoMetadata({})).to.deep.equal({
         name: null,
         description: null,
         avatar: null,
@@ -52,6 +52,60 @@ describe('Helpers:Web3', () => {
 
       expect(result).to.be.null
       expect(stubLogger.calledWith('Error checksum dao address' as any)).to.be.true
+    })
+  })
+
+  describe('parseProposalMetadata', () => {
+    it('should parse proposal metadata correctly', () => {
+      const proposalMetadata = {
+        title: 'Proposal 1',
+        summary: 'Summary of Proposal 1',
+        description: 'Detailed description of Proposal 1',
+        resources: [{ name: 'test', url: 'https://localhost' }],
+        media: {
+          header: 'headerImage.png',
+          logo: 'logoImage.png',
+        },
+      }
+
+      const parsed = Web3Utils.parseProposalMetadata(proposalMetadata)
+
+      expect(parsed).to.deep.equal({
+        title: 'Proposal 1',
+        summary: 'Summary of Proposal 1',
+        description: 'Detailed description of Proposal 1',
+        resources: [{ name: 'test', url: 'https://localhost' }],
+        media: {
+          header: 'headerImage.png',
+          logo: 'logoImage.png',
+        },
+      })
+    })
+
+    it('should handle incomplete proposal metadata', () => {
+      const incompleteMetadata = {
+        title: 'Incomplete Proposal',
+        summary: null,
+        description: null,
+        resources: [],
+        media: {
+          header: null,
+          logo: null,
+        },
+      }
+
+      const parsed = Web3Utils.parseProposalMetadata(incompleteMetadata)
+
+      expect(parsed).to.deep.equal({
+        title: 'Incomplete Proposal',
+        summary: null,
+        description: null,
+        resources: [],
+        media: {
+          header: null,
+          logo: null,
+        },
+      })
     })
   })
 

@@ -10,6 +10,15 @@ export interface IMongoModel {
   Token: Model<InstanceType<typeof Token>>
 }
 
+export enum IEventLogPluginType {
+  InstallationPrepared = 'InstallationPrepared',
+  InstallationApplied = 'InstallationApplied',
+  UninstallationPrepared = 'UninstallationPrepared',
+  UninstallationApplied = 'UninstallationApplied',
+  UpdatePrepared = 'UpdatePrepared',
+  UpdateApplied = 'UpdateApplied',
+}
+
 export interface IPaginationParams {
   search?: string
   fromDate?: string
