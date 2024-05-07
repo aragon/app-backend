@@ -26,10 +26,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-//  "ts-node": {
-//    "esm": true,
-//    "experimentalResolver": true
-//  },
   "include": ["./**/*", "./utils/**/*"],
   "exclude": ["node_modules", "types"]
 }
