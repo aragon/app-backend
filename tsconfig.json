@@ -10,7 +10,7 @@
       "@src/*": ["./src/*"],
       "@config": ["./config/index"],
       "@types": ["./src/types/index"],
-      "@abis/*": ["./src/abis/*"],
+      "@artifacts/*": ["./src/artifacts/*"],
       "@helpers/*": ["./src/helpers/*"],
       "@dbModels": ["./src/models/index"],
       "@logger": ["./src/logger/index"],
