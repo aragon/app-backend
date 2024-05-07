@@ -14,12 +14,6 @@ export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
   Dao: Model<InstanceType<typeof Dao>>
   Token: Model<InstanceType<typeof Token>>
-  DuneDaoLog: Model<InstanceType<typeof DuneDaoLog>>
-  LogDao: Model<InstanceType<typeof LogDao>>
-  LogDaoMetadata: Model<InstanceType<typeof LogDaoMetadata>>
-  LogProposalMetadata: Model<InstanceType<typeof LogProposalMetadata>>
-  LogPlugin: Model<InstanceType<typeof LogPlugin>>
-  LogPluginRepo: Model<InstanceType<typeof LogPluginRepo>>
 }
 
 export enum IEventLogPluginType {
