@@ -75,11 +75,12 @@ export const DaoLogs = {
           transactionHash: txLog.transactionHash,
         }
 
+        await Models.LogDao.create(daoLog, { session })
+
         await networkDb.update({
           lastBlockDaoLog: txLog.blockNumber
         }, { session })
 
-        await Models.LogDao.create(daoLog, { session })
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('New DaoLog', llo({ daoLog }))
