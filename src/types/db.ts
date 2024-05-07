@@ -3,12 +3,6 @@ import type Dao from '@models/schema/dao'
 import type Network from '@models/schema/network'
 import { type IDao } from '@src/types/daos'
 import type Token from '@models/schema/token'
-import type DuneDaoLog from '@models/schema/duneDaoLog'
-import type LogDao from '@models/schema/logDao'
-import type LogDaoMetadata from '@models/schema/logDaoMetadata'
-import type LogProposalMetadata from '@models/schema/logProposalMetadata'
-import type LogPlugin from '@models/schema/logPlugin'
-import type LogPluginRepo from '@models/schema/logPluginRepo'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
