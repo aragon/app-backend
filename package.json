@@ -54,6 +54,7 @@
     "@typegoose/typegoose": "^12.1.0",
     "async": "^3.2.5",
     "axios": "^1.6.7",
+    "bottleneck": "^2.19.5",
     "class-validator": "^0.14.1",
     "dayjs": "^1.11.10",
     "dayjs-plugin-utc": "^0.1.2",

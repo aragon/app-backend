@@ -91,7 +91,7 @@ const Utils = {
     return results
   },
 
-  setIntervalAsync(fn: any, delay: number, onError: any) {
+  setIntervalAsync({ fn, delay, onError }: { fn: any; delay: number; onError: any }) {
     let timeout: any
     let running = true
     let endPromise = Promise.resolve() as Promise<any>
