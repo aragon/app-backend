@@ -1,3 +1,4 @@
+import { type WebSocketProvider } from 'ethers'
 export type HexAddress = `0x${string}`
 export type ENS = `${string}.eth`
 
@@ -18,3 +19,21 @@ export enum StatusNetworkEnum {
 }
 
 export const TestNetworks = [NetworksEnum.sepolia]
+
+export interface IBlock {
+  provider: WebSocketProvider
+  hash: string
+  parentHash: string
+  number: number
+  timestamp: number
+  nonce: string
+  difficulty: bigint
+  gasLimit: bigint
+  gasUsed: bigint
+  baseFeePerGas: bigint
+  miner: string
+  extraData: string
+  currentFeeInNextBlock: bigint
+  baseFeeInNextBlock: bigint
+  transactions: string[]
+}

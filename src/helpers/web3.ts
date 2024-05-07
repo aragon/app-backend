@@ -1,18 +1,23 @@
-import type { HexAddress, IDaoMetadata, NetworksEnum } from '@types'
-import { type Log, type Filter, getAddress, type WebSocketProvider, Contract, namehash } from 'ethers'
+import { type HexAddress, type IDaoMetadata, type IProposalMetadata, type NetworksEnum } from '@types'
+import { Contract, type Filter, getAddress, type Log, namehash, type WebSocketProvider } from 'ethers'
 import { ConfigState } from '@state/configState'
 import { ENSSubdomainRegistrar } from '@artifacts/ENSSubdomainRegistrar'
 import logger from '@logger'
 import config from '@config'
+
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Utils' })
 
 const Web3Utils = {
-  parseMetadata(metadata: IDaoMetadata): IDaoMetadata {
+  parseDaoMetadata(metadata: IDaoMetadata): IDaoMetadata {
     const parsedMetadata: IDaoMetadata = {
       name: null,
       description: null,
       avatar: null,
       links: [],
+    }
+
+    if (!metadata) {
+      return parsedMetadata
     }
 
     if (metadata.name) {
@@ -34,11 +39,61 @@ const Web3Utils = {
     return parsedMetadata
   },
 
+  parseProposalMetadata(metadata: IProposalMetadata): IProposalMetadata {
+    const parsedMetadata: IProposalMetadata = {
+      title: null,
+      summary: null,
+      description: null,
+      resources: [],
+      media: {
+        header: null,
+        logo: null,
+      },
+    }
+
+    if (!metadata) {
+      return parsedMetadata
+    }
+
+    if (metadata.title) {
+      parsedMetadata.title = metadata.title
+    }
+
+    if (metadata.summary) {
+      parsedMetadata.summary = metadata.summary
+    }
+
+    if (metadata.description) {
+      parsedMetadata.description = metadata.description
+    }
+
+    if (metadata.resources && metadata.resources.length > 0) {
+      parsedMetadata.resources = metadata.resources
+    }
+
+    if (metadata?.media?.header) {
+      parsedMetadata.media!.header = metadata.media.header
+    }
+
+    if (metadata?.media?.header) {
+      parsedMetadata.media!.logo = metadata.media.logo
+    }
+
+    return parsedMetadata
+  },
+
   parseAddress(address: HexAddress, extraLog?: any): HexAddress | null {
     try {
       return getAddress(address) as HexAddress
     } catch (error) {
-      logger.error('Error checksum dao address', llo({ address, error, extraLog }))
+      logger.error(
+        'Error checksum dao address',
+        llo({
+          address,
+          error,
+          extraLog,
+        }),
+      )
       return null
     }
   },
@@ -50,7 +105,13 @@ const Web3Utils = {
       const address = (await provider.resolveName(name)) as HexAddress | null
       return address
     } catch (error) {
-      logger.error('Error resolving ENS name', llo({ name, network }))
+      logger.error(
+        'Error resolving ENS name',
+        llo({
+          name,
+          network,
+        }),
+      )
       return null
     }
   },
@@ -62,7 +123,13 @@ const Web3Utils = {
       const ensName = await provider.lookupAddress(address)
       return ensName
     } catch (error) {
-      logger.error('Error looking up address', llo({ address, network }))
+      logger.error(
+        'Error looking up address',
+        llo({
+          address,
+          network,
+        }),
+      )
       return null
     }
   },
@@ -78,9 +145,22 @@ const Web3Utils = {
 
       return recordExists
     } catch (error) {
-      logger.error('Error ensExists', llo({ ensName, network }))
+      logger.error(
+        'Error ensExists',
+        llo({
+          ensName,
+          network,
+        }),
+      )
       return false
     }
+  },
+
+  async getBlockTime(blockNumber: number, network: NetworksEnum) {
+    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+
+    const block = await provider.getBlock(blockNumber)
+    return block?.timestamp
   },
 
   async getTransaction(txHash: string, network: NetworksEnum) {
@@ -90,7 +170,13 @@ const Web3Utils = {
       const transaction = await provider.getTransaction(txHash)
       return transaction
     } catch (error) {
-      logger.error('Error get transaction', llo({ txHash, error }))
+      logger.error(
+        'Error get transaction',
+        llo({
+          txHash,
+          error,
+        }),
+      )
       return null
     }
   },
@@ -102,7 +188,13 @@ const Web3Utils = {
       const transactionDetails = await provider.getTransactionReceipt(txHash)
       return transactionDetails
     } catch (error) {
-      logger.error('Error get transaction receipt', llo({ txHash, error }))
+      logger.error(
+        'Error get transaction receipt',
+        llo({
+          txHash,
+          error,
+        }),
+      )
       return null
     }
   },
@@ -114,7 +206,14 @@ const Web3Utils = {
       const logs = await provider.getLogs(filter)
       return logs
     } catch (error) {
-      logger.error('Error querying logs', llo({ filter, network, error }))
+      logger.error(
+        'Error querying logs',
+        llo({
+          filter,
+          network,
+          error,
+        }),
+      )
       return []
     }
   },

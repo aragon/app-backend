@@ -34,9 +34,9 @@ export function stopApps(instances: Array<{ app: IService }>, code: number, time
 
 async function runApps(instances: Array<{ app: IService }>) {
   try {
-    process.on('exit', stopApps.bind(null, instances))
-    process.on('SIGINT', stopApps.bind(null, instances))
-    process.on('SIGTERM', stopApps.bind(null, instances))
+    process.on('exit', stopApps.bind(null, instances, -1))
+    process.on('SIGINT', stopApps.bind(null, instances, -1))
+    process.on('SIGTERM', stopApps.bind(null, instances, -1))
 
     process.on('unhandledRejection', error => {
       logger.error('Unhandled Promise Rejection', llo({ error }))

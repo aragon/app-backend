@@ -21,28 +21,32 @@ const IPFSModule = {
     return await PinataHelper.uploadAndPinMetadata(metadata)
   },
 
-  fetchMetadata: async (ipfsUrl: string): Promise<IDaoMetadata | null> => {
+  fetchMetadata: async (
+    ipfsUrl: string,
+    opts?: { retries?: number; delay?: number; timeout?: number },
+  ): Promise<IDaoMetadata | null> => {
     const cid = ipfsUrl?.replace('ipfs://', '')
 
     if (!IPFSModule._isValidCIDv0(cid) && !IPFSModule._isValidCIDv1(cid)) {
       return null
     }
 
-    return await IPFSModule._fetchMetadata(cid)
+    return await IPFSModule._fetchMetadata(cid, opts)
   },
 
-  _fetchMetadata: async (cid: string) => {
+  _fetchMetadata: async (cid: string, opts?: { retries?: number; delay?: number; timeout?: number }) => {
     try {
       const url = `https://ipfs.io/ipfs/${cid}`
 
       return await retry(
         async () => {
           const response = await axios.get(url)
-          return IPFSModule._parseMetadata(response.data)
+          return IPFSModule._parseDaoMetadata(response.data)
         },
         {
-          retries: config.IPFS.METADATA_FETCH_RETRY,
-          delay: config.IPFS.METADATA_FETCH_DELAY,
+          retries: opts?.retries || config.IPFS.METADATA_FETCH_RETRY,
+          delay: opts?.delay || config.IPFS.METADATA_FETCH_DELAY,
+          timeout: opts?.timeout || config.IPFS.METADATA_FETCH_DELAY,
         },
       )
     } catch (error) {
@@ -76,7 +80,7 @@ const IPFSModule = {
     return cidv1Regex.test(cid)
   },
 
-  _parseMetadata(metadata: IDaoMetadata): IDaoMetadata {
+  _parseDaoMetadata(metadata: IDaoMetadata): IDaoMetadata {
     if (!metadata.avatar || (metadata.avatar && typeof metadata.avatar !== 'string')) {
       metadata.avatar = null
     }
