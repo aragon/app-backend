@@ -273,6 +273,7 @@ const SatsumaHelper = {
         service: 'satsuma',
       })!,
       block: Number(dao.createdAt),
+      blockTime: dayjs.utc(Number(dao.createdAt) * 1000).toDate(),
       createdAt: dayjs.utc(Number(dao.createdAt) * 1000).toDate(),
       ens: dao.daoURI,
       members: totalMembers,

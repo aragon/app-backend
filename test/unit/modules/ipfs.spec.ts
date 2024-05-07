@@ -66,7 +66,7 @@ describe('Modules: IPFS', () => {
 
   it('_parseMetadata', () => {
     const metadata = {}
-    const resp = IPFSModule._parseMetadata(metadata)
+    const resp = IPFSModule._parseDaoMetadata(metadata)
 
     expect(resp.name).to.eq(null)
     expect(resp.description).to.eq(null)
@@ -79,7 +79,7 @@ describe('Modules: IPFS', () => {
       avatar: 'test',
       links: ['test'],
     }
-    const resp2 = IPFSModule._parseMetadata(metadata2 as any)
+    const resp2 = IPFSModule._parseDaoMetadata(metadata2 as any)
 
     expect(resp2.name).to.eq('test')
     expect(resp2.description).to.eq('test')
@@ -90,7 +90,7 @@ describe('Modules: IPFS', () => {
   describe('_fetchMetadata', function () {
     it('should _fetchMetadata', async () => {
       const stubReq = sandbox.stub(axios, 'get').returns({ data: 'ok' } as any)
-      const stubParseMetadata = sandbox.stub(IPFSModule, '_parseMetadata').returns(true as any)
+      const stubParseMetadata = sandbox.stub(IPFSModule, '_parseDaoMetadata').returns(true as any)
       const cid = 'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
       const metadata = await IPFSModule._fetchMetadata(cid)
 
@@ -131,7 +131,7 @@ describe('Modules: IPFS', () => {
 
       const result = await IPFSModule.fetchMetadata(cidV1)
 
-      expect(stubV1.calledOnceWithExactly('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')).to.be.true
+      expect(stubV1.calledOnceWith('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')).to.be.true
       expect(result).to.deep.equal(expectedMetadata)
     })
 
