@@ -60,6 +60,9 @@ export default class Dao extends Model {
   @prop({ type: () => Number, default: 0 })
   public block!: number
 
+  @utcDateProp({ default: null })
+  public blockTime!: Date
+
   @prop({ type: () => String, default: null })
   public metadataIpfs!: string
 

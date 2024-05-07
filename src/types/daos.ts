@@ -7,21 +7,22 @@ export interface DaoResourceLink {
 }
 
 export interface IDaoDune {
+  block_number: number
   block_time: string
   creator_address: HexAddress
   dao_address: HexAddress
   ens: ENS
   hide_dao: boolean
-  members: number
   metadata_ipfs: string
   network: string
-  plugin_name: string
-  proposals_created: number
-  proposals_executed: number
-  tvl_usd: number
   tx_hash: HexAddress
-  unique_voters: number
-  votes: number
+  // members: number
+  // plugin_name: string
+  // proposals_created: number
+  // proposals_executed: number
+  // tvl_usd: number
+  // unique_voters: number
+  // votes: number
 }
 
 export interface IDaoSatsumaResponse {
@@ -39,6 +40,28 @@ export interface IDaoMetadata {
   description?: string | null
   avatar?: string | null
   links?: DaoResourceLink[]
+}
+
+export interface IProposalMetadata {
+  title?: string | null
+  summary?: string | null
+  description?: string | null
+  resources?: Array<{
+    url?: string
+    name?: string
+  }>
+  media?: {
+    header?: string | null
+    logo?: string | null
+  }
+}
+
+export interface IPermission {
+  operation: number
+  where: string
+  who: string
+  condition: string
+  permissionId: string
 }
 
 export interface ILink {
@@ -76,6 +99,7 @@ export interface IDao extends IDaoMetadata {
   daoAddress: HexAddress
   permalink: string | null
   block: number
+  blockTime: Date
   createdAt: Date
   ens: ENS
   members: number

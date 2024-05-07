@@ -115,6 +115,7 @@ export interface IConfig {
   IPFS: {
     METADATA_FETCH_RETRY: number
     METADATA_FETCH_DELAY: number
+    METADATA_FETCH_TIMEOUT: number
   }
 
   BLOCKCHAIN_NODES: {

@@ -1,4 +1,4 @@
-import type { HexAddress, IDao } from '@types'
+import type { HexAddress, IDao, IPermission } from '@types'
 import { assert } from '@errors'
 import async from 'async'
 
@@ -14,7 +14,10 @@ const Utils = {
 
   enumToObject(data: any) {
     return Object.keys(data).reduce((object, key) => {
-      return { ...object, [key]: key }
+      return {
+        ...object,
+        [key]: key,
+      }
     }, {})
   },
 
@@ -171,6 +174,17 @@ const Utils = {
     }
 
     return `${path.network}-${path.address}`
+  },
+
+  parsePermissions(permissions: IPermission[]) {
+    if (!permissions || permissions.length === 0) {
+      return []
+    }
+    return permissions.map((w: IPermission | any) => {
+      const permission = w.toObject()
+      permission.operation = Number(permission.operation)
+      return permission
+    })
   },
 }
 

@@ -191,6 +191,7 @@ describe('Helpers: Satsuma', () => {
         creatorAddress: Web3Utils.parseAddress(rawDao?.creator as any),
         daoAddress: Web3Utils.parseAddress(rawDao.id as any),
         block: Number(rawDao.createdAt),
+        blockTime: dayjs.utc(Number(rawDao.createdAt) * 1000).toDate(),
         createdAt: dayjs.utc(Number(rawDao.createdAt) * 1000).toDate(),
         ens: rawDao.daoURI,
         members: rawDao.plugins[0].plugin.members.length,

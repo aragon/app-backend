@@ -403,4 +403,63 @@ describe('Helpers:Utils', () => {
       } as any),
     ).to.eq(`fake-network-fake-address`)
   })
+
+  describe('parsePermissions', () => {
+    it('should correctly parse and convert permissions array', () => {
+      const permissionsInput = [
+        { toObject: () => ({ id: '1', operation: '2' }) },
+        { toObject: () => ({ id: '2', operation: '3' }) },
+      ]
+
+      const expectedResult = [
+        { id: '1', operation: 2 },
+        { id: '2', operation: 3 },
+      ]
+
+      const result = Utils.parsePermissions(permissionsInput)
+
+      expect(result).to.deep.equal(expectedResult)
+    })
+
+    it('should handle permissions with various data types for operation', () => {
+      // Testing different data types for operation
+      const permissionsInput = [
+        { toObject: () => ({ id: '1', operation: '10' }) },
+        { toObject: () => ({ id: '2', operation: 20 }) }, // Already a number
+        { toObject: () => ({ id: '3', operation: '0x14' }) }, // Hexadecimal string
+      ]
+
+      const expectedResult = [
+        { id: '1', operation: 10 },
+        { id: '2', operation: 20 },
+        { id: '3', operation: 20 }, // Expecting conversion from hex to decimal
+      ]
+
+      const result = Utils.parsePermissions(permissionsInput)
+
+      expect(result).to.deep.equal(expectedResult)
+    })
+
+    it('should return an empty array when no permissions are provided', () => {
+      const permissionsInput = []
+
+      const result = Utils.parsePermissions(permissionsInput)
+
+      expect(result).to.be.an('array').that.is.empty
+    })
+
+    it('should handle null or undefined inputs gracefully', () => {
+      const permissionsInput = null
+
+      const result = Utils.parsePermissions(permissionsInput)
+
+      expect(result).to.be.an('array').that.is.empty
+    })
+
+    it('should throw an error if any permission does not have toObject method', () => {
+      const permissionsInput = [{ id: '1', operation: '2' }]
+
+      expect(() => Utils.parsePermissions(permissionsInput)).to.throw()
+    })
+  })
 })
