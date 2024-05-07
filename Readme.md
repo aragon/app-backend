@@ -55,10 +55,10 @@ You can set environment variables in the `.env` file, you can find examples in .
 yarn service:api
 ```
 
-- Run service DataSync
+- Run service Indexer
 
 ```bash
-yarn service:data-sync
+yarn service:indexer
 ```
 
 ## Run with Docker
@@ -81,10 +81,10 @@ yarn docker:services
 docker-compose up --build -d service-api
 ```
 
-- Run only service DataSync
+- Run only service Indexer
 
 ```bash
-docker-compose up --build -d service-data-sync
+docker-compose up --build -d service-indexer
 ```
 
 Access the Aragon App by opening [http://localhost:3000](http://localhost:3000) in your web browser.
