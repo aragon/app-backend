@@ -178,7 +178,11 @@ describe('Helpers:Utils', () => {
       const fn = sinon.stub().resolves(Utils.wait(50))
       const delay = 200
 
-      const clear = Utils.setIntervalAsync(fn, delay, onError)
+      const clear = Utils.setIntervalAsync({
+        fn,
+        delay,
+        onError,
+      })
 
       await Utils.wait(100)
       expect(fn.args.length).to.eq(1)
@@ -200,7 +204,11 @@ describe('Helpers:Utils', () => {
       const fn = sinon.stub().resolves(Utils.wait(500))
       const delay = 100
 
-      const clear = Utils.setIntervalAsync(fn, delay, onError)
+      const clear = Utils.setIntervalAsync({
+        fn,
+        delay,
+        onError,
+      })
 
       await Utils.wait(100)
       expect(fn.args.length).to.eq(1)
@@ -216,7 +224,11 @@ describe('Helpers:Utils', () => {
       const fn = sinon.stub().resolves(Utils.wait(500))
       const delay = 100
 
-      const clear = Utils.setIntervalAsync(fn, delay, onError)
+      const clear = Utils.setIntervalAsync({
+        fn,
+        delay,
+        onError,
+      })
       await Utils.wait(10)
       expect(fn.args.length).to.eq(1)
 
@@ -233,7 +245,11 @@ describe('Helpers:Utils', () => {
       const fn = sinon.stub().resolves(Utils.wait(100))
       const delay = 500
 
-      const clear = Utils.setIntervalAsync(fn, delay, onError)
+      const clear = Utils.setIntervalAsync({
+        fn,
+        delay,
+        onError,
+      })
 
       await Utils.wait(200)
       expect(fn.args.length).to.eq(1)
@@ -256,7 +272,11 @@ describe('Helpers:Utils', () => {
       const fn = sinon.stub().resolves(Utils.wait(50))
       const delay = 400
 
-      const clear = Utils.setIntervalAsync(fn, delay, onError)
+      const clear = Utils.setIntervalAsync({
+        fn,
+        delay,
+        onError,
+      })
 
       await Utils.wait(200)
       expect(fn.args.length).to.eq(1)
@@ -283,7 +303,10 @@ describe('Helpers:Utils', () => {
       const fn = sinon.stub().resolves(Utils.wait(100))
       const delay = 500
 
-      const clear = Utils.setIntervalAsync(fn, delay)
+      const clear = Utils.setIntervalAsync({
+        fn,
+        delay,
+      })
 
       await Utils.wait(200)
       expect(fn.args.length).to.eq(1)
