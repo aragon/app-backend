@@ -1,7 +1,7 @@
 import type { HexAddress, IDaoMetadata, NetworksEnum } from '@types'
 import { type Log, type Filter, getAddress, type WebSocketProvider, Contract, namehash } from 'ethers'
 import { ConfigState } from '@state/configState'
-import { ensRegistryABI } from '@abis/ensRegistryABI'
+import { ENSSubdomainRegistrar } from '@artifacts/ENSSubdomainRegistrar'
 import logger from '@logger'
 import config from '@config'
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Utils' })
@@ -71,7 +71,7 @@ const Web3Utils = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      const ensContract = new Contract(config.CONTRACTS.ENS_REGISTRY, ensRegistryABI, provider)
+      const ensContract = new Contract(config.CONTRACTS.ENS_REGISTRY, ENSSubdomainRegistrar.abi, provider)
 
       const nameHashed = namehash(ensName)
       const recordExists = await ensContract.recordExists(nameHashed)
