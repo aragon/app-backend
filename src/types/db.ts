@@ -3,11 +3,13 @@ import type Dao from '@models/schema/dao'
 import type Network from '@models/schema/network'
 import { type IDao } from '@src/types/daos'
 import type Token from '@models/schema/token'
+import LogDao from '@models/schema/logDao';
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
   Dao: Model<InstanceType<typeof Dao>>
   Token: Model<InstanceType<typeof Token>>
+  LogDao: Model<InstanceType<typeof LogDao>>
 }
 
 export enum IEventLogPluginType {
