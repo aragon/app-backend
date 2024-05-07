@@ -6,6 +6,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import { type NetworksEnum } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoLogs' })
 
@@ -64,17 +65,25 @@ export const DaoLogs = {
     const existingLog = await Models.LogDao.findTxHash(txLog.transactionHash)
 
     if (!existingLog) {
-      const daoLog = {
-        network,
-        address: event.args.dao,
-        creatorAddress: event.args.creator,
-        ens: event.args.subdomain,
-        blockNumber: txLog.blockNumber,
-        transactionHash: txLog.transactionHash,
-      }
-      await Models.LogDao.create(daoLog)
+      await DbTx.executeTxFn(async ({ session }) => {
+        const daoLog = {
+          network,
+          address: event.args.dao,
+          creatorAddress: event.args.creator,
+          ens: event.args.subdomain,
+          blockNumber: txLog.blockNumber,
+          transactionHash: txLog.transactionHash,
+        }
 
-      logger.verbose('New DaoLog', llo({ daoLog }))
+        await networkDb.update({
+          lastBlockDaoLog: txLog.blockNumber
+        }, { session })
+
+        await Models.LogDao.create(daoLog, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('New DaoLog', llo({ daoLog }))
+      })
     }
   },
 
