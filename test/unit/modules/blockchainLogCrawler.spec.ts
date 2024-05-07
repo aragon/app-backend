@@ -6,7 +6,7 @@ import logger from '@logger'
 import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
 
-describe('Module: blockchainLogCrawler', () => {
+describe.only('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
   let mockProvider: any
   let logError: any
@@ -96,7 +96,7 @@ describe('Module: blockchainLogCrawler', () => {
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.mainnet,
       filter: {},
-      batchSize: 20,
+      batchSize: 2000,
       onLog: onLogStub,
       onError: onErrorStub,
     })
@@ -110,14 +110,14 @@ describe('Module: blockchainLogCrawler', () => {
     sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
     const error = new Error('Log response size exceeded')
     error.message = 'Log response size exceeded'
-    mockProvider.getBlockNumber.onFirstCall().resolves(100).onSecondCall().resolves(100)
+    mockProvider.getBlockNumber.onFirstCall().resolves(2000).onSecondCall().resolves(100)
     mockProvider.getLogs.onFirstCall().rejects(error).onSecondCall().resolves([])
     const onLogStub = sandbox.stub().resolves()
     const onErrorSpy = sandbox.spy(BlockchainLogCrawler, 'defaultOnError')
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.mainnet,
       filter: {},
-      batchSize: 20,
+      batchSize: 2000,
       onLog: onLogStub,
       onError: BlockchainLogCrawler.defaultOnError,
     })
@@ -138,7 +138,7 @@ describe('Module: blockchainLogCrawler', () => {
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.mainnet,
       filter: {},
-      batchSize: 10,
+      batchSize: 2000,
       onLog: onLogStub,
     })
 
@@ -156,7 +156,7 @@ describe('Module: blockchainLogCrawler', () => {
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.mainnet,
       filter: {},
-      batchSize: 10,
+      batchSize: 2000,
       onLog: async () => {},
       onError: async () => {},
     })
@@ -190,7 +190,7 @@ describe('Module: blockchainLogCrawler', () => {
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.mainnet,
       filter: {},
-      batchSize: 10,
+      batchSize: 2000,
       onLog: async () => {},
     })
 

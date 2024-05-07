@@ -19,7 +19,7 @@ const DbTx = {
   },
 
   isErrorConflict(error: any) {
-    return error.message.includes('WriteConflict')
+    return error?.message?.includes('WriteConflict') || error?.codeName === 'WriteConflict'
   },
 
   isErrorNotSupported(error: any) {
