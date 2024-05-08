@@ -6,7 +6,7 @@ import logger from '@logger'
 import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
 
-describe.only('Module: blockchainLogCrawler', () => {
+describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
   let mockProvider: any
   let logError: any
