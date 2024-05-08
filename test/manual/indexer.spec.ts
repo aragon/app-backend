@@ -10,7 +10,7 @@ describe('Manual: Indexer', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    config.BLOCKCHAIN_NODES.MAINNET = 'wss://eth-mainnet.g.alchemy.com/v2/'
+    config.BLOCKCHAIN_NODES.MAINNET = 'wss://eth-mainnet.g.alchemy.com/v2/WCcOSca9z2Qo7wnMJz19Wo_yQr5pqv2k'
   })
 
   afterEach(() => {

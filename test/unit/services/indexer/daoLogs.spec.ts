@@ -19,7 +19,6 @@ describe('Indexer: Dao Logs', () => {
   afterEach(async () => {
     sandbox?.restore()
   })
-
   describe('start', () => {
     it('should skip unsupported networks', async () => {
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves(null)
@@ -49,7 +48,7 @@ describe('Indexer: Dao Logs', () => {
     })
   })
 
-  describe('process dao registered', () => {
+  describe('processDAORegistered', () => {
     it('should process dao registered', async () => {
       const network = NetworksEnum.mainnet
 
@@ -122,17 +121,18 @@ describe('Indexer: Dao Logs', () => {
     })
   })
 
-  describe('basic functions', () => {
-    it('should return the correct network', async () => {
-      const network = 'mainnet'
-      expect(DaoLogs._parseNetwork(network)).to.eq('MAINNET')
-    })
+  it('_parseNetwork', async () => {
+    const network = 'mainnet'
+    expect(DaoLogs._parseNetwork(network)).to.eq('MAINNET')
+  })
 
-    it('should processError', async () => {
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-      const error = new Error('Test error')
-      await DaoLogs.processError(error, NetworksEnum.mainnet)
-      expect(loggerErrorStub.calledOnceWith('Error processDAORegistered' as any)).to.be.true
-    })
+  it('processError', async () => {
+    const error = new Error('Test error')
+    const loggerStub = sinon.stub(logger, 'error')
+
+    await DaoLogs.processError(error, NetworksEnum.mainnet)
+
+    expect(loggerStub.calledOnce).to.be.true
+    expect(loggerStub.calledWith('Error processDAORegistered' as any))
   })
 })
