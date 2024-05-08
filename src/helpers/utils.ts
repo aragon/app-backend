@@ -181,9 +181,12 @@ const Utils = {
       return []
     }
     return permissions.map((w: IPermission | any) => {
-      const permission = w.toObject()
-      permission.operation = Number(permission.operation)
-      return permission
+      let rawPermissions = w
+      try {
+        rawPermissions = w.toObject()
+      } catch (_) {}
+      rawPermissions.operation = Number(rawPermissions.operation)
+      return rawPermissions
     })
   },
 }

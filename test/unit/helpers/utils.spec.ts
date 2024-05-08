@@ -174,8 +174,8 @@ describe('Helpers:Utils', () => {
 
   describe('setIntervalAsync', () => {
     it('repeats', async () => {
-      const onError = sinon.stub()
-      const fn = sinon.stub().resolves(Utils.wait(50))
+      const onError = sandbox.stub()
+      const fn = sandbox.stub().resolves(Utils.wait(50))
       const delay = 200
 
       const clear = Utils.setIntervalAsync({
@@ -200,8 +200,8 @@ describe('Helpers:Utils', () => {
     })
 
     it('stops while working', async () => {
-      const onError = sinon.stub()
-      const fn = sinon.stub().resolves(Utils.wait(500))
+      const onError = sandbox.stub()
+      const fn = sandbox.stub().resolves(Utils.wait(500))
       const delay = 100
 
       const clear = Utils.setIntervalAsync({
@@ -220,8 +220,8 @@ describe('Helpers:Utils', () => {
     })
 
     it('clear waits execution end', async () => {
-      const onError = sinon.stub()
-      const fn = sinon.stub().resolves(Utils.wait(500))
+      const onError = sandbox.stub()
+      const fn = sandbox.stub().resolves(Utils.wait(500))
       const delay = 100
 
       const clear = Utils.setIntervalAsync({
@@ -240,9 +240,9 @@ describe('Helpers:Utils', () => {
     })
 
     it('throws', async () => {
-      const onError = sinon.stub()
+      const onError = sandbox.stub()
       const e = new Error('pascontent')
-      const fn = sinon.stub().resolves(Utils.wait(100))
+      const fn = sandbox.stub().resolves(Utils.wait(100))
       const delay = 500
 
       const clear = Utils.setIntervalAsync({
@@ -267,9 +267,9 @@ describe('Helpers:Utils', () => {
     })
 
     it('throws but still continues', async () => {
-      const onError = sinon.stub()
+      const onError = sandbox.stub()
       const e = new Error('pascontent')
-      const fn = sinon.stub().resolves(Utils.wait(50))
+      const fn = sandbox.stub().resolves(Utils.wait(50))
       const delay = 400
 
       const clear = Utils.setIntervalAsync({
@@ -300,7 +300,7 @@ describe('Helpers:Utils', () => {
       const error = sandbox.stub(logger, 'error')
 
       const e = new Error('pascontent')
-      const fn = sinon.stub().resolves(Utils.wait(100))
+      const fn = sandbox.stub().resolves(Utils.wait(100))
       const delay = 500
 
       const clear = Utils.setIntervalAsync({
@@ -479,10 +479,12 @@ describe('Helpers:Utils', () => {
       expect(result).to.be.an('array').that.is.empty
     })
 
-    it('should throw an error if any permission does not have toObject method', () => {
+    it('should return default if permission does not have toObject method', () => {
       const permissionsInput = [{ id: '1', operation: '2' }]
 
-      expect(() => Utils.parsePermissions(permissionsInput)).to.throw()
+      const result = Utils.parsePermissions(permissionsInput)
+      expect(result[0].id).to.eq(permissionsInput[0].id)
+      expect(result[0].operation).to.eq(permissionsInput[0].operation)
     })
   })
 })

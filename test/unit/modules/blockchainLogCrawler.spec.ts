@@ -169,7 +169,7 @@ describe('Module: blockchainLogCrawler', () => {
 
   it('should throw an error if the provider is not configured for the network', () => {
     sandbox.stub(ConfigState, 'getInstance').returns({
-      getConfigItem: sinon.stub().returns(null),
+      getConfigItem: sandbox.stub().returns(null),
     } as any)
 
     const options = {

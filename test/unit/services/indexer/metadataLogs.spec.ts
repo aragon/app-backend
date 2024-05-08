@@ -48,14 +48,14 @@ describe('Indexer: metadataLogs', () => {
       expect(crawlerStub.crawl.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(loggerVerboseStub.callCount).to.eq(Object.values(Network.NETWORKS).length + 1)
-      expect(loggerVerboseStub.calledWith('Start DaoLogs' as any)).to.be.true
-      expect(loggerVerboseStub.calledWith('Finish DaoLogs' as any)).to.be.true
+      expect(loggerVerboseStub.calledWith('Start MetadataLogs' as any)).to.be.true
+      expect(loggerVerboseStub.calledWith('Finish MetadataLogs' as any)).to.be.true
     })
   })
 
   it('processError', async () => {
     const error = new Error('Test error')
-    const loggerStub = sinon.stub(logger, 'error')
+    const loggerStub = sandbox.stub(logger, 'error')
 
     await MetadataLogs.processError(error, NetworksEnum.mainnet)
 
@@ -86,6 +86,14 @@ describe('Indexer: metadataLogs', () => {
         ],
       }
 
+      const txLog = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+
       const fakeUri = 'fake-uri'
 
       const fakeTx = { data: '0x123' }
@@ -97,14 +105,6 @@ describe('Indexer: metadataLogs', () => {
       const stubFetchMetadata = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
       const stubParseDaoMetadata = sandbox.stub(Web3Helper, 'parseDaoMetadata').returns(fakeMetadata)
       const networkName = NetworksEnum.mainnet
-
-      const txLog = {
-        transactionHash: '0x123',
-        address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
-      }
 
       await MetadataLogs.processMetadata(txLog, networkName)
 
@@ -150,8 +150,8 @@ describe('Indexer: metadataLogs', () => {
       const fakeData = '0xabcdabcd' // Example data, adjust according to your contract ABI
       const fakeTransaction = { data: fakeData }
       const mockInterface = {
-        getFunction: sinon.stub().returns({ test: 1 }),
-        decodeFunctionData: sinon.stub().returns(['arg1', 'arg2']),
+        getFunction: sandbox.stub().returns({ test: 1 }),
+        decodeFunctionData: sandbox.stub().returns(['arg1', 'arg2']),
       }
 
       MetadataLogs.contractInterfaces['ExampleContract'] = mockInterface
@@ -167,8 +167,8 @@ describe('Indexer: metadataLogs', () => {
       const fakeTransaction = { data: '0x12345678' }
 
       const mockInterface = {
-        getFunction: sinon.stub().returns(false),
-        decodeFunctionData: sinon.stub().returns(['arg1', 'arg2']),
+        getFunction: sandbox.stub().returns(false),
+        decodeFunctionData: sandbox.stub().returns(['arg1', 'arg2']),
       }
       MetadataLogs.contractInterfaces['ExampleContract'] = mockInterface
 

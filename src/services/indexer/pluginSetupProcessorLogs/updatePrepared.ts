@@ -35,8 +35,7 @@ export const PluginLogsUpdatePrepared = {
           fromBlock: networkDb.lastBlockPluginUpdatePreparedLog,
           toBlock: 'latest',
         },
-        onLog: async (txLog: Log) =>
-          PluginLogsUpdatePrepared.processUpdatePrepared(txLog, networkName as NetworksEnum, networkDb),
+        onLog: async (txLog: Log) => PluginLogsUpdatePrepared.processUpdatePrepared(txLog, networkName as NetworksEnum),
         onError: async (error: any) => PluginLogsUpdatePrepared.processError(error, networkName as NetworksEnum),
         stopOnError: true,
       })
@@ -47,7 +46,7 @@ export const PluginLogsUpdatePrepared = {
     logger.verbose('Finish PluginLogsUpdatePrepared', llo())
   },
 
-  processUpdatePrepared: async (txLog: any, network: NetworksEnum, networkDb: Network) => {
+  processUpdatePrepared: async (txLog: any, network: NetworksEnum) => {
     const daoRegistryInterface = new Interface(PluginSetupProcessor.abi)
     const event = daoRegistryInterface.parseLog(txLog)!
 

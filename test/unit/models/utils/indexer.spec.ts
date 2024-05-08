@@ -16,11 +16,11 @@ describe('Model/Utils: indexer', () => {
   })
 
   it('saveSync', async () => {
-    const sessionStub = { commitTransaction: sinon.stub().resolves(), endSession: sinon.stub().resolves() }
-    const networkDbStub = { update: sinon.stub().resolves() }
+    const sessionStub = { commitTransaction: sandbox.stub().resolves(), endSession: sandbox.stub().resolves() }
+    const networkDbStub = { update: sandbox.stub().resolves() }
     const crawlerStub = { crawlResult: { nbError: 0, latestBlockNumber: 1234 } }
 
-    const executeTxFnStub = sinon.stub(DbTx, 'executeTxFn').callsFake(async txFn => {
+    const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async txFn => {
       await txFn({ session: sessionStub })
     })
 
@@ -38,11 +38,11 @@ describe('Model/Utils: indexer', () => {
   })
 
   it('should not update saveSync', async function () {
-    const sessionStub = { commitTransaction: sinon.stub().resolves(), endSession: sinon.stub().resolves() }
+    const sessionStub = { commitTransaction: sandbox.stub().resolves(), endSession: sandbox.stub().resolves() }
     const crawlerStub = { crawlResult: { nbError: 0, latestBlockNumber: 0 } }
-    const networkDbStub = { update: sinon.stub().resolves() }
+    const networkDbStub = { update: sandbox.stub().resolves() }
 
-    const executeTxFnStub = sinon.stub(DbTx, 'executeTxFn').callsFake(async txFn => {
+    const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async txFn => {
       await txFn({ session: sessionStub })
     })
 

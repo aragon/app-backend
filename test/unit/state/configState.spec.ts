@@ -57,7 +57,7 @@ describe('State: ConfigState', () => {
 
   it('should correctly manage event listeners', () => {
     const configState = ConfigState.getInstance()
-    const callback = sinon.fake()
+    const callback = sandbox.fake()
     configState.addConfigListener(ConfigEvents.CONFIG_UPDATED, callback)
     configState.setConfigItem('testKey', 'testValue')
     configState.removeConfigListener(ConfigEvents.CONFIG_UPDATED, callback)

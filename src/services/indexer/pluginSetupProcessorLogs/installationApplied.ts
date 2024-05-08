@@ -35,7 +35,7 @@ export const PluginLogsInstallationApplied = {
           toBlock: 'latest',
         },
         onLog: async (txLog: Log) =>
-          PluginLogsInstallationApplied.processInstallationApplied(txLog, networkName as NetworksEnum, networkDb),
+          PluginLogsInstallationApplied.processInstallationApplied(txLog, networkName as NetworksEnum),
         onError: async (error: any) => PluginLogsInstallationApplied.processError(error, networkName as NetworksEnum),
         stopOnError: true,
       })
@@ -46,7 +46,7 @@ export const PluginLogsInstallationApplied = {
     logger.verbose('Finish PluginLogsInstallationApplied', llo())
   },
 
-  processInstallationApplied: async (txLog: any, network: NetworksEnum, networkDb: Network) => {
+  processInstallationApplied: async (txLog: any, network: NetworksEnum) => {
     const daoRegistryInterface = new Interface(PluginSetupProcessor.abi)
     const event = daoRegistryInterface.parseLog(txLog)!
 

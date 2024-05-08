@@ -128,7 +128,7 @@ describe('Indexer: Dao Logs', () => {
 
   it('processError', async () => {
     const error = new Error('Test error')
-    const loggerStub = sinon.stub(logger, 'error')
+    const loggerStub = sandbox.stub(logger, 'error')
 
     await DaoLogs.processError(error, NetworksEnum.mainnet)
 
