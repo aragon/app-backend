@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { Interface, Log } from 'ethers'
+import { Interface, type Log } from 'ethers'
 import Network from '@models/schema/network'
 import { DAO } from '@artifacts/dao'
 import { Models } from '@dbModels'
