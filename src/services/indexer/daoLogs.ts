@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { Interface } from 'ethers'
+import { Interface, type Log } from 'ethers'
 import Network from '@models/schema/network'
 import { DAORegistry } from '@artifacts/daoRegistry'
 import config from '@config'
@@ -24,6 +24,8 @@ export const DaoLogs = {
     return DaoLogs.networksMap[network]
   },
 
+  createCrawler: (options: any) => new BlockchainLogCrawler(options),
+
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {
       logger.verbose('Start DaoLogs', llo({ networkName }))
@@ -39,18 +41,20 @@ export const DaoLogs = {
       const daoRegistryInterface = new Interface(DAORegistry.abi)
       const daoRegisteredEvent = daoRegistryInterface.getEvent('DAORegistered')!
 
+      const contractConfig =
+        config.ARAGON_CONTRACTS[networkConfigKey]['v1.0.0'] || config.ARAGON_CONTRACTS[networkConfigKey]['v1.3.0']
       const filter = {
-        address: config.ARAGON_CONTRACTS[networkConfigKey]['v1.0.0'].DAORegistryProxy.address,
+        address: contractConfig.DAORegistryProxy.address,
         topics: [daoRegisteredEvent.topicHash],
         fromBlock: networkDb.lastBlockDaoLog,
         toBlock: 'latest',
       }
 
-      const crawler = new BlockchainLogCrawler({
+      const crawler = DaoLogs.createCrawler({
         network: networkName as NetworksEnum,
         filter,
-        onLog: async txLog => DaoLogs.processDAORegistered(txLog, networkName as NetworksEnum, networkDb),
-        onError: async error => DaoLogs.processError(error, networkName as NetworksEnum),
+        onLog: async (txLog: Log) => DaoLogs.processDAORegistered(txLog, networkName as NetworksEnum),
+        onError: async (error: any) => DaoLogs.processError(error, networkName as NetworksEnum),
         stopOnError: true,
       })
 
@@ -60,7 +64,7 @@ export const DaoLogs = {
     logger.verbose('Finish DaoLogs', llo())
   },
 
-  processDAORegistered: async (txLog: any, network: NetworksEnum, networkDb: Network) => {
+  processDAORegistered: async (txLog: any, network: NetworksEnum) => {
     const daoRegistryInterface = new Interface(DAORegistry.abi)
     const event = daoRegistryInterface.parseLog(txLog)!
 
@@ -78,7 +82,6 @@ export const DaoLogs = {
         }
 
         await Models.LogDao.create(daoLog, { session })
-
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('New DaoLog', llo({ daoLog }))
