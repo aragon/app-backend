@@ -3,12 +3,14 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { MetadataLogs } from '@services/indexer/metadataLogs'
 import logger from '@logger'
-import { NetworksEnum } from '@types'
+import {IAragonContract, NetworksEnum} from '@types'
 import { Models } from '@dbModels'
 import { UtilsIndexer } from '@models/utils/indexer'
 import Network from '@models/schema/network';
 import Web3Utils from '@helpers/web3';
 import IPFSModule from '@modules/ipfs'
+import Web3Helper from '@helpers/web3';
+import { Interface } from 'ethers'
 
 describe.only('Indexer: metadataLogs', () => {
   let sandbox: SinonSandbox
@@ -59,19 +61,38 @@ describe.only('Indexer: metadataLogs', () => {
   })
 
   describe('processMetadata', () => {
-    it.only('should handle successful metadata processing', async () => {
+    it.only('DAOFactory: should process DAOFactory', async () => {
 
       const fakeMetadata = {
-        name: 'test'
+        name: 'test',
+        description: 'fake-description',
       }
 
+      const fakeEvent = {
+        args: {metadata: 'fake-metadata'}
+      }
+
+      const fakeDecodedTx = {
+        data: '0x123',
+        contract: IAragonContract.DAOFactory,
+        args: [{
+          subdomain: 'fake-subdomain',
+          daoURI: 'fake-daoURI',
+          trustedForwarder: 'fake-trustedForwarder',
+        }]
+      }
+
+      const fakeUri = 'fake-uri'
+
       const fakeTx = { data: '0x123' }
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any);
       const stubGetTx = sandbox.stub(Web3Utils, 'getTransaction').resolves(fakeTx as any);
-      const stubDecodeTx = sandbox.stub(MetadataLogs, 'decodeTransaction').returns({ data: '0x123' } as any);
-      const stubExtractMetadata = sandbox.stub(MetadataLogs, 'extractMetadataUri').resolves('fake-uri');
+      const stubDecodeTx = sandbox.stub(MetadataLogs, 'decodeTransaction').returns(fakeDecodedTx as any);
+      const stubExtractMetadata = sandbox.stub(MetadataLogs, 'extractMetadataUri').returns(fakeUri);
       const stubFetchMetadata = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata);
+      const stubParseDaoMetadata = sandbox.stub(Web3Helper, 'parseDaoMetadata').returns(fakeMetadata);
       const networkName = NetworksEnum.mainnet;
-      const networkDb = sandbox.stub()
 
       const txLog = {
         transactionHash: '0x123',
@@ -81,7 +102,10 @@ describe.only('Indexer: metadataLogs', () => {
         blockNumber: 1
       }
 
-      await MetadataLogs.processMetadata(txLog, networkName, networkDb as any);
+      await MetadataLogs.processMetadata(txLog, networkName);
+
+      expect(stubParseLog.calledOnce).to.be.true
+      expect(stubParseLog.calledWith({ data: txLog.data, topics: txLog.topics })).to.be.true
 
       expect(stubGetTx.calledOnce).to.be.true
       expect(stubGetTx.calledWith(txLog.transactionHash, networkName)).to.be.true
@@ -90,23 +114,15 @@ describe.only('Indexer: metadataLogs', () => {
       expect(stubDecodeTx.calledWith(fakeTx)).to.be.true
 
       expect(stubExtractMetadata.calledOnce).to.be.true
-      // expect(stubExtractMetadata.calledWith(fakeTx)).to.be.true
+      expect(stubExtractMetadata.calledWith(fakeEvent.args.metadata)).to.be.true
 
-      //
-      // // Stubbing methods
-      // sandbox.stub(Web3Utils, 'getTransaction').resolves({ data: '0x123' });
-      // sandbox.stub(MetadataLogs, 'decodeTransaction').returns({
-      //   contract: IAragonContract.DAOFactory,
-      //   args: { metadata: 'data' }
-      // });
-      // sandbox.stub(IPFSModule, 'fetchMetadata').resolves('Metadata content');
-      // sandbox.stub(Models.LogDaoMetadata, 'findTxHash').resolves(null);
-      // sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn) => await fn({ session: {} }));
-      //
-      // await MetadataLogs.processMetadata(txLog, networkName, networkDb);
-      //
-      // expect(DbTx.executeTxFn.calledOnce).to.be.true;
-      // You can add more expectations here to verify that methods are called with correct parameters
+      expect(stubFetchMetadata.calledOnce).to.be.true
+      expect(stubExtractMetadata.args[0][0]).to.eq(fakeUri)
+
+      expect(stubParseDaoMetadata.calledOnce).to.be.true
+      expect(stubParseDaoMetadata.calledWith(fakeMetadata)).to.be.true
+
+      expect(stubLogger.calledWith('Stored DAO metadata' as any)).to.be.true
     });
   })
 
