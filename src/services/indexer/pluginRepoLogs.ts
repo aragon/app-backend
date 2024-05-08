@@ -16,8 +16,6 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:PluginRepoLogs
 // MultisigRepoProxy - 0x8c278e37D0817210E18A7958524b7D0a1fAA6F7b - multisig-repo
 
 export const PluginRepoLogs = {
-  createCrawler: (options: any) => new BlockchainLogCrawler(options),
-
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {
       logger.verbose('Start PluginRepoLogs', llo({ networkName }))
@@ -32,15 +30,14 @@ export const PluginRepoLogs = {
       const pluginRepoInterface = new Interface(PluginRepoRegistry.abi)
       const pluginRepoRegisteredEvent = pluginRepoInterface.getEvent('PluginRepoRegistered')!
 
-      const crawler = PluginRepoLogs.createCrawler({
+      const crawler = new BlockchainLogCrawler({
         network: networkName as NetworksEnum,
         filter: {
           topics: [pluginRepoRegisteredEvent.topicHash],
           fromBlock: networkDb.lastBlockPluginRepoLog,
           toBlock: 'latest',
         },
-        onLog: async (txLog: Log) =>
-          PluginRepoLogs.processPluginRepoRegistered(txLog, networkName as NetworksEnum, networkDb),
+        onLog: async (txLog: Log) => PluginRepoLogs.processLog(txLog, networkName as NetworksEnum),
         onError: async (error: any) => PluginRepoLogs.processError(error, networkName as NetworksEnum),
         stopOnError: true,
       })
@@ -50,7 +47,7 @@ export const PluginRepoLogs = {
     logger.verbose('Finish PluginRepoLogs', llo())
   },
 
-  processPluginRepoRegistered: async (txLog: any, network: NetworksEnum, networkDb: Network) => {
+  processLog: async (txLog: any, network: NetworksEnum) => {
     const daoRegistryInterface = new Interface(PluginRepoRegistry.abi)
     const event = daoRegistryInterface.parseLog(txLog)!
 

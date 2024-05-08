@@ -59,7 +59,7 @@ describe('Model: LogPluginRepo', () => {
 
   it('Should findTxHash', async () => {
     const createdLogDao = await Models.LogPluginRepo.create(rawLogPluginRepo)
-    const logPluginRepo = await Models.LogDaoMetadata.findTxHash(createdLogDao.transactionHash)
+    const logPluginRepo = await Models.LogPluginRepo.findTxHash(createdLogDao.transactionHash)
     expect(logPluginRepo?.address).to.eq(rawLogPluginRepo.address)
   })
 

@@ -24,8 +24,6 @@ export const DaoLogs = {
     return DaoLogs.networksMap[network]
   },
 
-  createCrawler: (options: any) => new BlockchainLogCrawler(options),
-
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {
       logger.verbose('Start DaoLogs', llo({ networkName }))
@@ -50,10 +48,10 @@ export const DaoLogs = {
         toBlock: 'latest',
       }
 
-      const crawler = DaoLogs.createCrawler({
+      const crawler = new BlockchainLogCrawler({
         network: networkName as NetworksEnum,
         filter,
-        onLog: async (txLog: Log) => DaoLogs.processDAORegistered(txLog, networkName as NetworksEnum),
+        onLog: async (txLog: Log) => DaoLogs.processLog(txLog, networkName as NetworksEnum),
         onError: async (error: any) => DaoLogs.processError(error, networkName as NetworksEnum),
         stopOnError: true,
       })
@@ -64,7 +62,7 @@ export const DaoLogs = {
     logger.verbose('Finish DaoLogs', llo())
   },
 
-  processDAORegistered: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: any, network: NetworksEnum) => {
     const daoRegistryInterface = new Interface(DAORegistry.abi)
     const event = daoRegistryInterface.parseLog(txLog)!
 

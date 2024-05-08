@@ -12,8 +12,6 @@ import { UtilsIndexer } from '@models/utils/indexer'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:PluginLogs:PluginLogsInstallationPrepared' })
 
 export const PluginLogsInstallationPrepared = {
-  createCrawler: (options: any) => new BlockchainLogCrawler(options),
-
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {
       logger.verbose('Start PluginLogsInstallationPrepared', llo({ networkName }))
@@ -28,15 +26,14 @@ export const PluginLogsInstallationPrepared = {
       const daoRegistryInterface = new Interface(PluginSetupProcessor.abi)
       const event = daoRegistryInterface.getEvent(IEventLogPluginType.InstallationPrepared)!
 
-      const crawler = PluginLogsInstallationPrepared.createCrawler({
+      const crawler = new BlockchainLogCrawler({
         network: networkName as NetworksEnum,
         filter: {
           topics: [event.topicHash],
           fromBlock: networkDb.lastBlockPluginInstallationPreparedLog,
           toBlock: 'latest',
         },
-        onLog: async (txLog: Log) =>
-          PluginLogsInstallationPrepared.processInstallationPrepared(txLog, networkName as NetworksEnum),
+        onLog: async (txLog: Log) => PluginLogsInstallationPrepared.processLog(txLog, networkName as NetworksEnum),
         onError: async (error: any) => PluginLogsInstallationPrepared.processError(error, networkName as NetworksEnum),
         stopOnError: true,
       })
@@ -47,7 +44,7 @@ export const PluginLogsInstallationPrepared = {
     logger.verbose('Finish PluginLogsInstallationPrepared', llo())
   },
 
-  processInstallationPrepared: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: any, network: NetworksEnum) => {
     const daoRegistryInterface = new Interface(PluginSetupProcessor.abi)
     const event = daoRegistryInterface.parseLog(txLog)!
 

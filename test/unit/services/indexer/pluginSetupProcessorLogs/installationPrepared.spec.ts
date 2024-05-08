@@ -8,6 +8,7 @@ import { Models } from '@dbModels'
 import { UtilsIndexer } from '@models/utils/indexer'
 import Network from '@models/schema/network'
 import { Interface } from 'ethers'
+import Provider from '@modules/provider'
 
 describe('Indexer: PluginLogsInstallationPrepared', () => {
   let sandbox: SinonSandbox
@@ -21,36 +22,117 @@ describe('Indexer: PluginLogsInstallationPrepared', () => {
   })
 
   describe('start', () => {
+    it('should start', async () => {
+      let callCount = 0
+      const getBlockNumber = sandbox.stub().callsFake(() => {
+        callCount++
+        return Promise.resolve(callCount % 2 === 0 ? 2000 : 0)
+      })
+
+      const fakeProviders = {
+        mainnet: {
+          getBlockNumber,
+          getLogs: sandbox.stub().resolves([{ transactionHash: '0x123', blockNumber: 1 }]),
+          destroy: sandbox.stub().resolves(),
+        },
+        sepolia: {
+          getBlockNumber,
+          getLogs: sandbox.stub().resolves([{ transactionHash: '0x456', blockNumber: 2 }]),
+          destroy: sandbox.stub().resolves(),
+        },
+        polygon: {
+          getBlockNumber,
+          getLogs: sandbox.stub().resolves([{ transactionHash: '0x789', blockNumber: 3 }]),
+          destroy: sandbox.stub().resolves(),
+        },
+        arbitrum: {
+          getBlockNumber,
+          getLogs: sandbox.stub().resolves([{ transactionHash: '0xabc', blockNumber: 4 }]),
+          destroy: sandbox.stub().resolves(),
+        },
+        base: {
+          getBlockNumber,
+          getLogs: sandbox.stub().resolves([{ transactionHash: '0xdef', blockNumber: 5 }]),
+          destroy: sandbox.stub().resolves(),
+        },
+      }
+      sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
+      const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
+
+      const processMetadataStub = sandbox.stub(PluginLogsInstallationPrepared, 'processLog').resolves()
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+      const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
+
+      await PluginLogsInstallationPrepared.start()
+
+      expect(loggerVerboseStub.callCount).to.eq(6)
+      expect(processMetadataStub.callCount).to.eq(2)
+      expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
+      expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
+    })
+
+    it('should start handle error', async () => {
+      let callCount = 0
+      const getBlockNumber = sandbox.stub().callsFake(() => {
+        callCount++
+        return Promise.resolve(callCount % 2 === 0 ? 2000 : 0)
+      })
+
+      const fakeProviders = {
+        mainnet: {
+          getBlockNumber,
+          getLogs: sandbox.stub().resolves([{ transactionHash: '0x123', blockNumber: 1 }]),
+          destroy: sandbox.stub().resolves(),
+        },
+        sepolia: {
+          getBlockNumber,
+          getLogs: sandbox.stub().resolves([{ transactionHash: '0x456', blockNumber: 2 }]),
+          destroy: sandbox.stub().resolves(),
+        },
+        polygon: {
+          getBlockNumber,
+          getLogs: sandbox.stub().resolves([{ transactionHash: '0x789', blockNumber: 3 }]),
+          destroy: sandbox.stub().resolves(),
+        },
+        arbitrum: {
+          getBlockNumber,
+          getLogs: sandbox.stub().resolves([{ transactionHash: '0xabc', blockNumber: 4 }]),
+          destroy: sandbox.stub().resolves(),
+        },
+        base: {
+          getBlockNumber,
+          getLogs: sandbox.stub().resolves([{ transactionHash: '0xdef', blockNumber: 5 }]),
+          destroy: sandbox.stub().resolves(),
+        },
+      }
+      sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
+      const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
+
+      const processMetadataStub = sandbox.stub(PluginLogsInstallationPrepared, 'processLog').rejects()
+      const errorStub = sandbox.stub(PluginLogsInstallationPrepared, 'processError').resolves()
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+      const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
+
+      await PluginLogsInstallationPrepared.start()
+
+      expect(errorStub.callCount).to.eq(2)
+      expect(loggerVerboseStub.callCount).to.eq(6)
+      expect(processMetadataStub.callCount).to.eq(2)
+      expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
+      expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
+    })
+
     it('should skip unsupported networks', async () => {
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves(null)
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const crawlerStub = { crawl: sandbox.stub().resolves() }
       await PluginLogsInstallationPrepared.start()
 
       expect(stubLogger.calledWith('Unsupported Network' as any)).to.be.true
-      expect(crawlerStub.crawl.notCalled).to.be.true
       expect(networkFindStub.calledOnce).to.be.true
-    })
-
-    it('should process supported networks and run crawlers', async () => {
-      const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
-      const crawlerStub = { crawl: sandbox.stub().resolves() }
-      const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
-      sandbox.stub(PluginLogsInstallationPrepared, 'createCrawler' as any).returns(crawlerStub as any)
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
-
-      await PluginLogsInstallationPrepared.start()
-
-      expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
-      expect(crawlerStub.crawl.callCount).to.eq(Object.values(Network.NETWORKS).length)
-      expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
-      expect(loggerVerboseStub.callCount).to.eq(Object.values(Network.NETWORKS).length + 1)
-      expect(loggerVerboseStub.calledWith('Start PluginLogsInstallationPrepared' as any)).to.be.true
-      expect(loggerVerboseStub.calledWith('Finish PluginLogsInstallationPrepared' as any)).to.be.true
     })
   })
 
-  it('processInstallationPrepared', async () => {
+  it('processLog', async () => {
     const txLog = {
       transactionHash: '0x123',
       address: '0x456',
@@ -87,7 +169,7 @@ describe('Indexer: PluginLogsInstallationPrepared', () => {
     const loggerStub = sandbox.stub(logger, 'verbose')
     const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findTxHashAndEvent')
 
-    await PluginLogsInstallationPrepared.processInstallationPrepared(txLog, NetworksEnum.mainnet)
+    await PluginLogsInstallationPrepared.processLog(txLog, NetworksEnum.mainnet)
 
     expect(stubParseLog.calledOnce).to.be.true
     expect(stubParseLog.calledWith(txLog)).to.be.true
