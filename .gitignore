@@ -3,3 +3,5 @@
 /sandbox
 /.nyc_output/
 /coverage/
+.idea/inspectionProfiles/*
+.idea/app-backend.iml
