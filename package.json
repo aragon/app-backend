@@ -38,7 +38,9 @@
     "include": [
       "src/**"
     ],
-    "exclude": ["src/artifacts/**"],
+    "exclude": [
+      "src/artifacts/**"
+    ],
     "reporter": [
       "text",
       "lcov",
