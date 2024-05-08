@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { Interface } from 'ethers'
+import { Interface, type Log } from 'ethers'
 import Network from '@models/schema/network'
 import { Models } from '@dbModels'
 import { IEventLogPluginType, type NetworksEnum } from '@types'
@@ -11,6 +11,8 @@ import { UtilsIndexer } from '@models/utils/indexer'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:PluginLogs:PluginLogsInstallationApplied' })
 
 export const PluginLogsInstallationApplied = {
+  createCrawler: (options: any) => new BlockchainLogCrawler(options),
+
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {
       logger.verbose('Start PluginLogsInstallationApplied', llo({ networkName }))
@@ -25,16 +27,16 @@ export const PluginLogsInstallationApplied = {
       const daoRegistryInterface = new Interface(PluginSetupProcessor.abi)
       const event = daoRegistryInterface.getEvent(IEventLogPluginType.InstallationApplied)!
 
-      const crawler = new BlockchainLogCrawler({
+      const crawler = PluginLogsInstallationApplied.createCrawler({
         network: networkName as NetworksEnum,
         filter: {
           topics: [event.topicHash],
           fromBlock: networkDb.lastBlockPluginInstallationAppliedLog,
           toBlock: 'latest',
         },
-        onLog: async txLog =>
+        onLog: async (txLog: Log) =>
           PluginLogsInstallationApplied.processInstallationApplied(txLog, networkName as NetworksEnum, networkDb),
-        onError: async error => PluginLogsInstallationApplied.processError(error, networkName as NetworksEnum),
+        onError: async (error: any) => PluginLogsInstallationApplied.processError(error, networkName as NetworksEnum),
         stopOnError: true,
       })
       await crawler.crawl()

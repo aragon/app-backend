@@ -1,14 +1,14 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { PluginRepoLogs } from '@services/indexer/pluginRepoLogs'
+import { PluginLogsInstallationApplied } from '@services/indexer/pluginSetupProcessorLogs/installationApplied'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { UtilsIndexer } from '@models/utils/indexer'
 import Network from '@models/schema/network'
 
-describe('Indexer: PluginRepoLogs', () => {
+describe('Indexer: PluginLogsInstallationApplied', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -24,7 +24,7 @@ describe('Indexer: PluginRepoLogs', () => {
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves(null)
       const stubLogger = sandbox.stub(logger, 'verbose')
       const crawlerStub = { crawl: sandbox.stub().resolves() }
-      await PluginRepoLogs.start()
+      await PluginLogsInstallationApplied.start()
 
       expect(stubLogger.calledWith('Unsupported Network' as any)).to.be.true
       expect(crawlerStub.crawl.notCalled).to.be.true
@@ -35,17 +35,17 @@ describe('Indexer: PluginRepoLogs', () => {
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
       const crawlerStub = { crawl: sandbox.stub().resolves() }
       const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
-      sandbox.stub(PluginRepoLogs, 'createCrawler').returns(crawlerStub as any)
+      sandbox.stub(PluginLogsInstallationApplied, 'createCrawler' as any).returns(crawlerStub as any)
       const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
-      await PluginRepoLogs.start()
+      await PluginLogsInstallationApplied.start()
 
       expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(crawlerStub.crawl.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(loggerVerboseStub.callCount).to.eq(Object.values(Network.NETWORKS).length + 1)
-      expect(loggerVerboseStub.calledWith('Start PluginRepoLogs' as any)).to.be.true
-      expect(loggerVerboseStub.calledWith('Finish PluginRepoLogs' as any)).to.be.true
+      expect(loggerVerboseStub.calledWith('Start PluginLogsInstallationApplied' as any)).to.be.true
+      expect(loggerVerboseStub.calledWith('Finish PluginLogsInstallationApplied' as any)).to.be.true
     })
   })
 
@@ -53,9 +53,9 @@ describe('Indexer: PluginRepoLogs', () => {
     const error = new Error('Test error')
     const loggerStub = sinon.stub(logger, 'error')
 
-    await PluginRepoLogs.processError(error, NetworksEnum.mainnet)
+    await PluginLogsInstallationApplied.processError(error, NetworksEnum.mainnet)
 
     expect(loggerStub.calledOnce).to.be.true
-    expect(loggerStub.calledWith('Error PluginRepoLogs' as any))
+    expect(loggerStub.calledWith('Error PluginLogsInstallationApplied' as any))
   })
 })

@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { Interface } from 'ethers'
+import { Interface, type Log } from 'ethers'
 import Network from '@models/schema/network'
 import { Models } from '@dbModels'
 import { type NetworksEnum } from '@types'
@@ -39,8 +39,9 @@ export const PluginRepoLogs = {
           fromBlock: networkDb.lastBlockPluginRepoLog,
           toBlock: 'latest',
         },
-        onLog: async txLog => PluginRepoLogs.processPluginRepoRegistered(txLog, networkName as NetworksEnum, networkDb),
-        onError: async error => PluginRepoLogs.processError(error, networkName as NetworksEnum),
+        onLog: async (txLog: Log) =>
+          PluginRepoLogs.processPluginRepoRegistered(txLog, networkName as NetworksEnum, networkDb),
+        onError: async (error: any) => PluginRepoLogs.processError(error, networkName as NetworksEnum),
         stopOnError: true,
       })
       await crawler.crawl()

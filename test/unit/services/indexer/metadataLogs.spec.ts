@@ -3,13 +3,13 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { MetadataLogs } from '@services/indexer/metadataLogs'
 import logger from '@logger'
-import {IAragonContract, NetworksEnum} from '@types'
+import { IAragonContract, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { UtilsIndexer } from '@models/utils/indexer'
-import Network from '@models/schema/network';
-import Web3Utils from '@helpers/web3';
+import Network from '@models/schema/network'
+import Web3Utils from '@helpers/web3'
 import IPFSModule from '@modules/ipfs'
-import Web3Helper from '@helpers/web3';
+import Web3Helper from '@helpers/web3'
 import { Interface } from 'ethers'
 
 describe('Indexer: metadataLogs', () => {
@@ -39,7 +39,7 @@ describe('Indexer: metadataLogs', () => {
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
       const crawlerStub = { crawl: sandbox.stub().resolves() }
       const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
-      sandbox.stub(MetadataLogs, 'createCrawler').returns(crawlerStub as any);
+      sandbox.stub(MetadataLogs, 'createCrawler').returns(crawlerStub as any)
       const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
       await MetadataLogs.start()
@@ -65,47 +65,48 @@ describe('Indexer: metadataLogs', () => {
 
   describe('processMetadata', () => {
     it('DAOFactory: should process DAOFactory', async () => {
-
       const fakeMetadata = {
         name: 'test',
         description: 'fake-description',
       }
 
       const fakeEvent = {
-        args: {metadata: 'fake-metadata'}
+        args: { metadata: 'fake-metadata' },
       }
 
       const fakeDecodedTx = {
         data: '0x123',
         contract: IAragonContract.DAOFactory,
-        args: [{
-          subdomain: 'fake-subdomain',
-          daoURI: 'fake-daoURI',
-          trustedForwarder: 'fake-trustedForwarder',
-        }]
+        args: [
+          {
+            subdomain: 'fake-subdomain',
+            daoURI: 'fake-daoURI',
+            trustedForwarder: 'fake-trustedForwarder',
+          },
+        ],
       }
 
       const fakeUri = 'fake-uri'
 
       const fakeTx = { data: '0x123' }
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any);
-      const stubGetTx = sandbox.stub(Web3Utils, 'getTransaction').resolves(fakeTx as any);
-      const stubDecodeTx = sandbox.stub(MetadataLogs, 'decodeTransaction').returns(fakeDecodedTx as any);
-      const stubExtractMetadata = sandbox.stub(MetadataLogs, 'extractMetadataUri').returns(fakeUri);
-      const stubFetchMetadata = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata);
-      const stubParseDaoMetadata = sandbox.stub(Web3Helper, 'parseDaoMetadata').returns(fakeMetadata);
-      const networkName = NetworksEnum.mainnet;
+      const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
+      const stubGetTx = sandbox.stub(Web3Utils, 'getTransaction').resolves(fakeTx as any)
+      const stubDecodeTx = sandbox.stub(MetadataLogs, 'decodeTransaction').returns(fakeDecodedTx as any)
+      const stubExtractMetadata = sandbox.stub(MetadataLogs, 'extractMetadataUri').returns(fakeUri)
+      const stubFetchMetadata = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
+      const stubParseDaoMetadata = sandbox.stub(Web3Helper, 'parseDaoMetadata').returns(fakeMetadata)
+      const networkName = NetworksEnum.mainnet
 
       const txLog = {
         transactionHash: '0x123',
         address: '0x456',
         data: '0x789',
         topics: ['0xabc'],
-        blockNumber: 1
+        blockNumber: 1,
       }
 
-      await MetadataLogs.processMetadata(txLog, networkName);
+      await MetadataLogs.processMetadata(txLog, networkName)
 
       expect(stubParseLog.calledOnce).to.be.true
       expect(stubParseLog.calledWith({ data: txLog.data, topics: txLog.topics })).to.be.true
@@ -141,7 +142,7 @@ describe('Indexer: metadataLogs', () => {
       expect(daoMetadataDB.description).to.eq(fakeMetadata.description)
       expect(daoMetadataDB.avatar).to.eq(null)
       expect(daoMetadataDB.links.length).to.eq(0)
-    });
+    })
   })
 
   describe('decodeTransaction', () => {
