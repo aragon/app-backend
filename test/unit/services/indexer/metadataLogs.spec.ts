@@ -12,7 +12,7 @@ import IPFSModule from '@modules/ipfs'
 import Web3Helper from '@helpers/web3';
 import { Interface } from 'ethers'
 
-describe.only('Indexer: metadataLogs', () => {
+describe('Indexer: metadataLogs', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -40,13 +40,16 @@ describe.only('Indexer: metadataLogs', () => {
       const crawlerStub = { crawl: sandbox.stub().resolves() }
       const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
       sandbox.stub(MetadataLogs, 'createCrawler').returns(crawlerStub as any);
-      const networkName = 'testnet'
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
       await MetadataLogs.start()
 
       expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(crawlerStub.crawl.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
+      expect(loggerVerboseStub.callCount).to.eq(Object.values(Network.NETWORKS).length + 1)
+      expect(loggerVerboseStub.calledWith('Start DaoLogs' as any)).to.be.true
+      expect(loggerVerboseStub.calledWith('Finish DaoLogs' as any)).to.be.true
     })
   })
 
@@ -61,7 +64,7 @@ describe.only('Indexer: metadataLogs', () => {
   })
 
   describe('processMetadata', () => {
-    it.only('DAOFactory: should process DAOFactory', async () => {
+    it('DAOFactory: should process DAOFactory', async () => {
 
       const fakeMetadata = {
         name: 'test',
@@ -117,12 +120,27 @@ describe.only('Indexer: metadataLogs', () => {
       expect(stubExtractMetadata.calledWith(fakeEvent.args.metadata)).to.be.true
 
       expect(stubFetchMetadata.calledOnce).to.be.true
-      expect(stubExtractMetadata.args[0][0]).to.eq(fakeUri)
+      expect(stubFetchMetadata.args[0][0]).to.eq(fakeUri)
 
       expect(stubParseDaoMetadata.calledOnce).to.be.true
       expect(stubParseDaoMetadata.calledWith(fakeMetadata)).to.be.true
 
       expect(stubLogger.calledWith('Stored DAO metadata' as any)).to.be.true
+
+      const daoMetadataDB = await Models.LogDaoMetadata.findTxHash(txLog.transactionHash)
+      expect(daoMetadataDB.transactionHash).to.eq(txLog.transactionHash)
+      expect(daoMetadataDB.blockNumber).to.eq(txLog.blockNumber)
+      expect(daoMetadataDB.network).to.eq(NetworksEnum.mainnet)
+      expect(daoMetadataDB.fetchedMetadata).to.eq(true)
+      expect(daoMetadataDB.daoAddress).to.eq(txLog.address)
+      expect(daoMetadataDB.trustedForwarder).to.eq(fakeDecodedTx.args[0].trustedForwarder)
+      expect(daoMetadataDB.daoURI).to.eq(fakeDecodedTx.args[0].daoURI)
+      expect(daoMetadataDB.ens).to.eq(fakeDecodedTx.args[0].subdomain)
+      expect(daoMetadataDB.metadataUri).to.eq(fakeUri)
+      expect(daoMetadataDB.name).to.eq(fakeMetadata.name)
+      expect(daoMetadataDB.description).to.eq(fakeMetadata.description)
+      expect(daoMetadataDB.avatar).to.eq(null)
+      expect(daoMetadataDB.links.length).to.eq(0)
     });
   })
 
