@@ -51,7 +51,7 @@ describe('Indexer: PluginRepoLogs', () => {
 
   it('processError', async () => {
     const error = new Error('Test error')
-    const loggerStub = sinon.stub(logger, 'error')
+    const loggerStub = sandbox.stub(logger, 'error')
 
     await PluginRepoLogs.processError(error, NetworksEnum.mainnet)
 

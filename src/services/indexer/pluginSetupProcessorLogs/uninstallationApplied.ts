@@ -35,7 +35,7 @@ export const PluginLogsUninstallationApplied = {
           toBlock: 'latest',
         },
         onLog: async (txLog: Log) =>
-          PluginLogsUninstallationApplied.processUninstallationApplied(txLog, networkName as NetworksEnum, networkDb),
+          PluginLogsUninstallationApplied.processUninstallationApplied(txLog, networkName as NetworksEnum),
         onError: async (error: any) => PluginLogsUninstallationApplied.processError(error, networkName as NetworksEnum),
         stopOnError: true,
       })
@@ -46,7 +46,7 @@ export const PluginLogsUninstallationApplied = {
     logger.verbose('Finish PluginLogsUninstallationApplied', llo())
   },
 
-  processUninstallationApplied: async (txLog: any, network: NetworksEnum, networkDb: Network) => {
+  processUninstallationApplied: async (txLog: any, network: NetworksEnum) => {
     const daoRegistryInterface = new Interface(PluginSetupProcessor.abi)
     const event = daoRegistryInterface.parseLog(txLog)!
 
