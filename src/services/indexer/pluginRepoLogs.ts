@@ -16,6 +16,8 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:PluginRepoLogs
 // MultisigRepoProxy - 0x8c278e37D0817210E18A7958524b7D0a1fAA6F7b - multisig-repo
 
 export const PluginRepoLogs = {
+  createCrawler: (options: any) => new BlockchainLogCrawler(options),
+
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {
       logger.verbose('Start PluginRepoLogs', llo({ networkName }))
@@ -30,7 +32,7 @@ export const PluginRepoLogs = {
       const pluginRepoInterface = new Interface(PluginRepoRegistry.abi)
       const pluginRepoRegisteredEvent = pluginRepoInterface.getEvent('PluginRepoRegistered')!
 
-      const crawler = new BlockchainLogCrawler({
+      const crawler = PluginRepoLogs.createCrawler({
         network: networkName as NetworksEnum,
         filter: {
           topics: [pluginRepoRegisteredEvent.topicHash],
