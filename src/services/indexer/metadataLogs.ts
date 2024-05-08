@@ -15,8 +15,6 @@ import { UtilsIndexer } from '@models/utils/indexer'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:MetadataLogs' })
 
 export const MetadataLogs = {
-  createCrawler: (options: any) => new BlockchainLogCrawler(options),
-
   contractInterfaces: {
     DAOFactory: new Interface(DAOFactory.abi),
     TokenVoting: new Interface(TokenVoting.abi),
@@ -42,10 +40,10 @@ export const MetadataLogs = {
         toBlock: 'latest',
       }
 
-      const crawler = MetadataLogs.createCrawler({
+      const crawler = new BlockchainLogCrawler({
         network: networkName as NetworksEnum,
         filter,
-        onLog: async (txLog: Log) => MetadataLogs.processMetadata(txLog, networkName as NetworksEnum),
+        onLog: async (txLog: Log) => MetadataLogs.processLog(txLog, networkName as NetworksEnum),
         onError: async (error: any) => MetadataLogs.processError(error, networkName as NetworksEnum),
         stopOnError: true,
       })
@@ -66,7 +64,7 @@ export const MetadataLogs = {
     )
   },
 
-  processMetadata: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: any, network: NetworksEnum) => {
     const event = new Interface(DAO.abi).parseLog({ data: txLog.data, topics: txLog.topics })
     const transaction = await Web3Helper.getTransaction(txLog.transactionHash, network)
 
@@ -178,11 +176,11 @@ export const MetadataLogs = {
           }
         }
       } catch (error) {
-        logger.error(`Decoding error with ${contractName}`, llo({ error }))
+        logger.error('Metadata decoding error', llo({ contractName, error }))
       }
     }
 
-    logger.error('metadata not supported', llo({ transaction }))
+    logger.error('Metadata not supported', llo({ transaction }))
     return null
   },
 

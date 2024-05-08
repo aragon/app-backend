@@ -5,6 +5,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import logger from '@logger'
 import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
+import Utils from '@helpers/utils'
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
@@ -82,6 +83,38 @@ describe('Module: blockchainLogCrawler', () => {
     expect(stubProcessLogs.args[0][0][0].transactionHash).to.exist
     expect(stubProcessLogs.args[1][0][0].transactionHash).to.exist
     expect(onLogStub.callCount).to.be.eq(2)
+    expect(logInfo.calledWith('Finished crawling logs')).to.be.true
+  })
+
+  it('should handle rate limiting by pausing and retrying', async () => {
+    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+
+    const rateLimitError = new Error('Your app has exceeded its compute units per second capacity')
+    rateLimitError.message = 'Your app has exceeded its compute units per second capacity'
+    const waitStub = sandbox.stub(Utils, 'wait').resolves()
+
+    mockProvider.getBlockNumber.resolves(10)
+    mockProvider.getLogs
+      .onFirstCall()
+      .rejects(rateLimitError)
+      .onSecondCall()
+      .resolves([{ transactionHash: '0x1' }, { transactionHash: '0x2' }])
+      .onThirdCall()
+      .resolves([])
+
+    const onLogStub = sandbox.stub().resolves()
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.mainnet,
+      filter: {},
+      batchSize: 10,
+      onLog: onLogStub,
+    })
+
+    await crawler.crawl()
+
+    expect(waitStub.calledOnce).to.be.true
+    expect(onLogStub.calledTwice).to.be.true
+    expect(onLogStub.calledTwice).to.be.true
     expect(logInfo.calledWith('Finished crawling logs')).to.be.true
   })
 

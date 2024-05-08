@@ -11,8 +11,6 @@ import { UtilsIndexer } from '@models/utils/indexer'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:PluginLogs:PluginLogsUninstallationApplied' })
 
 export const PluginLogsUninstallationApplied = {
-  createCrawler: (options: any) => new BlockchainLogCrawler(options),
-
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {
       logger.verbose('Start PluginLogsUninstallationApplied', llo({ networkName }))
@@ -27,15 +25,14 @@ export const PluginLogsUninstallationApplied = {
       const daoRegistryInterface = new Interface(PluginSetupProcessor.abi)
       const event = daoRegistryInterface.getEvent(IEventLogPluginType.UninstallationApplied)!
 
-      const crawler = PluginLogsUninstallationApplied.createCrawler({
+      const crawler = new BlockchainLogCrawler({
         network: networkName as NetworksEnum,
         filter: {
           topics: [event.topicHash],
           fromBlock: networkDb.lastBlockPluginInstallationAppliedLog,
           toBlock: 'latest',
         },
-        onLog: async (txLog: Log) =>
-          PluginLogsUninstallationApplied.processUninstallationApplied(txLog, networkName as NetworksEnum),
+        onLog: async (txLog: Log) => PluginLogsUninstallationApplied.processLog(txLog, networkName as NetworksEnum),
         onError: async (error: any) => PluginLogsUninstallationApplied.processError(error, networkName as NetworksEnum),
         stopOnError: true,
       })
@@ -46,7 +43,7 @@ export const PluginLogsUninstallationApplied = {
     logger.verbose('Finish PluginLogsUninstallationApplied', llo())
   },
 
-  processUninstallationApplied: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: any, network: NetworksEnum) => {
     const daoRegistryInterface = new Interface(PluginSetupProcessor.abi)
     const event = daoRegistryInterface.parseLog(txLog)!
 
