@@ -45,7 +45,7 @@ export const MetadataLogs = {
       const crawler = MetadataLogs.createCrawler({
         network: networkName as NetworksEnum,
         filter,
-        onLog: async (txLog: Log) => MetadataLogs.processMetadata(txLog, networkName as NetworksEnum, networkDb),
+        onLog: async (txLog: Log) => MetadataLogs.processMetadata(txLog, networkName as NetworksEnum),
         onError: async (error: any) => MetadataLogs.processError(error, networkName as NetworksEnum),
         stopOnError: true,
       })
@@ -66,7 +66,7 @@ export const MetadataLogs = {
     )
   },
 
-  processMetadata: async (txLog: any, network: NetworksEnum, networkDb: Network) => {
+  processMetadata: async (txLog: any, network: NetworksEnum) => {
     const event = new Interface(DAO.abi).parseLog({ data: txLog.data, topics: txLog.topics })
     const transaction = await Web3Helper.getTransaction(txLog.transactionHash, network)
 
