@@ -30,7 +30,7 @@ export const LogDaoRegistry = {
 
       const filter = {
         topics: eventTopics,
-        fromBlock: networkDb.lastBlockDaoLog,
+        fromBlock: networkDb.lastBlockDaoRegistry,
         toBlock: 'latest',
       }
 

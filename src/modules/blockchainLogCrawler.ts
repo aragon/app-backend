@@ -134,7 +134,7 @@ class BlockchainLogCrawler {
       const topicChunks = Utils.chunkArray(this.filter.topics, 4)
 
       for (const topics of topicChunks) {
-        logger.info(
+        logger.silly(
           'Querying logs for topic chunk',
           llo({
             initBlock: this.fromBlock,
