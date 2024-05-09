@@ -2,9 +2,6 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
 import config from '@config'
-// import { DaoLogs } from '@services/indexer/daoLogs'
-// import { LogDaoRegistry } from '@services/indexer/logDaoRegistry'
-// import { LogDao } from '@services/indexer/logDao'
 import { LogDao } from '@services/indexer/logDao'
 import { InitialData } from '../../initialData'
 
@@ -20,8 +17,7 @@ describe('Manual: Indexer', () => {
     sandbox && sandbox.restore()
   })
 
-  it.only('index', async function () {
-    ;(this as any).timeout(140000)
+  it('index', async function () {
     await ProviderModule.connectToAllNetworks()
     await InitialData.start()
     await LogDao.start()
