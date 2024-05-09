@@ -1,11 +1,11 @@
-import { EnumConnection, type IService } from '@types'
-// import { DaoLogs } from '@services/indexer/daoLogs'
-// import { MetadataLogs } from '@services/indexer/metadataLogs'
-// import { PluginLogs } from '@services/indexer/pluginLogs'
-// import { PluginRepoLogs } from '@services/indexer/pluginRepoLogs'
 import logger from '@logger'
-// import Utils from '@helpers/utils'
-// import config from '@config'
+import Utils from '@helpers/utils'
+import config from '@config'
+import { EnumConnection, type IService } from '@types'
+import { LogDao } from '@services/indexer/logDao'
+import { LogDaoRegistry } from '@services/indexer/logDaoRegistry'
+import { LogPluginRepoRegistry } from '@services/indexer/logPluginRepoRegistry'
+import { LogPluginSetupProcessor } from '@services/indexer/logPluginSetupProcessor'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -16,37 +16,37 @@ const IndexerService: IService & { repeaters: any } = {
   start: async function () {
     logger.info('IndexerService service start', llo({}))
 
-    //   IndexerService.repeaters.daos = Utils.setIntervalAsync(
-    //     DaoLogs.start,
-    //     config.SERVICES.SYNC_DATA.DAO_INTERVAL,
-    //     (error: any): void => {
-    //       logger.error('Indexer DaoLogs error', llo({ error }))
-    //     },
-    //   )
-    //
-    //   IndexerService.repeaters.metadata = Utils.setIntervalAsync(
-    //     MetadataLogs.start,
-    //     config.SERVICES.SYNC_DATA.DAO_INTERVAL,
-    //     (error: any): void => {
-    //       logger.error('Indexer MetadataLogs error', llo({ error }))
-    //     },
-    //   )
-    //
-    //   IndexerService.repeaters.pluginRepo = Utils.setIntervalAsync(
-    //     PluginRepoLogs.start,
-    //     config.SERVICES.SYNC_DATA.DAO_INTERVAL,
-    //     (error: any): void => {
-    //       logger.error('Indexer PluginRepoLogs error', llo({ error }))
-    //     },
-    //   )
-    //
-    //   IndexerService.repeaters.plugins = Utils.setIntervalAsync(
-    //     PluginLogs.start,
-    //     config.SERVICES.SYNC_DATA.DAO_INTERVAL,
-    //     (error: any): void => {
-    //       logger.error('Indexer PluginLogs cccccbkdglldkirchedjkjrnutdbcifjljnbfhkkfvtg' + 'error', llo({ error }))
-    //     },
-    //   )
+    IndexerService.repeaters.dao = Utils.setIntervalAsync({
+      fn: LogDao.start,
+      delay: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
+      onError: (error: any): void => {
+        logger.error('Indexer Dao error', llo({ error }))
+      },
+    })
+
+    IndexerService.repeaters.daoRegistry = Utils.setIntervalAsync({
+      fn: LogDaoRegistry.start,
+      delay: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
+      onError: (error: any): void => {
+        logger.error('Indexer DaoRegistry error', llo({ error }))
+      },
+    })
+
+    IndexerService.repeaters.pluginRepoRegistry = Utils.setIntervalAsync({
+      fn: LogPluginRepoRegistry.start,
+      delay: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
+      onError: (error: any): void => {
+        logger.error('Indexer PluginRepoRegistry error', llo({ error }))
+      },
+    })
+
+    IndexerService.repeaters.pluginSetupProcessor = Utils.setIntervalAsync({
+      fn: LogPluginSetupProcessor.start,
+      delay: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
+      onError: (error: any): void => {
+        logger.error('Indexer PluginSetupProcessor error', llo({ error }))
+      },
+    })
   },
 
   async stop() {
