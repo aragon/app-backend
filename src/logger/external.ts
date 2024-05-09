@@ -5,6 +5,7 @@ import Format from './format'
 import config from '@config'
 import { type ExternalLoggerOptions } from '@types'
 import { type ILogzioLogger } from 'logzio-nodejs'
+import Utils from '@helpers/utils'
 
 class ExternalLogger extends Transport {
   private readonly logzioLogger?: ILogzioLogger
@@ -41,7 +42,7 @@ class ExternalLogger extends Transport {
     const msg = Format.formatMeta(info)
 
     if (this.logzioLogger) {
-      this.logzioLogger.log(msg)
+      this.logzioLogger.log(Utils.JSONStringifyCircular(msg))
     }
 
     if (info.level === 'error' && this.sentry != null && info.error instanceof Error && !info.error.exposeCustom_) {

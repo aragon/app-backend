@@ -5,6 +5,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import logger from '@logger'
 import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
+import Utils from '@helpers/utils'
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
@@ -85,6 +86,38 @@ describe('Module: blockchainLogCrawler', () => {
     expect(logInfo.calledWith('Finished crawling logs')).to.be.true
   })
 
+  it('should handle rate limiting by pausing and retrying', async () => {
+    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+
+    const rateLimitError = new Error('Your app has exceeded its compute units per second capacity')
+    rateLimitError.message = 'Your app has exceeded its compute units per second capacity'
+    const waitStub = sandbox.stub(Utils, 'wait').resolves()
+
+    mockProvider.getBlockNumber.resolves(10)
+    mockProvider.getLogs
+      .onFirstCall()
+      .rejects(rateLimitError)
+      .onSecondCall()
+      .resolves([{ transactionHash: '0x1' }, { transactionHash: '0x2' }])
+      .onThirdCall()
+      .resolves([])
+
+    const onLogStub = sandbox.stub().resolves()
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.mainnet,
+      filter: {},
+      batchSize: 10,
+      onLog: onLogStub,
+    })
+
+    await crawler.crawl()
+
+    expect(waitStub.calledOnce).to.be.true
+    expect(onLogStub.calledTwice).to.be.true
+    expect(onLogStub.calledTwice).to.be.true
+    expect(logInfo.calledWith('Finished crawling logs')).to.be.true
+  })
+
   it('should reduce batch size and retry on batch size error', async () => {
     sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
     const error = new Error('Log response size exceeded')
@@ -96,7 +129,7 @@ describe('Module: blockchainLogCrawler', () => {
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.mainnet,
       filter: {},
-      batchSize: 20,
+      batchSize: 2000,
       onLog: onLogStub,
       onError: onErrorStub,
     })
@@ -110,14 +143,14 @@ describe('Module: blockchainLogCrawler', () => {
     sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
     const error = new Error('Log response size exceeded')
     error.message = 'Log response size exceeded'
-    mockProvider.getBlockNumber.onFirstCall().resolves(100).onSecondCall().resolves(100)
+    mockProvider.getBlockNumber.onFirstCall().resolves(2000).onSecondCall().resolves(100)
     mockProvider.getLogs.onFirstCall().rejects(error).onSecondCall().resolves([])
     const onLogStub = sandbox.stub().resolves()
     const onErrorSpy = sandbox.spy(BlockchainLogCrawler, 'defaultOnError')
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.mainnet,
       filter: {},
-      batchSize: 20,
+      batchSize: 1000,
       onLog: onLogStub,
       onError: BlockchainLogCrawler.defaultOnError,
     })
@@ -138,7 +171,7 @@ describe('Module: blockchainLogCrawler', () => {
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.mainnet,
       filter: {},
-      batchSize: 10,
+      batchSize: 2000,
       onLog: onLogStub,
     })
 
@@ -156,7 +189,7 @@ describe('Module: blockchainLogCrawler', () => {
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.mainnet,
       filter: {},
-      batchSize: 10,
+      batchSize: 2000,
       onLog: async () => {},
       onError: async () => {},
     })
@@ -169,7 +202,7 @@ describe('Module: blockchainLogCrawler', () => {
 
   it('should throw an error if the provider is not configured for the network', () => {
     sandbox.stub(ConfigState, 'getInstance').returns({
-      getConfigItem: sinon.stub().returns(null),
+      getConfigItem: sandbox.stub().returns(null),
     } as any)
 
     const options = {
@@ -190,7 +223,7 @@ describe('Module: blockchainLogCrawler', () => {
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.mainnet,
       filter: {},
-      batchSize: 10,
+      batchSize: 2000,
       onLog: async () => {},
     })
 

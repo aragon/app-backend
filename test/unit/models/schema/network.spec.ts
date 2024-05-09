@@ -31,15 +31,10 @@ describe('Model: Network', () => {
     expect(createdNetwork).to.have.property('status', rawNetwork.status)
     expect(createdNetwork).to.have.property('isActive', rawNetwork.isActive)
 
-    expect(createdNetwork.lastBlockDaoLog).to.eq(0)
-    expect(createdNetwork.lastBlockMetadataLog).to.eq(0)
-    expect(createdNetwork.lastBlockPluginInstallationPreparedLog).to.eq(0)
-    expect(createdNetwork.lastBlockPluginInstallationAppliedLog).to.eq(0)
-    expect(createdNetwork.lastBlockPluginUninstallationPreparedLog).to.eq(0)
-    expect(createdNetwork.lastBlockPluginUninstallationAppliedLog).to.eq(0)
-    expect(createdNetwork.lastBlockPluginUpdatePreparedLog).to.eq(0)
-    expect(createdNetwork.lastBlockPluginUpdateAppliedLog).to.eq(0)
-    expect(createdNetwork.lastBlockPluginRepoLog).to.eq(0)
+    expect(createdNetwork.lastBlockDao).to.eq(0)
+    expect(createdNetwork.lastBlockDaoRegistry).to.eq(0)
+    expect(createdNetwork.lastBlockPluginRepoRegistry).to.eq(0)
+    expect(createdNetwork.lastBlockPluginSetupProcessor).to.eq(0)
   })
 
   it('Should update Network', async () => {

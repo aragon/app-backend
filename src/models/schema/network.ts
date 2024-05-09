@@ -38,31 +38,16 @@ export default class Network extends Model {
   public isActive!: boolean
 
   @prop({ type: () => Number, default: 0 })
-  public lastBlockDaoLog!: number
+  public lastBlockDao!: number
 
   @prop({ type: () => Number, default: 0 })
-  public lastBlockMetadataLog!: number
+  public lastBlockDaoRegistry!: number
 
   @prop({ type: () => Number, default: 0 })
-  public lastBlockPluginInstallationPreparedLog!: number
+  public lastBlockPluginRepoRegistry!: number
 
   @prop({ type: () => Number, default: 0 })
-  public lastBlockPluginInstallationAppliedLog!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public lastBlockPluginUninstallationPreparedLog!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public lastBlockPluginUninstallationAppliedLog!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public lastBlockPluginUpdatePreparedLog!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public lastBlockPluginUpdateAppliedLog!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public lastBlockPluginRepoLog!: number
+  public lastBlockPluginSetupProcessor!: number
 
   static NETWORKS = Utils.enumToObject(NetworksEnum)
   static STATUS_NETWORKS = Utils.enumToObject(StatusNetworkEnum)

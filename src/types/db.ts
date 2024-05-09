@@ -3,11 +3,21 @@ import type Dao from '@models/schema/dao'
 import type Network from '@models/schema/network'
 import { type IDao } from '@src/types/daos'
 import type Token from '@models/schema/token'
+import type LogDaoRegistry from '@models/schema/logDaoRegistry'
+import type LogDaoMetadata from '@models/schema/logDaoMetadata'
+import type LogProposalMetadata from '@models/schema/logProposalMetadata'
+import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
+import type LogPluginRepo from '@models/schema/logPluginRepo'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
   Dao: Model<InstanceType<typeof Dao>>
   Token: Model<InstanceType<typeof Token>>
+  LogDaoRegistry: Model<InstanceType<typeof LogDaoRegistry>>
+  LogDaoMetadata: Model<InstanceType<typeof LogDaoMetadata>>
+  LogProposalMetadata: Model<InstanceType<typeof LogProposalMetadata>>
+  LogPluginSetupProcessor: Model<InstanceType<typeof LogPluginSetupProcessor>>
+  LogPluginRepo: Model<InstanceType<typeof LogPluginRepo>>
 }
 
 export enum IEventLogPluginType {
