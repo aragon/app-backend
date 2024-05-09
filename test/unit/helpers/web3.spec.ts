@@ -42,17 +42,24 @@ describe('Helpers:Web3', () => {
         avatar: null,
         links: [],
       })
+
+      expect(Web3Utils.parseDaoMetadata(undefined as any)).to.deep.equal({
+        name: null,
+        description: null,
+        avatar: null,
+        links: [],
+      })
     })
+  })
 
-    it('error parseAddress', () => {
-      const address = '0xInvalidAddress'
-      const stubLogger = sandbox.stub(Logger, 'error')
+  it('error parseAddress', () => {
+    const address = '0xInvalidAddress'
+    const stubLogger = sandbox.stub(Logger, 'error')
 
-      const result = Web3Utils.parseAddress(address)
+    const result = Web3Utils.parseAddress(address)
 
-      expect(result).to.be.null
-      expect(stubLogger.calledWith('Error checksum dao address' as any)).to.be.true
-    })
+    expect(result).to.be.null
+    expect(stubLogger.calledWith('Error checksum dao address' as any)).to.be.true
   })
 
   describe('parseProposalMetadata', () => {
@@ -98,6 +105,21 @@ describe('Helpers:Web3', () => {
 
       expect(parsed).to.deep.equal({
         title: 'Incomplete Proposal',
+        summary: null,
+        description: null,
+        resources: [],
+        media: {
+          header: null,
+          logo: null,
+        },
+      })
+    })
+
+    it('should handle undefined proposal metadata', () => {
+      const parsed = Web3Utils.parseProposalMetadata(undefined as any)
+
+      expect(parsed).to.deep.equal({
+        title: null,
         summary: null,
         description: null,
         resources: [],

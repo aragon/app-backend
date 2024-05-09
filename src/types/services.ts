@@ -8,5 +8,5 @@ export interface IService {
 
   start: () => Promise<any>
 
-  stop: () => void
+  stop: () => void | Promise<void>
 }

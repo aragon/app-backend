@@ -109,9 +109,12 @@ describe('Module: DbTx', () => {
     sandbox.stub(config.MONGO_DB, 'RETRY_CONCURRENT_INTERVAL').value(3)
     sandbox.stub(config.MONGO_DB, 'RETRY_CONCURRENT_TIME').value(1)
 
+    const error = new Error('Error') as any
+    error.codeName = 'WriteConflict'
+
     const retryFn = sandbox.stub()
     retryFn.onFirstCall().rejects(new Error('WriteConflict'))
-    retryFn.onSecondCall().rejects(new Error('WriteConflict'))
+    retryFn.onSecondCall().rejects(error)
     retryFn.onThirdCall().resolves('success')
 
     const result = await DbTx.handleTxError(new Error('WriteConflict'), retryFn)

@@ -1,7 +1,5 @@
 import * as arbitrumJson from './contracts/arbitrum.json'
-import * as arbitrumSepoliaJson from './contracts/arbitrumSepolia.json'
 import * as baseJson from './contracts/base.json'
-import * as baseSepoliaJson from './contracts/baseSepolia.json'
 import * as mainnetJson from './contracts/mainnet.json'
 import * as polygonJson from './contracts/polygon.json'
 import * as sepoliaJson from './contracts/sepolia.json'
@@ -152,9 +150,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     ARAGON_CONTRACTS: {
       ARBITRUM: arbitrumJson,
-      ARBITRUM_SEPOLIA: arbitrumSepoliaJson,
       BASE: baseJson,
-      BASE_SEPOLIA: baseSepoliaJson,
       MAINNET: mainnetJson,
       POLYGON: polygonJson,
       SEPOLIA: sepoliaJson,
