@@ -21,7 +21,7 @@ export const LogDao = {
     'NativeTokenDeposited',
     'NewURI',
     'Revoked',
-    'StandardCallbackRegistered'
+    'StandardCallbackRegistered',
   ],
 
   start: async () => {
