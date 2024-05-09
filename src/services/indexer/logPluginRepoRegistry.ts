@@ -30,7 +30,7 @@ export const LogPluginRepoRegistry = {
 
       const filter = {
         topics: eventTopics,
-        fromBlock: networkDb.lastBlockDaoLog,
+        fromBlock: networkDb.lastBlockPluginRepoRegistry,
         toBlock: 'latest',
       }
 

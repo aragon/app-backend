@@ -37,7 +37,7 @@ export const LogPluginSetupProcessor = {
 
       const filter = {
         topics: eventTopics,
-        fromBlock: networkDb.lastBlockDaoLog,
+        fromBlock: networkDb.lastBlockPluginSetupProcessor,
         toBlock: 'latest',
       }
 

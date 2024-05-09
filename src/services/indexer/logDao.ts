@@ -21,8 +21,7 @@ export const LogDao = {
     'NativeTokenDeposited',
     'NewURI',
     'Revoked',
-    'StandardCallbackRegistered',
-    'TrustedForwarderSet',
+    'StandardCallbackRegistered'
   ],
 
   start: async () => {
@@ -42,7 +41,7 @@ export const LogDao = {
 
       const filter = {
         topics: eventTopics,
-        fromBlock: networkDb.lastBlockDaoLog,
+        fromBlock: networkDb.lastBlockDao,
         toBlock: 'latest',
       }
 
@@ -99,10 +98,6 @@ export const LogDao = {
       case 'StandardCallbackRegistered':
         logger.verbose('StandardCallbackRegistered', llo({ eventName: event.name }))
         await DaoHandler.standardCallbackRegistered(event, txLog, network)
-        break
-      case 'TrustedForwarderSet':
-        logger.verbose('TrustedForwarderSet', llo({ eventName: event.name }))
-        await DaoHandler.trustedForwarderSet(event, txLog, network)
         break
       default:
         logger.error('Unhandled event', llo({ event }))

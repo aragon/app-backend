@@ -42,7 +42,7 @@ class ExternalLogger extends Transport {
     const msg = Format.formatMeta(info)
 
     if (this.logzioLogger) {
-      this.logzioLogger.log(Utils.JSONStringifyCircular(msg))
+      this.logzioLogger.log(JSON.parse(Utils.JSONStringifyCircular(msg)))
     }
 
     if (info.level === 'error' && this.sentry != null && info.error instanceof Error && !info.error.exposeCustom_) {
