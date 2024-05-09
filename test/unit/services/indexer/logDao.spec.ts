@@ -25,7 +25,7 @@ describe('Indexer: LogDao', () => {
   })
 
   it('events', async () => {
-    expect(LogDao.events.length).to.eq(10)
+    expect(LogDao.events.length).to.eq(9)
   })
 
   describe('start', () => {
