@@ -156,13 +156,6 @@ const Web3Utils = {
     }
   },
 
-  async getBlockTime(blockNumber: number, network: NetworksEnum) {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-
-    const block = await provider.getBlock(blockNumber)
-    return block?.timestamp
-  },
-
   async getTransaction(txHash: string, network: NetworksEnum) {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 

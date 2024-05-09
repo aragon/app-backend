@@ -271,7 +271,7 @@ describe('Logger: ExternalLogger', () => {
   })
 
   it('end', () => {
-    const stubWinston = sinon.stub(Transport.prototype, 'end')
+    const stubWinston = sandbox.stub(Transport.prototype, 'end')
 
     const externalLogger = new ExternalLogger()
     const testArgs = ['arg1', 'arg2']

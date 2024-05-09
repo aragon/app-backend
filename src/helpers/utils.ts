@@ -7,6 +7,20 @@ const Utils = {
   wait: async (time: number) => await new Promise(resolve => setTimeout(resolve, time)),
   zeroAddress: '0x0000000000000000000000000000000000000000' as HexAddress,
 
+  chunkArray: (array: any[], size: number) => {
+    if (!array || array.length === 0) {
+      return [[]]
+    }
+    return array?.length > size
+      ? Array.from({ length: Math.ceil(array.length / size) }, (v, i) => array.slice(i * size, i * size + size))
+      : [array]
+  },
+
+  lowercaseFirstLetter(str: string): string {
+    if (!str) return str
+    return str.charAt(0).toLowerCase() + str.slice(1)
+  },
+
   defaultError(error: any): void {
     /* istanbul ignore next */
     console.error(error) // eslint-disable-line no-console
@@ -66,6 +80,9 @@ const Utils = {
     return JSON.stringify(
       object,
       function (key: string, value: any) {
+        if (typeof value === 'bigint') {
+          return value.toString()
+        }
         if (typeof value === 'object' && value !== null) {
           if (cache.includes(value)) {
             return
@@ -91,7 +108,7 @@ const Utils = {
     return results
   },
 
-  setIntervalAsync(fn: any, delay: number, onError: any) {
+  setIntervalAsync({ fn, delay, onError }: { fn: any; delay: number; onError: any }) {
     let timeout: any
     let running = true
     let endPromise = Promise.resolve() as Promise<any>
@@ -181,9 +198,12 @@ const Utils = {
       return []
     }
     return permissions.map((w: IPermission | any) => {
-      const permission = w.toObject()
-      permission.operation = Number(permission.operation)
-      return permission
+      let rawPermissions = w
+      try {
+        rawPermissions = w.toObject()
+      } catch (_) {}
+      rawPermissions.operation = Number(rawPermissions.operation)
+      return rawPermissions
     })
   },
 }

@@ -146,13 +146,7 @@ export interface IConfig {
     ARBITRUM: {
       'v1.3.0': ContractEvent
     }
-    ARBITRUM_SEPOLIA: {
-      'v1.3.0': ContractEvent
-    }
     BASE: {
-      'v1.3.0': ContractEvent
-    }
-    BASE_SEPOLIA: {
       'v1.3.0': ContractEvent
     }
     MAINNET: {

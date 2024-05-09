@@ -97,8 +97,8 @@ describe('Module: provider', () => {
       config.BLOCKCHAIN_NODES = networks
 
       const fakeProviders = {
-        mainnet: { destroy: sinon.stub().resolves() },
-        sepolia: { destroy: sinon.stub().resolves() },
+        mainnet: { destroy: sandbox.stub().resolves() },
+        sepolia: { destroy: sandbox.stub().resolves() },
       }
 
       const getConfigStub = sandbox
