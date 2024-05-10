@@ -3,6 +3,7 @@ import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
 import config from '@config'
 import { LogDao } from '@services/indexer/logDao'
+import { LogMember } from '@services/indexer/logMember'
 import { InitialData } from '../../initialData'
 
 describe('Manual: Indexer', () => {
@@ -20,7 +21,7 @@ describe('Manual: Indexer', () => {
   it('index', async function () {
     await ProviderModule.connectToAllNetworks()
     await InitialData.start()
-    await LogDao.start()
+    await LogMember.start()
   })
 
   it('index', async () => {

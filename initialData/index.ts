@@ -21,6 +21,7 @@ export const InitialData = {
             lastBlockPluginSetupProcessor: contractConfig.PluginSetupProcessor.blockNumber,
             lastBlockTokenVoting: contractConfig.TokenVotingSetupImplementation.blockNumber,
             lastBlockMultisig: contractConfig.MultisigSetupImplementation.blockNumber,
+            lastBlockMember: contractConfig.DAOBase.blockNumber,
           })
         }
       }),
