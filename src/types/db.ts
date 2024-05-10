@@ -8,6 +8,7 @@ import type LogDaoMetadata from '@models/schema/logDaoMetadata'
 import type LogProposalMetadata from '@models/schema/logProposalMetadata'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type LogPluginRepo from '@models/schema/logPluginRepo'
+import type LogMember from '@models/schema/logMember'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
@@ -18,6 +19,7 @@ export interface IMongoModel {
   LogProposalMetadata: Model<InstanceType<typeof LogProposalMetadata>>
   LogPluginSetupProcessor: Model<InstanceType<typeof LogPluginSetupProcessor>>
   LogPluginRepo: Model<InstanceType<typeof LogPluginRepo>>
+  LogMember: Model<InstanceType<typeof LogMember>>
 }
 
 export enum IEventLogPluginType {
@@ -27,6 +29,13 @@ export enum IEventLogPluginType {
   UninstallationApplied = 'UninstallationApplied',
   UpdatePrepared = 'UpdatePrepared',
   UpdateApplied = 'UpdateApplied',
+}
+
+export enum IEventLogMember {
+  MembersAdded = 'MembersAdded',
+  MembersRemoved = 'MembersRemoved',
+  DelegateChanged = 'DelegateChanged',
+  DelegateVotesChanged = 'DelegateVotesChanged',
 }
 
 export interface IPaginationParams {
