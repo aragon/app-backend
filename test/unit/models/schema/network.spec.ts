@@ -35,6 +35,8 @@ describe('Model: Network', () => {
     expect(createdNetwork.lastBlockDaoRegistry).to.eq(0)
     expect(createdNetwork.lastBlockPluginRepoRegistry).to.eq(0)
     expect(createdNetwork.lastBlockPluginSetupProcessor).to.eq(0)
+    expect(createdNetwork.lastBlockTokenVoting).to.eq(0)
+    expect(createdNetwork.lastBlockMultisig).to.eq(0)
   })
 
   it('Should update Network', async () => {

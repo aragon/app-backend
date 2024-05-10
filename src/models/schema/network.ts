@@ -49,6 +49,12 @@ export default class Network extends Model {
   @prop({ type: () => Number, default: 0 })
   public lastBlockPluginSetupProcessor!: number
 
+  @prop({ type: () => Number, default: 0 })
+  public lastBlockTokenVoting!: number
+
+  @prop({ type: () => Number, default: 0 })
+  public lastBlockMultisig!: number
+
   static NETWORKS = Utils.enumToObject(NetworksEnum)
   static STATUS_NETWORKS = Utils.enumToObject(StatusNetworkEnum)
 
