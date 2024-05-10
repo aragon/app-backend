@@ -16,9 +16,11 @@ export const InitialData = {
             status: StatusNetworkEnum.healthy,
             isActive: true,
             lastBlockDao: contractConfig.DAOBase.blockNumber,
-            lastBlockDaoRegistry: contractConfig.DAORegistryProxy.blockNumber,
-            lastBlockPluginRepoRegistry: contractConfig.PluginRepoRegistryProxy.blockNumber,
+            lastBlockDaoRegistry: contractConfig.DAORegistryImplementation.blockNumber,
+            lastBlockPluginRepoRegistry: contractConfig.PluginRepoRegistryImplementation.blockNumber,
             lastBlockPluginSetupProcessor: contractConfig.PluginSetupProcessor.blockNumber,
+            lastBlockTokenVoting: contractConfig.TokenVotingSetupImplementation.blockNumber,
+            lastBlockMultisig: contractConfig.MultisigSetupImplementation.blockNumber,
           })
         }
       }),

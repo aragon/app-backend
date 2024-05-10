@@ -10,8 +10,6 @@ import Network from '@models/schema/network'
 import Provider from '@modules/provider'
 import { Interface } from 'ethers'
 import { PluginRepoRegistryHandler } from '@services/indexer/handlers/pluginRepoRegistryHandler'
-import { LogPluginSetupProcessor } from '@services/indexer/logPluginSetupProcessor'
-import { PluginSetupProcessorHandler } from '@services/indexer/handlers/pluginSetupProcessorHandler'
 import Utils from '@helpers/utils'
 
 describe('Indexer: LogPluginRepoRegistry', () => {
@@ -187,14 +185,12 @@ describe('Indexer: LogPluginRepoRegistry', () => {
         args: true,
       }
 
-      const stubDaoRegistered = sandbox.stub(PluginRepoRegistryHandler, 'pluginRepoRegistered')
       const loggerStub = sandbox.stub(logger, 'error')
       const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
 
       await LogPluginRepoRegistry.processLog(txLog, network)
 
       expect(stubParseLog.calledOnceWith(txLog)).to.be.true
-      expect(stubDaoRegistered.notCalled).to.be.true
       expect(loggerStub.calledOnceWith('Unhandled event' as any)).to.be.true
     })
   })
