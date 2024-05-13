@@ -156,7 +156,7 @@ describe('Indexer: MetadataHandler', () => {
       expect(proposalMetadataDB.blockNumber).to.eq(txLog.blockNumber)
       expect(proposalMetadataDB.network).to.eq(NetworksEnum.mainnet)
       expect(proposalMetadataDB.fetchedMetadata).to.eq(true)
-      expect(proposalMetadataDB.daoAddress).to.eq(txLog.address)
+      expect(proposalMetadataDB.pluginAddress).to.eq(txLog.address)
       expect(proposalMetadataDB.fetchedMetadata).to.eq(true)
       expect(proposalMetadataDB.proposalId).to.eq(fakeDecodedTx.args[0])
     })

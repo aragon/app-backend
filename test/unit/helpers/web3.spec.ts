@@ -1,7 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import Web3Utils from '@helpers/web3'
 import Web3Helper from '@helpers/web3'
 import { NetworksEnum } from '@types'
 import { id } from 'ethers'
@@ -20,10 +19,23 @@ describe('Helpers:Web3', () => {
     sandbox?.restore()
   })
 
+  describe('extractMetadataUri', () => {
+    it('should correctly convert hex string to UTF-8 string', function () {
+      const metadataHex = '0x68656c6c6f'
+      const result = Web3Helper.extractMetadataUri(metadataHex)
+      expect(result).to.equal('hello')
+    })
+
+    it('should handle empty hex strings', function () {
+      const result = Web3Helper.extractMetadataUri('0x')
+      expect(result).to.equal('')
+    })
+  })
+
   describe('parseDaoMetadata', () => {
     it('should parseMetadata', () => {
       expect(
-        Web3Utils.parseDaoMetadata({
+        Web3Helper.parseDaoMetadata({
           name: 'test',
           description: 'test',
           avatar: 'test',
@@ -36,14 +48,14 @@ describe('Helpers:Web3', () => {
         links: [{ name: 'test', url: 'test' }],
       })
 
-      expect(Web3Utils.parseDaoMetadata({})).to.deep.equal({
+      expect(Web3Helper.parseDaoMetadata({})).to.deep.equal({
         name: null,
         description: null,
         avatar: null,
         links: [],
       })
 
-      expect(Web3Utils.parseDaoMetadata(undefined as any)).to.deep.equal({
+      expect(Web3Helper.parseDaoMetadata(undefined as any)).to.deep.equal({
         name: null,
         description: null,
         avatar: null,
@@ -56,7 +68,7 @@ describe('Helpers:Web3', () => {
     const address = '0xInvalidAddress'
     const stubLogger = sandbox.stub(Logger, 'error')
 
-    const result = Web3Utils.parseAddress(address)
+    const result = Web3Helper.parseAddress(address)
 
     expect(result).to.be.null
     expect(stubLogger.calledWith('Error checksum dao address' as any)).to.be.true
@@ -75,7 +87,7 @@ describe('Helpers:Web3', () => {
         },
       }
 
-      const parsed = Web3Utils.parseProposalMetadata(proposalMetadata)
+      const parsed = Web3Helper.parseProposalMetadata(proposalMetadata)
 
       expect(parsed).to.deep.equal({
         title: 'Proposal 1',
@@ -101,7 +113,7 @@ describe('Helpers:Web3', () => {
         },
       }
 
-      const parsed = Web3Utils.parseProposalMetadata(incompleteMetadata)
+      const parsed = Web3Helper.parseProposalMetadata(incompleteMetadata)
 
       expect(parsed).to.deep.equal({
         title: 'Incomplete Proposal',
@@ -116,7 +128,7 @@ describe('Helpers:Web3', () => {
     })
 
     it('should handle undefined proposal metadata', () => {
-      const parsed = Web3Utils.parseProposalMetadata(undefined as any)
+      const parsed = Web3Helper.parseProposalMetadata(undefined as any)
 
       expect(parsed).to.deep.equal({
         title: null,
@@ -137,7 +149,7 @@ describe('Helpers:Web3', () => {
       const expectedChecksumAddress = '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359'
       const stubLogger = sandbox.stub(Logger, 'error')
 
-      const result = Web3Utils.parseAddress(address)
+      const result = Web3Helper.parseAddress(address)
 
       expect(result).to.equal(expectedChecksumAddress)
       expect(stubLogger.notCalled).to.be.true
@@ -147,7 +159,7 @@ describe('Helpers:Web3', () => {
       const address = '0xInvalidAddress'
       const stubLogger = sandbox.stub(Logger, 'error')
 
-      const result = Web3Utils.parseAddress(address)
+      const result = Web3Helper.parseAddress(address)
 
       expect(result).to.be.null
       expect(stubLogger.calledWith('Error checksum dao address' as any)).to.be.true
@@ -218,7 +230,7 @@ describe('Helpers:Web3', () => {
         getConfigItem: sandbox.stub().returns({}),
       }
       const stubRecordExistsStub = sandbox.stub().resolves(true)
-      const { default: MockedWeb3Utils } = proxyquire.noCallThru()('@helpers/web3', {
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {
             return { recordExists: stubRecordExistsStub }
@@ -233,7 +245,7 @@ describe('Helpers:Web3', () => {
       })
 
       const ensName = 'aavegotchi.dao.eth'
-      const result = await MockedWeb3Utils.ensExists(ensName, NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.ensExists(ensName, NetworksEnum.mainnet)
 
       expect(result).to.be.true
       expect(stubRecordExistsStub.calledOnce).to.be.true
@@ -247,7 +259,7 @@ describe('Helpers:Web3', () => {
       const stubRecordExistsStub = sandbox.stub().rejects(error) // Simulate error
       const stubLoggerError = sandbox.stub(Logger, 'error') // Stub logger's error to verify it's called
 
-      const { default: MockedWeb3Utils } = proxyquire.noCallThru()('@helpers/web3', {
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: () => {
             return { recordExists: stubRecordExistsStub }
@@ -263,7 +275,7 @@ describe('Helpers:Web3', () => {
       })
 
       const ensName = 'aavegotchi.dao.eth'
-      const result = await MockedWeb3Utils.ensExists(ensName, NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.ensExists(ensName, NetworksEnum.mainnet)
 
       expect(result).to.be.false
       expect(stubLoggerError.calledOnce).to.be.true
@@ -286,7 +298,7 @@ describe('Helpers:Web3', () => {
         topics: [id('EventName(uint256,address)')],
       }
 
-      const logs = await Web3Utils.queryLogs(filter, NetworksEnum.mainnet)
+      const logs = await Web3Helper.queryLogs(filter, NetworksEnum.mainnet)
 
       expect(logs).to.deep.equal(fakeLogs)
       expect(getLogsStub.calledOnceWithExactly(filter)).to.be.true
@@ -307,7 +319,7 @@ describe('Helpers:Web3', () => {
         topics: [id('EventName(uint256,address)')],
       }
 
-      const logs = await Web3Utils.queryLogs(filter, NetworksEnum.mainnet)
+      const logs = await Web3Helper.queryLogs(filter, NetworksEnum.mainnet)
 
       expect(logs).to.deep.equal([])
       expect(stubLoggerError.calledOnce).to.be.true
@@ -323,7 +335,7 @@ describe('Helpers:Web3', () => {
         getTransaction: getTransactionStub,
       })
 
-      const result = await Web3Utils.getTransaction(txHash, NetworksEnum.mainnet)
+      const result = await Web3Helper.getTransaction(txHash, NetworksEnum.mainnet)
 
       expect(result).to.be.true
     })
@@ -336,7 +348,7 @@ describe('Helpers:Web3', () => {
         getTransaction: getTransactionStub,
       })
 
-      const result = await Web3Utils.getTransaction(txHash, NetworksEnum.mainnet)
+      const result = await Web3Helper.getTransaction(txHash, NetworksEnum.mainnet)
 
       expect(result).to.be.null
       expect(getTransactionStub.calledOnce).to.be.true
@@ -352,7 +364,7 @@ describe('Helpers:Web3', () => {
         getTransactionReceipt: getTransactionReceiptStubStub,
       })
 
-      const result = await Web3Utils.getTransactionReceipt(txHash, NetworksEnum.mainnet)
+      const result = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.mainnet)
 
       expect(result).to.be.true
       expect(getTransactionReceiptStubStub.calledOnceWith(txHash)).to.be.true
@@ -366,7 +378,7 @@ describe('Helpers:Web3', () => {
         getTransactionReceipt: getTransactionReceiptStub,
       })
 
-      const result = await Web3Utils.getTransactionReceipt(txHash, NetworksEnum.mainnet)
+      const result = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.mainnet)
 
       expect(result).to.be.null
       expect(getTransactionReceiptStub.calledOnce).to.be.true
