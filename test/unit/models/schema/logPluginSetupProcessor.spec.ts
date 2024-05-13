@@ -28,7 +28,7 @@ describe('Model: LogPluginSetupProcessor', () => {
       preparedSetupId: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
       appliedSetupId: '0x17366cae2b9c6c3055e9e3c78936a69006be5402',
       pluginSetupRepo: '0x17366cae2b9c6c3055e9e3c78936a69006be5403',
-      plugin: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
+      pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
       sender: '0x17366cae2b9c6c3055e9e3c78936a69006be5405',
       release: '1',
       build: '2',
@@ -79,7 +79,7 @@ describe('Model: LogPluginSetupProcessor', () => {
     expect(createdLogDao.plugin).to.eq(rawLogPluginSetupProcessor.plugin)
 
     await createdLogDao.update({
-      plugin: 'new-plugin',
+      pluginAddress: 'new-plugin',
     })
 
     expect(createdLogDao.plugin).to.eq('new-plugin')
