@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { LogTokenVoting } from '@services/indexer/logTokenVoting'
+import { LogProposal } from '@services/indexer/logProposal'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
@@ -9,10 +9,10 @@ import { UtilsIndexer } from '@models/utils/indexer'
 import Network from '@models/schema/network'
 import Provider from '@modules/provider'
 import { Interface } from 'ethers'
-import { TokenVotingHandler } from '@services/indexer/handlers/tokenVotingHandler'
+import { ProposalHandler } from '@services/indexer/handlers/proposalHandler'
 import Utils from '@helpers/utils'
 
-describe('Indexer: LogTokenVoting', () => {
+describe('Indexer: LogProposal', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -24,7 +24,7 @@ describe('Indexer: LogTokenVoting', () => {
   })
 
   it('events', async () => {
-    expect(LogTokenVoting.events.length).to.eq(1)
+    expect(LogProposal.events.length).to.eq(4)
   })
 
   describe('start', () => {
@@ -65,14 +65,14 @@ describe('Indexer: LogTokenVoting', () => {
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
 
-      const processMetadataStub = sandbox.stub(LogTokenVoting, 'processLog').resolves()
+      const processMetadataStub = sandbox.stub(LogProposal, 'processLog').resolves()
       const loggerVerboseStub = sandbox.stub(logger, 'verbose')
       const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
 
-      await LogTokenVoting.start()
+      await LogProposal.start()
 
       expect(loggerVerboseStub.callCount).to.eq(6)
-      expect(processMetadataStub.callCount).to.eq(2)
+      expect(processMetadataStub.callCount).to.eq(4)
       expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
     })
@@ -114,16 +114,16 @@ describe('Indexer: LogTokenVoting', () => {
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
 
-      const processMetadataStub = sandbox.stub(LogTokenVoting, 'processLog').rejects()
-      const errorStub = sandbox.stub(LogTokenVoting, 'processError').resolves()
+      const processMetadataStub = sandbox.stub(LogProposal, 'processLog').rejects()
+      const errorStub = sandbox.stub(LogProposal, 'processError').resolves()
       const loggerVerboseStub = sandbox.stub(logger, 'verbose')
       const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
 
-      await LogTokenVoting.start()
+      await LogProposal.start()
 
-      expect(errorStub.callCount).to.eq(2)
+      expect(errorStub.callCount).to.eq(4)
       expect(loggerVerboseStub.callCount).to.eq(6)
-      expect(processMetadataStub.callCount).to.eq(2)
+      expect(processMetadataStub.callCount).to.eq(4)
       expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
     })
@@ -131,7 +131,7 @@ describe('Indexer: LogTokenVoting', () => {
     it('should skip unsupported networks', async () => {
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves(null)
       const stubLogger = sandbox.stub(logger, 'verbose')
-      await LogTokenVoting.start()
+      await LogProposal.start()
 
       expect(stubLogger.calledWith('Unsupported Network' as any)).to.be.true
       expect(networkFindStub.calledOnce).to.be.true
@@ -149,7 +149,7 @@ describe('Indexer: LogTokenVoting', () => {
         blockNumber: 1,
       }
 
-      for (const event of LogTokenVoting.events) {
+      for (const event of LogProposal.events) {
         const fakeEvent = {
           name: event,
           args: true,
@@ -157,9 +157,9 @@ describe('Indexer: LogTokenVoting', () => {
 
         const loggerStub = sandbox.stub(logger, 'verbose')
         const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
-        const stubProcessHandler = sandbox.stub(TokenVotingHandler, Utils.lowercaseFirstLetter(event))
+        const stubProcessHandler = sandbox.stub(ProposalHandler, Utils.lowercaseFirstLetter(event))
 
-        await LogTokenVoting.processLog(txLog as any, network)
+        await LogProposal.processLog(txLog as any, network)
 
         expect(stubParseLog.calledOnceWith(txLog)).to.be.true
         expect(loggerStub.calledOnceWith(event as any)).to.be.true
@@ -188,7 +188,7 @@ describe('Indexer: LogTokenVoting', () => {
       const loggerStub = sandbox.stub(logger, 'error')
       const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
 
-      await LogTokenVoting.processLog(txLog, network)
+      await LogProposal.processLog(txLog, network)
 
       expect(stubParseLog.calledOnceWith(txLog)).to.be.true
       expect(loggerStub.calledOnceWith('Unhandled event' as any)).to.be.true
@@ -199,9 +199,9 @@ describe('Indexer: LogTokenVoting', () => {
     const error = new Error('Test error')
     const loggerStub = sandbox.stub(logger, 'error')
 
-    await LogTokenVoting.processError(error, NetworksEnum.mainnet)
+    await LogProposal.processError(error, NetworksEnum.mainnet)
 
     expect(loggerStub.calledOnce).to.be.true
-    expect(loggerStub.calledWith('Error LogTokenVoting' as any)).to.be.true
+    expect(loggerStub.calledWith('Error LogProposal' as any)).to.be.true
   })
 })
