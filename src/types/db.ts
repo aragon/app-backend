@@ -80,6 +80,6 @@ export interface IResponseWithPagination {
 }
 
 export enum DepositType {
-  NativeToken ,
-  Token
+  NativeToken =  'NativeToken',
+  Token = 'Token'
 }

@@ -5,34 +5,34 @@ import * as _ from 'lodash'
 
 const customName = 'LogDaoRegistry'
 
-class Deposits {
-  @prop({ type: () => String, enum: DepositType })
+class Deposit {
+  @prop({ type: () => String, enum: DepositType, required: true })
   public type!: DepositType
 
   @prop({ type: () => String})
   public amount!: string
 
   @prop({ type: () => String })
-  public depositor!: string
+  public depositorAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
   public token!: string
 
-  @prop({ type: () => String })
+  @prop({ type: () => String, required: true })
   public transactionHash!: string
 
-  @prop({ type: () => String })
+  @prop({ type: () => String, required: true })
   public blockNumber!: string
 }
 
-class URIUpdates {
-  @prop({ type: () => String })
+class URIUpdate {
+  @prop({ type: () => String, required: true })
   public uri!: string
 
-  @prop({ type: () => String })
+  @prop({ type: () => String, required: true })
   public transactionHash!: string
 
-  @prop({ type: () => String })
+  @prop({ type: () => String, required: true })
   public blockNumber!: string
 }
 
@@ -72,11 +72,11 @@ export default class LogDaoRegistry extends Model {
   @prop({ type: () => String, default: null })
   public ens!: ENS
 
-  @prop({ type: () => URIUpdates })
-  public uriUpdates!: URIUpdates[]
+  @prop({ type: () => [URIUpdate], default: [] })
+  public actionEvents!: URIUpdate[]
 
-  @prop({ type: () => Deposits })
-  public deposits!: Deposits[]
+  @prop({ type: () => [Deposit], default: [] })
+  public depositEvents!: Deposit[]
 
   static async create(rawData: Partial<LogDaoRegistry>, tOpts?: SaveOptions) {
     const data = new this(rawData)
@@ -115,13 +115,13 @@ export default class LogDaoRegistry extends Model {
     return await this.save(tOpts)
   }
 
-  async addDeposit(deposit: Deposits, tOpts?: SaveOptions) {
+  async addDeposit(deposit: Deposit, tOpts?: SaveOptions) {
     this.deposits = this.deposits || []
     this.deposits.push(deposit)
     return await this.save(tOpts)
   }
 
-  async addURIUpdates(uriUpdates: URIUpdates, tOpts?: SaveOptions) {
+  async addURIUpdates(uriUpdates: URIUpdate, tOpts?: SaveOptions) {
     this.uriUpdates = this.uriUpdates || []
     this.uriUpdates.push(uriUpdates)
     return await this.save(tOpts)
