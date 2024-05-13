@@ -20,8 +20,7 @@ export const InitialData = {
             lastBlockPluginRepoRegistry: contractConfig.PluginRepoRegistryImplementation.blockNumber,
             lastBlockPluginSetupProcessor: contractConfig.PluginSetupProcessor.blockNumber,
             lastBlockProposal: contractConfig.DAOFactory.blockNumber,
-            lastBlockTokenVoting: contractConfig.TokenVotingSetupImplementation.blockNumber,
-            lastBlockMultisig: contractConfig.MultisigSetupImplementation.blockNumber,
+            lastBlockPluginSetting: contractConfig.TokenVotingSetupImplementation.blockNumber,
           })
         }
       }),
