@@ -9,10 +9,10 @@ import { UtilsIndexer } from '@models/utils/indexer'
 import { Multisig } from '@artifacts/Multisig'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogPluginRepoRegistry' })
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMember' })
 
 export const LogMember = {
-  events: ['MembersAdded', 'MembersRemoved', 'DelegateChanged', 'DelegateVotesChanged'],
+  events: ['MembersAdded', 'MembersRemoved'],
 
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {
@@ -64,7 +64,15 @@ export const LogMember = {
 
   processLog: async (txLog: any, network: NetworksEnum) => {
     const iFace = LogMember.getInterface(txLog.topics[0])
-    const event = iFace.parseLog(txLog)!
+
+    let event = null as any
+    try {
+      event = iFace.parseLog(txLog)!
+    } catch (error: any) {
+      if (error?.message.includes('out-of-bounds')) {
+        return
+      }
+    }
 
     switch (event.name) {
       case 'MembersAdded':
@@ -91,7 +99,7 @@ export const LogMember = {
 
   processError: async (error: any, network: NetworksEnum) => {
     logger.error(
-      'Error PluginRepoRegistered',
+      'Error LogMember',
       llo({
         error,
         network,
