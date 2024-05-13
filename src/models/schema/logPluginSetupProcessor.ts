@@ -64,7 +64,7 @@ export default class LogPluginSetupProcessor extends Model {
   public pluginSetupRepo!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public plugin!: HexAddress
+  public pluginAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
   public sender!: HexAddress

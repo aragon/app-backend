@@ -6,11 +6,12 @@ import { LogDao } from '@services/indexer/logDao'
 import { LogDaoRegistry } from '@services/indexer/logDaoRegistry'
 import { LogPluginRepoRegistry } from '@services/indexer/logPluginRepoRegistry'
 import { LogPluginSetupProcessor } from '@services/indexer/logPluginSetupProcessor'
+import { LogProposal } from '@services/indexer/logProposal'
 import config from '@config'
 import utils from '@helpers/utils'
 import { EnumConnection } from '@types'
 import logger from '@logger'
-import { LogProposal } from '@services/indexer/logProposal'
+import { LogPluginSetting } from '@services/indexer/logPluginSetting'
 
 describe('Indexer: index', () => {
   let sandbox: SinonSandbox
@@ -34,6 +35,7 @@ describe('Indexer: index', () => {
     const stubPluginRepoLogs = sandbox.stub(LogPluginRepoRegistry, 'start').resolves()
     const stubPluginSetupProcessorLogs = sandbox.stub(LogPluginSetupProcessor, 'start').resolves()
     const stubProposalLogs = sandbox.stub(LogProposal, 'start').resolves()
+    const stubPluginSettingLogs = sandbox.stub(LogPluginSetting, 'start').resolves()
 
     await IndexerService.start()
     await utils.wait(100)
@@ -43,6 +45,7 @@ describe('Indexer: index', () => {
     expect(typeof IndexerService.repeaters.pluginRepoRegistry).to.eq('function')
     expect(typeof IndexerService.repeaters.pluginSetupProcessor).to.eq('function')
     expect(typeof IndexerService.repeaters.proposal).to.eq('function')
+    expect(typeof IndexerService.repeaters.pluginSetting).to.eq('function')
 
     await utils.wait(200)
 
@@ -51,6 +54,7 @@ describe('Indexer: index', () => {
     expect(stubPluginRepoLogs.calledTwice).to.be.true
     expect(stubPluginSetupProcessorLogs.calledTwice).to.be.true
     expect(stubProposalLogs.calledTwice).to.be.true
+    expect(stubPluginSettingLogs.calledTwice).to.be.true
 
     await IndexerService.stop()
     await utils.wait(200)
@@ -60,12 +64,14 @@ describe('Indexer: index', () => {
     expect(IndexerService.repeaters.pluginRepoRegistry).not.to.exist
     expect(IndexerService.repeaters.pluginSetupProcessor).not.to.exist
     expect(IndexerService.repeaters.proposal).not.to.exist
+    expect(IndexerService.repeaters.pluginSetting).not.to.exist
 
     expect(stubDaoLogs.calledTwice).to.be.true
     expect(stubMetadataLogs.calledTwice).to.be.true
     expect(stubPluginRepoLogs.calledTwice).to.be.true
     expect(stubPluginSetupProcessorLogs.calledTwice).to.be.true
     expect(stubProposalLogs.calledTwice).to.be.true
+    expect(stubPluginSettingLogs.calledTwice).to.be.true
 
     config.SERVICES.SYNC_DATA.DAO_INTERVAL = configBk
   })
@@ -83,15 +89,17 @@ describe('Indexer: index', () => {
     sandbox.stub(LogPluginRepoRegistry, 'start').rejects(testError)
     sandbox.stub(LogPluginSetupProcessor, 'start').rejects(testError)
     sandbox.stub(LogProposal, 'start').rejects(testError)
+    sandbox.stub(LogPluginSetting, 'start').rejects(testError)
 
     await IndexerService.start()
 
-    expect(stubLogger.callCount).to.eq(5)
+    expect(stubLogger.callCount).to.eq(6)
     expect(stubLogger.getCall(0).calledWith('Indexer Dao error' as any)).to.be.true
     expect(stubLogger.getCall(1).calledWith('Indexer DaoRegistry error' as any)).to.be.true
     expect(stubLogger.getCall(2).calledWith('Indexer PluginRepoRegistry error' as any)).to.be.true
     expect(stubLogger.getCall(3).calledWith('Indexer PluginSetupProcessor error' as any)).to.be.true
     expect(stubLogger.getCall(4).calledWith('Indexer LogProposal error' as any)).to.be.true
+    expect(stubLogger.getCall(5).calledWith('Indexer LogPluginSetting error' as any)).to.be.true
 
     await IndexerService.stop()
 
