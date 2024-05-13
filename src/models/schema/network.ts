@@ -50,6 +50,9 @@ export default class Network extends Model {
   public lastBlockPluginSetupProcessor!: number
 
   @prop({ type: () => Number, default: 0 })
+  public lastBlockProposal!: number
+
+  @prop({ type: () => Number, default: 0 })
   public lastBlockTokenVoting!: number
 
   @prop({ type: () => Number, default: 0 })

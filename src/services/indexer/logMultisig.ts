@@ -11,15 +11,7 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMultisig' })
 
 export const LogMultisig = {
-  events: [
-    'Approved',
-    'MembersAdded',
-    'MembersRemoved',
-    'MembershipContractAnnounced',
-    'ProposalCreated',
-    'ProposalExecuted',
-    'MultisigSettingsUpdated',
-  ],
+  events: ['MultisigSettingsUpdated'],
 
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {
@@ -60,30 +52,6 @@ export const LogMultisig = {
     const event = new Interface(TokenVoting.abi).parseLog(txLog)!
 
     switch (event.name) {
-      case 'Approved':
-        logger.verbose('Approved', llo({ event }))
-        await MultisigHandler.approved(event, txLog, network)
-        break
-      case 'MembersAdded':
-        logger.verbose('MembersAdded', llo({ event }))
-        await MultisigHandler.membersAdded(event, txLog, network)
-        break
-      case 'MembersRemoved':
-        logger.verbose('MembersRemoved', llo({ event }))
-        await MultisigHandler.membersRemoved(event, txLog, network)
-        break
-      case 'MembershipContractAnnounced':
-        logger.verbose('MembershipContractAnnounced', llo({ event }))
-        await MultisigHandler.membershipContractAnnounced(event, txLog, network)
-        break
-      case 'ProposalCreated':
-        logger.verbose('ProposalCreated', llo({ event }))
-        await MultisigHandler.proposalCreated(event, txLog, network)
-        break
-      case 'ProposalExecuted':
-        logger.verbose('ProposalExecuted', llo({ event }))
-        await MultisigHandler.proposalExecuted(event, txLog, network)
-        break
       case 'MultisigSettingsUpdated':
         logger.verbose('MultisigSettingsUpdated', llo({ event }))
         await MultisigHandler.multisigSettingsUpdated(event, txLog, network)
