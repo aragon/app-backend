@@ -8,6 +8,7 @@ import type LogDaoMetadata from '@models/schema/logDaoMetadata'
 import type LogProposalMetadata from '@models/schema/logProposalMetadata'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type LogPluginRepo from '@models/schema/logPluginRepo'
+import type LogProposal from '@models/schema/logProposal'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
@@ -18,6 +19,7 @@ export interface IMongoModel {
   LogProposalMetadata: Model<InstanceType<typeof LogProposalMetadata>>
   LogPluginSetupProcessor: Model<InstanceType<typeof LogPluginSetupProcessor>>
   LogPluginRepo: Model<InstanceType<typeof LogPluginRepo>>
+  LogProposal: Model<InstanceType<typeof LogProposal>>
 }
 
 export enum IEventLogPluginType {
