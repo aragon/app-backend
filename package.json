@@ -10,6 +10,7 @@
     "service:main": "ts-node -r tsconfig-paths/register runners/main.ts",
     "service:api": "ts-node -r tsconfig-paths/register runners/api.ts",
     "service:indexer": "ts-node -r tsconfig-paths/register runners/indexer.ts",
+    "data:seed": "ts-node -r tsconfig-paths/register runners/dataSeeder.ts",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format:check": "prettier --check .",

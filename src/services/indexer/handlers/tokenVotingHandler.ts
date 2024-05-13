@@ -1,6 +1,8 @@
 import logger from '@logger'
 import { type NetworksEnum } from '@types'
 import { type LogDescription } from 'ethers'
+import { Models } from '@dbModels'
+
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:TokenVotingHandler' })
 
@@ -32,4 +34,10 @@ export const TokenVotingHandler = {
   voteCastForbidden: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     logger.verbose('voteCastForbidden', llo({ parsedEvent }))
   },
+
+  votingSettingsUpdated: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
+    logger.verbose('votingSettingsUpdated', llo({ parsedEvent }))
+
+
+  }
 }

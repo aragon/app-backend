@@ -9,7 +9,6 @@ import type LogProposalMetadata from '@models/schema/logProposalMetadata'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type LogPluginRepo from '@models/schema/logPluginRepo'
 import type LogMember from '@models/schema/logMember'
-import type LogDao from '@models/schema/logDao'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
@@ -21,7 +20,6 @@ export interface IMongoModel {
   LogPluginSetupProcessor: Model<InstanceType<typeof LogPluginSetupProcessor>>
   LogPluginRepo: Model<InstanceType<typeof LogPluginRepo>>
   LogMember: Model<InstanceType<typeof LogMember>>
-  LogDao: Model<InstanceType<typeof LogDao>>
 }
 
 export enum IEventLogPluginType {
@@ -79,4 +77,9 @@ export interface IResponseWithPagination {
   currentPage: number
   totPages: number
   totRecords: number
+}
+
+export enum DepositType {
+  NativeToken ,
+  Token
 }

@@ -1,8 +1,9 @@
 import config from '@config'
-import { StatusNetworkEnum } from '@types'
+import { EnumConnection, StatusNetworkEnum } from '@types'
 import { Models } from '@dbModels'
 
 export const InitialData = {
+  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
   start: async () => {
     const networks = config.BLOCKCHAIN_NODES
 
@@ -27,4 +28,6 @@ export const InitialData = {
       }),
     )
   },
+
+  stop: async () => {},
 }

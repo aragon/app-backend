@@ -24,7 +24,7 @@ describe('Manual: Indexer', () => {
     await LogMember.start()
   })
 
-  it('index', async () => {
+  it.only('index', async () => {
     await ProviderModule.connectToAllNetworks()
     await InitialData.start()
     await LogDao.start()

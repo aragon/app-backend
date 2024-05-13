@@ -1,9 +1,40 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { ENS, HexAddress, NetworksEnum } from '@types'
+import { ENS, HexAddress, NetworksEnum, DepositType } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 
 const customName = 'LogDaoRegistry'
+
+class Deposits {
+  @prop({ type: () => String, enum: DepositType })
+  public type!: DepositType
+
+  @prop({ type: () => String})
+  public amount!: string
+
+  @prop({ type: () => String })
+  public depositor!: string
+
+  @prop({ type: () => String, default: null })
+  public token!: string
+
+  @prop({ type: () => String })
+  public transactionHash!: string
+
+  @prop({ type: () => String })
+  public blockNumber!: string
+}
+
+class URIUpdates {
+  @prop({ type: () => String })
+  public uri!: string
+
+  @prop({ type: () => String })
+  public transactionHash!: string
+
+  @prop({ type: () => String })
+  public blockNumber!: string
+}
 
 @modelOptions({
   schemaOptions: {
@@ -21,6 +52,7 @@ const customName = 'LogDaoRegistry'
   network: 1,
   lastBlockSync: 1,
 })
+
 export default class LogDaoRegistry extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public transactionHash!: HexAddress
@@ -40,6 +72,12 @@ export default class LogDaoRegistry extends Model {
   @prop({ type: () => String, default: null })
   public ens!: ENS
 
+  @prop({ type: () => URIUpdates })
+  public uriUpdates!: URIUpdates[]
+
+  @prop({ type: () => Deposits })
+  public deposits!: Deposits[]
+
   static async create(rawData: Partial<LogDaoRegistry>, tOpts?: SaveOptions) {
     const data = new this(rawData)
     return await data.save(tOpts)
@@ -47,6 +85,18 @@ export default class LogDaoRegistry extends Model {
 
   static async findTxHash(transactionHash: HexAddress, tOpts?: SaveOptions) {
     return await this.findOne({ transactionHash }, tOpts)
+  }
+
+  static async findByAddress(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return await this.findOne({ address, network }, tOpts)
+  }
+
+  static async findDepositTxHashWithDaoAddress(transactionHash: HexAddress, address: HexAddress, tOpts?: SaveOptions) {
+    return await this.findOne({ 'deposits.transactionHash': transactionHash, address }, tOpts)
+  }
+
+  static async findURIUpdatesTxHashWithDaoAddress(transactionHash: HexAddress, address: HexAddress, tOpts?: SaveOptions) {
+    return await this.findOne({ 'uriUpdates.transactionHash': transactionHash, address }, tOpts)
   }
 
   async update(params: Partial<LogDaoRegistry>, tOpts?: SaveOptions) {
@@ -62,6 +112,18 @@ export default class LogDaoRegistry extends Model {
       }
     })
 
+    return await this.save(tOpts)
+  }
+
+  async addDeposit(deposit: Deposits, tOpts?: SaveOptions) {
+    this.deposits = this.deposits || []
+    this.deposits.push(deposit)
+    return await this.save(tOpts)
+  }
+
+  async addURIUpdates(uriUpdates: URIUpdates, tOpts?: SaveOptions) {
+    this.uriUpdates = this.uriUpdates || []
+    this.uriUpdates.push(uriUpdates)
     return await this.save(tOpts)
   }
 

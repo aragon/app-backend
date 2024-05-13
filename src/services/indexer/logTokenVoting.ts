@@ -19,6 +19,7 @@ export const LogTokenVoting = {
     'ProposalExecuted',
     'VoteCast',
     'VoteCastForbidden',
+    'VotingSettingsUpdated'
   ],
 
   start: async () => {
@@ -60,6 +61,10 @@ export const LogTokenVoting = {
     const event = new Interface(TokenVoting.abi).parseLog(txLog)!
 
     switch (event.name) {
+      case 'VotingSettingsUpdated':
+        logger.verbose('VotingSettingsUpdated', llo({ event }))
+        await TokenVotingHandler.votingSettingsUpdated(event, txLog, network)
+        break
       case 'MembersAdded':
         logger.verbose('MembersAdded', llo({ event }))
         await TokenVotingHandler.membersAdded(event, txLog, network)
