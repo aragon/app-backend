@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { LogMultisig } from '@services/indexer/logMultisig'
+import { LogProposal } from '@services/indexer/logProposal'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
@@ -9,10 +9,10 @@ import { UtilsIndexer } from '@models/utils/indexer'
 import Network from '@models/schema/network'
 import Provider from '@modules/provider'
 import { Interface } from 'ethers'
-import { MultisigHandler } from '@services/indexer/handlers/multisigHandler'
+import { ProposalHandler } from '@services/indexer/handlers/proposalHandler'
 import Utils from '@helpers/utils'
 
-describe('Indexer: LogMultisig', () => {
+describe('Indexer: LogProposal', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -24,7 +24,7 @@ describe('Indexer: LogMultisig', () => {
   })
 
   it('events', async () => {
-    expect(LogMultisig.events.length).to.eq(7)
+    expect(LogProposal.events.length).to.eq(4)
   })
 
   describe('start', () => {
@@ -65,11 +65,11 @@ describe('Indexer: LogMultisig', () => {
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
 
-      const processMetadataStub = sandbox.stub(LogMultisig, 'processLog').resolves()
+      const processMetadataStub = sandbox.stub(LogProposal, 'processLog').resolves()
       const loggerVerboseStub = sandbox.stub(logger, 'verbose')
       const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
 
-      await LogMultisig.start()
+      await LogProposal.start()
 
       expect(loggerVerboseStub.callCount).to.eq(6)
       expect(processMetadataStub.callCount).to.eq(4)
@@ -114,12 +114,12 @@ describe('Indexer: LogMultisig', () => {
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
 
-      const processMetadataStub = sandbox.stub(LogMultisig, 'processLog').rejects()
-      const errorStub = sandbox.stub(LogMultisig, 'processError').resolves()
+      const processMetadataStub = sandbox.stub(LogProposal, 'processLog').rejects()
+      const errorStub = sandbox.stub(LogProposal, 'processError').resolves()
       const loggerVerboseStub = sandbox.stub(logger, 'verbose')
       const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
 
-      await LogMultisig.start()
+      await LogProposal.start()
 
       expect(errorStub.callCount).to.eq(4)
       expect(loggerVerboseStub.callCount).to.eq(6)
@@ -131,7 +131,7 @@ describe('Indexer: LogMultisig', () => {
     it('should skip unsupported networks', async () => {
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves(null)
       const stubLogger = sandbox.stub(logger, 'verbose')
-      await LogMultisig.start()
+      await LogProposal.start()
 
       expect(stubLogger.calledWith('Unsupported Network' as any)).to.be.true
       expect(networkFindStub.calledOnce).to.be.true
@@ -149,7 +149,7 @@ describe('Indexer: LogMultisig', () => {
         blockNumber: 1,
       }
 
-      for (const event of LogMultisig.events) {
+      for (const event of LogProposal.events) {
         const fakeEvent = {
           name: event,
           args: true,
@@ -157,9 +157,9 @@ describe('Indexer: LogMultisig', () => {
 
         const loggerStub = sandbox.stub(logger, 'verbose')
         const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
-        const stubProcessHandler = sandbox.stub(MultisigHandler, Utils.lowercaseFirstLetter(event))
+        const stubProcessHandler = sandbox.stub(ProposalHandler, Utils.lowercaseFirstLetter(event))
 
-        await LogMultisig.processLog(txLog as any, network)
+        await LogProposal.processLog(txLog as any, network)
 
         expect(stubParseLog.calledOnceWith(txLog)).to.be.true
         expect(loggerStub.calledOnceWith(event as any)).to.be.true
@@ -188,7 +188,7 @@ describe('Indexer: LogMultisig', () => {
       const loggerStub = sandbox.stub(logger, 'error')
       const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
 
-      await LogMultisig.processLog(txLog, network)
+      await LogProposal.processLog(txLog, network)
 
       expect(stubParseLog.calledOnceWith(txLog)).to.be.true
       expect(loggerStub.calledOnceWith('Unhandled event' as any)).to.be.true
@@ -199,9 +199,9 @@ describe('Indexer: LogMultisig', () => {
     const error = new Error('Test error')
     const loggerStub = sandbox.stub(logger, 'error')
 
-    await LogMultisig.processError(error, NetworksEnum.mainnet)
+    await LogProposal.processError(error, NetworksEnum.mainnet)
 
     expect(loggerStub.calledOnce).to.be.true
-    expect(loggerStub.calledWith('Error LogMultisig' as any)).to.be.true
+    expect(loggerStub.calledWith('Error LogProposal' as any)).to.be.true
   })
 })

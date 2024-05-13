@@ -8,6 +8,8 @@ import type LogDaoMetadata from '@models/schema/logDaoMetadata'
 import type LogProposalMetadata from '@models/schema/logProposalMetadata'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type LogPluginRepo from '@models/schema/logPluginRepo'
+import type LogProposal from '@models/schema/logProposal'
+import type LogPluginSetting from '@models/schema/logPluginSetting'
 import type LogMember from '@models/schema/logMember'
 import type LogDao from '@models/schema/logDao'
 
@@ -20,6 +22,8 @@ export interface IMongoModel {
   LogProposalMetadata: Model<InstanceType<typeof LogProposalMetadata>>
   LogPluginSetupProcessor: Model<InstanceType<typeof LogPluginSetupProcessor>>
   LogPluginRepo: Model<InstanceType<typeof LogPluginRepo>>
+  LogProposal: Model<InstanceType<typeof LogProposal>>
+  LogPluginSetting: Model<InstanceType<typeof LogPluginSetting>>
   LogMember: Model<InstanceType<typeof LogMember>>
   LogDao: Model<InstanceType<typeof LogDao>>
 }
@@ -32,18 +36,6 @@ export enum IEventLogPluginType {
   UpdatePrepared = 'UpdatePrepared',
   UpdateApplied = 'UpdateApplied',
 }
-
-/**
- *  'CallbackReceived',
- *     'Deposited',
- *     'Executed',
- *     'Granted',
- *     'MetadataSet',
- *     'NativeTokenDeposited',
- *     'NewURI',
- *     'Revoked',
- *     'StandardCallbackRegistered',
- */
 
 export enum IEventLogDao {
   CallbackReceived = 'CallbackReceived',
