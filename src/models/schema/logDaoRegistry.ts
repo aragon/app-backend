@@ -73,7 +73,7 @@ export default class LogDaoRegistry extends Model {
   public ens!: ENS
 
   @prop({ type: () => [URIUpdate], default: [] })
-  public actionEvents!: URIUpdate[]
+  public uriEvents!: URIUpdate[]
 
   @prop({ type: () => [Deposit], default: [] })
   public depositEvents!: Deposit[]
@@ -92,11 +92,11 @@ export default class LogDaoRegistry extends Model {
   }
 
   static async findDepositTxHashWithDaoAddress(transactionHash: HexAddress, address: HexAddress, tOpts?: SaveOptions) {
-    return await this.findOne({ 'deposits.transactionHash': transactionHash, address }, tOpts)
+    return await this.findOne({ 'depositEvents.transactionHash': transactionHash, address }, tOpts)
   }
 
   static async findURIUpdatesTxHashWithDaoAddress(transactionHash: HexAddress, address: HexAddress, tOpts?: SaveOptions) {
-    return await this.findOne({ 'uriUpdates.transactionHash': transactionHash, address }, tOpts)
+    return await this.findOne({ 'uriEvents.transactionHash': transactionHash, address }, tOpts)
   }
 
   async update(params: Partial<LogDaoRegistry>, tOpts?: SaveOptions) {
@@ -116,14 +116,14 @@ export default class LogDaoRegistry extends Model {
   }
 
   async addDeposit(deposit: Deposit, tOpts?: SaveOptions) {
-    this.deposits = this.deposits || []
-    this.deposits.push(deposit)
+    this.depositEvents = this.depositEvents || []
+    this.depositEvents.push(deposit)
     return await this.save(tOpts)
   }
 
-  async addURIUpdates(uriUpdates: URIUpdate, tOpts?: SaveOptions) {
-    this.uriUpdates = this.uriUpdates || []
-    this.uriUpdates.push(uriUpdates)
+  async addURIUpdates(uri: URIUpdate, tOpts?: SaveOptions) {
+    this.uriEvents = this.uriEvents || []
+    this.uriEvents.push(uri)
     return await this.save(tOpts)
   }
 
