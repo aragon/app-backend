@@ -55,7 +55,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(daoMetadataDB.daoAddress).to.eq(fakeEvent.args.dao)
     expect(daoMetadataDB.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
     expect(daoMetadataDB.appliedSetupId).to.eq(fakeEvent.args.appliedSetupId)
-    expect(daoMetadataDB.plugin).to.eq(fakeEvent.args.plugin)
+    expect(daoMetadataDB.pluginAddress).to.eq(fakeEvent.args.plugin)
   })
 
   it('installationPrepared', async () => {
@@ -111,7 +111,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(daoMetadataDB.daoAddress).to.eq(fakeEvent.args.dao)
     expect(daoMetadataDB.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
     expect(daoMetadataDB.pluginSetupRepo).to.eq(fakeEvent.args.pluginSetupRepo)
-    expect(daoMetadataDB.plugin).to.eq(fakeEvent.args.plugin)
+    expect(daoMetadataDB.pluginAddress).to.eq(fakeEvent.args.plugin)
     expect(daoMetadataDB.release).to.eq(fakeEvent.args.versionTag.release)
     expect(daoMetadataDB.build).to.eq(fakeEvent.args.versionTag.release)
   })
@@ -152,7 +152,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(daoMetadataDB.event).to.eq(IEventLogPluginType.UninstallationApplied)
     expect(daoMetadataDB.daoAddress).to.eq(fakeEvent.args.dao)
     expect(daoMetadataDB.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
-    expect(daoMetadataDB.plugin).to.eq(fakeEvent.args.plugin)
+    expect(daoMetadataDB.pluginAddress).to.eq(fakeEvent.args.plugin)
   })
 
   it('uninstallationPrepared', async () => {
@@ -208,7 +208,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(daoMetadataDB.daoAddress).to.eq(fakeEvent.args.dao)
     expect(daoMetadataDB.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
     expect(daoMetadataDB.pluginSetupRepo).to.eq(fakeEvent.args.pluginSetupRepo)
-    expect(daoMetadataDB.plugin).to.eq(fakeEvent.args.plugin)
+    expect(daoMetadataDB.pluginAddress).to.eq(fakeEvent.args.plugin)
     expect(daoMetadataDB.release).to.eq(fakeEvent.args.versionTag.release)
     expect(daoMetadataDB.build).to.eq(fakeEvent.args.versionTag.release)
   })
@@ -251,7 +251,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(daoMetadataDB.daoAddress).to.eq(fakeEvent.args.dao)
     expect(daoMetadataDB.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
     expect(daoMetadataDB.appliedSetupId).to.eq(fakeEvent.args.appliedSetupId)
-    expect(daoMetadataDB.plugin).to.eq(fakeEvent.args.plugin)
+    expect(daoMetadataDB.pluginAddress).to.eq(fakeEvent.args.plugin)
   })
 
   it('updatePrepared', async () => {
@@ -309,7 +309,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(daoMetadataDB.daoAddress).to.eq(fakeEvent.args.dao)
     expect(daoMetadataDB.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
     expect(daoMetadataDB.pluginSetupRepo).to.eq(fakeEvent.args.pluginSetupRepo)
-    expect(daoMetadataDB.plugin).to.eq(fakeEvent.args.setupPayload.plugin)
+    expect(daoMetadataDB.pluginAddress).to.eq(fakeEvent.args.setupPayload.plugin)
     expect(daoMetadataDB.release).to.eq(fakeEvent.args.versionTag.release)
     expect(daoMetadataDB.build).to.eq(fakeEvent.args.versionTag.release)
   })
