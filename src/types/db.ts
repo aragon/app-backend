@@ -10,6 +10,7 @@ import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor
 import type LogPluginRepo from '@models/schema/logPluginRepo'
 import type LogMember from '@models/schema/logMember'
 import type LogDao from '@models/schema/logDao'
+import type LogProposal from '@models/schema/logProposal'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
@@ -22,6 +23,7 @@ export interface IMongoModel {
   LogPluginRepo: Model<InstanceType<typeof LogPluginRepo>>
   LogMember: Model<InstanceType<typeof LogMember>>
   LogDao: Model<InstanceType<typeof LogDao>>
+  LogProposal: Model<InstanceType<typeof LogProposal>>
 }
 
 export enum IEventLogPluginType {
