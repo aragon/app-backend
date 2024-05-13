@@ -16,66 +16,6 @@ describe('Indexer: MultisigHandler', () => {
     sandbox?.restore()
   })
 
-  it('approved', async () => {
-    const event = { name: 'test' }
-    const txLog = { name: 'test' }
-    const network = NetworksEnum.mainnet
-
-    const stubLogger = sandbox.stub(logger, 'verbose')
-    await MultisigHandler.approved(event as any, txLog, network)
-    expect(stubLogger.calledOnce).to.be.true
-  })
-
-  it('membersAdded', async () => {
-    const event = { name: 'test' }
-    const txLog = { name: 'test' }
-    const network = NetworksEnum.mainnet
-
-    const stubLogger = sandbox.stub(logger, 'verbose')
-    await MultisigHandler.membersAdded(event as any, txLog, network)
-    expect(stubLogger.calledOnce).to.be.true
-  })
-
-  it('membersRemoved', async () => {
-    const event = { name: 'test' }
-    const txLog = { name: 'test' }
-    const network = NetworksEnum.mainnet
-
-    const stubLogger = sandbox.stub(logger, 'verbose')
-    await MultisigHandler.membersRemoved(event as any, txLog, network)
-    expect(stubLogger.calledOnce).to.be.true
-  })
-
-  it('membershipContractAnnounced', async () => {
-    const event = { name: 'test' }
-    const txLog = { name: 'test' }
-    const network = NetworksEnum.mainnet
-
-    const stubLogger = sandbox.stub(logger, 'verbose')
-    await MultisigHandler.membershipContractAnnounced(event as any, txLog, network)
-    expect(stubLogger.calledOnce).to.be.true
-  })
-
-  it('proposalCreated', async () => {
-    const event = { name: 'test' }
-    const txLog = { name: 'test' }
-    const network = NetworksEnum.mainnet
-
-    const stubLogger = sandbox.stub(logger, 'verbose')
-    await MultisigHandler.proposalCreated(event as any, txLog, network)
-    expect(stubLogger.calledOnce).to.be.true
-  })
-
-  it('proposalExecuted', async () => {
-    const event = { name: 'test' }
-    const txLog = { name: 'test' }
-    const network = NetworksEnum.mainnet
-
-    const stubLogger = sandbox.stub(logger, 'verbose')
-    await MultisigHandler.proposalExecuted(event as any, txLog, network)
-    expect(stubLogger.calledOnce).to.be.true
-  })
-
   it('multisigSettingsUpdated', async () => {
     const event = { name: 'test' }
     const txLog = { name: 'test' }

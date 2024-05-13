@@ -11,15 +11,7 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
 export const LogTokenVoting = {
-  events: [
-    'MembersAdded',
-    'MembersRemoved',
-    'MembershipContractAnnounced',
-    'ProposalCreated',
-    'ProposalExecuted',
-    'VoteCast',
-    'VoteCastForbidden',
-  ],
+  events: ['VotingSettingsUpdated'],
 
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {
@@ -60,33 +52,9 @@ export const LogTokenVoting = {
     const event = new Interface(TokenVoting.abi).parseLog(txLog)!
 
     switch (event.name) {
-      case 'MembersAdded':
-        logger.verbose('MembersAdded', llo({ event }))
-        await TokenVotingHandler.membersAdded(event, txLog, network)
-        break
-      case 'MembersRemoved':
-        logger.verbose('MembersRemoved', llo({ event }))
-        await TokenVotingHandler.membersRemoved(event, txLog, network)
-        break
-      case 'MembershipContractAnnounced':
-        logger.verbose('MembershipContractAnnounced', llo({ event }))
-        await TokenVotingHandler.membershipContractAnnounced(event, txLog, network)
-        break
-      case 'ProposalCreated':
-        logger.verbose('ProposalCreated', llo({ event }))
-        await TokenVotingHandler.proposalCreated(event, txLog, network)
-        break
-      case 'ProposalExecuted':
-        logger.verbose('ProposalExecuted', llo({ event }))
-        await TokenVotingHandler.proposalExecuted(event, txLog, network)
-        break
-      case 'VoteCast':
-        logger.verbose('VoteCast', llo({ event }))
-        await TokenVotingHandler.voteCast(event, txLog, network)
-        break
-      case 'VoteCastForbidden':
-        logger.verbose('VoteCastForbidden', llo({ event }))
-        await TokenVotingHandler.voteCastForbidden(event, txLog, network)
+      case 'VotingSettingsUpdated':
+        logger.verbose('VotingSettingsUpdated', llo({ event }))
+        await TokenVotingHandler.votingSettingsUpdated(event, txLog, network)
         break
       default:
         logger.error('Unhandled event', llo({ event }))

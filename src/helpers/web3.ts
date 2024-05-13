@@ -8,6 +8,11 @@ import config from '@config'
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Utils' })
 
 const Web3Utils = {
+  extractMetadataUri(metadataHex: string) {
+    const metadataBytes = Buffer.from(metadataHex.substring(2), 'hex')
+    return metadataBytes.toString('utf8')
+  },
+
   parseDaoMetadata(metadata: IDaoMetadata): IDaoMetadata {
     const parsedMetadata: IDaoMetadata = {
       name: null,

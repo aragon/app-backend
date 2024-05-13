@@ -51,7 +51,7 @@ export default class LogProposalMetadata extends Model {
   public fetchedMetadata!: boolean
 
   @prop({ type: () => String, default: null })
-  public daoAddress!: HexAddress
+  public pluginAddress!: HexAddress
 
   @prop({ type: () => Number, default: null })
   public proposalId!: number

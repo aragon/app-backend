@@ -6,6 +6,7 @@ import { LogDao } from '@services/indexer/logDao'
 import { LogDaoRegistry } from '@services/indexer/logDaoRegistry'
 import { LogPluginRepoRegistry } from '@services/indexer/logPluginRepoRegistry'
 import { LogPluginSetupProcessor } from '@services/indexer/logPluginSetupProcessor'
+import { LogProposal } from '@services/indexer/logProposal'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -45,6 +46,14 @@ const IndexerService: IService & { repeaters: any } = {
       delay: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
       onError: (error: any): void => {
         logger.error('Indexer PluginSetupProcessor error', llo({ error }))
+      },
+    })
+
+    IndexerService.repeaters.proposal = Utils.setIntervalAsync({
+      fn: LogProposal.start,
+      delay: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
+      onError: (error: any): void => {
+        logger.error('Indexer LogProposal error', llo({ error }))
       },
     })
   },

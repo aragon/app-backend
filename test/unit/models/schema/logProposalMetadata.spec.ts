@@ -24,7 +24,7 @@ describe('Model: LogProposalMetadata', () => {
       blockNumber: 3,
       network: NetworksEnum.mainnet,
       fetchedMetadata: true,
-      daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       proposalId: 1,
       metadataUri: 'test-uri',
       title: 'some-title',
@@ -51,7 +51,7 @@ describe('Model: LogProposalMetadata', () => {
       expect(createdLogDao.blockNumber).to.eq(rawLogProposalMetadata.blockNumber)
       expect(createdLogDao.network).to.eq(rawLogProposalMetadata.network)
       expect(createdLogDao.fetchedMetadata).to.eq(rawLogProposalMetadata.fetchedMetadata)
-      expect(createdLogDao.daoAddress).to.eq(rawLogProposalMetadata.daoAddress)
+      expect(createdLogDao.pluginAddress).to.eq(rawLogProposalMetadata.pluginAddress)
       expect(createdLogDao.proposalId).to.eq(rawLogProposalMetadata.proposalId)
       expect(createdLogDao.metadataUri).to.eq(rawLogProposalMetadata.metadataUri)
       expect(createdLogDao.title).to.eq(rawLogProposalMetadata.title)
@@ -77,13 +77,13 @@ describe('Model: LogProposalMetadata', () => {
   it('Should findTxHash', async () => {
     const createdLogDao = await Models.LogProposalMetadata.create(rawLogProposalMetadata)
     const logProposalMetadata = await Models.LogProposalMetadata.findTxHash(createdLogDao.transactionHash)
-    expect(logProposalMetadata?.daoAddress).to.eq(rawLogProposalMetadata.daoAddress)
+    expect(logProposalMetadata?.pluginAddress).to.eq(rawLogProposalMetadata.pluginAddress)
   })
 
   it('Should reload', async () => {
     const createdLogDao = await Models.LogProposalMetadata.create(rawLogProposalMetadata)
     await createdLogDao.reload()
 
-    expect(createdLogDao.daoAddress).to.eq(rawLogProposalMetadata.daoAddress)
+    expect(createdLogDao.pluginAddress).to.eq(rawLogProposalMetadata.pluginAddress)
   })
 })
