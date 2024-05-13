@@ -82,7 +82,7 @@ describe('Model: LogPluginSetupProcessor', () => {
       pluginAddress: '0x00',
     })
 
-    expect(createdLogDao.plugin).to.eq('0x00')
+    expect(createdLogDao.pluginAddress).to.eq('0x00')
   })
 
   it('Should findTxHash', async () => {
