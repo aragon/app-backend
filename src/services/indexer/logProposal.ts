@@ -1,0 +1,115 @@
+import logger from '@logger'
+import { ethers, Interface, type Log } from 'ethers'
+import Network from '@models/schema/network'
+import { Models } from '@dbModels'
+import { type NetworksEnum } from '@types'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { ProposalHandler } from '@services/indexer/handlers/proposalHandler'
+import { UtilsIndexer } from '@models/utils/indexer'
+import { TokenVoting } from '@artifacts/TokenVoting'
+import { Multisig } from '@artifacts/Multisig'
+
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogProposal' })
+
+export const LogProposal = {
+  events: [
+    'Approved', // 0x7b39c92a7e1a86e846edaeff6eba715a046352c596794c2a374269c126a99768
+    'ProposalCreated', // 0xa6c1f8f4276dc3f243459e13b557c84e8f4e90b2e09070bad5f6909cee687c92
+    'ProposalExecuted', // 0x712ae1383f79ac853f8d882153778e0260ef8f03b504e2866e0593e04d2b291f
+    'VoteCast', // 0xb83d25c6a5d258561330739951487acb4bd09ba5190b5d32c4f261817d906792
+  ],
+
+  start: async () => {
+    for (const networkName of Object.values(Network.NETWORKS)) {
+      logger.verbose('Start LogProposal', llo({ networkName }))
+
+      const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+
+      if (!networkDb) {
+        logger.verbose('Unsupported Network', llo({ networkName }))
+        return
+      }
+
+      const tokenVotingTopics = TokenVoting.abi
+        .filter((item: any) => item.type && LogProposal.events.includes(item.name))
+        .map((event: any) => new Interface(TokenVoting.abi).getEvent(event.name)?.topicHash)
+
+      const multisigTopics = Multisig.abi
+        .filter((item: any) => item.type && LogProposal.events.includes(item.name))
+        .map((event: any) => new Interface(Multisig.abi).getEvent(event.name)?.topicHash)
+
+      const filter = {
+        topics: [...tokenVotingTopics, ...multisigTopics],
+        fromBlock: networkDb.lastBlockProposal,
+        toBlock: 'latest',
+      }
+
+      const crawler = new BlockchainLogCrawler({
+        network: networkName as NetworksEnum,
+        filter,
+        onLog: async (txLog: Log) => LogProposal.processLog(txLog, networkName as NetworksEnum),
+        onError: async (error: any) => LogProposal.processError(error, networkName as NetworksEnum),
+        stopOnError: true,
+      })
+
+      await crawler.crawl()
+      await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockProposal')
+    }
+    logger.verbose('Finish LogProposal', llo())
+  },
+
+  getInterface(topic: string) {
+    const eventsOfTokenVoting = [
+      ethers.id('ProposalCreated(uint256,address,uint64,uint64,bytes,(address,uint256,bytes)[],uint256)'),
+      ethers.id('ProposalExecuted(uint256)'),
+      ethers.id('VoteCast(uint256,address,uint8,uint256)'),
+    ]
+
+    return eventsOfTokenVoting.includes(topic) ? new Interface(TokenVoting.abi) : new Interface(Multisig.abi)
+  },
+
+  processLog: async (txLog: any, network: NetworksEnum) => {
+    const iFace = LogProposal.getInterface(txLog.topics[0])
+
+    let event = null as any
+    try {
+      event = iFace.parseLog(txLog)!
+    } catch (error: any) {
+      if (error?.message.includes('out-of-bounds')) {
+        return
+      }
+    }
+
+    switch (event?.name) {
+      case 'ProposalCreated':
+        logger.verbose('ProposalCreated', llo({ event }))
+        await ProposalHandler.proposalCreated(event, txLog, network)
+        break
+      case 'Approved':
+        logger.verbose('Approved', llo({ event }))
+        await ProposalHandler.approved(event, txLog, network)
+        break
+      case 'ProposalExecuted':
+        logger.verbose('ProposalExecuted', llo({ event }))
+        await ProposalHandler.proposalExecuted(event, txLog, network)
+        break
+      case 'VoteCast':
+        logger.verbose('VoteCast', llo({ event }))
+        await ProposalHandler.voteCast(event, txLog, network)
+        break
+      default:
+        logger.error('Unhandled event', llo({ event }))
+        break
+    }
+  },
+
+  processError: async (error: any, network: NetworksEnum) => {
+    logger.error(
+      'Error LogProposal',
+      llo({
+        error,
+        network,
+      }),
+    )
+  },
+}
