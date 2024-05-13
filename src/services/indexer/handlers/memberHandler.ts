@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { type NetworksEnum } from '@types'
-import { type LogDescription } from 'ethers'
+import { type LogDescription, ZeroAddress } from 'ethers'
 import { Models } from '@dbModels'
 
 import DbTx from '@modules/dbTx'
@@ -18,8 +18,8 @@ export const MemberHandler = {
         const daoMember = {
           network,
           event: parsedEvent.name,
-          address: txLog.address,
-          creatorAddress: parsedEvent.args.creator,
+          address: txLog.address, // address not exists in logmember
+          creatorAddress: parsedEvent.args.creator, // not exists
           members: parsedEvent.args.members,
           blockNumber: txLog.blockNumber,
           transactionHash: txLog.transactionHash,
@@ -28,18 +28,9 @@ export const MemberHandler = {
         await Models.LogMember.create(daoMember, { session })
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('Multi-sig Dao Member List', llo({ daoMember }))
+        logger.verbose('New Member added', llo({ daoMember }))
       })
     }
-
-    /**
-     * {
-     *   members: [
-     *     member1,
-     *     member2,
-     *   ]
-     * }
-     */
   },
 
   membersRemoved: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
@@ -51,8 +42,8 @@ export const MemberHandler = {
         const daoMember = {
           network,
           event: parsedEvent.name,
-          address: txLog.address,
-          creatorAddress: parsedEvent.args.creator,
+          address: txLog.address, // address not exists in logmember
+          creatorAddress: parsedEvent.args.creator, // not exists
           members: parsedEvent.args.members,
           blockNumber: txLog.blockNumber,
           transactionHash: txLog.transactionHash,
@@ -61,7 +52,7 @@ export const MemberHandler = {
         await Models.LogMember.create(daoMember, { session })
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('Multi-sig Dao Member List', llo({ daoMember }))
+        logger.verbose('New Member removed', llo({ daoMember }))
       })
     }
   },
@@ -70,22 +61,23 @@ export const MemberHandler = {
     logger.verbose('delegateChanged', llo({ parsedEvent }))
 
     const existingLog = await Models.LogMember.findTxHashAndEvent(txLog.transactionHash, parsedEvent.name)
+
     if (!existingLog) {
       await DbTx.executeTxFn(async ({ session }) => {
         const daoMember = {
+          transactionHash: txLog.transactionHash,
+          blockNumber: txLog.blockNumber,
           network,
           event: parsedEvent.name,
-          address: txLog.address,
-          fromDelegate: parsedEvent.args.fromDelegate,
+          tokenAddress: txLog.address,
+          fromDelegate: parsedEvent.args.fromDelegate === ZeroAddress ? parsedEvent.args.delegator : parsedEvent.args.fromDelegate,
           toDelegate: parsedEvent.args.toDelegate,
-          blockNumber: txLog.blockNumber,
-          transactionHash: txLog.transactionHash,
         }
 
         await Models.LogMember.create(daoMember, { session })
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('Token Based Dao Member Delegation', llo({ daoMember }))
+        logger.verbose('New Member Delegation Changed', llo({ daoMember }))
       })
     }
   },
@@ -95,6 +87,13 @@ export const MemberHandler = {
     const existingLog = await Models.LogMember.findTxHashAndEvent(txLog.transactionHash, parsedEvent.name)
     if (!existingLog) {
       await DbTx.executeTxFn(async ({ session }) => {
+
+        // TODO:
+        // parsedEvent.args.delegate // address of the delegator
+        // parsedEvent.args.previousBalance // delegator balance before
+        // parsedEvent.args.newBalance // delegator balance after
+
+        // TODO wrong data :
         const daoMember = {
           network,
           event: parsedEvent.name,
@@ -108,7 +107,7 @@ export const MemberHandler = {
         await Models.LogMember.create(daoMember, { session })
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('Token Based Dao Member Delegation', llo({ daoMember }))
+        logger.verbose('New Member Delegation Votes Changed', llo({ daoMember }))
       })
     }
   },
