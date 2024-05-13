@@ -24,7 +24,7 @@ describe('Indexer: LogMultisig', () => {
   })
 
   it('events', async () => {
-    expect(LogMultisig.events.length).to.eq(7)
+    expect(LogMultisig.events.length).to.eq(1)
   })
 
   describe('start', () => {
@@ -72,7 +72,7 @@ describe('Indexer: LogMultisig', () => {
       await LogMultisig.start()
 
       expect(loggerVerboseStub.callCount).to.eq(6)
-      expect(processMetadataStub.callCount).to.eq(4)
+      expect(processMetadataStub.callCount).to.eq(2)
       expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
     })
@@ -121,9 +121,9 @@ describe('Indexer: LogMultisig', () => {
 
       await LogMultisig.start()
 
-      expect(errorStub.callCount).to.eq(4)
+      expect(errorStub.callCount).to.eq(2)
       expect(loggerVerboseStub.callCount).to.eq(6)
-      expect(processMetadataStub.callCount).to.eq(4)
+      expect(processMetadataStub.callCount).to.eq(2)
       expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
     })

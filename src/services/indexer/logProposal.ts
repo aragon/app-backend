@@ -12,12 +12,7 @@ import { Multisig } from '@artifacts/Multisig'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogProposal' })
 
 export const LogProposal = {
-  events: [
-    'Approved', // 0x7b39c92a7e1a86e846edaeff6eba715a046352c596794c2a374269c126a99768
-    'ProposalCreated', // 0xa6c1f8f4276dc3f243459e13b557c84e8f4e90b2e09070bad5f6909cee687c92
-    'ProposalExecuted', // 0x712ae1383f79ac853f8d882153778e0260ef8f03b504e2866e0593e04d2b291f
-    'VoteCast', // 0xb83d25c6a5d258561330739951487acb4bd09ba5190b5d32c4f261817d906792
-  ],
+  events: ['Approved', 'ProposalCreated', 'ProposalExecuted', 'VoteCast'],
 
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {

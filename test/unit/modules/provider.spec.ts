@@ -80,7 +80,7 @@ describe('Module: provider', () => {
     const stubConneect = sandbox.stub(Provider, 'connectToNetwork')
     await Provider.connectToAllNetworks()
 
-    expect(stubConneect.callCount).to.eq(1)
+    expect(stubConneect.callCount).to.eq(4)
   })
 
   describe('closeAllNetworks', () => {

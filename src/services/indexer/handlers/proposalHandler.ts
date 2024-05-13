@@ -3,8 +3,9 @@ import { type NetworksEnum } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
-import { MetadataHandler } from '@services/indexer/handlers/metadataHandler'
 import IPFSModule from '@modules/ipfs'
+import type LogProposal from '@models/schema/logProposal'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:ProposalHandler' })
 
@@ -13,12 +14,10 @@ export const ProposalHandler = {
     logger.verbose('proposalCreated', llo({ parsedEvent }))
 
     const existingLog = await Models.LogProposal.findTxHash(txLog.transactionHash)
+    const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)
 
     if (!existingLog) {
       await DbTx.executeTxFn(async ({ session }) => {
-        const metadataUri = MetadataHandler.extractMetadataUri(parsedEvent?.args.metadata)
-        const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 1 })
-
         const proposalLog = {
           network,
           blockNumber: txLog.blockNumber,
@@ -29,18 +28,20 @@ export const ProposalHandler = {
           startDate: Number(parsedEvent.args.startDate),
           endDate: Number(parsedEvent.args.endDate),
           allowFailureMap: Number(parsedEvent.args.allowFailureMap),
-          metadataUri: ipfsMetadata,
-          actions: parsedEvent.args.actions.map((w: any) => ({
+          metadataUri,
+          actions: parsedEvent.args?.actions.map((w: any) => ({
             to: w.to,
             value: Number(w.value || 0),
             data: w.data,
           })),
         }
 
-        await Models.LogProposal.create(proposalLog, { session })
+        const proposalDb = await Models.LogProposal.create(proposalLog, { session })
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('New ProposalLog', llo({ proposalLog }))
+
+        await ProposalHandler.proposalMetadata(txLog, proposalDb)
       })
     }
   },
@@ -126,6 +127,41 @@ export const ProposalHandler = {
           },
         })
         logger.verbose('New proposalExecutedLog', llo({ parsedParams }))
+      })
+    }
+  },
+
+  proposalMetadata: async (txLog: any, proposalDb: LogProposal) => {
+    logger.verbose('proposalMetadata', llo({ txLog, proposalId: proposalDb.id, metadataUri: proposalDb.metadataUri }))
+
+    const ipfsMetadata = await IPFSModule.fetchMetadata(proposalDb.metadataUri, { retries: 1 })
+    const proposalMetadata = Web3Helper.parseProposalMetadata(ipfsMetadata!)
+
+    const existingProposalMetadata = await Models.LogProposalMetadata.findTxHash(txLog.transactionHash)
+
+    if (!existingProposalMetadata) {
+      await DbTx.executeTxFn(async ({ session }) => {
+        const logProposalMetadata = {
+          ...proposalMetadata,
+          network: proposalDb.network,
+          metadataUri: proposalDb.metadataUri,
+          pluginAddress: proposalDb.pluginAddress,
+          fetchedMetadata: !!ipfsMetadata,
+          proposalId: proposalDb.proposalId,
+          transactionHash: proposalDb.transactionHash,
+          blockNumber: proposalDb.blockNumber,
+        }
+        await Models.LogProposalMetadata.create(logProposalMetadata, { session })
+
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose(
+          'Stored proposal metadata',
+          llo({
+            network: proposalDb.network,
+            logProposalMetadata,
+          }),
+        )
       })
     }
   },

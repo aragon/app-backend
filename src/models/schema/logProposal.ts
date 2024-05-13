@@ -16,7 +16,7 @@ class Action {
   public data!: string
 }
 
-class Vote {
+export class Vote {
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
 
@@ -36,7 +36,7 @@ class Vote {
   public votingPower!: number
 }
 
-class Executed {
+export class ProposalExecuted {
   @prop({ type: () => Boolean, default: false })
   public status!: boolean
 
@@ -99,8 +99,8 @@ export default class LogProposal extends Model {
   @prop({ type: () => [Vote], default: [] })
   public voteEvents!: Vote[]
 
-  @prop({ type: () => Executed })
-  public executed!: Executed
+  @prop({ type: () => ProposalExecuted })
+  public executed!: ProposalExecuted
 
   static async create(rawData: Partial<LogProposal>, tOpts?: SaveOptions) {
     const data = new this(rawData)
