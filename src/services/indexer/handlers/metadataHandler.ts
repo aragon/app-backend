@@ -87,7 +87,7 @@ export const MetadataHandler = {
               ...proposalMetadata,
               network,
               metadataUri,
-              daoAddress: txLog.address,
+              pluginAddress: txLog.address,
               fetchedMetadata: !!ipfsMetadata,
               proposalId: Number(decodedTransaction.args[0]),
               transactionHash: txLog.transactionHash,
