@@ -37,4 +37,10 @@ describe('Manual: Pinata', () => {
     const content = await ipfs.fetchMetadata(cid!)
     console.log(content) // eslint-disable-line no-console
   })
+
+  it('get data', async () => {
+    const cid = 'QmVGCibCLPgqA8eszxQJMzQFcmQAdrkyhTGH6EB5ERivsR'
+    const data = await PinataHelper.getData(cid)
+    console.log(data) // eslint-disable-line no-console
+  })
 })
