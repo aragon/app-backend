@@ -98,6 +98,7 @@ export interface IConfig {
 
   PINATA: {
     JWT: string
+    GATEWAY_URI: string
   }
 
   CONTRACTS: {
