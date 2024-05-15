@@ -140,6 +140,31 @@ describe('Model: LogProposal', () => {
     expect(foundLogProposal?.entityId).to.eq(createdLogProposal.entityId)
   })
 
+  it('Should addVoteEvent when empty', async () => {
+    const proposal = await Models.LogProposal.create(rawLogProposal)
+    proposal.voteEvents = undefined
+
+    const vote: Vote = {
+      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+      blockNumber: 3,
+      proposalId: 1,
+      memberAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      voteOption: 2,
+      votingPower: 322,
+    }
+    const proposalDb = await proposal.addVoteEvent(vote)
+    const voteDb = await proposalDb.findVote(vote.transactionHash)
+
+    expect(proposalDb?.transactionHash).to.eq(rawLogProposal.transactionHash)
+
+    expect(voteDb?.transactionHash).to.eq(vote.transactionHash)
+    expect(voteDb?.blockNumber).to.eq(vote.blockNumber)
+    expect(voteDb?.proposalId).to.eq(vote.proposalId)
+    expect(voteDb?.memberAddress).to.eq(vote.memberAddress)
+    expect(voteDb?.voteOption).to.eq(vote.voteOption)
+    expect(voteDb?.votingPower).to.eq(vote.votingPower)
+  })
+
   it('Should addVoteEvent/findVote', async () => {
     const proposal = await Models.LogProposal.create(rawLogProposal)
 
