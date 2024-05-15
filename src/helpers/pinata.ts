@@ -9,6 +9,20 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:PinataHelper' })
 const PinataHelper = {
   pinata: new Pinata({ pinataJWTKey: config.PINATA.JWT }),
 
+  async getData(cid: string) {
+    try {
+      const response = await fetch(`${config.PINATA.GATEWAY_URI}/${cid}`, {
+        method: 'GET',
+      })
+
+      const data = await response.json()
+      return typeof data === 'string' ? JSON.parse(data) : data
+    } catch (error) {
+      logger.error('Failed to fetch data', error)
+      return null
+    }
+  },
+
   async uploadAndPinMetadata(metadata: IDaoMetadata): Promise<string | null> {
     try {
       const body = {
