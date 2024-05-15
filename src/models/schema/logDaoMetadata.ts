@@ -2,6 +2,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
+import { assert } from '@errors'
 
 const customName = 'LogDaoMetadata'
 
@@ -32,6 +33,9 @@ class Link {
 })
 export default class LogDaoMetadata extends Model {
   @prop({ type: () => String, required: true, unique: true })
+  public entityId!: string
+
+  @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
 
   @prop({ type: () => Number, required: true })
@@ -71,12 +75,27 @@ export default class LogDaoMetadata extends Model {
   public links?: Link[]
 
   static async create(rawData: Partial<LogDaoMetadata>, tOpts?: SaveOptions) {
+    if (!rawData.entityId) {
+      assert(!!rawData.transactionHash, 'transactionHash is required')
+      assert(!!rawData.daoAddress, 'daoAddress is required')
+      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.daoAddress!)
+    }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static async findTxHash(transactionHash: HexAddress, tOpts?: SaveOptions) {
-    return await this.findOne({ transactionHash }, tOpts)
+  static getEntityId(transactionHash: HexAddress, daoAddress: HexAddress) {
+    const entityId = `${transactionHash}-${daoAddress}`
+    return entityId
+  }
+
+  static async findExistingLog(transactionHash: HexAddress, daoAddress: HexAddress, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(transactionHash, daoAddress)
+    return await this.findByEntityId(entityId, tOpts)
+  }
+
+  static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
+    return await this.findOne({ entityId }, tOpts)
   }
 
   async update(params: Partial<LogDaoMetadata>, tOpts?: SaveOptions) {

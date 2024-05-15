@@ -10,13 +10,14 @@ export const DaoRegistryHandler = {
   daoRegistered: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     logger.verbose('daoRegistered', llo({ parsedEvent }))
 
-    const existingLog = await Models.LogDaoRegistry.findTxHash(txLog.transactionHash)
+    const daoAddress = parsedEvent.args.dao
+    const existingLog = await Models.LogDaoRegistry.findExistingLog(txLog.transactionHash, daoAddress)
 
     if (!existingLog) {
       await DbTx.executeTxFn(async ({ session }) => {
         const daoLog = {
           network,
-          address: parsedEvent.args.dao,
+          address: daoAddress,
           creatorAddress: parsedEvent.args.creator,
           ens: parsedEvent.args.subdomain,
           blockNumber: txLog.blockNumber,

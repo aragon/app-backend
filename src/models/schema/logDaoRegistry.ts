@@ -2,6 +2,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { ENS, HexAddress, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
+import { assert } from '@errors'
 
 const customName = 'LogDaoRegistry'
 
@@ -23,6 +24,9 @@ const customName = 'LogDaoRegistry'
 })
 export default class LogDaoRegistry extends Model {
   @prop({ type: () => String, required: true, unique: true })
+  public entityId!: string
+
+  @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
 
   @prop({ type: () => Number, required: true })
@@ -41,12 +45,27 @@ export default class LogDaoRegistry extends Model {
   public ens!: ENS
 
   static async create(rawData: Partial<LogDaoRegistry>, tOpts?: SaveOptions) {
+    if (!rawData.entityId) {
+      assert(!!rawData.transactionHash, 'transactionHash is required')
+      assert(!!rawData.address, 'address is required')
+      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.address!)
+    }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static async findTxHash(transactionHash: HexAddress, tOpts?: SaveOptions) {
-    return await this.findOne({ transactionHash }, tOpts)
+  static getEntityId(transactionHash: HexAddress, address: HexAddress) {
+    const entityId = `${transactionHash}-${address}`
+    return entityId
+  }
+
+  static async findExistingLog(transactionHash: HexAddress, address: HexAddress, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(transactionHash, address)
+    return await this.findByEntityId(entityId, tOpts)
+  }
+
+  static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
+    return await this.findOne({ entityId }, tOpts)
   }
 
   async update(params: Partial<LogDaoRegistry>, tOpts?: SaveOptions) {

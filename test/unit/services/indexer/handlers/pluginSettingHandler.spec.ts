@@ -42,7 +42,7 @@ describe('Indexer: PluginSettingHandler', () => {
     await PluginSettingHandler.votingSettingsUpdated(fakeEvent as any, txLog, network)
     expect(stubLogger.calledTwice).to.be.true
 
-    const pluginSettingDB = await Models.LogPluginSetting.findTxHash(txLog.transactionHash, txLog.address)
+    const pluginSettingDB = await Models.LogPluginSetting.findExistingLog(txLog.transactionHash, txLog.address)
     expect(pluginSettingDB.transactionHash).to.eq(txLog.transactionHash)
     expect(pluginSettingDB.blockNumber).to.eq(txLog.blockNumber)
     expect(pluginSettingDB.pluginAddress).to.eq(txLog.address)
@@ -75,7 +75,7 @@ describe('Indexer: PluginSettingHandler', () => {
     await PluginSettingHandler.multisigSettingsUpdated(fakeEvent as any, txLog, network)
     expect(stubLogger.calledTwice).to.be.true
 
-    const pluginSettingDB = await Models.LogPluginSetting.findTxHash(txLog.transactionHash, txLog.address)
+    const pluginSettingDB = await Models.LogPluginSetting.findExistingLog(txLog.transactionHash, txLog.address)
     expect(pluginSettingDB.transactionHash).to.eq(txLog.transactionHash)
     expect(pluginSettingDB.blockNumber).to.eq(txLog.blockNumber)
     expect(pluginSettingDB.pluginAddress).to.eq(txLog.address)

@@ -13,8 +13,10 @@ export const ProposalHandler = {
   proposalCreated: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     logger.verbose('proposalCreated', llo({ parsedEvent }))
 
-    const existingLog = await Models.LogProposal.findTxHash(txLog.transactionHash)
     const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)
+    const proposalId = Number(parsedEvent.args.proposalId)
+    const pluginAddress = txLog.address
+    const existingLog = await Models.LogProposal.findExistingLog(txLog.transactionHash, pluginAddress, proposalId)
 
     if (!existingLog) {
       await DbTx.executeTxFn(async ({ session }) => {
@@ -22,9 +24,9 @@ export const ProposalHandler = {
           network,
           blockNumber: txLog.blockNumber,
           transactionHash: txLog.transactionHash,
-          pluginAddress: txLog.address,
+          pluginAddress,
           creatorAddress: parsedEvent.args.creator,
-          proposalId: Number(parsedEvent.args.proposalId),
+          proposalId,
           startDate: Number(parsedEvent.args.startDate),
           endDate: Number(parsedEvent.args.endDate),
           allowFailureMap: Number(parsedEvent.args.allowFailureMap),
@@ -136,8 +138,11 @@ export const ProposalHandler = {
 
     const ipfsMetadata = await IPFSModule.fetchMetadata(proposalDb.metadataUri, { retries: 1 })
     const proposalMetadata = Web3Helper.parseProposalMetadata(ipfsMetadata!)
-
-    const existingProposalMetadata = await Models.LogProposalMetadata.findTxHash(txLog.transactionHash)
+    const existingProposalMetadata = await Models.LogProposalMetadata.findExistingLog(
+      proposalDb.transactionHash,
+      proposalDb.pluginAddress,
+      proposalDb.proposalId,
+    )
 
     if (!existingProposalMetadata) {
       await DbTx.executeTxFn(async ({ session }) => {
