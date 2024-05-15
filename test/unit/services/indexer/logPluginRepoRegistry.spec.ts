@@ -171,6 +171,25 @@ describe('Indexer: LogPluginRepoRegistry', () => {
       }
     })
 
+    it('should handle out-of-bounds error in processLog', async () => {
+      const network = NetworksEnum.mainnet
+      const txLog = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+
+      const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').throws(new Error('out-of-bounds'))
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      await LogPluginRepoRegistry.processLog(txLog, network)
+
+      expect(stubParseLog.calledOnceWith(txLog)).to.be.true
+      expect(loggerStub.called).to.be.false // ensure no error logged for out-of-bounds
+    })
+
     it('should not processLog unknown event', async () => {
       const network = NetworksEnum.mainnet
       const txLog = {

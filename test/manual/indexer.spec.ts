@@ -4,6 +4,7 @@ import ProviderModule from '@modules/provider'
 import config from '@config'
 import { LogDao } from '@services/indexer/logDao'
 import { InitialData } from '../../initialData'
+import { LogProposal } from '@services/indexer/logProposal'
 
 describe('Manual: Indexer', () => {
   let sandbox: SinonSandbox

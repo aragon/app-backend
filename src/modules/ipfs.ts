@@ -31,7 +31,14 @@ const IPFSModule = {
       return null
     }
 
-    return await IPFSModule._fetchMetadata(cid, opts)
+    let data = await IPFSModule._fetchMetadata(cid, opts)
+
+    if (!data) {
+      // try with gateway
+      data = await PinataHelper.getData(cid)
+    }
+
+    return data
   },
 
   _fetchMetadata: async (cid: string, opts?: { retries?: number; delay?: number; timeout?: number }) => {
