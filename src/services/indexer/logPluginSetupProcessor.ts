@@ -56,7 +56,15 @@ export const LogPluginSetupProcessor = {
   },
 
   processLog: async (txLog: any, network: NetworksEnum) => {
-    const event = new Interface(PluginSetupProcessor.abi).parseLog(txLog)!
+    const iFace = new Interface(PluginSetupProcessor.abi)
+    let event = null as any
+    try {
+      event = iFace.parseLog(txLog)!
+    } catch (error: any) {
+      if (error?.message.includes('out-of-bounds')) {
+        return
+      }
+    }
 
     switch (event.name) {
       case 'InstallationApplied':

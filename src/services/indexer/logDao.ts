@@ -60,7 +60,15 @@ export const LogDao = {
   },
 
   processLog: async (txLog: any, network: NetworksEnum) => {
-    const event = new Interface(DAO.abi).parseLog(txLog)!
+    const iFace = new Interface(DAO.abi)
+    let event = null as any
+    try {
+      event = iFace.parseLog(txLog)!
+    } catch (error: any) {
+      if (error?.message.includes('out-of-bounds')) {
+        return
+      }
+    }
 
     switch (event.name) {
       case 'CallbackReceived':

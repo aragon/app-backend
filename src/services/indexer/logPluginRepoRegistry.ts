@@ -49,7 +49,15 @@ export const LogPluginRepoRegistry = {
   },
 
   processLog: async (txLog: any, network: NetworksEnum) => {
-    const event = new Interface(PluginRepoRegistry.abi).parseLog(txLog)!
+    const iFace = new Interface(PluginRepoRegistry.abi)
+    let event = null as any
+    try {
+      event = iFace.parseLog(txLog)!
+    } catch (error: any) {
+      if (error?.message.includes('out-of-bounds')) {
+        return
+      }
+    }
 
     switch (event.name) {
       case 'PluginRepoRegistered':
