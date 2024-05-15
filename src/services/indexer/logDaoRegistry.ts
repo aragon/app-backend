@@ -49,7 +49,15 @@ export const LogDaoRegistry = {
   },
 
   processLog: async (txLog: any, network: NetworksEnum) => {
-    const event = new Interface(DAORegistry.abi).parseLog(txLog)!
+    const iFace = new Interface(DAORegistry.abi)
+    let event = null as any
+    try {
+      event = iFace.parseLog(txLog)!
+    } catch (error: any) {
+      if (error?.message.includes('out-of-bounds')) {
+        return
+      }
+    }
 
     switch (event.name) {
       case 'DAORegistered':
