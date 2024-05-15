@@ -19,6 +19,11 @@ describe('Helpers:Utils', () => {
     expect(Utils.noop()).to.eq(0)
   })
 
+  it('Should lowercaseFirstLetter', () => {
+    expect(Utils.lowercaseFirstLetter('Test')).to.eq('test')
+    expect(Utils.lowercaseFirstLetter(undefined)).to.eq(undefined)
+  })
+
   it('Should wait', done => {
     let end = false
 
@@ -128,9 +133,10 @@ describe('Helpers:Utils', () => {
 
   it('Should parse json circular', () => {
     const child: any = {}
-    const obj = { a: 1, child }
+    const obj = { a: 1, child, b: 22n }
     child.obj = obj
-    expect(Utils.JSONStringifyCircular(obj)).to.be.eq('{\n  "a": 1,\n  "child": {}\n}')
+    console.log(Utils.JSONStringifyCircular(obj))
+    expect(Utils.JSONStringifyCircular(obj)).to.be.eq('{\n  "a": 1,\n  "child": {},\n  "b": "22"\n}')
   })
 
   it('enum to object', () => {
