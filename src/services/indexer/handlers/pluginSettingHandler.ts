@@ -11,7 +11,7 @@ export const PluginSettingHandler = {
     logger.verbose('votingSettingsUpdated', llo({ parsedEvent }))
 
     const pluginAddress = txLog.address
-    const existingLog = await Models.LogPluginSetting.findTxHash(txLog.transactionHash, pluginAddress)
+    const existingLog = await Models.LogPluginSetting.findExistingLog(txLog.transactionHash, pluginAddress)
 
     if (!existingLog) {
       await DbTx.executeTxFn(async ({ session }) => {
@@ -38,7 +38,7 @@ export const PluginSettingHandler = {
   multisigSettingsUpdated: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     logger.verbose('multisigSettingsUpdated', llo({ parsedEvent }))
     const pluginAddress = txLog.address
-    const existingLog = await Models.LogPluginSetting.findTxHash(txLog.transactionHash, pluginAddress)
+    const existingLog = await Models.LogPluginSetting.findExistingLog(txLog.transactionHash, pluginAddress)
 
     if (!existingLog) {
       await DbTx.executeTxFn(async ({ session }) => {

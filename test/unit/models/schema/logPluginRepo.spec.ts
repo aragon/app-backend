@@ -19,12 +19,17 @@ describe('Model: LogPluginRepo', () => {
       status: 'healthy',
     })
 
+    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+    const pluginRepo = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
+    const entityId = Models.LogPluginRepo.getEntityId(transactionHash, pluginRepo)
+
     rawLogPluginRepo = {
+      entityId,
       transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
       blockNumber: 3,
       network: NetworksEnum.mainnet,
       subdomain: 'fake-ens.eth',
-      pluginRepo: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      pluginRepo,
     }
   })
 
@@ -34,15 +39,30 @@ describe('Model: LogPluginRepo', () => {
 
   describe('Create LogPluginRepo', async () => {
     it('Should create LogPluginRepo', async () => {
+      const entityId = Models.LogPluginRepo.getEntityId(rawLogPluginRepo.transactionHash, rawLogPluginRepo.pluginRepo)
+      rawLogPluginRepo.entityId = entityId
       const createdLogDao = await Models.LogPluginRepo.create(rawLogPluginRepo)
 
       expect(createdLogDao.id).to.exist
+      expect(createdLogDao.entityId).to.eq(rawLogPluginRepo.entityId)
       expect(createdLogDao.transactionHash).to.eq(rawLogPluginRepo.transactionHash)
       expect(createdLogDao.blockNumber).to.eq(rawLogPluginRepo.blockNumber)
       expect(createdLogDao.network).to.eq(rawLogPluginRepo.network)
-      expect(createdLogDao.address).to.eq(rawLogPluginRepo.address)
-      expect(createdLogDao.creatorAddress).to.eq(rawLogPluginRepo.creatorAddress)
-      expect(createdLogDao.ens).to.eq(rawLogPluginRepo.ens)
+      expect(createdLogDao.pluginRepo).to.eq(rawLogPluginRepo.pluginRepo)
+      expect(createdLogDao.subdomain).to.eq(rawLogPluginRepo.subdomain)
+    })
+
+    it('Should create LogPluginRepo without entityId', async () => {
+      const entityId = Models.LogPluginRepo.getEntityId(rawLogPluginRepo.transactionHash, rawLogPluginRepo.pluginRepo)
+      const createdLogDao = await Models.LogPluginRepo.create(rawLogPluginRepo)
+
+      expect(createdLogDao.id).to.exist
+      expect(createdLogDao.entityId).to.eq(entityId)
+      expect(createdLogDao.transactionHash).to.eq(rawLogPluginRepo.transactionHash)
+      expect(createdLogDao.blockNumber).to.eq(rawLogPluginRepo.blockNumber)
+      expect(createdLogDao.network).to.eq(rawLogPluginRepo.network)
+      expect(createdLogDao.pluginRepo).to.eq(rawLogPluginRepo.pluginRepo)
+      expect(createdLogDao.subdomain).to.eq(rawLogPluginRepo.subdomain)
     })
   })
 
@@ -57,10 +77,26 @@ describe('Model: LogPluginRepo', () => {
     expect(createdLogDao.subdomain).to.eq('new-subdomain')
   })
 
-  it('Should findTxHash', async () => {
-    const createdLogDao = await Models.LogPluginRepo.create(rawLogPluginRepo)
-    const logPluginRepo = await Models.LogPluginRepo.findTxHash(createdLogDao.transactionHash)
-    expect(logPluginRepo?.address).to.eq(rawLogPluginRepo.address)
+  it('Should getEntityId', async () => {
+    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+    const pluginRepo = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
+    const entityId = Models.LogPluginRepo.getEntityId(transactionHash, pluginRepo)
+    expect(entityId).to.eq(`${transactionHash}-${pluginRepo}`)
+  })
+
+  it('Should findExistingLog', async () => {
+    const createdLogPluginRepo = await Models.LogPluginRepo.create(rawLogPluginRepo)
+    const foundLogPluginRepo = await Models.LogPluginRepo.findExistingLog(
+      createdLogPluginRepo.transactionHash,
+      createdLogPluginRepo.pluginRepo,
+    )
+    expect(foundLogPluginRepo?.entityId).to.eq(createdLogPluginRepo.entityId)
+  })
+
+  it('Should findByEntityId', async () => {
+    const createdLogPluginRepo = await Models.LogPluginRepo.create(rawLogPluginRepo)
+    const foundLogPluginRepo = await Models.LogPluginRepo.findByEntityId(createdLogPluginRepo.entityId)
+    expect(foundLogPluginRepo?.entityId).to.eq(createdLogPluginRepo.entityId)
   })
 
   it('Should reload', async () => {
