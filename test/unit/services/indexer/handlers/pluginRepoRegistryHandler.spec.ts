@@ -35,16 +35,19 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       },
     }
 
-    const findTxHashSpy = sandbox.spy(Models.LogPluginRepo, 'findTxHash')
+    const findTxHashSpy = sandbox.spy(Models.LogPluginRepo, 'findExistingLog')
     const loggerStub = sandbox.stub(logger, 'verbose')
 
     await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, txLog as any, network)
 
     expect(findTxHashSpy.calledOnce).to.be.true
-    expect(findTxHashSpy.calledWith(txLog.transactionHash)).to.be.true
+    expect(findTxHashSpy.calledWith(txLog.transactionHash, fakeEvent.args.pluginRepo)).to.be.true
     expect(loggerStub.calledWith('New PluginRepoLog' as any)).to.be.true
 
-    const savedPluginRepoLog = await Models.LogPluginRepo.findTxHash(txLog.transactionHash)
+    const savedPluginRepoLog = await Models.LogPluginRepo.findExistingLog(
+      txLog.transactionHash,
+      fakeEvent.args.pluginRepo,
+    )
     expect(!!savedPluginRepoLog).to.be.true
 
     expect(savedPluginRepoLog.network).to.eq(network)

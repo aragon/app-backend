@@ -10,14 +10,15 @@ export const PluginRepoRegistryHandler = {
   pluginRepoRegistered: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     logger.verbose('pluginRepoRegistered', llo({ parsedEvent }))
 
-    const existingLog = await Models.LogPluginRepo.findTxHash(txLog.transactionHash)
+    const pluginRepo = parsedEvent.args.pluginRepo
+    const existingLog = await Models.LogPluginRepo.findExistingLog(txLog.transactionHash, pluginRepo)
 
     if (!existingLog) {
       await DbTx.executeTxFn(async ({ session }) => {
         const pluginRepoLog = {
           network,
           subdomain: parsedEvent.args.subdomain,
-          pluginRepo: parsedEvent.args.pluginRepo,
+          pluginRepo,
           blockNumber: txLog.blockNumber,
           transactionHash: txLog.transactionHash,
         }

@@ -19,8 +19,10 @@ describe('Model: LogPluginSetupProcessor', () => {
       status: 'healthy',
     })
 
+    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+
     rawLogPluginSetupProcessor = {
-      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+      transactionHash,
       blockNumber: 3,
       network: NetworksEnum.mainnet,
       event: IEventLogPluginType.InstallationApplied,
@@ -50,9 +52,44 @@ describe('Model: LogPluginSetupProcessor', () => {
 
   describe('Create LogPluginSetupProcessor', async () => {
     it('Should create LogPluginSetupProcessor', async () => {
+      const entityId = Models.LogPluginSetupProcessor.getEntityId(
+        rawLogPluginSetupProcessor.transactionHash,
+        rawLogPluginSetupProcessor.event,
+      )
+      rawLogPluginSetupProcessor.entityId = entityId
       const createdLogDao = await Models.LogPluginSetupProcessor.create(rawLogPluginSetupProcessor)
 
       expect(createdLogDao.id).to.exist
+      expect(createdLogDao.entityId).to.eq(rawLogPluginSetupProcessor.entityId)
+      expect(createdLogDao.transactionHash).to.eq(rawLogPluginSetupProcessor.transactionHash)
+      expect(createdLogDao.blockNumber).to.eq(rawLogPluginSetupProcessor.blockNumber)
+      expect(createdLogDao.network).to.eq(rawLogPluginSetupProcessor.network)
+      expect(createdLogDao.event).to.eq(rawLogPluginSetupProcessor.event)
+      expect(createdLogDao.daoAddress).to.eq(rawLogPluginSetupProcessor.daoAddress)
+      expect(createdLogDao.preparedSetupId).to.eq(rawLogPluginSetupProcessor.preparedSetupId)
+      expect(createdLogDao.appliedSetupId).to.eq(rawLogPluginSetupProcessor.appliedSetupId)
+      expect(createdLogDao.pluginSetupRepo).to.eq(rawLogPluginSetupProcessor.pluginSetupRepo)
+      expect(createdLogDao.plugin).to.eq(rawLogPluginSetupProcessor.plugin)
+      expect(createdLogDao.sender).to.eq(rawLogPluginSetupProcessor.sender)
+      expect(createdLogDao.release).to.eq(rawLogPluginSetupProcessor.release)
+      expect(createdLogDao.build).to.eq(rawLogPluginSetupProcessor.build)
+      expect(createdLogDao.permissions.length).to.eq(1)
+      expect(createdLogDao.permissions[0].operation).to.eq(1)
+      expect(createdLogDao.permissions[0].where).to.eq('some-where')
+      expect(createdLogDao.permissions[0].who).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5400')
+      expect(createdLogDao.permissions[0].condition).to.eq('some-conditions')
+      expect(createdLogDao.permissions[0].permissionId).to.eq('xxx')
+    })
+
+    it('Should create LogPluginSetupProcessor without entityId', async () => {
+      const entityId = Models.LogPluginSetupProcessor.getEntityId(
+        rawLogPluginSetupProcessor.transactionHash,
+        rawLogPluginSetupProcessor.event,
+      )
+      const createdLogDao = await Models.LogPluginSetupProcessor.create(rawLogPluginSetupProcessor)
+
+      expect(createdLogDao.id).to.exist
+      expect(createdLogDao.entityId).to.eq(entityId)
       expect(createdLogDao.transactionHash).to.eq(rawLogPluginSetupProcessor.transactionHash)
       expect(createdLogDao.blockNumber).to.eq(rawLogPluginSetupProcessor.blockNumber)
       expect(createdLogDao.network).to.eq(rawLogPluginSetupProcessor.network)
@@ -85,19 +122,28 @@ describe('Model: LogPluginSetupProcessor', () => {
     expect(createdLogDao.pluginAddress).to.eq('0x00')
   })
 
-  it('Should findTxHash', async () => {
-    const createdLogDao = await Models.LogPluginSetupProcessor.create(rawLogPluginSetupProcessor)
-    const logPluginSetupProcessor = await Models.LogPluginSetupProcessor.findTxHash(createdLogDao.transactionHash)
-    expect(logPluginSetupProcessor?.address).to.eq(rawLogPluginSetupProcessor.address)
+  it('Should getEntityId', async () => {
+    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+    const event = IEventLogPluginType.InstallationApplied
+    const entityId = Models.LogPluginSetupProcessor.getEntityId(transactionHash, event)
+    expect(entityId).to.eq(`${transactionHash}-${event}`)
   })
 
-  it('Should findTxHashAndEvent', async () => {
-    const createdLogDao = await Models.LogPluginSetupProcessor.create(rawLogPluginSetupProcessor)
-    const logPluginSetupProcessor = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
-      createdLogDao.transactionHash,
-      IEventLogPluginType.InstallationApplied,
+  it('Should findExistingLog', async () => {
+    const createdLogPluginSetupProcessor = await Models.LogPluginSetupProcessor.create(rawLogPluginSetupProcessor)
+    const foundLogPluginSetupProcessor = await Models.LogPluginSetupProcessor.findExistingLog(
+      createdLogPluginSetupProcessor.transactionHash,
+      createdLogPluginSetupProcessor.event,
     )
-    expect(logPluginSetupProcessor?.daoAddress).to.eq(rawLogPluginSetupProcessor.daoAddress)
+    expect(foundLogPluginSetupProcessor?.entityId).to.eq(createdLogPluginSetupProcessor.entityId)
+  })
+
+  it('Should findByEntityId', async () => {
+    const createdLogPluginSetupProcessor = await Models.LogPluginSetupProcessor.create(rawLogPluginSetupProcessor)
+    const foundLogPluginSetupProcessor = await Models.LogPluginSetupProcessor.findByEntityId(
+      createdLogPluginSetupProcessor.entityId,
+    )
+    expect(foundLogPluginSetupProcessor?.entityId).to.eq(createdLogPluginSetupProcessor.entityId)
   })
 
   it('Should reload', async () => {

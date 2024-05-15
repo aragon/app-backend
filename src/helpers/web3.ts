@@ -8,6 +8,10 @@ import config from '@config'
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Utils' })
 
 const Web3Utils = {
+  onERC721Received: '0x150b7a02',
+  onERC1155Received: '0xf23a6e61',
+  onERC1155BatchReceived: '0xbc197c81',
+
   extractMetadataUri(metadataHex: string) {
     const metadataBytes = Buffer.from(metadataHex.substring(2), 'hex')
     return metadataBytes.toString('utf8')

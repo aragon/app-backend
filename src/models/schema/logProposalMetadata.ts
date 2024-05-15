@@ -2,6 +2,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
+import { assert } from '@errors'
 
 const customName = 'LogProposalMetadata'
 
@@ -39,6 +40,9 @@ class Media {
 })
 export default class LogProposalMetadata extends Model {
   @prop({ type: () => String, required: true, unique: true })
+  public entityId!: string
+
+  @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
 
   @prop({ type: () => Number, required: true })
@@ -75,12 +79,33 @@ export default class LogProposalMetadata extends Model {
   public media!: Media
 
   static async create(rawData: Partial<LogProposalMetadata>, tOpts?: SaveOptions) {
+    if (!rawData.entityId) {
+      assert(!!rawData.transactionHash, 'transactionHash is required')
+      assert(!!rawData.pluginAddress, 'pluginAddress is required')
+      assert(!!(rawData?.proposalId! >= 0), 'proposalId is required')
+      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.pluginAddress!, rawData?.proposalId!)
+    }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static async findTxHash(transactionHash: HexAddress) {
-    return await this.findOne({ transactionHash })
+  static getEntityId(transactionHash: HexAddress, pluginAddress: HexAddress, proposalId: number) {
+    const entityId = `${transactionHash}-${pluginAddress}-${proposalId}`
+    return entityId
+  }
+
+  static async findExistingLog(
+    transactionHash: HexAddress,
+    pluginAddress: HexAddress,
+    proposalId: number,
+    tOpts?: SaveOptions,
+  ) {
+    const entityId = this.getEntityId(transactionHash, pluginAddress, proposalId)
+    return await this.findByEntityId(entityId, tOpts)
+  }
+
+  static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
+    return await this.findOne({ entityId }, tOpts)
   }
 
   async update(params: Partial<LogProposalMetadata>, tOpts?: SaveOptions) {

@@ -2,6 +2,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
+import { assert } from '@errors'
 
 const customName = 'LogPluginRepo'
 
@@ -23,6 +24,9 @@ const customName = 'LogPluginRepo'
 })
 export default class LogPluginRepo extends Model {
   @prop({ type: () => String, required: true, unique: true })
+  public entityId!: string
+
+  @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
 
   @prop({ type: () => Number, required: true })
@@ -38,12 +42,27 @@ export default class LogPluginRepo extends Model {
   public pluginRepo!: HexAddress
 
   static async create(rawData: Partial<LogPluginRepo>, tOpts?: SaveOptions) {
+    if (!rawData.entityId) {
+      assert(!!rawData.transactionHash, 'transactionHash is required')
+      assert(!!rawData.pluginRepo, 'pluginRepo is required')
+      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.pluginRepo!)
+    }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static async findTxHash(transactionHash: HexAddress) {
-    return await this.findOne({ transactionHash })
+  static getEntityId(transactionHash: HexAddress, pluginRepo: HexAddress) {
+    const entityId = `${transactionHash}-${pluginRepo}`
+    return entityId
+  }
+
+  static async findExistingLog(transactionHash: HexAddress, pluginRepo: HexAddress, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(transactionHash, pluginRepo)
+    return await this.findByEntityId(entityId, tOpts)
+  }
+
+  static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
+    return await this.findOne({ entityId }, tOpts)
   }
 
   async update(params: Partial<LogPluginRepo>, tOpts?: SaveOptions) {

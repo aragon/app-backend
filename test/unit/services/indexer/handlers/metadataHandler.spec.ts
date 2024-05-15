@@ -81,7 +81,7 @@ describe('Indexer: MetadataHandler', () => {
 
       expect(stubLogger.calledWith('Stored DAO metadata' as any)).to.be.true
 
-      const daoMetadataDB = await Models.LogDaoMetadata.findTxHash(txLog.transactionHash)
+      const daoMetadataDB = await Models.LogDaoMetadata.findExistingLog(txLog.transactionHash, txLog.address)
       expect(daoMetadataDB.transactionHash).to.eq(txLog.transactionHash)
       expect(daoMetadataDB.blockNumber).to.eq(txLog.blockNumber)
       expect(daoMetadataDB.network).to.eq(NetworksEnum.mainnet)
@@ -151,7 +151,11 @@ describe('Indexer: MetadataHandler', () => {
 
       expect(stubLogger.calledWith('Stored proposal metadata' as any)).to.be.true
 
-      const proposalMetadataDB = await Models.LogProposalMetadata.findTxHash(txLog.transactionHash)
+      const proposalMetadataDB = await Models.LogProposalMetadata.findExistingLog(
+        txLog.transactionHash,
+        txLog.address,
+        fakeDecodedTx.args[0],
+      )
       expect(proposalMetadataDB.transactionHash).to.eq(txLog.transactionHash)
       expect(proposalMetadataDB.blockNumber).to.eq(txLog.blockNumber)
       expect(proposalMetadataDB.network).to.eq(NetworksEnum.mainnet)

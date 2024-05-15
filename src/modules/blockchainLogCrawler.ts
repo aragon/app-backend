@@ -82,8 +82,8 @@ class BlockchainLogCrawler {
     const secondsInMonth = 30 * 24 * 3600
     switch (network) {
       case NetworksEnum.mainnet:
-      case NetworksEnum.arbitrum:
-      case NetworksEnum.base:
+      case NetworksEnum.arbitrum: // TODO: check
+      case NetworksEnum.base: // TODO: check
         return Math.floor(secondsInMonth / 14) // Average block time ~14 seconds
       case NetworksEnum.polygon:
         return Math.floor(secondsInMonth / 2) // Average block time ~2 seconds

@@ -36,7 +36,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     }
 
     const loggerStub = sandbox.stub(logger, 'verbose')
-    const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findTxHashAndEvent')
+    const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
     await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, txLog, NetworksEnum.mainnet)
 
@@ -44,7 +44,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(loggerStub.calledTwice).to.be.true
     expect(loggerStub.calledWith('New InstallationApplied' as any))
 
-    const daoMetadataDB = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
+    const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
       txLog.transactionHash,
       IEventLogPluginType.InstallationApplied,
     )
@@ -92,7 +92,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     }
 
     const loggerStub = sandbox.stub(logger, 'verbose')
-    const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findTxHashAndEvent')
+    const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
     await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, txLog, NetworksEnum.mainnet)
 
@@ -100,7 +100,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(loggerStub.calledTwice).to.be.true
     expect(loggerStub.calledWith('New InstallationPrepared' as any))
 
-    const daoMetadataDB = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
+    const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
       txLog.transactionHash,
       IEventLogPluginType.InstallationPrepared,
     )
@@ -134,7 +134,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     }
 
     const loggerStub = sandbox.stub(logger, 'verbose')
-    const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findTxHashAndEvent')
+    const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
     await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, txLog, NetworksEnum.mainnet)
 
@@ -142,7 +142,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(loggerStub.calledTwice).to.be.true
     expect(loggerStub.calledWith('New UninstallationApplied' as any))
 
-    const daoMetadataDB = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
+    const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
       txLog.transactionHash,
       IEventLogPluginType.UninstallationApplied,
     )
@@ -189,7 +189,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     }
 
     const loggerStub = sandbox.stub(logger, 'verbose')
-    const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findTxHashAndEvent')
+    const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
     await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, txLog, NetworksEnum.mainnet)
 
@@ -197,7 +197,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(loggerStub.calledTwice).to.be.true
     expect(loggerStub.calledWith('New UninstallationPrepared' as any))
 
-    const daoMetadataDB = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
+    const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
       txLog.transactionHash,
       IEventLogPluginType.UninstallationPrepared,
     )
@@ -232,7 +232,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     }
 
     const loggerStub = sandbox.stub(logger, 'verbose')
-    const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findTxHashAndEvent')
+    const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
     await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, txLog, NetworksEnum.mainnet)
 
@@ -240,7 +240,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(loggerStub.calledTwice).to.be.true
     expect(loggerStub.calledWith('New UpdateApplied' as any))
 
-    const daoMetadataDB = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
+    const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
       txLog.transactionHash,
       IEventLogPluginType.UpdateApplied,
     )
@@ -290,7 +290,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     }
 
     const loggerStub = sandbox.stub(logger, 'verbose')
-    const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findTxHashAndEvent')
+    const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
     await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, txLog, NetworksEnum.mainnet)
 
@@ -298,7 +298,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(loggerStub.calledTwice).to.be.true
     expect(loggerStub.calledWith('New UpdatePrepared' as any))
 
-    const daoMetadataDB = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
+    const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
       txLog.transactionHash,
       IEventLogPluginType.UpdatePrepared,
     )
