@@ -168,10 +168,7 @@ export default class LogProposal extends Model {
   }
 
   async addVoteEvent(voteEvent: Vote, tOpts = {}) {
-    if (!this.voteEvents) {
-      this.voteEvents = []
-    }
-
+    this.voteEvents = this.voteEvents ?? []
     this.voteEvents.push(voteEvent)
 
     return await this.save(tOpts)

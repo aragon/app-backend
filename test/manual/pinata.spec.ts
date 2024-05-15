@@ -14,6 +14,12 @@ describe('Manual: Pinata', () => {
     sandbox?.restore()
   })
 
+  it('get data', async () => {
+    const cid = 'QmVGCibCLPgqA8eszxQJMzQFcmQAdrkyhTGH6EB5ERivsR'
+    const data = await PinataHelper.getData(cid)
+    console.log(data) // eslint-disable-line no-console
+  })
+
   it('upload, pin and fetch metadata', async () => {
     const list = await PinataHelper.pinList()
     console.log(list) // eslint-disable-line no-console
