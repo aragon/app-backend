@@ -59,10 +59,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     PINATA: {
       JWT: utils.configParser(sourceConfig, 'string', 'PINATA_JWT', null),
       GATEWAY_URI: utils.configParser(
-          sourceConfig,
-          'string',
-          'PINATA_GATEWAY_URI',
-          'https://aragon-1.mypinata.cloud/ipfs',
+        sourceConfig,
+        'string',
+        'PINATA_GATEWAY_URI',
+        'https://aragon-1.mypinata.cloud/ipfs',
       ),
     },
 
