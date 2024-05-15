@@ -18,7 +18,7 @@ describe('Manual: Indexer', () => {
     sandbox && sandbox.restore()
   })
 
-  it.only('index', async function () {
+  it('index', async function () {
     await ProviderModule.connectToAllNetworks()
     await InitialData.start()
     await LogDao.start()
