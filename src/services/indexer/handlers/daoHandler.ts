@@ -31,7 +31,7 @@ export const DaoHandler = {
           actionIndex,
         }
 
-        if (parsedEvent.args.token !== ZeroAddress) {
+        if (parsedEvent.args.token && parsedEvent.args.token !== ZeroAddress) {
           // ERC20 transfer
           transaction.tokenAddress = parsedEvent.args.token
         } else {
