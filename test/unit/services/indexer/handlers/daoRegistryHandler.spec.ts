@@ -36,17 +36,17 @@ describe('Indexer: DaoRegistryHandler', () => {
       },
     }
 
-    const findTxHashSpy = sandbox.spy(Models.LogDaoRegistry, 'findTxHash')
+    const findTxHashSpy = sandbox.spy(Models.LogDaoRegistry, 'findExistingLog')
 
     const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
     await DaoRegistryHandler.daoRegistered(fakeEvent as any, txLog as any, network)
 
     expect(findTxHashSpy.calledOnce).to.be.true
-    expect(findTxHashSpy.calledWith(txLog.transactionHash)).to.be.true
+    expect(findTxHashSpy.calledWith(txLog.transactionHash, fakeEvent.args.dao)).to.be.true
     expect(loggerVerboseStub.calledTwice).to.be.true
 
-    const savedDaoLog = await Models.LogDaoRegistry.findTxHash(txLog.transactionHash)
+    const savedDaoLog = await Models.LogDaoRegistry.findExistingLog(txLog.transactionHash, fakeEvent.args.dao)
     expect(!!savedDaoLog).to.be.true
 
     expect(savedDaoLog.network).to.eq(network)
@@ -73,13 +73,13 @@ describe('Indexer: DaoRegistryHandler', () => {
         subdomain: 'test',
       },
     }
-    const findTxHashStub = sandbox.stub(Models.LogDaoRegistry, 'findTxHash').resolves({ transactionHash: '0x00' })
+    const findTxHashStub = sandbox.stub(Models.LogDaoRegistry, 'findExistingLog').resolves({ transactionHash: '0x00' })
 
     const createStub = sandbox.stub(Models.LogDaoRegistry, 'create')
 
     await DaoRegistryHandler.daoRegistered(fakeEvent as any, txLog, network)
 
-    expect(findTxHashStub.calledOnceWith(txLog.transactionHash)).to.be.true
+    expect(findTxHashStub.calledOnceWith(txLog.transactionHash, fakeEvent.args.dao)).to.be.true
     expect(createStub.notCalled).to.be.true
   })
 })

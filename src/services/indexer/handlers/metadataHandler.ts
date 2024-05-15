@@ -44,7 +44,8 @@ export const MetadataHandler = {
       case IAragonContract.DAOFactory: {
         const daoMetadata = Web3Helper.parseDaoMetadata(ipfsMetadata!)
 
-        const existingDaoMetadata = await Models.LogDaoMetadata.findTxHash(txLog.transactionHash)
+        const daoAddress = txLog.address
+        const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog(txLog.transactionHash, daoAddress)
 
         if (!existingDaoMetadata) {
           await DbTx.executeTxFn(async ({ session }) => {
@@ -52,7 +53,7 @@ export const MetadataHandler = {
               ...daoMetadata,
               network,
               metadataUri,
-              daoAddress: txLog.address,
+              daoAddress,
               fetchedMetadata: !!ipfsMetadata,
               ens: decodedTransaction.args[0].subdomain,
               daoURI: decodedTransaction.args[0].daoURI,
@@ -79,7 +80,13 @@ export const MetadataHandler = {
       case IAragonContract.TokenVoting: {
         const proposalMetadata = Web3Helper.parseProposalMetadata(ipfsMetadata!)
 
-        const existingProposalMetadata = await Models.LogProposalMetadata.findTxHash(txLog.transactionHash)
+        const pluginAddress = txLog.address
+        const proposalId = Number(decodedTransaction.args[0])
+        const existingProposalMetadata = await Models.LogProposalMetadata.findExistingLog(
+          txLog.transactionHash,
+          pluginAddress,
+          proposalId,
+        )
 
         if (!existingProposalMetadata) {
           await DbTx.executeTxFn(async ({ session }) => {
@@ -87,9 +94,9 @@ export const MetadataHandler = {
               ...proposalMetadata,
               network,
               metadataUri,
+              proposalId,
               pluginAddress: txLog.address,
               fetchedMetadata: !!ipfsMetadata,
-              proposalId: Number(decodedTransaction.args[0]),
               transactionHash: txLog.transactionHash,
               blockNumber: txLog.blockNumber,
             }

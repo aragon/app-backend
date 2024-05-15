@@ -11,7 +11,7 @@ export const PluginSetupProcessorHandler = {
   installationApplied: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     logger.verbose('installationApplied', llo({ parsedEvent }))
 
-    const existingLog = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
+    const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
       txLog.transactionHash,
       IEventLogPluginType.InstallationApplied,
     )
@@ -40,7 +40,7 @@ export const PluginSetupProcessorHandler = {
   installationPrepared: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     logger.verbose('installationPrepared', llo({ parsedEvent }))
 
-    const existingLog = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
+    const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
       txLog.transactionHash,
       IEventLogPluginType.InstallationPrepared,
     )
@@ -73,7 +73,7 @@ export const PluginSetupProcessorHandler = {
   uninstallationApplied: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     logger.verbose('uninstallationApplied', llo({ parsedEvent }))
 
-    const existingLog = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
+    const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
       txLog.transactionHash,
       IEventLogPluginType.UninstallationApplied,
     )
@@ -101,7 +101,7 @@ export const PluginSetupProcessorHandler = {
   uninstallationPrepared: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     logger.verbose('uninstallationPrepared', llo({ parsedEvent }))
 
-    const existingLog = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
+    const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
       txLog.transactionHash,
       IEventLogPluginType.UninstallationPrepared,
     )
@@ -134,7 +134,7 @@ export const PluginSetupProcessorHandler = {
   updateApplied: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     logger.verbose('updateApplied', llo({ parsedEvent }))
 
-    const existingLog = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
+    const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
       txLog.transactionHash,
       IEventLogPluginType.UpdateApplied,
     )
@@ -163,7 +163,7 @@ export const PluginSetupProcessorHandler = {
   updatePrepared: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     logger.verbose('updatePrepared', llo({ parsedEvent }))
 
-    const existingLog = await Models.LogPluginSetupProcessor.findTxHashAndEvent(
+    const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
       txLog.transactionHash,
       IEventLogPluginType.UpdatePrepared,
     )

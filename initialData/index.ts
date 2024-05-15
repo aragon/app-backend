@@ -10,17 +10,18 @@ export const InitialData = {
       Object.entries(networks).map(async ([network, nodeUrl]) => {
         if (nodeUrl) {
           const contractConfig =
-            config.ARAGON_CONTRACTS[network]['v1.3.0'] ?? config.ARAGON_CONTRACTS[network]['v1.0.0']
+            config.ARAGON_CONTRACTS[network]['v1.0.0'] ?? config.ARAGON_CONTRACTS[network]['v1.3.0']
+
           await Models.Network.create({
             name: network.toLowerCase(),
             status: StatusNetworkEnum.healthy,
             isActive: true,
-            lastBlockDao: contractConfig.DAOBase.blockNumber,
-            lastBlockDaoRegistry: contractConfig.DAORegistryImplementation.blockNumber,
-            lastBlockPluginRepoRegistry: contractConfig.PluginRepoRegistryImplementation.blockNumber,
-            lastBlockPluginSetupProcessor: contractConfig.PluginSetupProcessor.blockNumber,
+            lastBlockDao: contractConfig.DAOFactory.blockNumber,
+            lastBlockDaoRegistry: contractConfig.DAOFactory.blockNumber,
+            lastBlockPluginRepoRegistry: contractConfig.DAOFactory.blockNumber,
+            lastBlockPluginSetupProcessor: contractConfig.DAOFactory.blockNumber,
             lastBlockProposal: contractConfig.DAOFactory.blockNumber,
-            lastBlockPluginSetting: contractConfig.TokenVotingSetupImplementation.blockNumber,
+            lastBlockPluginSetting: contractConfig.DAOFactory.blockNumber,
           })
         }
       }),

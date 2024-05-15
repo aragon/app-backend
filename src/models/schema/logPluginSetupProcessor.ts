@@ -2,6 +2,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, IEventLogPluginType, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
+import { assert } from '@errors'
 
 const customName = 'LogPluginSetupProcessor'
 
@@ -39,10 +40,13 @@ class Permission {
   lastBlockSync: 1,
 })
 export default class LogPluginSetupProcessor extends Model {
-  @prop({ type: () => String, enum: IEventLogPluginType })
+  @prop({ type: () => String, required: true, unique: true })
+  public entityId!: string
+
+  @prop({ type: () => String, enum: IEventLogPluginType, required: true })
   public event!: string
 
-  @prop({ type: () => String, required: true, unique: false })
+  @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
 
   @prop({ type: () => Number, required: true })
@@ -79,16 +83,27 @@ export default class LogPluginSetupProcessor extends Model {
   public permissions!: Permission[]
 
   static async create(rawData: Partial<LogPluginSetupProcessor>, tOpts?: SaveOptions) {
+    if (!rawData.entityId) {
+      assert(!!rawData.transactionHash, 'transactionHash is required')
+      assert(!!rawData.event, 'event is required')
+      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.event as any)
+    }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static async findTxHash(transactionHash: HexAddress) {
-    return await this.findOne({ transactionHash })
+  static getEntityId(transactionHash: HexAddress, event: IEventLogPluginType) {
+    const entityId = `${transactionHash}-${event}`
+    return entityId
   }
 
-  static async findTxHashAndEvent(transactionHash: HexAddress, event: IEventLogPluginType) {
-    return await this.findOne({ transactionHash, event })
+  static async findExistingLog(transactionHash: HexAddress, event: IEventLogPluginType, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(transactionHash, event)
+    return await this.findByEntityId(entityId, tOpts)
+  }
+
+  static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
+    return await this.findOne({ entityId }, tOpts)
   }
 
   async update(params: Partial<LogPluginSetupProcessor>, tOpts?: SaveOptions) {
