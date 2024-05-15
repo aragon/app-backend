@@ -4,6 +4,7 @@ import ProviderModule from '@modules/provider'
 import config from '@config'
 import { LogDao } from '@services/indexer/logDao'
 import { InitialData } from '../../initialData'
+import { LogProposal } from '@services/indexer/logProposal'
 
 describe('Manual: Indexer', () => {
   let sandbox: SinonSandbox
@@ -17,7 +18,7 @@ describe('Manual: Indexer', () => {
     sandbox && sandbox.restore()
   })
 
-  it('index', async function () {
+  it.only('index', async function () {
     await ProviderModule.connectToAllNetworks()
     await InitialData.start()
     await LogDao.start()

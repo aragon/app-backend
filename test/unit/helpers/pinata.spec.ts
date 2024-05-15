@@ -4,6 +4,7 @@ import PinataHelper from '@helpers/pinata'
 import { expect } from 'chai'
 import utils from '@helpers/utils'
 import logger from '@logger'
+import config from "@config";
 
 describe('Helpers: Pinata', () => {
   let sandbox: SinonSandbox
@@ -14,6 +15,51 @@ describe('Helpers: Pinata', () => {
 
   afterEach(() => {
     sandbox?.restore()
+  })
+
+  describe('getData', async () => {
+    it('should get data', async () => {
+      const cid = 'QmVGCibCLPgqA8eszxQJMzQFcmQAdrkyhTGH6EB5ERivsR'
+      const fakeContent = { data: 1 }
+      const stubResponse = {
+        json: sandbox.stub().resolves(fakeContent),
+      }
+      const stubFetch = sandbox.stub(global, 'fetch').resolves(stubResponse as any)
+
+      const resp = await PinataHelper.getData(cid)
+
+      expect(stubFetch.calledOnce).to.be.true
+      expect(stubFetch.calledWith(`${config.PINATA.GATEWAY_URI}/${cid}`, { method: 'GET' })).to.be.true
+      expect(resp).to.deep.equal(fakeContent)
+    })
+
+    it('should handle string data response', async () => {
+      const cid = 'QmVGCibCLPgqA8eszxQJMzQFcmQAdrkyhTGH6EB5ERivsR'
+      const fakeContent = JSON.stringify({ data: 1 })
+      const stubResponse = {
+        json: sandbox.stub().resolves(fakeContent),
+      }
+      const stubFetch = sandbox.stub(global, 'fetch').resolves(stubResponse as any)
+
+      const resp = await PinataHelper.getData(cid)
+
+      expect(stubFetch.calledOnce).to.be.true
+      expect(stubFetch.calledWith(`${config.PINATA.GATEWAY_URI}/${cid}`, { method: 'GET' })).to.be.true
+      expect(resp).to.deep.equal({ data: 1 })
+    })
+
+    it('should handle fetch error', async () => {
+      const cid = 'QmVGCibCLPgqA8eszxQJMzQFcmQAdrkyhTGH6EB5ERivsR'
+      const stubFetch = sandbox.stub(global, 'fetch').rejects(new Error('fake-error'))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const data = await PinataHelper.getData(cid)
+
+      expect(data).to.be.null
+      expect(stubFetch.calledOnce).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Failed to fetch data' as any)).to.be.true
+    })
   })
 
   describe('uploadAndPinMetadata', async () => {
