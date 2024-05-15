@@ -4,7 +4,7 @@ import PinataHelper from '@helpers/pinata'
 import { expect } from 'chai'
 import utils from '@helpers/utils'
 import logger from '@logger'
-import config from "@config";
+import config from '@config'
 
 describe('Helpers: Pinata', () => {
   let sandbox: SinonSandbox
