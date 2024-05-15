@@ -10,6 +10,7 @@ import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor
 import type LogPluginRepo from '@models/schema/logPluginRepo'
 import type LogProposal from '@models/schema/logProposal'
 import type LogPluginSetting from '@models/schema/logPluginSetting'
+import type LogTransaction from '@models/schema/logTransaction'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
@@ -22,6 +23,7 @@ export interface IMongoModel {
   LogPluginRepo: Model<InstanceType<typeof LogPluginRepo>>
   LogProposal: Model<InstanceType<typeof LogProposal>>
   LogPluginSetting: Model<InstanceType<typeof LogPluginSetting>>
+  LogTransaction: Model<InstanceType<typeof LogTransaction>>
 }
 
 export enum IEventLogPluginType {
@@ -31,6 +33,11 @@ export enum IEventLogPluginType {
   UninstallationApplied = 'UninstallationApplied',
   UpdatePrepared = 'UpdatePrepared',
   UpdateApplied = 'UpdateApplied',
+}
+
+export enum ITransactionType {
+  deposit = 'deposit',
+  withdraw = 'withdraw',
 }
 
 export interface IPaginationParams {
