@@ -60,7 +60,20 @@ export const PluginSetupProcessorHandler = {
           build: Number(parsedEvent.args.versionTag.build),
           blockNumber: txLog.blockNumber,
           transactionHash: txLog.transactionHash,
+          tokenAddress: null,
         }
+
+        /**
+         * If the plugin is tokenBased then we need to save the token address
+         * The token address is inside the preparedSetupData tuple (struct) and
+         * in the helpers array. The first element of the helpers array is the token address
+         * as per the findings
+         */
+
+        if (parsedEvent.args.preparedSetupData?.helpers && parsedEvent.args.preparedSetupData.helpers.length === 1) {
+          pluginLog.tokenAddress = parsedEvent.args.preparedSetupData.helpers[0]
+        }
+
         await Models.LogPluginSetupProcessor.create(pluginLog, { session })
 
         await session.commitTransaction()

@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Web3Helper from '@helpers/web3'
 import { NetworksEnum } from '@types'
-import { id } from 'ethers'
+import { ethers, id } from 'ethers'
 import { ConfigState } from '@state/configState'
 import Logger from '@logger'
 import proxyquire from 'proxyquire'
@@ -383,6 +383,35 @@ describe('Helpers:Web3', () => {
       expect(result).to.be.null
       expect(getTransactionReceiptStub.calledOnce).to.be.true
       expect(stubLogger.calledOnceWith('Error get transaction receipt' as any)).to.be.true
+    })
+  })
+
+  describe('findLogsByName', () => {
+    it('should find logs by name', () => {
+      const eventName = 'EventName'
+      const abi = [
+        {
+          name: 'EventName',
+          type: 'event',
+          inputs: [{ type: 'uint256', name: 'arg1' }],
+        },
+      ]
+
+      const transactionReceipt = {
+        logs: [
+          {
+            logIndex: 0,
+            data: '0x' + (''.padStart(62, '0') + '01'),
+            topics: [ethers.id('EventName(uint256)')],
+          },
+        ],
+      } as any
+
+      const parsedLog = Web3Helper.findLogsByName(transactionReceipt, eventName, abi)
+
+      expect(parsedLog?.parsed?.args.arg1).to.be.exist
+      expect(parsedLog?.txLog).to.be.exist
+      expect(parsedLog?.parsed?.args.arg1).to.be.eq(1n)
     })
   })
 })

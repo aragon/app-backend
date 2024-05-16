@@ -106,4 +106,25 @@ describe('Model: LogDaoRegistry', () => {
 
     expect(createdLogDaoRegistry.address).to.eq(rawLogDaoRegistry.address)
   })
+
+  it('should find by address', async () => {
+    const createdLogDaoRegistry = await Models.LogDaoRegistry.create(rawLogDaoRegistry)
+    const foundLogDaoRegistry = await Models.LogDaoRegistry.findByAddress(
+      createdLogDaoRegistry.address,
+      createdLogDaoRegistry.network,
+    )
+    expect(foundLogDaoRegistry?.entityId).to.eq(createdLogDaoRegistry.entityId)
+  })
+
+  it('save uri update', async () => {
+    const createdLogDaoRegistry = await Models.LogDaoRegistry.create(rawLogDaoRegistry)
+    const uri = 'fake-uri'
+    await createdLogDaoRegistry.addURIUpdates({
+      uri,
+      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      blockNumber: 3,
+    })
+    expect(createdLogDaoRegistry.uriUpdates[0].uri).to.eq(uri)
+  })
 })

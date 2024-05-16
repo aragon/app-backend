@@ -146,6 +146,20 @@ describe('Model: LogPluginSetupProcessor', () => {
     expect(foundLogPluginSetupProcessor?.entityId).to.eq(createdLogPluginSetupProcessor.entityId)
   })
 
+  it('should find plugin by token address', async () => {
+    const createdLogPluginSetupProcessor = await Models.LogPluginSetupProcessor.create({
+      ...rawLogPluginSetupProcessor,
+      tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+    })
+
+    const foundLogPluginSetupProcessor = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(
+      createdLogPluginSetupProcessor.tokenAddress,
+      createdLogPluginSetupProcessor.network,
+    )
+
+    expect(foundLogPluginSetupProcessor?.tokenAddress).to.eq(createdLogPluginSetupProcessor.tokenAddress)
+  })
+
   it('Should reload', async () => {
     const createdLogDao = await Models.LogPluginSetupProcessor.create(rawLogPluginSetupProcessor)
     await createdLogDao.reload()
