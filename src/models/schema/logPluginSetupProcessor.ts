@@ -82,6 +82,9 @@ export default class LogPluginSetupProcessor extends Model {
   @prop({ type: () => [Permission], default: [] })
   public permissions!: Permission[]
 
+  @prop({ type: () => String, default: null })
+  public tokenAddress!: string // voting token address
+
   static async create(rawData: Partial<LogPluginSetupProcessor>, tOpts?: SaveOptions) {
     if (!rawData.entityId) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -100,6 +103,17 @@ export default class LogPluginSetupProcessor extends Model {
   static async findExistingLog(transactionHash: HexAddress, event: IEventLogPluginType, tOpts?: SaveOptions) {
     const entityId = this.getEntityId(transactionHash, event)
     return await this.findByEntityId(entityId, tOpts)
+  }
+
+  static async findPluginByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum) {
+    return await this.findOne({ tokenAddress, network })
+  }
+
+  static async findByPluginAddress(pluginAddress: HexAddress, network: NetworksEnum) {
+    return await this.findOne({
+      pluginAddress,
+      network,
+    })
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {

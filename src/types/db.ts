@@ -11,6 +11,7 @@ import type LogPluginRepo from '@models/schema/logPluginRepo'
 import type LogProposal from '@models/schema/logProposal'
 import type LogPluginSetting from '@models/schema/logPluginSetting'
 import type LogTransaction from '@models/schema/logTransaction'
+import type LogMember from '@models/schema/logMember'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
@@ -24,6 +25,7 @@ export interface IMongoModel {
   LogProposal: Model<InstanceType<typeof LogProposal>>
   LogPluginSetting: Model<InstanceType<typeof LogPluginSetting>>
   LogTransaction: Model<InstanceType<typeof LogTransaction>>
+  LogMember: Model<InstanceType<typeof LogMember>>
 }
 
 export enum IEventLogPluginType {
@@ -38,6 +40,13 @@ export enum IEventLogPluginType {
 export enum ITransactionType {
   deposit = 'deposit',
   withdraw = 'withdraw',
+}
+
+export enum IEventLogMember {
+  MembersAdded = 'MembersAdded',
+  MembersRemoved = 'MembersRemoved',
+  DelegateChanged = 'DelegateChanged',
+  DelegateVotesChanged = 'DelegateVotesChanged',
 }
 
 export interface IPaginationParams {
@@ -55,4 +64,14 @@ export interface IResponseWithPagination {
   currentPage: number
   totPages: number
   totRecords: number
+}
+
+export enum PluginSubDomains {
+  TokenVoting = 'token-voting',
+  MultiSig = 'multisig',
+}
+
+export enum MemberChanges {
+  Add = 'Add',
+  Remove = 'Remove',
 }

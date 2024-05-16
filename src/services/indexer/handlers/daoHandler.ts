@@ -84,7 +84,46 @@ export const DaoHandler = {
   },
 
   newURI: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    logger.verbose('newURI', llo({ parsedEvent }))
+    logger.verbose(
+      'newURI',
+      llo({
+        transactionHash: txLog.transactionHash,
+      }),
+    )
+
+    if (!parsedEvent.args.daoURI) {
+      return
+    }
+
+    const existingLog = await Models.LogDaoRegistry.findExistingLog(txLog.transactionHash, txLog.address)
+
+    if (!existingLog) {
+      const existingDao = await Models.LogDaoRegistry.findByAddress(txLog.address, network)
+
+      if (!existingDao) {
+        logger.verbose(
+          'Dao not found',
+          llo({
+            transactionHash: txLog.transactionHash,
+          }),
+        )
+        return
+      }
+
+      await DbTx.executeTxFn(async ({ session }) => {
+        const uriUpdates = {
+          blockNumber: txLog.blockNumber,
+          transactionHash: txLog.transactionHash,
+          uri: parsedEvent.args.daoURI,
+        }
+
+        await existingDao.addURIUpdates(uriUpdates, session)
+
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Log Dao New URI', llo({ uri: parsedEvent.args.uri, txLog }))
+      })
+    }
   },
 
   revoked: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {

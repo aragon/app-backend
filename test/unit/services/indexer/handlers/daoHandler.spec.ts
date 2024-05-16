@@ -225,4 +225,42 @@ describe('Indexer: DaoHandler', () => {
     await DaoHandler.trustedForwarderSet(event as any, txLog, network)
     expect(stubLogger.calledOnce).to.be.true
   })
+
+  it('uri updated', async () => {
+    const network = NetworksEnum.mainnet
+    const stubLogger = sandbox.stub(logger, 'verbose')
+    const event = {
+      args: {
+        daoURI: 'test',
+      },
+    }
+
+    const addURIUpdatesStub = sandbox.stub()
+    const findExistingLogStub = sandbox.stub(Models.LogDaoRegistry, 'findExistingLog').returns(false)
+    const findByAddressStub = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').returns({
+      addURIUpdates: addURIUpdatesStub,
+      address: '0x123',
+    })
+
+    await DaoHandler.newURI(
+      event as any,
+      {
+        transactionHash: '0x123',
+        blockNumber: 1,
+        address: '0x456',
+      },
+      network,
+    )
+
+    expect(stubLogger.callCount).to.be.eq(2)
+    expect(findExistingLogStub.calledOnce).to.be.true
+    expect(addURIUpdatesStub.calledOnce).to.be.true
+    expect(findByAddressStub.calledOnce).to.be.true
+
+    expect(addURIUpdatesStub.args[0][0]).to.be.deep.eq({
+      blockNumber: 1,
+      transactionHash: '0x123',
+      uri: 'test',
+    })
+  })
 })
