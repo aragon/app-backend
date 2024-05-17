@@ -35,7 +35,7 @@ export const LogMember = {
 
       const filter = {
         topics: [...multiSigTopics, ...governanceTopics],
-        fromBlock: networkDb.lastBlockMember,
+        fromBlock: networkDb.lastBlockDao,
         toBlock: 'latest',
       }
 
@@ -76,19 +76,19 @@ export const LogMember = {
 
     switch (event.name) {
       case 'MembersAdded':
-        logger.verbose('MembersAdded', llo({ event }))
+        logger.verbose('MembersAdded', llo({ eventName: event.name }))
         await MemberHandler.membersAdded(event, txLog, network)
         break
       case 'MembersRemoved':
-        logger.verbose('MembersRemoved', llo({ event }))
+        logger.verbose('MembersRemoved', llo({ eventName: event.name }))
         await MemberHandler.membersRemoved(event, txLog, network)
         break
       case 'DelegateChanged':
-        logger.verbose('DelegateChanged', llo({ event }))
+        logger.verbose('DelegateChanged', llo({ eventName: event.name }))
         await MemberHandler.delegateChanged(event, txLog, network)
         break
       default:
-        logger.error('Unhandled event', llo({ event }))
+        logger.error('Unhandled event', llo({ eventName: event.name, transactionHash: txLog.transactionHash }))
         break
     }
   },

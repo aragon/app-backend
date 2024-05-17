@@ -88,6 +88,7 @@ export const DaoHandler = {
       'newURI',
       llo({
         transactionHash: txLog.transactionHash,
+        network,
       }),
     )
 
@@ -105,6 +106,7 @@ export const DaoHandler = {
           'Dao not found',
           llo({
             transactionHash: txLog.transactionHash,
+            network,
           }),
         )
         return
@@ -121,7 +123,15 @@ export const DaoHandler = {
 
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('Log Dao New URI', llo({ uri: parsedEvent.args.uri, txLog }))
+        logger.verbose(
+          'Log Dao New URI',
+          llo({
+            uri: parsedEvent.args.uri,
+            transactionHash: txLog.transactionHash,
+            network,
+            daoId: existingDao.id,
+          }),
+        )
       })
     }
   },

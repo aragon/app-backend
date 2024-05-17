@@ -64,7 +64,7 @@ export default class LogMember extends Model {
   static async create(rawData: Partial<LogMember>, tOpts?: SaveOptions) {
     if (!rawData.entityId) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
-      assert(!!rawData.event, 'member address is required')
+      assert(!!rawData.event, 'event name is required')
       rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.event!)
     }
     const data = new this(rawData)

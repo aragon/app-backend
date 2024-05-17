@@ -65,13 +65,3 @@ export interface IResponseWithPagination {
   totPages: number
   totRecords: number
 }
-
-export enum PluginSubDomains {
-  TokenVoting = 'token-voting',
-  MultiSig = 'multisig',
-}
-
-export enum MemberChanges {
-  Add = 'Add',
-  Remove = 'Remove',
-}
