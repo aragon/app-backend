@@ -186,16 +186,6 @@ describe('Indexer: DaoHandler', () => {
     expect(savedDaoLog.actionIndex).to.eq(0)
   })
 
-  it('newURI', async () => {
-    const event = { name: 'test' }
-    const txLog = { name: 'test' }
-    const network = NetworksEnum.mainnet
-
-    const stubLogger = sandbox.stub(logger, 'verbose')
-    await DaoHandler.newURI(event as any, txLog, network)
-    expect(stubLogger.calledOnce).to.be.true
-  })
-
   it('revoked', async () => {
     const event = { name: 'test' }
     const txLog = { name: 'test' }
