@@ -8,7 +8,7 @@ import { Models } from '@dbModels'
 import { UtilsIndexer } from '@models/utils/indexer'
 import Network from '@models/schema/network'
 import Provider from '@modules/provider'
-import {ethers, Interface} from 'ethers'
+import { ethers, Interface } from 'ethers'
 import { PluginSettingHandler } from '@services/indexer/handlers/pluginSettingHandler'
 import Utils from '@helpers/utils'
 
