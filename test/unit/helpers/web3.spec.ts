@@ -413,5 +413,53 @@ describe('Helpers:Web3', () => {
       expect(parsedLog?.txLog).to.be.exist
       expect(parsedLog?.parsed?.args.arg1).to.be.eq(1n)
     })
+
+    it('should return null if not exist', () => {
+      const eventName = 'EventAme'
+      const abi = [
+        {
+          name: 'EventName',
+          type: 'event',
+          inputs: [{ type: 'uint256', name: 'arg1' }],
+        },
+      ]
+
+      const transactionReceipt = {
+        logs: [
+          {
+            logIndex: 0,
+            data: '0x' + (''.padStart(62, '0') + '01'),
+            topics: [ethers.id('EventName(uint256)')],
+          },
+        ],
+      } as any
+
+      const parsedLog = Web3Helper.findLogsByName(transactionReceipt, eventName, abi)
+      expect(parsedLog).to.be.null
+    })
+
+    it('should return null if bad data', () => {
+      const eventName = 'EventName'
+      const abi = [
+        {
+          name: 'EventName',
+          type: 'event',
+          inputs: [{ type: 'uint256', name: 'arg1' }],
+        },
+      ]
+
+      const transactionReceipt = {
+        logs: [
+          {
+            logIndex: 0,
+            data: '0x' + (''.padStart(65, '0') + '01'),
+            topics: [ethers.id('EventName(uint256)')],
+          },
+        ],
+      } as any
+
+      const parsedLog = Web3Helper.findLogsByName(transactionReceipt, eventName, abi)
+      expect(parsedLog).to.be.null
+    })
   })
 })
