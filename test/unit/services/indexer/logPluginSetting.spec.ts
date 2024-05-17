@@ -8,7 +8,7 @@ import { Models } from '@dbModels'
 import { UtilsIndexer } from '@models/utils/indexer'
 import Network from '@models/schema/network'
 import Provider from '@modules/provider'
-import { Interface } from 'ethers'
+import {ethers, Interface} from 'ethers'
 import { PluginSettingHandler } from '@services/indexer/handlers/pluginSettingHandler'
 import Utils from '@helpers/utils'
 
@@ -189,6 +189,15 @@ describe('Indexer: LogPluginSetting', () => {
 
       expect(stubParseLog.calledOnceWith(txLog)).to.be.true
       expect(loggerStub.called).to.be.false // ensure no error logged for out-of-bounds
+    })
+
+    it('should return based on plugin type', async () => {
+      const eventTopic = ethers.id('VotingSettingsUpdated(uint8,uint32,uint32,uint64,uint256)')
+
+      const interafce = LogPluginSetting.getInterface(eventTopic)
+
+      const exist = interafce.fragments.find((e: any) => e.name === 'VotingSettingsUpdated')
+      expect(!!exist).to.be.true
     })
 
     it('should not processLog unknown event', async () => {
