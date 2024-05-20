@@ -1,5 +1,14 @@
 import { type HexAddress, type IDaoMetadata, type IProposalMetadata, type NetworksEnum } from '@types'
-import { Contract, type Filter, getAddress, type Log, namehash, type WebSocketProvider } from 'ethers'
+import {
+  Contract,
+  type Filter,
+  getAddress,
+  Interface,
+  type Log,
+  namehash,
+  type TransactionReceipt,
+  type WebSocketProvider,
+} from 'ethers'
 import { ConfigState } from '@state/configState'
 import { ENSSubdomainRegistrar } from '@artifacts/ENSSubdomainRegistrar'
 import logger from '@logger'
@@ -217,6 +226,25 @@ const Web3Utils = {
         }),
       )
       return []
+    }
+  },
+
+  findLogsByName: (txReceipt: TransactionReceipt, name: string, abi: any) => {
+    try {
+      const eventTopicHash = abi
+        .filter((item: any) => item.type === 'event' && item.name === name)
+        .map((event: any) => new Interface(abi).getEvent(event.name)?.topicHash)[0]
+
+      const log = txReceipt.logs.find((log: any) => log.topics[0] === eventTopicHash)
+      if (log) {
+        return {
+          parsed: new Interface(abi).parseLog(log),
+          txLog: log,
+        }
+      }
+      return null
+    } catch (e) {
+      return null
     }
   },
 }

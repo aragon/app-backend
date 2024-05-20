@@ -8,6 +8,7 @@ import { LogPluginRepoRegistry } from '@services/indexer/logPluginRepoRegistry'
 import { LogPluginSetupProcessor } from '@services/indexer/logPluginSetupProcessor'
 import { LogProposal } from '@services/indexer/logProposal'
 import { LogPluginSetting } from '@services/indexer/logPluginSetting'
+import { LogMember } from '@services/indexer/logMember'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -18,19 +19,19 @@ const IndexerService: IService & { repeaters: any } = {
   start: async function () {
     logger.info('IndexerService service start', llo({}))
 
-    IndexerService.repeaters.dao = Utils.setIntervalAsync({
-      fn: LogDao.start,
-      delay: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
-      onError: (error: any): void => {
-        logger.error('Indexer Dao error', llo({ error }))
-      },
-    })
-
     IndexerService.repeaters.daoRegistry = Utils.setIntervalAsync({
       fn: LogDaoRegistry.start,
       delay: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
       onError: (error: any): void => {
         logger.error('Indexer DaoRegistry error', llo({ error }))
+      },
+    })
+
+    IndexerService.repeaters.dao = Utils.setIntervalAsync({
+      fn: LogDao.start,
+      delay: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
+      onError: (error: any): void => {
+        logger.error('Indexer Dao error', llo({ error }))
       },
     })
 
@@ -47,6 +48,14 @@ const IndexerService: IService & { repeaters: any } = {
       delay: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
       onError: (error: any): void => {
         logger.error('Indexer PluginSetupProcessor error', llo({ error }))
+      },
+    })
+
+    IndexerService.repeaters.member = Utils.setIntervalAsync({
+      fn: LogMember.start,
+      delay: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
+      onError: (error: any): void => {
+        logger.error('Indexer member error', llo({ error }))
       },
     })
 

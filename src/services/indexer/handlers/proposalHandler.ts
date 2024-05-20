@@ -49,7 +49,10 @@ export const ProposalHandler = {
   },
 
   approved: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    logger.verbose('approved', llo({ parsedEvent }))
+    const logInfo = {
+      transactionHash: txLog.transactionHash,
+      network,
+    }
 
     const parsedParams = {
       blockNumber: txLog.blockNumber,
@@ -57,10 +60,11 @@ export const ProposalHandler = {
       proposalId: Number(parsedEvent.args.proposalId),
       memberAddress: parsedEvent.args.approver,
     }
+
     const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, txLog.address, network)
 
     if (!proposal) {
-      logger.error('proposal not found', llo({ parsedEvent, txLog }))
+      logger.error('proposal not found', llo({ logInfo }))
       return
     }
 
@@ -77,7 +81,10 @@ export const ProposalHandler = {
   },
 
   voteCast: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    logger.verbose('voteCast', llo({ parsedEvent }))
+    const logInfo = {
+      transactionHash: txLog.transactionHash,
+      network,
+    }
 
     const parsedParams = {
       blockNumber: txLog.blockNumber,
@@ -90,7 +97,7 @@ export const ProposalHandler = {
     const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, txLog.address, network)
 
     if (!proposal) {
-      logger.error('proposal not found', llo({ parsedEvent, txLog }))
+      logger.error('proposal not found', llo({ logInfo }))
       return
     }
 
@@ -101,13 +108,16 @@ export const ProposalHandler = {
         await proposal.addVoteEvent(parsedParams, { session })
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('New voteCastLog', llo({ parsedParams }))
+        logger.verbose('New voteCastLog', llo({ parsedParams, logInfo }))
       })
     }
   },
 
   proposalExecuted: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    logger.verbose('proposalExecuted', llo({ parsedEvent }))
+    const logInfo = {
+      transactionHash: txLog.transactionHash,
+      network,
+    }
 
     const parsedParams = {
       proposalId: Number(parsedEvent.args.proposalId),
@@ -115,7 +125,7 @@ export const ProposalHandler = {
     const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, txLog.address, network)
 
     if (!proposal) {
-      logger.error('proposal not found', llo({ parsedEvent, txLog }))
+      logger.error('proposal not found', llo({ logInfo }))
       return
     }
 
@@ -128,13 +138,18 @@ export const ProposalHandler = {
             transactionHash: txLog.transactionHash,
           },
         })
-        logger.verbose('New proposalExecutedLog', llo({ parsedParams }))
+        logger.verbose('New proposalExecutedLog', llo({ parsedParams, logInfo }))
       })
     }
   },
 
   proposalMetadata: async (txLog: any, proposalDb: LogProposal) => {
-    logger.verbose('proposalMetadata', llo({ txLog, proposalId: proposalDb.id, metadataUri: proposalDb.metadataUri }))
+    const logInfo = {
+      transactionHash: txLog.transactionHash,
+      network: proposalDb.network,
+      proposalId: proposalDb.id,
+      metadataUri: proposalDb.metadataUri,
+    }
 
     const ipfsMetadata = await IPFSModule.fetchMetadata(proposalDb.metadataUri, { retries: 1 })
     const proposalMetadata = Web3Helper.parseProposalMetadata(ipfsMetadata!)
@@ -163,8 +178,7 @@ export const ProposalHandler = {
         logger.verbose(
           'Stored proposal metadata',
           llo({
-            network: proposalDb.network,
-            logProposalMetadata,
+            logInfo,
           }),
         )
       })

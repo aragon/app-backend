@@ -1,18 +1,17 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { LogPluginSetting } from '@services/indexer/logPluginSetting'
-import logger from '@logger'
-import { NetworksEnum } from '@types'
+import { LogMember } from '@services/indexer/logMember'
+import Provider from '@modules/provider'
 import { Models } from '@dbModels'
 import { UtilsIndexer } from '@models/utils/indexer'
-import Network from '@models/schema/network'
-import Provider from '@modules/provider'
-import { ethers, Interface } from 'ethers'
-import { PluginSettingHandler } from '@services/indexer/handlers/pluginSettingHandler'
+import logger from '@logger'
+import { NetworksEnum } from '@types'
+import { Interface } from 'ethers'
 import Utils from '@helpers/utils'
+import { MemberHandler } from '@services/indexer/handlers/memberHandler'
 
-describe('Indexer: LogPluginSetting', () => {
+describe('Indexer: LogMember', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -24,8 +23,7 @@ describe('Indexer: LogPluginSetting', () => {
   })
 
   it('events', async () => {
-    expect(LogPluginSetting.eventTokenVoting.length).to.eq(1)
-    expect(LogPluginSetting.eventMultisig.length).to.eq(1)
+    expect(LogMember.events.length).to.eq(3)
   })
 
   describe('start', () => {
@@ -63,19 +61,19 @@ describe('Indexer: LogPluginSetting', () => {
           destroy: sandbox.stub().resolves(),
         },
       }
+
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
-
-      const processMetadataStub = sandbox.stub(LogPluginSetting, 'processLog').resolves()
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
       const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
+      const processLogStub = sandbox.stub(LogMember, 'processLog').resolves()
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
-      await LogPluginSetting.start()
+      await LogMember.start()
 
+      expect(networkFindStub.callCount).to.eq(5)
+      expect(saveSyncStub.callCount).to.eq(5)
+      expect(processLogStub.callCount).to.eq(2)
       expect(loggerVerboseStub.callCount).to.eq(6)
-      expect(processMetadataStub.callCount).to.eq(2)
-      expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
-      expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
     })
 
     it('should start handle error', async () => {
@@ -112,27 +110,25 @@ describe('Indexer: LogPluginSetting', () => {
           destroy: sandbox.stub().resolves(),
         },
       }
+
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
-
-      const processMetadataStub = sandbox.stub(LogPluginSetting, 'processLog').rejects()
-      const errorStub = sandbox.stub(LogPluginSetting, 'processError').resolves()
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
       const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
+      const processLogStub = sandbox.stub(LogMember, 'processLog').throws()
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
-      await LogPluginSetting.start()
+      await LogMember.start()
 
-      expect(errorStub.callCount).to.eq(2)
+      expect(networkFindStub.callCount).to.eq(5)
+      expect(saveSyncStub.callCount).to.eq(5)
+      expect(processLogStub.callCount).to.eq(2)
       expect(loggerVerboseStub.callCount).to.eq(6)
-      expect(processMetadataStub.callCount).to.eq(2)
-      expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
-      expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
     })
 
     it('should skip unsupported networks', async () => {
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves(null)
       const stubLogger = sandbox.stub(logger, 'verbose')
-      await LogPluginSetting.start()
+      await LogMember.start()
 
       expect(stubLogger.calledWith('Unsupported Network' as any)).to.be.true
       expect(networkFindStub.calledOnce).to.be.true
@@ -150,7 +146,7 @@ describe('Indexer: LogPluginSetting', () => {
         blockNumber: 1,
       }
 
-      for (const event of [...LogPluginSetting.eventMultisig, ...LogPluginSetting.eventTokenVoting]) {
+      for (const event of LogMember.events) {
         const fakeEvent = {
           name: event,
           args: true,
@@ -158,9 +154,9 @@ describe('Indexer: LogPluginSetting', () => {
 
         const loggerStub = sandbox.stub(logger, 'verbose')
         const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
-        const stubProcessHandler = sandbox.stub(PluginSettingHandler, Utils.lowercaseFirstLetter(event))
+        const stubProcessHandler = sandbox.stub(MemberHandler, Utils.lowercaseFirstLetter(event))
 
-        await LogPluginSetting.processLog(txLog as any, network)
+        await LogMember.processLog(txLog as any, network)
 
         expect(stubParseLog.calledOnceWith(txLog)).to.be.true
         expect(loggerStub.calledOnceWith(event as any)).to.be.true
@@ -185,19 +181,10 @@ describe('Indexer: LogPluginSetting', () => {
       const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').throws(new Error('out-of-bounds'))
       const loggerStub = sandbox.stub(logger, 'error')
 
-      await LogPluginSetting.processLog(txLog, network)
+      await LogMember.processLog(txLog, network)
 
       expect(stubParseLog.calledOnceWith(txLog)).to.be.true
       expect(loggerStub.called).to.be.false // ensure no error logged for out-of-bounds
-    })
-
-    it('should return based on plugin type', async () => {
-      const eventTopic = ethers.id('VotingSettingsUpdated(uint8,uint32,uint32,uint64,uint256)')
-
-      const interafce = LogPluginSetting.getInterface(eventTopic)
-
-      const exist = interafce.fragments.find((e: any) => e.name === 'VotingSettingsUpdated')
-      expect(!!exist).to.be.true
     })
 
     it('should not processLog unknown event', async () => {
@@ -217,20 +204,20 @@ describe('Indexer: LogPluginSetting', () => {
       const loggerStub = sandbox.stub(logger, 'error')
       const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
 
-      await LogPluginSetting.processLog(txLog, network)
+      await LogMember.processLog(txLog, network)
 
       expect(stubParseLog.calledOnceWith(txLog)).to.be.true
       expect(loggerStub.calledOnceWith('Unhandled event' as any)).to.be.true
     })
-  })
 
-  it('processError', async () => {
-    const error = new Error('Test error')
-    const loggerStub = sandbox.stub(logger, 'error')
+    it('processError', async () => {
+      const error = new Error('Test error')
+      const loggerStub = sandbox.stub(logger, 'error')
 
-    await LogPluginSetting.processError(error, NetworksEnum.mainnet)
+      await LogMember.processError(error, NetworksEnum.mainnet)
 
-    expect(loggerStub.calledOnce).to.be.true
-    expect(loggerStub.calledWith('Error LogPluginSetting' as any)).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('Error LogMember' as any)).to.be.true
+    })
   })
 })
