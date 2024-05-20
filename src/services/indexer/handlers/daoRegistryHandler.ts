@@ -39,11 +39,11 @@ export const DaoRegistryHandler = {
           await session.endSession()
           logger.verbose('New DaoRegister', llo({ logId: logDb.id, logInfo }))
         })
+
+        await DaoRegistryHandler.initiateNewDaoCreation(txLog.transactionHash, network)
       }
     } catch (error) {
       logger.error('Error DaoRegister', llo({ logInfo, error }))
-
-      await DaoRegistryHandler.initiateNewDaoCreation(txLog.transactionHash, network)
     }
   },
 
@@ -63,20 +63,17 @@ export const DaoRegistryHandler = {
   initiateNewDaoCreation: async (transactionHash: HexAddress, network: NetworksEnum) => {
     const allLogs = await Web3Utils.getTransactionReceipt(transactionHash, network)
     if (!allLogs) {
-      logger.verbose('Transaction not found', llo({ transactionHash, network }))
       return
     }
 
     /**
      * Save the plugin Setup Processor logs that will create the plugin entry for the dao
      */
-
     await DaoRegistryHandler._pluginSetup(allLogs, transactionHash, network)
 
     /**
      * Save the member logs that will create the member entry for the dao
      */
-
     await DaoRegistryHandler._memberAdded(allLogs, transactionHash, network)
   },
 

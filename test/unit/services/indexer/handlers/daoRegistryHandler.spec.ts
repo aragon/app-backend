@@ -109,7 +109,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.LogDaoRegistry, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await DaoRegistryHandler.daoRegistered(fakeEvent as any, txLog, network)
@@ -177,7 +177,7 @@ describe('Indexer: DaoRegistryHandler', () => {
     })
 
     it('should save plugin setup logs', async () => {
-      const findLogsByNameStub = sandbox.stub(Web3, 'findLogsByName').resolves([{
+      const findLogsByNameStub = sandbox.stub(Web3, 'findLogsByName').returns([{
         parsed: {
           dao: '0x123',
           plugin: '0x456',

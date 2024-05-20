@@ -85,7 +85,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
   })
 
   describe('installationPrepared', () => {
-    it.only('should installationPrepared', async () => {
+    it('should installationPrepared', async () => {
       const txLog = {
         transactionHash: '0x123',
         address: '0x456',
@@ -96,6 +96,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const fakeEvent = {
         args: {
           preparedSetupData: {
+            helpers: ['0x27366cae2b9c6c3055e9e3c78936a69006be5400'],
             permissions: [
               {
                 operation: 1,
