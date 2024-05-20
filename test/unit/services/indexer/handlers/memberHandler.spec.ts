@@ -75,7 +75,7 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.membersAdded(fakeLog, txLog, NetworksEnum.mainnet)
 
-      expect(verboseStub.callCount).to.be.eq(2)
+      expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogSpy.calledOnce).to.be.true
       expect(findByPluginAddressSpy.calledOnce).to.be.true
 
@@ -89,7 +89,6 @@ describe('Indexer: MemberHandler', () => {
     })
 
     it('should return true if log already exists', async () => {
-      const verboseStub = sandbox.stub(logger, 'verbose')
       const findExistingLogStub = sandbox.stub(Models.LogMember, 'findByTxHash').resolves(true)
 
       const fakeLog = {
@@ -109,7 +108,6 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.membersAdded(fakeLog, txLog, NetworksEnum.mainnet)
 
-      expect(verboseStub.calledOnce).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(findByPluginAddressSpy.notCalled).to.be.true
     })
@@ -136,7 +134,7 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.membersAdded(fakeLog, txLog, NetworksEnum.mainnet)
 
-      expect(verboseStub.callCount).to.be.eq(2)
+      expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(findByPluginAddressStub.calledOnce).to.be.true
     })
@@ -164,7 +162,7 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.membersRemoved(fakeLog, txLog, NetworksEnum.mainnet)
 
-      expect(verboseStub.callCount).to.be.eq(2)
+      expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogSpy.calledOnce).to.be.true
       expect(findByPluginAddressSpy.calledOnce).to.be.true
 
@@ -218,7 +216,7 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.delegateChanged(fakeLog, txLog, NetworksEnum.mainnet)
 
-      expect(verboseStub.callCount).to.be.eq(2)
+      expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(findPluginByTokenAddressSpy.calledOnce).to.be.true
 
@@ -255,7 +253,6 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.delegateChanged(fakeLog, txLog, NetworksEnum.mainnet)
 
-      expect(verboseStub.calledOnce).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(findPluginByTokenAddressSpy.notCalled).to.be.true
     })
@@ -290,7 +287,7 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.delegateChanged(fakeLog, txLog, NetworksEnum.mainnet)
 
-      expect(verboseStub.callCount).to.be.eq(2)
+      expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(findPluginByTokenAddressStub.calledOnce).to.be.true
       expect(findLogsByNameSpy.notCalled).to.be.true
@@ -328,7 +325,7 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.delegateChanged(fakeLog, txLog, NetworksEnum.mainnet)
 
-      expect(verboseStub.callCount).to.be.eq(2)
+      expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(findPluginByTokenAddressStub.calledOnce).to.be.true
       expect(findLogsByNameSpy.calledOnce).to.be.true

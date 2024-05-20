@@ -12,7 +12,10 @@ export const DaoHandler = {
   },
 
   deposited: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    logger.verbose('deposited', llo({ parsedEvent }))
+    const logInfo = {
+      transactionHash: txLog.transactionHash,
+      network,
+    }
 
     const actionIndex = 0
     const type = ITransactionType.deposit
@@ -39,10 +42,16 @@ export const DaoHandler = {
           transaction.reference = parsedEvent.args._reference
         }
 
-        await Models.LogTransaction.create(transaction, { session })
+        const logTxDb = await Models.LogTransaction.create(transaction, { session })
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('Log Deposit', llo({ transaction }))
+        logger.verbose(
+          'Log Deposit',
+          llo({
+            logInfo,
+            dbId: logTxDb.id,
+          }),
+        )
       })
     }
   },
