@@ -43,7 +43,7 @@ export default class LogTransaction extends Model {
   @prop({ type: () => String, required: true })
   public to!: HexAddress
 
-  @prop({ type: () => Number, default: null })
+  @prop({ type: () => Number, default: 0 })
   public amount!: number
 
   @prop({ type: () => String, default: null })
@@ -52,11 +52,29 @@ export default class LogTransaction extends Model {
   @prop({ type: () => String, default: null })
   public tokenId!: string
 
+  @prop({ type: () => [String], default: [] })
+  public tokenIds!: string[]
+
+  @prop({ type: () => [String], default: [] })
+  public amounts!: string[]
+
   @prop({ type: () => String, default: null })
   public reference!: string
 
   @prop({ type: () => Number, default: 0 })
   public actionIndex!: number
+
+  @prop({ type: () => String, default: null })
+  public execResult!: string
+
+  @prop({ type: () => String, default: null })
+  public actor!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public pluginAddress!: HexAddress
+
+  @prop({ type: () => Number })
+  public proposalId!: number
 
   static async create(rawData: Partial<LogTransaction>, tOpts?: SaveOptions) {
     if (!rawData.entityId) {

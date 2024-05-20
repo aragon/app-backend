@@ -20,75 +20,102 @@ describe('Indexer: DaoRegistryHandler', () => {
     sandbox?.restore()
   })
 
-  it('should process dao registered', async () => {
-    const network = NetworksEnum.mainnet
+  describe('daoRegistered', () => {
+    it('should process dao registered', async () => {
+      const network = NetworksEnum.mainnet
 
-    const txLog = {
-      transactionHash: '0x123',
-      address: '0x456',
-      data: '0x789',
-      topics: ['0xabc'],
-      blockNumber: 1,
-    }
+      const txLog = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
 
-    const fakeEvent = {
-      args: {
-        dao: '0x123',
-        creator: '0x456',
-        subdomain: 'test',
-      },
-    }
+      const fakeEvent = {
+        args: {
+          dao: '0x123',
+          creator: '0x456',
+          subdomain: 'test',
+        },
+      }
 
-    const initNewDaoStub = sandbox.stub(DaoRegistryHandler, 'initiateNewDaoCreation')
+      const initNewDaoStub = sandbox.stub(DaoRegistryHandler, 'initiateNewDaoCreation')
+      const findTxHashSpy = sandbox.spy(Models.LogDaoRegistry, 'findExistingLog')
 
-    const findTxHashSpy = sandbox.spy(Models.LogDaoRegistry, 'findExistingLog')
+      const loggerStub = sandbox.stub(logger, 'verbose')
 
-    const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+      await DaoRegistryHandler.daoRegistered(fakeEvent as any, txLog as any, network)
 
-    await DaoRegistryHandler.daoRegistered(fakeEvent as any, txLog as any, network)
+      expect(findTxHashSpy.calledOnce).to.be.true
+      expect(findTxHashSpy.calledWith(txLog.transactionHash, fakeEvent.args.dao)).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
 
-    expect(findTxHashSpy.calledOnce).to.be.true
-    expect(findTxHashSpy.calledWith(txLog.transactionHash, fakeEvent.args.dao)).to.be.true
-    expect(loggerVerboseStub.calledTwice).to.be.true
+      const savedDaoLog = await Models.LogDaoRegistry.findExistingLog(txLog.transactionHash, fakeEvent.args.dao)
+      expect(!!savedDaoLog).to.be.true
 
-    const savedDaoLog = await Models.LogDaoRegistry.findExistingLog(txLog.transactionHash, fakeEvent.args.dao)
-    expect(!!savedDaoLog).to.be.true
+      expect(savedDaoLog.network).to.eq(network)
+      expect(savedDaoLog.address).to.eq(fakeEvent.args.dao)
+      expect(savedDaoLog.creatorAddress).to.eq(fakeEvent.args.creator)
+      expect(savedDaoLog.ens).to.eq(fakeEvent.args.subdomain)
+      expect(savedDaoLog.blockNumber).to.eq(txLog.blockNumber)
+      expect(savedDaoLog.transactionHash).to.eq(txLog.transactionHash)
+      expect(initNewDaoStub.calledOnce).to.be.true
+      expect(initNewDaoStub.calledWith('0x123', network)).to.be.true
+    })
 
-    expect(savedDaoLog.network).to.eq(network)
-    expect(savedDaoLog.address).to.eq(fakeEvent.args.dao)
-    expect(savedDaoLog.creatorAddress).to.eq(fakeEvent.args.creator)
-    expect(savedDaoLog.ens).to.eq(fakeEvent.args.subdomain)
-    expect(savedDaoLog.blockNumber).to.eq(txLog.blockNumber)
-    expect(savedDaoLog.transactionHash).to.eq(txLog.transactionHash)
+    it('should not process existing dao registered', async () => {
+      const network = NetworksEnum.mainnet
+      const txLog = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+      const fakeEvent = {
+        args: {
+          dao: '0x123',
+          creator: '0x456',
+          subdomain: 'test',
+        },
+      }
+      const findTxHashStub = sandbox
+        .stub(Models.LogDaoRegistry, 'findExistingLog')
+        .resolves({ transactionHash: '0x00' })
 
-    expect(initNewDaoStub.calledOnce).to.be.true
-    expect(initNewDaoStub.calledWith('0x123', network)).to.be.true
-  })
+      const createStub = sandbox.stub(Models.LogDaoRegistry, 'create')
 
-  it('should not process existing dao registered', async () => {
-    const network = NetworksEnum.mainnet
-    const txLog = {
-      transactionHash: '0x123',
-      address: '0x456',
-      data: '0x789',
-      topics: ['0xabc'],
-      blockNumber: 1,
-    }
-    const fakeEvent = {
-      args: {
-        dao: '0x123',
-        creator: '0x456',
-        subdomain: 'test',
-      },
-    }
-    const findTxHashStub = sandbox.stub(Models.LogDaoRegistry, 'findExistingLog').resolves({ transactionHash: '0x00' })
+      await DaoRegistryHandler.daoRegistered(fakeEvent as any, txLog, network)
 
-    const createStub = sandbox.stub(Models.LogDaoRegistry, 'create')
+      expect(findTxHashStub.calledOnceWith(txLog.transactionHash, fakeEvent.args.dao)).to.be.true
+      expect(createStub.notCalled).to.be.true
+    })
 
-    await DaoRegistryHandler.daoRegistered(fakeEvent as any, txLog, network)
+    it('daoRegistered throw error', async () => {
+      const network = NetworksEnum.mainnet
+      const txLog = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+      const fakeEvent = {
+        args: {
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      }
 
-    expect(findTxHashStub.calledOnceWith(txLog.transactionHash, fakeEvent.args.dao)).to.be.true
-    expect(createStub.notCalled).to.be.true
+      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      await DaoRegistryHandler.daoRegistered(fakeEvent as any, txLog, network)
+
+      expect(stubLogger.calledOnceWith('Error DaoRegister' as any)).to.be.true
+    })
   })
 
   describe('initiateNewDaoCreation', () => {
@@ -139,7 +166,7 @@ describe('Indexer: DaoRegistryHandler', () => {
           },
         ],
       } as any
-      const web3Stub = sandbox.stub(Web3, 'findLogsByName').returns(null)
+      const web3Stub = sandbox.stub(Web3, 'findLogsByName').returns([])
       const installationPreparedStub = sandbox.stub(PluginSetupProcessorHandler, 'installationPrepared')
       await DaoRegistryHandler._pluginSetup(fakeTx, '0x123', NetworksEnum.mainnet)
 
@@ -150,7 +177,7 @@ describe('Indexer: DaoRegistryHandler', () => {
     })
 
     it('should save plugin setup logs', async () => {
-      const findLogsByNameStub = sandbox.stub(Web3, 'findLogsByName').resolves({
+      const findLogsByNameStub = sandbox.stub(Web3, 'findLogsByName').resolves([{
         parsed: {
           dao: '0x123',
           plugin: '0x456',
@@ -162,7 +189,7 @@ describe('Indexer: DaoRegistryHandler', () => {
           data: '0x789',
           blockNumber: 1,
         },
-      } as any)
+      }] as any)
 
       const fakeTx = {
         logs: [
@@ -202,9 +229,9 @@ describe('Indexer: DaoRegistryHandler', () => {
       const findLogsByNameStub = sandbox
         .stub(Web3, 'findLogsByName')
         .onFirstCall()
-        .returns(null)
+        .returns([])
         .onSecondCall()
-        .returns(null)
+        .returns([])
 
       const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
 
@@ -234,9 +261,9 @@ describe('Indexer: DaoRegistryHandler', () => {
       const web3Stub = sandbox
         .stub(Web3, 'findLogsByName')
         .onFirstCall()
-        .returns(null)
+        .returns([])
         .onSecondCall()
-        .returns({
+        .returns([{
           parsed: {
             dao: '0x123',
             member: '0x456',
@@ -248,7 +275,7 @@ describe('Indexer: DaoRegistryHandler', () => {
             data: '0x789',
             blockNumber: 1,
           },
-        } as any)
+        }] as any)
 
       const memberAddedStub = sandbox.stub(MemberHandler, 'membersAdded')
       const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
@@ -278,7 +305,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const web3Stub = sandbox
         .stub(Web3, 'findLogsByName')
         .onFirstCall()
-        .returns({
+        .returns([{
           parsed: {
             dao: '0x123',
             member: '0x456',
@@ -290,9 +317,9 @@ describe('Indexer: DaoRegistryHandler', () => {
             data: '0x789',
             blockNumber: 1,
           },
-        } as any)
+        }] as any)
         .onSecondCall()
-        .returns(null)
+        .returns([])
 
       const memberAddedStub = sandbox.stub(MemberHandler, 'membersAdded')
       const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')

@@ -14,27 +14,34 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHan
 
 export const DaoRegistryHandler = {
   daoRegistered: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    logger.verbose('daoRegistered', llo({ parsedEvent }))
+    const logInfo: any = {
+      txHash: txLog.transactionHash,
+      network,
+    }
 
-    const daoAddress = parsedEvent.args.dao
-    const existingLog = await Models.LogDaoRegistry.findExistingLog(txLog.transactionHash, daoAddress)
+    try {
+      const daoAddress = parsedEvent.args.dao
+      const existingLog = await Models.LogDaoRegistry.findExistingLog(txLog.transactionHash, daoAddress)
 
-    if (!existingLog) {
-      await DbTx.executeTxFn(async ({ session }) => {
-        const daoLog = {
-          network,
-          address: daoAddress,
-          creatorAddress: parsedEvent.args.creator,
-          ens: parsedEvent.args.subdomain,
-          blockNumber: txLog.blockNumber,
-          transactionHash: txLog.transactionHash,
-        }
+      if (!existingLog) {
+        await DbTx.executeTxFn(async ({ session }) => {
+          const daoLog = {
+            network,
+            address: daoAddress,
+            creatorAddress: parsedEvent.args.creator,
+            ens: parsedEvent.args.subdomain,
+            blockNumber: txLog.blockNumber,
+            transactionHash: txLog.transactionHash,
+          }
 
-        await Models.LogDaoRegistry.create(daoLog, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('New DaoLog', llo({ daoLog }))
-      })
+          const logDb = await Models.LogDaoRegistry.create(daoLog, { session })
+          await session.commitTransaction()
+          await session.endSession()
+          logger.verbose('New DaoRegister', llo({ logId: logDb.id, logInfo }))
+        })
+      }
+    } catch (error) {
+      logger.error('Error DaoRegister', llo({ logInfo, error }))
 
       await DaoRegistryHandler.initiateNewDaoCreation(txLog.transactionHash, network)
     }
@@ -74,38 +81,38 @@ export const DaoRegistryHandler = {
   },
 
   _pluginSetup: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
-    const pluginSetupLog = Web3Utils.findLogsByName(
+    const pluginSetupLogs = Web3Utils.findLogsByName(
       txReceipt,
       IEventLogPluginType.InstallationPrepared,
       PluginSetupProcessor.abi,
     )
 
-    if (!pluginSetupLog) {
+    if (pluginSetupLogs.length === 0) {
       logger.verbose('PluginSetupProcessor not found', llo({ transactionHash, network }))
       return
     }
 
-    await PluginSetupProcessorHandler.installationPrepared(pluginSetupLog.parsed!, pluginSetupLog.txLog, network)
+    await PluginSetupProcessorHandler.installationPrepared(pluginSetupLogs[0].parsed!, pluginSetupLogs[0].txLog, network)
   },
 
   _memberAdded: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
-    const memberAddedLog = Web3Utils.findLogsByName(txReceipt, IEventLogMember.MembersAdded, Multisig.abi)
+    const memberAddedLogs = Web3Utils.findLogsByName(txReceipt, IEventLogMember.MembersAdded, Multisig.abi)
 
-    if (!memberAddedLog) {
-      const delegationChangedLog = Web3Utils.findLogsByName(
+    if (memberAddedLogs.length === 0) {
+      const delegationChangedLogs = Web3Utils.findLogsByName(
         txReceipt,
         IEventLogMember.DelegateChanged,
         GovernanceERC20.abi,
       )
 
-      if (!delegationChangedLog) {
+      if (delegationChangedLogs.length === 0) {
         logger.verbose('Invalid member log', llo({ transactionHash, network }))
         return
       }
 
-      return await MemberHandler.delegateChanged(delegationChangedLog.parsed!, delegationChangedLog.txLog, network)
+      return await MemberHandler.delegateChanged(delegationChangedLogs[0].parsed!, delegationChangedLogs[0].txLog, network)
     } else {
-      await MemberHandler.membersAdded(memberAddedLog.parsed!, memberAddedLog.txLog, network)
+      await MemberHandler.membersAdded(memberAddedLogs[0].parsed!, memberAddedLogs[0].txLog, network)
     }
   },
 }

@@ -257,9 +257,9 @@ describe('Indexer: MemberHandler', () => {
         logs: true,
       } as any)
 
-      sandbox.stub(Web3, 'findLogsByName').returns({
+      sandbox.stub(Web3, 'findLogsByName').returns([{
         parsed: deletageVotChangedLog,
-      } as any)
+      }] as any)
 
       const findExistingLogStub = sandbox.spy(Models.LogMember, 'findExistingLog')
 

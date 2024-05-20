@@ -11,6 +11,8 @@ import Provider from '@modules/provider'
 import { ethers, Interface } from 'ethers'
 import { PluginSettingHandler } from '@services/indexer/handlers/pluginSettingHandler'
 import Utils from '@helpers/utils'
+import { TokenVoting } from '@artifacts/TokenVoting'
+import { Multisig } from '@artifacts/Multisig'
 
 describe('Indexer: LogPluginSetting', () => {
   let sandbox: SinonSandbox
@@ -221,6 +223,24 @@ describe('Indexer: LogPluginSetting', () => {
 
       expect(stubParseLog.calledOnceWith(txLog)).to.be.true
       expect(loggerStub.calledOnceWith('Unhandled event' as any)).to.be.true
+    })
+  })
+
+  describe('getInterface', () => {
+    it('should return TokenVoting interface for token voting event', () => {
+      const topic = ethers.id('VotingSettingsUpdated(uint8,uint32,uint32,uint64,uint256)')
+      const result = LogPluginSetting.getInterface(topic)
+
+      expect(result).to.be.instanceOf(Interface)
+      expect(result.format()).to.deep.equal(new Interface(TokenVoting.abi).format())
+    })
+
+    it('should return Multisig interface for other events', () => {
+      const topic = '0xotherEventTopic'
+      const result = LogPluginSetting.getInterface(topic)
+
+      expect(result).to.be.instanceOf(Interface)
+      expect(result.format()).to.deep.equal(new Interface(Multisig.abi).format())
     })
   })
 
