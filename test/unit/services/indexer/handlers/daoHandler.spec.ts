@@ -161,6 +161,10 @@ describe('Indexer: DaoHandler', () => {
         blockNumber: 1,
       }
 
+      const stubGetErc20Info = sandbox.stub(Web3Helper, 'getERC20Info').resolves({
+        decimals: 18
+      } as any)
+
       const stubNativeToken = sandbox.stub(TransactionActionHandler, 'nativeToken').resolves()
       const stubErc20Token = sandbox.stub(TransactionActionHandler, 'erc20Token').resolves()
       const stubErc721Token = sandbox.stub(TransactionActionHandler, 'erc721Token').resolves()
@@ -206,6 +210,7 @@ describe('Indexer: DaoHandler', () => {
 
       await DaoHandler.executed(fakeEvent as any, txLog, network)
 
+      expect(stubGetErc20Info.calledOnce).to.be.true
       expect(stubNativeToken.calledOnce).to.be.true
       expect(stubErc20Token.calledOnce).to.be.true
       expect(stubErc721Token.calledOnce).to.be.true
@@ -319,13 +324,98 @@ describe('Indexer: DaoHandler', () => {
     })
   })
 
-  it('newURI', async () => {
-    const event = { name: 'test' }
-    const txLog = { name: 'test' }
-    const network = NetworksEnum.mainnet
+  describe('newURI', () => {
+    it('uri updated fails when no uri presented', async () => {
+      const network = NetworksEnum.mainnet
+      const stubLogger = sandbox.stub(logger, 'verbose')
 
-    const stubLogger = sandbox.stub(logger, 'verbose')
-    await DaoHandler.newURI(event as any, txLog, network)
-    expect(stubLogger.calledOnce).to.be.true
+      const event = {
+        args: {
+          daoURI: '',
+        },
+      }
+
+      const findExistingLogStub = sandbox.spy(Models.LogDaoRegistry, 'findExistingLog')
+
+      await DaoHandler.newURI(
+        event as any,
+        {
+          transactionHash: '0x123',
+          blockNumber: 1,
+          address: '0x456',
+        },
+        network,
+      )
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('newURI: no daoURI' as any)).to.be.true
+      expect(findExistingLogStub.notCalled).to.be.true
+    })
+
+    it('should fails when dao not exists', async () => {
+      const network = NetworksEnum.mainnet
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const event = {
+        args: {
+          daoURI: 'test',
+        },
+      }
+
+      const findExistingLogStub = sandbox.stub(Models.LogDaoRegistry, 'findExistingLog').returns(false)
+      const findByAddressStub = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').returns(false)
+
+      await DaoHandler.newURI(
+        event as any,
+        {
+          transactionHash: '0x123',
+          blockNumber: 1,
+          address: '0x456',
+        },
+        network,
+      )
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Dao not found' as any)).to.be.true
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(findByAddressStub.calledOnce).to.be.true
+    })
+
+    it('uri updated', async () => {
+      const network = NetworksEnum.mainnet
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const event = {
+        args: {
+          daoURI: 'test',
+        },
+      }
+
+      const addURIUpdatesStub = sandbox.stub()
+      const findExistingLogStub = sandbox.stub(Models.LogDaoRegistry, 'findExistingLog').returns(false)
+      const findByAddressStub = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').returns({
+        addURIUpdates: addURIUpdatesStub,
+        address: '0x123',
+      })
+
+      await DaoHandler.newURI(
+        event as any,
+        {
+          transactionHash: '0x123',
+          blockNumber: 1,
+          address: '0x456',
+        },
+        network,
+      )
+
+      expect(stubLogger.callCount).to.be.eq(1)
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(addURIUpdatesStub.calledOnce).to.be.true
+      expect(findByAddressStub.calledOnce).to.be.true
+
+      expect(addURIUpdatesStub.args[0][0]).to.be.deep.eq({
+        blockNumber: 1,
+        transactionHash: '0x123',
+        uri: 'test',
+      })
+    })
   })
 })

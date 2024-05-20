@@ -102,12 +102,12 @@ describe('Indexer: index', () => {
 
     expect(stubLogger.callCount).to.eq(7)
     expect(stubLogger.getCall(0).calledWith('Indexer DaoRegistry error' as any)).to.be.true
-    expect(stubLogger.getCall(1).calledWith('Indexer Dao error' as any)).to.be.true
-    expect(stubLogger.getCall(2).calledWith('Indexer PluginRepoRegistry error' as any)).to.be.true
-    expect(stubLogger.getCall(3).calledWith('Indexer PluginSetupProcessor error' as any)).to.be.true
+    expect(stubLogger.getCall(1).calledWith('Indexer PluginRepoRegistry error' as any)).to.be.true
+    expect(stubLogger.getCall(2).calledWith('Indexer PluginSetupProcessor error' as any)).to.be.true
+    expect(stubLogger.getCall(3).calledWith('Indexer LogPluginSetting error' as any)).to.be.true
     expect(stubLogger.getCall(4).calledWith('Indexer member error' as any)).to.be.true
-    expect(stubLogger.getCall(5).calledWith('Indexer LogProposal error' as any)).to.be.true
-    expect(stubLogger.getCall(6).calledWith('Indexer LogPluginSetting error' as any)).to.be.true
+    expect(stubLogger.getCall(5).calledWith('Indexer Dao error' as any)).to.be.true
+    expect(stubLogger.getCall(6).calledWith('Indexer LogProposal error' as any)).to.be.true
 
     await IndexerService.stop()
 

@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { ITransactionType, type NetworksEnum } from '@types'
-import { ZeroAddress, type LogDescription } from 'ethers'
+import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import Web3Helper from '@helpers/web3'
