@@ -67,11 +67,11 @@ export const DaoHandler = {
     const handleAction = async (action: any, index: number) => {
       try {
         switch (true) {
-          case Web3Helper.isNativeTokenAction(action):
+          case Web3Helper.isNativeTokenAction(action): {
             await TransactionActionHandler.nativeToken(parsedEvent, txLog, network, action, index)
             break
-
-          case Web3Helper.isERC20Transfer(action):
+          }
+          case Web3Helper.isERC20Transfer(action): {
             // both ERC20Transfer ERC721Transfer have the same signature transferFrom
             // https://github.com/code-423n4/2022-06-putty-findings/issues/52
             // check if the token is ERC20 or ERC721 via token decimals
@@ -82,19 +82,20 @@ export const DaoHandler = {
               await TransactionActionHandler.erc721Token(parsedEvent, txLog, network, action, index)
             }
             break
-
-          case Web3Helper.isERC721Transfer(action):
+          }
+          case Web3Helper.isERC721Transfer(action): {
             await TransactionActionHandler.erc721Token(parsedEvent, txLog, network, action, index)
             break
-
-          case Web3Helper.isERC1155TransferMethod(action):
+          }
+          case Web3Helper.isERC1155TransferMethod(action): {
             await TransactionActionHandler.erc1155Token(parsedEvent, txLog, network, action, index)
             break
-
-          default:
+          }
+          default: {
             const methodSig = Web3Helper.getMethodSignature(action.data)
             logger.error('Unhandled action', llo({ logInfo, parsedEvent, action, index, methodSig }))
             break
+          }
         }
       } catch (error) {
         logger.error('Error handling action', llo({ logInfo, parsedEvent, action, index, error }))
@@ -187,5 +188,5 @@ export const DaoHandler = {
         )
       })
     }
-  }
+  },
 }

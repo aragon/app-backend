@@ -162,7 +162,7 @@ describe('Indexer: DaoHandler', () => {
       }
 
       const stubGetErc20Info = sandbox.stub(Web3Helper, 'getERC20Info').resolves({
-        decimals: 18
+        decimals: 18,
       } as any)
 
       const stubNativeToken = sandbox.stub(TransactionActionHandler, 'nativeToken').resolves()
