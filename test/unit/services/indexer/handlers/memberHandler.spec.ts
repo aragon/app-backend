@@ -173,6 +173,57 @@ describe('Indexer: MemberHandler', () => {
       expect(logMember[0].address).to.be.eq('member1')
       expect(logMember[1].address).to.be.eq('member2')
     })
+
+    it('fails if tx is already processed', async () => {
+      const findExistingLogStub = sandbox.stub(Models.LogMember, 'findByTxHash').resolves(true)
+
+      const fakeLog = {
+        name: IEventLogMember.MembersRemoved,
+        args: {
+          members: ['member1', 'member2'],
+        },
+      } as any
+
+      const txLog = {
+        transactionHash: '0x0123123',
+        blockNumber: 3,
+        address: plugin.pluginAddress,
+      }
+
+      const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
+
+      await MemberHandler.membersRemoved(fakeLog, txLog, NetworksEnum.mainnet)
+
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(findByPluginAddressSpy.notCalled).to.be.true
+    })
+
+    it('fails if plugin is not found', async () => {
+      const verboseStub = sandbox.stub(logger, 'verbose')
+      const findExistingLogStub = sandbox.stub(Models.LogMember, 'findByTxHash').resolves(false)
+      const findByPluginAddressStub = sandbox
+        .stub(Models.LogPluginSetupProcessor, 'findByPluginAddress')
+        .resolves(false)
+
+      const fakeLog = {
+        name: IEventLogMember.MembersRemoved,
+        args: {
+          members: ['member1', 'member2'],
+        },
+      } as any
+
+      const txLog = {
+        transactionHash: '0x0123123',
+        blockNumber: 3,
+        address: plugin.pluginAddress,
+      }
+
+      await MemberHandler.membersRemoved(fakeLog, txLog, NetworksEnum.mainnet)
+
+      expect(verboseStub.callCount).to.be.eq(1)
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(findByPluginAddressStub.calledOnce).to.be.true
+    })
   })
 
   describe('delegateChanged', () => {
@@ -227,7 +278,6 @@ describe('Indexer: MemberHandler', () => {
     })
 
     it('should return if the tx is already processed', async () => {
-      const verboseStub = sandbox.stub(logger, 'verbose')
       const findExistingLogStub = sandbox.stub(Models.LogMember, 'findExistingLog').resolves(true)
 
       sandbox.stub(Web3, 'getTransactionReceipt').resolves({

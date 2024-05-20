@@ -93,15 +93,13 @@ export const DaoHandler = {
   },
 
   newURI: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    logger.verbose(
-      'newURI',
-      llo({
-        transactionHash: txLog.transactionHash,
-        network,
-      }),
-    )
+    const logInfo = {
+      transactionHash: txLog.transactionHash,
+      network,
+    }
 
     if (!parsedEvent.args.daoURI) {
+      logger.verbose('newURI: no daoURI', llo({ logInfo }))
       return
     }
 
@@ -114,8 +112,7 @@ export const DaoHandler = {
         logger.verbose(
           'Dao not found',
           llo({
-            transactionHash: txLog.transactionHash,
-            network,
+            logInfo,
           }),
         )
         return
