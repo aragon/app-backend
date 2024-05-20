@@ -1,0 +1,171 @@
+import logger from '@logger'
+import { IEventLogMember, type NetworksEnum } from '@types'
+import { type LogDescription, ZeroAddress } from 'ethers'
+import { Models } from '@dbModels'
+
+import DbTx from '@modules/dbTx'
+import Web3Utils from '@helpers/web3'
+import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:MemberHandler' })
+
+export const MemberHandler = {
+  membersAdded: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
+    const logInfo = {
+      transactionHash: txLog.transactionHash,
+      network,
+    }
+
+    const existingLog = await Models.LogMember.findByTxHash(txLog.transactionHash)
+
+    if (!existingLog) {
+      const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(txLog.address, network)
+
+      if (!pluginExisted) {
+        logger.verbose('Plugin not found', llo({ logInfo }))
+        return
+      }
+
+      await DbTx.executeTxFn(async ({ session }) => {
+        const daoMembersIds: any = []
+
+        for (const member of parsedEvent.args.members) {
+          const rawMember = {
+            address: member,
+            blockNumber: txLog.blockNumber,
+            transactionHash: txLog.transactionHash,
+            event: parsedEvent.name,
+            pluginAddress: txLog.address,
+            network,
+            entityId: null,
+          }
+
+          rawMember.entityId = Models.LogMember.getEntityId(txLog.transactionHash, parsedEvent.name + '_' + member)
+          const daoMember = await Models.LogMember.create(rawMember, { session })
+          daoMembersIds.push(daoMember.id)
+        }
+
+        await session.commitTransaction()
+        await session.endSession()
+
+        logger.verbose(
+          'New LogMembers: Added',
+          llo({
+            logInfo,
+            logId: daoMembersIds,
+          }),
+        )
+      })
+    }
+  },
+
+  membersRemoved: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
+    const logInfo = {
+      transactionHash: txLog.transactionHash,
+      network,
+    }
+
+    const existingLog = await Models.LogMember.findByTxHash(txLog.transactionHash)
+
+    if (!existingLog) {
+      const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(txLog.address, network)
+
+      if (!pluginExisted) {
+        logger.verbose('Plugin not found', llo({ logInfo }))
+        return
+      }
+
+      await DbTx.executeTxFn(async ({ session }) => {
+        const daoMembersIds: any = []
+        for (const member of parsedEvent.args.members) {
+          const rawMember = {
+            address: member,
+            blockNumber: txLog.blockNumber,
+            transactionHash: txLog.transactionHash,
+            event: parsedEvent.name,
+            pluginAddress: txLog.address,
+            network,
+            entityId: null,
+          }
+
+          rawMember.entityId = Models.LogMember.getEntityId(txLog.transactionHash, parsedEvent.name + '_' + member)
+
+          const daoMember = await Models.LogMember.create(rawMember, { session })
+          daoMembersIds.push(daoMember.id)
+        }
+
+        await session.commitTransaction()
+        await session.endSession()
+
+        logger.verbose(
+          'New LogMembers: Removed',
+          llo({
+            logId: daoMembersIds,
+            logInfo,
+          }),
+        )
+      })
+    }
+  },
+
+  delegateChanged: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
+    const logInfo = {
+      transactionHash: txLog.transactionHash,
+      network,
+    }
+
+    const txReceipt = await Web3Utils.getTransactionReceipt(txLog.transactionHash, network)
+
+    const existingLog = await Models.LogMember.findExistingLog(txLog.transactionHash, parsedEvent.name)
+
+    if (!existingLog) {
+      const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(txLog.address, network)
+
+      if (!relatedPlugin) {
+        logger.verbose('Plugin not found', llo({ txLog }))
+        return
+      }
+
+      const delegationVotesChangedLog = Web3Utils.findLogsByName(
+        txReceipt!,
+        IEventLogMember.DelegateVotesChanged,
+        GovernanceERC20.abi,
+      )
+
+      if (!delegationVotesChangedLog) {
+        logger.verbose('DelegateVotesChanged not found. Invalid log', llo({ txLog }))
+        return
+      }
+
+      await DbTx.executeTxFn(async ({ session }) => {
+        const rawDaoMember = {
+          transactionHash: txLog.transactionHash,
+          blockNumber: txLog.blockNumber,
+          network,
+          address: parsedEvent.args.toDelegate,
+          event: parsedEvent.name,
+          tokenAddress: txLog.address,
+          fromDelegate:
+            parsedEvent.args.fromDelegate === ZeroAddress ? parsedEvent.args.delegator : parsedEvent.args.fromDelegate,
+          toDelegate: parsedEvent.args.toDelegate,
+          delegatingMember: parsedEvent.args.delegator,
+          previousVotingPower: delegationVotesChangedLog.parsed!.args.previousBalance,
+          newVotingPower: delegationVotesChangedLog.parsed!.args.newBalance,
+          pluginAddress: relatedPlugin.pluginAddress,
+        }
+
+        const daoMember = await Models.LogMember.create(rawDaoMember, { session })
+        await session.commitTransaction()
+        await session.endSession()
+
+        logger.verbose(
+          'New LogMembers: Delegation Changed',
+          llo({
+            logId: daoMember.id,
+            logInfo,
+          }),
+        )
+      })
+    }
+  },
+}

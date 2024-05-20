@@ -6,6 +6,17 @@ import { assert } from '@errors'
 
 const customName = 'LogDaoRegistry'
 
+class URIUpdate {
+  @prop({ type: () => String, required: true })
+  public uri!: string
+
+  @prop({ type: () => String, required: true })
+  public transactionHash!: string
+
+  @prop({ type: () => String, required: true })
+  public blockNumber!: string
+}
+
 @modelOptions({
   schemaOptions: {
     timestamps: true,
@@ -44,6 +55,9 @@ export default class LogDaoRegistry extends Model {
   @prop({ type: () => String, default: null })
   public ens!: ENS
 
+  @prop({ type: () => [URIUpdate], default: [] })
+  public uriUpdates?: URIUpdate[]
+
   static async create(rawData: Partial<LogDaoRegistry>, tOpts?: SaveOptions) {
     if (!rawData.entityId) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -57,6 +71,10 @@ export default class LogDaoRegistry extends Model {
   static getEntityId(transactionHash: HexAddress, address: HexAddress) {
     const entityId = `${transactionHash}-${address}`
     return entityId
+  }
+
+  static findByAddress(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return this.findOne({ address, network }, tOpts)
   }
 
   static async findExistingLog(transactionHash: HexAddress, address: HexAddress, tOpts?: SaveOptions) {
@@ -81,6 +99,12 @@ export default class LogDaoRegistry extends Model {
       }
     })
 
+    return await this.save(tOpts)
+  }
+
+  async addURIUpdates(uriUpdates: URIUpdate, tOpts?: SaveOptions) {
+    this.uriUpdates = this.uriUpdates || []
+    this.uriUpdates.push(uriUpdates)
     return await this.save(tOpts)
   }
 

@@ -69,6 +69,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     const fakeEvent = {
       args: {
         preparedSetupData: {
+          helpers: ['0x27366cae2b9c6c3055e9e3c78936a69006be5400'],
           permissions: [
             {
               operation: 1,
@@ -114,6 +115,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     expect(daoMetadataDB.pluginAddress).to.eq(fakeEvent.args.plugin)
     expect(daoMetadataDB.release).to.eq(fakeEvent.args.versionTag.release)
     expect(daoMetadataDB.build).to.eq(fakeEvent.args.versionTag.release)
+    expect(daoMetadataDB.tokenAddress).to.eq('0x27366cae2b9c6c3055e9e3c78936a69006be5400')
   })
 
   it('uninstallationApplied', async () => {
