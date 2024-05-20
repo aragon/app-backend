@@ -151,7 +151,7 @@ describe('Indexer: DaoHandler', () => {
   })
 
   describe('executed', () => {
-    it('should executed', async () => {
+    it('should executed ERC20', async () => {
       const network = NetworksEnum.mainnet
       const txLog = {
         transactionHash: '0x123',
@@ -214,6 +214,75 @@ describe('Indexer: DaoHandler', () => {
       expect(stubNativeToken.calledOnce).to.be.true
       expect(stubErc20Token.calledOnce).to.be.true
       expect(stubErc721Token.calledOnce).to.be.true
+      expect(stubErc1155Token.calledOnce).to.be.true
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Unhandled action' as any)).to.be.true
+    })
+
+    it('should executed ERC721', async () => {
+      const network = NetworksEnum.mainnet
+      const txLog = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+
+      const stubGetErc20Info = sandbox.stub(Web3Helper, 'getERC20Info').resolves({
+        name: 'test'
+      } as any)
+
+      const stubNativeToken = sandbox.stub(TransactionActionHandler, 'nativeToken').resolves()
+      const stubErc20Token = sandbox.stub(TransactionActionHandler, 'erc20Token').resolves()
+      const stubErc721Token = sandbox.stub(TransactionActionHandler, 'erc721Token').resolves()
+      const stubErc1155Token = sandbox.stub(TransactionActionHandler, 'erc1155Token').resolves()
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const fakeEvent = {
+        args: {
+          actions: [
+            // Unhandled action
+            {
+              to: '0x0673c13D48023efA609C20E5E351763B99Dd67DE',
+              value: 0n,
+              data: '0x3628731c',
+            },
+            // isNativeTokenAction
+            {
+              to: '0x2A46F8ed516dCDe829ed858A19d00A6D6CEDB28f',
+              value: 20456890399769501n,
+              data: '0x',
+            },
+            // isERC20Transfer
+            {
+              to: '0xaFa52E3860b4371ab9d8F08E801E9EA1027C0CA2',
+              value: 0n,
+              data: '0xa9059cbb',
+            },
+            // isERC721Transfer
+            {
+              to: '0x3337dac9F251d4E403D6030E18e3cfB6a2cb1333',
+              value: 0n,
+              data: '0xb88d4fde',
+            },
+            // isERC1155TransferMethod
+            {
+              to: '0x3337dac9F251d4E403D6030E18e3cfB6a2cb1333',
+              value: 0n,
+              data: '0x2eb2c2d6',
+            },
+          ],
+        },
+      }
+
+      await DaoHandler.executed(fakeEvent as any, txLog, network)
+
+      expect(stubGetErc20Info.calledOnce).to.be.true
+      expect(stubNativeToken.calledOnce).to.be.true
+      expect(stubErc20Token.notCalled).to.be.true
+      expect(stubErc721Token.calledTwice).to.be.true
       expect(stubErc1155Token.calledOnce).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
