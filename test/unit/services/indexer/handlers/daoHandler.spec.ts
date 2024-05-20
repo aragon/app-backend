@@ -231,7 +231,7 @@ describe('Indexer: DaoHandler', () => {
       }
 
       const stubGetErc20Info = sandbox.stub(Web3Helper, 'getERC20Info').resolves({
-        name: 'test'
+        name: 'test',
       } as any)
 
       const stubNativeToken = sandbox.stub(TransactionActionHandler, 'nativeToken').resolves()
