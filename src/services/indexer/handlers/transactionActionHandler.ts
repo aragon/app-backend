@@ -191,8 +191,6 @@ export const TransactionActionHandler = {
       const { from, to, tokenId } = Web3Helper.parseERC721Action(decoded)
       assert(!!from && !!to, 'Failed to parse action - erc721Token', logInfo)
 
-      // console.log(functionSelector)
-
       if (functionSelector === Web3Helper.ERC721_transferFrom) {
         const type = Web3Helper.getActionTransactionType(from, to, daoAddress)
 
@@ -263,7 +261,7 @@ export const TransactionActionHandler = {
       const proposalId = Number(extraData.events[0].parsed.args.proposalId)
       const pluginAddress = extraData.events[0].txLog.address
       const tokenAddress = action.to
-      // const daoAddress = txLog.address
+      const daoAddress = txLog.address
       const functionSelector = action.data.substring(0, 10)
       const calldata = '0x' + action.data.slice(10)
       logInfo.functionSelector = functionSelector
@@ -280,7 +278,9 @@ export const TransactionActionHandler = {
       // single token transfer
       if (functionSelector === Web3Helper.ERC1155_safeTransferFrom) {
         const { from, to, tokenId, amount } = Web3Helper.parseERC1155Action(decoded)
-        assert(!!from && !!to, 'Failed to parse action - erc721Token', logInfo)
+        assert(!!from && !!to, 'Failed to parse action - erc1155Token', logInfo)
+
+        const type = Web3Helper.getActionTransactionType(from, to, daoAddress)
 
         const transaction: any = {
           pluginAddress,
@@ -294,7 +294,7 @@ export const TransactionActionHandler = {
           reference: null,
           tokenAddress,
           tokenId,
-          type: ITransactionType.deposit,
+          type,
           actionIndex,
           execResult: parsedEvent.args.execResults[actionIndex],
           actor: parsedEvent.args.actor,
@@ -318,6 +318,8 @@ export const TransactionActionHandler = {
         const { from, to, tokenIds, amounts } = Web3Helper.parseERC1155BatchAction(decoded)
         assert(!!from && !!to, 'Failed to parse batch action - erc1155Token', logInfo)
 
+        const type = Web3Helper.getActionTransactionType(from, to, daoAddress)
+
         const transaction: any = {
           pluginAddress,
           proposalId,
@@ -330,7 +332,7 @@ export const TransactionActionHandler = {
           reference: null,
           tokenAddress,
           tokenIds,
-          type: ITransactionType.deposit,
+          type,
           actionIndex,
           execResult: parsedEvent.args.execResults[actionIndex],
           actor: parsedEvent.args.actor,
