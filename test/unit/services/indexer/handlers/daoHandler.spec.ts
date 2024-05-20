@@ -52,7 +52,7 @@ describe('Indexer: DaoHandler', () => {
 
       expect(findTxHashSpy.calledOnce).to.be.true
       expect(findTxHashSpy.calledWith(txLog.transactionHash, ITransactionType.deposit, 0)).to.be.true
-      expect(stubLogger.calledTwice).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
 
       const savedDaoLog = await Models.LogTransaction.findExistingLog(
         txLog.transactionHash,
@@ -99,7 +99,7 @@ describe('Indexer: DaoHandler', () => {
 
       expect(findTxHashSpy.calledOnce).to.be.true
       expect(findTxHashSpy.calledWith(txLog.transactionHash, ITransactionType.deposit, 0)).to.be.true
-      expect(stubLogger.calledTwice).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
 
       const savedDaoLog = await Models.LogTransaction.findExistingLog(
         txLog.transactionHash,
