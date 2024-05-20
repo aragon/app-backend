@@ -82,7 +82,7 @@ export const PluginSetupProcessorHandler = {
            */
 
           if (parsedEvent.args.preparedSetupData?.helpers && parsedEvent.args.preparedSetupData.helpers.length === 1) {
-              pluginLog.tokenAddress = parsedEvent.args.preparedSetupData.helpers[0]
+            pluginLog.tokenAddress = parsedEvent.args.preparedSetupData.helpers[0]
           }
 
           const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session })

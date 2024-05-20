@@ -12,14 +12,7 @@ import { DAO } from '@artifacts/dao'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDao' })
 
 export const LogDao = {
-  events: [
-    'CallbackReceived',
-    'Deposited',
-    'Executed',
-    'MetadataSet',
-    'NativeTokenDeposited',
-    'NewURI'
-  ],
+  events: ['CallbackReceived', 'Deposited', 'Executed', 'MetadataSet', 'NativeTokenDeposited', 'NewURI'],
 
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {

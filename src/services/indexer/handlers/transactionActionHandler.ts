@@ -66,7 +66,7 @@ export const TransactionActionHandler = {
         })
       }
     } catch (error) {
-      logger.error('Failed to handle nativeToken', llo({ logInfo, error }))
+      logger.error('Error nativeToken', llo({ logInfo, error }))
     }
   },
 
@@ -142,7 +142,7 @@ export const TransactionActionHandler = {
         })
       }
     } catch (error) {
-      logger.error('Failed to handle erc20Token', llo({ logInfo, error }))
+      logger.error('Error erc20Token', llo({ logInfo, error }))
     }
   },
 
@@ -194,7 +194,6 @@ export const TransactionActionHandler = {
       // console.log(functionSelector)
 
       if (functionSelector === Web3Helper.ERC721_transferFrom) {
-
         const type = Web3Helper.getActionTransactionType(from, to, daoAddress)
 
         const transaction: any = {
@@ -215,9 +214,9 @@ export const TransactionActionHandler = {
         }
 
         const existingLog = await Models.LogTransaction.findExistingLog(
-            txLog.transactionHash,
-            transaction.type,
-            actionIndex,
+          txLog.transactionHash,
+          transaction.type,
+          actionIndex,
         )
 
         if (!existingLog) {
@@ -228,12 +227,11 @@ export const TransactionActionHandler = {
             logger.verbose('New erc721Token', llo({ logId: logTransactionDb.id, logInfo }))
           })
         }
-
       } else {
         logger.error('Unsupported transaction action - erc721Token', llo({ logInfo, decoded }))
       }
     } catch (error) {
-      logger.error('Failed to handle erc721Token', llo({ logInfo, error }))
+      logger.error('Error erc721Token', llo({ logInfo, error }))
     }
   },
 
@@ -252,7 +250,6 @@ export const TransactionActionHandler = {
     }
 
     try {
-
       const extraData = await Web3Helper.getDataFromTxReceipt({
         txLog,
         eventName: 'ProposalExecuted',
@@ -266,7 +263,7 @@ export const TransactionActionHandler = {
       const proposalId = Number(extraData.events[0].parsed.args.proposalId)
       const pluginAddress = extraData.events[0].txLog.address
       const tokenAddress = action.to
-      const daoAddress = txLog.address
+      // const daoAddress = txLog.address
       const functionSelector = action.data.substring(0, 10)
       const calldata = '0x' + action.data.slice(10)
       logInfo.functionSelector = functionSelector
@@ -304,9 +301,9 @@ export const TransactionActionHandler = {
         }
 
         const existingLog = await Models.LogTransaction.findExistingLog(
-            txLog.transactionHash,
-            transaction.type,
-            actionIndex,
+          txLog.transactionHash,
+          transaction.type,
+          actionIndex,
         )
 
         if (!existingLog) {
@@ -340,9 +337,9 @@ export const TransactionActionHandler = {
         }
 
         const existingLog = await Models.LogTransaction.findExistingLog(
-            txLog.transactionHash,
-            transaction.type,
-            actionIndex,
+          txLog.transactionHash,
+          transaction.type,
+          actionIndex,
         )
 
         if (!existingLog) {
@@ -356,9 +353,8 @@ export const TransactionActionHandler = {
       } else {
         logger.error('Unsupported transaction action - erc1155Token', llo({ logInfo, decoded }))
       }
-
     } catch (error) {
-      logger.error('Failed to handle erc1155Token', llo({ logInfo, error }))
+      logger.error('Error erc1155Token', llo({ logInfo, error }))
     }
   },
 }

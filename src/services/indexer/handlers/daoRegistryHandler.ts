@@ -89,7 +89,11 @@ export const DaoRegistryHandler = {
       return
     }
 
-    await PluginSetupProcessorHandler.installationPrepared(pluginSetupLogs[0].parsed!, pluginSetupLogs[0].txLog, network)
+    await PluginSetupProcessorHandler.installationPrepared(
+      pluginSetupLogs[0].parsed!,
+      pluginSetupLogs[0].txLog,
+      network,
+    )
   },
 
   _memberAdded: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
@@ -107,7 +111,11 @@ export const DaoRegistryHandler = {
         return
       }
 
-      return await MemberHandler.delegateChanged(delegationChangedLogs[0].parsed!, delegationChangedLogs[0].txLog, network)
+      return await MemberHandler.delegateChanged(
+        delegationChangedLogs[0].parsed!,
+        delegationChangedLogs[0].txLog,
+        network,
+      )
     } else {
       await MemberHandler.membersAdded(memberAddedLogs[0].parsed!, memberAddedLogs[0].txLog, network)
     }

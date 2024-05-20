@@ -177,19 +177,21 @@ describe('Indexer: DaoRegistryHandler', () => {
     })
 
     it('should save plugin setup logs', async () => {
-      const findLogsByNameStub = sandbox.stub(Web3, 'findLogsByName').returns([{
-        parsed: {
-          dao: '0x123',
-          plugin: '0x456',
+      const findLogsByNameStub = sandbox.stub(Web3, 'findLogsByName').returns([
+        {
+          parsed: {
+            dao: '0x123',
+            plugin: '0x456',
+          },
+          txLog: {
+            transactionHash: '0x123',
+            address: '0x123',
+            topics: ['0x456'],
+            data: '0x789',
+            blockNumber: 1,
+          },
         },
-        txLog: {
-          transactionHash: '0x123',
-          address: '0x123',
-          topics: ['0x456'],
-          data: '0x789',
-          blockNumber: 1,
-        },
-      }] as any)
+      ] as any)
 
       const fakeTx = {
         logs: [
@@ -263,19 +265,21 @@ describe('Indexer: DaoRegistryHandler', () => {
         .onFirstCall()
         .returns([])
         .onSecondCall()
-        .returns([{
-          parsed: {
-            dao: '0x123',
-            member: '0x456',
+        .returns([
+          {
+            parsed: {
+              dao: '0x123',
+              member: '0x456',
+            },
+            txLog: {
+              transactionHash: '0x123',
+              address: '0x123',
+              topics: ['0x456'],
+              data: '0x789',
+              blockNumber: 1,
+            },
           },
-          txLog: {
-            transactionHash: '0x123',
-            address: '0x123',
-            topics: ['0x456'],
-            data: '0x789',
-            blockNumber: 1,
-          },
-        }] as any)
+        ] as any)
 
       const memberAddedStub = sandbox.stub(MemberHandler, 'membersAdded')
       const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
@@ -305,19 +309,21 @@ describe('Indexer: DaoRegistryHandler', () => {
       const web3Stub = sandbox
         .stub(Web3, 'findLogsByName')
         .onFirstCall()
-        .returns([{
-          parsed: {
-            dao: '0x123',
-            member: '0x456',
+        .returns([
+          {
+            parsed: {
+              dao: '0x123',
+              member: '0x456',
+            },
+            txLog: {
+              transactionHash: '0x123',
+              address: '0x123',
+              topics: ['0x456'],
+              data: '0x789',
+              blockNumber: 1,
+            },
           },
-          txLog: {
-            transactionHash: '0x123',
-            address: '0x123',
-            topics: ['0x456'],
-            data: '0x789',
-            blockNumber: 1,
-          },
-        }] as any)
+        ] as any)
         .onSecondCall()
         .returns([])
 

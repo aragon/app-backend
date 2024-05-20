@@ -111,19 +111,19 @@ describe('Indexer: ProposalHandler', () => {
       }
       await Models.LogProposal.create(rawProposal)
 
-    const txLog = {
-      transactionHash: '0x123',
-      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      data: '0x789',
-      topics: ['0xabc'],
-      blockNumber: 1,
-    }
-    const fakeEvent = {
-      args: {
-        proposalId: 0n,
-        approver: '0x0',
-      },
-    }
+      const txLog = {
+        transactionHash: '0x123',
+        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+      const fakeEvent = {
+        args: {
+          proposalId: 0n,
+          approver: '0x0',
+        },
+      }
 
       const stubLogger = sandbox.stub(logger, 'verbose')
 
