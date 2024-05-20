@@ -57,7 +57,7 @@ export default class LogProposalMetadata extends Model {
   @prop({ type: () => String, default: null })
   public pluginAddress!: HexAddress
 
-  @prop({ type: () => Number, default: null })
+  @prop({ type: () => Number })
   public proposalId!: number
 
   @prop({ type: () => String, default: null })

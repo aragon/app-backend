@@ -25,6 +25,7 @@ class BlockchainLogCrawler {
   private isOnError: boolean
   private shutdown: boolean
   public readonly crawlResult: {
+    network: NetworksEnum
     nbSuccess: number
     nbError: number
     nbTotal: number
@@ -60,6 +61,7 @@ class BlockchainLogCrawler {
     this.crawling = false
     this.isOnError = false
     this.crawlResult = {
+      network: opts.network,
       latestBlockNumber: 0,
       lastBlockSync: 0,
       nbSuccess: 0,
@@ -137,6 +139,7 @@ class BlockchainLogCrawler {
         logger.silly(
           'Querying logs for topic chunk',
           llo({
+            network: this.crawlResult.network,
             initBlock: this.fromBlock,
             endBlock: this.toBlock,
             fromBlock: currentBlock,

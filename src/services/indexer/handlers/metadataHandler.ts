@@ -17,7 +17,11 @@ export const MetadataHandler = {
   },
 
   metadataSet: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    logger.verbose('metadataSet', llo({ parsedEvent }))
+    const logInfo: any = {
+      txHash: txLog.transactionHash,
+      network,
+    }
+
     const transaction = await Web3Helper.getTransaction(txLog.transactionHash, network)
 
     if (!transaction?.data) {
@@ -27,13 +31,7 @@ export const MetadataHandler = {
     const decodedTransaction = MetadataHandler.decodeTransaction(transaction)
 
     if (!decodedTransaction) {
-      logger.error(
-        'Unable to decode transaction',
-        llo({
-          txLog,
-          network,
-        }),
-      )
+      logger.error('Unable to decode transaction', llo({ logInfo }))
       return
     }
 
@@ -62,17 +60,11 @@ export const MetadataHandler = {
               transactionHash: txLog.transactionHash,
             }
 
-            await Models.LogDaoMetadata.create(logDaoMetadata, { session })
+            const logDb = await Models.LogDaoMetadata.create(logDaoMetadata, { session })
 
             await session.commitTransaction()
             await session.endSession()
-            logger.verbose(
-              'Stored DAO metadata',
-              llo({
-                network,
-                logDaoMetadata,
-              }),
-            )
+            logger.verbose('New DaoMetadata', llo({ logId: logDb.id, logInfo }))
           })
         }
         break
@@ -100,33 +92,25 @@ export const MetadataHandler = {
               transactionHash: txLog.transactionHash,
               blockNumber: txLog.blockNumber,
             }
-            await Models.LogProposalMetadata.create(logProposalMetadata, { session })
+            const logDb = await Models.LogProposalMetadata.create(logProposalMetadata, { session })
 
             await session.commitTransaction()
             await session.endSession()
-            logger.verbose(
-              'Stored proposal metadata',
-              llo({
-                network,
-                logProposalMetadata,
-              }),
-            )
+            logger.verbose('New ProposalMetadata', llo({ logId: logDb.id, logInfo }))
           })
         }
         break
       }
       default:
-        logger.error(
-          'Decoded metadata does not match any expected contract',
-          llo({
-            decodedTransaction,
-            network,
-          }),
-        )
+        logger.error('Decoded metadata does not match any expected contract', llo({ logInfo }))
     }
   },
 
   decodeTransaction: (transaction: any): IDecodeTransaction | null => {
+    const logInfo: any = {
+      txHash: transaction.transactionHash,
+    }
+
     const functionSelector = transaction.data.slice(0, 10)
 
     for (const [contractName, iface] of Object.entries(MetadataHandler.contractInterfaces)) {
@@ -144,6 +128,7 @@ export const MetadataHandler = {
         logger.error(
           'Metadata decoding error',
           llo({
+            logInfo,
             contractName,
             error,
           }),
@@ -151,7 +136,7 @@ export const MetadataHandler = {
       }
     }
 
-    logger.error('Metadata not supported', llo({ transaction }))
+    logger.error('Metadata not supported', llo({ logInfo }))
     return null
   },
 
