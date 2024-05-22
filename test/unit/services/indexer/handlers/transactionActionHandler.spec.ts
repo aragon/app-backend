@@ -543,8 +543,8 @@ describe('Indexer: ProposalHandler', () => {
       expect(logTransactionDb.tokenId).to.be.null
       expect(logTransactionDb.tokenIds[0]).to.be.eq('2')
       expect(logTransactionDb.tokenIds[1]).to.be.eq('3')
-      expect(logTransactionDb.amounts[0]).to.be.eq('1')
-      expect(logTransactionDb.amounts[1]).to.be.eq('1')
+      expect(logTransactionDb.amounts[0]).to.be.eq(1)
+      expect(logTransactionDb.amounts[1]).to.be.eq(1)
       expect(logTransactionDb.reference).to.be.null
       expect(logTransactionDb.actionIndex).to.be.eq(actionIndex)
       expect(logTransactionDb.execResult).to.be.eq(fakeEvent.args.execResults[actionIndex].toString())
