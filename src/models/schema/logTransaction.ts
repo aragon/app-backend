@@ -50,13 +50,16 @@ export default class LogTransaction extends Model {
   public tokenAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
+  public daoAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
   public tokenId!: string
 
   @prop({ type: () => [String], default: [] })
   public tokenIds!: string[]
 
-  @prop({ type: () => [String], default: [] })
-  public amounts!: string[]
+  @prop({ type: () => [Number], default: [] })
+  public amounts!: number[]
 
   @prop({ type: () => String, default: null })
   public reference!: string
