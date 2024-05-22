@@ -1,3 +1,5 @@
+![example event parameter](https://github.com/aragon/app-backend/actions/workflows/app-backend-test.yml/badge.svg?branch=develop)
+
 ![Aragon](https://res.cloudinary.com/dbktgy3vg/image/upload/v1689668058/aragon-app_hpima1.png)
 
 <p align="center">
@@ -13,11 +15,9 @@
 
 # Aragon App Backend
 
-The Aragon App Backend is a vital component designed to empower the Aragon App.
-It ensures efficient on-chain data retrieval and continuous synchronization, acting as a pivotal bridge to the
-blockchain.
-This backend solution optimizes the app's performance, guaranteeing users access to the latest, most precise data
-without compromising on speed or efficiency.
+The Aragon App Backend is a core component of the Aragon ecosystem, designed to index data from blockchain events, 
+emitted by Aragon smart contracts. It provides an API service that enables fast and easy access to this data, 
+facilitating efficient data retrieval for Aragon App and external applications.
 
 ## Prerequisites
 
