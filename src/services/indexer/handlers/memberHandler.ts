@@ -126,13 +126,13 @@ export const MemberHandler = {
         return
       }
 
-      const delegationVotesChangedLog = Web3Utils.findLogsByName(
+      const delegationVotesChangedLogs = Web3Utils.findLogsByName(
         txReceipt!,
         IEventLogMember.DelegateVotesChanged,
         GovernanceERC20.abi,
       )
 
-      if (!delegationVotesChangedLog) {
+      if (delegationVotesChangedLogs.length === 0) {
         logger.verbose('DelegateVotesChanged not found. Invalid log', llo({ txLog }))
         return
       }
@@ -149,8 +149,8 @@ export const MemberHandler = {
             parsedEvent.args.fromDelegate === ZeroAddress ? parsedEvent.args.delegator : parsedEvent.args.fromDelegate,
           toDelegate: parsedEvent.args.toDelegate,
           delegatingMember: parsedEvent.args.delegator,
-          previousVotingPower: delegationVotesChangedLog.parsed!.args.previousBalance,
-          newVotingPower: delegationVotesChangedLog.parsed!.args.newBalance,
+          previousVotingPower: delegationVotesChangedLogs[0].parsed!.args.previousBalance,
+          newVotingPower: delegationVotesChangedLogs[0].parsed!.args.newBalance,
           pluginAddress: relatedPlugin.pluginAddress,
         }
 

@@ -31,11 +31,12 @@ const IPFSModule = {
       return null
     }
 
-    let data = await IPFSModule._fetchMetadata(cid, opts)
+    // try with gateway
+    let data = await PinataHelper.getData(cid)
 
     if (!data) {
-      // try with gateway
-      data = await PinataHelper.getData(cid)
+      // try from any source
+      data = await IPFSModule._fetchMetadata(cid, opts)
     }
 
     return data

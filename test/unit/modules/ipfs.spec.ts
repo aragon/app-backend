@@ -123,12 +123,12 @@ describe('Modules: IPFS', () => {
   })
 
   describe('fetchMetadata', function () {
-    it('should call fetchMetadata for CIDv1 and fallback to Pinata if necessary', async function () {
+    it('should call fetchMetadata for CIDv1 and fallback to old gateway if necessary', async function () {
       const cidV1 = 'ipfs://bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
       const expectedMetadata = { name: 'Example' }
 
-      const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
-      const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(expectedMetadata)
+      const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata').resolves(expectedMetadata)
+      const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
 
       const result = await IPFSModule.fetchMetadata(cidV1)
 
@@ -137,12 +137,12 @@ describe('Modules: IPFS', () => {
       expect(result).to.deep.equal(expectedMetadata)
     })
 
-    it('should call fetchMetadata for CIDv0 and fallback to Pinata if necessary', async function () {
+    it('should call fetchMetadata for CIDv0 and fallback to old gateway if necessary', async function () {
       const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
       const expectedMetadata = { name: 'Example' }
 
-      const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
-      const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(expectedMetadata)
+      const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata').resolves(expectedMetadata)
+      const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 

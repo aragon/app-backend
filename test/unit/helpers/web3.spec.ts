@@ -2,11 +2,12 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Web3Helper from '@helpers/web3'
-import { NetworksEnum } from '@types'
-import { ethers, id } from 'ethers'
+import { ITransactionType, NetworksEnum } from '@types'
+import { Interface, id, AbiCoder } from 'ethers'
 import { ConfigState } from '@state/configState'
 import Logger from '@logger'
 import proxyquire from 'proxyquire'
+import logger from '@logger'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -17,6 +18,505 @@ describe('Helpers:Web3', () => {
 
   afterEach(() => {
     sandbox?.restore()
+  })
+
+  describe('Constants', () => {
+    it('should have correct ERC1155_INTERFACE_ID', () => {
+      expect(Web3Helper.ERC1155_INTERFACE_ID).to.equal('0xd9b67a26')
+    })
+
+    it('should have correct ERC165_INTERFACE_ID', () => {
+      expect(Web3Helper.ERC165_INTERFACE_ID).to.equal('0x01ffc9a7')
+    })
+
+    it('should have correct ERC721_INTERFACE_ID', () => {
+      expect(Web3Helper.ERC721_INTERFACE_ID).to.equal('0x80ac58cd')
+    })
+
+    it('should have correct INTERFACE_ID_INVALID', () => {
+      expect(Web3Helper.INTERFACE_ID_INVALID).to.equal('0xffffffff')
+    })
+
+    it('should have correct onERC721Received', () => {
+      expect(Web3Helper.onERC721Received).to.equal('0x150b7a02')
+    })
+
+    it('should have correct onERC1155Received', () => {
+      expect(Web3Helper.onERC1155Received).to.equal('0xf23a6e61')
+    })
+
+    it('should have correct onERC1155BatchReceived', () => {
+      expect(Web3Helper.onERC1155BatchReceived).to.equal('0xbc197c81')
+    })
+
+    it('should have correct ERC721_safeTransferFromNoData', () => {
+      expect(Web3Helper.ERC721_safeTransferFromNoData).to.equal('0x42842e0e')
+    })
+
+    it('should have correct ERC721_safeTransferFromWithData', () => {
+      expect(Web3Helper.ERC721_safeTransferFromWithData).to.equal('0xb88d4fde')
+    })
+
+    it('should have correct ERC721_transferFrom', () => {
+      expect(Web3Helper.ERC721_transferFrom).to.equal('0x23b872dd')
+    })
+
+    it('should have correct ERC20_transfer', () => {
+      expect(Web3Helper.ERC20_transfer).to.equal('0xa9059cbb')
+    })
+
+    it('should have correct ERC20_transferFrom', () => {
+      expect(Web3Helper.ERC20_transferFrom).to.equal('0x23b872dd')
+    })
+
+    it('should have correct ERC1155_safeTransferFrom', () => {
+      expect(Web3Helper.ERC1155_safeTransferFrom).to.equal('0xf242432a')
+    })
+
+    it('should have correct ERC1155_safeBatchTransferFrom', () => {
+      expect(Web3Helper.ERC1155_safeBatchTransferFrom).to.equal('0x2eb2c2d6')
+    })
+  })
+
+  describe('getERC20TransferABI', () => {
+    it('should return correct ABI for ERC20_transfer', () => {
+      const result = Web3Helper.getERC20TransferABI(Web3Helper.ERC20_transfer)
+      expect(result).to.deep.equal(['address', 'uint256'])
+    })
+
+    it('should return correct ABI for ERC20_transferFrom', () => {
+      const result = Web3Helper.getERC20TransferABI(Web3Helper.ERC20_transferFrom)
+      expect(result).to.deep.equal(['address', 'address', 'uint256'])
+    })
+
+    it('should return null for unsupported function selector', () => {
+      const result = Web3Helper.getERC20TransferABI('0xunsupported')
+      expect(result).to.be.null
+    })
+  })
+
+  describe('getERC721TransferABI', () => {
+    it('should return correct ABI for ERC721_transferFrom', () => {
+      const result = Web3Helper.getERC721TransferABI(Web3Helper.ERC721_transferFrom)
+      expect(result).to.deep.equal(['address', 'address', 'uint256'])
+    })
+
+    it('should return correct ABI for ERC721_safeTransferFromNoData', () => {
+      const result = Web3Helper.getERC721TransferABI(Web3Helper.ERC721_safeTransferFromNoData)
+      expect(result).to.deep.equal(['address', 'address', 'uint256'])
+    })
+
+    it('should return correct ABI for ERC721_safeTransferFromNoData', () => {
+      const result = Web3Helper.getERC721TransferABI(Web3Helper.ERC721_safeTransferFromWithData)
+      expect(result).to.deep.equal(['address', 'address', 'uint256', 'bytes'])
+    })
+
+    it('should return null for unsupported function selector', () => {
+      const loggerStub = sandbox.stub(logger, 'error')
+      const result = Web3Helper.getERC721TransferABI('0xunsupported')
+      expect(result).to.be.null
+      expect(loggerStub.calledOnce).to.be.true
+      loggerStub.restore()
+    })
+  })
+
+  describe('getERC1155TransferABI', () => {
+    it('should return correct ABI for ERC1155_safeTransferFrom', () => {
+      const result = Web3Helper.getERC1155TransferABI(Web3Helper.ERC1155_safeTransferFrom)
+      expect(result).to.deep.equal(['address', 'address', 'uint256', 'uint256', 'bytes'])
+    })
+
+    it('should return correct ABI for ERC1155_safeBatchTransferFrom', () => {
+      const result = Web3Helper.getERC1155TransferABI(Web3Helper.ERC1155_safeBatchTransferFrom)
+      expect(result).to.deep.equal(['address', 'address', 'uint256[]', 'uint256[]', 'bytes'])
+    })
+
+    it('should return null for unsupported function selector', () => {
+      const loggerStub = sandbox.stub(logger, 'error')
+      const result = Web3Helper.getERC1155TransferABI('0xunsupported')
+      expect(result).to.be.null
+      expect(loggerStub.calledOnce).to.be.true
+      loggerStub.restore()
+    })
+  })
+
+  it('isERC1155TransferMethod', () => {
+    const action = { data: Web3Helper.ERC1155_safeTransferFrom }
+    sandbox.stub(Web3Helper, 'getMethodSignature').returns(Web3Helper.ERC1155_safeTransferFrom)
+
+    const result = Web3Helper.isERC1155TransferMethod(action)
+
+    expect(result).to.be.true
+  })
+
+  it('isERC721Transfer', () => {
+    const action = { data: Web3Helper.ERC721_transferFrom }
+    sandbox.stub(Web3Helper, 'getMethodSignature').returns(Web3Helper.ERC721_transferFrom)
+
+    const result = Web3Helper.isERC721Transfer(action)
+
+    expect(result).to.be.true
+  })
+
+  it('isERC20Transfer', () => {
+    const action = { data: Web3Helper.ERC20_transfer }
+    sandbox.stub(Web3Helper, 'getMethodSignature').returns(Web3Helper.ERC20_transfer)
+
+    const result = Web3Helper.isERC20Transfer(action)
+
+    expect(result).to.be.true
+  })
+
+  it('isNativeTokenAction', () => {
+    const action = { data: '0x', value: 1n }
+
+    const result = Web3Helper.isNativeTokenAction(action)
+
+    expect(result).to.be.true
+  })
+
+  describe('supportsERC721', () => {
+    it('should return true if the contract supports ERC721', async () => {
+      const supportsInterfaceStub = sandbox.stub(Web3Helper, 'supportsInterface').resolves(true)
+      supportsInterfaceStub.onFirstCall().resolves(true)
+      supportsInterfaceStub.onSecondCall().resolves(true)
+      supportsInterfaceStub.onThirdCall().resolves(false)
+
+      const result = await Web3Helper.supportsERC721('0xTokenAddress', NetworksEnum.mainnet)
+
+      expect(result).to.be.true
+      expect(supportsInterfaceStub.callCount).to.equal(3)
+      expect(supportsInterfaceStub.callCount).to.equal(3)
+      expect(
+        supportsInterfaceStub.firstCall.calledWith(
+          '0xTokenAddress',
+          Web3Helper.ERC165_INTERFACE_ID,
+          NetworksEnum.mainnet,
+        ),
+      ).to.be.true
+      expect(
+        supportsInterfaceStub.secondCall.calledWith(
+          '0xTokenAddress',
+          Web3Helper.ERC721_INTERFACE_ID,
+          NetworksEnum.mainnet,
+        ),
+      ).to.be.true
+      expect(
+        supportsInterfaceStub.thirdCall.calledWith(
+          '0xTokenAddress',
+          Web3Helper.INTERFACE_ID_INVALID,
+          NetworksEnum.mainnet,
+        ),
+      ).to.be.true
+    })
+  })
+
+  describe('supportsERC1155', () => {
+    it('should return true if the contract supports ERC1155', async () => {
+      const supportsInterfaceStub = sandbox.stub(Web3Helper, 'supportsInterface')
+      supportsInterfaceStub.onFirstCall().resolves(true)
+      supportsInterfaceStub.onSecondCall().resolves(true)
+      supportsInterfaceStub.onThirdCall().resolves(false)
+
+      const result = await Web3Helper.supportsERC1155('0xTokenAddress', NetworksEnum.mainnet)
+
+      expect(result).to.be.true
+      expect(supportsInterfaceStub.callCount).to.equal(3)
+      expect(
+        supportsInterfaceStub.firstCall.calledWith(
+          '0xTokenAddress',
+          Web3Helper.ERC165_INTERFACE_ID,
+          NetworksEnum.mainnet,
+        ),
+      ).to.be.true
+      expect(
+        supportsInterfaceStub.secondCall.calledWith(
+          '0xTokenAddress',
+          Web3Helper.ERC1155_INTERFACE_ID,
+          NetworksEnum.mainnet,
+        ),
+      ).to.be.true
+      expect(
+        supportsInterfaceStub.thirdCall.calledWith(
+          '0xTokenAddress',
+          Web3Helper.INTERFACE_ID_INVALID,
+          NetworksEnum.mainnet,
+        ),
+      ).to.be.true
+    })
+  })
+
+  describe('supportsInterface', () => {
+    it('supportsInterface', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubSupportsInterface = sandbox.stub().resolves(true)
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { supportsInterface: stubSupportsInterface }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.supportsInterface('0xTokenAddress', '0xInterfaceId', NetworksEnum.mainnet)
+
+      expect(result).to.be.true
+    })
+
+    it('supportsInterface', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubSupportsInterface = sandbox.stub().rejects(new Error('fake-error'))
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { supportsInterface: stubSupportsInterface }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.supportsInterface('0xTokenAddress', '0xInterfaceId', NetworksEnum.mainnet)
+
+      expect(result).to.be.false
+    })
+  })
+
+  describe('decodeCalldata', () => {
+    it('should correctly decode calldata', () => {
+      const decodeABI = ['address', 'uint256']
+      const calldata =
+        '0x000000000000000000000000000000000000000000000000000000000000000000000001234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef0000000000000000000000000000000000000000000000000000000000000042'
+
+      const decodedData = ['0x0000000000000000000000001234567890abcdef1234567890abcdef1234567890abcdef', 66]
+      sandbox.stub(AbiCoder, 'defaultAbiCoder').returns({
+        decode: sandbox.stub().returns(decodedData),
+      } as any)
+
+      const result = Web3Helper.decodeCalldata(decodeABI, calldata)
+
+      expect(result).to.deep.equal(decodedData)
+    })
+
+    it('should return null if decoding fails', () => {
+      const decodeABI = ['address', 'uint256']
+      const calldata = 'invalidcalldata'
+
+      sandbox.stub(AbiCoder, 'defaultAbiCoder').returns({
+        decode: sandbox.stub().throws(new Error('decode error')),
+      } as any)
+
+      const result = Web3Helper.decodeCalldata(decodeABI, calldata)
+
+      expect(result).to.be.null
+    })
+  })
+
+  it('parseERC721Action', () => {
+    const decoded = ['0xfromAddress', '0xtoAddress', 123]
+    const result = Web3Helper.parseERC721Action(decoded)
+
+    expect(result).to.deep.equal({
+      from: '0xfromAddress',
+      to: '0xtoAddress',
+      tokenId: '123',
+    })
+  })
+
+  it('parseERC1155Action', () => {
+    const decoded = ['0xfromAddress', '0xtoAddress', 123n, 22n]
+    const result = Web3Helper.parseERC1155Action(decoded)
+
+    expect(result).to.deep.equal({
+      from: '0xfromAddress',
+      to: '0xtoAddress',
+      tokenId: '123',
+      amount: 22,
+    })
+  })
+
+  it('parseERC1155BatchAction', () => {
+    const decoded = ['0xfromAddress', '0xtoAddress', [123n, 90n], [1n, 1n]]
+    const result = Web3Helper.parseERC1155BatchAction(decoded)
+
+    expect(result).to.deep.equal({
+      from: '0xfromAddress',
+      to: '0xtoAddress',
+      tokenIds: ['123', '90'],
+      amounts: [1, 1],
+    })
+  })
+
+  describe('parseERC20TransferAction', () => {
+    it('parseERC20TransferAction ERC20_transfer', () => {
+      const functionSelector = Web3Helper.ERC20_transfer
+      const decoded = ['0xtoAddress', 1000n]
+      const txLog = { address: '0xfromAddress' }
+      const result = Web3Helper.parseERC20TransferAction(functionSelector, decoded, txLog)
+
+      expect(result).to.deep.equal({
+        from: '0xfromAddress',
+        to: '0xtoAddress',
+        amount: 1000,
+      })
+    })
+
+    it('parseERC20TransferAction ERC20_transferFrom', () => {
+      const functionSelector = Web3Helper.ERC20_transferFrom
+      const decoded = ['0xfromAddress', '0xtoAddress', 1000n]
+      const txLog = { address: '0xfromAddress' }
+      const result = Web3Helper.parseERC20TransferAction(functionSelector, decoded, txLog)
+
+      expect(result).to.deep.equal({
+        from: '0xfromAddress',
+        to: '0xtoAddress',
+        amount: 1000,
+      })
+    })
+  })
+
+  describe('getActionTransactionType', () => {
+    it('should return externalTransfer if neither from nor to is daoAddress', () => {
+      const from = '0xfromAddress'
+      const to = '0xtoAddress'
+      const daoAddress = '0xdaoAddress'
+
+      const result = Web3Helper.getActionTransactionType(from, to, daoAddress)
+
+      expect(result).to.equal(ITransactionType.externalTransfer)
+    })
+
+    it('should return deposit if from is not daoAddress and to is daoAddress', () => {
+      const from = '0xfromAddress'
+      const to = '0xdaoAddress'
+      const daoAddress = '0xdaoAddress'
+
+      const result = Web3Helper.getActionTransactionType(from, to, daoAddress)
+
+      expect(result).to.equal(ITransactionType.deposit)
+    })
+
+    it('should return withdraw if from is daoAddress and to is not daoAddress', () => {
+      const from = '0xdaoAddress'
+      const to = '0xtoAddress'
+      const daoAddress = '0xdaoAddress'
+
+      const result = Web3Helper.getActionTransactionType(from, to, daoAddress)
+
+      expect(result).to.equal(ITransactionType.withdraw)
+    })
+  })
+
+  it('getMethodSignature', () => {
+    const data = '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
+    const result = Web3Helper.getMethodSignature(data)
+
+    expect(result).to.equal('0xabcdef12')
+  })
+
+  describe('findLogsByName', () => {
+    it('should find and parse logs by event name', () => {
+      const txReceipt = {
+        to: '',
+        from: '',
+        transactionHash: '',
+        logs: [
+          {
+            blockNumber: 0,
+            blockHash: '',
+            transactionIndex: 0,
+            removed: false,
+            address: '',
+            data: '',
+            topics: ['0xeventTopicHash'],
+            transactionHash: '',
+            logIndex: 0,
+          },
+        ],
+        blockNumber: 0,
+      }
+
+      const abi = [
+        {
+          type: 'event',
+          name: 'EventName',
+          inputs: [],
+        },
+      ]
+
+      const eventTopicHash = '0xeventTopicHash'
+      const parsedLog = { name: 'parsedLog' } as any
+
+      sandbox.stub(Interface.prototype, 'getEvent').returns({ topicHash: eventTopicHash } as any)
+      sandbox.stub(Interface.prototype, 'parseLog').returns(parsedLog)
+
+      const result = Web3Helper.findLogsByName(txReceipt as any, 'EventName', abi)
+
+      expect(result).to.deep.equal([
+        {
+          parsed: parsedLog,
+          txLog: txReceipt.logs[0],
+        },
+      ])
+    })
+
+    it('should return an empty array if eventTopicHash not found', () => {
+      const stubLogger = sandbox.stub(logger, 'error')
+      const txReceipt: any = {
+        to: '',
+        from: '',
+        transactionHash: '',
+        logs: [],
+      }
+
+      const abi = [
+        {
+          type: 'event',
+          name: 'EventName',
+          inputs: [],
+        },
+      ]
+
+      sandbox.stub(Interface.prototype, 'getEvent').returns([] as any)
+
+      const result = Web3Helper.findLogsByName(txReceipt, 'EventName', abi)
+
+      expect(result).to.deep.equal([])
+      expect(stubLogger.calledOnceWith('Error eventTopicHash not found' as any)).to.be.true
+    })
+
+    it('should return an empty array and log an error if an exception occurs', () => {
+      const stubLogger = sandbox.stub(logger, 'error')
+      const txReceipt: any = {
+        to: '',
+        from: '',
+        transactionHash: '',
+        logs: [],
+      }
+
+      const abi = [
+        {
+          type: 'event',
+          name: 'EventName',
+          inputs: [],
+        },
+      ]
+
+      sandbox.stub(Interface.prototype, 'getEvent').throws(new Error('Test Error'))
+
+      const result = Web3Helper.findLogsByName(txReceipt, 'EventName', abi)
+
+      expect(result).to.deep.equal([])
+      expect(stubLogger.calledOnceWith('Error parse eventTopicHash' as any)).to.be.true
+    })
   })
 
   describe('extractMetadataUri', () => {
@@ -386,80 +886,319 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('findLogsByName', () => {
-    it('should find logs by name', () => {
-      const eventName = 'EventName'
-      const abi = [
-        {
-          name: 'EventName',
-          type: 'event',
-          inputs: [{ type: 'uint256', name: 'arg1' }],
-        },
-      ]
+  describe('Web3Helper getERC20Info', () => {
+    it('should return token info', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubName = sandbox.stub().resolves('Test Token')
+      const stubSymbol = sandbox.stub().resolves('TST')
+      const stubDecimals = sandbox.stub().resolves(18n)
 
-      const transactionReceipt = {
-        logs: [
-          {
-            logIndex: 0,
-            data: '0x' + (''.padStart(62, '0') + '01'),
-            topics: [ethers.id('EventName(uint256)')],
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals }
           },
-        ],
-      } as any
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
 
-      const parsedLog = Web3Helper.findLogsByName(transactionReceipt, eventName, abi)
+      const result = await MockedWeb3Helper.getERC20Info('0xTokenAddress', NetworksEnum.mainnet)
 
-      expect(parsedLog?.parsed?.args.arg1).to.be.exist
-      expect(parsedLog?.txLog).to.be.exist
-      expect(parsedLog?.parsed?.args.arg1).to.be.eq(1n)
+      expect(result).to.deep.equal({
+        address: '0xTokenAddress',
+        name: 'Test Token',
+        symbol: 'TST',
+        decimals: 18,
+      })
+
+      expect(stubName.calledOnce).to.be.true
+      expect(stubSymbol.calledOnce).to.be.true
+      expect(stubDecimals.calledOnce).to.be.true
     })
 
-    it('should return null if not exist', () => {
-      const eventName = 'EventAme'
-      const abi = [
-        {
-          name: 'EventName',
-          type: 'event',
-          inputs: [{ type: 'uint256', name: 'arg1' }],
-        },
-      ]
+    it('should fails return token info', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubName = sandbox.stub().rejects(new Error('Test Error'))
+      const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
+      const stubDecimals = sandbox.stub().rejects(new Error('Test Error'))
+      const stubLogger = sandbox.stub(logger, 'error')
 
-      const transactionReceipt = {
-        logs: [
-          {
-            logIndex: 0,
-            data: '0x' + (''.padStart(62, '0') + '01'),
-            topics: [ethers.id('EventName(uint256)')],
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals }
           },
-        ],
-      } as any
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
 
-      const parsedLog = Web3Helper.findLogsByName(transactionReceipt, eventName, abi)
-      expect(parsedLog).to.be.null
+      const result = await MockedWeb3Helper.getERC20Info('0xTokenAddress', NetworksEnum.mainnet)
+
+      expect(result).to.deep.equal({
+        address: '0xTokenAddress',
+      })
+
+      expect(stubName.calledOnce).to.be.true
+      expect(stubSymbol.calledOnce).to.be.true
+      expect(stubDecimals.calledOnce).to.be.true
+      expect(stubLogger.calledThrice).to.be.true
+    })
+  })
+
+  describe('getERC20Info', () => {
+    it('should return token info', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubName = sandbox.stub().resolves('Test Token')
+      const stubSymbol = sandbox.stub().resolves('TST')
+      const stubDecimals = sandbox.stub().resolves(18n)
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getERC20Info('0xTokenAddress', NetworksEnum.mainnet)
+
+      expect(result).to.deep.equal({
+        address: '0xTokenAddress',
+        name: 'Test Token',
+        symbol: 'TST',
+        decimals: 18,
+      })
+
+      expect(stubName.calledOnce).to.be.true
+      expect(stubSymbol.calledOnce).to.be.true
+      expect(stubDecimals.calledOnce).to.be.true
     })
 
-    it('should return null if bad data', () => {
-      const eventName = 'EventName'
-      const abi = [
-        {
-          name: 'EventName',
-          type: 'event',
-          inputs: [{ type: 'uint256', name: 'arg1' }],
-        },
-      ]
+    it('should fails return token info', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubName = sandbox.stub().rejects(new Error('Test Error'))
+      const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
+      const stubDecimals = sandbox.stub().rejects(new Error('Test Error'))
+      const stubLogger = sandbox.stub(logger, 'error')
 
-      const transactionReceipt = {
-        logs: [
-          {
-            logIndex: 0,
-            data: '0x' + (''.padStart(65, '0') + '01'),
-            topics: [ethers.id('EventName(uint256)')],
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals }
           },
-        ],
-      } as any
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
 
-      const parsedLog = Web3Helper.findLogsByName(transactionReceipt, eventName, abi)
-      expect(parsedLog).to.be.null
+      const result = await MockedWeb3Helper.getERC20Info('0xTokenAddress', NetworksEnum.mainnet)
+
+      expect(result).to.deep.equal({
+        address: '0xTokenAddress',
+      })
+
+      expect(stubName.calledOnce).to.be.true
+      expect(stubSymbol.calledOnce).to.be.true
+      expect(stubDecimals.calledOnce).to.be.true
+      expect(stubLogger.calledThrice).to.be.true
+    })
+  })
+
+  describe('getERC721Info', () => {
+    it('should return token info', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubName = sandbox.stub().resolves('Test Token')
+      const stubSymbol = sandbox.stub().resolves('TST')
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { name: stubName, symbol: stubSymbol }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getERC721Info('0xTokenAddress', NetworksEnum.mainnet)
+
+      expect(result).to.deep.equal({
+        address: '0xTokenAddress',
+        name: 'Test Token',
+        symbol: 'TST',
+      })
+
+      expect(stubName.calledOnce).to.be.true
+      expect(stubSymbol.calledOnce).to.be.true
+    })
+
+    it('should fails return token info', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubName = sandbox.stub().rejects(new Error('Test Error'))
+      const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { name: stubName, symbol: stubSymbol }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getERC721Info('0xTokenAddress', NetworksEnum.mainnet)
+
+      expect(result).to.deep.equal({
+        address: '0xTokenAddress',
+      })
+
+      expect(stubName.calledOnce).to.be.true
+      expect(stubSymbol.calledOnce).to.be.true
+      expect(stubLogger.calledTwice).to.be.true
+    })
+  })
+
+  describe('getERC1155Info', () => {
+    it('should return token info', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubName = sandbox.stub().resolves('Test Token')
+      const stubSymbol = sandbox.stub().resolves('TST')
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { name: stubName, symbol: stubSymbol }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getERC1155Info('0xTokenAddress', NetworksEnum.mainnet)
+
+      expect(result).to.deep.equal({
+        address: '0xTokenAddress',
+        name: 'Test Token',
+        symbol: 'TST',
+      })
+
+      expect(stubName.calledOnce).to.be.true
+      expect(stubSymbol.calledOnce).to.be.true
+    })
+
+    it('should fails return token info', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubName = sandbox.stub().rejects(new Error('Test Error'))
+      const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { name: stubName, symbol: stubSymbol }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getERC1155Info('0xTokenAddress', NetworksEnum.mainnet)
+
+      expect(result).to.deep.equal({
+        address: '0xTokenAddress',
+      })
+
+      expect(stubName.calledOnce).to.be.true
+      expect(stubSymbol.calledOnce).to.be.true
+      expect(stubLogger.calledTwice).to.be.true
+    })
+  })
+
+  describe('getDataFromTxReceipt', () => {
+    it('should getDataFromTxReceipt', async () => {
+      const stubTransactionReceipt = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
+      const stubFindLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns([1] as any)
+
+      const params = {
+        txLog: { transactionHash: '0x0' },
+        eventName: 'test',
+        abi: '',
+        network: NetworksEnum.mainnet,
+      }
+      const result: any = await Web3Helper.getDataFromTxReceipt(params)
+
+      expect(result.txReceipt).to.be.true
+      expect(result.events[0]).to.eq(1)
+      expect(stubFindLogsByName.calledOnceWith(true as any, params.eventName, params.abi)).to.be.true
+      expect(stubTransactionReceipt.calledOnceWith(params.txLog.transactionHash, params.network)).to.be.true
+    })
+
+    it('should getDataFromTxReceipt - Failed to find txReceipt', async () => {
+      const stubTransactionReceipt = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(false as any)
+      const stubLogger = sandbox.stub(Logger, 'error')
+
+      const params = {
+        txLog: { transactionHash: '0x0' },
+        eventName: 'test',
+        abi: '',
+        network: NetworksEnum.mainnet,
+      }
+      const result: any = await Web3Helper.getDataFromTxReceipt(params)
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Failed to find txReceipt' as any)).to.be.true
+      expect(result).to.be.undefined
+      expect(stubTransactionReceipt.calledOnceWith(params.txLog.transactionHash, params.network)).to.be.true
+    })
+
+    it('should getDataFromTxReceipt - Failed to find event', async () => {
+      const stubTransactionReceipt = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
+      const stubFindLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns([] as any)
+      const stubLogger = sandbox.stub(Logger, 'error')
+
+      const params = {
+        txLog: { transactionHash: '0x0' },
+        eventName: 'test',
+        abi: '',
+        network: NetworksEnum.mainnet,
+      }
+      const result: any = await Web3Helper.getDataFromTxReceipt(params)
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Failed to find event' as any)).to.be.true
+      expect(result).to.be.undefined
+      expect(stubTransactionReceipt.calledOnceWith(params.txLog.transactionHash, params.network)).to.be.true
+      expect(stubFindLogsByName.calledOnceWith(true as any, params.eventName, params.abi)).to.be.true
     })
   })
 })

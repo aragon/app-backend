@@ -12,17 +12,7 @@ import { DAO } from '@artifacts/dao'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDao' })
 
 export const LogDao = {
-  events: [
-    'CallbackReceived',
-    'Deposited',
-    'Executed',
-    'Granted',
-    'MetadataSet',
-    'NativeTokenDeposited',
-    'NewURI',
-    'Revoked',
-    'StandardCallbackRegistered',
-  ],
+  events: ['CallbackReceived', 'Deposited', 'Executed', 'MetadataSet', 'NativeTokenDeposited', 'NewURI'],
 
   start: async () => {
     for (const networkName of Object.values(Network.NETWORKS)) {
@@ -83,10 +73,6 @@ export const LogDao = {
         logger.verbose('Executed', llo({ eventName: event.name }))
         await DaoHandler.executed(event, txLog, network)
         break
-      case 'Granted':
-        logger.verbose('Granted', llo({ eventName: event.name }))
-        await DaoHandler.granted(event, txLog, network)
-        break
       case 'MetadataSet':
         logger.verbose('MetadataSet', llo({ eventName: event.name }))
         await MetadataHandler.metadataSet(event, txLog, network)
@@ -98,14 +84,6 @@ export const LogDao = {
       case 'NewURI':
         logger.verbose('NewURI', llo({ eventName: event.name }))
         await DaoHandler.newURI(event, txLog, network)
-        break
-      case 'Revoked':
-        logger.verbose('Revoked', llo({ eventName: event.name }))
-        await DaoHandler.revoked(event, txLog, network)
-        break
-      case 'StandardCallbackRegistered':
-        logger.verbose('StandardCallbackRegistered', llo({ eventName: event.name }))
-        await DaoHandler.standardCallbackRegistered(event, txLog, network)
         break
       default:
         logger.error('Unhandled event', llo({ event }))

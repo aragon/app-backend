@@ -40,6 +40,7 @@ export enum IEventLogPluginType {
 export enum ITransactionType {
   deposit = 'deposit',
   withdraw = 'withdraw',
+  externalTransfer = 'externalTransfer',
 }
 
 export enum IEventLogMember {

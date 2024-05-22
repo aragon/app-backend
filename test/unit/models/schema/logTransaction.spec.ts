@@ -130,6 +130,6 @@ describe('Model: LogTransaction', () => {
     const createdLogTransaction = await Models.LogTransaction.create(rawLogTransaction)
     await createdLogTransaction.reload()
 
-    expect(createdLogTransaction.daoAddress).to.eq(rawLogTransaction.daoAddress)
+    expect(createdLogTransaction.tokenAddress).to.eq(rawLogTransaction.tokenAddress)
   })
 })
