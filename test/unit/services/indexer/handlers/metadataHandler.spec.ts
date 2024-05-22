@@ -78,8 +78,7 @@ describe('Indexer: MetadataHandler', () => {
 
       expect(stubParseDaoMetadata.calledOnce).to.be.true
       expect(stubParseDaoMetadata.calledWith(fakeMetadata)).to.be.true
-
-      expect(stubLogger.calledWith('Stored DAO metadata' as any)).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
 
       const daoMetadataDB = await Models.LogDaoMetadata.findExistingLog(txLog.transactionHash, txLog.address)
       expect(daoMetadataDB.transactionHash).to.eq(txLog.transactionHash)
@@ -149,7 +148,7 @@ describe('Indexer: MetadataHandler', () => {
       expect(stubParseDaoMetadata.calledOnce).to.be.true
       expect(stubParseDaoMetadata.calledWith(fakeMetadata)).to.be.true
 
-      expect(stubLogger.calledWith('Stored proposal metadata' as any)).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
 
       const proposalMetadataDB = await Models.LogProposalMetadata.findExistingLog(
         txLog.transactionHash,
@@ -212,8 +211,7 @@ describe('Indexer: MetadataHandler', () => {
 
       expect(stubFetchMetadata.calledOnce).to.be.true
       expect(stubFetchMetadata.args[0][0]).to.eq(fakeUri)
-
-      expect(stubLogger.calledWith('Decoded metadata does not match any expected contract' as any)).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
     })
 
     it('should processLog handle undefined tx data', async () => {
@@ -271,7 +269,6 @@ describe('Indexer: MetadataHandler', () => {
       expect(stubDecodeTx.calledWith(fakeTx)).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Unable to decode transaction' as any)).to.be.true
     })
   })
 

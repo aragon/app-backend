@@ -8,54 +8,69 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:PluginSettingH
 
 export const PluginSettingHandler = {
   votingSettingsUpdated: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    logger.verbose('votingSettingsUpdated', llo({ parsedEvent }))
+    const logInfo: any = {
+      txHash: txLog.transactionHash,
+      network,
+    }
 
-    const pluginAddress = txLog.address
-    const existingLog = await Models.LogPluginSetting.findExistingLog(txLog.transactionHash, pluginAddress)
+    try {
+      const pluginAddress = txLog.address
+      const existingLog = await Models.LogPluginSetting.findExistingLog(txLog.transactionHash, pluginAddress)
 
-    if (!existingLog) {
-      await DbTx.executeTxFn(async ({ session }) => {
-        const settingLog = {
-          blockNumber: txLog.blockNumber,
-          transactionHash: txLog.transactionHash,
-          pluginAddress,
-          network,
-          votingMode: Number(parsedEvent.args.votingMode),
-          supportThreshold: Number(parsedEvent.args.supportThreshold),
-          minParticipation: Number(parsedEvent.args.minParticipation),
-          minDuration: Number(parsedEvent.args.minDuration),
-          minProposerVotingPower: Number(parsedEvent.args.minProposerVotingPower),
-        }
-        await Models.LogPluginSetting.create(settingLog, { session })
+      if (!existingLog) {
+        await DbTx.executeTxFn(async ({ session }) => {
+          const settingLog = {
+            blockNumber: txLog.blockNumber,
+            transactionHash: txLog.transactionHash,
+            pluginAddress,
+            network,
+            votingMode: Number(parsedEvent.args.votingMode),
+            supportThreshold: Number(parsedEvent.args.supportThreshold),
+            minParticipation: Number(parsedEvent.args.minParticipation),
+            minDuration: Number(parsedEvent.args.minDuration),
+            minProposerVotingPower: Number(parsedEvent.args.minProposerVotingPower),
+          }
+          const logDb = await Models.LogPluginSetting.create(settingLog, { session })
 
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('New LogPluginSetting - votingSettingsUpdated', llo({ settingLog }))
-      })
+          await session.commitTransaction()
+          await session.endSession()
+          logger.verbose('New LogPluginSetting - multisigSettingsUpdated', llo({ logId: logDb.id, logInfo }))
+        })
+      }
+    } catch (error) {
+      logger.error('Error votingSettingsUpdated', llo({ logInfo, error }))
     }
   },
 
   multisigSettingsUpdated: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    logger.verbose('multisigSettingsUpdated', llo({ parsedEvent }))
-    const pluginAddress = txLog.address
-    const existingLog = await Models.LogPluginSetting.findExistingLog(txLog.transactionHash, pluginAddress)
+    const logInfo: any = {
+      txHash: txLog.transactionHash,
+      network,
+    }
 
-    if (!existingLog) {
-      await DbTx.executeTxFn(async ({ session }) => {
-        const settingLog = {
-          blockNumber: txLog.blockNumber,
-          transactionHash: txLog.transactionHash,
-          pluginAddress,
-          network,
-          onlyListed: parsedEvent.args.onlyListed,
-          minApprovals: Number(parsedEvent.args.minApprovals),
-        }
-        await Models.LogPluginSetting.create(settingLog, { session })
+    try {
+      const pluginAddress = txLog.address
+      const existingLog = await Models.LogPluginSetting.findExistingLog(txLog.transactionHash, pluginAddress)
 
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('New LogPluginSetting - multisigSettingsUpdated', llo({ settingLog }))
-      })
+      if (!existingLog) {
+        await DbTx.executeTxFn(async ({ session }) => {
+          const settingLog = {
+            blockNumber: txLog.blockNumber,
+            transactionHash: txLog.transactionHash,
+            pluginAddress,
+            network,
+            onlyListed: parsedEvent.args.onlyListed,
+            minApprovals: Number(parsedEvent.args.minApprovals),
+          }
+          const logDb = await Models.LogPluginSetting.create(settingLog, { session })
+
+          await session.commitTransaction()
+          await session.endSession()
+          logger.verbose('New LogPluginSetting - multisigSettingsUpdated', llo({ logId: logDb.id, logInfo }))
+        })
+      }
+    } catch (error) {
+      logger.error('Error multisigSettingsUpdated', llo({ logInfo, error }))
     }
   },
 }
