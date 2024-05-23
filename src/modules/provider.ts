@@ -3,6 +3,7 @@ import config from '@config'
 import logger from '@logger'
 import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
+import { assert } from '@errors'
 
 const logMeta = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
@@ -24,10 +25,11 @@ const ProviderModule = {
     const networks = config.BLOCKCHAIN_NODES
     await Promise.all(
       Object.entries(networks).map(async ([network, nodeUrl]) => {
-        if (nodeUrl) {
-          return ProviderModule.connectToNetwork(ProviderModule.parseNetwork(network) as NetworksEnum, nodeUrl)
-        } else {
-          logger.warn(`Node URL for ${network} is not configured.`, logMeta({ network }))
+        try {
+          assert(!!nodeUrl && nodeUrl.length > 0, 'Node URL is not configured')
+          return ProviderModule.connectToNetwork(ProviderModule.parseNetwork(network) as NetworksEnum, nodeUrl!)
+        } catch (error) {
+          logger.error(`Node URL for ${network} is not configured.`, logMeta({ network, error }))
           return Promise.resolve()
         }
       }),

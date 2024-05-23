@@ -49,12 +49,7 @@ class TaskScheduler {
       try {
         const taskGroups = fn() // Call fn to get the array of task groups
         for (const group of taskGroups) {
-          await Promise.all(group.map(async task => task())).catch(error => {
-            logger.error(`${key} group error`, llo({ error }))
-            if (onError) {
-              onError(error)
-            }
-          })
+          await Promise.all(group.map(async task => task()))
         }
       } catch (error) {
         logger.error(`${key} unexpected error`, llo({ error }))

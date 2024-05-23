@@ -3,6 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TaskScheduler from '@modules/taskScheduler'
 import Utils from '@helpers/utils'
+import logger from '@logger'
 
 describe('Modules: TaskScheduler', () => {
   let sandbox: SinonSandbox
@@ -55,6 +56,7 @@ describe('Modules: TaskScheduler', () => {
     const failingTask = () => Promise.reject(new Error('Task failure'))
     const taskFn = () => [[failingTask]]
     const errorFunction = sandbox.stub()
+    const loggerErrorStub = sandbox.stub(logger, 'error')
 
     await scheduler.startTask('errorTask', {
       fn: taskFn,
@@ -64,6 +66,7 @@ describe('Modules: TaskScheduler', () => {
 
     await Utils.wait(10)
 
+    expect(loggerErrorStub.calledOnce).to.be.true
     expect(errorFunction.calledOnce).to.be.true
     expect(errorFunction.calledWith(sandbox.match.instanceOf(Error))).to.be.true
     expect(errorFunction.firstCall.args[0].message).to.equal('Task failure')
@@ -88,5 +91,43 @@ describe('Modules: TaskScheduler', () => {
 
     const statusAfterStop = scheduler.getTaskStatus()
     expect(statusAfterStop).to.deep.include({ key: 'statusTest', running: false })
+  })
+
+  it('should prevent task duplication', async () => {
+    const taskFn = sandbox.fake(() => [[() => Promise.resolve('done')]])
+    const errorFunction = sandbox.stub()
+
+    await scheduler.startTask('duplicateTest', {
+      fn: taskFn,
+      interval: 1000,
+      onError: errorFunction,
+    })
+
+    await scheduler.startTask('duplicateTest', {
+      fn: taskFn,
+      interval: 1000,
+      onError: errorFunction,
+    })
+
+    expect(taskFn.calledOnce).to.be.true
+  })
+
+  it('should not run task if it is locked', async () => {
+    const taskFn = sandbox.fake(() => [[() => Promise.resolve('done')]])
+    const errorFunction = sandbox.stub()
+
+    await scheduler.startTask('lockTest', {
+      fn: taskFn,
+      interval: 1000,
+      onError: errorFunction,
+    })
+
+    scheduler['tasks']['lockTest'].lock = true
+
+    await scheduler.runTaskNow('lockTest')
+
+    expect(taskFn.calledOnce).to.be.true
+
+    scheduler['tasks']['lockTest'].lock = false
   })
 })
