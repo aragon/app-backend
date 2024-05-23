@@ -34,7 +34,7 @@ export class Vote {
   public voteOption?: number
 
   @prop({ type: () => Number, default: null })
-  public votingPower!: number
+  public votingPower?: number
 }
 
 export class ProposalExecuted {
