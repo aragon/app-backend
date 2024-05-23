@@ -19,6 +19,7 @@ export const MetadataHandler = {
   metadataSet: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
@@ -109,6 +110,7 @@ export const MetadataHandler = {
   decodeTransaction: (transaction: any): IDecodeTransaction | null => {
     const logInfo: any = {
       txHash: transaction.transactionHash,
+      blockNumber: transaction.blockNumber,
     }
 
     const functionSelector = transaction.data.slice(0, 10)
