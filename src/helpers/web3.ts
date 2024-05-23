@@ -465,20 +465,20 @@ const Web3Utils = {
     try {
       token.name = await tokenInstance.name()
     } catch (error) {
-      logger.error('Error getting token info name:', llo({ error, address }))
+      logger.error('Error getting token info name', llo({ error, address }))
     }
 
     try {
       token.symbol = await tokenInstance.symbol()
     } catch (error) {
-      logger.error('Error getting token symbol:', llo({ error, address }))
+      logger.error('Error getting token symbol', llo({ error, address }))
     }
 
     try {
       const decimals = await tokenInstance.decimals()
       token.decimals = Number(decimals)
     } catch (error) {
-      logger.error('Error getting token symbol:', llo({ error, address }))
+      logger.error('Error getting token symbol', llo({ error, address }))
     }
 
     return token
@@ -499,13 +499,13 @@ const Web3Utils = {
     try {
       token.name = await tokenInstance.name()
     } catch (error) {
-      logger.error('Error getting token info name:', llo({ error, address }))
+      logger.error('Error getting token info name', llo({ error, address }))
     }
 
     try {
       token.symbol = await tokenInstance.symbol()
     } catch (error) {
-      logger.error('Error getting token symbol:', llo({ error, address }))
+      logger.error('Error getting token symbol', llo({ error, address }))
     }
 
     return token
@@ -526,13 +526,13 @@ const Web3Utils = {
     try {
       token.name = await tokenInstance.name()
     } catch (error) {
-      logger.error('Error getting token info name:', llo({ error, address }))
+      logger.error('Error getting token info name', llo({ error, address }))
     }
 
     try {
       token.symbol = await tokenInstance.symbol()
     } catch (error) {
-      logger.error('Error getting token symbol:', llo({ error, address }))
+      logger.error('Error getting token symbol', llo({ error, address }))
     }
 
     return token
