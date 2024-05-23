@@ -16,6 +16,7 @@ export const DaoRegistryHandler = {
   daoRegistered: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 

@@ -21,38 +21,45 @@ export const LogPluginSetupProcessor = {
   ],
 
   start: async () => {
-    for (const networkName of Object.values(Network.NETWORKS)) {
-      logger.verbose('Start LogPluginSetupProcessor', llo({ networkName }))
+    const networks = Object.values(Network.NETWORKS)
 
-      const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+    await Promise.all(
+      networks.map(async networkName => {
+        logger.verbose('Start LogPluginSetupProcessor', llo({ networkName }))
 
-      if (!networkDb) {
-        logger.verbose('Unsupported Network', llo({ networkName }))
-        return
-      }
+        const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
 
-      const eventTopics = PluginSetupProcessor.abi
-        .filter((item: any) => item.type && LogPluginSetupProcessor.events.includes(item.name))
-        .map((event: any) => new Interface(PluginSetupProcessor.abi).getEvent(event.name)?.topicHash)
+        if (!networkDb) {
+          logger.warn('Unsupported Network', llo({ networkName }))
+          return
+        }
 
-      const filter = {
-        topics: eventTopics,
-        fromBlock: networkDb.lastBlockPluginSetupProcessor,
-        toBlock: 'latest',
-      }
+        const eventTopics = PluginSetupProcessor.abi
+          .filter((item: any) => item.type && LogPluginSetupProcessor.events.includes(item.name))
+          .map((event: any) => new Interface(PluginSetupProcessor.abi).getEvent(event.name)?.topicHash)
 
-      const crawler = new BlockchainLogCrawler({
-        network: networkName as NetworksEnum,
-        filter,
-        onLog: async (txLog: Log) => LogPluginSetupProcessor.processLog(txLog, networkName as NetworksEnum),
-        onError: async (error: any) => LogPluginSetupProcessor.processError(error, networkName as NetworksEnum),
-        stopOnError: true,
-      })
+        const filter = {
+          topics: eventTopics,
+          fromBlock: networkDb.lastBlockPluginSetupProcessor,
+          toBlock: 'latest',
+        }
 
-      await crawler.crawl()
-      await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockPluginSetupProcessor')
-    }
-    logger.verbose('Finish LogPluginSetupProcessor', llo())
+        const crawler = new BlockchainLogCrawler({
+          network: networkName as NetworksEnum,
+          filter,
+          onLog: async (txLog: Log) => LogPluginSetupProcessor.processLog(txLog, networkName as NetworksEnum),
+          onError: async (error: any) => LogPluginSetupProcessor.processError(error, networkName as NetworksEnum),
+          stopOnError: true,
+        })
+
+        await crawler.crawl()
+        await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockPluginSetupProcessor')
+        logger.verbose(
+          'End LogPluginSetupProcessor',
+          llo({ networkName, latestBlockSync: crawler.crawlResult.latestBlockNumber }),
+        )
+      }),
+    )
   },
 
   processLog: async (txLog: any, network: NetworksEnum) => {
@@ -68,27 +75,27 @@ export const LogPluginSetupProcessor = {
 
     switch (event.name) {
       case 'InstallationApplied':
-        logger.verbose('InstallationApplied', llo({ event }))
+        logger.verbose('InstallationApplied', llo({ eventName: event.name }))
         await PluginSetupProcessorHandler.installationApplied(event, txLog, network)
         break
       case 'InstallationPrepared':
-        logger.verbose('InstallationPrepared', llo({ event }))
+        logger.verbose('InstallationPrepared', llo({ eventName: event.name }))
         await PluginSetupProcessorHandler.installationPrepared(event, txLog, network)
         break
       case 'UninstallationApplied':
-        logger.verbose('UninstallationApplied', llo({ event }))
+        logger.verbose('UninstallationApplied', llo({ eventName: event.name }))
         await PluginSetupProcessorHandler.uninstallationApplied(event, txLog, network)
         break
       case 'UninstallationPrepared':
-        logger.verbose('UninstallationPrepared', llo({ event }))
+        logger.verbose('UninstallationPrepared', llo({ eventName: event.name }))
         await PluginSetupProcessorHandler.uninstallationPrepared(event, txLog, network)
         break
       case 'UpdateApplied':
-        logger.verbose('UpdateApplied', llo({ event }))
+        logger.verbose('UpdateApplied', llo({ eventName: event.name }))
         await PluginSetupProcessorHandler.updateApplied(event, txLog, network)
         break
       case 'UpdatePrepared':
-        logger.verbose('UpdatePrepared', llo({ event }))
+        logger.verbose('UpdatePrepared', llo({ eventName: event.name }))
         await PluginSetupProcessorHandler.updatePrepared(event, txLog, network)
         break
       default:

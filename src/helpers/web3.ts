@@ -208,8 +208,13 @@ const Web3Utils = {
   },
 
   extractMetadataUri(metadataHex: string) {
-    const metadataBytes = Buffer.from(metadataHex.substring(2), 'hex')
-    return metadataBytes.toString('utf8')
+    try {
+      const metadataBytes = Buffer.from(metadataHex.substring(2), 'hex')
+      return metadataBytes.toString('utf8')
+    } catch (error) {
+      logger.error('Error extractMetadataUri', llo({ metadataHex, error }))
+      return null
+    }
   },
 
   findLogsByName: (

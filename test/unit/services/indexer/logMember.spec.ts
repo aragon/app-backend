@@ -10,6 +10,7 @@ import { NetworksEnum } from '@types'
 import { Interface } from 'ethers'
 import Utils from '@helpers/utils'
 import { MemberHandler } from '@services/indexer/handlers/memberHandler'
+import Network from '@models/schema/network'
 
 describe('Indexer: LogMember', () => {
   let sandbox: SinonSandbox
@@ -73,7 +74,7 @@ describe('Indexer: LogMember', () => {
       expect(networkFindStub.callCount).to.eq(5)
       expect(saveSyncStub.callCount).to.eq(5)
       expect(processLogStub.callCount).to.eq(2)
-      expect(loggerVerboseStub.callCount).to.eq(6)
+      expect(loggerVerboseStub.callCount).to.eq(10)
     })
 
     it('should start handle error', async () => {
@@ -122,16 +123,16 @@ describe('Indexer: LogMember', () => {
       expect(networkFindStub.callCount).to.eq(5)
       expect(saveSyncStub.callCount).to.eq(5)
       expect(processLogStub.callCount).to.eq(2)
-      expect(loggerVerboseStub.callCount).to.eq(6)
+      expect(loggerVerboseStub.callCount).to.eq(10)
     })
 
     it('should skip unsupported networks', async () => {
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves(null)
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubLogger = sandbox.stub(logger, 'warn')
       await LogMember.start()
 
       expect(stubLogger.calledWith('Unsupported Network' as any)).to.be.true
-      expect(networkFindStub.calledOnce).to.be.true
+      expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
     })
   })
 

@@ -71,7 +71,7 @@ describe('Indexer: LogPluginRepoRegistry', () => {
 
       await LogPluginRepoRegistry.start()
 
-      expect(loggerVerboseStub.callCount).to.eq(6)
+      expect(loggerVerboseStub.callCount).to.eq(10)
       expect(processMetadataStub.callCount).to.eq(2)
       expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
@@ -122,7 +122,7 @@ describe('Indexer: LogPluginRepoRegistry', () => {
       await LogPluginRepoRegistry.start()
 
       expect(errorStub.callCount).to.eq(2)
-      expect(loggerVerboseStub.callCount).to.eq(6)
+      expect(loggerVerboseStub.callCount).to.eq(10)
       expect(processMetadataStub.callCount).to.eq(2)
       expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
@@ -130,11 +130,11 @@ describe('Indexer: LogPluginRepoRegistry', () => {
 
     it('should skip unsupported networks', async () => {
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves(null)
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubLogger = sandbox.stub(logger, 'warn')
       await LogPluginRepoRegistry.start()
 
       expect(stubLogger.calledWith('Unsupported Network' as any)).to.be.true
-      expect(networkFindStub.calledOnce).to.be.true
+      expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
     })
   })
 

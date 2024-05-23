@@ -15,42 +15,46 @@ export const LogMember = {
   events: ['MembersAdded', 'MembersRemoved', 'DelegateChanged'],
 
   start: async () => {
-    for (const networkName of Object.values(Network.NETWORKS)) {
-      logger.verbose('Start LogMember', llo({ networkName }))
+    const networks = Object.values(Network.NETWORKS)
 
-      const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+    await Promise.all(
+      networks.map(async networkName => {
+        logger.verbose('Start LogMember', llo({ networkName }))
 
-      if (!networkDb) {
-        logger.verbose('Unsupported Network', llo({ networkName }))
-        return
-      }
+        const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
 
-      const multiSigTopics = Multisig.abi
-        .filter((item: any) => item.type && LogMember.events.includes(item.name))
-        .map((event: any) => new Interface(Multisig.abi).getEvent(event.name)?.topicHash)
+        if (!networkDb) {
+          logger.warn('Unsupported Network', llo({ networkName }))
+          return
+        }
 
-      const governanceTopics = GovernanceERC20.abi
-        .filter((item: any) => item.type && LogMember.events.includes(item.name))
-        .map((event: any) => new Interface(GovernanceERC20.abi).getEvent(event.name)?.topicHash)
+        const multiSigTopics = Multisig.abi
+          .filter((item: any) => item.type && LogMember.events.includes(item.name))
+          .map((event: any) => new Interface(Multisig.abi).getEvent(event.name)?.topicHash)
 
-      const filter = {
-        topics: [...multiSigTopics, ...governanceTopics],
-        fromBlock: networkDb.lastBlockDao,
-        toBlock: 'latest',
-      }
+        const governanceTopics = GovernanceERC20.abi
+          .filter((item: any) => item.type && LogMember.events.includes(item.name))
+          .map((event: any) => new Interface(GovernanceERC20.abi).getEvent(event.name)?.topicHash)
 
-      const crawler = new BlockchainLogCrawler({
-        network: networkName as NetworksEnum,
-        filter,
-        onLog: async (txLog: Log) => LogMember.processLog(txLog, networkName as NetworksEnum),
-        onError: async (error: any) => LogMember.processError(error, networkName as NetworksEnum),
-        stopOnError: true,
-      })
+        const filter = {
+          topics: [...multiSigTopics, ...governanceTopics],
+          fromBlock: networkDb.lastBlockDao,
+          toBlock: 'latest',
+        }
 
-      await crawler.crawl()
-      await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockMember')
-    }
-    logger.verbose('Finish LogMember', llo())
+        const crawler = new BlockchainLogCrawler({
+          network: networkName as NetworksEnum,
+          filter,
+          onLog: async (txLog: Log) => LogMember.processLog(txLog, networkName as NetworksEnum),
+          onError: async (error: any) => LogMember.processError(error, networkName as NetworksEnum),
+          stopOnError: true,
+        })
+
+        await crawler.crawl()
+        await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockMember')
+        logger.verbose('End LogMember', llo({ networkName, latestBlockSync: crawler.crawlResult.latestBlockNumber }))
+      }),
+    )
   },
 
   getInterface(topic: string) {
