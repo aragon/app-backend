@@ -14,38 +14,45 @@ export const LogPluginRepoRegistry = {
   events: ['PluginRepoRegistered'],
 
   start: async () => {
-    for (const networkName of Object.values(Network.NETWORKS)) {
-      logger.verbose('Start LogPluginRepoRegistry', llo({ networkName }))
+    const networks = Object.values(Network.NETWORKS)
 
-      const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+    await Promise.all(
+      networks.map(async networkName => {
+        logger.verbose('Start LogPluginRepoRegistry', llo({ networkName }))
 
-      if (!networkDb) {
-        logger.verbose('Unsupported Network', llo({ networkName }))
-        return
-      }
+        const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
 
-      const eventTopics = PluginRepoRegistry.abi
-        .filter((item: any) => item.type && LogPluginRepoRegistry.events.includes(item.name))
-        .map((event: any) => new Interface(PluginRepoRegistry.abi).getEvent(event.name)?.topicHash)
+        if (!networkDb) {
+          logger.warn('Unsupported Network', llo({ networkName }))
+          return
+        }
 
-      const filter = {
-        topics: eventTopics,
-        fromBlock: networkDb.lastBlockPluginRepoRegistry,
-        toBlock: 'latest',
-      }
+        const eventTopics = PluginRepoRegistry.abi
+          .filter((item: any) => item.type && LogPluginRepoRegistry.events.includes(item.name))
+          .map((event: any) => new Interface(PluginRepoRegistry.abi).getEvent(event.name)?.topicHash)
 
-      const crawler = new BlockchainLogCrawler({
-        network: networkName as NetworksEnum,
-        filter,
-        onLog: async (txLog: Log) => LogPluginRepoRegistry.processLog(txLog, networkName as NetworksEnum),
-        onError: async (error: any) => LogPluginRepoRegistry.processError(error, networkName as NetworksEnum),
-        stopOnError: true,
-      })
+        const filter = {
+          topics: eventTopics,
+          fromBlock: networkDb.lastBlockPluginRepoRegistry,
+          toBlock: 'latest',
+        }
 
-      await crawler.crawl()
-      await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockPluginRepoRegistry')
-    }
-    logger.verbose('Finish LogPluginRepoRegistry', llo())
+        const crawler = new BlockchainLogCrawler({
+          network: networkName as NetworksEnum,
+          filter,
+          onLog: async (txLog: Log) => LogPluginRepoRegistry.processLog(txLog, networkName as NetworksEnum),
+          onError: async (error: any) => LogPluginRepoRegistry.processError(error, networkName as NetworksEnum),
+          stopOnError: true,
+        })
+
+        await crawler.crawl()
+        await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockPluginRepoRegistry')
+        logger.verbose(
+          'End LogPluginRepoRegistry',
+          llo({ networkName, latestBlockSync: crawler.crawlResult.latestBlockNumber }),
+        )
+      }),
+    )
   },
 
   processLog: async (txLog: any, network: NetworksEnum) => {
@@ -61,7 +68,7 @@ export const LogPluginRepoRegistry = {
 
     switch (event.name) {
       case 'PluginRepoRegistered':
-        logger.verbose('PluginRepoRegistered', llo({ event }))
+        logger.verbose('PluginRepoRegistered', llo({ eventName: event.name }))
         await PluginRepoRegistryHandler.pluginRepoRegistered(event, txLog, network)
         break
       default:

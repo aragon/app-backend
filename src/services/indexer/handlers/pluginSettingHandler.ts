@@ -10,6 +10,7 @@ export const PluginSettingHandler = {
   votingSettingsUpdated: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
@@ -45,6 +46,7 @@ export const PluginSettingHandler = {
   multisigSettingsUpdated: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
