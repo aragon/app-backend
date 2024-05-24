@@ -29,3 +29,12 @@ export interface TokensBalancesType {
   items: ITokenBalance[]
   updatedAt: string
 }
+
+export enum ITokenType {
+  ERC20 = 'ERC20',
+  ERC721 = 'ERC721',
+  ERC1155 = 'ERC1155',
+  ERC777 = 'ERC777',
+  GovernanceERC20 = 'GovernanceERC20',
+  unknown = 'unknown',
+}
