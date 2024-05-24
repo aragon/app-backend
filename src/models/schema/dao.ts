@@ -45,6 +45,9 @@ export default class Dao extends Model {
   @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
 
+  @prop({ type: () => String, default: null })
+  public implementationAddress!: HexAddress
+
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress
 

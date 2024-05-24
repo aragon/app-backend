@@ -24,7 +24,7 @@ class DBCrawler {
   private isOnError: boolean
   private nbWorked: number
   private nbTotal: number
-  private crawlResult: { nbSuccess: number; nbError: number; nbTotal: number }
+  public readonly crawlResult: { nbSuccess: number; nbError: number; nbTotal: number, lastCreatedAt: null | Date }
   private readonly queue: async.QueueObject<Document[]>
 
   constructor(opts: any) {
@@ -121,7 +121,7 @@ class DBCrawler {
     this.isOnError = false
     this.nbWorked = 0
     this.nbTotal = 0
-    this.crawlResult = { nbSuccess: 0, nbError: 0, nbTotal: 0 }
+    this.crawlResult = { nbSuccess: 0, nbError: 0, nbTotal: 0, lastCreatedAt: null}
 
     this.queue = async.queue(this._worker.bind(this) as any, this.concurrency)
   }
@@ -175,6 +175,7 @@ class DBCrawler {
     try {
       await this.onDocument(document, stat)
       this.crawlResult.nbSuccess++
+      this.crawlResult.lastCreatedAt = (document as any)?.createdAt ?? null
     } catch (error: any) {
       this.onError(document, error)
       this.crawlResult.nbError++
@@ -200,11 +201,7 @@ class DBCrawler {
       this.nbTotal = await this.model.countDocuments(where)
     }
 
-    this.crawlResult = {
-      nbSuccess: 0,
-      nbError: 0,
-      nbTotal: this.nbTotal,
-    }
+    this.crawlResult.nbTotal = this.nbTotal
 
     return await new Promise((resolve, reject) => {
       const limit = this.batchSize
