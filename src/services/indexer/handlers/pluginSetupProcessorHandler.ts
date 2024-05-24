@@ -1,9 +1,11 @@
 import logger from '@logger'
-import { IEventLogPluginType, type NetworksEnum } from '@types'
+import { IEventLogPluginType, ITokenType, type NetworksEnum } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import Utils from '@helpers/utils'
+import TokenDetector from '@helpers/tokenDetector'
+import Web3Utils from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:pluginSetupProcessorHandler' })
 
@@ -82,7 +84,34 @@ export const PluginSetupProcessorHandler = {
            */
 
           if (parsedEvent.args.preparedSetupData?.helpers && parsedEvent.args.preparedSetupData.helpers.length === 1) {
-            pluginLog.tokenAddress = parsedEvent.args.preparedSetupData.helpers[0]
+            const tokenAddress = parsedEvent.args.preparedSetupData.helpers[0]
+            const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
+
+            /**
+             * If Token type is GovernanceERC20 then we save the token address
+             */
+            if (tokenTypeInfo?.type === ITokenType.GovernanceERC20) {
+              pluginLog.tokenAddress = tokenAddress
+
+              const tokenInfo = await Web3Utils.getERC20Info(tokenAddress, network)
+
+              const voteToken = {
+                address: tokenAddress,
+                name: tokenInfo.name,
+                symbol: tokenInfo.symbol,
+                decimals: tokenInfo.decimals,
+                network,
+                type: tokenTypeInfo.type,
+                totalSupply: tokenInfo.totalSupply,
+                implementation: tokenTypeInfo.implementationAddress,
+              }
+
+              const existingToken = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network)
+              if (!existingToken) {
+                const logDb = await Models.Token.create(voteToken, { session })
+                logger.verbose('New Token', llo({ logId: logDb.id, logInfo }))
+              }
+            }
           }
 
           const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session })

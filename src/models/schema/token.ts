@@ -55,6 +55,9 @@ export default class Token extends Model {
   @utcDateProp({ default: null })
   public lastUpdatedAt!: Date
 
+  @prop({ type: () => String, default: null })
+  public implementation!: string
+
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
     const data = new this(rawData)
     return data.save(tOpts)

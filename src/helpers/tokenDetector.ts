@@ -1,0 +1,113 @@
+import { keccak256, type WebSocketProvider } from 'ethers'
+import { ITokenType, type NetworksEnum } from '@types'
+import Web3Utils from '@helpers/web3'
+import { ConfigState } from '@state/configState'
+
+const ERC20_FUNCTIONS = [
+  'totalSupply()',
+  'balanceOf(address)',
+  'transfer(address,uint256)',
+  'transferFrom(address,address,uint256)',
+  'approve(address,uint256)',
+  'allowance(address,address)',
+]
+
+const ERC721_FUNCTIONS = [
+  'ownerOf(uint256)',
+  'approve(address,uint256)',
+  'getApproved(uint256)',
+  'setApprovalForAll(address,bool)',
+  'isApprovedForAll(address,address)',
+  'safeTransferFrom(address,address,uint256)',
+]
+
+const ERC1155_FUNCTIONS = [
+  'balanceOf(address,uint256)',
+  'balanceOfBatch(address[],uint256[])',
+  'setApprovalForAll(address,bool)',
+  'isApprovedForAll(address,address)',
+  'safeTransferFrom(address,address,uint256,uint256,bytes)',
+  'safeBatchTransferFrom(address,address,uint256[],uint256[],bytes)',
+]
+
+const ERC777_FUNCTIONS = [
+  'granularity()',
+  'defaultOperators()',
+  'send(address,uint256,bytes)',
+  'burn(uint256,bytes)',
+  'operatorSend(address,address,uint256,bytes,bytes)',
+  'operatorBurn(address,uint256,bytes,bytes)',
+]
+
+const GOVERNANCE_ERC20_FUNCTIONS = [
+  'delegates(address)',
+  'delegate(address)',
+  'getVotes(address)',
+  'getPastVotes(address,uint256)',
+]
+
+const allFunctions = [
+  ...ERC20_FUNCTIONS,
+  ...ERC721_FUNCTIONS,
+  ...ERC1155_FUNCTIONS,
+  ...ERC777_FUNCTIONS,
+  ...GOVERNANCE_ERC20_FUNCTIONS,
+]
+
+const functionHashes = allFunctions.reduce<Record<string, string>>((acc, func) => {
+  acc[func] = keccak256(Buffer.from(func)).slice(0, 10)
+  return acc
+}, {})
+
+async function detectTokenType(
+  address: string,
+  network: NetworksEnum,
+): Promise<{ type: ITokenType; proxy: boolean; implementationAddress: string | null } | null> {
+  const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+  let contractAddress = address
+
+  // Check if the contract is a proxy and get the implementation address
+  const implementationAddress = await Web3Utils.getImplementationAddress(address, network)
+  if (implementationAddress) {
+    contractAddress = implementationAddress
+  }
+
+  const contractDetails = {
+    proxy: !!implementationAddress,
+    implementationAddress: implementationAddress || null,
+    type: ITokenType.unknown,
+  }
+
+  const bytecode = await provider.getCode(contractAddress)
+  if (!bytecode || bytecode === '0x') return contractDetails
+
+  function hasFunction(signature: string): boolean {
+    return bytecode.includes(functionHashes[signature].replace('0x', ''))
+  }
+
+  function hasFunctions(functions: string[]): boolean {
+    return functions.every(func => hasFunction(func))
+  }
+
+  if (hasFunctions(ERC20_FUNCTIONS)) {
+    if (hasFunctions(GOVERNANCE_ERC20_FUNCTIONS)) {
+      contractDetails.type = ITokenType.GovernanceERC20
+      return contractDetails
+    }
+    contractDetails.type = ITokenType.ERC20
+  } else if (hasFunctions(ERC721_FUNCTIONS)) {
+    contractDetails.type = ITokenType.ERC721
+  } else if (hasFunctions(ERC1155_FUNCTIONS)) {
+    contractDetails.type = ITokenType.ERC1155
+  } else if (hasFunctions(ERC777_FUNCTIONS)) {
+    contractDetails.type = ITokenType.ERC777
+  } else {
+    contractDetails.type = ITokenType.unknown
+  }
+
+  return contractDetails
+}
+
+export default {
+  detectTokenType,
+}
