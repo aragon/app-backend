@@ -22,7 +22,7 @@ export const MemberHandler = {
       const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(txLog.address, network)
 
       if (!pluginExisted) {
-        logger.verbose('Plugin not found', llo({ logInfo }))
+        logger.warn('Plugin not found', llo({ logInfo }))
         return
       }
 
@@ -71,7 +71,7 @@ export const MemberHandler = {
       const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(txLog.address, network)
 
       if (!pluginExisted) {
-        logger.verbose('Plugin not found', llo({ logInfo }))
+        logger.warn('Plugin not found', llo({ logInfo }))
         return
       }
 
@@ -122,7 +122,7 @@ export const MemberHandler = {
       const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(txLog.address, network)
 
       if (!relatedPlugin) {
-        logger.verbose('Plugin not found', llo({ txLog }))
+        logger.warn('Plugin not found', llo({ txLog }))
         return
       }
 

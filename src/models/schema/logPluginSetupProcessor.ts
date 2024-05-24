@@ -83,7 +83,7 @@ export default class LogPluginSetupProcessor extends Model {
   public permissions!: Permission[]
 
   @prop({ type: () => String, default: null })
-  public tokenAddress!: string // voting token address
+  public tokenAddress!: HexAddress // voting token address
 
   static async create(rawData: Partial<LogPluginSetupProcessor>, tOpts?: SaveOptions) {
     if (!rawData.entityId) {

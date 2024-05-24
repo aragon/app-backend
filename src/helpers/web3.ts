@@ -1,4 +1,11 @@
-import { type HexAddress, type IDaoMetadata, type IProposalMetadata, ITransactionType, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IDaoMetadata,
+  type IProposalMetadata,
+  ITokenType,
+  ITransactionType,
+  type NetworksEnum
+} from '@types'
 import {
   Interface,
   AbiCoder,
@@ -446,6 +453,115 @@ const Web3Utils = {
         }),
       )
       return []
+    }
+  },
+
+  async getImplementationAddress(address: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
+    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+    const eip1967Slot = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'; // EIP-1967 implementation slot
+    const eip1822Slot = '0x42d586d25e59d1ce8e4b4ec91f5fd8e1f6f967dffede5fd0d7fdbb417a6c4a8e'; // EIP-1822 implementation slot
+
+    try {
+      // EIP-1967 implementation address
+      let implAddress = await provider.getStorage(address, eip1967Slot);
+      if (implAddress && parseInt(implAddress, 16) !== 0) {
+        return getAddress(`0x${implAddress.slice(-40)}`) as HexAddress
+      }
+
+      // EIP-1822 implementation address
+      implAddress = await provider.getStorage(address, eip1822Slot);
+      if (implAddress && parseInt(implAddress, 16) !== 0) {
+        return getAddress(`0x${implAddress.slice(-40)}`) as HexAddress
+      }
+    } catch (error) {
+      logger.error('Error fetching implementation address:', error);
+    }
+
+    // Fallback to checking if the contract exposes the implementation() method
+    const contract = new Contract(address, [
+      'function implementation() view returns (address)',
+      'function getImplementation() view returns (address)'
+    ], provider);
+
+    try {
+      const implAddress = await contract.implementation()
+      if (implAddress) {
+        return implAddress;
+      }
+    } catch (error) {
+      // Ignore errors and continue
+    }
+
+    try {
+      const implAddress = await contract.getImplementation();
+      if (implAddress) {
+        return implAddress;
+      }
+    } catch (error) {
+      // Ignore errors and continue
+    }
+
+    return null;
+  },
+
+  async detectTokenType(address: HexAddress, network: NetworksEnum): Promise<string | null> {
+    const ERC20_FUNCTIONS = ['totalSupply', 'balanceOf', 'transfer', 'transferFrom', 'approve', 'allowance']
+    const ERC721_FUNCTIONS = [
+      'ownerOf',
+      'approve',
+      'getApproved',
+      'setApprovalForAll',
+      'isApprovedForAll',
+      'safeTransferFrom',
+    ]
+    const ERC1155_FUNCTIONS = [
+      'balanceOf',
+      'balanceOfBatch',
+      'setApprovalForAll',
+      'isApprovedForAll',
+      'safeTransferFrom',
+      'safeBatchTransferFrom',
+    ]
+    const ERC777_FUNCTIONS = ['granularity', 'defaultOperators', 'send', 'burn', 'operatorSend', 'operatorBurn']
+    const GOVERNANCE_ERC20_FUNCTIONS = ['delegate', 'delegateBySig', 'getVotes', 'getPastVotes', 'propose', 'vote']
+
+    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider;
+    let contractAddress = address;
+
+    // Check if the contract is a proxy and get the implementation address
+    const implementationAddress = await Web3Utils.getImplementationAddress(address, network);
+    if (implementationAddress) {
+      contractAddress = implementationAddress;
+    }
+
+    const contract = new Contract(contractAddress, [], provider);
+
+    async function hasFunctions(functions: string[]): Promise<boolean> {
+      for (const func of functions) {
+        try {
+          await contract[func]()
+        } catch (error: any) {
+          if (!error?.message?.includes('missing revert data in call exception')) {
+            return false
+          }
+        }
+      }
+      return true
+    }
+
+    if (await hasFunctions(ERC20_FUNCTIONS)) {
+      if (await hasFunctions(GOVERNANCE_ERC20_FUNCTIONS)) {
+        return ITokenType.GovernanceERC20
+      }
+      return ITokenType.ERC20
+    } else if (await hasFunctions(ERC721_FUNCTIONS)) {
+      return ITokenType.ERC721
+    } else if (await hasFunctions(ERC1155_FUNCTIONS)) {
+      return ITokenType.ERC1155
+    } else if (await hasFunctions(ERC777_FUNCTIONS)) {
+      return ITokenType.ERC777
+    } else {
+      return ITokenType.unknown
     }
   },
 
