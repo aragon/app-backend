@@ -22,6 +22,7 @@ export const InitialData = {
             lastBlockPluginSetupProcessor: contractConfig.DAOFactory.blockNumber,
             lastBlockProposal: contractConfig.DAOFactory.blockNumber,
             lastBlockPluginSetting: contractConfig.DAOFactory.blockNumber,
+            lastBlockMember: contractConfig.DAOFactory.blockNumber,
           })
         }
       }),
