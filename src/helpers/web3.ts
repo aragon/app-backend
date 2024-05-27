@@ -1,11 +1,4 @@
-import {
-  type HexAddress,
-  type IDaoMetadata,
-  type IProposalMetadata,
-  ITokenType,
-  ITransactionType,
-  type NetworksEnum,
-} from '@types'
+import { type HexAddress, type IDaoMetadata, type IProposalMetadata, ITransactionType, type NetworksEnum } from '@types'
 import {
   Interface,
   AbiCoder,
@@ -508,67 +501,6 @@ const Web3Helper = {
     }
 
     return null
-  },
-
-  async detectTokenType(address: HexAddress, network: NetworksEnum): Promise<string | null> {
-    const ERC20_FUNCTIONS = ['totalSupply', 'balanceOf', 'transfer', 'transferFrom', 'approve', 'allowance']
-    const ERC721_FUNCTIONS = [
-      'ownerOf',
-      'approve',
-      'getApproved',
-      'setApprovalForAll',
-      'isApprovedForAll',
-      'safeTransferFrom',
-    ]
-    const ERC1155_FUNCTIONS = [
-      'balanceOf',
-      'balanceOfBatch',
-      'setApprovalForAll',
-      'isApprovedForAll',
-      'safeTransferFrom',
-      'safeBatchTransferFrom',
-    ]
-    const ERC777_FUNCTIONS = ['granularity', 'defaultOperators', 'send', 'burn', 'operatorSend', 'operatorBurn']
-    const GOVERNANCE_ERC20_FUNCTIONS = ['delegate', 'delegateBySig', 'getVotes', 'getPastVotes', 'propose', 'vote']
-
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-    let contractAddress = address
-
-    // Check if the contract is a proxy and get the implementation address
-    const implementationAddress = await Web3Helper.getImplementationAddress(address, network)
-    if (implementationAddress) {
-      contractAddress = implementationAddress
-    }
-
-    const contract = new Contract(contractAddress, [], provider)
-
-    async function hasFunctions(functions: string[]): Promise<boolean> {
-      for (const func of functions) {
-        try {
-          await contract[func]()
-        } catch (error: any) {
-          if (!error?.message?.includes('missing revert data in call exception')) {
-            return false
-          }
-        }
-      }
-      return true
-    }
-
-    if (await hasFunctions(ERC20_FUNCTIONS)) {
-      if (await hasFunctions(GOVERNANCE_ERC20_FUNCTIONS)) {
-        return ITokenType.GovernanceERC20
-      }
-      return ITokenType.ERC20
-    } else if (await hasFunctions(ERC721_FUNCTIONS)) {
-      return ITokenType.ERC721
-    } else if (await hasFunctions(ERC1155_FUNCTIONS)) {
-      return ITokenType.ERC1155
-    } else if (await hasFunctions(ERC777_FUNCTIONS)) {
-      return ITokenType.ERC777
-    } else {
-      return ITokenType.unknown
-    }
   },
 
   async getERC20Info(

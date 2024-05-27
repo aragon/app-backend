@@ -1,11 +1,14 @@
 import config from '@config'
-import { StatusNetworkEnum } from '@types'
+import { AggregatorTypeEnum, EnumConnection, type IService, StatusNetworkEnum } from '@types'
 import { Models } from '@dbModels'
+import dayjs from '@helpers/dayjs'
 
-export const InitialData = {
+export const InitialData: IService = {
+  NEED_CONNECTIONS: [EnumConnection.MONGODB],
+
   start: async () => {
+    // Network init data
     const networks = config.BLOCKCHAIN_NODES
-
     await Promise.all(
       Object.entries(networks).map(async ([network, nodeUrl]) => {
         if (nodeUrl) {
@@ -27,5 +30,19 @@ export const InitialData = {
         }
       }),
     )
+
+    // Aggregator init data
+    await Promise.all(
+      Object.values(AggregatorTypeEnum).map(async event => {
+        await Models.Aggregator.create({
+          event,
+          lastTimeSync: dayjs.utc('1970-01-01T00:00:00Z').toDate(),
+        })
+      }),
+    )
   },
+
+  stop: async () => {},
 }
+
+export default InitialData

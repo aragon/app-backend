@@ -33,6 +33,7 @@ export interface IMongoModel {
 export enum AggregatorTypeEnum {
   plugin = 'plugin',
   members = 'members',
+  settings = 'settings',
 }
 
 export enum ITokenType {

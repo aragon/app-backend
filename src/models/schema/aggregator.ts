@@ -24,6 +24,7 @@ export default class Aggregator extends Model {
     type: () => String,
     enum: AggregatorTypeEnum,
     required: true,
+    unique: true,
   })
   public type!: AggregatorTypeEnum
 
