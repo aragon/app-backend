@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TokenController from '@services/api/controllers/token'
-import { ErrorKeyEnum, NetworksEnum } from '@types'
+import { ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
 import CovalentHelper from '@helpers/covalent'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
@@ -26,6 +26,7 @@ describe('Controller: Token', () => {
         logo: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         name: 'Wrapped Ether',
         symbol: 'WETH',
+        type: ITokenType.ERC20,
         decimals: 18,
         priceUsd: '4086.604',
         holders: 0,
@@ -50,6 +51,7 @@ describe('Controller: Token', () => {
       expect(dbToken.network).to.eq(NetworksEnum.mainnet)
       expect(dbToken.logo).to.eq(fakeRes.logo)
       expect(dbToken.name).to.eq(fakeRes.name)
+      expect(dbToken.type).to.eq(fakeRes.type)
       expect(dbToken.symbol).to.eq(fakeRes.symbol)
       expect(dbToken.decimals).to.eq(fakeRes.decimals)
       expect(dbToken.priceUsd).to.eq(fakeRes.priceUsd)
@@ -68,6 +70,7 @@ describe('Controller: Token', () => {
         logo: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         name: 'Wrapped Ether',
         symbol: 'WETH',
+        type: ITokenType.ERC20,
         decimals: 18,
         priceUsd: '4086.604',
         holders: 0,

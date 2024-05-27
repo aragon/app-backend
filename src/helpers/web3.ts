@@ -454,55 +454,6 @@ const Web3Helper = {
     }
   },
 
-  async getImplementationAddress(address: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-    const eip1967Slot = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc' // EIP-1967 implementation slot
-    const eip1822Slot = '0x42d586d25e59d1ce8e4b4ec91f5fd8e1f6f967dffede5fd0d7fdbb417a6c4a8e' // EIP-1822 implementation slot
-
-    try {
-      // EIP-1967 implementation address
-      let implAddress = await provider.getStorage(address, eip1967Slot)
-      if (implAddress && parseInt(implAddress, 16) !== 0) {
-        return getAddress(`0x${implAddress.slice(-40)}`) as HexAddress
-      }
-
-      // EIP-1822 implementation address
-      implAddress = await provider.getStorage(address, eip1822Slot)
-      if (implAddress && parseInt(implAddress, 16) !== 0) {
-        return getAddress(`0x${implAddress.slice(-40)}`) as HexAddress
-      }
-    } catch (error) {
-      logger.error('Error fetching implementation address:', error)
-    }
-
-    // Fallback to checking if the contract exposes the implementation() method
-    const contract = new Contract(
-      address,
-      ['function implementation() view returns (address)', 'function getImplementation() view returns (address)'],
-      provider,
-    )
-
-    try {
-      const implAddress = await contract.implementation()
-      if (implAddress) {
-        return implAddress
-      }
-    } catch (error) {
-      // Ignore errors and continue
-    }
-
-    try {
-      const implAddress = await contract.getImplementation()
-      if (implAddress) {
-        return implAddress
-      }
-    } catch (error) {
-      // Ignore errors and continue
-    }
-
-    return null
-  },
-
   async getERC20Info(
     address: HexAddress,
     network: NetworksEnum,
@@ -511,6 +462,7 @@ const Web3Helper = {
     name: string
     symbol: string
     decimals: number
+    totalSupply: number
   }> {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
     const tokenInstance = new Contract(address, ERC20.abi, provider)
@@ -533,6 +485,13 @@ const Web3Helper = {
       token.decimals = Number(decimals)
     } catch (error) {
       logger.error('Error getting token symbol', llo({ error, address }))
+    }
+
+    try {
+      const totalSupply = await tokenInstance.totalSupply()
+      token.totalSupply = Number(totalSupply)
+    } catch (error) {
+      logger.error('Error getting token total supply:', llo({ error, address }))
     }
 
     return token

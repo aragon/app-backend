@@ -3,10 +3,9 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Web3Helper from '@helpers/web3'
 import { ITransactionType, NetworksEnum } from '@types'
-import { AbiCoder, getAddress, id, Interface } from 'ethers'
+import { AbiCoder, id, Interface } from 'ethers'
 import { ConfigState } from '@state/configState'
 import Logger from '@logger'
-import logger from '@logger'
 import proxyquire from 'proxyquire'
 
 describe('Helpers:Web3', () => {
@@ -120,7 +119,7 @@ describe('Helpers:Web3', () => {
     })
 
     it('should return null for unsupported function selector', () => {
-      const loggerStub = sandbox.stub(logger, 'error')
+      const loggerStub = sandbox.stub(Logger, 'error')
       const result = Web3Helper.getERC721TransferABI('0xunsupported')
       expect(result).to.be.null
       expect(loggerStub.calledOnce).to.be.true
@@ -140,7 +139,7 @@ describe('Helpers:Web3', () => {
     })
 
     it('should return null for unsupported function selector', () => {
-      const loggerStub = sandbox.stub(logger, 'error')
+      const loggerStub = sandbox.stub(Logger, 'error')
       const result = Web3Helper.getERC1155TransferABI('0xunsupported')
       expect(result).to.be.null
       expect(loggerStub.calledOnce).to.be.true
@@ -477,7 +476,7 @@ describe('Helpers:Web3', () => {
     })
 
     it('should return an empty array if eventTopicHash not found', () => {
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'error')
       const txReceipt: any = {
         to: '',
         from: '',
@@ -502,7 +501,7 @@ describe('Helpers:Web3', () => {
     })
 
     it('should return an empty array and log an error if an exception occurs', () => {
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'error')
       const txReceipt: any = {
         to: '',
         from: '',
@@ -544,176 +543,6 @@ describe('Helpers:Web3', () => {
       const result = Web3Helper.extractMetadataUri(undefined as any)
       expect(result).to.equal(null)
       expect(loggerError.calledOnceWith('Error extractMetadataUri' as any)).to.be.true
-    })
-  })
-
-  describe('getImplementationAddress', () => {
-    it('should return the EIP-1967 implementation address if available', async () => {
-      const resolveName = sandbox.stub().resolves('0x000001')
-      const hexAddress = '1234567890123456789012345678901234567890'
-      const storageResponse = `0x000000000000000000000000${hexAddress}`
-      const expectedAddress = `0x${hexAddress}`
-
-      const getStorageStub = sandbox
-        .stub()
-        .withArgs('0xProxyAddress', '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc')
-        .resolves(storageResponse)
-
-      const providerStub = {
-        resolveName,
-        getStorage: getStorageStub,
-      }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
-
-      const result = await Web3Helper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
-
-      expect(result).to.equal(expectedAddress)
-    })
-
-    it('should return the EIP-1822 implementation address if EIP-1967 slot is empty', async () => {
-      const hexAddress = 'cdefabcdefabcdefabcdefabcdefabcdefabcdef'
-      const storageResponseEIP1967 = '0x0000000000000000000000000000000000000000000000000000000000000000'
-      const storageResponseEIP1822 = `0x000000000000000000000000${hexAddress}`
-      const expectedAddress = `0x${hexAddress}`
-
-      const getStorageStub = sandbox.stub()
-      // First call for EIP-1967 slot returns zero address
-      getStorageStub
-        .withArgs('0xProxyAddress', '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc')
-        .resolves(storageResponseEIP1967)
-      // Second call for EIP-1822 slot returns a valid address
-      getStorageStub
-        .withArgs('0xProxyAddress', '0x42d586d25e59d1ce8e4b4ec91f5fd8e1f6f967dffede5fd0d7fdbb417a6c4a8e')
-        .resolves(storageResponseEIP1822)
-
-      const providerStub = {
-        getStorage: getStorageStub,
-      }
-
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
-
-      const result = await Web3Helper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
-
-      expect(getStorageStub.calledTwice).to.be.true
-      expect(result).to.equal(getAddress(expectedAddress))
-    })
-
-    it('should return the contract implementation if both EIP-1967 and EIP-1822 slots are empty', async () => {
-      const getStorageStub = sandbox.stub()
-      getStorageStub.onFirstCall().resolves('0x0000000000000000000000000000000000000000000000000000000000000000') // EIP-1967 slot
-      getStorageStub.onSecondCall().resolves('0x0000000000000000000000000000000000000000000000000000000000000000') // EIP-1822 slot
-      const resolveName = sandbox.stub().resolves('0x000001')
-      const providerStub = {
-        resolveName,
-        getStorage: getStorageStub,
-      }
-
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns(providerStub),
-      }
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return {
-              implementation: sandbox.stub().resolves('0x0'),
-            }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
-
-      expect(getStorageStub.calledTwice).to.be.true
-      expect(getStorageStub.firstCall.returnValue.then((r: any) => r)).to.eventually.equal(
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-      )
-      expect(getStorageStub.secondCall.returnValue.then((r: any) => r)).to.eventually.equal(
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-      )
-      expect(result).to.eq('0x0')
-    })
-
-    it('should return the contract getImplementation if implementation, both EIP-1967 and EIP-1822 slots are empty', async () => {
-      const getStorageStub = sandbox.stub()
-      getStorageStub.onFirstCall().resolves('0x0000000000000000000000000000000000000000000000000000000000000000') // EIP-1967 slot
-      getStorageStub.onSecondCall().resolves('0x0000000000000000000000000000000000000000000000000000000000000000') // EIP-1822 slot
-      const resolveName = sandbox.stub().resolves('0x000001')
-      const providerStub = {
-        resolveName,
-        getStorage: getStorageStub,
-      }
-
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns(providerStub),
-      }
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return {
-              implementation: sandbox.stub().rejects(new Error('Method not found')),
-              getImplementation: sandbox.stub().resolves('0x0'),
-            }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
-
-      expect(getStorageStub.calledTwice).to.be.true
-      expect(getStorageStub.firstCall.returnValue.then((r: any) => r)).to.eventually.equal(
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-      )
-      expect(getStorageStub.secondCall.returnValue.then((r: any) => r)).to.eventually.equal(
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-      )
-      expect(result).to.eq('0x0')
-    })
-
-    it('should return null if both EIP-1967 and EIP-1822 slots are empty and no other methods succeed', async () => {
-      const stubLogger = sandbox.stub(logger, 'error')
-      const getStorageStub = sandbox.stub()
-      getStorageStub.onFirstCall().resolves('0x0000000000000000000000000000000000000000000000000000000000000000') // EIP-1967 slot
-      getStorageStub.onSecondCall().rejects(new Error('Method not found'))
-      const resolveName = sandbox.stub().resolves('0x000001')
-      const providerStub = {
-        resolveName,
-        getStorage: getStorageStub,
-      }
-
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns(providerStub),
-      }
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return {
-              implementation: sandbox.stub().rejects(new Error('Method not found')),
-              getImplementation: sandbox.stub().rejects(new Error('Method not found')),
-            }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
-
-      expect(getStorageStub.calledTwice).to.be.true
-      expect(getStorageStub.firstCall.returnValue.then((r: any) => r)).to.eventually.equal(
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-      )
-      expect(getStorageStub.secondCall.returnValue.then((r: any) => r)).to.eventually.equal(
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-      )
-      expect(result).to.be.null
-      expect(stubLogger.calledOnce).to.be.true
     })
   })
 
@@ -1071,73 +900,6 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('Web3Helper getERC20Info', () => {
-    it('should return token info', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubName = sandbox.stub().resolves('Test Token')
-      const stubSymbol = sandbox.stub().resolves('TST')
-      const stubDecimals = sandbox.stub().resolves(18n)
-
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getERC20Info('0xTokenAddress', NetworksEnum.mainnet)
-
-      expect(result).to.deep.equal({
-        address: '0xTokenAddress',
-        name: 'Test Token',
-        symbol: 'TST',
-        decimals: 18,
-      })
-
-      expect(stubName.calledOnce).to.be.true
-      expect(stubSymbol.calledOnce).to.be.true
-      expect(stubDecimals.calledOnce).to.be.true
-    })
-
-    it('should fails return token info', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubName = sandbox.stub().rejects(new Error('Test Error'))
-      const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
-      const stubDecimals = sandbox.stub().rejects(new Error('Test Error'))
-      const stubLogger = sandbox.stub(logger, 'error')
-
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getERC20Info('0xTokenAddress', NetworksEnum.mainnet)
-
-      expect(result).to.deep.equal({
-        address: '0xTokenAddress',
-      })
-
-      expect(stubName.calledOnce).to.be.true
-      expect(stubSymbol.calledOnce).to.be.true
-      expect(stubDecimals.calledOnce).to.be.true
-      expect(stubLogger.calledThrice).to.be.true
-    })
-  })
-
   describe('getERC20Info', () => {
     it('should return token info', async () => {
       const stubConfigState = {
@@ -1146,11 +908,12 @@ describe('Helpers:Web3', () => {
       const stubName = sandbox.stub().resolves('Test Token')
       const stubSymbol = sandbox.stub().resolves('TST')
       const stubDecimals = sandbox.stub().resolves(18n)
+      const stubTotalSupply = sandbox.stub().resolves(200n)
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {
-            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals }
+            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals, totalSupply: stubTotalSupply }
           },
         },
         '@state/configState': {
@@ -1165,11 +928,13 @@ describe('Helpers:Web3', () => {
         name: 'Test Token',
         symbol: 'TST',
         decimals: 18,
+        totalSupply: 200,
       })
 
       expect(stubName.calledOnce).to.be.true
       expect(stubSymbol.calledOnce).to.be.true
       expect(stubDecimals.calledOnce).to.be.true
+      expect(stubTotalSupply.calledOnce).to.be.true
     })
 
     it('should fails return token info', async () => {
@@ -1179,12 +944,13 @@ describe('Helpers:Web3', () => {
       const stubName = sandbox.stub().rejects(new Error('Test Error'))
       const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
       const stubDecimals = sandbox.stub().rejects(new Error('Test Error'))
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubTotalSupply = sandbox.stub().rejects(new Error('Test Error'))
+      const stubLogger = sandbox.stub(Logger, 'error')
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {
-            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals }
+            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals, totalSupply: stubTotalSupply }
           },
         },
         '@state/configState': {
@@ -1201,7 +967,8 @@ describe('Helpers:Web3', () => {
       expect(stubName.calledOnce).to.be.true
       expect(stubSymbol.calledOnce).to.be.true
       expect(stubDecimals.calledOnce).to.be.true
-      expect(stubLogger.calledThrice).to.be.true
+      expect(stubTotalSupply.calledOnce).to.be.true
+      expect(stubLogger.callCount).to.eq(4)
     })
   })
 
@@ -1242,7 +1009,7 @@ describe('Helpers:Web3', () => {
       }
       const stubName = sandbox.stub().rejects(new Error('Test Error'))
       const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'error')
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
@@ -1304,7 +1071,7 @@ describe('Helpers:Web3', () => {
       }
       const stubName = sandbox.stub().rejects(new Error('Test Error'))
       const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'error')
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
