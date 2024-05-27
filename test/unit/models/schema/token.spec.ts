@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum } from '@types'
 import Network from '@models/schema/network'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
@@ -23,6 +23,7 @@ describe('Model: Token', () => {
     rawToken = {
       address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       network: ethereumNetwork.name,
+      type: ITokenType.ERC20,
       logo: 'fake-logo',
       name: 'ethereum',
       symbol: 'WETH',
@@ -45,6 +46,7 @@ describe('Model: Token', () => {
     expect(createdToken.id).to.exist
     expect(createdToken.address).to.eq(rawToken.address)
     expect(createdToken.network).to.eq(rawToken.network)
+    expect(createdToken.type).to.eq(rawToken.type)
     expect(createdToken.logo).to.eq(rawToken.logo)
     expect(createdToken.name).to.eq(rawToken.name)
     expect(createdToken.symbol).to.eq(rawToken.symbol)
@@ -98,6 +100,6 @@ describe('Model: Token', () => {
     expect(filterToken.__v).to.be.undefined
     expect(filterToken.createdAt).to.be.undefined
     expect(filterToken.updatedAt).to.be.undefined
-    expect(Object.keys(filterToken).length).to.eq(11)
+    expect(Object.keys(filterToken).length).to.eq(13)
   })
 })

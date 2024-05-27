@@ -1,9 +1,9 @@
 import { keccak256, type WebSocketProvider } from 'ethers'
 import { ITokenType, type NetworksEnum } from '@types'
-import Web3Utils from '@helpers/web3'
 import { ConfigState } from '@state/configState'
+import ProxyContractHelper from '@helpers/proxyContract'
 
-const ERC20_FUNCTIONS = [
+export const ERC20_FUNCTIONS = [
   'totalSupply()',
   'balanceOf(address)',
   'transfer(address,uint256)',
@@ -12,7 +12,7 @@ const ERC20_FUNCTIONS = [
   'allowance(address,address)',
 ]
 
-const ERC721_FUNCTIONS = [
+export const ERC721_FUNCTIONS = [
   'ownerOf(uint256)',
   'approve(address,uint256)',
   'getApproved(uint256)',
@@ -21,7 +21,7 @@ const ERC721_FUNCTIONS = [
   'safeTransferFrom(address,address,uint256)',
 ]
 
-const ERC1155_FUNCTIONS = [
+export const ERC1155_FUNCTIONS = [
   'balanceOf(address,uint256)',
   'balanceOfBatch(address[],uint256[])',
   'setApprovalForAll(address,bool)',
@@ -30,7 +30,7 @@ const ERC1155_FUNCTIONS = [
   'safeBatchTransferFrom(address,address,uint256[],uint256[],bytes)',
 ]
 
-const ERC777_FUNCTIONS = [
+export const ERC777_FUNCTIONS = [
   'granularity()',
   'defaultOperators()',
   'send(address,uint256,bytes)',
@@ -39,7 +39,7 @@ const ERC777_FUNCTIONS = [
   'operatorBurn(address,uint256,bytes,bytes)',
 ]
 
-const GOVERNANCE_ERC20_FUNCTIONS = [
+export const GOVERNANCE_ERC20_FUNCTIONS = [
   'delegates(address)',
   'delegate(address)',
   'getVotes(address)',
@@ -67,7 +67,7 @@ async function detectTokenType(
   let contractAddress = address
 
   // Check if the contract is a proxy and get the implementation address
-  const implementationAddress = await Web3Utils.getImplementationAddress(address, network)
+  const implementationAddress = await ProxyContractHelper.getImplementationAddress(address, network)
   if (implementationAddress) {
     contractAddress = implementationAddress
   }
@@ -78,36 +78,41 @@ async function detectTokenType(
     type: ITokenType.unknown,
   }
 
-  const bytecode = await provider.getCode(contractAddress)
-  if (!bytecode || bytecode === '0x') return contractDetails
+  try {
+    const bytecode = await provider.getCode(contractAddress)
+    if (!bytecode || bytecode === '0x') return contractDetails
 
-  function hasFunction(signature: string): boolean {
-    return bytecode.includes(functionHashes[signature].replace('0x', ''))
-  }
-
-  function hasFunctions(functions: string[]): boolean {
-    return functions.every(func => hasFunction(func))
-  }
-
-  if (hasFunctions(ERC20_FUNCTIONS)) {
-    if (hasFunctions(GOVERNANCE_ERC20_FUNCTIONS)) {
-      contractDetails.type = ITokenType.GovernanceERC20
-      return contractDetails
+    function hasFunction(signature: string): boolean {
+      return bytecode.includes(functionHashes[signature].replace('0x', ''))
     }
-    contractDetails.type = ITokenType.ERC20
-  } else if (hasFunctions(ERC721_FUNCTIONS)) {
-    contractDetails.type = ITokenType.ERC721
-  } else if (hasFunctions(ERC1155_FUNCTIONS)) {
-    contractDetails.type = ITokenType.ERC1155
-  } else if (hasFunctions(ERC777_FUNCTIONS)) {
-    contractDetails.type = ITokenType.ERC777
-  } else {
-    contractDetails.type = ITokenType.unknown
-  }
 
-  return contractDetails
+    function hasFunctions(functions: string[]): boolean {
+      return functions.every(func => hasFunction(func))
+    }
+
+    if (hasFunctions(ERC20_FUNCTIONS)) {
+      if (hasFunctions(GOVERNANCE_ERC20_FUNCTIONS)) {
+        contractDetails.type = ITokenType.GovernanceERC20
+        return contractDetails
+      }
+      contractDetails.type = ITokenType.ERC20
+    } else if (hasFunctions(ERC721_FUNCTIONS)) {
+      contractDetails.type = ITokenType.ERC721
+    } else if (hasFunctions(ERC1155_FUNCTIONS)) {
+      contractDetails.type = ITokenType.ERC1155
+    } else if (hasFunctions(ERC777_FUNCTIONS)) {
+      contractDetails.type = ITokenType.ERC777
+    } else {
+      contractDetails.type = ITokenType.unknown
+    }
+
+    return contractDetails
+  } catch (error) {
+    return contractDetails
+  }
 }
 
 export default {
   detectTokenType,
+  functionHashes,
 }

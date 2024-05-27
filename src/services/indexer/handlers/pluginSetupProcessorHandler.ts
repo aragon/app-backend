@@ -5,7 +5,7 @@ import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import Utils from '@helpers/utils'
 import TokenDetector from '@helpers/tokenDetector'
-import Web3Utils from '@helpers/web3'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:pluginSetupProcessorHandler' })
 
@@ -95,7 +95,7 @@ export const PluginSetupProcessorHandler = {
             if (tokenTypeInfo?.type === ITokenType.GovernanceERC20) {
               pluginLog.tokenAddress = tokenAddress
 
-              const tokenInfo = await Web3Utils.getERC20Info(tokenAddress, network)
+              const tokenInfo = await Web3Helper.getERC20Info(tokenAddress, network)
 
               const voteToken = {
                 address: tokenAddress,
