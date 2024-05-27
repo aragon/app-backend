@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type IToken, NetworksEnum } from '@types'
+import { HexAddress, type IToken, ITokenType, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { utcDateProp } from '@models/utils/models'
@@ -22,6 +22,9 @@ const customName = 'Token'
   network: 1,
 })
 export default class Token extends Model {
+  @prop({ type: () => String, enum: ITokenType, required: true })
+  public type?: ITokenType
+
   @prop({ type: () => String, required: true })
   public address!: HexAddress
 
@@ -54,6 +57,9 @@ export default class Token extends Model {
 
   @utcDateProp({ default: null })
   public lastUpdatedAt!: Date
+
+  @prop({ type: () => String, default: null })
+  public implementation!: string
 
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
     const data = new this(rawData)
