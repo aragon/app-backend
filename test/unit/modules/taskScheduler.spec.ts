@@ -130,4 +130,27 @@ describe('Modules: TaskScheduler', () => {
 
     scheduler['tasks']['lockTest'].lock = false
   })
+
+  it('should not execute task when it is locked', async () => {
+    const taskFn = sandbox.fake(() => [[() => Promise.resolve('Task completed')]])
+    const errorFunction = sandbox.stub()
+
+    await scheduler.startTask('lockedTask', {
+      fn: taskFn,
+      interval: 1000,
+      onError: errorFunction,
+    })
+
+    await Utils.wait(10)
+
+    scheduler['tasks']['lockedTask'].lock = true
+
+    await scheduler.runTaskNow('lockedTask')
+
+    expect(taskFn.calledOnce).to.be.true
+
+    scheduler['tasks']['lockedTask'].lock = false
+    await scheduler.runTaskNow('lockedTask')
+    expect(taskFn.calledTwice).to.be.true
+  })
 })

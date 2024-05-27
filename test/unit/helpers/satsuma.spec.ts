@@ -6,7 +6,7 @@ import dayjs from '@helpers/dayjs'
 import { DaoList } from '@test/mock/fakeGraphDaos'
 import { HexAddress, NetworksEnum } from '@types'
 import utils from '@helpers/utils'
-import Web3Utils from '@helpers/web3'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 
 describe('Helpers: Satsuma', () => {
@@ -123,8 +123,8 @@ describe('Helpers: Satsuma', () => {
       })
 
       // Validate the structure of the returned DAO object matches your expectations
-      expect(res.daos[0].creatorAddress).to.eq(Web3Utils.parseAddress(fakeResponse.daos[0].creator as any))
-      expect(res.daos[0].daoAddress).to.eq(Web3Utils.parseAddress(fakeResponse.daos[0].id as any))
+      expect(res.daos[0].creatorAddress).to.eq(Web3Helper.parseAddress(fakeResponse.daos[0].creator as any))
+      expect(res.daos[0].daoAddress).to.eq(Web3Helper.parseAddress(fakeResponse.daos[0].id as any))
       expect(res.daos[0].createdAt).to.deep.equal(dayjs.utc(Number(fakeResponse.daos[0].createdAt) * 1000).toDate())
       expect(res.daos[0].ens).to.eq(fakeResponse.daos[0].daoURI)
       expect(res.daos[0].members).to.eq(fakeResponse.daos[0].plugins[0].plugin.members.length)
@@ -188,8 +188,8 @@ describe('Helpers: Satsuma', () => {
         description: null,
         name: null,
         permalink: null,
-        creatorAddress: Web3Utils.parseAddress(rawDao?.creator as any),
-        daoAddress: Web3Utils.parseAddress(rawDao.id as any),
+        creatorAddress: Web3Helper.parseAddress(rawDao?.creator as any),
+        daoAddress: Web3Helper.parseAddress(rawDao.id as any),
         block: Number(rawDao.createdAt),
         blockTime: dayjs.utc(Number(rawDao.createdAt) * 1000).toDate(),
         createdAt: dayjs.utc(Number(rawDao.createdAt) * 1000).toDate(),

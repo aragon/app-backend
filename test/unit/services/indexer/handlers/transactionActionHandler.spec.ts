@@ -72,7 +72,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(logTransactionDb.type).to.eq(ITransactionType.withdraw)
       expect(logTransactionDb.from).to.eq(txLog.address)
       expect(logTransactionDb.to).to.eq(action.to)
-      expect(logTransactionDb.amount).to.eq(Number(action.value))
+      expect(logTransactionDb.amount).to.eq(action.value.toString())
       expect(logTransactionDb.tokenAddress).to.be.null
       expect(logTransactionDb.tokenId).to.be.null
       expect(logTransactionDb.tokenIds.length).to.be.eq(0)
@@ -197,7 +197,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(logTransactionDb.type).to.eq(ITransactionType.withdraw)
       expect(logTransactionDb.from).to.eq(txLog.address)
       expect(logTransactionDb.to).to.eq('0x606cDb0A39EF7AB2867a40EBAADee0F85bEF1B4C')
-      expect(logTransactionDb.amount).to.eq(1.25e24)
+      expect(logTransactionDb.amount).to.eq('1.25e+24')
       expect(logTransactionDb.tokenAddress).to.eq(action.to)
       expect(logTransactionDb.tokenId).to.be.null
       expect(logTransactionDb.tokenIds.length).to.be.eq(0)
@@ -332,7 +332,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(logTransactionDb.type).to.eq(ITransactionType.externalTransfer)
       expect(logTransactionDb.from).to.eq('0xcbCbfb1f99a0565c5EcCd0BD02E937FeB40ef450')
       expect(logTransactionDb.to).to.eq('0xD6494C5094F07d93b9A36F2cfd32562a744302d4')
-      expect(logTransactionDb.amount).to.eq(0)
+      expect(logTransactionDb.amount).to.eq('0')
       expect(logTransactionDb.tokenAddress).to.eq(action.to)
       expect(logTransactionDb.tokenId).to.eq('288')
       expect(logTransactionDb.tokenIds.length).to.be.eq(0)
@@ -451,7 +451,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(logTransactionDb.type).to.eq(ITransactionType.externalTransfer)
       expect(logTransactionDb.from).to.eq('0xB9E9f1280A579DE7C6ddC389F7BC18896255615D')
       expect(logTransactionDb.to).to.eq('0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31')
-      expect(logTransactionDb.amount).to.eq(1)
+      expect(logTransactionDb.amount).to.eq('1')
       expect(logTransactionDb.tokenAddress).to.eq(action.to)
       expect(logTransactionDb.tokenId).to.eq('1')
       expect(logTransactionDb.tokenIds.length).to.be.eq(0)
@@ -538,7 +538,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(logTransactionDb.type).to.eq(ITransactionType.externalTransfer)
       expect(logTransactionDb.from).to.eq('0xB9E9f1280A579DE7C6ddC389F7BC18896255615D')
       expect(logTransactionDb.to).to.eq('0xeF32DC2B02bFA082F11aa6f57154f4079FFE9Bbc')
-      expect(logTransactionDb.amount).to.eq(0)
+      expect(logTransactionDb.amount).to.eq('0')
       expect(logTransactionDb.tokenAddress).to.eq(action.to)
       expect(logTransactionDb.tokenId).to.be.null
       expect(logTransactionDb.tokenIds[0]).to.be.eq('2')
