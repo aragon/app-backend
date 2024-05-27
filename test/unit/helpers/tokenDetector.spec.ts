@@ -1,11 +1,17 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import TokenDetector from '@helpers/tokenDetector'
-
+import TokenDetector, {
+  ERC1155_FUNCTIONS,
+  ERC20_FUNCTIONS,
+  ERC721_FUNCTIONS,
+  ERC777_FUNCTIONS,
+  GOVERNANCE_ERC20_FUNCTIONS,
+} from '@helpers/tokenDetector'
 import { beforeEach } from 'mocha'
 import { ITokenType, NetworksEnum } from '@types'
-import ProviderModule from '@modules/provider'
 import { expect } from 'chai'
+import { ConfigState } from '@state/configState'
+import ProxyContractHelper from '@helpers/proxyContract'
 
 describe('Helper: TokenDetector', () => {
   let sandbox: SinonSandbox
@@ -17,12 +23,122 @@ describe('Helper: TokenDetector', () => {
     sandbox.restore()
   })
 
-  it('should detect if its erc20 governance token', async () => {
-    await ProviderModule.connectToAllNetworks()
-    const tokenType = await TokenDetector.detectTokenType(
-      '0xEd02082BD33bE0d2953D1430a130c5Ea9b17F871',
-      NetworksEnum.mainnet,
-    )
-    expect(tokenType?.type).to.equal(ITokenType.ERC721)
+  const simulateBytecodeForFunctions = (functions: string[]) => {
+    // Construct a bytecode string that includes the first 10 characters of the Keccak hash for each function
+    return '0x' + functions.map(func => TokenDetector.functionHashes[func]).join('')
+  }
+
+  it('should detect ERC20 token', async () => {
+    const contractAddress = '0x0001'
+    const getImplementationAddressStub = sandbox
+      .stub(ProxyContractHelper, 'getImplementationAddress')
+      .resolves(contractAddress)
+    sandbox.stub(ConfigState, 'getInstance').returns({
+      getConfigItem: sandbox.stub().returns({
+        getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(ERC20_FUNCTIONS)),
+      }),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    expect(result?.type).to.equal(ITokenType.ERC20)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.mainnet)).to.be.true
+  })
+
+  it('should detect ERC20 Governance token', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ConfigState, 'getInstance').returns({
+      getConfigItem: sandbox.stub().returns({
+        getCode: sandbox
+          .stub()
+          .resolves(simulateBytecodeForFunctions([...ERC20_FUNCTIONS, ...GOVERNANCE_ERC20_FUNCTIONS])),
+      }),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    expect(result?.type).to.equal(ITokenType.GovernanceERC20)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.mainnet)).to.be.true
+  })
+
+  it('should detect ERC721 token', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ConfigState, 'getInstance').returns({
+      getConfigItem: sandbox.stub().returns({
+        getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(ERC721_FUNCTIONS)),
+      }),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    expect(result?.type).to.equal(ITokenType.ERC721)
+  })
+
+  it('should detect ERC1155 token', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ConfigState, 'getInstance').returns({
+      getConfigItem: sandbox.stub().returns({
+        getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(ERC1155_FUNCTIONS)),
+      }),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    expect(result?.type).to.equal(ITokenType.ERC1155)
+  })
+
+  it('should detect ERC777 token', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ConfigState, 'getInstance').returns({
+      getConfigItem: sandbox.stub().returns({
+        getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(ERC777_FUNCTIONS)),
+      }),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    expect(result?.type).to.equal(ITokenType.ERC777)
+  })
+
+  it('should detect ERC777 token', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ConfigState, 'getInstance').returns({
+      getConfigItem: sandbox.stub().returns({
+        getCode: sandbox.stub().resolves('0xUnrelatedBytecodeThatDoesNotMatchAnyFunctionHashes'),
+      }),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    expect(result?.type).to.equal(ITokenType.unknown)
+  })
+
+  it('should get empty getCode', async () => {
+    const contractAddress = '0x0001'
+    const getImplementationAddressStub = sandbox
+      .stub(ProxyContractHelper, 'getImplementationAddress')
+      .resolves(contractAddress)
+    sandbox.stub(ConfigState, 'getInstance').returns({
+      getConfigItem: sandbox.stub().returns({
+        getCode: sandbox.stub().resolves('0x'),
+      }),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    expect(result?.type).to.equal(ITokenType.unknown)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.mainnet)).to.be.true
+  })
+
+  it('should handle an error when fetching bytecode', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ConfigState, 'getInstance').returns({
+      getConfigItem: sandbox.stub().returns({
+        getCode: sandbox.stub().rejects(new Error('Failed to fetch bytecode')),
+      }),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+
+    expect(result?.implementationAddress).to.be.null
+    expect(result?.proxy).to.be.false
+    expect(result?.type).to.eq(ITokenType.unknown)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
   })
 })

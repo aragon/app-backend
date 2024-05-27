@@ -10,7 +10,6 @@ import {
   type WebSocketProvider,
   type TransactionReceipt,
   type LogDescription,
-  ethers,
 } from 'ethers'
 import { ConfigState } from '@state/configState'
 import { ENSSubdomainRegistrar } from '@artifacts/ENSSubdomainRegistrar'
@@ -455,55 +454,6 @@ const Web3Helper = {
     }
   },
 
-  async getImplementationAddress(address: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-    const eip1967Slot = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc' // EIP-1967 implementation slot
-    const eip1822Slot = '0x42d586d25e59d1ce8e4b4ec91f5fd8e1f6f967dffede5fd0d7fdbb417a6c4a8e' // EIP-1822 implementation slot
-
-    try {
-      // EIP-1967 implementation address
-      let implAddress = await provider.getStorage(address, eip1967Slot)
-      if (implAddress && parseInt(implAddress, 16) !== 0) {
-        return getAddress(`0x${implAddress.slice(-40)}`) as HexAddress
-      }
-
-      // EIP-1822 implementation address
-      implAddress = await provider.getStorage(address, eip1822Slot)
-      if (implAddress && parseInt(implAddress, 16) !== 0) {
-        return getAddress(`0x${implAddress.slice(-40)}`) as HexAddress
-      }
-    } catch (error) {
-      logger.error('Error fetching implementation address:', error)
-    }
-
-    // Fallback to checking if the contract exposes the implementation() method
-    const contract = new Contract(
-      address,
-      ['function implementation() view returns (address)', 'function getImplementation() view returns (address)'],
-      provider,
-    )
-
-    try {
-      const implAddress = await contract.implementation()
-      if (implAddress) {
-        return implAddress
-      }
-    } catch (error) {
-      // Ignore errors and continue
-    }
-
-    try {
-      const implAddress = await contract.getImplementation()
-      if (implAddress) {
-        return implAddress
-      }
-    } catch (error) {
-      // Ignore errors and continue
-    }
-
-    return null
-  },
-
   async getERC20Info(
     address: HexAddress,
     network: NetworksEnum,
@@ -626,70 +576,6 @@ const Web3Helper = {
     }
 
     return { txReceipt, events }
-  },
-
-  /**
-   * The bytecode of a minimal proxy follows a specific pattern where the implementation address is embedded
-   * after a specific opcode sequence. This function decodes that pattern to retrieve the implementation address.
-   *
-   * Minimal proxy bytecode pattern:
-   * 0x363d3d373d3d3d363d73[20-byte implementation address]5af43d82803e903d91602b57fd5bf3
-   *
-   **/
-
-  _getImplementationForMinimalProxy(byteCode: string) {
-    const minimalProxyPattern = '0x363d3d373d3d3d363d73'
-    const minimalProxyPatternLength = minimalProxyPattern.length
-
-    if (byteCode.startsWith(minimalProxyPattern)) {
-      return ethers.getAddress('0x' + byteCode.slice(minimalProxyPatternLength, minimalProxyPatternLength + 40))
-    }
-    return null
-  },
-
-  async _fallBackImplementationViaViewCall(address: string, network: NetworksEnum) {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-    const contract = new Contract(
-      address,
-      ['function implementation() view returns (address)', 'function getImplementation() view returns (address)'],
-      provider,
-    )
-
-    try {
-      return await contract.getImplementation()
-    } catch (error) {
-      // ignore
-    }
-
-    try {
-      return await contract.implementation()
-    } catch (error) {
-      // ignore
-    }
-
-    return null
-  },
-
-  async getImplementationAddress(address: string, network: NetworksEnum): Promise<string | null> {
-    try {
-      const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-      const ERC1967_IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
-
-      const storageValue = await provider.getStorage(address, ERC1967_IMPLEMENTATION_SLOT)
-      let implementationAddress: any = ethers.getAddress('0x' + storageValue.slice(-40))
-
-      if (implementationAddress === ethers.ZeroAddress) {
-        implementationAddress = this._getImplementationForMinimalProxy(await provider.getCode(address))
-
-        if (implementationAddress === ethers.ZeroAddress) {
-          implementationAddress = await Web3Utils._fallBackImplementationViaViewCall(address, network)
-        }
-      }
-
-      return implementationAddress === ethers.ZeroAddress ? null : implementationAddress
-    } catch (error) {
-      return null
-    }
   },
 }
 
