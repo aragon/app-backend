@@ -16,42 +16,49 @@ export const LogPluginSetting = {
   eventMultisig: ['MultisigSettingsUpdated'],
 
   start: async () => {
-    for (const networkName of Object.values(Network.NETWORKS)) {
-      logger.verbose('Start LogPluginSetting', llo({ networkName }))
+    const networks = Object.values(Network.NETWORKS)
 
-      const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+    await Promise.all(
+      networks.map(async networkName => {
+        logger.verbose('Start LogPluginSetting', llo({ networkName }))
 
-      if (!networkDb) {
-        logger.verbose('Unsupported Network', llo({ networkName }))
-        return
-      }
+        const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
 
-      const eventTokenVotingTopics = TokenVoting.abi
-        .filter((item: any) => item.type && LogPluginSetting.eventTokenVoting.includes(item.name))
-        .map((event: any) => new Interface(TokenVoting.abi).getEvent(event.name)?.topicHash)
+        if (!networkDb) {
+          logger.warn('Unsupported Network', llo({ networkName }))
+          return
+        }
 
-      const eventMultisigTopics = Multisig.abi
-        .filter((item: any) => item.type && LogPluginSetting.eventMultisig.includes(item.name))
-        .map((event: any) => new Interface(Multisig.abi).getEvent(event.name)?.topicHash)
+        const eventTokenVotingTopics = TokenVoting.abi
+          .filter((item: any) => item.type && LogPluginSetting.eventTokenVoting.includes(item.name))
+          .map((event: any) => new Interface(TokenVoting.abi).getEvent(event.name)?.topicHash)
 
-      const filter = {
-        topics: [...eventTokenVotingTopics, ...eventMultisigTopics],
-        fromBlock: networkDb.lastBlockPluginSetting,
-        toBlock: 'latest',
-      }
+        const eventMultisigTopics = Multisig.abi
+          .filter((item: any) => item.type && LogPluginSetting.eventMultisig.includes(item.name))
+          .map((event: any) => new Interface(Multisig.abi).getEvent(event.name)?.topicHash)
 
-      const crawler = new BlockchainLogCrawler({
-        network: networkName as NetworksEnum,
-        filter,
-        onLog: async (txLog: Log) => LogPluginSetting.processLog(txLog, networkName as NetworksEnum),
-        onError: async (error: any) => LogPluginSetting.processError(error, networkName as NetworksEnum),
-        stopOnError: true,
-      })
+        const filter = {
+          topics: [...eventTokenVotingTopics, ...eventMultisigTopics],
+          fromBlock: networkDb.lastBlockPluginSetting,
+          toBlock: 'latest',
+        }
 
-      await crawler.crawl()
-      await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockPluginSetting')
-    }
-    logger.verbose('Finish LogPluginSetting', llo())
+        const crawler = new BlockchainLogCrawler({
+          network: networkName as NetworksEnum,
+          filter,
+          onLog: async (txLog: Log) => LogPluginSetting.processLog(txLog, networkName as NetworksEnum),
+          onError: async (error: any) => LogPluginSetting.processError(error, networkName as NetworksEnum),
+          stopOnError: true,
+        })
+
+        await crawler.crawl()
+        await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockPluginSetting')
+        logger.verbose(
+          'End LogPluginSetting',
+          llo({ networkName, latestBlockSync: crawler.crawlResult.latestBlockNumber }),
+        )
+      }),
+    )
   },
 
   getInterface: (topic: string) => {
@@ -77,11 +84,11 @@ export const LogPluginSetting = {
 
     switch (event.name) {
       case 'VotingSettingsUpdated':
-        logger.verbose('VotingSettingsUpdated', llo({ event }))
+        logger.verbose('VotingSettingsUpdated', llo({ eventName: event.name }))
         await PluginSettingHandler.votingSettingsUpdated(event, txLog, network)
         break
       case 'MultisigSettingsUpdated':
-        logger.verbose('MultisigSettingsUpdated', llo({ event }))
+        logger.verbose('MultisigSettingsUpdated', llo({ eventName: event.name }))
         await PluginSettingHandler.multisigSettingsUpdated(event, txLog, network)
         break
       default:

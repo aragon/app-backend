@@ -15,42 +15,46 @@ export const LogProposal = {
   events: ['Approved', 'ProposalCreated', 'ProposalExecuted', 'VoteCast'],
 
   start: async () => {
-    for (const networkName of Object.values(Network.NETWORKS)) {
-      logger.verbose('Start LogProposal', llo({ networkName }))
+    const networks = Object.values(Network.NETWORKS)
 
-      const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+    await Promise.all(
+      networks.map(async networkName => {
+        logger.verbose('Start LogProposal', llo({ networkName }))
 
-      if (!networkDb) {
-        logger.verbose('Unsupported Network', llo({ networkName }))
-        return
-      }
+        const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
 
-      const tokenVotingTopics = TokenVoting.abi
-        .filter((item: any) => item.type && LogProposal.events.includes(item.name))
-        .map((event: any) => new Interface(TokenVoting.abi).getEvent(event.name)?.topicHash)
+        if (!networkDb) {
+          logger.warn('Unsupported Network', llo({ networkName }))
+          return
+        }
 
-      const multisigTopics = Multisig.abi
-        .filter((item: any) => item.type && LogProposal.events.includes(item.name))
-        .map((event: any) => new Interface(Multisig.abi).getEvent(event.name)?.topicHash)
+        const tokenVotingTopics = TokenVoting.abi
+          .filter((item: any) => item.type && LogProposal.events.includes(item.name))
+          .map((event: any) => new Interface(TokenVoting.abi).getEvent(event.name)?.topicHash)
 
-      const filter = {
-        topics: [...tokenVotingTopics, ...multisigTopics],
-        fromBlock: networkDb.lastBlockProposal,
-        toBlock: 'latest',
-      }
+        const multisigTopics = Multisig.abi
+          .filter((item: any) => item.type && LogProposal.events.includes(item.name))
+          .map((event: any) => new Interface(Multisig.abi).getEvent(event.name)?.topicHash)
 
-      const crawler = new BlockchainLogCrawler({
-        network: networkName as NetworksEnum,
-        filter,
-        onLog: async (txLog: Log) => LogProposal.processLog(txLog, networkName as NetworksEnum),
-        onError: async (error: any) => LogProposal.processError(error, networkName as NetworksEnum),
-        stopOnError: true,
-      })
+        const filter = {
+          topics: [...tokenVotingTopics, ...multisigTopics],
+          fromBlock: networkDb.lastBlockProposal,
+          toBlock: 'latest',
+        }
 
-      await crawler.crawl()
-      await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockProposal')
-    }
-    logger.verbose('Finish LogProposal', llo())
+        const crawler = new BlockchainLogCrawler({
+          network: networkName as NetworksEnum,
+          filter,
+          onLog: async (txLog: Log) => LogProposal.processLog(txLog, networkName as NetworksEnum),
+          onError: async (error: any) => LogProposal.processError(error, networkName as NetworksEnum),
+          stopOnError: true,
+        })
+
+        await crawler.crawl()
+        await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockProposal')
+        logger.verbose('End LogProposal', llo({ networkName, latestBlockSync: crawler.crawlResult.latestBlockNumber }))
+      }),
+    )
   },
 
   getInterface(topic: string) {
@@ -77,23 +81,23 @@ export const LogProposal = {
 
     switch (event?.name) {
       case 'ProposalCreated':
-        logger.verbose('ProposalCreated', llo({ event }))
+        logger.verbose('ProposalCreated', llo({ eventName: event.name }))
         await ProposalHandler.proposalCreated(event, txLog, network)
         break
       case 'Approved':
-        logger.verbose('Approved', llo({ event }))
+        logger.verbose('Approved', llo({ eventName: event.name }))
         await ProposalHandler.approved(event, txLog, network)
         break
       case 'ProposalExecuted':
-        logger.verbose('ProposalExecuted', llo({ event }))
+        logger.verbose('ProposalExecuted', llo({ eventName: event.name }))
         await ProposalHandler.proposalExecuted(event, txLog, network)
         break
       case 'VoteCast':
-        logger.verbose('VoteCast', llo({ event }))
+        logger.verbose('VoteCast', llo({ eventName: event.name }))
         await ProposalHandler.voteCast(event, txLog, network)
         break
       default:
-        logger.error('Unhandled event', llo({ event }))
+        logger.error('Unhandled event', llo({ eventName: event.name }))
         break
     }
   },

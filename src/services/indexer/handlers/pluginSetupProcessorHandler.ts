@@ -13,6 +13,7 @@ export const PluginSetupProcessorHandler = {
   installationApplied: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
@@ -49,6 +50,7 @@ export const PluginSetupProcessorHandler = {
   installationPrepared: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
@@ -129,6 +131,7 @@ export const PluginSetupProcessorHandler = {
   uninstallationApplied: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
@@ -164,6 +167,7 @@ export const PluginSetupProcessorHandler = {
   uninstallationPrepared: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
@@ -204,6 +208,7 @@ export const PluginSetupProcessorHandler = {
   updateApplied: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
@@ -240,6 +245,7 @@ export const PluginSetupProcessorHandler = {
   updatePrepared: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 

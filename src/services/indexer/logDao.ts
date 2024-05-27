@@ -15,38 +15,41 @@ export const LogDao = {
   events: ['CallbackReceived', 'Deposited', 'Executed', 'MetadataSet', 'NativeTokenDeposited', 'NewURI'],
 
   start: async () => {
-    for (const networkName of Object.values(Network.NETWORKS)) {
-      logger.verbose('Start LogDao', llo({ networkName }))
+    const networks = Object.values(Network.NETWORKS)
+    await Promise.all(
+      networks.map(async networkName => {
+        logger.verbose('Start LogDao', llo({ networkName }))
 
-      const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+        const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
 
-      if (!networkDb) {
-        logger.verbose('Unsupported Network', llo({ networkName }))
-        return
-      }
+        if (!networkDb) {
+          logger.warn('Unsupported Network', llo({ networkName }))
+          return
+        }
 
-      const eventTopics = DAO.abi
-        .filter((item: any) => item.type && LogDao.events.includes(item.name))
-        .map((event: any) => new Interface(DAO.abi).getEvent(event.name)?.topicHash)
+        const eventTopics = DAO.abi
+          .filter((item: any) => item.type && LogDao.events.includes(item.name))
+          .map((event: any) => new Interface(DAO.abi).getEvent(event.name)?.topicHash)
 
-      const filter = {
-        topics: eventTopics,
-        fromBlock: networkDb.lastBlockDao,
-        toBlock: 'latest',
-      }
+        const filter = {
+          topics: eventTopics,
+          fromBlock: networkDb.lastBlockDao,
+          toBlock: 'latest',
+        }
 
-      const crawler = new BlockchainLogCrawler({
-        network: networkName as NetworksEnum,
-        filter,
-        onLog: async (txLog: Log) => LogDao.processLog(txLog, networkName as NetworksEnum),
-        onError: async (error: any) => LogDao.processError(error, networkName as NetworksEnum),
-        stopOnError: true,
-      })
+        const crawler = new BlockchainLogCrawler({
+          network: networkName as NetworksEnum,
+          filter,
+          onLog: async (txLog: Log) => LogDao.processLog(txLog, networkName as NetworksEnum),
+          onError: async (error: any) => LogDao.processError(error, networkName as NetworksEnum),
+          stopOnError: true,
+        })
 
-      await crawler.crawl()
-      await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockDao')
-    }
-    logger.verbose('Finish LogDao', llo())
+        await crawler.crawl()
+        await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockDao')
+        logger.verbose('End LogDao', llo({ networkName, latestBlockSync: crawler.crawlResult.latestBlockNumber }))
+      }),
+    )
   },
 
   processLog: async (txLog: any, network: NetworksEnum) => {

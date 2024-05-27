@@ -43,8 +43,8 @@ export default class LogTransaction extends Model {
   @prop({ type: () => String, required: true })
   public to!: HexAddress
 
-  @prop({ type: () => Number, default: 0 })
-  public amount!: number
+  @prop({ type: () => String, default: 0 })
+  public amount!: string
 
   @prop({ type: () => String, default: null })
   public tokenAddress!: HexAddress

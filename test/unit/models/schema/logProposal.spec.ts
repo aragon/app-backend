@@ -150,7 +150,7 @@ describe('Model: LogProposal', () => {
       proposalId: 1,
       memberAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       voteOption: 2,
-      votingPower: 322,
+      votingPower: '322',
     }
     const proposalDb = await proposal.addVoteEvent(vote)
     const voteDb = await proposalDb.findVote(vote.transactionHash)
@@ -174,7 +174,7 @@ describe('Model: LogProposal', () => {
       proposalId: 1,
       memberAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       voteOption: 2,
-      votingPower: 322,
+      votingPower: '322',
     }
     const proposalDb = await proposal.addVoteEvent(vote)
     const voteDb = await proposalDb.findVote(vote.transactionHash)

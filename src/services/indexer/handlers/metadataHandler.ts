@@ -19,6 +19,7 @@ export const MetadataHandler = {
   metadataSet: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
@@ -35,8 +36,8 @@ export const MetadataHandler = {
       return
     }
 
-    const metadataUri = MetadataHandler.extractMetadataUri(parsedEvent?.args.metadata)
-    const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 1 })
+    const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)
+    const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 1 })
 
     switch (decodedTransaction.contract) {
       case IAragonContract.DAOFactory: {
@@ -109,6 +110,7 @@ export const MetadataHandler = {
   decodeTransaction: (transaction: any): IDecodeTransaction | null => {
     const logInfo: any = {
       txHash: transaction.transactionHash,
+      blockNumber: transaction.blockNumber,
     }
 
     const functionSelector = transaction.data.slice(0, 10)
@@ -138,10 +140,5 @@ export const MetadataHandler = {
 
     logger.error('Metadata not supported', llo({ logInfo }))
     return null
-  },
-
-  extractMetadataUri(metadataHex: string) {
-    const metadataBytes = Buffer.from(metadataHex.substring(2), 'hex')
-    return metadataBytes.toString('utf8')
   },
 }

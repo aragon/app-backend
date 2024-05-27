@@ -78,7 +78,7 @@ describe('Indexer: ProposalHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Web3Helper, 'extractMetadataUri').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await ProposalHandler.proposalCreated(fakeEvent as any, txLog, network)
@@ -266,7 +266,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(newProposal.voteEvents[0].proposalId).to.eq(Number(fakeEvent.args.proposalId))
       expect(newProposal.voteEvents[0].memberAddress).to.eq(fakeEvent.args.voter)
       expect(newProposal.voteEvents[0].voteOption).to.eq(Number(fakeEvent.args.voteOption))
-      expect(newProposal.voteEvents[0].votingPower).to.eq(Number(fakeEvent.args.votingPower))
+      expect(newProposal.voteEvents[0].votingPower).to.eq(fakeEvent.args.votingPower.toString())
     })
 
     it('voteCast error proposal not found', async () => {
@@ -388,22 +388,6 @@ describe('Indexer: ProposalHandler', () => {
 
     it('proposalExecuted error proposal not found', async () => {
       const network = NetworksEnum.mainnet
-      const rawProposal = {
-        transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-        blockNumber: 3,
-        network,
-        pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        proposalId: 0,
-        allowFailureMap: 0,
-        creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
-        startDate: 234234223,
-        endDate: 334234223,
-        metadataUri: 'some-uri',
-        actions: [],
-        voteEvents: [],
-      }
-      await Models.LogProposal.create(rawProposal)
-
       const txLog = {
         transactionHash: '0x123',
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
@@ -421,7 +405,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       sandbox.stub(Models.LogProposal, 'findByProposalId').resolves(null)
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'warn')
 
       const result = await ProposalHandler.proposalExecuted(fakeEvent as any, txLog, network)
 
