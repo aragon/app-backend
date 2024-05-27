@@ -20,9 +20,9 @@ import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { ERC1155 } from '@artifacts/ERC1155'
 
-const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Utils' })
+const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
-const Web3Utils = {
+const Web3Helper = {
   ERC1155_INTERFACE_ID: '0xd9b67a26',
   ERC165_INTERFACE_ID: '0x01ffc9a7',
   ERC721_INTERFACE_ID: '0x80ac58cd',
@@ -44,9 +44,9 @@ const Web3Utils = {
 
   getERC20TransferABI(functionSelector: string): string[] | null {
     switch (functionSelector) {
-      case Web3Utils.ERC20_transfer:
+      case Web3Helper.ERC20_transfer:
         return ['address', 'uint256']
-      case Web3Utils.ERC20_transferFrom:
+      case Web3Helper.ERC20_transferFrom:
         return ['address', 'address', 'uint256']
       default:
         logger.error('Unsupported function selector', { functionSelector })
@@ -56,10 +56,10 @@ const Web3Utils = {
 
   getERC721TransferABI(functionSelector: string): string[] | null {
     switch (functionSelector) {
-      case Web3Utils.ERC721_safeTransferFromNoData:
-      case Web3Utils.ERC721_transferFrom:
+      case Web3Helper.ERC721_safeTransferFromNoData:
+      case Web3Helper.ERC721_transferFrom:
         return ['address', 'address', 'uint256']
-      case Web3Utils.ERC721_safeTransferFromWithData:
+      case Web3Helper.ERC721_safeTransferFromWithData:
         return ['address', 'address', 'uint256', 'bytes']
       default:
         logger.error('Unsupported function selector', { functionSelector })
@@ -69,9 +69,9 @@ const Web3Utils = {
 
   getERC1155TransferABI(functionSelector: string): string[] | null {
     switch (functionSelector) {
-      case Web3Utils.ERC1155_safeTransferFrom:
+      case Web3Helper.ERC1155_safeTransferFrom:
         return ['address', 'address', 'uint256', 'uint256', 'bytes']
-      case Web3Utils.ERC1155_safeBatchTransferFrom:
+      case Web3Helper.ERC1155_safeBatchTransferFrom:
         return ['address', 'address', 'uint256[]', 'uint256[]', 'bytes']
       default:
         logger.error('Unsupported function selector', { functionSelector })
@@ -80,22 +80,22 @@ const Web3Utils = {
   },
 
   isERC1155TransferMethod(action: any): boolean {
-    const methodSig = Web3Utils.getMethodSignature(action.data)
-    return [Web3Utils.ERC1155_safeBatchTransferFrom, Web3Utils.ERC1155_safeTransferFrom].includes(methodSig)
+    const methodSig = Web3Helper.getMethodSignature(action.data)
+    return [Web3Helper.ERC1155_safeBatchTransferFrom, Web3Helper.ERC1155_safeTransferFrom].includes(methodSig)
   },
 
   isERC721Transfer(action: any): boolean {
-    const methodSig = Web3Utils.getMethodSignature(action.data)
+    const methodSig = Web3Helper.getMethodSignature(action.data)
     return [
-      Web3Utils.ERC721_transferFrom,
-      Web3Utils.ERC721_safeTransferFromNoData,
-      Web3Utils.ERC721_safeTransferFromWithData,
+      Web3Helper.ERC721_transferFrom,
+      Web3Helper.ERC721_safeTransferFromNoData,
+      Web3Helper.ERC721_safeTransferFromWithData,
     ].includes(methodSig)
   },
 
   isERC20Transfer(action: any): boolean {
-    const methodSig = Web3Utils.getMethodSignature(action.data)
-    return [Web3Utils.ERC20_transfer, Web3Utils.ERC20_transferFrom].includes(methodSig)
+    const methodSig = Web3Helper.getMethodSignature(action.data)
+    return [Web3Helper.ERC20_transfer, Web3Helper.ERC20_transferFrom].includes(methodSig)
   },
 
   isNativeTokenAction(action: any): boolean {
@@ -103,11 +103,11 @@ const Web3Utils = {
   },
 
   async supportsERC721(tokenAddress: string, network: NetworksEnum): Promise<boolean> {
-    const supportsERC165 = await Web3Utils.supportsInterface(tokenAddress, Web3Utils.ERC165_INTERFACE_ID, network)
-    const supportsERC721 = await Web3Utils.supportsInterface(tokenAddress, Web3Utils.ERC721_INTERFACE_ID, network)
-    const doesNotSupportInvalid = !(await Web3Utils.supportsInterface(
+    const supportsERC165 = await Web3Helper.supportsInterface(tokenAddress, Web3Helper.ERC165_INTERFACE_ID, network)
+    const supportsERC721 = await Web3Helper.supportsInterface(tokenAddress, Web3Helper.ERC721_INTERFACE_ID, network)
+    const doesNotSupportInvalid = !(await Web3Helper.supportsInterface(
       tokenAddress,
-      Web3Utils.INTERFACE_ID_INVALID,
+      Web3Helper.INTERFACE_ID_INVALID,
       network,
     ))
 
@@ -115,11 +115,11 @@ const Web3Utils = {
   },
 
   async supportsERC1155(tokenAddress: string, network: NetworksEnum): Promise<boolean> {
-    const supportsERC165 = await Web3Utils.supportsInterface(tokenAddress, Web3Utils.ERC165_INTERFACE_ID, network)
-    const supportsERC1155 = await Web3Utils.supportsInterface(tokenAddress, Web3Utils.ERC1155_INTERFACE_ID, network)
-    const doesNotSupportInvalid = !(await Web3Utils.supportsInterface(
+    const supportsERC165 = await Web3Helper.supportsInterface(tokenAddress, Web3Helper.ERC165_INTERFACE_ID, network)
+    const supportsERC1155 = await Web3Helper.supportsInterface(tokenAddress, Web3Helper.ERC1155_INTERFACE_ID, network)
+    const doesNotSupportInvalid = !(await Web3Helper.supportsInterface(
       tokenAddress,
-      Web3Utils.INTERFACE_ID_INVALID,
+      Web3Helper.INTERFACE_ID_INVALID,
       network,
     ))
 
@@ -134,6 +134,11 @@ const Web3Utils = {
     } catch (error) {
       return false
     }
+  },
+
+  formatAddress(address: HexAddress) {
+    const trimmedAddress = address.replace(/^0x0+/, '0x')
+    return getAddress(trimmedAddress)
   },
 
   decodeCalldata(decodeABI: string[], calldata: any) {
@@ -174,11 +179,11 @@ const Web3Utils = {
     let amount: number = 0
 
     switch (functionSelector) {
-      case Web3Utils.ERC20_transfer:
+      case Web3Helper.ERC20_transfer:
         from = txLog.address
         ;[to, amount] = decoded
         break
-      case Web3Utils.ERC20_transferFrom:
+      case Web3Helper.ERC20_transferFrom:
         ;[from, to, amount] = decoded
         break
     }
@@ -209,8 +214,13 @@ const Web3Utils = {
   },
 
   extractMetadataUri(metadataHex: string) {
-    const metadataBytes = Buffer.from(metadataHex.substring(2), 'hex')
-    return metadataBytes.toString('utf8')
+    try {
+      const metadataBytes = Buffer.from(metadataHex.substring(2), 'hex')
+      return metadataBytes.toString('utf8')
+    } catch (error) {
+      logger.error('Error extractMetadataUri', llo({ metadataHex, error }))
+      return null
+    }
   },
 
   findLogsByName: (
@@ -445,6 +455,55 @@ const Web3Utils = {
     }
   },
 
+  async getImplementationAddress(address: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
+    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+    const eip1967Slot = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc' // EIP-1967 implementation slot
+    const eip1822Slot = '0x42d586d25e59d1ce8e4b4ec91f5fd8e1f6f967dffede5fd0d7fdbb417a6c4a8e' // EIP-1822 implementation slot
+
+    try {
+      // EIP-1967 implementation address
+      let implAddress = await provider.getStorage(address, eip1967Slot)
+      if (implAddress && parseInt(implAddress, 16) !== 0) {
+        return getAddress(`0x${implAddress.slice(-40)}`) as HexAddress
+      }
+
+      // EIP-1822 implementation address
+      implAddress = await provider.getStorage(address, eip1822Slot)
+      if (implAddress && parseInt(implAddress, 16) !== 0) {
+        return getAddress(`0x${implAddress.slice(-40)}`) as HexAddress
+      }
+    } catch (error) {
+      logger.error('Error fetching implementation address:', error)
+    }
+
+    // Fallback to checking if the contract exposes the implementation() method
+    const contract = new Contract(
+      address,
+      ['function implementation() view returns (address)', 'function getImplementation() view returns (address)'],
+      provider,
+    )
+
+    try {
+      const implAddress = await contract.implementation()
+      if (implAddress) {
+        return implAddress
+      }
+    } catch (error) {
+      // Ignore errors and continue
+    }
+
+    try {
+      const implAddress = await contract.getImplementation()
+      if (implAddress) {
+        return implAddress
+      }
+    } catch (error) {
+      // Ignore errors and continue
+    }
+
+    return null
+  },
+
   async getERC20Info(
     address: HexAddress,
     network: NetworksEnum,
@@ -462,20 +521,20 @@ const Web3Utils = {
     try {
       token.name = await tokenInstance.name()
     } catch (error) {
-      logger.error('Error getting token info name:', llo({ error, address }))
+      logger.error('Error getting token info name', llo({ error, address }))
     }
 
     try {
       token.symbol = await tokenInstance.symbol()
     } catch (error) {
-      logger.error('Error getting token symbol:', llo({ error, address }))
+      logger.error('Error getting token symbol', llo({ error, address }))
     }
 
     try {
       const decimals = await tokenInstance.decimals()
       token.decimals = Number(decimals)
     } catch (error) {
-      logger.error('Error getting token symbol:', llo({ error, address }))
+      logger.error('Error getting token symbol', llo({ error, address }))
     }
 
     try {
@@ -503,13 +562,13 @@ const Web3Utils = {
     try {
       token.name = await tokenInstance.name()
     } catch (error) {
-      logger.error('Error getting token info name:', llo({ error, address }))
+      logger.error('Error getting token info name', llo({ error, address }))
     }
 
     try {
       token.symbol = await tokenInstance.symbol()
     } catch (error) {
-      logger.error('Error getting token symbol:', llo({ error, address }))
+      logger.error('Error getting token symbol', llo({ error, address }))
     }
 
     return token
@@ -530,13 +589,13 @@ const Web3Utils = {
     try {
       token.name = await tokenInstance.name()
     } catch (error) {
-      logger.error('Error getting token info name:', llo({ error, address }))
+      logger.error('Error getting token info name', llo({ error, address }))
     }
 
     try {
       token.symbol = await tokenInstance.symbol()
     } catch (error) {
-      logger.error('Error getting token symbol:', llo({ error, address }))
+      logger.error('Error getting token symbol', llo({ error, address }))
     }
 
     return token
@@ -553,13 +612,13 @@ const Web3Utils = {
     abi: any
     network: NetworksEnum
   }): Promise<{ txReceipt: TransactionReceipt; events: any } | undefined> => {
-    const txReceipt = await Web3Utils.getTransactionReceipt(txLog.transactionHash, network)
+    const txReceipt = await Web3Helper.getTransactionReceipt(txLog.transactionHash, network)
 
     if (!txReceipt) {
       logger.error('Failed to find txReceipt', { txHash: txLog.transactionHash, network })
       return
     }
-    const events = Web3Utils.findLogsByName(txReceipt, eventName, abi)
+    const events = Web3Helper.findLogsByName(txReceipt, eventName, abi)
 
     if (events.length === 0) {
       logger.error('Failed to find event', { eventName, txHash: txLog.transactionHash, network })
@@ -634,4 +693,4 @@ const Web3Utils = {
   },
 }
 
-export default Web3Utils
+export default Web3Helper

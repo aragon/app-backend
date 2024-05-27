@@ -6,6 +6,7 @@ import { NetworksEnum } from '@types'
 import { WebSocketProvider } from 'ethers'
 import Logger from '@logger'
 import config from '@config'
+import logger from '@logger'
 
 describe('Module: provider', () => {
   let sandbox: SinonSandbox
@@ -75,12 +76,26 @@ describe('Module: provider', () => {
     })
   })
 
-  it('connectToAllNetworks', async () => {
-    config.BLOCKCHAIN_NODES.MAINNET = 'wss://ethereum-rpc.publicnode.com'
-    const stubConneect = sandbox.stub(Provider, 'connectToNetwork')
-    await Provider.connectToAllNetworks()
+  describe('connectToNetwork', async () => {
+    it('should connectToAllNetworks', async () => {
+      const backupConfig = config.BLOCKCHAIN_NODES.MAINNET
+      config.BLOCKCHAIN_NODES.MAINNET = 'wss://ethereum-rpc.publicnode.com'
 
-    expect(stubConneect.callCount).to.eq(1)
+      const stubConneect = sandbox.stub(Provider, 'connectToNetwork')
+      await Provider.connectToAllNetworks()
+
+      expect(stubConneect.callCount).to.eq(1)
+      config.BLOCKCHAIN_NODES.MAINNET = backupConfig
+    })
+
+    it('should fail connectToAllNetworks', async () => {
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubConneect = sandbox.stub(Provider, 'connectToNetwork')
+      await Provider.connectToAllNetworks()
+
+      expect(stubConneect.callCount).to.eq(0)
+      expect(stubLoggerError.callCount).to.eq(5)
+    })
   })
 
   describe('closeAllNetworks', () => {

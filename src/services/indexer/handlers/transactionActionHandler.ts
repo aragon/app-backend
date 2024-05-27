@@ -19,6 +19,7 @@ export const TransactionActionHandler = {
   ) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
       action,
       actionIndex,
@@ -51,7 +52,7 @@ export const TransactionActionHandler = {
             transactionHash: txLog.transactionHash,
             from: daoAddress,
             to: action.to,
-            amount: Number(action.value),
+            amount: action.value,
             reference: '',
             type: ITransactionType.withdraw,
             actionIndex,
@@ -79,6 +80,7 @@ export const TransactionActionHandler = {
   ) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
       action,
       actionIndex,
@@ -155,6 +157,7 @@ export const TransactionActionHandler = {
   ) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
       action,
       actionIndex,
@@ -242,6 +245,7 @@ export const TransactionActionHandler = {
   ) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
       action,
       actionIndex,

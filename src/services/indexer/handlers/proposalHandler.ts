@@ -4,6 +4,7 @@ import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import IPFSModule from '@modules/ipfs'
+import { type Vote } from '@models/schema/logProposal'
 import type LogProposal from '@models/schema/logProposal'
 import Web3Helper from '@helpers/web3'
 
@@ -13,6 +14,7 @@ export const ProposalHandler = {
   proposalCreated: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
@@ -37,7 +39,7 @@ export const ProposalHandler = {
             metadataUri,
             actions: parsedEvent.args?.actions.map((w: any) => ({
               to: w.to,
-              value: Number(w.value || 0),
+              value: w.value,
               data: w.data,
             })),
           }
@@ -58,11 +60,12 @@ export const ProposalHandler = {
   approved: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
     try {
-      const parsedParams = {
+      const parsedParams: Vote = {
         blockNumber: txLog.blockNumber,
         transactionHash: txLog.transactionHash,
         proposalId: Number(parsedEvent.args.proposalId),
@@ -71,7 +74,7 @@ export const ProposalHandler = {
       const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, txLog.address, network)
 
       if (!proposal) {
-        logger.error('proposal not found', llo({ logInfo }))
+        logger.error('proposal not found', llo({ logInfo, parsedEvent }))
         return
       }
 
@@ -93,6 +96,7 @@ export const ProposalHandler = {
   voteCast: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
@@ -102,13 +106,13 @@ export const ProposalHandler = {
         transactionHash: txLog.transactionHash,
         proposalId: Number(parsedEvent.args.proposalId),
         voteOption: Number(parsedEvent.args.voteOption),
-        votingPower: Number(parsedEvent.args.votingPower),
+        votingPower: parsedEvent.args.votingPower,
         memberAddress: parsedEvent.args.voter,
       }
       const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, txLog.address, network)
 
       if (!proposal) {
-        logger.error('proposal not found', llo({ logInfo }))
+        logger.error('proposal not found', llo({ logInfo, parsedEvent }))
         return
       }
 
@@ -130,6 +134,7 @@ export const ProposalHandler = {
   proposalExecuted: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network,
     }
 
@@ -138,9 +143,8 @@ export const ProposalHandler = {
         proposalId: Number(parsedEvent.args.proposalId),
       }
       const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, txLog.address, network)
-
       if (!proposal) {
-        logger.error('proposal not found', llo({ logInfo }))
+        logger.warn('proposal not found', llo({ logInfo, parsedEvent }))
         return
       }
 
@@ -164,6 +168,7 @@ export const ProposalHandler = {
   proposalMetadata: async (txLog: any, proposalDb: LogProposal) => {
     const logInfo: any = {
       txHash: txLog.transactionHash,
+      blockNumber: txLog.blockNumber,
       network: proposalDb.network,
       proposalId: proposalDb.id,
       metadataUri: proposalDb.metadataUri,

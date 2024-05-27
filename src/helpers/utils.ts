@@ -128,7 +128,7 @@ const Utils = {
         resolveNoop()
       } finally {
         if (running) {
-          timeout = setTimeout(async () => await launchAndWait(fn, delay), delay)
+          timeout = setTimeout(async () => launchAndWait(fn, delay), delay)
         }
       }
     }

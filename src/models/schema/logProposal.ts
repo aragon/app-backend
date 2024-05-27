@@ -10,8 +10,8 @@ class Action {
   @prop({ type: () => String, default: null })
   public to!: string
 
-  @prop({ type: () => Number, default: null })
-  public value!: number
+  @prop({ type: () => String, default: null })
+  public value!: string
 
   @prop({ type: () => String, default: null })
   public data!: string
@@ -33,8 +33,8 @@ export class Vote {
   @prop({ type: () => Number })
   public voteOption?: number
 
-  @prop({ type: () => Number, default: null })
-  public votingPower!: number
+  @prop({ type: () => String, default: null })
+  public votingPower?: string
 }
 
 export class ProposalExecuted {
