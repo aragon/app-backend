@@ -6,7 +6,6 @@ import { IAragonContract, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { MetadataHandler } from '@services/indexer/handlers/metadataHandler'
 import { Models } from '@dbModels'
-import Web3Utils from '@helpers/web3'
 import IPFSModule from '@modules/ipfs'
 import Web3Helper from '@helpers/web3'
 
@@ -55,9 +54,9 @@ describe('Indexer: MetadataHandler', () => {
 
       const fakeTx = { data: '0x123' }
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubGetTx = sandbox.stub(Web3Utils, 'getTransaction').resolves(fakeTx as any)
+      const stubGetTx = sandbox.stub(Web3Helper, 'getTransaction').resolves(fakeTx as any)
       const stubDecodeTx = sandbox.stub(MetadataHandler, 'decodeTransaction').returns(fakeDecodedTx as any)
-      const stubExtractMetadata = sandbox.stub(MetadataHandler, 'extractMetadataUri').returns(fakeUri)
+      const stubExtractMetadata = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(fakeUri)
       const stubFetchMetadata = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
       const stubParseDaoMetadata = sandbox.stub(Web3Helper, 'parseDaoMetadata').returns(fakeMetadata)
       const networkName = NetworksEnum.mainnet
@@ -124,9 +123,9 @@ describe('Indexer: MetadataHandler', () => {
 
       const fakeTx = { data: '0x123' }
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubGetTx = sandbox.stub(Web3Utils, 'getTransaction').resolves(fakeTx as any)
+      const stubGetTx = sandbox.stub(Web3Helper, 'getTransaction').resolves(fakeTx as any)
       const stubDecodeTx = sandbox.stub(MetadataHandler, 'decodeTransaction').returns(fakeDecodedTx as any)
-      const stubExtractMetadata = sandbox.stub(MetadataHandler, 'extractMetadataUri').returns(fakeUri)
+      const stubExtractMetadata = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(fakeUri)
       const stubFetchMetadata = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
       const stubParseDaoMetadata = sandbox.stub(Web3Helper, 'parseProposalMetadata').returns(fakeMetadata)
       const networkName = NetworksEnum.mainnet
@@ -160,7 +159,71 @@ describe('Indexer: MetadataHandler', () => {
       expect(proposalMetadataDB.network).to.eq(NetworksEnum.mainnet)
       expect(proposalMetadataDB.fetchedMetadata).to.eq(true)
       expect(proposalMetadataDB.pluginAddress).to.eq(txLog.address)
-      expect(proposalMetadataDB.fetchedMetadata).to.eq(true)
+      expect(proposalMetadataDB.proposalId).to.eq(fakeDecodedTx.args[0])
+    })
+
+    it('should processLog with missing metadataUri', async () => {
+      const fakeMetadata = {
+        name: 'test',
+        description: 'fake-description',
+      }
+
+      const fakeEvent = {
+        args: { metadata: 'fake-metadata' },
+      }
+
+      const fakeDecodedTx = {
+        data: '0x123',
+        contract: IAragonContract.TokenVoting,
+        args: [0],
+      }
+
+      const txLog = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+
+      const fakeTx = { data: '0x123' }
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubGetTx = sandbox.stub(Web3Helper, 'getTransaction').resolves(fakeTx as any)
+      const stubDecodeTx = sandbox.stub(MetadataHandler, 'decodeTransaction').returns(fakeDecodedTx as any)
+      const stubExtractMetadata = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(null)
+      const spyFetchMetadata = sandbox.spy(IPFSModule, 'fetchMetadata')
+      const stubParseDaoMetadata = sandbox.stub(Web3Helper, 'parseProposalMetadata').returns(fakeMetadata)
+      const networkName = NetworksEnum.mainnet
+
+      await MetadataHandler.metadataSet(fakeEvent as any, txLog, networkName)
+
+      expect(stubGetTx.calledOnce).to.be.true
+      expect(stubGetTx.calledWith(txLog.transactionHash, networkName)).to.be.true
+
+      expect(stubDecodeTx.calledOnce).to.be.true
+      expect(stubDecodeTx.calledWith(fakeTx)).to.be.true
+
+      expect(stubExtractMetadata.calledOnce).to.be.true
+      expect(stubExtractMetadata.calledWith(fakeEvent.args.metadata)).to.be.true
+
+      expect(spyFetchMetadata.calledOnce).to.be.true
+      expect(spyFetchMetadata.args[0][0]).to.eq(null)
+
+      expect(stubParseDaoMetadata.calledOnce).to.be.true
+      expect(stubParseDaoMetadata.calledWith(null as any)).to.be.true
+
+      expect(stubLogger.calledOnce).to.be.true
+
+      const proposalMetadataDB = await Models.LogProposalMetadata.findExistingLog(
+        txLog.transactionHash,
+        txLog.address,
+        fakeDecodedTx.args[0],
+      )
+      expect(proposalMetadataDB.transactionHash).to.eq(txLog.transactionHash)
+      expect(proposalMetadataDB.blockNumber).to.eq(txLog.blockNumber)
+      expect(proposalMetadataDB.network).to.eq(NetworksEnum.mainnet)
+      expect(proposalMetadataDB.fetchedMetadata).to.eq(false)
+      expect(proposalMetadataDB.pluginAddress).to.eq(txLog.address)
       expect(proposalMetadataDB.proposalId).to.eq(fakeDecodedTx.args[0])
     })
 
@@ -192,9 +255,9 @@ describe('Indexer: MetadataHandler', () => {
 
       const fakeTx = { data: '0x123' }
       const stubLogger = sandbox.stub(logger, 'error')
-      const stubGetTx = sandbox.stub(Web3Utils, 'getTransaction').resolves(fakeTx as any)
+      const stubGetTx = sandbox.stub(Web3Helper, 'getTransaction').resolves(fakeTx as any)
       const stubDecodeTx = sandbox.stub(MetadataHandler, 'decodeTransaction').returns(fakeDecodedTx as any)
-      const stubExtractMetadata = sandbox.stub(MetadataHandler, 'extractMetadataUri').returns(fakeUri)
+      const stubExtractMetadata = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(fakeUri)
       const stubFetchMetadata = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
       const networkName = NetworksEnum.mainnet
 
@@ -231,7 +294,7 @@ describe('Indexer: MetadataHandler', () => {
         blockNumber: 1,
       }
 
-      const stubGetTx = sandbox.stub(Web3Utils, 'getTransaction').resolves(null as any)
+      const stubGetTx = sandbox.stub(Web3Helper, 'getTransaction').resolves(null as any)
       const stubDecodeTx = sandbox.stub(MetadataHandler, 'decodeTransaction').resolves()
       const networkName = NetworksEnum.mainnet
 
@@ -256,7 +319,7 @@ describe('Indexer: MetadataHandler', () => {
 
       const fakeTx = { data: '0x123' }
       const stubLogger = sandbox.stub(logger, 'error')
-      const stubGetTx = sandbox.stub(Web3Utils, 'getTransaction').resolves(fakeTx as any)
+      const stubGetTx = sandbox.stub(Web3Helper, 'getTransaction').resolves(fakeTx as any)
       const stubDecodeTx = sandbox.stub(MetadataHandler, 'decodeTransaction').returns(null as any)
       const networkName = NetworksEnum.mainnet
 
@@ -319,19 +382,6 @@ describe('Indexer: MetadataHandler', () => {
       const result = MetadataHandler.decodeTransaction(fakeTransaction)
       expect(result).to.be.null
       expect(stubLogger.calledWith('Metadata not supported' as any)).to.be.true
-    })
-  })
-
-  describe('extractMetadataUri', () => {
-    it('should correctly convert hex string to UTF-8 string', function () {
-      const metadataHex = '0x68656c6c6f'
-      const result = MetadataHandler.extractMetadataUri(metadataHex)
-      expect(result).to.equal('hello')
-    })
-
-    it('should handle empty hex strings', function () {
-      const result = MetadataHandler.extractMetadataUri('0x')
-      expect(result).to.equal('')
     })
   })
 })

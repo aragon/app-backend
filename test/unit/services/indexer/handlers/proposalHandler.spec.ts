@@ -266,7 +266,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(newProposal.voteEvents[0].proposalId).to.eq(Number(fakeEvent.args.proposalId))
       expect(newProposal.voteEvents[0].memberAddress).to.eq(fakeEvent.args.voter)
       expect(newProposal.voteEvents[0].voteOption).to.eq(Number(fakeEvent.args.voteOption))
-      expect(newProposal.voteEvents[0].votingPower).to.eq(Number(fakeEvent.args.votingPower))
+      expect(newProposal.voteEvents[0].votingPower).to.eq(fakeEvent.args.votingPower.toString())
     })
 
     it('voteCast error proposal not found', async () => {

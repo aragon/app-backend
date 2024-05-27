@@ -44,13 +44,13 @@ export default class LogMember extends Model {
   public tokenAddress!: HexAddress
 
   @prop({ type: () => String })
-  public fromDelegate!: string
+  public fromDelegate!: HexAddress
 
   @prop({ type: () => String })
-  public toDelegate!: string
+  public toDelegate!: HexAddress
 
   @prop({ type: () => String })
-  public delegatingMember!: string
+  public delegatingMember!: HexAddress
 
   @prop({ type: () => String })
   public previousVotingPower!: string

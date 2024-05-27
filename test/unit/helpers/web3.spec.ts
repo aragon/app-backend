@@ -3,11 +3,11 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Web3Helper from '@helpers/web3'
 import { ITransactionType, NetworksEnum } from '@types'
-import { Interface, id, AbiCoder } from 'ethers'
+import { AbiCoder, getAddress, id, Interface } from 'ethers'
 import { ConfigState } from '@state/configState'
 import Logger from '@logger'
-import proxyquire from 'proxyquire'
 import logger from '@logger'
+import proxyquire from 'proxyquire'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -76,6 +76,14 @@ describe('Helpers:Web3', () => {
     it('should have correct ERC1155_safeBatchTransferFrom', () => {
       expect(Web3Helper.ERC1155_safeBatchTransferFrom).to.equal('0x2eb2c2d6')
     })
+  })
+
+  it('should format address correctly by removing leading zeros', () => {
+    const mockAddress = '0x0000000000a6379f8c30e6544866d9dbb2df6800fc2dbe3899'
+    const expectedFormattedAddress = '0xa6379F8c30e6544866d9DBB2dF6800FC2DbE3899'
+
+    const formattedAddress = Web3Helper.formatAddress(mockAddress)
+    expect(formattedAddress).to.eq(expectedFormattedAddress)
   })
 
   describe('getERC20TransferABI', () => {
@@ -529,6 +537,183 @@ describe('Helpers:Web3', () => {
     it('should handle empty hex strings', function () {
       const result = Web3Helper.extractMetadataUri('0x')
       expect(result).to.equal('')
+    })
+
+    it('should handle error in hex strings', function () {
+      const loggerError = sandbox.stub(Logger, 'error')
+      const result = Web3Helper.extractMetadataUri(undefined as any)
+      expect(result).to.equal(null)
+      expect(loggerError.calledOnceWith('Error extractMetadataUri' as any)).to.be.true
+    })
+  })
+
+  describe('getImplementationAddress', () => {
+    it('should return the EIP-1967 implementation address if available', async () => {
+      const resolveName = sandbox.stub().resolves('0x000001')
+      const hexAddress = '1234567890123456789012345678901234567890'
+      const storageResponse = `0x000000000000000000000000${hexAddress}`
+      const expectedAddress = `0x${hexAddress}`
+
+      const getStorageStub = sandbox
+        .stub()
+        .withArgs('0xProxyAddress', '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc')
+        .resolves(storageResponse)
+
+      const providerStub = {
+        resolveName,
+        getStorage: getStorageStub,
+      }
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+
+      const result = await Web3Helper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
+
+      expect(result).to.equal(expectedAddress)
+    })
+
+    it('should return the EIP-1822 implementation address if EIP-1967 slot is empty', async () => {
+      const hexAddress = 'cdefabcdefabcdefabcdefabcdefabcdefabcdef'
+      const storageResponseEIP1967 = '0x0000000000000000000000000000000000000000000000000000000000000000'
+      const storageResponseEIP1822 = `0x000000000000000000000000${hexAddress}`
+      const expectedAddress = `0x${hexAddress}`
+
+      const getStorageStub = sandbox.stub()
+      // First call for EIP-1967 slot returns zero address
+      getStorageStub
+        .withArgs('0xProxyAddress', '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc')
+        .resolves(storageResponseEIP1967)
+      // Second call for EIP-1822 slot returns a valid address
+      getStorageStub
+        .withArgs('0xProxyAddress', '0x42d586d25e59d1ce8e4b4ec91f5fd8e1f6f967dffede5fd0d7fdbb417a6c4a8e')
+        .resolves(storageResponseEIP1822)
+
+      const providerStub = {
+        getStorage: getStorageStub,
+      }
+
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+
+      const result = await Web3Helper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
+
+      expect(getStorageStub.calledTwice).to.be.true
+      expect(result).to.equal(getAddress(expectedAddress))
+    })
+
+    it('should return the contract implementation if both EIP-1967 and EIP-1822 slots are empty', async () => {
+      const getStorageStub = sandbox.stub()
+      getStorageStub.onFirstCall().resolves('0x0000000000000000000000000000000000000000000000000000000000000000') // EIP-1967 slot
+      getStorageStub.onSecondCall().resolves('0x0000000000000000000000000000000000000000000000000000000000000000') // EIP-1822 slot
+      const resolveName = sandbox.stub().resolves('0x000001')
+      const providerStub = {
+        resolveName,
+        getStorage: getStorageStub,
+      }
+
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns(providerStub),
+      }
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              implementation: sandbox.stub().resolves('0x0'),
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
+
+      expect(getStorageStub.calledTwice).to.be.true
+      expect(getStorageStub.firstCall.returnValue.then((r: any) => r)).to.eventually.equal(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+      expect(getStorageStub.secondCall.returnValue.then((r: any) => r)).to.eventually.equal(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+      expect(result).to.eq('0x0')
+    })
+
+    it('should return the contract getImplementation if implementation, both EIP-1967 and EIP-1822 slots are empty', async () => {
+      const getStorageStub = sandbox.stub()
+      getStorageStub.onFirstCall().resolves('0x0000000000000000000000000000000000000000000000000000000000000000') // EIP-1967 slot
+      getStorageStub.onSecondCall().resolves('0x0000000000000000000000000000000000000000000000000000000000000000') // EIP-1822 slot
+      const resolveName = sandbox.stub().resolves('0x000001')
+      const providerStub = {
+        resolveName,
+        getStorage: getStorageStub,
+      }
+
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns(providerStub),
+      }
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              implementation: sandbox.stub().rejects(new Error('Method not found')),
+              getImplementation: sandbox.stub().resolves('0x0'),
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
+
+      expect(getStorageStub.calledTwice).to.be.true
+      expect(getStorageStub.firstCall.returnValue.then((r: any) => r)).to.eventually.equal(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+      expect(getStorageStub.secondCall.returnValue.then((r: any) => r)).to.eventually.equal(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+      expect(result).to.eq('0x0')
+    })
+
+    it('should return null if both EIP-1967 and EIP-1822 slots are empty and no other methods succeed', async () => {
+      const stubLogger = sandbox.stub(logger, 'error')
+      const getStorageStub = sandbox.stub()
+      getStorageStub.onFirstCall().resolves('0x0000000000000000000000000000000000000000000000000000000000000000') // EIP-1967 slot
+      getStorageStub.onSecondCall().rejects(new Error('Method not found'))
+      const resolveName = sandbox.stub().resolves('0x000001')
+      const providerStub = {
+        resolveName,
+        getStorage: getStorageStub,
+      }
+
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns(providerStub),
+      }
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              implementation: sandbox.stub().rejects(new Error('Method not found')),
+              getImplementation: sandbox.stub().rejects(new Error('Method not found')),
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
+
+      expect(getStorageStub.calledTwice).to.be.true
+      expect(getStorageStub.firstCall.returnValue.then((r: any) => r)).to.eventually.equal(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+      expect(getStorageStub.secondCall.returnValue.then((r: any) => r)).to.eventually.equal(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+      expect(result).to.be.null
+      expect(stubLogger.calledOnce).to.be.true
     })
   })
 

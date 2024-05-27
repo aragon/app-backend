@@ -31,7 +31,7 @@ describe('Model: LogTransaction', () => {
       type: ITransactionType.deposit,
       from: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       to: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-      amount: 100,
+      amount: '100',
       tokenAddress: '0x0000000000000000000000000000000000000000',
       tokenId: '1',
       reference: 'test-reference',
