@@ -78,6 +78,14 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  it('should format address correctly by removing leading zeros', () => {
+    const mockAddress = '0x0000000000a6379f8c30e6544866d9dbb2df6800fc2dbe3899'
+    const expectedFormattedAddress = '0xa6379F8c30e6544866d9DBB2dF6800FC2DbE3899'
+
+    const formattedAddress = Web3Helper.formatAddress(mockAddress)
+    expect(formattedAddress).to.eq(expectedFormattedAddress)
+  })
+
   describe('getERC20TransferABI', () => {
     it('should return correct ABI for ERC20_transfer', () => {
       const result = Web3Helper.getERC20TransferABI(Web3Helper.ERC20_transfer)
@@ -529,6 +537,13 @@ describe('Helpers:Web3', () => {
     it('should handle empty hex strings', function () {
       const result = Web3Helper.extractMetadataUri('0x')
       expect(result).to.equal('')
+    })
+
+    it('should handle error in hex strings', function () {
+      const loggerError = sandbox.stub(Logger, 'error')
+      const result = Web3Helper.extractMetadataUri(undefined as any)
+      expect(result).to.equal(null)
+      expect(loggerError.calledOnceWith('Error extractMetadataUri' as any)).to.be.true
     })
   })
 

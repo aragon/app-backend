@@ -18,7 +18,7 @@ import {
 import type { TypedDocumentNode } from '@graphql-typed-document-node/core'
 import dayjs from '@helpers/dayjs'
 import utils from '@helpers/utils'
-import Web3Utils from '@helpers/web3'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:SatsumaHelper' })
 
@@ -34,8 +34,7 @@ const SatsumaHelper = {
 
   _rpCall: async <T>(network: NetworksEnum, query: TypedDocumentNode, params: SubgraphQueryParam | any): Promise<T> => {
     try {
-      const response: T = await SatsumaHelper.graphRequest<T>(SatsumaHelper.subgraphUrls[network], query, params)
-      return response
+      return await SatsumaHelper.graphRequest<T>(SatsumaHelper.subgraphUrls[network], query, params)
     } catch (error) {
       logger.error('Error in SatsumaHelper RPC Call', llo({ network, error, params, query }))
       throw error
@@ -264,11 +263,11 @@ const SatsumaHelper = {
       name: null,
       permalink: null,
       links: [],
-      creatorAddress: Web3Utils.parseAddress(dao.creator, {
+      creatorAddress: Web3Helper.parseAddress(dao.creator, {
         ...dao,
         service: 'satsuma',
       })!,
-      daoAddress: Web3Utils.parseAddress(dao.id, {
+      daoAddress: Web3Helper.parseAddress(dao.id, {
         ...dao,
         service: 'satsuma',
       })!,
