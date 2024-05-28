@@ -8,7 +8,7 @@ import { ITokenType, NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 
-describe.only('Model/Utils: indexer', () => {
+describe('Model/Utils: indexer', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
