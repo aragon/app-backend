@@ -41,7 +41,7 @@ export default class Plugin extends Model {
   @prop({ type: () => String, required: true })
   public address!: HexAddress
 
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, default: null })
   public implementationAddress!: HexAddress
 
   @prop({ type: () => String, required: true })
