@@ -14,6 +14,7 @@ import type LogTransaction from '@models/schema/logTransaction'
 import type LogMember from '@models/schema/logMember'
 import type Aggregator from '@models/schema/aggregator'
 import type Member from '@models/schema/member'
+import type Plugin from '@models/schema/plugin'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
@@ -30,6 +31,7 @@ export interface IMongoModel {
   LogMember: Model<InstanceType<typeof LogMember>>
   Aggregator: Model<InstanceType<typeof Aggregator>>
   Member: Model<InstanceType<typeof Member>>
+  Plugin: Model<InstanceType<typeof Plugin>>
 }
 
 export enum AggregatorTypeEnum {
