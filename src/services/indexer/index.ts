@@ -8,7 +8,7 @@ import { LogMember } from '@services/indexer/logMember'
 import { LogDao } from '@services/indexer/logDao'
 import { LogProposal } from '@services/indexer/logProposal'
 import { AggregatorPlugin } from '@services/indexer/aggregator/plugin'
-import { AggregatorMembers } from '@services/indexer/aggregator/members'
+import { AggregatorMembers } from '@services/indexer/aggregator/member'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
 

@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { AggregatorMembers } from '@services/indexer/handlers/aggregator/member'
+import { AggregatorMembers } from '@services/indexer/aggregator/member'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { UtilsIndexer } from '@models/utils/indexer'
