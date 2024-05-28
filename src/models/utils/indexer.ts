@@ -1,7 +1,7 @@
 import type BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Network from '@models/schema/network'
 import DbTx from '@modules/dbTx'
-import DBCrawler from "@models/utils/crawler";
+import type DBCrawler from '@models/utils/crawler'
 
 export const UtilsIndexer = {
   saveSync: async (crawler: BlockchainLogCrawler, networkDb: Network, property: string) => {
@@ -19,10 +19,10 @@ export const UtilsIndexer = {
     }
   },
 
-  saveAggregationSync: async (crawler: DBCrawler, networkDb: Network, property: string) => {
-    if (crawler.crawlResult.nbError === 0 && crawler?.crawlResult && crawler?.crawlResult?.lastCreatedAt) {
+  saveAggregationSync: async (crawler: DBCrawler, aggregatorDb: Network, property: string) => {
+    if (crawler?.crawlResult?.nbError === 0 && crawler?.crawlResult?.lastCreatedAt) {
       await DbTx.executeTxFn(async ({ session }) => {
-        await networkDb.update(
+        await aggregatorDb.update(
           {
             [property]: crawler.crawlResult.lastCreatedAt,
           },

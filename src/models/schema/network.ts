@@ -55,6 +55,9 @@ export default class Network extends Model {
   @prop({ type: () => Number, default: 0 })
   public lastBlockPluginSetting!: number
 
+  @prop({ type: () => Number, default: 0 })
+  public lastBlockMember!: number
+
   static NETWORKS = Utils.enumToObject(NetworksEnum)
   static STATUS_NETWORKS = Utils.enumToObject(StatusNetworkEnum)
 

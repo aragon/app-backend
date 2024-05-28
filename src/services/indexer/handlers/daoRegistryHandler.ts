@@ -8,7 +8,7 @@ import { PluginSetupProcessorHandler } from '@services/indexer/handlers/pluginSe
 import { Multisig } from '@artifacts/Multisig'
 import { MemberHandler } from '@services/indexer/handlers/memberHandler'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import Web3Utils from '@helpers/web3'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
 
@@ -62,7 +62,7 @@ export const DaoRegistryHandler = {
    */
 
   initiateNewDaoCreation: async (transactionHash: HexAddress, network: NetworksEnum) => {
-    const allLogs = await Web3Utils.getTransactionReceipt(transactionHash, network)
+    const allLogs = await Web3Helper.getTransactionReceipt(transactionHash, network)
     if (!allLogs) {
       return
     }
@@ -79,7 +79,7 @@ export const DaoRegistryHandler = {
   },
 
   _pluginSetup: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
-    const pluginSetupLogs = Web3Utils.findLogsByName(
+    const pluginSetupLogs = Web3Helper.findLogsByName(
       txReceipt,
       IEventLogPluginType.InstallationPrepared,
       PluginSetupProcessor.abi,
@@ -98,10 +98,10 @@ export const DaoRegistryHandler = {
   },
 
   _memberAdded: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
-    const memberAddedLogs = Web3Utils.findLogsByName(txReceipt, IEventLogMember.MembersAdded, Multisig.abi)
+    const memberAddedLogs = Web3Helper.findLogsByName(txReceipt, IEventLogMember.MembersAdded, Multisig.abi)
 
     if (memberAddedLogs.length === 0) {
-      const delegationChangedLogs = Web3Utils.findLogsByName(
+      const delegationChangedLogs = Web3Helper.findLogsByName(
         txReceipt,
         IEventLogMember.DelegateChanged,
         GovernanceERC20.abi,

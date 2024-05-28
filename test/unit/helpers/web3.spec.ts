@@ -3,11 +3,10 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Web3Helper from '@helpers/web3'
 import { ITransactionType, NetworksEnum } from '@types'
-import { Interface, id, AbiCoder } from 'ethers'
+import { AbiCoder, id, Interface } from 'ethers'
 import { ConfigState } from '@state/configState'
 import Logger from '@logger'
 import proxyquire from 'proxyquire'
-import logger from '@logger'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -78,6 +77,14 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  it('should format address correctly by removing leading zeros', () => {
+    const mockAddress = '0x0000000000a6379f8c30e6544866d9dbb2df6800fc2dbe3899'
+    const expectedFormattedAddress = '0xa6379F8c30e6544866d9DBB2dF6800FC2DbE3899'
+
+    const formattedAddress = Web3Helper.formatAddress(mockAddress)
+    expect(formattedAddress).to.eq(expectedFormattedAddress)
+  })
+
   describe('getERC20TransferABI', () => {
     it('should return correct ABI for ERC20_transfer', () => {
       const result = Web3Helper.getERC20TransferABI(Web3Helper.ERC20_transfer)
@@ -112,7 +119,7 @@ describe('Helpers:Web3', () => {
     })
 
     it('should return null for unsupported function selector', () => {
-      const loggerStub = sandbox.stub(logger, 'error')
+      const loggerStub = sandbox.stub(Logger, 'error')
       const result = Web3Helper.getERC721TransferABI('0xunsupported')
       expect(result).to.be.null
       expect(loggerStub.calledOnce).to.be.true
@@ -132,7 +139,7 @@ describe('Helpers:Web3', () => {
     })
 
     it('should return null for unsupported function selector', () => {
-      const loggerStub = sandbox.stub(logger, 'error')
+      const loggerStub = sandbox.stub(Logger, 'error')
       const result = Web3Helper.getERC1155TransferABI('0xunsupported')
       expect(result).to.be.null
       expect(loggerStub.calledOnce).to.be.true
@@ -469,7 +476,7 @@ describe('Helpers:Web3', () => {
     })
 
     it('should return an empty array if eventTopicHash not found', () => {
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'error')
       const txReceipt: any = {
         to: '',
         from: '',
@@ -494,7 +501,7 @@ describe('Helpers:Web3', () => {
     })
 
     it('should return an empty array and log an error if an exception occurs', () => {
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'error')
       const txReceipt: any = {
         to: '',
         from: '',
@@ -529,6 +536,13 @@ describe('Helpers:Web3', () => {
     it('should handle empty hex strings', function () {
       const result = Web3Helper.extractMetadataUri('0x')
       expect(result).to.equal('')
+    })
+
+    it('should handle error in hex strings', function () {
+      const loggerError = sandbox.stub(Logger, 'error')
+      const result = Web3Helper.extractMetadataUri(undefined as any)
+      expect(result).to.equal(null)
+      expect(loggerError.calledOnceWith('Error extractMetadataUri' as any)).to.be.true
     })
   })
 
@@ -886,73 +900,6 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('Web3Helper getERC20Info', () => {
-    it('should return token info', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubName = sandbox.stub().resolves('Test Token')
-      const stubSymbol = sandbox.stub().resolves('TST')
-      const stubDecimals = sandbox.stub().resolves(18n)
-
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getERC20Info('0xTokenAddress', NetworksEnum.mainnet)
-
-      expect(result).to.deep.equal({
-        address: '0xTokenAddress',
-        name: 'Test Token',
-        symbol: 'TST',
-        decimals: 18,
-      })
-
-      expect(stubName.calledOnce).to.be.true
-      expect(stubSymbol.calledOnce).to.be.true
-      expect(stubDecimals.calledOnce).to.be.true
-    })
-
-    it('should fails return token info', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubName = sandbox.stub().rejects(new Error('Test Error'))
-      const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
-      const stubDecimals = sandbox.stub().rejects(new Error('Test Error'))
-      const stubLogger = sandbox.stub(logger, 'error')
-
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getERC20Info('0xTokenAddress', NetworksEnum.mainnet)
-
-      expect(result).to.deep.equal({
-        address: '0xTokenAddress',
-      })
-
-      expect(stubName.calledOnce).to.be.true
-      expect(stubSymbol.calledOnce).to.be.true
-      expect(stubDecimals.calledOnce).to.be.true
-      expect(stubLogger.calledThrice).to.be.true
-    })
-  })
-
   describe('getERC20Info', () => {
     it('should return token info', async () => {
       const stubConfigState = {
@@ -961,11 +908,12 @@ describe('Helpers:Web3', () => {
       const stubName = sandbox.stub().resolves('Test Token')
       const stubSymbol = sandbox.stub().resolves('TST')
       const stubDecimals = sandbox.stub().resolves(18n)
+      const stubTotalSupply = sandbox.stub().resolves(200n)
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {
-            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals }
+            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals, totalSupply: stubTotalSupply }
           },
         },
         '@state/configState': {
@@ -980,11 +928,13 @@ describe('Helpers:Web3', () => {
         name: 'Test Token',
         symbol: 'TST',
         decimals: 18,
+        totalSupply: 200,
       })
 
       expect(stubName.calledOnce).to.be.true
       expect(stubSymbol.calledOnce).to.be.true
       expect(stubDecimals.calledOnce).to.be.true
+      expect(stubTotalSupply.calledOnce).to.be.true
     })
 
     it('should fails return token info', async () => {
@@ -994,12 +944,13 @@ describe('Helpers:Web3', () => {
       const stubName = sandbox.stub().rejects(new Error('Test Error'))
       const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
       const stubDecimals = sandbox.stub().rejects(new Error('Test Error'))
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubTotalSupply = sandbox.stub().rejects(new Error('Test Error'))
+      const stubLogger = sandbox.stub(Logger, 'error')
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {
-            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals }
+            return { name: stubName, symbol: stubSymbol, decimals: stubDecimals, totalSupply: stubTotalSupply }
           },
         },
         '@state/configState': {
@@ -1016,7 +967,8 @@ describe('Helpers:Web3', () => {
       expect(stubName.calledOnce).to.be.true
       expect(stubSymbol.calledOnce).to.be.true
       expect(stubDecimals.calledOnce).to.be.true
-      expect(stubLogger.calledThrice).to.be.true
+      expect(stubTotalSupply.calledOnce).to.be.true
+      expect(stubLogger.callCount).to.eq(4)
     })
   })
 
@@ -1057,7 +1009,7 @@ describe('Helpers:Web3', () => {
       }
       const stubName = sandbox.stub().rejects(new Error('Test Error'))
       const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'error')
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
@@ -1119,7 +1071,7 @@ describe('Helpers:Web3', () => {
       }
       const stubName = sandbox.stub().rejects(new Error('Test Error'))
       const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'error')
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
