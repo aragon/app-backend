@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import {HexAddress, IPluginType, NetworksEnum} from '@types'
+import { HexAddress, IPluginType, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -62,11 +62,14 @@ export default class Plugin extends Model {
   @prop({ type: () => String, default: null })
   public build!: string
 
+  @prop({ type: () => String, default: null })
+  public subdomain!: string
+
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.entityId) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.type, 'type is required')
-      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.type as any, rawData?.network as NetworksEnum)
+      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.type as any, rawData?.network!)
     }
     const data = new this(rawData)
     return await data.save(tOpts)
@@ -77,7 +80,12 @@ export default class Plugin extends Model {
     return entityId
   }
 
-  static async findExistingLog(transactionHash: HexAddress, type: IPluginType, network: NetworksEnum, tOpts?: SaveOptions) {
+  static async findExistingLog(
+    transactionHash: HexAddress,
+    type: IPluginType,
+    network: NetworksEnum,
+    tOpts?: SaveOptions,
+  ) {
     const entityId = this.getEntityId(transactionHash, type, network)
     return await this.findByEntityId(entityId, tOpts)
   }

@@ -9,8 +9,8 @@ import { LogDao } from '@services/indexer/logDao'
 import { LogProposal } from '@services/indexer/logProposal'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
-import {AggregatorPlugin} from '@services/indexer/aggregator/plugin';
-import {InitialData} from "../../../initialData";
+import { AggregatorPlugin } from '@services/indexer/aggregator/plugin'
+import { InitialData } from '../../../initialData'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -21,14 +21,14 @@ const IndexerService: IService = {
     logger.info('IndexerService service sync start', llo({}))
 
     const task1 = [
-      async () => LogPluginRepoRegistry.start(),
-      async () => LogDaoRegistry.start()
+      // async () => LogPluginRepoRegistry.start(),
+      // async () => LogDaoRegistry.start()
     ]
     const task2 = [
-      async () => LogPluginSetupProcessor.start(), async () => LogPluginSetting.start()
+      // async () => LogPluginSetupProcessor.start(), async () => LogPluginSetting.start()
     ]
     const task3 = [
-      // async () => LogMember.start(),
+      async () => LogMember.start(),
       // async () => LogProposal.start(),
       // async () => LogDao.start(),
     ]

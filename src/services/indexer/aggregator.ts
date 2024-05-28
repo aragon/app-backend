@@ -1,12 +1,8 @@
 import logger from '@logger'
-import {EnumConnection} from '@types'
+import { type EnumConnection } from '@types'
 
-const llo = logger.logMeta.bind(null, {service: 'service:indexer:Aggregator'})
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:Aggregator' })
 
 export const Aggregator = {
-
-  start: async (network: EnumConnection) => {
-
-  }
-
+  start: async (network: EnumConnection) => {},
 }
