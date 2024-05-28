@@ -13,7 +13,7 @@ import { EnumConnection } from '@types'
 import logger from '@logger'
 import { LogPluginSetting } from '@services/indexer/logPluginSetting'
 import { LogMember } from '@services/indexer/logMember'
-import { AggregatorMembers } from '@services/indexer/aggregator/members'
+import { AggregatorMembers } from '@services/indexer/aggregator/member'
 import { AggregatorPlugin } from '@services/indexer/aggregator/plugin'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 
