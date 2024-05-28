@@ -111,7 +111,7 @@ describe.only('Model/Utils: indexer', () => {
       expect(result).to.equal(existingToken)
     })
 
-    it.only('should detect token type and create new token if not found', async () => {
+    it('should detect token type and create new token if not found', async () => {
       const stubFind = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(null)
       const stubDetectTokenType = sandbox
         .stub(TokenDetector, 'detectTokenType')
