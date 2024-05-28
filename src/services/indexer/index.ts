@@ -9,6 +9,7 @@ import { LogDao } from '@services/indexer/logDao'
 import { LogProposal } from '@services/indexer/logProposal'
 import { AggregatorPlugin } from '@services/indexer/aggregator/plugin'
 import { AggregatorMembers } from '@services/indexer/aggregator/member'
+import { AggregatorSetting } from '@services/indexer/aggregator/setting'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
 
@@ -23,7 +24,11 @@ const IndexerService: IService = {
     const task1 = [async () => LogPluginRepoRegistry.start(), async () => LogDaoRegistry.start()]
     const task2 = [async () => LogPluginSetupProcessor.start(), async () => LogPluginSetting.start()]
     const task3 = [async () => LogMember.start(), async () => LogDao.start(), async () => LogProposal.start()]
-    const task4 = [async () => AggregatorPlugin.start(), async () => AggregatorMembers.start()]
+    const task4 = [
+      async () => AggregatorPlugin.start(),
+      async () => AggregatorMembers.start(),
+      async () => AggregatorSetting.start(),
+    ]
 
     const taskOptions = {
       fn: () => [task1, task2, task3, task4],
