@@ -9,6 +9,7 @@ import { Models } from '@dbModels'
 import { TransactionActionHandler } from '@services/indexer/handlers/transactionActionHandler'
 import Web3Helper from '@helpers/web3'
 import { ERC1155 } from '@artifacts/ERC1155'
+import { UtilsIndexer } from '@models/utils/indexer'
 
 describe('Indexer: DaoHandler', () => {
   let sandbox: SinonSandbox
@@ -37,6 +38,7 @@ describe('Indexer: DaoHandler', () => {
         },
       }
 
+      const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves()
       const findTxHashSpy = sandbox.spy(Models.LogTransaction, 'findExistingLog')
       const stubLogger = sandbox.stub(logger, 'verbose')
 
@@ -45,6 +47,7 @@ describe('Indexer: DaoHandler', () => {
       expect(findTxHashSpy.calledOnce).to.be.true
       expect(findTxHashSpy.calledWith(txLog.transactionHash, ITransactionType.deposit, 0)).to.be.true
       expect(stubLogger.calledOnce).to.be.true
+      expect(stubToken.calledOnce).to.be.true
 
       const savedDaoLog = await Models.LogTransaction.findExistingLog(
         txLog.transactionHash,
@@ -104,6 +107,7 @@ describe('Indexer: DaoHandler', () => {
         ],
       }
 
+      const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves()
       const stubExtraData = sandbox.stub(Web3Helper, 'getDataFromTxReceipt').resolves(extraData as any)
       const findTxHashSpy = sandbox.spy(Models.LogTransaction, 'findExistingLog')
       const stubLogger = sandbox.stub(logger, 'verbose')
@@ -112,6 +116,7 @@ describe('Indexer: DaoHandler', () => {
 
       expect(findTxHashSpy.calledOnce).to.be.true
       expect(findTxHashSpy.calledWith(txLog.transactionHash, ITransactionType.deposit, 0)).to.be.true
+      expect(stubToken.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(
         stubExtraData.calledOnceWith({
@@ -181,6 +186,7 @@ describe('Indexer: DaoHandler', () => {
         ],
       }
 
+      const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves()
       const stubExtraData = sandbox.stub(Web3Helper, 'getDataFromTxReceipt').resolves(extraData as any)
       const findTxHashSpy = sandbox.spy(Models.LogTransaction, 'findExistingLog')
       const stubLogger = sandbox.stub(logger, 'verbose')
@@ -189,6 +195,7 @@ describe('Indexer: DaoHandler', () => {
 
       expect(findTxHashSpy.calledOnce).to.be.true
       expect(findTxHashSpy.calledWith(txLog.transactionHash, ITransactionType.deposit, 0)).to.be.true
+      expect(stubToken.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(
         stubExtraData.calledOnceWith({
@@ -293,6 +300,7 @@ describe('Indexer: DaoHandler', () => {
         },
       }
 
+      const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves()
       const findTxHashSpy = sandbox.spy(Models.LogTransaction, 'findExistingLog')
       const stubLogger = sandbox.stub(logger, 'verbose')
 
@@ -300,6 +308,7 @@ describe('Indexer: DaoHandler', () => {
 
       expect(findTxHashSpy.calledOnce).to.be.true
       expect(findTxHashSpy.calledWith(txLog.transactionHash, ITransactionType.deposit, 0)).to.be.true
+      expect(stubToken.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
 
       const savedDaoLog = await Models.LogTransaction.findExistingLog(
@@ -360,7 +369,7 @@ describe('Indexer: DaoHandler', () => {
         blockNumber: 1,
       }
 
-      const stubGetErc20Info = sandbox.stub(Web3Helper, 'getERC20Info').resolves({
+      const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
         decimals: 18,
       } as any)
 
@@ -409,7 +418,7 @@ describe('Indexer: DaoHandler', () => {
 
       await DaoHandler.executed(fakeEvent as any, txLog, network)
 
-      expect(stubGetErc20Info.calledOnce).to.be.true
+      expect(stubToken.callCount).to.eq(3)
       expect(stubNativeToken.calledOnce).to.be.true
       expect(stubErc20Token.calledOnce).to.be.true
       expect(stubErc721Token.calledOnce).to.be.true
@@ -429,7 +438,7 @@ describe('Indexer: DaoHandler', () => {
         blockNumber: 1,
       }
 
-      const stubGetErc20Info = sandbox.stub(Web3Helper, 'getERC20Info').resolves({
+      const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
         name: 'test',
       } as any)
 
@@ -478,7 +487,7 @@ describe('Indexer: DaoHandler', () => {
 
       await DaoHandler.executed(fakeEvent as any, txLog, network)
 
-      expect(stubGetErc20Info.calledOnce).to.be.true
+      expect(stubToken.callCount).to.eq(3)
       expect(stubNativeToken.calledOnce).to.be.true
       expect(stubErc20Token.notCalled).to.be.true
       expect(stubErc721Token.calledTwice).to.be.true
