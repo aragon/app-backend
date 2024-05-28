@@ -14,7 +14,7 @@ import type LogTransaction from '@models/schema/logTransaction'
 import type LogMember from '@models/schema/logMember'
 import type Aggregator from '@models/schema/aggregator'
 import type Member from '@models/schema/member'
-import type Plugin from "@models/schema/plugin";
+import type Plugin from '@models/schema/plugin'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
@@ -38,12 +38,6 @@ export enum AggregatorTypeEnum {
   plugin = 'plugin',
   members = 'members',
   settings = 'settings',
-}
-
-export enum IPluginType {
-  install = 'install',
-  update = 'update',
-  uninstall = 'uninstall',
 }
 
 export enum IEventLogPluginType {

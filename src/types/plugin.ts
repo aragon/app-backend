@@ -1,4 +1,10 @@
-import { type HexAddress, type IPluginType, type NetworksEnum } from '@types'
+import { type HexAddress, type NetworksEnum } from '@types'
+
+export enum IPluginType {
+  install = 'install',
+  update = 'update',
+  uninstall = 'uninstall',
+}
 
 export interface IAPlugin {
   transactionHash: string
