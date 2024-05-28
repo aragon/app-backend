@@ -16,6 +16,7 @@ import { LogMember } from '@services/indexer/logMember'
 import { AggregatorMembers } from '@services/indexer/aggregator/member'
 import { AggregatorPlugin } from '@services/indexer/aggregator/plugin'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
+import { AggregatorSetting } from '@services/indexer/aggregator/setting'
 
 describe('Indexer: index', () => {
   let sandbox: SinonSandbox
@@ -47,6 +48,7 @@ describe('Indexer: index', () => {
       sandbox.stub(LogMember, 'start').resolves(),
       sandbox.stub(AggregatorMembers, 'start').resolves(),
       sandbox.stub(AggregatorPlugin, 'start').resolves(),
+      sandbox.stub(AggregatorSetting, 'start').resolves(),
     ]
 
     await IndexerService.start()
@@ -89,6 +91,7 @@ describe('Indexer: index', () => {
       sandbox.stub(LogMember, 'start').rejects(testError),
       sandbox.stub(AggregatorMembers, 'start').rejects(testError),
       sandbox.stub(AggregatorPlugin, 'start').rejects(testError),
+      sandbox.stub(AggregatorSetting, 'start').rejects(testError),
     ]
 
     const onErrorSpy = sinon.spy((error: any) => {
@@ -119,9 +122,9 @@ describe('Indexer: index', () => {
 
     await utils.wait(200)
 
-    expect(stubLoggerError.callCount).to.eq(9)
+    expect(stubLoggerError.callCount).to.eq(10)
     expect(stubLoggerError.alwaysCalledWith('IndexerService task error' as any)).to.be.true
-    expect(onErrorSpy.callCount).to.eq(9)
+    expect(onErrorSpy.callCount).to.eq(10)
     expect(onErrorSpy.alwaysCalledWith(sinon.match.instanceOf(Error))).to.be.true
 
     await IndexerService.stop()
