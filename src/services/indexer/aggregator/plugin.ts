@@ -36,7 +36,10 @@ export const AggregatorPlugin = {
   async onDocument(document: IAPlugin) {
     const existingLog = await Models.Plugin.findExistingLog(document.transactionHash, document.type, document.network)
     if (!existingLog) {
-      document.implementationAddress = await ProxyContractHelper.getImplementationAddress(document.address, document.network)
+      document.implementationAddress = await ProxyContractHelper.getImplementationAddress(
+        document.address,
+        document.network,
+      )
 
       await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await Models.Plugin.create(document, { session })

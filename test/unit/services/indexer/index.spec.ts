@@ -13,6 +13,8 @@ import { EnumConnection } from '@types'
 import logger from '@logger'
 import { LogPluginSetting } from '@services/indexer/logPluginSetting'
 import { LogMember } from '@services/indexer/logMember'
+import { AggregatorMembers } from '@services/indexer/aggregator/members'
+import { AggregatorPlugin } from '@services/indexer/aggregator/plugin'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 
 describe('Indexer: index', () => {
@@ -43,6 +45,8 @@ describe('Indexer: index', () => {
       sandbox.stub(LogProposal, 'start').resolves(),
       sandbox.stub(LogPluginSetting, 'start').resolves(),
       sandbox.stub(LogMember, 'start').resolves(),
+      sandbox.stub(AggregatorMembers, 'start').resolves(),
+      sandbox.stub(AggregatorPlugin, 'start').resolves(),
     ]
 
     await IndexerService.start()
@@ -83,6 +87,8 @@ describe('Indexer: index', () => {
       sandbox.stub(LogProposal, 'start').rejects(testError),
       sandbox.stub(LogPluginSetting, 'start').rejects(testError),
       sandbox.stub(LogMember, 'start').rejects(testError),
+      sandbox.stub(AggregatorMembers, 'start').rejects(testError),
+      sandbox.stub(AggregatorPlugin, 'start').rejects(testError),
     ]
 
     const onErrorSpy = sinon.spy((error: any) => {
@@ -113,9 +119,9 @@ describe('Indexer: index', () => {
 
     await utils.wait(200)
 
-    expect(stubLoggerError.callCount).to.eq(7)
+    expect(stubLoggerError.callCount).to.eq(9)
     expect(stubLoggerError.alwaysCalledWith('IndexerService task error' as any)).to.be.true
-    expect(onErrorSpy.callCount).to.eq(7)
+    expect(onErrorSpy.callCount).to.eq(9)
     expect(onErrorSpy.alwaysCalledWith(sinon.match.instanceOf(Error))).to.be.true
 
     await IndexerService.stop()

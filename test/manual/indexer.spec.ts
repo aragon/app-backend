@@ -16,6 +16,7 @@ describe('Manual: Indexer', () => {
   })
 
   it('index', async function () {
+    this.timeout(1000000000000000)
     await ProviderModule.connectToAllNetworks()
     await InitialData.start()
     await LogMember.start()
