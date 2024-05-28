@@ -7,6 +7,7 @@ import { type NetworksEnum } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { DaoRegistryHandler } from '@services/indexer/handlers/daoRegistryHandler'
 import { UtilsIndexer } from '@models/utils/indexer'
+import { ConfigState } from '@state/configState'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDaoRegistry' })
 
@@ -20,8 +21,9 @@ export const LogDaoRegistry = {
         logger.verbose('Start LogDaoRegistry', llo({ networkName }))
 
         const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+        const provider = ConfigState.getInstance().getConfigItem(networkName as NetworksEnum)
 
-        if (!networkDb) {
+        if (!networkDb || !provider) {
           logger.warn('Unsupported Network', llo({ networkName }))
           return
         }
@@ -67,11 +69,11 @@ export const LogDaoRegistry = {
 
     switch (event.name) {
       case 'DAORegistered':
-        logger.verbose('DAORegistered', llo({ eventName: event.name }))
+        logger.verbose('DAORegistered', llo({ eventName: event.name, network }))
         await DaoRegistryHandler.daoRegistered(event, txLog, network)
         break
       default:
-        logger.error('Unhandled event', llo({ eventName: event.name }))
+        logger.error('Unhandled event', llo({ eventName: event.name, network }))
         break
     }
   },

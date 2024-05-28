@@ -8,7 +8,6 @@ import { UtilsIndexer } from '@models/utils/indexer'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import Logger from '@logger'
-import dayjs from '@helpers/dayjs'
 
 describe('Indexer:Aggregator:Member', () => {
   let sandbox: SinonSandbox
@@ -78,9 +77,39 @@ describe('Indexer:Aggregator:Member', () => {
     expect(member.daos[0].votingPower).to.eq(document.daos[0].votingPower)
   })
 
+  it('should update an existing aggregate member log', async () => {
+    const rawDoc = {
+      transactionHash: '0x0',
+      blockNumber: 3,
+      address: '0x123',
+      daos: [
+        {
+          network: NetworksEnum.mainnet,
+          pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+          fromBlockNumber: 1,
+          toBlockNumber: 2,
+          fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+          toTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+          delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+          delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+          votingPower: '100',
+        },
+      ],
+    }
+    const dbDoc = await Models.Member.create(rawDoc)
+    const loggerSpy = sandbox.spy(logger, 'verbose')
+
+    rawDoc.blockNumber = 4
+    await AggregatorMembers.onDocument(rawDoc)
+
+    const updatedDoc = await dbDoc.reload()
+
+    expect(updatedDoc.blockNumber).to.equal(4)
+    expect(loggerSpy.calledOnceWith('Update Aggregate Member' as any)).to.be.true
+  })
+
   it('should use default date when none is provided', () => {
-    const defaultDate = dayjs.utc('1970-01-01T00:00:00Z').toDate()
-    const pipeline = AggregatorMembers.query(defaultDate)
-    expect(pipeline[0]['$match']?.createdAt.$gte).to.deep.equal(defaultDate)
+    const pipeline = AggregatorMembers.query()
+    expect(pipeline[0]['$match']?.event.$in.length).to.eq(3)
   })
 })

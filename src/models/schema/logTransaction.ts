@@ -1,4 +1,4 @@
-import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, ITransactionType, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -17,10 +17,10 @@ const customName = 'LogTransaction'
     customName,
   },
 })
-@index({
-  blockNumber: 1,
-  transactionHash: 1,
-})
+// @index({
+//   blockNumber: 1,
+//   transactionHash: 1,
+// })
 export default class LogTransaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public entityId!: string
