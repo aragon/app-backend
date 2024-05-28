@@ -105,7 +105,7 @@ export const PluginSetupProcessorHandler = {
                 network,
                 type: tokenTypeInfo.type,
                 totalSupply: tokenInfo.totalSupply,
-                implementation: tokenTypeInfo.implementationAddress,
+                implementationAddress: tokenTypeInfo.implementationAddress,
               }
 
               const existingToken = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network)
