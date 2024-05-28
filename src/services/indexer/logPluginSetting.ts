@@ -8,6 +8,7 @@ import { PluginSettingHandler } from '@services/indexer/handlers/pluginSettingHa
 import { UtilsIndexer } from '@models/utils/indexer'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { Multisig } from '@artifacts/Multisig'
+import { ConfigState } from '@state/configState'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogPluginSetting' })
 
@@ -23,8 +24,9 @@ export const LogPluginSetting = {
         logger.verbose('Start LogPluginSetting', llo({ networkName }))
 
         const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+        const provider = ConfigState.getInstance().getConfigItem(networkName as NetworksEnum)
 
-        if (!networkDb) {
+        if (!networkDb || !provider) {
           logger.warn('Unsupported Network', llo({ networkName }))
           return
         }
@@ -84,15 +86,15 @@ export const LogPluginSetting = {
 
     switch (event.name) {
       case 'VotingSettingsUpdated':
-        logger.verbose('VotingSettingsUpdated', llo({ eventName: event.name }))
+        logger.verbose('VotingSettingsUpdated', llo({ eventName: event.name, network }))
         await PluginSettingHandler.votingSettingsUpdated(event, txLog, network)
         break
       case 'MultisigSettingsUpdated':
-        logger.verbose('MultisigSettingsUpdated', llo({ eventName: event.name }))
+        logger.verbose('MultisigSettingsUpdated', llo({ eventName: event.name, network }))
         await PluginSettingHandler.multisigSettingsUpdated(event, txLog, network)
         break
       default:
-        logger.error('Unhandled event', llo({ event }))
+        logger.error('Unhandled event', llo({ event, network }))
         break
     }
   },

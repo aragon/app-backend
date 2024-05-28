@@ -8,9 +8,11 @@ import { DaoHandler } from '@services/indexer/handlers/daoHandler'
 import { MetadataHandler } from '@services/indexer/handlers/metadataHandler'
 import { UtilsIndexer } from '@models/utils/indexer'
 import { DAO } from '@artifacts/dao'
+import { ConfigState } from '@state/configState'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDao' })
 
+// must run before daoRegistry
 export const LogDao = {
   events: ['CallbackReceived', 'Deposited', 'Executed', 'MetadataSet', 'NativeTokenDeposited', 'NewURI'],
 
@@ -21,8 +23,9 @@ export const LogDao = {
         logger.verbose('Start LogDao', llo({ networkName }))
 
         const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+        const provider = ConfigState.getInstance().getConfigItem(networkName as NetworksEnum)
 
-        if (!networkDb) {
+        if (!networkDb || !provider) {
           logger.warn('Unsupported Network', llo({ networkName }))
           return
         }
@@ -65,31 +68,31 @@ export const LogDao = {
 
     switch (event.name) {
       case 'CallbackReceived':
-        logger.verbose('CallbackReceived', llo({ eventName: event.name }))
+        logger.verbose('CallbackReceived', llo({ eventName: event.name, network }))
         await DaoHandler.callbackReceived(event, txLog, network)
         break
       case 'Deposited':
-        logger.verbose('Deposited', llo({ eventName: event.name }))
+        logger.verbose('Deposited', llo({ eventName: event.name, network }))
         await DaoHandler.deposited(event, txLog, network)
         break
       case 'Executed':
-        logger.verbose('Executed', llo({ eventName: event.name }))
+        logger.verbose('Executed', llo({ eventName: event.name, network }))
         await DaoHandler.executed(event, txLog, network)
         break
       case 'MetadataSet':
-        logger.verbose('MetadataSet', llo({ eventName: event.name }))
+        logger.verbose('MetadataSet', llo({ eventName: event.name, network }))
         await MetadataHandler.metadataSet(event, txLog, network)
         break
       case 'NativeTokenDeposited':
-        logger.verbose('NativeTokenDeposited', llo({ eventName: event.name }))
+        logger.verbose('NativeTokenDeposited', llo({ eventName: event.name, network }))
         await DaoHandler.nativeTokenDeposited(event, txLog, network)
         break
       case 'NewURI':
-        logger.verbose('NewURI', llo({ eventName: event.name }))
+        logger.verbose('NewURI', llo({ eventName: event.name, network }))
         await DaoHandler.newURI(event, txLog, network)
         break
       default:
-        logger.error('Unhandled event', llo({ event }))
+        logger.error('Unhandled event', llo({ event, network }))
         break
     }
   },

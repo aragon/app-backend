@@ -1,4 +1,4 @@
-import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { modelOptions, prop } from '@typegoose/typegoose'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { AggregatorTypeEnum } from '@types'
@@ -16,9 +16,9 @@ const customName = 'Aggregator'
     customName,
   },
 })
-@index({
-  type: 1,
-})
+// @index({
+//   type: 1,
+// })
 export default class Aggregator extends Model {
   @prop({
     type: () => String,

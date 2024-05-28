@@ -81,23 +81,23 @@ export const LogProposal = {
 
     switch (event?.name) {
       case 'ProposalCreated':
-        logger.verbose('ProposalCreated', llo({ eventName: event.name }))
+        logger.verbose('ProposalCreated', llo({ eventName: event.name, network }))
         await ProposalHandler.proposalCreated(event, txLog, network)
         break
       case 'Approved':
-        logger.verbose('Approved', llo({ eventName: event.name }))
+        logger.verbose('Approved', llo({ eventName: event.name, network }))
         await ProposalHandler.approved(event, txLog, network)
         break
       case 'ProposalExecuted':
-        logger.verbose('ProposalExecuted', llo({ eventName: event.name }))
+        logger.verbose('ProposalExecuted', llo({ eventName: event.name, network }))
         await ProposalHandler.proposalExecuted(event, txLog, network)
         break
       case 'VoteCast':
-        logger.verbose('VoteCast', llo({ eventName: event.name }))
+        logger.verbose('VoteCast', llo({ eventName: event.name, network }))
         await ProposalHandler.voteCast(event, txLog, network)
         break
       default:
-        logger.error('Unhandled event', llo({ eventName: event.name }))
+        logger.error('Unhandled event', llo({ eventName: event.name, network }))
         break
     }
   },

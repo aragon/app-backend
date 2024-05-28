@@ -89,7 +89,7 @@ describe('Module: provider', () => {
     })
 
     it('should fail connectToAllNetworks', async () => {
-      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubLoggerError = sandbox.stub(logger, 'warn')
       const stubConneect = sandbox.stub(Provider, 'connectToNetwork')
       await Provider.connectToAllNetworks()
 
