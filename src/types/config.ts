@@ -63,6 +63,10 @@ export interface IConfig {
   PROXY: string | null
   SUPPORTED_NETWORKS: INetworks[]
   DEFAULT_CURRENCY: string
+  BOTTLENECK: {
+    MAX_CONCURRENT: number
+    MIN_TIME: number
+  }
   MONGO_DB: {
     NAME: string
     URI: string

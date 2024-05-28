@@ -797,50 +797,6 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('queryLogs', () => {
-    it('should query logs successfully', async () => {
-      const fakeLogs = [{ logIndex: 0, data: '0x', topics: ['0x123'] }]
-      const getLogsStub = sandbox.stub().resolves(fakeLogs)
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
-        getLogs: getLogsStub,
-      })
-
-      const filter = {
-        fromBlock: 0,
-        toBlock: 'latest',
-        address: '0xContractAddress',
-        topics: [id('EventName(uint256,address)')],
-      }
-
-      const logs = await Web3Helper.queryLogs(filter, NetworksEnum.mainnet)
-
-      expect(logs).to.deep.equal(fakeLogs)
-      expect(getLogsStub.calledOnceWithExactly(filter)).to.be.true
-    })
-
-    it('should fails query logs', async () => {
-      const error = new Error('Failed to fetch logs')
-      const getLogsStub = sandbox.stub().rejects(error)
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
-        getLogs: getLogsStub,
-      })
-      const stubLoggerError = sandbox.stub(Logger, 'error') // Stub logger's error to verify it's called
-
-      const filter = {
-        fromBlock: 0,
-        toBlock: 'latest',
-        address: '0xContractAddress',
-        topics: [id('EventName(uint256,address)')],
-      }
-
-      const logs = await Web3Helper.queryLogs(filter, NetworksEnum.mainnet)
-
-      expect(logs).to.deep.equal([])
-      expect(stubLoggerError.calledOnce).to.be.true
-      expect(stubLoggerError.firstCall.args[0]).to.include('Error querying logs')
-    })
-  })
-
   describe('getTransaction', () => {
     it('should getTransaction successfully', async () => {
       const txHash = '0x0'

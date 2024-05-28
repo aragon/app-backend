@@ -6,7 +6,7 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { UtilsIndexer } from '@models/utils/indexer'
 import logger from '@logger'
-import { IPluginType, NetworksEnum } from '@types'
+import { IAPlugin, IPluginType, NetworksEnum } from '@types'
 import Logger from '@logger'
 import dayjs from '@helpers/dayjs'
 
@@ -36,7 +36,7 @@ describe('Indexer:Aggregator:Plugin', () => {
   })
 
   it('should call onDocument', async () => {
-    const document = {
+    const document: IAPlugin = {
       transactionHash: '0x0',
       blockNumber: 3,
       network: NetworksEnum.mainnet,

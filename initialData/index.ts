@@ -33,9 +33,9 @@ export const InitialData: IService = {
 
     // Aggregator init data
     await Promise.all(
-      Object.values(AggregatorTypeEnum).map(async event => {
+      Object.values(AggregatorTypeEnum).map(async type => {
         await Models.Aggregator.create({
-          event,
+          type,
           lastTimeSync: dayjs.utc('1970-01-01T00:00:00Z').toDate(),
         })
       }),

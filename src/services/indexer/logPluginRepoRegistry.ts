@@ -7,6 +7,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { PluginRepoRegistryHandler } from '@services/indexer/handlers/pluginRepoRegistryHandler'
 import { UtilsIndexer } from '@models/utils/indexer'
 import { PluginRepoRegistry } from '@artifacts/pluginRepoRegistry'
+import { ConfigState } from '@state/configState'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogPluginRepoRegistry' })
 
@@ -21,8 +22,9 @@ export const LogPluginRepoRegistry = {
         logger.verbose('Start LogPluginRepoRegistry', llo({ networkName }))
 
         const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+        const provider = ConfigState.getInstance().getConfigItem(networkName as NetworksEnum)
 
-        if (!networkDb) {
+        if (!networkDb || !provider) {
           logger.warn('Unsupported Network', llo({ networkName }))
           return
         }
@@ -68,7 +70,7 @@ export const LogPluginRepoRegistry = {
 
     switch (event.name) {
       case 'PluginRepoRegistered':
-        logger.verbose('PluginRepoRegistered', llo({ eventName: event.name }))
+        logger.verbose('PluginRepoRegistered', llo({ eventName: event.name, network }))
         await PluginRepoRegistryHandler.pluginRepoRegistered(event, txLog, network)
         break
       default:

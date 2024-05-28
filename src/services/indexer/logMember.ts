@@ -8,6 +8,7 @@ import { MemberHandler } from '@services/indexer/handlers/memberHandler'
 import { UtilsIndexer } from '@models/utils/indexer'
 import { Multisig } from '@artifacts/Multisig'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+import { ConfigState } from '@state/configState'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMember' })
 
@@ -22,8 +23,9 @@ export const LogMember = {
         logger.verbose('Start LogMember', llo({ networkName }))
 
         const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+        const provider = ConfigState.getInstance().getConfigItem(networkName as NetworksEnum)
 
-        if (!networkDb) {
+        if (!networkDb || !provider) {
           logger.warn('Unsupported Network', llo({ networkName }))
           return
         }
@@ -80,19 +82,19 @@ export const LogMember = {
 
     switch (event.name) {
       case 'MembersAdded':
-        logger.verbose('MembersAdded', llo({ eventName: event.name }))
+        logger.verbose('MembersAdded', llo({ eventName: event.name, network }))
         await MemberHandler.membersAdded(event, txLog, network)
         break
       case 'MembersRemoved':
-        logger.verbose('MembersRemoved', llo({ eventName: event.name }))
+        logger.verbose('MembersRemoved', llo({ eventName: event.name, network }))
         await MemberHandler.membersRemoved(event, txLog, network)
         break
       case 'DelegateChanged':
-        logger.verbose('DelegateChanged', llo({ eventName: event.name }))
+        logger.verbose('DelegateChanged', llo({ eventName: event.name, network }))
         await MemberHandler.delegateChanged(event, txLog, network)
         break
       default:
-        logger.error('Unhandled event', llo({ eventName: event.name, transactionHash: txLog.transactionHash }))
+        logger.error('Unhandled event', llo({ eventName: event.name, network, transactionHash: txLog.transactionHash }))
         break
     }
   },

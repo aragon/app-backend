@@ -1,4 +1,4 @@
-import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { modelOptions, prop } from '@typegoose/typegoose'
 import { ENS, EnumPluginType, HexAddress, type IDao, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -33,14 +33,14 @@ class Plugin {
     customName,
   },
 })
-@index({
-  daoAddress: 1,
-  tvlUSD: 1,
-  proposalsCreated: 1,
-  members: 1,
-  network: 1,
-  hideDao: 1,
-})
+// @index({
+//   daoAddress: 1,
+//   tvlUSD: 1,
+//   proposalsCreated: 1,
+//   members: 1,
+//   network: 1,
+//   hideDao: 1,
+// })
 export default class Dao extends Model {
   @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress

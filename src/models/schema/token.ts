@@ -1,4 +1,4 @@
-import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, type IToken, ITokenType, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -17,10 +17,10 @@ const customName = 'Token'
     customName,
   },
 })
-@index({
-  address: 1,
-  network: 1,
-})
+// @index({
+//   address: 1,
+//   network: 1,
+// })
 export default class Token extends Model {
   @prop({ type: () => String, enum: ITokenType, required: true })
   public type?: ITokenType
