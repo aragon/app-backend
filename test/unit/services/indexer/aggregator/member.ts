@@ -8,7 +8,7 @@ import { UtilsIndexer } from '@models/utils/indexer'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import Logger from '@logger'
-import dayjs from "@helpers/dayjs";
+import dayjs from '@helpers/dayjs'
 
 describe('Indexer:Aggregator:Member', () => {
   let sandbox: SinonSandbox
@@ -79,8 +79,8 @@ describe('Indexer:Aggregator:Member', () => {
   })
 
   it('should use default date when none is provided', () => {
-    const defaultDate = dayjs.utc('1970-01-01T00:00:00Z').toDate();
-    const pipeline = AggregatorMembers.query(defaultDate);
-    expect(pipeline[0]['$match']?.createdAt.$gte).to.deep.equal(defaultDate);
-  });
+    const defaultDate = dayjs.utc('1970-01-01T00:00:00Z').toDate()
+    const pipeline = AggregatorMembers.query(defaultDate)
+    expect(pipeline[0]['$match']?.createdAt.$gte).to.deep.equal(defaultDate)
+  })
 })
