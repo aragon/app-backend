@@ -2,10 +2,13 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { IEventLogPluginType, NetworksEnum } from '@types'
+import { IEventLogPluginType, ITokenType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { PluginSetupProcessorHandler } from '@services/indexer/handlers/pluginSetupProcessorHandler'
 import { Models } from '@dbModels'
+import TokenDetector from '@helpers/tokenDetector'
+import Web3Helper from '@helpers/web3'
+import utils from '@helpers/utils'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -120,17 +123,32 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
 
       const loggerStub = sandbox.stub(logger, 'verbose')
+      const stubTokenInfo = sandbox.stub(Web3Helper, 'getERC20Info').resolves({
+        address: '0x27366cae2b9c6c3055e9e3c78936a69006be5400',
+        name: 'FakeToken',
+        symbol: 'FTK',
+        decimals: 18,
+        totalSupply: 100,
+      })
+      const stubTokenDetect = sandbox.stub(TokenDetector, 'detectTokenType').resolves({
+        type: ITokenType.GovernanceERC20,
+        proxy: true,
+        implementationAddress: '0x27366cae2b9c6c3055e9e3c78936a69006be5400',
+      })
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
       await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, txLog, NetworksEnum.mainnet)
 
       expect(findTxSpy.calledWith(txLog.transactionHash, IEventLogPluginType.InstallationPrepared)).to.be.true
-      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('New Token' as any)).to.be.true
+      expect(loggerStub.calledWith('New InstallationPrepared' as any)).to.be.true
 
       const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
         txLog.transactionHash,
         IEventLogPluginType.InstallationPrepared,
       )
+      expect(stubTokenInfo.calledOnce).to.be.true
+      expect(stubTokenDetect.calledOnce).to.be.true
       expect(daoMetadataDB.transactionHash).to.eq(txLog.transactionHash)
       expect(daoMetadataDB.blockNumber).to.eq(txLog.blockNumber)
       expect(daoMetadataDB.network).to.eq(NetworksEnum.mainnet)

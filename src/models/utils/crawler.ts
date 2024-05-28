@@ -24,7 +24,7 @@ class DBCrawler {
   private isOnError: boolean
   private nbWorked: number
   private nbTotal: number
-  public readonly crawlResult: { nbSuccess: number; nbError: number; nbTotal: number, lastCreatedAt: null | Date }
+  public readonly crawlResult: { nbSuccess: number; nbError: number; nbTotal: number; lastCreatedAt: null | Date }
   private readonly queue: async.QueueObject<Document[]>
 
   constructor(opts: any) {
@@ -121,7 +121,7 @@ class DBCrawler {
     this.isOnError = false
     this.nbWorked = 0
     this.nbTotal = 0
-    this.crawlResult = { nbSuccess: 0, nbError: 0, nbTotal: 0, lastCreatedAt: null}
+    this.crawlResult = { nbSuccess: 0, nbError: 0, nbTotal: 0, lastCreatedAt: null }
 
     this.queue = async.queue(this._worker.bind(this) as any, this.concurrency)
   }

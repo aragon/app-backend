@@ -13,7 +13,7 @@ import axios from 'axios'
 import logger from '@logger'
 import utils from '@helpers/utils'
 import { assert } from '@errors'
-import Web3Utils from '@helpers/web3'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'covalent' })
 
@@ -82,7 +82,7 @@ const CovalentHelper = {
     const priceChangeOnDayUsd = mostRecentPrice - dayBeforePrice
 
     return {
-      address: Web3Utils.parseAddress(token.contract_address, {
+      address: Web3Helper.parseAddress(token.contract_address, {
         ...token,
         service: 'covalent',
       })!,

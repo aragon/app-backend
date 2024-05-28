@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import {HexAddress, type IToken, ITokenType, NetworksEnum} from '@types'
+import { HexAddress, type IToken, ITokenType, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { utcDateProp } from '@models/utils/models'

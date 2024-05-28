@@ -1,8 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import Utils from '@helpers/utils'
-import {AggregatorTypeEnum, NetworksEnum, StatusNetworkEnum} from '@types'
+import { AggregatorTypeEnum } from '@types'
 
 const customName = 'Aggregator'
 
@@ -24,7 +23,8 @@ export default class Aggregator extends Model {
   @prop({
     type: () => String,
     enum: AggregatorTypeEnum,
-    required: true
+    required: true,
+    unique: true,
   })
   public type!: AggregatorTypeEnum
 

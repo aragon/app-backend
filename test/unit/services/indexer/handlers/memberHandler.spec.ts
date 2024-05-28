@@ -113,7 +113,7 @@ describe('Indexer: MemberHandler', () => {
     })
 
     it('should return if the plugin is not found', async () => {
-      const verboseStub = sandbox.stub(logger, 'verbose')
+      const verboseStub = sandbox.stub(logger, 'warn')
       const findExistingLogStub = sandbox.stub(Models.LogMember, 'findByTxHash').resolves(false)
       const findByPluginAddressStub = sandbox
         .stub(Models.LogPluginSetupProcessor, 'findByPluginAddress')
@@ -199,7 +199,7 @@ describe('Indexer: MemberHandler', () => {
     })
 
     it('fails if plugin is not found', async () => {
-      const verboseStub = sandbox.stub(logger, 'verbose')
+      const verboseStub = sandbox.stub(logger, 'warn')
       const findExistingLogStub = sandbox.stub(Models.LogMember, 'findByTxHash').resolves(false)
       const findByPluginAddressStub = sandbox
         .stub(Models.LogPluginSetupProcessor, 'findByPluginAddress')
@@ -234,7 +234,7 @@ describe('Indexer: MemberHandler', () => {
         name: IEventLogMember.DelegateChanged,
         args: {
           fromDelegate: '0xfromDelegate',
-          toDelegate: '0xtoDelegate',
+          toDelegate: '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859',
           delegator: '0xdelegator',
         },
       } as any
@@ -260,6 +260,7 @@ describe('Indexer: MemberHandler', () => {
       sandbox.stub(Web3, 'findLogsByName').returns([
         {
           parsed: deletageVotChangedLog,
+          txLog: { topics: ['', '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859'] },
         },
       ] as any)
 
@@ -276,7 +277,7 @@ describe('Indexer: MemberHandler', () => {
       const logMember = await Models.LogMember.findOne({ transactionHash: txLog.transactionHash })
 
       expect(logMember).to.be.not.null
-      expect(logMember.address).to.be.eq('0xtoDelegate')
+      expect(logMember.address).to.be.eq('0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859')
     })
 
     it('should return if the tx is already processed', async () => {
@@ -310,7 +311,7 @@ describe('Indexer: MemberHandler', () => {
     })
 
     it('should return if the plugin is not found', async () => {
-      const verboseStub = sandbox.stub(logger, 'verbose')
+      const verboseStub = sandbox.stub(logger, 'warn')
       const findExistingLogStub = sandbox.stub(Models.LogMember, 'findExistingLog').resolves(false)
       const findPluginByTokenAddressStub = sandbox
         .stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress')
@@ -346,7 +347,7 @@ describe('Indexer: MemberHandler', () => {
     })
 
     it('should return if the DelegateVotesChanged log is not found', async () => {
-      const verboseStub = sandbox.stub(logger, 'verbose')
+      const verboseStub = sandbox.stub(logger, 'warn')
       const findExistingLogStub = sandbox.stub(Models.LogMember, 'findExistingLog').resolves(false)
       const findPluginByTokenAddressStub = sandbox
         .stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress')
@@ -354,6 +355,7 @@ describe('Indexer: MemberHandler', () => {
 
       sandbox.stub(Web3, 'getTransactionReceipt').resolves({
         logs: true,
+        txLog: { topics: ['', '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859'] },
       } as any)
 
       const fakeLog = {

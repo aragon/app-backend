@@ -1,10 +1,10 @@
 import logger from '@logger'
 import { IEventLogMember, type NetworksEnum } from '@types'
-import { type LogDescription, ZeroAddress } from 'ethers'
+import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 
 import DbTx from '@modules/dbTx'
-import Web3Utils from '@helpers/web3'
+import Web3Helper from '@helpers/web3'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:MemberHandler' })
@@ -114,7 +114,7 @@ export const MemberHandler = {
       network,
     }
 
-    const txReceipt = await Web3Utils.getTransactionReceipt(txLog.transactionHash, network)
+    const txReceipt = await Web3Helper.getTransactionReceipt(txLog.transactionHash, network)
 
     const existingLog = await Models.LogMember.findExistingLog(txLog.transactionHash, parsedEvent.name)
 
@@ -126,14 +126,18 @@ export const MemberHandler = {
         return
       }
 
-      const delegationVotesChangedLogs = Web3Utils.findLogsByName(
+      const delegationVotesChangedLogs = Web3Helper.findLogsByName(
         txReceipt!,
         IEventLogMember.DelegateVotesChanged,
         GovernanceERC20.abi,
       )
 
-      if (delegationVotesChangedLogs.length === 0) {
-        logger.verbose('DelegateVotesChanged not found. Invalid log', llo({ txLog }))
+      const delegationVote = delegationVotesChangedLogs.find(
+        (log: any) => Web3Helper.formatAddress(log.txLog.topics[1]) === parsedEvent.args.toDelegate,
+      )
+
+      if (!delegationVote) {
+        logger.warn('DelegateVotesChanged not found. Invalid log', llo({ txLog }))
         return
       }
 
@@ -145,12 +149,11 @@ export const MemberHandler = {
           address: parsedEvent.args.toDelegate,
           event: parsedEvent.name,
           tokenAddress: txLog.address,
-          fromDelegate:
-            parsedEvent.args.fromDelegate === ZeroAddress ? parsedEvent.args.delegator : parsedEvent.args.fromDelegate,
+          fromDelegate: parsedEvent.args.fromDelegate,
           toDelegate: parsedEvent.args.toDelegate,
           delegatingMember: parsedEvent.args.delegator,
-          previousVotingPower: delegationVotesChangedLogs[0].parsed!.args.previousBalance,
-          newVotingPower: delegationVotesChangedLogs[0].parsed!.args.newBalance,
+          previousVotingPower: delegationVote?.parsed!.args.previousBalance.toString(),
+          newVotingPower: delegationVote?.parsed!.args.newBalance.toString(),
           pluginAddress: relatedPlugin.pluginAddress,
         }
 

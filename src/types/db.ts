@@ -12,7 +12,8 @@ import type LogProposal from '@models/schema/logProposal'
 import type LogPluginSetting from '@models/schema/logPluginSetting'
 import type LogTransaction from '@models/schema/logTransaction'
 import type LogMember from '@models/schema/logMember'
-import type Aggregator from "@models/schema/aggregator";
+import type Aggregator from '@models/schema/aggregator'
+import type Member from '@models/schema/member'
 import type Plugin from "@models/schema/plugin";
 
 export interface IMongoModel {
@@ -29,16 +30,14 @@ export interface IMongoModel {
   LogTransaction: Model<InstanceType<typeof LogTransaction>>
   LogMember: Model<InstanceType<typeof LogMember>>
   Aggregator: Model<InstanceType<typeof Aggregator>>
+  Member: Model<InstanceType<typeof Member>>
   Plugin: Model<InstanceType<typeof Plugin>>
 }
 
-export enum ITokenType {
-  ERC20 = 'ERC20',
-  ERC721 = 'ERC721',
-  ERC1155 = 'ERC1155',
-  ERC777 = 'ERC777',
-  GovernanceERC20 = 'GovernanceERC20',
-  unknown = 'unknown',
+export enum AggregatorTypeEnum {
+  plugin = 'plugin',
+  members = 'members',
+  settings = 'settings',
 }
 
 export enum IPluginType {
