@@ -1,4 +1,4 @@
-import { type NetworksEnum } from '@types'
+import { type HexAddress, type NetworksEnum } from '@types'
 import { Contract, type WebSocketProvider, ethers } from 'ethers'
 import { ConfigState } from '@state/configState'
 
@@ -45,7 +45,7 @@ const ProxyContractHelper = {
     return null
   },
 
-  async getImplementationAddress(address: string, network: NetworksEnum): Promise<string | null> {
+  async getImplementationAddress(address: string, network: NetworksEnum): Promise<HexAddress | null> {
     try {
       const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
       const ERC1967_IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
