@@ -3,7 +3,6 @@ import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
-import dayjs from '@helpers/dayjs'
 import { UtilsIndexer } from '@models/utils/indexer'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMembers' })
@@ -21,7 +20,7 @@ export const AggregatorMembers = {
         logger.error('Error AggregatorMembers', llo({ error }))
       },
       useAggregate: true,
-      aggregate: AggregatorMembers.query(aggregatorDb?.lastTimeSync),
+      aggregate: AggregatorMembers.query(),
       batchSize: 1000,
       concurrency: 1,
     })
@@ -32,24 +31,30 @@ export const AggregatorMembers = {
   },
 
   async onDocument(document: any) {
-    const existingLog = await Models.Member.findExistingLog(document.memberAddress)
+    const existingLog = await Models.Member.findExistingLog(document.address)
     if (!existingLog) {
       // TODO: find user ens
       await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await Models.Member.create(document, { session })
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('Aggregate Member', llo({ logId: logDb.id }))
+        logger.verbose('New Aggregate Member', llo({ logId: logDb.id }))
+      })
+    } else {
+      await DbTx.executeTxFn(async ({ session }) => {
+        await existingLog.update(document, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Update Aggregate Member', llo({ logId: existingLog.id }))
       })
     }
   },
 
-  query(createdAt: Date = dayjs.utc('1970-01-01T00:00:00Z').toDate()) {
+  query() {
     return [
       {
         $match: {
           event: { $in: ['MembersAdded', 'MembersRemoved', 'DelegateChanged'] },
-          createdAt: { $gte: createdAt },
         },
       },
       {

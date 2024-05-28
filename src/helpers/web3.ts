@@ -1,15 +1,14 @@
 import { type HexAddress, type IDaoMetadata, type IProposalMetadata, ITransactionType, type NetworksEnum } from '@types'
 import {
-  Interface,
   AbiCoder,
   Contract,
-  type Filter,
   getAddress,
+  Interface,
   type Log,
-  namehash,
-  type WebSocketProvider,
-  type TransactionReceipt,
   type LogDescription,
+  namehash,
+  type TransactionReceipt,
+  type WebSocketProvider,
 } from 'ethers'
 import { ConfigState } from '@state/configState'
 import { ENSSubdomainRegistrar } from '@artifacts/ENSSubdomainRegistrar'
@@ -18,6 +17,7 @@ import config from '@config'
 import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { ERC1155 } from '@artifacts/ERC1155'
+import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -345,8 +345,8 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      const address = (await provider.resolveName(name)) as HexAddress | null
-      return address
+      const address = await BottleneckModule.getLimiter(network)!.schedule(async () => provider.resolveName(name))
+      return address as HexAddress | null
     } catch (error) {
       logger.error(
         'Error resolving ENS name',
@@ -363,8 +363,7 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      const ensName = await provider.lookupAddress(address)
-      return ensName
+      return await BottleneckModule.getLimiter(network)!.schedule(async () => provider.lookupAddress(address))
     } catch (error) {
       logger.error(
         'Error looking up address',
@@ -403,8 +402,7 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      const transaction = await provider.getTransaction(txHash)
-      return transaction
+      return await BottleneckModule.getLimiter(network)!.schedule(async () => provider.getTransaction(txHash))
     } catch (error) {
       logger.error(
         'Error get transaction',
@@ -421,8 +419,7 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      const transactionDetails = await provider.getTransactionReceipt(txHash)
-      return transactionDetails
+      return await BottleneckModule.getLimiter(network)!.schedule(async () => provider.getTransactionReceipt(txHash))
     } catch (error) {
       logger.error(
         'Error get transaction receipt',
@@ -432,25 +429,6 @@ const Web3Helper = {
         }),
       )
       return null
-    }
-  },
-
-  async queryLogs(filter: Filter, network: NetworksEnum): Promise<Log[]> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-
-    try {
-      const logs = await provider.getLogs(filter)
-      return logs
-    } catch (error) {
-      logger.error(
-        'Error querying logs',
-        llo({
-          filter,
-          network,
-          error,
-        }),
-      )
-      return []
     }
   },
 

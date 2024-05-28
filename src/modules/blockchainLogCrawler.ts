@@ -3,14 +3,9 @@ import { type Filter, type Log, type WebSocketProvider } from 'ethers'
 import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
-import Bottleneck from 'bottleneck'
+import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' })
-
-const limiter = new Bottleneck({
-  maxConcurrent: 10, // Maximum number of concurrent requests
-  minTime: 200, // Minimum time (ms) between requests
-})
 
 class BlockchainLogCrawler {
   private readonly fromBlock: number | string
@@ -99,7 +94,9 @@ class BlockchainLogCrawler {
   async getBlockNumber(blockNumber: string | number | undefined): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
-        return await limiter.schedule(async () => this.provider.getBlockNumber())
+        return await BottleneckModule.getLimiter(NetworksEnum.mainnet)!.schedule(async () =>
+          this.provider.getBlockNumber(),
+        )
       } catch (error) {
         logger.error(
           'Error get block number',
@@ -149,7 +146,7 @@ class BlockchainLogCrawler {
         )
 
         try {
-          const logs = await limiter.schedule(async () =>
+          const logs = await BottleneckModule.getLimiter(NetworksEnum.mainnet)!.schedule(async () =>
             this.provider.getLogs({
               address: this.filter.address,
               topics: [topics],

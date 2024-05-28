@@ -5,7 +5,7 @@ import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
 import { assert } from '@errors'
 
-const logMeta = logger.logMeta.bind(null, { service: 'modules:Provider' })
+const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
 const ProviderModule = {
   configState: ConfigState.getInstance(),
@@ -29,7 +29,7 @@ const ProviderModule = {
           assert(!!nodeUrl && nodeUrl.length > 0, 'Node URL is not configured')
           return ProviderModule.connectToNetwork(ProviderModule.parseNetwork(network) as NetworksEnum, nodeUrl!)
         } catch (error) {
-          logger.error(`Node URL for ${network} is not configured.`, logMeta({ network, error }))
+          logger.warn(`Node URL for ${network} is not configured.`)
           return Promise.resolve()
         }
       }),
@@ -42,7 +42,7 @@ const ProviderModule = {
         const provider: WebSocketProvider | any = new WebSocketProvider(nodeUrl)
 
         provider.websocket.on('open', async () => {
-          logger.info(`WebSocket connected successfully to ${network}`, logMeta({ network }))
+          logger.info(`WebSocket connected successfully to ${network}`)
           ProviderModule.configState.setConfigItem(network, provider)
           resolve(provider)
         })
@@ -50,7 +50,7 @@ const ProviderModule = {
         provider.websocket.on('error', (error: any) => {
           logger.error(
             'WebSocket error',
-            logMeta({
+            llo({
               network,
               error,
             }),
@@ -58,7 +58,7 @@ const ProviderModule = {
           reject(error)
         })
       } catch (error) {
-        logger.error('Failed to create WebSocketProvider', logMeta({ network, error }))
+        logger.error('Failed to create WebSocketProvider', llo({ network, error }))
         reject(error)
       }
     })
@@ -70,7 +70,7 @@ const ProviderModule = {
       const provider: WebSocketProvider = ProviderModule.configState.getConfigItem(network)
       if (provider) {
         await provider.destroy()
-        logger.info(`WebSocket connection closed for ${network}`, logMeta({ network }))
+        logger.info(`WebSocket connection closed for ${network}`)
       }
     })
   },

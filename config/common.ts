@@ -17,6 +17,11 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     SUPPORTED_NETWORKS: utils.configParser(sourceConfig, 'array', 'SUPPORTED_NETWORKS', Object.values(NetworksEnum)),
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
 
+    BOTTLENECK: {
+      MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_MAX_CONCURRENT', 10),
+      MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_MIN_TIME', 200),
+    },
+
     MONGO_DB: {
       NAME: utils.configParser(sourceConfig, 'string', 'MONGO_DB_NAME', 'db-aragon'),
       URI: utils.configParser(
