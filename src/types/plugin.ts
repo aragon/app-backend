@@ -1,4 +1,4 @@
-import {HexAddress, IPluginType, NetworksEnum} from '@types'
+import { type HexAddress, type IPluginType, type NetworksEnum } from '@types'
 
 export interface IAPlugin {
   transactionHash: string
@@ -11,6 +11,7 @@ export interface IAPlugin {
   pluginSetupRepoAddress: HexAddress | null
   build: string | null
   release: string | null
+  subdomain: string | null
   sender: HexAddress | null
   type: IPluginType
 }
