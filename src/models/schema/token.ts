@@ -28,6 +28,9 @@ export default class Token extends Model {
   @prop({ type: () => String, required: true })
   public address!: HexAddress
 
+  @prop({ type: () => String, default: null })
+  public implementationAddress!: HexAddress
+
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
@@ -57,9 +60,6 @@ export default class Token extends Model {
 
   @utcDateProp({ default: null })
   public lastUpdatedAt!: Date
-
-  @prop({ type: () => String, default: null })
-  public implementation!: string
 
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
     const data = new this(rawData)
