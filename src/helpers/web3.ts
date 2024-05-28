@@ -16,7 +16,6 @@ import logger from '@logger'
 import config from '@config'
 import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
-import { ERC1155 } from '@artifacts/ERC1155'
 import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
@@ -432,7 +431,7 @@ const Web3Helper = {
     }
   },
 
-  async getERC20Info(
+  async getTokenInfo(
     address: HexAddress,
     network: NetworksEnum,
   ): Promise<{
@@ -470,60 +469,6 @@ const Web3Helper = {
       token.totalSupply = Number(totalSupply)
     } catch (error) {
       logger.error('Error getting token total supply:', llo({ error, address }))
-    }
-
-    return token
-  },
-
-  async getERC721Info(
-    address: HexAddress,
-    network: NetworksEnum,
-  ): Promise<{
-    address: HexAddress
-    name: string
-    symbol: string
-  }> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-    const tokenInstance = new Contract(address, ERC721.abi, provider)
-    const token: any = { address }
-
-    try {
-      token.name = await tokenInstance.name()
-    } catch (error) {
-      logger.error('Error getting token info name', llo({ error, address }))
-    }
-
-    try {
-      token.symbol = await tokenInstance.symbol()
-    } catch (error) {
-      logger.error('Error getting token symbol', llo({ error, address }))
-    }
-
-    return token
-  },
-
-  async getERC1155Info(
-    address: HexAddress,
-    network: NetworksEnum,
-  ): Promise<{
-    address: HexAddress
-    name: string
-    symbol: string
-  }> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-    const tokenInstance = new Contract(address, ERC1155.abi, provider)
-    const token: any = { address }
-
-    try {
-      token.name = await tokenInstance.name()
-    } catch (error) {
-      logger.error('Error getting token info name', llo({ error, address }))
-    }
-
-    try {
-      token.symbol = await tokenInstance.symbol()
-    } catch (error) {
-      logger.error('Error getting token symbol', llo({ error, address }))
     }
 
     return token

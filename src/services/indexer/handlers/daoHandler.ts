@@ -6,6 +6,7 @@ import DbTx from '@modules/dbTx'
 import { TransactionActionHandler } from '@services/indexer/handlers/transactionActionHandler'
 import Web3Helper from '@helpers/web3'
 import { ERC1155 } from '@artifacts/ERC1155'
+import { UtilsIndexer } from '@models/utils/indexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoHandler' })
 
@@ -35,6 +36,7 @@ export const DaoHandler = {
         const existingLog = await Models.LogTransaction.findExistingLog(txLog.transactionHash, type, actionIndex)
 
         if (!existingLog) {
+          await UtilsIndexer.saveAndGetToken(parsedEvent.args.sender, network)
           await DbTx.executeTxFn(async ({ session }) => {
             const transaction: any = {
               network,
@@ -79,6 +81,7 @@ export const DaoHandler = {
         const existingLog = await Models.LogTransaction.findExistingLog(txLog.transactionHash, type, actionIndex)
 
         if (!existingLog) {
+          await UtilsIndexer.saveAndGetToken(parsedEvent.args.sender, network)
           await DbTx.executeTxFn(async ({ session }) => {
             const transaction: any = {
               network,
@@ -128,6 +131,7 @@ export const DaoHandler = {
         const existingLog = await Models.LogTransaction.findExistingLog(txLog.transactionHash, type, actionIndex)
 
         if (!existingLog) {
+          await UtilsIndexer.saveAndGetToken(parsedEvent.args.sender, network)
           await DbTx.executeTxFn(async ({ session }) => {
             const transaction: any = {
               network,
@@ -187,6 +191,7 @@ export const DaoHandler = {
 
           if (parsedEvent.args.token && parsedEvent.args.token !== ZeroAddress) {
             // ERC20 transfer
+            await UtilsIndexer.saveAndGetToken(parsedEvent.args.token, network)
             transaction.tokenAddress = parsedEvent.args.token
           } else {
             // Native token transfer
@@ -227,19 +232,21 @@ export const DaoHandler = {
             // both ERC20Transfer ERC721Transfer have the same signature transferFrom
             // https://github.com/code-423n4/2022-06-putty-findings/issues/52
             // check if the token is ERC20 or ERC721 via token decimals
-            const token = await Web3Helper.getERC20Info(action.to, network)
-            if (token.decimals) {
+            const token = await UtilsIndexer.saveAndGetToken(action.to, network)
+            if (token?.decimals) {
               await TransactionActionHandler.erc20Token(parsedEvent, txLog, network, action, index)
-            } else {
+            } else if (token) {
               await TransactionActionHandler.erc721Token(parsedEvent, txLog, network, action, index)
             }
             break
           }
           case Web3Helper.isERC721Transfer(action): {
+            await UtilsIndexer.saveAndGetToken(action.to, network)
             await TransactionActionHandler.erc721Token(parsedEvent, txLog, network, action, index)
             break
           }
           case Web3Helper.isERC1155TransferMethod(action): {
+            await UtilsIndexer.saveAndGetToken(action.to, network)
             await TransactionActionHandler.erc1155Token(parsedEvent, txLog, network, action, index)
             break
           }

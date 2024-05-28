@@ -3,6 +3,10 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { UtilsIndexer } from '@models/utils/indexer'
 import DbTx from '@modules/dbTx'
+import { Models } from '@dbModels'
+import { ITokenType, NetworksEnum } from '@types'
+import TokenDetector from '@helpers/tokenDetector'
+import Web3Helper from '@helpers/web3'
 
 describe('Model/Utils: indexer', () => {
   let sandbox: SinonSandbox
@@ -94,6 +98,45 @@ describe('Model/Utils: indexer', () => {
       expect(aggregatorDbStub.update.called).to.be.false
       expect(sessionStub.commitTransaction.called).to.be.false
       expect(sessionStub.endSession.called).to.be.false
+    })
+  })
+
+  describe('saveAggregationSync', () => {
+    it('should return existing token if found', async () => {
+      const existingToken = { id: 'token123', symbol: 'TKN' }
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(existingToken)
+
+      const result = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.mainnet)
+
+      expect(result).to.equal(existingToken)
+    })
+
+    it('should detect token type and create new token if not found', async () => {
+      const stubFind = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(null)
+      const stubDetectTokenType = sandbox
+        .stub(TokenDetector, 'detectTokenType')
+        .resolves({ type: ITokenType.ERC20, implementationAddress: '0x456' } as any)
+      const stubGetToken = sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
+        address: '0x123',
+        name: 'TokenName',
+        decimals: 18,
+        symbol: 'TKN',
+        totalSupply: 2000,
+      })
+
+      const token = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.mainnet)
+
+      expect(stubFind.calledOnce).to.be.true
+      expect(stubDetectTokenType.calledOnce).to.be.true
+      expect(stubGetToken.calledOnce).to.be.true
+      expect(token!.address).to.eq('0x123')
+      expect(token!.type).to.eq(ITokenType.ERC20)
+      expect(token!.implementationAddress).to.eq('0x456')
+      expect(token!.name).to.eq('TokenName')
+      expect(token!.decimals).to.eq(18)
+      expect(token!.symbol).to.eq('TKN')
+      expect(token!.totalSupply).to.eq(2000)
+      expect(token!.network).to.eq(NetworksEnum.mainnet)
     })
   })
 })

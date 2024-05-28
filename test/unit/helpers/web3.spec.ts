@@ -856,7 +856,7 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('getERC20Info', () => {
+  describe('getTokenInfo', () => {
     it('should return token info', async () => {
       const stubConfigState = {
         getConfigItem: sandbox.stub().returns({}),
@@ -877,7 +877,7 @@ describe('Helpers:Web3', () => {
         },
       })
 
-      const result = await MockedWeb3Helper.getERC20Info('0xTokenAddress', NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.getTokenInfo('0xTokenAddress', NetworksEnum.mainnet)
 
       expect(result).to.deep.equal({
         address: '0xTokenAddress',
@@ -914,7 +914,7 @@ describe('Helpers:Web3', () => {
         },
       })
 
-      const result = await MockedWeb3Helper.getERC20Info('0xTokenAddress', NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.getTokenInfo('0xTokenAddress', NetworksEnum.mainnet)
 
       expect(result).to.deep.equal({
         address: '0xTokenAddress',
@@ -925,130 +925,6 @@ describe('Helpers:Web3', () => {
       expect(stubDecimals.calledOnce).to.be.true
       expect(stubTotalSupply.calledOnce).to.be.true
       expect(stubLogger.callCount).to.eq(4)
-    })
-  })
-
-  describe('getERC721Info', () => {
-    it('should return token info', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubName = sandbox.stub().resolves('Test Token')
-      const stubSymbol = sandbox.stub().resolves('TST')
-
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return { name: stubName, symbol: stubSymbol }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getERC721Info('0xTokenAddress', NetworksEnum.mainnet)
-
-      expect(result).to.deep.equal({
-        address: '0xTokenAddress',
-        name: 'Test Token',
-        symbol: 'TST',
-      })
-
-      expect(stubName.calledOnce).to.be.true
-      expect(stubSymbol.calledOnce).to.be.true
-    })
-
-    it('should fails return token info', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubName = sandbox.stub().rejects(new Error('Test Error'))
-      const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
-      const stubLogger = sandbox.stub(Logger, 'error')
-
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return { name: stubName, symbol: stubSymbol }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getERC721Info('0xTokenAddress', NetworksEnum.mainnet)
-
-      expect(result).to.deep.equal({
-        address: '0xTokenAddress',
-      })
-
-      expect(stubName.calledOnce).to.be.true
-      expect(stubSymbol.calledOnce).to.be.true
-      expect(stubLogger.calledTwice).to.be.true
-    })
-  })
-
-  describe('getERC1155Info', () => {
-    it('should return token info', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubName = sandbox.stub().resolves('Test Token')
-      const stubSymbol = sandbox.stub().resolves('TST')
-
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return { name: stubName, symbol: stubSymbol }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getERC1155Info('0xTokenAddress', NetworksEnum.mainnet)
-
-      expect(result).to.deep.equal({
-        address: '0xTokenAddress',
-        name: 'Test Token',
-        symbol: 'TST',
-      })
-
-      expect(stubName.calledOnce).to.be.true
-      expect(stubSymbol.calledOnce).to.be.true
-    })
-
-    it('should fails return token info', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubName = sandbox.stub().rejects(new Error('Test Error'))
-      const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
-      const stubLogger = sandbox.stub(Logger, 'error')
-
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return { name: stubName, symbol: stubSymbol }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getERC1155Info('0xTokenAddress', NetworksEnum.mainnet)
-
-      expect(result).to.deep.equal({
-        address: '0xTokenAddress',
-      })
-
-      expect(stubName.calledOnce).to.be.true
-      expect(stubSymbol.calledOnce).to.be.true
-      expect(stubLogger.calledTwice).to.be.true
     })
   })
 
