@@ -1,6 +1,7 @@
 import type { HexAddress, IDao, IPermission } from '@types'
 import { assert } from '@errors'
 import async from 'async'
+import dayjs from '@helpers/dayjs'
 
 const Utils = {
   noop: (): number => 0,
@@ -205,6 +206,18 @@ const Utils = {
       rawPermissions.operation = Number(rawPermissions.operation)
       return rawPermissions
     })
+  },
+
+  hasHoursPassed(lastUpdated: Date, hours: number): boolean {
+    return dayjs().diff(lastUpdated, 'hour') >= hours
+  },
+
+  calculatePercentageChange(newValue: number, oldValue: number): number {
+    return parseFloat((((newValue - oldValue) / oldValue) * 100).toFixed(2))
+  },
+
+  getEpochDayjs(): dayjs.Dayjs {
+    return dayjs.unix(0) // Using dayjs.unix(0) to set to Unix Epoch time
   },
 }
 
