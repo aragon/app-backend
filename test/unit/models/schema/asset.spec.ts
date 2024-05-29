@@ -6,7 +6,7 @@ import Network from '@models/schema/network'
 import { Models } from '@dbModels'
 import Asset from '@models/schema/asset'
 
-describe.only('Model: Asset', () => {
+describe('Model: Asset', () => {
   let sandbox: SinonSandbox
   let rawAsset: Partial<Asset>
   let ethereumNetwork: Network

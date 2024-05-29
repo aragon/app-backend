@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { ITransactionType, type NetworksEnum } from '@types'
+import { type HexAddress, ITransactionType, type NetworksEnum } from '@types'
 import { AbiCoder, type LogDescription, ZeroAddress } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -195,6 +195,7 @@ export const DaoHandler = {
             transaction.tokenAddress = parsedEvent.args.token
           } else {
             // Native token transfer
+            await UtilsIndexer.saveAndGetToken(ZeroAddress as HexAddress, network)
             transaction.reference = parsedEvent.args._reference
           }
 
@@ -225,6 +226,7 @@ export const DaoHandler = {
       try {
         switch (true) {
           case Web3Helper.isNativeTokenAction(action): {
+            await UtilsIndexer.saveAndGetToken(ZeroAddress as HexAddress, network)
             await TransactionActionHandler.nativeToken(parsedEvent, txLog, network, action, index)
             break
           }
@@ -277,6 +279,7 @@ export const DaoHandler = {
       const existingLog = await Models.LogTransaction.findExistingLog(txLog.transactionHash, type, actionIndex)
 
       if (!existingLog) {
+        await UtilsIndexer.saveAndGetToken(ZeroAddress as HexAddress, network)
         await DbTx.executeTxFn(async ({ session }) => {
           const transaction: any = {
             network,
