@@ -10,6 +10,7 @@ import { LogProposal } from '@services/indexer/logProposal'
 import { AggregatorPlugin } from '@services/indexer/aggregator/plugin'
 import { AggregatorMembers } from '@services/indexer/aggregator/member'
 import { AggregatorSetting } from '@services/indexer/aggregator/setting'
+import { AggregatorAssets } from '@services/indexer/aggregator/asset'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
 
@@ -28,6 +29,7 @@ const IndexerService: IService = {
       async () => AggregatorPlugin.start(),
       async () => AggregatorMembers.start(),
       async () => AggregatorSetting.start(),
+      async () => AggregatorAssets.start(),
     ]
 
     const taskOptions = {

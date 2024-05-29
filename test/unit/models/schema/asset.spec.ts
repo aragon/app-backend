@@ -22,7 +22,6 @@ describe('Model: Asset', () => {
     rawAsset = {
       network: ethereumNetwork.name,
       daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-      native: false,
       tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
       amount: '32423423',
     }
@@ -38,7 +37,6 @@ describe('Model: Asset', () => {
     expect(createdAsset.id).to.exist
     expect(createdAsset.network).to.eq(rawAsset.network)
     expect(createdAsset.daoAddress).to.eq(rawAsset.daoAddress)
-    expect(createdAsset.native).to.eq(rawAsset.native)
     expect(createdAsset.tokenAddress).to.eq(rawAsset.tokenAddress)
     expect(createdAsset.amount).to.eq(rawAsset.amount)
   })
@@ -69,13 +67,13 @@ describe('Model: Asset', () => {
 
   it('Should update Asset', async () => {
     const createdAsset = await Models.Asset.create(rawAsset)
-    expect(createdAsset.native).to.eq(rawAsset.native)
+    expect(createdAsset.amount).to.eq(rawAsset.amount)
 
     await createdAsset.update({
-      native: true,
+      amount: '90',
     })
 
-    expect(createdAsset.native).to.eq(true)
+    expect(createdAsset.amount).to.eq('90')
   })
 
   it('Should findAssetsByDao', async () => {
