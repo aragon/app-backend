@@ -58,6 +58,25 @@ describe('Model: Token', () => {
     expect(createdToken.lastUpdatedAt.getTime()).to.eq(rawToken?.lastUpdatedAt!.getTime())
   })
 
+  it('Should getEntityId', async () => {
+    const address = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+    const network = NetworksEnum.mainnet
+    const entityId = await Models.Token.getEntityId(address, network)
+    expect(entityId).to.eq(`${address}-${network}`)
+  })
+
+  it('Should findExistingLog', async () => {
+    const createdLogDao = await Models.Token.create(rawToken)
+    const foundLogDao = await Models.Token.findExistingLog(createdLogDao.address, createdLogDao.network)
+    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+  })
+
+  it('Should findByEntityId', async () => {
+    const createdLogDao = await Models.Token.create(rawToken)
+    const foundLogDao = await Models.Token.findByEntityId(createdLogDao.entityId)
+    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+  })
+
   it('Should update Token', async () => {
     const createdToken = await Models.Token.create(rawToken)
     expect(createdToken.address).to.eq(rawToken.address)
@@ -100,6 +119,6 @@ describe('Model: Token', () => {
     expect(filterToken.__v).to.be.undefined
     expect(filterToken.createdAt).to.be.undefined
     expect(filterToken.updatedAt).to.be.undefined
-    expect(Object.keys(filterToken).length).to.eq(13)
+    expect(Object.keys(filterToken).length).to.eq(14)
   })
 })
