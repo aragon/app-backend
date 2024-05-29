@@ -27,7 +27,7 @@ export const DaoRegistryHandler = {
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
-          const implementation = await ProxyContractHelper.getImplementationAddress(daoAddress, network)
+          const implementationAddress = await ProxyContractHelper.getImplementationAddress(daoAddress, network)
 
           const daoLog = {
             network,
@@ -36,7 +36,7 @@ export const DaoRegistryHandler = {
             ens: parsedEvent.args.subdomain,
             blockNumber: txLog.blockNumber,
             transactionHash: txLog.transactionHash,
-            implementation,
+            implementationAddress,
           }
 
           const logDb = await Models.LogDaoRegistry.create(daoLog, { session })
@@ -82,6 +82,7 @@ export const DaoRegistryHandler = {
     await DaoRegistryHandler._memberAdded(allLogs, transactionHash, network)
   },
 
+  // TODO: add dao metadata on dao creation
   _pluginSetup: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
     const pluginSetupLogs = Web3Helper.findLogsByName(
       txReceipt,
