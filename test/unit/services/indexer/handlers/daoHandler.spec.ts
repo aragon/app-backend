@@ -253,6 +253,7 @@ describe('Indexer: DaoHandler', () => {
         },
       }
 
+      const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves()
       const findTxHashSpy = sandbox.spy(Models.LogTransaction, 'findExistingLog')
       const stubLogger = sandbox.stub(logger, 'verbose')
 
@@ -261,6 +262,7 @@ describe('Indexer: DaoHandler', () => {
       expect(findTxHashSpy.calledOnce).to.be.true
       expect(findTxHashSpy.calledWith(txLog.transactionHash, ITransactionType.deposit, 0)).to.be.true
       expect(stubLogger.calledOnce).to.be.true
+      expect(stubToken.calledOnce).to.be.true
 
       const savedDaoLog = await Models.LogTransaction.findExistingLog(
         txLog.transactionHash,
@@ -418,7 +420,7 @@ describe('Indexer: DaoHandler', () => {
 
       await DaoHandler.executed(fakeEvent as any, txLog, network)
 
-      expect(stubToken.callCount).to.eq(3)
+      expect(stubToken.callCount).to.eq(4)
       expect(stubNativeToken.calledOnce).to.be.true
       expect(stubErc20Token.calledOnce).to.be.true
       expect(stubErc721Token.calledOnce).to.be.true
@@ -487,7 +489,7 @@ describe('Indexer: DaoHandler', () => {
 
       await DaoHandler.executed(fakeEvent as any, txLog, network)
 
-      expect(stubToken.callCount).to.eq(3)
+      expect(stubToken.callCount).to.eq(4)
       expect(stubNativeToken.calledOnce).to.be.true
       expect(stubErc20Token.notCalled).to.be.true
       expect(stubErc721Token.calledTwice).to.be.true
@@ -545,6 +547,7 @@ describe('Indexer: DaoHandler', () => {
         },
       }
 
+      const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves()
       const findTxHashSpy = sandbox.spy(Models.LogTransaction, 'findExistingLog')
       const stubLogger = sandbox.stub(logger, 'verbose')
 
@@ -552,6 +555,7 @@ describe('Indexer: DaoHandler', () => {
 
       expect(findTxHashSpy.calledOnce).to.be.true
       expect(findTxHashSpy.calledWith(txLog.transactionHash, ITransactionType.deposit, 0)).to.be.true
+      expect(stubToken.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
 
       const savedDaoLog = await Models.LogTransaction.findExistingLog(
