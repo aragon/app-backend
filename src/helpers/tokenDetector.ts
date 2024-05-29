@@ -1,4 +1,4 @@
-import { keccak256, type WebSocketProvider } from 'ethers'
+import { keccak256, type WebSocketProvider, ZeroAddress } from 'ethers'
 import { ITokenType, type NetworksEnum } from '@types'
 import { ConfigState } from '@state/configState'
 import ProxyContractHelper from '@helpers/proxyContract'
@@ -63,6 +63,14 @@ async function detectTokenType(
   address: string,
   network: NetworksEnum,
 ): Promise<{ type: ITokenType; proxy: boolean; implementationAddress: string | null } | null> {
+  if (address === ZeroAddress) {
+    return {
+      type: ITokenType.native,
+      proxy: false,
+      implementationAddress: null,
+    }
+  }
+
   const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
   let contractAddress = address
 
