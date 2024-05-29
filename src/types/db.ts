@@ -42,6 +42,7 @@ export enum AggregatorTypeEnum {
   plugin = 'plugin',
   members = 'members',
   settings = 'settings',
+  assets = 'assets',
 }
 
 export enum IEventLogPluginType {

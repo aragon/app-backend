@@ -1,7 +1,7 @@
 import logger from '@logger'
 import axios from 'axios'
 import config from '@config'
-import { type HexAddress } from '@types'
+import { type HexAddress, type INetworks, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:DuneHelper' })
 
@@ -29,6 +29,18 @@ const DuneHelper = {
     baseURL: config.DUNE.URI,
     headers: { 'Content-Type': 'application/json', 'X-DUNE-API-KEY': config.DUNE.API_KEY },
   }),
+
+  networksMap: {
+    ethereum: NetworksEnum.mainnet,
+    sepolia: NetworksEnum.sepolia,
+    polygon: NetworksEnum.polygon,
+    base: NetworksEnum.base,
+    arbitrum: NetworksEnum.arbitrum,
+  },
+
+  duneNetworkToAragon: (network: INetworks | string) => {
+    return DuneHelper.networksMap[network]
+  },
 
   _rpCall: async (path: string) => {
     try {
