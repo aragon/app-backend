@@ -9,6 +9,7 @@ import { Models } from '@dbModels'
 import Web3 from '@helpers/web3'
 import { PluginSetupProcessorHandler } from '@services/indexer/handlers/pluginSetupProcessorHandler'
 import { MemberHandler } from '@services/indexer/handlers/memberHandler'
+import ProxyContractHelper from '@helpers/proxyContract'
 
 describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
@@ -45,6 +46,8 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       const loggerStub = sandbox.stub(logger, 'verbose')
 
+      const proxyUtils = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves('0x123')
+
       await DaoRegistryHandler.daoRegistered(fakeEvent as any, txLog as any, network)
 
       expect(findTxHashSpy.calledOnce).to.be.true
@@ -62,6 +65,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(savedDaoLog.transactionHash).to.eq(txLog.transactionHash)
       expect(initNewDaoStub.calledOnce).to.be.true
       expect(initNewDaoStub.calledWith('0x123', network)).to.be.true
+      expect(proxyUtils.calledOnce).to.be.true
+      expect(proxyUtils.calledWith(fakeEvent.args.dao, network)).to.be.true
     })
 
     it('should not process existing dao registered', async () => {
