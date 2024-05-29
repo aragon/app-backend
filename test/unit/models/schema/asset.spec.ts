@@ -43,6 +43,30 @@ describe('Model: Asset', () => {
     expect(createdAsset.amount).to.eq(rawAsset.amount)
   })
 
+  it('Should getEntityId', async () => {
+    const daoAddress = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+    const tokenAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
+    const network = NetworksEnum.mainnet
+    const entityId = await Models.Asset.getEntityId(daoAddress, tokenAddress, network)
+    expect(entityId).to.eq(`${daoAddress}-${tokenAddress}-${network}`)
+  })
+
+  it('Should findExistingLog', async () => {
+    const createdLogDao = await Models.Asset.create(rawAsset)
+    const foundLogDao = await Models.Asset.findExistingLog(
+      createdLogDao.daoAddress,
+      createdLogDao.tokenAddress,
+      createdLogDao.network,
+    )
+    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+  })
+
+  it('Should findByEntityId', async () => {
+    const createdLogDao = await Models.Asset.create(rawAsset)
+    const foundLogDao = await Models.Asset.findByEntityId(createdLogDao.entityId)
+    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+  })
+
   it('Should update Asset', async () => {
     const createdAsset = await Models.Asset.create(rawAsset)
     expect(createdAsset.native).to.eq(rawAsset.native)
