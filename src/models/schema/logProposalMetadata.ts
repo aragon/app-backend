@@ -1,4 +1,4 @@
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -33,11 +33,9 @@ class Media {
     customName,
   },
 })
-// @index({
-//   transactionHash: 1,
-//   network: 1,
-//   blockNumber: 1,
-// })
+@index({
+  pluginAddress: 1,
+})
 export default class LogProposalMetadata extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public entityId!: string

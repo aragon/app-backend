@@ -1,4 +1,4 @@
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { ENS, HexAddress, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -28,11 +28,9 @@ class URIUpdate {
     customName,
   },
 })
-// @index({
-//   address: 1,
-//   network: 1,
-//   lastBlockSync: 1,
-// })
+@index({
+  daoAddress: 1,
+})
 export default class LogDaoRegistry extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public entityId!: string
@@ -48,6 +46,9 @@ export default class LogDaoRegistry extends Model {
 
   @prop({ type: () => String, required: true })
   public address!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public implementation!: HexAddress
 
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress

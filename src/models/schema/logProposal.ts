@@ -1,4 +1,4 @@
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -59,10 +59,9 @@ export class ProposalExecuted {
     customName,
   },
 })
-// @index({
-//   blockNumber: 1,
-//   transactionHash: 1,
-// })
+@index({
+  pluginAddress: 1,
+})
 export default class LogProposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public entityId!: string
