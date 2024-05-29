@@ -57,7 +57,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     DUNE: {
-      URI: utils.configParser(sourceConfig, 'string', 'DUNE_URI', 'https://api.dune.com/api/v1'),
+      URI: utils.configParser(sourceConfig, 'string', 'DUNE_URI', 'https://api.dune.com/api'),
       API_KEY: utils.configParser(sourceConfig, 'string', 'DUNE_API_KEY', null),
     },
 
