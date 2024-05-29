@@ -23,7 +23,7 @@ const customName = 'Token'
 // })
 export default class Token extends Model {
   @prop({ type: () => String, enum: ITokenType, required: true })
-  public type?: ITokenType
+  public type!: ITokenType
 
   @prop({ type: () => String, required: true })
   public address!: HexAddress
