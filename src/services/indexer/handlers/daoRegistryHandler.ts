@@ -9,6 +9,7 @@ import { Multisig } from '@artifacts/Multisig'
 import { MemberHandler } from '@services/indexer/handlers/memberHandler'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import Web3Helper from '@helpers/web3'
+import ProxyContractHelper from '@helpers/proxyContract'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
 
@@ -26,6 +27,8 @@ export const DaoRegistryHandler = {
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
+          const implementation = await ProxyContractHelper.getImplementationAddress(daoAddress, network)
+
           const daoLog = {
             network,
             address: daoAddress,
@@ -33,6 +36,7 @@ export const DaoRegistryHandler = {
             ens: parsedEvent.args.subdomain,
             blockNumber: txLog.blockNumber,
             transactionHash: txLog.transactionHash,
+            implementation,
           }
 
           const logDb = await Models.LogDaoRegistry.create(daoLog, { session })
