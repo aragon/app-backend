@@ -27,7 +27,7 @@ describe('Indexer: MetadataHandler', () => {
       }
 
       const fakeEvent = {
-        args: {metadata: 'fake-metadata'},
+        args: { metadata: 'fake-metadata' },
       }
 
       const txLog = {
@@ -40,10 +40,10 @@ describe('Indexer: MetadataHandler', () => {
 
       sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves({
         address: '0x123',
-        network: NetworksEnum.mainnet
+        network: NetworksEnum.mainnet,
       } as any)
 
-      const decodeHelper = sandbox.stub(Web3Helper, 'extractMetadataUri').returns("ipfs://fake-uri")
+      const decodeHelper = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://fake-uri')
       const fetchHelper = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
 
       await MetadataHandler.metadataSet(fakeEvent as any, txLog, NetworksEnum.mainnet)
@@ -52,8 +52,7 @@ describe('Indexer: MetadataHandler', () => {
       expect(decodeHelper.calledWith(fakeEvent.args.metadata)).to.be.true
 
       expect(fetchHelper.calledOnce).to.be.true
-      expect(fetchHelper.calledWith("ipfs://fake-uri")).to.be.true
-
+      expect(fetchHelper.calledWith('ipfs://fake-uri')).to.be.true
     })
   })
 })

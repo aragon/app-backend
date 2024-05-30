@@ -14,13 +14,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDao' })
 
 // must run before daoRegistry
 export const LogDao = {
-  events: [
-    'CallbackReceived', 'Deposited',
-    'Executed',
-    'MetadataSet',
-    'NativeTokenDeposited',
-    'NewURI'
-  ],
+  events: ['CallbackReceived', 'Deposited', 'Executed', 'MetadataSet', 'NativeTokenDeposited', 'NewURI'],
 
   start: async () => {
     const networks = Object.values(Network.NETWORKS)
