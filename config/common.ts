@@ -56,11 +56,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       URI: utils.configParser(sourceConfig, 'string', 'COINGECKO_URI', 'https://api.coingecko.com/api/v3'),
     },
 
-    DUNE: {
-      URI: utils.configParser(sourceConfig, 'string', 'DUNE_URI', 'https://api.dune.com/api'),
-      API_KEY: utils.configParser(sourceConfig, 'string', 'DUNE_API_KEY', null),
-    },
-
     PINATA: {
       JWT: utils.configParser(sourceConfig, 'string', 'PINATA_JWT', null),
       GATEWAY_URI: utils.configParser(
