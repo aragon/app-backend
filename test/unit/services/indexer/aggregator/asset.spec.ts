@@ -7,10 +7,10 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { UtilsIndexer } from '@models/utils/indexer'
 import logger from '@logger'
-import { EnumPluginType, NetworksEnum } from '@types'
+import { IAlchemyTokenBalance, NetworksEnum } from '@types'
 import Logger from '@logger'
 import type Dao from '@models/schema/dao'
-import DuneHelper from '@helpers/dune'
+import Web3Helper from '@helpers/web3'
 
 describe('Indexer:Aggregator:Assets', () => {
   let sandbox: SinonSandbox
@@ -40,100 +40,115 @@ describe('Indexer:Aggregator:Assets', () => {
   describe('onDocument', async () => {
     it('should call onDocument and create asset', async () => {
       const document: Partial<Dao> = {
-        avatar: 'fake-avatar',
-        name: 'fake-name',
-        description: 'fake-description',
-        daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         network: NetworksEnum.mainnet,
-        members: 10,
-        proposalsCreated: 5,
-        proposalsExecuted: 3,
-        tvlUSD: 10000,
-        uniqueVoters: 100,
-        votes: 500,
-        plugins: [
-          {
-            type: EnumPluginType.MultisigPlugin,
-            address: '0x0',
-          },
-        ],
-        hideDao: false,
-        txHash: '0x0',
       }
-      const fakeResp = {
-        balances: [
-          {
-            chain: 'ethereum',
-            address: '0x0',
-            amount: 100,
-          },
-          {
-            chain: 'polygon',
-            address: 'native',
-            amount: 100,
-          },
-        ],
-      }
-      const stubDune = sandbox.stub(DuneHelper, 'getBalance').resolves(fakeResp as any)
+      const fakeEthBalance = '1000000000000000000'
+      const fakeTokenBalances: IAlchemyTokenBalance[] = [
+        { contractAddress: '0xTokenAddress1', tokenBalance: '150000' },
+        { contractAddress: '0xTokenAddress2', tokenBalance: '200000' },
+      ]
+      const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
+      const stubGetTokenBalances = sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
       const stubLogger = sandbox.spy(Logger, 'verbose')
 
       await AggregatorAssets.onDocument(document as any)
 
-      expect(stubDune.calledOnce).to.be.true
-      expect(stubDune.calledWith(document.daoAddress)).to.be.true
-      expect(stubLogger.calledTwice).to.be.true
+      expect(stubGetBalance.callCount).to.eq(1)
+      expect(stubGetBalance.calledWith(document.address, document.network)).to.be.true
+      expect(stubGetTokenBalances.callCount).to.eq(1)
+      expect(stubGetTokenBalances.calledWith(document.address, document.network)).to.be.true
+      expect(stubLogger.calledThrice).to.be.true
 
       const asset = await Models.Asset.findExistingLog(
-        document.daoAddress,
-        fakeResp.balances[0].address,
-        DuneHelper.duneNetworkToAragon(fakeResp.balances[0].chain),
+        document.address,
+        fakeTokenBalances[0].contractAddress,
+        document.network,
       )
-      expect(asset.daoAddress).to.equal(document.daoAddress)
-      expect(asset.network).to.equal(DuneHelper.duneNetworkToAragon(fakeResp.balances[0].chain))
-      expect(asset.tokenAddress).to.equal(fakeResp.balances[0].address)
-      expect(asset.amount).to.equal(fakeResp.balances[0].amount.toString())
+      expect(asset.daoAddress).to.equal(document.address)
+      expect(asset.network).to.equal(document.network)
+      expect(asset.tokenAddress).to.equal(fakeTokenBalances[0].contractAddress)
+      expect(asset.amount).to.equal(fakeTokenBalances[0].tokenBalance)
 
-      const assetNative = await Models.Asset.findExistingLog(
-        document.daoAddress,
-        ZeroAddress,
-        DuneHelper.duneNetworkToAragon(fakeResp.balances[1].chain),
+      const asset2 = await Models.Asset.findExistingLog(
+        document.address,
+        fakeTokenBalances[1].contractAddress,
+        document.network,
       )
-      expect(assetNative.daoAddress).to.equal(document.daoAddress)
-      expect(assetNative.network).to.equal(DuneHelper.duneNetworkToAragon(fakeResp.balances[1].chain))
-      expect(assetNative.tokenAddress).to.equal(ZeroAddress)
-      expect(assetNative.amount).to.equal(fakeResp.balances[1].amount.toString())
+      expect(asset2.daoAddress).to.equal(document.address)
+      expect(asset2.tokenAddress).to.equal(fakeTokenBalances[1].contractAddress)
+      expect(asset2.amount).to.equal(fakeTokenBalances[1].tokenBalance)
+
+      const asset3 = await Models.Asset.findExistingLog(document.address, ZeroAddress, document.network)
+      expect(asset3.daoAddress).to.equal(document.address)
+      expect(asset3.tokenAddress).to.equal(ZeroAddress)
+      expect(asset3.amount).to.equal(fakeEthBalance)
     })
 
     it('should call onDocument and update asset', async () => {
-      const assetDb = await Models.Asset.create({
+      const document: Partial<Dao> = {
+        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         network: NetworksEnum.mainnet,
-        daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      }
+      const fakeEthBalance = '5000000000000000000'
+      const fakeTokenBalances: IAlchemyTokenBalance[] = [{ contractAddress: '0xTokenAddress1', tokenBalance: '550000' }]
+
+      const assetNativeDb = await Models.Asset.create({
+        network: NetworksEnum.mainnet,
+        daoAddress: document.address,
         tokenAddress: ZeroAddress,
-        amount: '100',
+        amount: '1000000000000000000',
       })
 
-      const fakeResp = {
-        balances: [
-          {
-            chain: 'ethereum',
-            address: 'native',
-            amount: '500',
-          },
-        ],
+      const assetTokenDb = await Models.Asset.create({
+        network: NetworksEnum.mainnet,
+        daoAddress: document.address,
+        tokenAddress: fakeTokenBalances[0].contractAddress,
+        amount: '150000',
+      })
+
+      const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
+      const stubGetTokenBalances = sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
+      const stubLogger = sandbox.spy(Logger, 'verbose')
+
+      await AggregatorAssets.onDocument(document as any)
+
+      expect(stubGetBalance.callCount).to.eq(1)
+      expect(stubGetBalance.calledWith(document.address, document.network)).to.be.true
+      expect(stubGetTokenBalances.callCount).to.eq(1)
+      expect(stubGetTokenBalances.calledWith(document.address, document.network)).to.be.true
+      expect(stubLogger.calledTwice).to.be.true
+
+      const asset = await Models.Asset.findExistingLog(
+        document.address,
+        fakeTokenBalances[0].contractAddress,
+        document.network,
+      )
+      expect(asset.daoAddress).to.equal(document.address)
+      expect(asset.network).to.equal(document.network)
+      expect(asset.tokenAddress).to.equal(fakeTokenBalances[0].contractAddress)
+      expect(asset.amount).to.equal(fakeTokenBalances[0].tokenBalance)
+
+      const asset2 = await Models.Asset.findExistingLog(document.address, ZeroAddress, document.network)
+      expect(asset2.daoAddress).to.equal(document.address)
+      expect(asset2.tokenAddress).to.equal(ZeroAddress)
+      expect(asset2.amount).to.equal(fakeEthBalance)
+    })
+
+    it('should call onDocument and fail', async () => {
+      const document: Partial<Dao> = {
+        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+        network: NetworksEnum.mainnet,
       }
 
-      const stubDune = sandbox.stub(DuneHelper, 'getBalance').resolves(fakeResp as any)
-      const stubLogger = sandbox.spy(Logger, 'verbose')
-      await AggregatorAssets.onDocument(assetDb as any)
+      const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').rejects(new Error('Error'))
+      const stubLogger = sandbox.spy(Logger, 'error')
 
-      expect(stubDune.calledOnce).to.be.true
-      expect(stubDune.calledWith(assetDb.daoAddress)).to.be.true
+      await AggregatorAssets.onDocument(document as any)
+
+      expect(stubGetBalance.callCount).to.eq(1)
+      expect(stubGetBalance.calledWith(document.address, document.network)).to.be.true
       expect(stubLogger.calledOnce).to.be.true
-
-      const asset = await Models.Asset.findExistingLog(assetDb.daoAddress, assetDb.tokenAddress, assetDb.network)
-      expect(asset.amount).to.equal('500')
     })
   })
 })
