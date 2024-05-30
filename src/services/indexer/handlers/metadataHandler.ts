@@ -1,69 +1,71 @@
 import logger from '@logger'
-import { IAragonContract, type IDecodeTransaction, type NetworksEnum } from '@types'
+import { type NetworksEnum } from '@types'
 import { Interface, type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import Web3Helper from '@helpers/web3'
-import { DAO } from '@artifacts/dao'
 import { DAOFactory } from '@artifacts/daoFactory'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import IPFSModule from '@modules/ipfs'
+import { DAO } from '@artifacts/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:MetadataHandler' })
 
 export const MetadataHandler = {
   contractInterfaces: {
     DAOFactory: new Interface(DAOFactory.abi),
-    DAO: new Interface(DAO.abi),
     TokenVoting: new Interface(TokenVoting.abi),
+    DAO: new Interface(DAO.abi),
   },
 
   metadataSet: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
+    /**
+     * As the tx log can a transaction Object or transaction receipt,
+     * We need to properly extract the transaction hash and block number
+     *
+     * This situation occurs when its is called from the daoRegistryHandler,
+     * dao creation lifecycle
+     */
+
     const logInfo: any = {
-      txHash: txLog.transactionHash,
+      txHash: txLog.transactionHash || txLog.hash,
       blockNumber: txLog.blockNumber,
       network,
     }
 
-    const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)
-    const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 1 })
-    if (!ipfsMetadata) {
-      logger.warn('Metadata ipfs null', llo({ logInfo }))
-      return
-    }
-
     const daoAddress = txLog.address
 
-    const existingDao = await Models.LogDaoRegistry.findByAddress(txLog.address, network)
-
-    if (!existingDao) {
-      logger.warn('Dao not found', llo({logInfo}),
-      )
-      return
-    }
-
-    const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog(txLog.transactionHash, daoAddress)
+    const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog(logInfo.txHash, daoAddress)
 
     if (!existingDaoMetadata) {
-      const daoMetadata = Web3Helper.parseDaoMetadata(ipfsMetadata!)
+      const isDaoExists = await Models.LogDaoRegistry.findByAddress(daoAddress, network)
 
-      await DbTx.executeTxFn(async ({ session }) => {
-        const logDaoMetadata = {
-          ...daoMetadata,
-          network,
-          metadataUri,
-          daoAddress,
-          fetchedMetadata: !!ipfsMetadata,
-          blockNumber: txLog.blockNumber,
-          transactionHash: txLog.transactionHash,
-        }
+      if (isDaoExists) {
+        const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)
 
-        const logDb = await Models.LogDaoMetadata.create(logDaoMetadata, {session})
+        const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 1 })
 
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('New DaoMetadata', llo({logId: logDb.id, logInfo}))
-      })
+        await DbTx.executeTxFn(async ({ session }) => {
+          const logDaoMetadata = {
+            network,
+            metadataUri,
+            daoAddress,
+            fetchedMetadata: !!ipfsMetadata,
+            blockNumber: txLog.blockNumber,
+            transactionHash: logInfo.txHash,
+            name: ipfsMetadata?.name,
+            description: ipfsMetadata?.description,
+            avatar: ipfsMetadata?.avatar,
+            links: ipfsMetadata?.links,
+          }
+
+          const logDb = await Models.LogDaoMetadata.create(logDaoMetadata, { session })
+
+          await session.commitTransaction()
+          await session.endSession()
+          logger.verbose('New DaoMetadata', llo({ logId: logDb.id, logInfo }))
+        })
+      }
     }
   },
 }

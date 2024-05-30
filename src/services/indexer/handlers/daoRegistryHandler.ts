@@ -10,6 +10,8 @@ import { MemberHandler } from '@services/indexer/handlers/memberHandler'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import Web3Helper from '@helpers/web3'
 import ProxyContractHelper from '@helpers/proxyContract'
+import { DAO } from '@artifacts/dao'
+import { MetadataHandler } from '@services/indexer/handlers/metadataHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
 
@@ -80,9 +82,24 @@ export const DaoRegistryHandler = {
      * Save the member logs that will create the member entry for the dao
      */
     await DaoRegistryHandler._memberAdded(allLogs, transactionHash, network)
+
+    /**
+     * Save the metadata logs that will create the metadata entry for the dao
+     */
+    await DaoRegistryHandler._metadataHandler(allLogs, transactionHash, network)
   },
 
-  // TODO: add dao metadata on dao creation
+  _metadataHandler: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
+    const metadataLogs = Web3Helper.findLogsByName(txReceipt, 'MetadataSet', DAO.abi)
+
+    if (metadataLogs.length === 0) {
+      logger.verbose('MetadataSet not found', llo({ transactionHash, network }))
+      return
+    }
+
+    await MetadataHandler.metadataSet(metadataLogs[0].parsed!, metadataLogs[0].txLog, network)
+  },
+
   _pluginSetup: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
     const pluginSetupLogs = Web3Helper.findLogsByName(
       txReceipt,

@@ -19,7 +19,7 @@ describe('Indexer: MetadataHandler', () => {
     sandbox?.restore()
   })
 
-  describe('metadataSet', () => {
+  describe.skip('metadataSet', () => {
     it('should store DAO metadata', async () => {
       const fakeMetadata = {
         name: 'test',

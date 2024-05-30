@@ -135,7 +135,7 @@ const Web3Helper = {
   },
 
   formatAddress(address: HexAddress) {
-    return address.replace(/^0x0+/, '0x')
+    return AbiCoder.defaultAbiCoder().encode(['address'], [address])
   },
 
   decodeCalldata(decodeABI: string[], calldata: any) {
@@ -499,6 +499,6 @@ const Web3Helper = {
 
     return { txReceipt, events }
   },
-}
+};
 
 export default Web3Helper
