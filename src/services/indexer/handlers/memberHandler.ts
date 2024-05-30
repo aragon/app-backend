@@ -16,7 +16,7 @@ export const MemberHandler = {
       network,
     }
 
-    const existingLog = await Models.LogMember.findByTxHash(txLog.transactionHash)
+    const existingLog = await Models.LogMember.findByTxHash(logInfo.transactionHash)
 
     if (!existingLog) {
       const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(txLog.address, network)
@@ -33,14 +33,14 @@ export const MemberHandler = {
           const rawMember = {
             address: member,
             blockNumber: txLog.blockNumber,
-            transactionHash: txLog.transactionHash,
+            transactionHash: logInfo.transactionHash,
             event: parsedEvent.name,
             pluginAddress: txLog.address,
             network,
             entityId: null,
           }
 
-          rawMember.entityId = Models.LogMember.getEntityId(txLog.transactionHash, parsedEvent.name + '_' + member)
+          rawMember.entityId = Models.LogMember.getEntityId(logInfo.transactionHash, parsedEvent.name + '_' + member)
           const daoMember = await Models.LogMember.create(rawMember, { session })
           daoMembersIds.push(daoMember.id)
         }
@@ -65,7 +65,7 @@ export const MemberHandler = {
       network,
     }
 
-    const existingLog = await Models.LogMember.findByTxHash(txLog.transactionHash)
+    const existingLog = await Models.LogMember.findByTxHash(logInfo.transactionHash)
 
     if (!existingLog) {
       const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(txLog.address, network)
@@ -81,14 +81,14 @@ export const MemberHandler = {
           const rawMember = {
             address: member,
             blockNumber: txLog.blockNumber,
-            transactionHash: txLog.transactionHash,
+            transactionHash: logInfo.transactionHash,
             event: parsedEvent.name,
             pluginAddress: txLog.address,
             network,
             entityId: null,
           }
 
-          rawMember.entityId = Models.LogMember.getEntityId(txLog.transactionHash, parsedEvent.name + '_' + member)
+          rawMember.entityId = Models.LogMember.getEntityId(logInfo.transactionHash, parsedEvent.name + '_' + member)
 
           const daoMember = await Models.LogMember.create(rawMember, { session })
           daoMembersIds.push(daoMember.id)
@@ -110,11 +110,11 @@ export const MemberHandler = {
 
   delegateChanged: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
     const logInfo = {
-      transactionHash: txLog.transactionHash,
+      transactionHash: txLog.transactionHash || txLog.hash,
       network,
     }
 
-    const txReceipt = await Web3Helper.getTransactionReceipt(txLog.transactionHash, network)
+    const txReceipt = await Web3Helper.getTransactionReceipt(logInfo.transactionHash, network)
 
     const existingLog = await Models.LogMember.findExistingLog(txLog.transactionHash, parsedEvent.name)
 
@@ -122,7 +122,7 @@ export const MemberHandler = {
       const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(txLog.address, network)
 
       if (!relatedPlugin) {
-        logger.warn('Plugin not found', llo({ txLog }))
+        logger.warn('Plugin not found', llo({ logInfo }))
         return
       }
 
@@ -143,7 +143,7 @@ export const MemberHandler = {
 
       await DbTx.executeTxFn(async ({ session }) => {
         const rawDaoMember = {
-          transactionHash: txLog.transactionHash,
+          transactionHash: logInfo.transactionHash,
           blockNumber: txLog.blockNumber,
           network,
           address: parsedEvent.args.toDelegate,
