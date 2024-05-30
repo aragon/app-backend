@@ -220,7 +220,7 @@ describe('Indexer: DaoRegistryHandler', () => {
 
   describe('_memberAdded', () => {
     it('should fails to save member logs if not found all', async () => {
-      const verboseStub = sandbox.stub(logger, 'verbose')
+      const verboseStub = sandbox.stub(logger, 'warn')
       const fakeTx = {
         logs: [
           {
