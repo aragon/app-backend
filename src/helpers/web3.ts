@@ -1,4 +1,12 @@
-import { type HexAddress, type IDaoMetadata, type IProposalMetadata, ITransactionType, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IAlchemyTokenBalance,
+  type IAlchemyTokenBalancesResponse,
+  type IDaoMetadata,
+  type IProposalMetadata,
+  ITransactionType,
+  type NetworksEnum,
+} from '@types'
 import {
   AbiCoder,
   Contract,
@@ -336,6 +344,41 @@ const Web3Helper = {
         }),
       )
       return null
+    }
+  },
+
+  async getBalance(address: HexAddress, network: NetworksEnum): Promise<string> {
+    try {
+      const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+
+      const response = await provider.send('eth_getBalance', [address])
+      return BigInt(response).toString()
+    } catch (error) {
+      logger.error('Error getBalance', llo({ address, network, error }))
+      return '0'
+    }
+  },
+
+  async getTokenBalances(address: HexAddress, network: NetworksEnum): Promise<IAlchemyTokenBalance[] | []> {
+    try {
+      const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+
+      const response = (await provider.send('alchemy_getTokenBalances', [address])) as IAlchemyTokenBalancesResponse
+
+      const balances = response.tokenBalances
+        .map((token: any) => {
+          const result: IAlchemyTokenBalance = {
+            contractAddress: token.contractAddress,
+            tokenBalance: BigInt(token.tokenBalance).toString(),
+          }
+          return result
+        })
+        .filter((token: any) => token.tokenBalance !== '0')
+
+      return balances
+    } catch (error) {
+      logger.error('Error getTokenBalances', llo({ address, network, error }))
+      return []
     }
   },
 
