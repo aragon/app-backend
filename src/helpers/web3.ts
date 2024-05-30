@@ -499,6 +499,6 @@ const Web3Helper = {
 
     return { txReceipt, events }
   },
-};
+}
 
 export default Web3Helper
