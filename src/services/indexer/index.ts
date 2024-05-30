@@ -23,15 +23,23 @@ const IndexerService: IService = {
 
     const task1 = [async () => LogPluginRepoRegistry.start(), async () => LogDaoRegistry.start()]
     const task2 = [async () => LogPluginSetupProcessor.start(), async () => LogPluginSetting.start()]
-    const task3 = [async () => LogMember.start(), async () => LogDao.start(), async () => LogProposal.start()]
-    const task4 = [
-      async () => AggregatorPlugin.start(),
-      async () => AggregatorMembers.start(),
-      async () => AggregatorSetting.start(),
+    const task3 = [
+      async () => LogMember.start(),
+      async () => LogDao.start(),
+      async () => LogProposal.start()
     ]
+    // const task4 = [
+    //   async () => AggregatorPlugin.start(),
+    //   async () => AggregatorMembers.start(),
+    //   async () => AggregatorSetting.start(),
+    // ]
 
     const taskOptions = {
-      fn: () => [task1, task2, task3, task4],
+      fn: () => [
+        task1, task2,
+        task3,
+        // task4
+      ],
       interval: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
       onError: (error: any) => {
         logger.error('IndexerService task error', llo({ error }))
