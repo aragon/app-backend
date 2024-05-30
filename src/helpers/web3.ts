@@ -135,7 +135,13 @@ const Web3Helper = {
   },
 
   formatAddress(address: HexAddress) {
-    return AbiCoder.defaultAbiCoder().encode(['address'], [address])
+    try {
+      const trimmedAddress = address.replace(/^0x0+/, '0x')
+      return getAddress(trimmedAddress)
+    } catch (error) {
+      logger.error('Error formatAddress', llo({ address, error }))
+      return address
+    }
   },
 
   decodeCalldata(decodeABI: string[], calldata: any) {

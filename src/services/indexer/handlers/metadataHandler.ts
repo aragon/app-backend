@@ -27,45 +27,50 @@ export const MetadataHandler = {
      * dao creation lifecycle
      */
 
+    const transactionHash = txLog.transactionHash || txLog.hash
     const logInfo: any = {
-      txHash: txLog.transactionHash || txLog.hash,
+      transactionHash: transactionHash,
       blockNumber: txLog.blockNumber,
       network,
     }
 
-    const daoAddress = txLog.address
+    try {
+      const daoAddress = txLog.address
 
-    const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog(logInfo.txHash, daoAddress)
+      const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog(logInfo.txHash, daoAddress)
 
-    if (!existingDaoMetadata) {
-      const isDaoExists = await Models.LogDaoRegistry.findByAddress(daoAddress, network)
+      if (!existingDaoMetadata) {
+        const isDaoExists = await Models.LogDaoRegistry.findByAddress(daoAddress, network)
 
-      if (isDaoExists) {
-        const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)
+        if (isDaoExists) {
+          const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)
 
-        const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 1 })
+          const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 1 })
 
-        await DbTx.executeTxFn(async ({ session }) => {
-          const logDaoMetadata = {
-            network,
-            metadataUri,
-            daoAddress,
-            fetchedMetadata: !!ipfsMetadata,
-            blockNumber: txLog.blockNumber,
-            transactionHash: logInfo.txHash,
-            name: ipfsMetadata?.name,
-            description: ipfsMetadata?.description,
-            avatar: ipfsMetadata?.avatar,
-            links: ipfsMetadata?.links,
-          }
+          await DbTx.executeTxFn(async ({ session }) => {
+            const logDaoMetadata = {
+              network,
+              metadataUri,
+              daoAddress,
+              fetchedMetadata: !!ipfsMetadata,
+              blockNumber: txLog.blockNumber,
+              transactionHash,
+              name: ipfsMetadata?.name,
+              description: ipfsMetadata?.description,
+              avatar: ipfsMetadata?.avatar,
+              links: ipfsMetadata?.links,
+            }
 
-          const logDb = await Models.LogDaoMetadata.create(logDaoMetadata, { session })
+            const logDb = await Models.LogDaoMetadata.create(logDaoMetadata, { session })
 
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose('New DaoMetadata', llo({ logId: logDb.id, logInfo }))
-        })
+            await session.commitTransaction()
+            await session.endSession()
+            logger.verbose('New DaoMetadata', llo({ logId: logDb.id, logInfo }))
+          })
+        }
       }
+    } catch (error) {
+      logger.error('Error DaoMetadata', llo({ logInfo, error }))
     }
   },
 }

@@ -109,14 +109,15 @@ export const MemberHandler = {
   },
 
   delegateChanged: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
+    const transactionHash = txLog.transactionHash || txLog.hash
     const logInfo = {
-      transactionHash: txLog.transactionHash || txLog.hash,
+      transactionHash,
       network,
     }
 
-    const txReceipt = await Web3Helper.getTransactionReceipt(logInfo.transactionHash, network)
+    const txReceipt = await Web3Helper.getTransactionReceipt(transactionHash, network)
 
-    const existingLog = await Models.LogMember.findExistingLog(txLog.transactionHash, parsedEvent.name)
+    const existingLog = await Models.LogMember.findExistingLog(transactionHash, parsedEvent.name)
 
     if (!existingLog) {
       const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(txLog.address, network)
@@ -143,7 +144,7 @@ export const MemberHandler = {
 
       await DbTx.executeTxFn(async ({ session }) => {
         const rawDaoMember = {
-          transactionHash: logInfo.transactionHash,
+          transactionHash,
           blockNumber: txLog.blockNumber,
           network,
           address: parsedEvent.args.toDelegate,

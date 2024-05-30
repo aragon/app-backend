@@ -130,7 +130,7 @@ export const DaoRegistryHandler = {
       )
 
       if (delegationChangedLogs.length === 0) {
-        logger.verbose('Invalid member log', llo({ transactionHash, network }))
+        logger.warn('Invalid member log', llo({ transactionHash, network }))
         return
       }
 
