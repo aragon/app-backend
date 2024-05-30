@@ -19,7 +19,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     BOTTLENECK: {
       MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_MAX_CONCURRENT', 10),
-      MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_MIN_TIME', 200),
+      MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_MIN_TIME', 5),
     },
 
     MONGO_DB: {
