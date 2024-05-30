@@ -3,6 +3,8 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Utils from '@helpers/utils'
 import logger from '@logger'
+import dayjs from '@helpers/dayjs'
+import utils from '@helpers/utils'
 
 describe('Helpers:Utils', () => {
   let sandbox: SinonSandbox
@@ -491,6 +493,40 @@ describe('Helpers:Utils', () => {
       const result = Utils.parsePermissions(permissionsInput)
       expect(result[0].id).to.eq(permissionsInput[0].id)
       expect(result[0].operation).to.eq(permissionsInput[0].operation)
+    })
+  })
+
+  describe('hasHoursPassed', () => {
+    it('should return true if the specified hours have passed', () => {
+      const pastDate = dayjs().subtract(25, 'hour').toDate()
+      expect(utils.hasHoursPassed(pastDate, 24)).to.be.true
+    })
+
+    it('should return false if the specified hours have not passed', () => {
+      const pastDate = dayjs().subtract(23, 'hour').toDate()
+      expect(utils.hasHoursPassed(pastDate, 24)).to.be.false
+    })
+  })
+
+  describe('calculatePercentageChange', () => {
+    it('should calculate the correct positive percentage change', () => {
+      expect(utils.calculatePercentageChange(200, 100)).to.equal(100.0)
+    })
+
+    it('should calculate the correct negative percentage change', () => {
+      expect(utils.calculatePercentageChange(50, 100)).to.equal(-50.0)
+    })
+
+    it('should handle division by zero when old value is zero', () => {
+      expect(utils.calculatePercentageChange(100, 0)).to.eq(Infinity)
+    })
+  })
+
+  describe('getEpochDayjs', () => {
+    it('should return a Dayjs object set to the Unix Epoch', () => {
+      const epoch = utils.getEpochDayjs()
+      expect(epoch.isValid()).to.be.true
+      expect(epoch.unix()).to.equal(0)
     })
   })
 })

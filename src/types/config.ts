@@ -95,11 +95,6 @@ export interface IConfig {
     URI: string
   }
 
-  DUNE: {
-    URI: string
-    API_KEY: string
-  }
-
   PINATA: {
     JWT: string
     GATEWAY_URI: string

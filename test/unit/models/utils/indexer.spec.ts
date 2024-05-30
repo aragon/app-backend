@@ -138,5 +138,26 @@ describe('Model/Utils: indexer', () => {
       expect(token!.totalSupply).to.eq(2000)
       expect(token!.network).to.eq(NetworksEnum.mainnet)
     })
+
+    it('should detect token type unknown', async () => {
+      const stubFind = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(null)
+      const stubDetectTokenType = sandbox
+        .stub(TokenDetector, 'detectTokenType')
+        .resolves({ type: ITokenType.unknown } as any)
+      const stubGetToken = sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
+        address: '0x123',
+        name: 'TokenName',
+        decimals: 18,
+        symbol: 'TKN',
+        totalSupply: 2000,
+      })
+
+      const token = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.mainnet)
+
+      expect(stubFind.calledOnce).to.be.true
+      expect(stubDetectTokenType.calledOnce).to.be.true
+      expect(stubGetToken.notCalled).to.be.true
+      expect(token).to.be.null
+    })
   })
 })

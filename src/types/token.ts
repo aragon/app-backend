@@ -36,5 +36,6 @@ export enum ITokenType {
   ERC1155 = 'ERC1155',
   ERC777 = 'ERC777',
   GovernanceERC20 = 'GovernanceERC20',
+  native = 'native',
   unknown = 'unknown',
 }

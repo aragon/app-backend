@@ -32,21 +32,18 @@ export const AggregatorSetting = {
 
   async onDocument(document: any) {
     const existingLog = await Models.Setting.findExistingLog(document.pluginAddress, document.network)
-    if (!existingLog) {
-      await DbTx.executeTxFn(async ({ session }) => {
-        const logDb = await Models.Setting.create(document, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('Aggregate Setting', llo({ logId: logDb.id }))
-      })
-    } else {
-      await DbTx.executeTxFn(async ({ session }) => {
-        await existingLog.update(document, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('Update Aggregate Setting', llo({ logId: existingLog.id }))
-      })
-    }
+
+    await DbTx.executeTxFn(async ({ session }) => {
+      let logDb: any = null
+      if (!existingLog) {
+        logDb = await Models.Setting.create(document, { session })
+      } else {
+        logDb = await existingLog.update(document, { session })
+      }
+      await session.commitTransaction()
+      await session.endSession()
+      logger.verbose(existingLog ? 'Update Aggregate Setting' : 'Aggregate Setting', llo({ logId: logDb?.id }))
+    })
   },
 
   query() {

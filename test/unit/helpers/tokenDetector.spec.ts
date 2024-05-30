@@ -9,6 +9,7 @@ import TokenDetector, {
 } from '@helpers/tokenDetector'
 import { beforeEach } from 'mocha'
 import { ITokenType, NetworksEnum } from '@types'
+import { ZeroAddress } from 'ethers'
 import { expect } from 'chai'
 import { ConfigState } from '@state/configState'
 import ProxyContractHelper from '@helpers/proxyContract'
@@ -27,6 +28,14 @@ describe('Helper: TokenDetector', () => {
     // Construct a bytecode string that includes the first 10 characters of the Keccak hash for each function
     return '0x' + functions.map(func => TokenDetector.functionHashes[func]).join('')
   }
+
+  it('should detect native token', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress')
+
+    const result = await TokenDetector.detectTokenType(ZeroAddress, NetworksEnum.mainnet)
+    expect(result?.type).to.equal(ITokenType.native)
+    expect(getImplementationAddressStub.notCalled).to.be.true
+  })
 
   it('should detect ERC20 token', async () => {
     const contractAddress = '0x0001'
