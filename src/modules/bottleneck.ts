@@ -3,16 +3,27 @@ import config from '@config'
 import { type NetworksEnum } from '@types'
 
 class BottleneckModule {
-  static limiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static nodeLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static transferLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
 
-  static getLimiter(network: NetworksEnum) {
-    if (!this.limiters[network]) {
-      this.limiters[network] = new Bottleneck({
-        maxConcurrent: config.BOTTLENECK.MAX_CONCURRENT, // Maximum number of concurrent requests
-        minTime: config.BOTTLENECK.MIN_TIME, // Minimum time (ms) between requests
+  static getNodeLimiter(network: NetworksEnum) {
+    if (!this.nodeLimiters[network]) {
+      this.nodeLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.NODE_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.NODE_MIN_TIME, // Minimum time (ms) between requests
       })
     }
-    return this.limiters[network]
+    return this.nodeLimiters[network]
+  }
+
+  static getNodeTransferLimiter(network: NetworksEnum) {
+    if (!this.transferLimiters[network]) {
+      this.transferLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.NODE_TRANSFER_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.NODE_TRANSFER_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.transferLimiters[network]
   }
 }
 
