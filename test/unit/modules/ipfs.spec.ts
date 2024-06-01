@@ -101,22 +101,6 @@ describe('Modules: IPFS', () => {
       expect(stubParseMetadata.calledWith('ok' as any)).to.be.true
     })
 
-    it('should _fetchMetadata avatar', async () => {
-      const fakeData = { data: { avatar: { path: 'test' } } }
-      const stubReq = sandbox.stub(axios, 'get').returns(fakeData as any)
-      const stubParseMetadata = sandbox.stub(IPFSModule, '_parseDaoMetadata').returns(true as any)
-      const cid = 'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
-      const metadata = await IPFSModule._fetchMetadata(cid)
-
-      expect(metadata).to.be.true
-      expect(stubReq.calledOnce).to.be.true
-      expect(stubReq.calledWith(`https://ipfs.io/ipfs/${cid}`)).to.be.true
-      expect(stubParseMetadata.calledOnce).to.be.true
-
-      const avatar: any = stubParseMetadata.args[0][0].avatar
-      expect(avatar.path).to.eq('test')
-    })
-
     it('should log an error when _fetchMetadata', async () => {
       const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
       const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
@@ -165,6 +149,23 @@ describe('Modules: IPFS', () => {
       expect(stubFetchMetadata.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
       expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
       expect(result).to.deep.equal(expectedMetadata)
+    })
+
+    it('should call fetchMetadata for avatar', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+      const expectedMetadata = { name: 'Example', avatar: { path: 'test' } }
+
+      const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata').resolves({
+        name: 'Example',
+        avatar: { path: 'test' },
+      } as any)
+      const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
+
+      const result = await IPFSModule.fetchMetadata(cidV0)
+
+      expect(stubFetchMetadata.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(result?.avatar).to.equal(expectedMetadata.avatar.path)
     })
 
     it('should return null for invalid CID', async function () {
