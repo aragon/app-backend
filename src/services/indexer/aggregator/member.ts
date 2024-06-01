@@ -32,22 +32,19 @@ export const AggregatorMembers = {
 
   async onDocument(document: any) {
     const existingLog = await Models.Member.findExistingLog(document.address)
-    if (!existingLog) {
-      // TODO: find user ens
-      await DbTx.executeTxFn(async ({ session }) => {
-        const logDb = await Models.Member.create(document, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('New Aggregate Member', llo({ logId: logDb.id }))
-      })
-    } else {
-      await DbTx.executeTxFn(async ({ session }) => {
-        await existingLog.update(document, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('Update Aggregate Member', llo({ logId: existingLog.id }))
-      })
-    }
+    // TODO: find user ens
+
+    await DbTx.executeTxFn(async ({ session }) => {
+      let logDb: any = null
+      if (!existingLog) {
+        logDb = await Models.Member.create(document, { session })
+      } else {
+        logDb = await existingLog.update(document, { session })
+      }
+      await session.commitTransaction()
+      await session.endSession()
+      logger.verbose(existingLog ? 'Update Aggregate Member' : 'New Aggregate Member', llo({ logId: logDb?.id }))
+    })
   },
 
   query() {
