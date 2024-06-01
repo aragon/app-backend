@@ -1,6 +1,9 @@
 import { type HexAddress, type NetworksEnum } from '@types'
-import { Contract, type WebSocketProvider, ethers } from 'ethers'
+import { Contract, ethers, getAddress, type WebSocketProvider, ZeroAddress } from 'ethers'
 import { ConfigState } from '@state/configState'
+import logger from '@logger'
+
+const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyContractHelper' })
 
 const ProxyContractHelper = {
   /**
@@ -12,17 +15,19 @@ const ProxyContractHelper = {
    *
    **/
 
-  _getImplementationForMinimalProxy(byteCode: string) {
+  _getImplementationForMinimalProxy(byteCode: string): HexAddress | null {
     const minimalProxyPattern = '0x363d3d373d3d3d363d73'
     const minimalProxyPatternLength = minimalProxyPattern.length
 
     if (byteCode.startsWith(minimalProxyPattern)) {
-      return ethers.getAddress('0x' + byteCode.slice(minimalProxyPatternLength, minimalProxyPatternLength + 40))
+      return ethers.getAddress(
+        '0x' + byteCode.slice(minimalProxyPatternLength, minimalProxyPatternLength + 40),
+      ) as HexAddress
     }
     return null
   },
 
-  async _fallBackImplementationViaViewCall(address: string, network: NetworksEnum) {
+  async _fallBackImplementationViaViewCall(address: string, network: NetworksEnum): Promise<HexAddress | null> {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
     const contract = new Contract(
       address,
@@ -46,23 +51,45 @@ const ProxyContractHelper = {
   },
 
   async getImplementationAddress(address: string, network: NetworksEnum): Promise<HexAddress | null> {
+    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+
+    // Helper function to extract an address from a storage slot
+    async function getAddressFromStorage(slot: string): Promise<HexAddress | null> {
+      try {
+        const storageValue = await provider.getStorage(address, slot)
+        const addressFromStorage = getAddress('0x' + storageValue.slice(-40))
+        return addressFromStorage === ZeroAddress ? null : (addressFromStorage as HexAddress)
+      } catch (error) {
+        return null
+      }
+    }
+
     try {
-      const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-      const ERC1967_IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
+      // Check EIP-1967 slot first
+      let implementationAddress = await getAddressFromStorage(
+        '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc',
+      )
 
-      const storageValue = await provider.getStorage(address, ERC1967_IMPLEMENTATION_SLOT)
-      let implementationAddress: any = ethers.getAddress('0x' + storageValue.slice(-40))
-
-      if (implementationAddress === ethers.ZeroAddress) {
-        implementationAddress = ProxyContractHelper._getImplementationForMinimalProxy(await provider.getCode(address))
-
-        if (implementationAddress === ethers.ZeroAddress) {
-          implementationAddress = await ProxyContractHelper._fallBackImplementationViaViewCall(address, network)
-        }
+      // Check FiatProxy slot if EIP-1967 slot is not valid
+      if (!implementationAddress) {
+        implementationAddress = await getAddressFromStorage(
+          '0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3',
+        )
       }
 
-      return implementationAddress === ethers.ZeroAddress ? null : implementationAddress
+      // Check minimal proxy pattern if other slots failed
+      if (!implementationAddress) {
+        implementationAddress = ProxyContractHelper._getImplementationForMinimalProxy(await provider.getCode(address))
+      }
+
+      // Fallback via explicit view call if still not found
+      if (!implementationAddress) {
+        implementationAddress = await ProxyContractHelper._fallBackImplementationViaViewCall(address, network)
+      }
+
+      return implementationAddress
     } catch (error) {
+      logger.error('Failed to fetch implementation address:', llo({ error }))
       return null
     }
   },
