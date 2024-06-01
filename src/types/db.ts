@@ -10,7 +10,6 @@ import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor
 import type LogPluginRepo from '@models/schema/logPluginRepo'
 import type LogProposal from '@models/schema/logProposal'
 import type LogPluginSetting from '@models/schema/logPluginSetting'
-import type LogTransaction from '@models/schema/logTransaction'
 import type LogMember from '@models/schema/logMember'
 import type Aggregator from '@models/schema/aggregator'
 import type Member from '@models/schema/member'
@@ -30,7 +29,6 @@ export interface IMongoModel {
   LogPluginRepo: Model<InstanceType<typeof LogPluginRepo>>
   LogProposal: Model<InstanceType<typeof LogProposal>>
   LogPluginSetting: Model<InstanceType<typeof LogPluginSetting>>
-  LogTransaction: Model<InstanceType<typeof LogTransaction>>
   LogMember: Model<InstanceType<typeof LogMember>>
   Aggregator: Model<InstanceType<typeof Aggregator>>
   Member: Model<InstanceType<typeof Member>>

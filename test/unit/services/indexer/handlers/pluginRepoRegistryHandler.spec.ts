@@ -75,7 +75,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.LogPluginRepo, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, txLog, network)
