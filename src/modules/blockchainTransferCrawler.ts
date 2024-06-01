@@ -1,24 +1,26 @@
 import logger from '@logger'
-import { type Filter, type Log, type WebSocketProvider } from 'ethers'
+import { type WebSocketProvider } from 'ethers'
 import { ConfigState } from '@state/configState'
-import { NetworksEnum } from '@types'
+import { type IAlchemyTransferOptions, type IAlchemyTransferResponse, NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import BottleneckModule from '@modules/bottleneck'
+import Web3Helper from '@helpers/web3'
 
-const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' })
+const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainTransferCrawler' })
 
-class BlockchainLogCrawler {
+class BlockchainTransferCrawler {
+  private readonly network: NetworksEnum
   private readonly fromBlock: number | string
   private readonly toBlock: number | string
   private readonly provider: WebSocketProvider
-  private readonly onLog: (log: Log) => Promise<void>
-  private readonly onError: (error: any, log?: Log) => void
-  private readonly filter: Filter
+  private readonly filter: IAlchemyTransferOptions
   private readonly stopOnError: boolean
-  private batchSize: number
-  private crawling: boolean
-  private isOnError: boolean
-  private shutdown: boolean
+  batchSize: number = 0
+  crawling: boolean
+  isOnError: boolean
+  shutdown: boolean
+  readonly onTx: (log: IAlchemyTransferResponse) => Promise<void>
+  readonly onError: (error: any, log?: IAlchemyTransferResponse) => void
   public readonly crawlResult: {
     network: NetworksEnum
     nbSuccess: number
@@ -30,12 +32,12 @@ class BlockchainLogCrawler {
 
   constructor(opts: {
     network: NetworksEnum
-    filter: Filter | any
-    batchSize?: number
-    onLog: (log: Log) => Promise<void>
-    onError?: (error: Error, log?: Log) => void
+    filter: IAlchemyTransferOptions
+    onTx: (log: IAlchemyTransferResponse) => Promise<void>
+    onError?: (error: Error, log?: IAlchemyTransferResponse) => void
     stopOnError?: boolean
   }) {
+    this.network = opts.network
     this.provider = ConfigState.getInstance().getConfigItem(opts.network) as WebSocketProvider
     if (!this.provider) {
       throw new Error('Provider not configured for network: ' + opts.network)
@@ -48,9 +50,8 @@ class BlockchainLogCrawler {
     }
     this.fromBlock = this.filter.fromBlock as any
     this.toBlock = this.filter.toBlock as any
-    this.batchSize = opts.batchSize || this.calculateBatchSize(opts.network)
-    this.onLog = opts.onLog
-    this.onError = opts.onError || BlockchainLogCrawler.defaultOnError
+    this.onTx = opts.onTx
+    this.onError = opts.onError || BlockchainTransferCrawler.defaultOnError
     this.stopOnError = opts.stopOnError ?? true
     this.shutdown = false
     this.crawling = false
@@ -65,36 +66,20 @@ class BlockchainLogCrawler {
     }
   }
 
-  static defaultOnError(error: Error, log?: Log): void {
+  static defaultOnError(error: Error, log?: IAlchemyTransferResponse): void {
     logger.error(
-      'Error in BlockchainLogCrawler',
+      'Error in BlockchainTransferCrawler',
       llo({
         error: error.message,
-        logId: log?.transactionHash ?? null,
+        logId: log?.hash ?? null,
       }),
     )
-  }
-
-  calculateBatchSize(network: NetworksEnum): number {
-    const secondsInMonth = 30 * 24 * 3600
-    switch (network) {
-      case NetworksEnum.mainnet:
-      case NetworksEnum.arbitrum: // TODO: check
-      case NetworksEnum.base: // TODO: check
-        return Math.floor(secondsInMonth / 14) // Average block time ~14 seconds
-      case NetworksEnum.polygon:
-        return Math.floor(secondsInMonth / 2) // Average block time ~2 seconds
-      case NetworksEnum.sepolia:
-        return Math.floor(secondsInMonth / 12) // Average block time ~12 seconds
-      default:
-        throw new Error(`Unsupported network: ${network}`)
-    }
   }
 
   async getBlockNumber(blockNumber: string | number | undefined): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
-        return await BottleneckModule.getNodeLimiter(NetworksEnum.mainnet)!.schedule(async () =>
+        return await BottleneckModule.getNodeTransferLimiter(NetworksEnum.mainnet)!.schedule(async () =>
           this.provider.getBlockNumber(),
         )
       } catch (error) {
@@ -124,49 +109,49 @@ class BlockchainLogCrawler {
     this.crawling = true
     let currentBlock = await this.getBlockNumber(this.filter.fromBlock as any)
     const latestBlock = await this.getBlockNumber(this.filter.toBlock as any)
+    this.batchSize = latestBlock - currentBlock
     this.crawlResult.latestBlockNumber = latestBlock
 
     while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
       const toBlock = Math.min(currentBlock + this.batchSize - 1, latestBlock)
 
-      // Handle topics: use chunks if there are topics, or pass empty for all logs
-      const topicChunks = Utils.chunkArray(this.filter.topics, 4)
+      logger.silly(
+        'Querying logs for topic chunk',
+        llo({
+          network: this.crawlResult.network,
+          initBlock: this.fromBlock,
+          endBlock: this.toBlock,
+          fromBlock: currentBlock,
+          toBlock,
+        }),
+      )
 
-      for (const topics of topicChunks) {
-        logger.silly(
-          'Querying logs for topic chunk',
-          llo({
-            network: this.crawlResult.network,
-            initBlock: this.fromBlock,
-            endBlock: this.toBlock,
-            fromBlock: currentBlock,
-            toBlock,
-            topics,
-          }),
+      let isError = false
+      try {
+        const response = await BottleneckModule.getNodeTransferLimiter(this.network)!.schedule(async () =>
+          this.provider.send('alchemy_getAssetTransfers', [
+            {
+              fromBlock: toBlock === 0 ? Web3Helper.convertToHoxNumber(currentBlock) : undefined,
+              toBlock: toBlock === 0 ? Web3Helper.convertToHoxNumber(toBlock) : undefined,
+              fromAddress: this.filter.fromAddress,
+              toAddress: this.filter.toAddress,
+              category: this.filter.category,
+            },
+          ]),
         )
 
-        while (true) {
-          try {
-            const logs = await BottleneckModule.getNodeLimiter(NetworksEnum.mainnet)!.schedule(async () =>
-              this.provider.getLogs({
-                address: this.filter.address,
-                topics: [topics],
-                fromBlock: currentBlock,
-                toBlock,
-              }),
-            )
-            await this.processLogs(logs)
-            break
-          } catch (error) {
-            await this.handleErrors(error)
-            if (this.stopOnError && this.shutdown) break
-          }
-        }
+        await this.processTxs(response.transfers)
+      } catch (error) {
+        isError = true
+        await this.handleErrors(error)
+        if (this.stopOnError && this.shutdown) break
       }
 
       if (this.shutdown) break
-      currentBlock = toBlock + 1
-      if (currentBlock >= latestBlock) break
+      if (!isError) {
+        currentBlock = toBlock + 1
+        if (currentBlock >= latestBlock) break
+      }
     }
 
     this.crawling = false
@@ -178,21 +163,21 @@ class BlockchainLogCrawler {
       this.batchSize = Math.max(1, Math.floor(this.batchSize / 2))
       logger.warn('Reducing batch size due to error', llo({ newBatchSize: this.batchSize }))
     } else if (this.isRateLimited(error)) {
-      await Utils.wait(1000)
+      await Utils.wait(2000)
     } else {
       this.shutdown = true
       this.onError(error)
     }
   }
 
-  async processLogs(logs: Log[]): Promise<void> {
-    for (const log of logs) {
+  async processTxs(txs: IAlchemyTransferResponse[]): Promise<void> {
+    for (const tx of txs) {
       try {
-        await this.onLog(log)
+        await this.onTx(tx)
         this.crawlResult.nbSuccess++
-        this.crawlResult.lastBlockSync = log?.blockNumber
+        this.crawlResult.lastBlockSync = tx?.blockNum
       } catch (error) {
-        this.onError(error, log)
+        this.onError(error, tx)
         this.crawlResult.nbError++
         if (this.stopOnError) {
           this.isOnError = true
@@ -203,16 +188,19 @@ class BlockchainLogCrawler {
   }
 
   isRateLimited(error: any): boolean {
-    const messages = ['Your app has exceeded its compute units per second capacity']
+    const messages = [
+      'Your app has exceeded its compute units per second capacity',
+      'alchemy_getAssetTransfers is a method with custom rate limits that you have exceeded',
+    ]
 
     return messages.some(msg => error.message?.includes(msg))
   }
 
   isBatchSizeError(error: any): boolean {
-    const messages = ['Log response size exceeded']
+    const messages = ['The query timed out. Either reduce your query filters or retry this query']
 
     return messages.some(msg => error.message?.includes(msg))
   }
 }
 
-export default BlockchainLogCrawler
+export default BlockchainTransferCrawler
