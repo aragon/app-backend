@@ -182,6 +182,12 @@ describe('Helpers:Web3', () => {
     expect(result).to.be.true
   })
 
+  it('convertToHoxNumber', () => {
+    expect(Web3Helper.convertToHoxNumber(1)).to.eq('0x1')
+    expect(Web3Helper.convertToHoxNumber(0)).to.eq('0x0')
+    expect(Web3Helper.convertToHoxNumber(undefined as any)).to.eq(undefined)
+  })
+
   describe('supportsERC721', () => {
     it('should return true if the contract supports ERC721', async () => {
       const supportsInterfaceStub = sandbox.stub(Web3Helper, 'supportsInterface').resolves(true)
