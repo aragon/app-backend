@@ -79,6 +79,7 @@ describe('Model/Utils: models', () => {
       @utcDateProp()
       public date?: Date
     }
+
     const MockModelClass = getModelForClass(MockModel)
 
     const instance: any = new MockModelClass()
