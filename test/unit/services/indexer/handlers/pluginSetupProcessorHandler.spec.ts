@@ -76,7 +76,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, txLog, network)
@@ -171,7 +171,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, txLog, network)
@@ -236,7 +236,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, txLog, network)
@@ -320,7 +320,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, txLog, network)
@@ -387,7 +387,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, txLog, network)
@@ -473,7 +473,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, txLog, network)
