@@ -85,6 +85,16 @@ describe('Helpers:Web3', () => {
     expect(formattedAddress).to.eq(expectedFormattedAddress)
   })
 
+  it('should throw error format address', () => {
+    const mockInvalidAddress = '0x000000000000000000000000zzz60f584879f024299da0f19cdb47b931e35b53'
+    const stubLoggerError = sandbox.stub(Logger, 'error')
+
+    const formattedAddress = Web3Helper.formatAddress(mockInvalidAddress)
+
+    expect(formattedAddress).to.eq('0xzzz60f584879f024299da0f19cdb47b931e35b53')
+    expect(stubLoggerError.calledOnce).to.be.true
+  })
+
   describe('getERC20TransferABI', () => {
     it('should return correct ABI for ERC20_transfer', () => {
       const result = Web3Helper.getERC20TransferABI(Web3Helper.ERC20_transfer)
