@@ -13,6 +13,7 @@ import { AggregatorSetting } from '@services/indexer/aggregator/setting'
 import { AggregatorAssets } from '@services/indexer/aggregator/asset'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
+import { AggregatorTransactions } from '@services/indexer/aggregator/transaction'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -31,9 +32,10 @@ const IndexerService: IService = {
       async () => AggregatorSetting.start(),
       async () => AggregatorAssets.start(),
     ]
+    const task5 = [async () => AggregatorTransactions.start()]
 
     const taskOptions = {
-      fn: () => [task1, task2, task3, task4],
+      fn: () => [task1, task2, task3, task4, task5],
       interval: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
       onError: (error: any) => {
         logger.error('IndexerService task error', llo({ error }))

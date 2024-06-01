@@ -21,18 +21,38 @@ describe('Indexer:Aggregator:Plugin', () => {
     sandbox?.restore()
   })
 
-  it('should start the AggregatorPlugin', async () => {
-    const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
-    const stubLogger = sandbox.stub(logger, 'verbose')
-    const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl')
-    const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
+  describe('start', async () => {
+    it('should start the AggregatorPlugin', async () => {
+      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl')
+      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
-    await AggregatorPlugin.start()
+      await AggregatorPlugin.start()
 
-    expect(stubLogger.calledWith('End AggregatorPlugin' as any)).to.be.true
-    expect(findByTypeStub.calledOnce).to.be.true
-    expect(crawlerStub.calledOnce).to.be.true
-    expect(saveAggregationSyncStub.calledOnce).to.be.true
+      expect(stubLogger.calledWith('End AggregatorPlugin' as any)).to.be.true
+      expect(findByTypeStub.calledOnce).to.be.true
+      expect(crawlerStub.calledOnce).to.be.true
+      expect(saveAggregationSyncStub.calledOnce).to.be.true
+    })
+
+    it('should error the AggregatorPlugin', async () => {
+      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onError(true)
+      })
+      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
+
+      await AggregatorPlugin.start()
+
+      expect(stubLogger.calledWith('End AggregatorPlugin' as any)).to.be.true
+      expect(stubLoggerError.calledOnce).to.be.true
+      expect(findByTypeStub.calledOnce).to.be.true
+      expect(crawlerStub.calledOnce).to.be.true
+      expect(saveAggregationSyncStub.calledOnce).to.be.true
+    })
   })
 
   it('should call onDocument', async () => {

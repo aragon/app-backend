@@ -206,7 +206,7 @@ describe('Indexer: ProposalHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.LogProposal, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await ProposalHandler.approved(fakeEvent as any, txLog, network)
@@ -329,7 +329,7 @@ describe('Indexer: ProposalHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.LogProposal, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await ProposalHandler.voteCast(fakeEvent as any, txLog, network)

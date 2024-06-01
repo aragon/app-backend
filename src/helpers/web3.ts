@@ -1,7 +1,6 @@
 import {
   type HexAddress,
   type IAlchemyTokenBalance,
-  type IAlchemyTokenBalancesResponse,
   type IDaoMetadata,
   type IProposalMetadata,
   ITransactionType,
@@ -136,7 +135,9 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
     const contract = new Contract(tokenAddress, ERC721.abi, provider)
     try {
-      return await contract.supportsInterface(interfaceId)
+      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+        contract.supportsInterface(interfaceId),
+      )
     } catch (error) {
       return false
     }
@@ -347,11 +348,21 @@ const Web3Helper = {
     }
   },
 
+  convertToHoxNumber(number: number): string | undefined {
+    if (!number && number !== 0) {
+      return
+    }
+    return '0x' + number?.toString(16)
+  },
+
   async getBalance(address: HexAddress, network: NetworksEnum): Promise<string> {
     try {
       const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
-      const response = await provider.send('eth_getBalance', [address])
+      const response = await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+        provider.send('eth_getBalance', [address]),
+      )
+
       return BigInt(response).toString()
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
@@ -363,7 +374,9 @@ const Web3Helper = {
     try {
       const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
-      const response = (await provider.send('alchemy_getTokenBalances', [address])) as IAlchemyTokenBalancesResponse
+      const response = await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+        provider.send('alchemy_getTokenBalances', [address]),
+      )
 
       const balances = response.tokenBalances
         .map((token: any) => {
@@ -386,7 +399,7 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      const address = await BottleneckModule.getLimiter(network)!.schedule(async () => provider.resolveName(name))
+      const address = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.resolveName(name))
       return address as HexAddress | null
     } catch (error) {
       logger.error(
@@ -404,7 +417,7 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      return await BottleneckModule.getLimiter(network)!.schedule(async () => provider.lookupAddress(address))
+      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.lookupAddress(address))
     } catch (error) {
       logger.error(
         'Error looking up address',
@@ -424,7 +437,10 @@ const Web3Helper = {
       const ensContract = new Contract(config.CONTRACTS.ENS_REGISTRY, ENSSubdomainRegistrar.abi, provider)
 
       const nameHashed = namehash(ensName)
-      const recordExists = await ensContract.recordExists(nameHashed)
+
+      const recordExists = await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+        ensContract.recordExists(nameHashed),
+      )
 
       return recordExists
     } catch (error) {
@@ -443,7 +459,7 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      return await BottleneckModule.getLimiter(network)!.schedule(async () => provider.getTransaction(txHash))
+      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getTransaction(txHash))
     } catch (error) {
       logger.error(
         'Error get transaction',
@@ -460,7 +476,9 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      return await BottleneckModule.getLimiter(network)!.schedule(async () => provider.getTransactionReceipt(txHash))
+      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+        provider.getTransactionReceipt(txHash),
+      )
     } catch (error) {
       logger.error(
         'Error get transaction receipt',
@@ -488,26 +506,28 @@ const Web3Helper = {
     const token: any = { address }
 
     try {
-      token.name = await tokenInstance.name()
+      token.name = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.name())
     } catch (error) {
       logger.error('Error getting token info name', llo({ error, address }))
     }
 
     try {
-      token.symbol = await tokenInstance.symbol()
+      token.symbol = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.symbol())
     } catch (error) {
       logger.error('Error getting token symbol', llo({ error, address }))
     }
 
     try {
-      const decimals = await tokenInstance.decimals()
+      const decimals = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.decimals())
       token.decimals = Number(decimals)
     } catch (error) {
       logger.error('Error getting token symbol', llo({ error, address }))
     }
 
     try {
-      const totalSupply = await tokenInstance.totalSupply()
+      const totalSupply = await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+        tokenInstance.totalSupply(),
+      )
       token.totalSupply = Number(totalSupply)
     } catch (error) {
       logger.error('Error getting token total supply:', llo({ error, address }))

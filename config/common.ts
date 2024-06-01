@@ -18,8 +18,15 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
 
     BOTTLENECK: {
-      MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_MAX_CONCURRENT', 10),
-      MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_MIN_TIME', 5),
+      NODE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MAX_CONCURRENT', 20),
+      NODE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MIN_TIME', 100),
+      NODE_TRANSFER_MAX_CONCURRENT: utils.configParser(
+        sourceConfig,
+        'number',
+        'BOTTLENECK_NODE_TRANSFER_MAX_CONCURRENT',
+        4,
+      ),
+      NODE_TRANSFER_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_TRANSFER_MIN_TIME', 1500),
     },
 
     MONGO_DB: {
