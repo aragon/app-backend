@@ -18,8 +18,15 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
 
     BOTTLENECK: {
-      MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_MAX_CONCURRENT', 10),
-      MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_MIN_TIME', 200),
+      NODE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MAX_CONCURRENT', 20),
+      NODE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MIN_TIME', 100),
+      NODE_TRANSFER_MAX_CONCURRENT: utils.configParser(
+        sourceConfig,
+        'number',
+        'BOTTLENECK_NODE_TRANSFER_MAX_CONCURRENT',
+        4,
+      ),
+      NODE_TRANSFER_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_TRANSFER_MIN_TIME', 1500),
     },
 
     MONGO_DB: {
@@ -54,11 +61,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     COINGECKO: {
       URI: utils.configParser(sourceConfig, 'string', 'COINGECKO_URI', 'https://api.coingecko.com/api/v3'),
-    },
-
-    DUNE: {
-      URI: utils.configParser(sourceConfig, 'string', 'DUNE_URI', 'https://api.dune.com/api/v1'),
-      API_KEY: utils.configParser(sourceConfig, 'string', 'DUNE_API_KEY', null),
     },
 
     PINATA: {
