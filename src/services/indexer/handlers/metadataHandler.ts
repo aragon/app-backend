@@ -37,7 +37,7 @@ export const MetadataHandler = {
     try {
       const daoAddress = txLog.address
 
-      const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog(logInfo.txHash, daoAddress)
+      const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog(transactionHash, daoAddress)
 
       if (!existingDaoMetadata) {
         const isDaoExists = await Models.LogDaoRegistry.findByAddress(daoAddress, network)
