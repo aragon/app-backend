@@ -79,7 +79,7 @@ describe('Helpers:Web3', () => {
 
   it('should format address correctly by removing leading zeros', () => {
     const mockAddress = '0x000000000000000000000000c1d60f584879f024299da0f19cdb47b931e35b53'
-    const expectedFormattedAddress = '0xc1d60f584879f024299da0f19cdb47b931e35b53'
+    const expectedFormattedAddress = '0xc1d60f584879f024299DA0F19Cdb47B931E35b53'
 
     const formattedAddress = Web3Helper.formatAddress(mockAddress)
     expect(formattedAddress).to.eq(expectedFormattedAddress)
