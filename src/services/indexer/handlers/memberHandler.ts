@@ -119,7 +119,7 @@ export const MemberHandler = {
 
     const existingLog = await Models.LogMember.findExistingLog(transactionHash, parsedEvent.name)
 
-    if (!existingLog) {
+    if (!existingLog && txReceipt) {
       const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(txLog.address, network)
 
       if (!relatedPlugin) {
@@ -128,7 +128,7 @@ export const MemberHandler = {
       }
 
       const delegationVotesChangedLogs = Web3Helper.findLogsByName(
-        txReceipt!,
+        txReceipt,
         IEventLogMember.DelegateVotesChanged,
         GovernanceERC20.abi,
       )

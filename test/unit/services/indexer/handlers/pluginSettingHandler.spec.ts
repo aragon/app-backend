@@ -71,7 +71,7 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.LogPluginSetting, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await PluginSettingHandler.votingSettingsUpdated(fakeEvent as any, txLog, network)
@@ -128,7 +128,7 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogTransaction, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.LogPluginSetting, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await PluginSettingHandler.multisigSettingsUpdated(fakeEvent as any, txLog, network)

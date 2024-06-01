@@ -16,6 +16,17 @@ describe('Module: DbTx', () => {
     sandbox?.restore()
   })
 
+  it('executeTxFn does not retry on error when stopRetry is true', async () => {
+    const fn = sandbox.stub().rejects(new Error('Test Error'))
+    const loggerStub = sandbox.stub(Logger, 'warn')
+
+    const result = await DbTx.executeTxFn(fn, { stopRetry: true })
+
+    expect(result).to.be.undefined
+    expect(fn.calledOnce).to.be.true
+    expect(loggerStub.notCalled).to.be.true
+  })
+
   it('isErrorNotSupported', async () => {
     const res = DbTx.isErrorNotSupported({
       message: 'Current topology does not support sessions',

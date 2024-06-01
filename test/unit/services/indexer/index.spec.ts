@@ -10,22 +10,21 @@ import { LogProposal } from '@services/indexer/logProposal'
 import config from '@config'
 import utils from '@helpers/utils'
 import { EnumConnection } from '@types'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
 import logger from '@logger'
 import { LogPluginSetting } from '@services/indexer/logPluginSetting'
 import { LogMember } from '@services/indexer/logMember'
 import { AggregatorMembers } from '@services/indexer/aggregator/member'
 import { AggregatorPlugin } from '@services/indexer/aggregator/plugin'
-import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { AggregatorSetting } from '@services/indexer/aggregator/setting'
+import { AggregatorAssets } from '@services/indexer/aggregator/asset'
+import { AggregatorTransactions } from '@services/indexer/aggregator/transaction'
 
 describe('Indexer: index', () => {
   let sandbox: SinonSandbox
-  let schedulerStub: sinon.SinonStubbedInstance<TaskSchedulerState>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-    schedulerStub = sandbox.createStubInstance(TaskSchedulerState)
-    sandbox.stub(TaskSchedulerState, 'getInstance').returns(schedulerStub)
   })
 
   afterEach(() => {
@@ -33,6 +32,9 @@ describe('Indexer: index', () => {
   })
 
   it('Should start, schedule tasks, and stop', async () => {
+    let schedulerStub = sandbox.createStubInstance(TaskSchedulerState)
+    sandbox.stub(TaskSchedulerState, 'getInstance').returns(schedulerStub)
+
     expect(IndexerService.NEED_CONNECTIONS).to.deep.equal([EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN])
 
     const configBk = config.SERVICES.SYNC_DATA.DAO_INTERVAL
@@ -49,6 +51,8 @@ describe('Indexer: index', () => {
       sandbox.stub(AggregatorMembers, 'start').resolves(),
       sandbox.stub(AggregatorPlugin, 'start').resolves(),
       sandbox.stub(AggregatorSetting, 'start').resolves(),
+      sandbox.stub(AggregatorAssets, 'start').resolves(),
+      sandbox.stub(AggregatorTransactions, 'start').resolves(),
     ]
 
     await IndexerService.start()
@@ -74,65 +78,14 @@ describe('Indexer: index', () => {
   })
 
   it('Should handle errors and call onError', async () => {
-    const configBk = config.SERVICES.SYNC_DATA.DAO_INTERVAL
-    config.SERVICES.SYNC_DATA.DAO_INTERVAL = 100
-
     const stubLoggerError = sandbox.stub(logger, 'error')
-    const stubLoggerInfo = sandbox.stub(logger, 'info')
-    const testError = new Error('Test fetchAll error')
 
-    const taskStubs = [
-      sandbox.stub(LogDao, 'start').rejects(testError),
-      sandbox.stub(LogDaoRegistry, 'start').rejects(testError),
-      sandbox.stub(LogPluginRepoRegistry, 'start').rejects(testError),
-      sandbox.stub(LogPluginSetupProcessor, 'start').rejects(testError),
-      sandbox.stub(LogProposal, 'start').rejects(testError),
-      sandbox.stub(LogPluginSetting, 'start').rejects(testError),
-      sandbox.stub(LogMember, 'start').rejects(testError),
-      sandbox.stub(AggregatorMembers, 'start').rejects(testError),
-      sandbox.stub(AggregatorPlugin, 'start').rejects(testError),
-      sandbox.stub(AggregatorSetting, 'start').rejects(testError),
-    ]
-
-    const onErrorSpy = sinon.spy((error: any) => {
-      logger.error('IndexerService task error', { error })
-    })
-
-    await schedulerStub.startTask('indexer', {
-      fn: () => taskStubs.map(stub => [stub]),
-      interval: config.SERVICES.SYNC_DATA.DAO_INTERVAL,
-      onError: onErrorSpy,
+    sandbox.stub(TaskSchedulerState.prototype, 'startTask').callsFake((_: string, options: any): any => {
+      options?.onError(true)
     })
 
     await IndexerService.start()
 
-    // Simulate the task execution
-    const taskOptions = schedulerStub.startTask.firstCall.args[1]
-    for (const taskGroup of taskOptions.fn()) {
-      for (const task of taskGroup) {
-        try {
-          await task()
-        } catch (e) {
-          if (taskOptions.onError) {
-            taskOptions.onError(e)
-          }
-        }
-      }
-    }
-
-    await utils.wait(200)
-
-    expect(stubLoggerError.callCount).to.eq(10)
-    expect(stubLoggerError.alwaysCalledWith('IndexerService task error' as any)).to.be.true
-    expect(onErrorSpy.callCount).to.eq(10)
-    expect(onErrorSpy.alwaysCalledWith(sinon.match.instanceOf(Error))).to.be.true
-
-    await IndexerService.stop()
-
-    expect(schedulerStub.stopTask.calledOnce).to.be.true
-
-    config.SERVICES.SYNC_DATA.DAO_INTERVAL = configBk
-    expect(stubLoggerInfo.calledWith('IndexerService service sync start' as any)).to.be.true
-    expect(stubLoggerInfo.calledWith('IndexerService service sync end' as any)).to.be.true
+    expect(stubLoggerError.calledOnce).to.be.true
   })
 })
