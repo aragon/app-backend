@@ -29,7 +29,7 @@ export const MetadataHandler = {
 
     const transactionHash = txLog.transactionHash || txLog.hash
     const logInfo: any = {
-      transactionHash: transactionHash,
+      transactionHash,
       blockNumber: txLog.blockNumber,
       network,
     }

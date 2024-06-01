@@ -39,7 +39,7 @@ const IPFSModule = {
       data = await IPFSModule._fetchMetadata(cid, opts)
     }
 
-    if(data?.avatar?.path) {
+    if (data?.avatar?.path) {
       data.avatar = data.avatar.path
     }
 
