@@ -101,6 +101,22 @@ describe('Modules: IPFS', () => {
       expect(stubParseMetadata.calledWith('ok' as any)).to.be.true
     })
 
+    it('should _fetchMetadata avatar', async () => {
+      const fakeData = { data: { avatar: { path: 'test' } } }
+      const stubReq = sandbox.stub(axios, 'get').returns(fakeData as any)
+      const stubParseMetadata = sandbox.stub(IPFSModule, '_parseDaoMetadata').returns(true as any)
+      const cid = 'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
+      const metadata = await IPFSModule._fetchMetadata(cid)
+
+      expect(metadata).to.be.true
+      expect(stubReq.calledOnce).to.be.true
+      expect(stubReq.calledWith(`https://ipfs.io/ipfs/${cid}`)).to.be.true
+      expect(stubParseMetadata.calledOnce).to.be.true
+
+      const avatar: any = stubParseMetadata.args[0][0].avatar
+      expect(avatar.path).to.eq('test')
+    })
+
     it('should log an error when _fetchMetadata', async () => {
       const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
       const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
