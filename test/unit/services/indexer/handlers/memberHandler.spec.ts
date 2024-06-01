@@ -280,6 +280,59 @@ describe('Indexer: MemberHandler', () => {
       expect(logMember.address).to.be.eq('0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859')
     })
 
+    it('should handle delegate changed with txHash', async () => {
+      const verboseStub = sandbox.stub(logger, 'verbose')
+
+      const fakeLog = {
+        name: IEventLogMember.DelegateChanged,
+        args: {
+          fromDelegate: '0xfromDelegate',
+          toDelegate: '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859',
+          delegator: '0xdelegator',
+        },
+      } as any
+
+      const deletageVotChangedLog = {
+        name: IEventLogMember.DelegateVotesChanged,
+        args: {
+          previousBalance: '0x123',
+          newBalance: '0x456',
+        },
+      }
+
+      const txLog = {
+        hash: '0x0123123',
+        blockNumber: 3,
+        address: plugin.tokenAddress,
+      }
+
+      sandbox.stub(Web3, 'getTransactionReceipt').resolves({
+        logs: true,
+      } as any)
+
+      sandbox.stub(Web3, 'findLogsByName').returns([
+        {
+          parsed: deletageVotChangedLog,
+          txLog: { topics: ['', '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859'] },
+        },
+      ] as any)
+
+      const findExistingLogStub = sandbox.spy(Models.LogMember, 'findExistingLog')
+
+      const findPluginByTokenAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress')
+
+      await MemberHandler.delegateChanged(fakeLog, txLog, NetworksEnum.mainnet)
+
+      expect(verboseStub.callCount).to.be.eq(1)
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(findPluginByTokenAddressSpy.calledOnce).to.be.true
+
+      const logMember = await Models.LogMember.findOne({ transactionHash: txLog.hash })
+
+      expect(logMember).to.be.not.null
+      expect(logMember.address).to.be.eq('0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859')
+    })
+
     it('should return if the tx is already processed', async () => {
       const findExistingLogStub = sandbox.stub(Models.LogMember, 'findExistingLog').resolves(true)
 

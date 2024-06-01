@@ -144,7 +144,13 @@ const Web3Helper = {
   },
 
   formatAddress(address: HexAddress) {
-    return address.replace(/^0x0+/, '0x')
+    try {
+      const trimmedAddress = address.replace(/^0x0+/, '0x')
+      return getAddress(trimmedAddress)
+    } catch (error) {
+      logger.error('Error formatAddress', llo({ address, error }))
+      return address.replace(/^0x0+/, '0x')
+    }
   },
 
   decodeCalldata(decodeABI: string[], calldata: any) {

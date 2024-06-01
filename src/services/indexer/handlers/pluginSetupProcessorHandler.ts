@@ -47,15 +47,23 @@ export const PluginSetupProcessorHandler = {
   },
 
   installationPrepared: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
+    /**
+     * As the tx log can a transaction Object or transaction receipt,
+     * We need to properly extract the transaction hash and block number
+     *
+     * This situation occurs when its is called from the daoRegistryHandler,
+     * dao creation lifecycle
+     */
+
     const logInfo: any = {
-      txHash: txLog.transactionHash,
+      txHash: txLog.transactionHash || txLog.hash,
       blockNumber: txLog.blockNumber,
       network,
     }
 
     try {
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
-        txLog.transactionHash,
+        logInfo.txHash,
         IEventLogPluginType.InstallationPrepared,
       )
 
@@ -73,7 +81,7 @@ export const PluginSetupProcessorHandler = {
             release: Number(parsedEvent.args.versionTag.release),
             build: Number(parsedEvent.args.versionTag.build),
             blockNumber: txLog.blockNumber,
-            transactionHash: txLog.transactionHash,
+            transactionHash: logInfo.txHash,
             tokenAddress: null,
           }
 

@@ -12,7 +12,7 @@ import { ConfigState } from '@state/configState'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDao' })
 
-// must run before daoRegistry
+// must run after daoRegistry
 export const LogDao = {
   events: ['MetadataSet', 'NewURI'],
 
