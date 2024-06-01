@@ -8,7 +8,6 @@ import type Asset from '@models/schema/asset'
 import { UtilsIndexer } from '@models/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
-import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorAssets' })
 
@@ -37,12 +36,8 @@ export const AggregatorAssets = {
   onDocument: async (document: LogDaoRegistry) => {
     try {
       const [ethBalance, tokenBalances] = await Promise.all([
-        BottleneckModule.getLimiter(document.network)!.schedule(async () =>
-          Web3Helper.getBalance(document.address, document.network),
-        ),
-        BottleneckModule.getLimiter(document.network)!.schedule(async () =>
-          Web3Helper.getTokenBalances(document.address, document.network),
-        ),
+        Web3Helper.getBalance(document.address, document.network),
+        Web3Helper.getTokenBalances(document.address, document.network),
       ])
 
       if (Number(ethBalance) > 0) {
@@ -68,37 +63,35 @@ export const AggregatorAssets = {
       }
 
       await Promise.all(
-        tokenBalances.map(async (token: IAlchemyTokenBalance) => {
-          if (Number(token.tokenBalance) === 0) {
-            return
-          }
+        tokenBalances
+          .filter(token => Number(token.tokenBalance) > 0)
+          .map(async (token: IAlchemyTokenBalance) => {
+            const existingAssetDb = await Models.Asset.findExistingLog(
+              document.address,
+              token.contractAddress,
+              document.network,
+            )
 
-          const existingAssetDb = await Models.Asset.findExistingLog(
-            document.address,
-            token.contractAddress,
-            document.network,
-          )
-
-          const rawData: Partial<Asset> = {
-            amount: token.tokenBalance,
-            network: document.network,
-            daoAddress: document.address,
-            tokenAddress: token.contractAddress,
-          }
-
-          await DbTx.executeTxFn(async ({ session }) => {
-            let logDb: any = null
-            if (existingAssetDb) {
-              logDb = await existingAssetDb.update(rawData, { session })
-            } else {
-              logDb = await Models.Asset.create(rawData, { session })
+            const rawData: Partial<Asset> = {
+              amount: token.tokenBalance,
+              network: document.network,
+              daoAddress: document.address,
+              tokenAddress: token.contractAddress,
             }
 
-            await session.commitTransaction()
-            await session.endSession()
-            logger.verbose(existingAssetDb ? 'Update Token Asset' : 'New Token Asset', llo({ logId: logDb?.id }))
-          })
-        }),
+            await DbTx.executeTxFn(async ({ session }) => {
+              let logDb: any = null
+              if (existingAssetDb) {
+                logDb = await existingAssetDb.update(rawData, { session })
+              } else {
+                logDb = await Models.Asset.create(rawData, { session })
+              }
+
+              await session.commitTransaction()
+              await session.endSession()
+              logger.verbose(existingAssetDb ? 'Update Token Asset' : 'New Token Asset', llo({ logId: logDb?.id }))
+            })
+          }),
       )
     } catch (error) {
       logger.error('Error AggregatorAssets', llo({ error, logId: document.id }))

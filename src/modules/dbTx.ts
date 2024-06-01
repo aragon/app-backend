@@ -30,7 +30,7 @@ const DbTx = {
     return error.message.includes('Current topology does not support sessions')
   },
 
-  async executeTxFn(fn: any) {
+  async executeTxFn(fn: any, options?: { stopRetry?: boolean }) {
     async function tryFn() {
       const session = await DbTx.transactionOptions()
 
@@ -61,6 +61,9 @@ const DbTx = {
       const response = await tryFn()
       return response
     } catch (error) {
+      if (options?.stopRetry) {
+        return
+      }
       return await DbTx.handleTxError(error, tryFn)
     }
   },

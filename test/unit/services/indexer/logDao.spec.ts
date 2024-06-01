@@ -25,7 +25,7 @@ describe('Indexer: LogDao', () => {
   })
 
   it('events', async () => {
-    expect(LogDao.events.length).to.eq(6)
+    expect(LogDao.events.length).to.eq(2)
   })
 
   describe('start', () => {
@@ -73,7 +73,7 @@ describe('Indexer: LogDao', () => {
       await LogDao.start()
 
       expect(loggerVerboseStub.callCount).to.eq(10)
-      expect(processLogStub.callCount).to.eq(4)
+      expect(processLogStub.callCount).to.eq(2)
       expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
     })
@@ -122,9 +122,9 @@ describe('Indexer: LogDao', () => {
 
       await LogDao.start()
 
-      expect(errorStub.callCount).to.eq(4)
+      expect(errorStub.callCount).to.eq(2)
       expect(loggerVerboseStub.callCount).to.eq(10)
-      expect(processMetadataStub.callCount).to.eq(4)
+      expect(processMetadataStub.callCount).to.eq(2)
       expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
     })
