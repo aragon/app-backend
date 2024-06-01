@@ -10,6 +10,8 @@ import { MemberHandler } from '@services/indexer/handlers/memberHandler'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import Web3Helper from '@helpers/web3'
 import ProxyContractHelper from '@helpers/proxyContract'
+import { DAO } from '@artifacts/dao'
+import { MetadataHandler } from '@services/indexer/handlers/metadataHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
 
@@ -27,7 +29,7 @@ export const DaoRegistryHandler = {
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
-          const implementation = await ProxyContractHelper.getImplementationAddress(daoAddress, network)
+          const implementationAddress = await ProxyContractHelper.getImplementationAddress(daoAddress, network)
 
           const daoLog = {
             network,
@@ -36,7 +38,7 @@ export const DaoRegistryHandler = {
             ens: parsedEvent.args.subdomain,
             blockNumber: txLog.blockNumber,
             transactionHash: txLog.transactionHash,
-            implementation,
+            implementationAddress,
           }
 
           const logDb = await Models.LogDaoRegistry.create(daoLog, { session })
@@ -80,6 +82,22 @@ export const DaoRegistryHandler = {
      * Save the member logs that will create the member entry for the dao
      */
     await DaoRegistryHandler._memberAdded(allLogs, transactionHash, network)
+
+    /**
+     * Save the metadata logs that will create the metadata entry for the dao
+     */
+    await DaoRegistryHandler._metadataHandler(allLogs, transactionHash, network)
+  },
+
+  _metadataHandler: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
+    const metadataLogs = Web3Helper.findLogsByName(txReceipt, 'MetadataSet', DAO.abi)
+
+    if (!metadataLogs || metadataLogs?.length === 0) {
+      logger.warn('MetadataSet not found', llo({ transactionHash, network }))
+      return
+    }
+
+    await MetadataHandler.metadataSet(metadataLogs[0].parsed!, metadataLogs[0].txLog, network)
   },
 
   _pluginSetup: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
@@ -90,7 +108,7 @@ export const DaoRegistryHandler = {
     )
 
     if (pluginSetupLogs.length === 0) {
-      logger.verbose('PluginSetupProcessor not found', llo({ transactionHash, network }))
+      logger.warn('PluginSetupProcessor not found', llo({ transactionHash, network }))
       return
     }
 
@@ -112,7 +130,7 @@ export const DaoRegistryHandler = {
       )
 
       if (delegationChangedLogs.length === 0) {
-        logger.verbose('Invalid member log', llo({ transactionHash, network }))
+        logger.warn('Invalid member log', llo({ transactionHash, network }))
         return
       }
 

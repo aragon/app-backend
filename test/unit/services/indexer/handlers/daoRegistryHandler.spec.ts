@@ -10,6 +10,9 @@ import Web3 from '@helpers/web3'
 import { PluginSetupProcessorHandler } from '@services/indexer/handlers/pluginSetupProcessorHandler'
 import { MemberHandler } from '@services/indexer/handlers/memberHandler'
 import ProxyContractHelper from '@helpers/proxyContract'
+import Web3Helper from '@helpers/web3'
+import { MetadataHandler } from '@services/indexer/handlers/metadataHandler'
+import Logger from '@logger'
 
 describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
@@ -126,12 +129,14 @@ describe('Indexer: DaoRegistryHandler', () => {
   describe('initiateNewDaoCreation', () => {
     it('should fails if tx not found', async () => {
       const web3Stub = sandbox.stub(Web3, 'getTransactionReceipt').resolves(null)
+      const _metadataHandlerStub = sandbox.stub(DaoRegistryHandler, '_metadataHandler')
       const _pluginSetupStub = sandbox.stub(DaoRegistryHandler, '_pluginSetup')
       const _memberAddedStub = sandbox.stub(DaoRegistryHandler, '_memberAdded')
 
       await DaoRegistryHandler.initiateNewDaoCreation('0x123', NetworksEnum.mainnet)
 
       expect(web3Stub.calledOnce).to.be.true
+      expect(_metadataHandlerStub.notCalled).to.be.true
       expect(_pluginSetupStub.notCalled).to.be.true
       expect(_memberAddedStub.notCalled).to.be.true
     })
@@ -146,12 +151,14 @@ describe('Indexer: DaoRegistryHandler', () => {
           },
         ],
       } as any)
+      const _metadataHandlerStub = sandbox.stub(DaoRegistryHandler, '_metadataHandler')
       const _pluginSetupStub = sandbox.stub(DaoRegistryHandler, '_pluginSetup')
       const _memberAddedStub = sandbox.stub(DaoRegistryHandler, '_memberAdded')
 
       await DaoRegistryHandler.initiateNewDaoCreation('0x123', NetworksEnum.mainnet)
 
       expect(web3Stub.calledOnce).to.be.true
+      expect(_metadataHandlerStub.calledOnce).to.be.true
       expect(_pluginSetupStub.calledOnce).to.be.true
       expect(_memberAddedStub.calledOnce).to.be.true
     })
@@ -159,7 +166,7 @@ describe('Indexer: DaoRegistryHandler', () => {
 
   describe('_pluginSetup', () => {
     it('should fails to save plugin setup logs if not found', async () => {
-      const verboseStub = sandbox.stub(logger, 'verbose')
+      const stubLogger = sandbox.stub(logger, 'warn')
       const fakeTx = {
         logs: [
           {
@@ -177,8 +184,7 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       expect(web3Stub.calledOnce).to.be.true
       expect(installationPreparedStub.notCalled).to.be.true
-      expect(verboseStub.calledOnce).to.be.true
-      expect(verboseStub.calledWith('PluginSetupProcessor not found' as any)).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
     })
 
     it('should save plugin setup logs', async () => {
@@ -220,7 +226,7 @@ describe('Indexer: DaoRegistryHandler', () => {
 
   describe('_memberAdded', () => {
     it('should fails to save member logs if not found all', async () => {
-      const verboseStub = sandbox.stub(logger, 'verbose')
+      const verboseStub = sandbox.stub(logger, 'warn')
       const fakeTx = {
         logs: [
           {
@@ -341,6 +347,50 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       expect(delegateChangedStub.notCalled).to.be.true
       expect(verboseStub.notCalled).to.be.true
+    })
+  })
+
+  describe('_metadataHandler', () => {
+    it('should call metadataSet', async () => {
+      const transactionHash = '0x0'
+      const network = NetworksEnum.mainnet
+      const txReceipt = {
+        transactionHash: '0x123',
+        address: '0x123',
+        topics: ['0x456'],
+        data: '0x789',
+        blockNumber: 1,
+      }
+
+      const stubMetadata = sandbox.stub(MetadataHandler, 'metadataSet').resolves()
+      const stubFind = sandbox.stub(Web3Helper, 'findLogsByName').returns([{ parsed: 'test', txLog: 'test2' }] as any)
+
+      await DaoRegistryHandler._metadataHandler(txReceipt as any, transactionHash, NetworksEnum.mainnet)
+
+      expect(stubMetadata.calledOnce).to.be.true
+      expect(stubFind.calledOnce).to.be.true
+    })
+
+    it('should call metadataSet', async () => {
+      const transactionHash = '0x0'
+      const network = NetworksEnum.mainnet
+      const txReceipt = {
+        transactionHash: '0x123',
+        address: '0x123',
+        topics: ['0x456'],
+        data: '0x789',
+        blockNumber: 1,
+      }
+
+      const stubLogger = sandbox.stub(Logger, 'warn')
+      const stubMetadata = sandbox.stub(MetadataHandler, 'metadataSet')
+      const stubFind = sandbox.stub(Web3Helper, 'findLogsByName').returns([])
+
+      await DaoRegistryHandler._metadataHandler(txReceipt as any, transactionHash, NetworksEnum.mainnet)
+
+      expect(stubMetadata.notCalled).to.be.true
+      expect(stubFind.calledOnce).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
     })
   })
 })

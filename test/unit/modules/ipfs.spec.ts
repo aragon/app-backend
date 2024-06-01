@@ -151,6 +151,23 @@ describe('Modules: IPFS', () => {
       expect(result).to.deep.equal(expectedMetadata)
     })
 
+    it('should call fetchMetadata for avatar', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+      const expectedMetadata = { name: 'Example', avatar: { path: 'test' } }
+
+      const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata').resolves({
+        name: 'Example',
+        avatar: { path: 'test' },
+      } as any)
+      const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
+
+      const result = await IPFSModule.fetchMetadata(cidV0)
+
+      expect(stubFetchMetadata.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(result?.avatar).to.equal(expectedMetadata.avatar.path)
+    })
+
     it('should return null for invalid CID', async function () {
       const invalidCid = 'ipfs://invalidCID'
 
