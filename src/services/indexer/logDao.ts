@@ -14,7 +14,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDao' })
 
 // must run before daoRegistry
 export const LogDao = {
-  events: ['CallbackReceived', 'Deposited', 'Executed', 'MetadataSet', 'NativeTokenDeposited', 'NewURI'],
+  events: ['MetadataSet', 'NewURI'],
 
   start: async () => {
     const networks = Object.values(Network.NETWORKS)
@@ -67,25 +67,9 @@ export const LogDao = {
     }
 
     switch (event.name) {
-      case 'CallbackReceived':
-        logger.verbose('CallbackReceived', llo({ eventName: event.name, network }))
-        await DaoHandler.callbackReceived(event, txLog, network)
-        break
-      case 'Deposited':
-        logger.verbose('Deposited', llo({ eventName: event.name, network }))
-        await DaoHandler.deposited(event, txLog, network)
-        break
-      case 'Executed':
-        logger.verbose('Executed', llo({ eventName: event.name, network }))
-        await DaoHandler.executed(event, txLog, network)
-        break
       case 'MetadataSet':
         logger.verbose('MetadataSet', llo({ eventName: event.name, network }))
         await MetadataHandler.metadataSet(event, txLog, network)
-        break
-      case 'NativeTokenDeposited':
-        logger.verbose('NativeTokenDeposited', llo({ eventName: event.name, network }))
-        await DaoHandler.nativeTokenDeposited(event, txLog, network)
         break
       case 'NewURI':
         logger.verbose('NewURI', llo({ eventName: event.name, network }))

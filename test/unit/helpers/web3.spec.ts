@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Web3Helper from '@helpers/web3'
 import { ITransactionType, NetworksEnum } from '@types'
-import { AbiCoder, id, Interface } from 'ethers'
+import { AbiCoder, Interface } from 'ethers'
 import { ConfigState } from '@state/configState'
 import Logger from '@logger'
 import proxyquire from 'proxyquire'
@@ -180,6 +180,12 @@ describe('Helpers:Web3', () => {
     const result = Web3Helper.isNativeTokenAction(action)
 
     expect(result).to.be.true
+  })
+
+  it('convertToHoxNumber', () => {
+    expect(Web3Helper.convertToHoxNumber(1)).to.eq('0x1')
+    expect(Web3Helper.convertToHoxNumber(0)).to.eq('0x0')
+    expect(Web3Helper.convertToHoxNumber(undefined as any)).to.eq(undefined)
   })
 
   describe('supportsERC721', () => {
@@ -575,6 +581,74 @@ describe('Helpers:Web3', () => {
         avatar: null,
         links: [],
       })
+    })
+  })
+
+  describe('getBalance', () => {
+    it('should return the balance of an address', async () => {
+      const fakeAddress = '0x1234567890123456789012345678901234567890'
+      const fakeNetwork = NetworksEnum.mainnet
+      const fakeResponse = '0x1bc16d674ec80000' // 2 ETH in wei
+
+      const providerStub = {
+        send: sandbox.stub().resolves(fakeResponse),
+      }
+      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => providerStub } as any)
+
+      const balance = await Web3Helper.getBalance(fakeAddress, fakeNetwork)
+      expect(balance).to.equal('2000000000000000000') // Check if conversion from wei to ether is correct
+      expect(providerStub.send.calledOnce).to.be.true
+      expect(providerStub.send.calledWith('eth_getBalance', [fakeAddress])).to.be.true
+    })
+
+    it('should return "0" on error', async () => {
+      const fakeAddress = '0x1234567890123456789012345678901234567890'
+      const fakeNetwork = NetworksEnum.mainnet
+      const providerStub = {
+        send: sandbox.stub().rejects(new Error('RPC error')),
+      }
+      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => providerStub } as any)
+
+      const balance = await Web3Helper.getBalance(fakeAddress, fakeNetwork)
+      expect(balance).to.equal('0')
+      expect(providerStub.send.calledOnce).to.be.true
+    })
+  })
+
+  describe('getTokenBalances', () => {
+    it('should return token balances of an address', async () => {
+      const fakeAddress = '0x1234567890123456789012345678901234567890'
+      const fakeNetwork = NetworksEnum.mainnet
+      const fakeResponse = {
+        tokenBalances: [
+          { contractAddress: '0xTokenAddress1', tokenBalance: '0x10' }, // 16
+          { contractAddress: '0xTokenAddress2', tokenBalance: '0x1a' }, // 26
+        ],
+      }
+      const providerStub = {
+        send: sandbox.stub().resolves(fakeResponse),
+      }
+      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => providerStub } as any)
+
+      const balances = await Web3Helper.getTokenBalances(fakeAddress, fakeNetwork)
+      expect(balances.length).to.equal(2)
+      expect(balances[0].tokenBalance).to.equal('16')
+      expect(balances[1].tokenBalance).to.equal('26')
+      expect(providerStub.send.calledOnce).to.be.true
+      expect(providerStub.send.calledWith('alchemy_getTokenBalances', [fakeAddress])).to.be.true
+    })
+
+    it('should return an empty array on error', async () => {
+      const fakeAddress = '0x1234567890123456789012345678901234567890'
+      const fakeNetwork = NetworksEnum.mainnet
+      const providerStub = {
+        send: sandbox.stub().rejects(new Error('RPC error')),
+      }
+      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => providerStub } as any)
+
+      const balances = await Web3Helper.getTokenBalances(fakeAddress, fakeNetwork)
+      expect(balances).to.be.an('array').that.is.empty
+      expect(providerStub.send.calledOnce).to.be.true
     })
   })
 
