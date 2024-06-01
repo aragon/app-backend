@@ -10,12 +10,13 @@ import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor
 import type LogPluginRepo from '@models/schema/logPluginRepo'
 import type LogProposal from '@models/schema/logProposal'
 import type LogPluginSetting from '@models/schema/logPluginSetting'
-import type LogTransaction from '@models/schema/logTransaction'
 import type LogMember from '@models/schema/logMember'
 import type Aggregator from '@models/schema/aggregator'
 import type Member from '@models/schema/member'
 import type Plugin from '@models/schema/plugin'
 import type Setting from '@models/schema/setting'
+import type Asset from '@models/schema/asset'
+import type Transaction from '@models/schema/transaction'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
@@ -28,18 +29,21 @@ export interface IMongoModel {
   LogPluginRepo: Model<InstanceType<typeof LogPluginRepo>>
   LogProposal: Model<InstanceType<typeof LogProposal>>
   LogPluginSetting: Model<InstanceType<typeof LogPluginSetting>>
-  LogTransaction: Model<InstanceType<typeof LogTransaction>>
   LogMember: Model<InstanceType<typeof LogMember>>
   Aggregator: Model<InstanceType<typeof Aggregator>>
   Member: Model<InstanceType<typeof Member>>
   Plugin: Model<InstanceType<typeof Plugin>>
   Setting: Model<InstanceType<typeof Setting>>
+  Asset: Model<InstanceType<typeof Asset>>
+  Transaction: Model<InstanceType<typeof Transaction>>
 }
 
 export enum AggregatorTypeEnum {
   plugin = 'plugin',
   members = 'members',
   settings = 'settings',
+  assets = 'assets',
+  transactions = 'transactions',
 }
 
 export enum IEventLogPluginType {
