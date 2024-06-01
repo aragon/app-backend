@@ -92,8 +92,8 @@ export const DaoRegistryHandler = {
   _metadataHandler: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
     const metadataLogs = Web3Helper.findLogsByName(txReceipt, 'MetadataSet', DAO.abi)
 
-    if (metadataLogs.length === 0) {
-      logger.verbose('MetadataSet not found', llo({ transactionHash, network }))
+    if (!metadataLogs || metadataLogs?.length === 0) {
+      logger.warn('MetadataSet not found', llo({ transactionHash, network }))
       return
     }
 
@@ -108,7 +108,7 @@ export const DaoRegistryHandler = {
     )
 
     if (pluginSetupLogs.length === 0) {
-      logger.verbose('PluginSetupProcessor not found', llo({ transactionHash, network }))
+      logger.warn('PluginSetupProcessor not found', llo({ transactionHash, network }))
       return
     }
 
