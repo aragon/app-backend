@@ -28,8 +28,11 @@ export default class Aggregator extends Model {
   })
   public type!: AggregatorTypeEnum
 
-  @prop({ type: () => Date, required: true })
+  @prop({ type: () => Date, default: null })
   public lastTimeSync!: Date
+
+  @prop({ type: () => Number })
+  public lastBlockNumber!: number
 
   static async create(rawData: Partial<Aggregator>, tOpts?: SaveOptions) {
     const data = new this(rawData)
