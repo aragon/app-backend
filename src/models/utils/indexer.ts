@@ -43,7 +43,7 @@ export const UtilsIndexer = {
   },
 
   saveAndGetToken: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<null | Token> => {
-    const existingToken = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network)
+    const existingToken = await Models.Token.findExistingLog(tokenAddress, network)
 
     if (existingToken) {
       return existingToken
@@ -54,23 +54,26 @@ export const UtilsIndexer = {
     if (tokenTypeInfo?.type !== ITokenType.unknown) {
       const tokenInfo = await Web3Helper.getTokenInfo(tokenAddress, network)
 
-      return await DbTx.executeTxFn(async ({ session }) => {
-        const rawToken = {
-          address: tokenAddress,
-          type: tokenTypeInfo?.type,
-          implementationAddress: tokenTypeInfo?.implementationAddress,
-          network,
-          name: tokenInfo.name,
-          decimals: tokenInfo.decimals,
-          symbol: tokenInfo.symbol,
-          totalSupply: tokenInfo.totalSupply,
-        }
-        const logDb = await Models.Token.create(rawToken, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('New Token', llo({ logId: logDb.id }))
-        return logDb
-      })
+      return await DbTx.executeTxFn(
+        async ({ session }) => {
+          const rawToken = {
+            address: tokenAddress,
+            type: tokenTypeInfo?.type,
+            implementationAddress: tokenTypeInfo?.implementationAddress,
+            network,
+            name: tokenInfo.name,
+            decimals: tokenInfo.decimals,
+            symbol: tokenInfo.symbol,
+            totalSupply: tokenInfo.totalSupply,
+          }
+          const logDb = await Models.Token.create(rawToken, { session })
+          await session.commitTransaction()
+          await session.endSession()
+          logger.verbose('New Token', llo({ logId: logDb.id }))
+          return logDb
+        },
+        { stopRetry: true },
+      )
     }
 
     return null

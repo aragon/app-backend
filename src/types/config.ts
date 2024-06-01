@@ -64,8 +64,10 @@ export interface IConfig {
   SUPPORTED_NETWORKS: INetworks[]
   DEFAULT_CURRENCY: string
   BOTTLENECK: {
-    MAX_CONCURRENT: number
-    MIN_TIME: number
+    NODE_MAX_CONCURRENT: number
+    NODE_MIN_TIME: number
+    NODE_TRANSFER_MAX_CONCURRENT: number
+    NODE_TRANSFER_MIN_TIME: number
   }
   MONGO_DB: {
     NAME: string

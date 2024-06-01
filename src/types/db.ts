@@ -17,6 +17,7 @@ import type Member from '@models/schema/member'
 import type Plugin from '@models/schema/plugin'
 import type Setting from '@models/schema/setting'
 import type Asset from '@models/schema/asset'
+import type Transaction from '@models/schema/transaction'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
@@ -36,6 +37,7 @@ export interface IMongoModel {
   Plugin: Model<InstanceType<typeof Plugin>>
   Setting: Model<InstanceType<typeof Setting>>
   Asset: Model<InstanceType<typeof Asset>>
+  Transaction: Model<InstanceType<typeof Transaction>>
 }
 
 export enum AggregatorTypeEnum {
@@ -43,6 +45,7 @@ export enum AggregatorTypeEnum {
   members = 'members',
   settings = 'settings',
   assets = 'assets',
+  transactions = 'transactions',
 }
 
 export enum IEventLogPluginType {
