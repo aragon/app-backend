@@ -3,6 +3,7 @@ import { HexAddress, type IToken, ITokenType, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { utcDateProp } from '@models/utils/models'
+import { assert } from '@errors'
 
 const customName = 'Token'
 
@@ -22,8 +23,11 @@ const customName = 'Token'
 //   network: 1,
 // })
 export default class Token extends Model {
+  @prop({ type: () => String, required: true, unique: true })
+  public entityId!: string
+
   @prop({ type: () => String, enum: ITokenType, required: true })
-  public type?: ITokenType
+  public type!: ITokenType
 
   @prop({ type: () => String, required: true })
   public address!: HexAddress
@@ -62,8 +66,27 @@ export default class Token extends Model {
   public lastUpdatedAt!: Date
 
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
+    if (!rawData.entityId) {
+      assert(!!rawData.address, 'address is required')
+      assert(!!rawData.network, 'network is required')
+      rawData.entityId = this.getEntityId(rawData?.address!, rawData?.network!)
+    }
     const data = new this(rawData)
     return data.save(tOpts)
+  }
+
+  static getEntityId(address: HexAddress, network: NetworksEnum) {
+    const entityId = `${address}-${network}`
+    return entityId
+  }
+
+  static async findExistingLog(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(address, network)
+    return await this.findByEntityId(entityId, tOpts)
+  }
+
+  static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
+    return await this.findOne({ entityId }, tOpts)
   }
 
   static async findByTokenAddress(address: HexAddress) {

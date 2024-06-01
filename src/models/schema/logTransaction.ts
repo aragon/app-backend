@@ -1,15 +1,23 @@
 import { modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, ITransactionType, NetworksEnum } from '@types'
+import { HexAddress, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 
-const customName = 'LogTransaction'
+const customName = 'Transaction'
+
+class ERC1155Metadata {
+  @prop({ type: () => String, default: null })
+  public tokenId!: string
+
+  @prop({ type: () => String, default: null })
+  public value!: string
+}
 
 @modelOptions({
   schemaOptions: {
     timestamps: true,
-    collection: 'logTransaction',
+    collection: 'transaction',
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -21,7 +29,7 @@ const customName = 'LogTransaction'
 //   blockNumber: 1,
 //   transactionHash: 1,
 // })
-export default class LogTransaction extends Model {
+export default class Transaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public entityId!: string
 
@@ -37,14 +45,17 @@ export default class LogTransaction extends Model {
   @prop({ type: () => String, enum: ITransactionType, required: true })
   public type!: ITransactionType
 
-  @prop({ type: () => String, required: true })
-  public from!: HexAddress
+  @prop({ type: () => String, enum: ITransactionCategory, required: true })
+  public category!: ITransactionCategory
 
   @prop({ type: () => String, required: true })
-  public to!: HexAddress
+  public fromAddress!: HexAddress
 
-  @prop({ type: () => String, default: 0 })
-  public amount!: string
+  @prop({ type: () => String, required: true })
+  public toAddress!: HexAddress
+
+  @prop({ type: () => String, default: '0' })
+  public value!: string
 
   @prop({ type: () => String, default: null })
   public tokenAddress!: HexAddress
@@ -55,52 +66,38 @@ export default class LogTransaction extends Model {
   @prop({ type: () => String, default: null })
   public tokenId!: string
 
-  @prop({ type: () => [String], default: [] })
-  public tokenIds!: string[]
+  @prop({ type: () => String, default: null })
+  public erc721TokenId!: string
 
-  @prop({ type: () => [Number], default: [] })
-  public amounts!: number[]
+  @prop({ type: () => [ERC1155Metadata], default: [] })
+  public erc1155Metadata!: ERC1155Metadata[]
 
   @prop({ type: () => String, default: null })
-  public reference!: string
+  public proposalId!: string
 
-  @prop({ type: () => Number, default: 0 })
-  public actionIndex!: number
-
-  @prop({ type: () => String, default: null })
-  public execResult!: string
-
-  @prop({ type: () => String, default: null })
-  public actor!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public pluginAddress!: HexAddress
-
-  @prop({ type: () => Number })
-  public proposalId!: number
-
-  static async create(rawData: Partial<LogTransaction>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Transaction>, tOpts?: SaveOptions) {
     if (!rawData.entityId) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
-      assert(!!rawData.type, 'type is required')
-      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.type!, rawData?.actionIndex ?? 0)
+      assert(!!rawData.category, 'category is required')
+      assert(!!rawData.network, 'network is required')
+      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.category!, rawData?.network!)
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(transactionHash: HexAddress, type: ITransactionType, actionIndex?: number) {
-    const entityId = `${transactionHash}-${type}-${actionIndex ?? 0}`
+  static getEntityId(transactionHash: HexAddress, category: ITransactionCategory, network: NetworksEnum) {
+    const entityId = `${transactionHash}-${category}-${network}`
     return entityId
   }
 
   static async findExistingLog(
     transactionHash: HexAddress,
-    type: ITransactionType,
-    actionIndex?: number,
+    category: ITransactionCategory,
+    network: NetworksEnum,
     tOpts?: SaveOptions,
   ) {
-    const entityId = this.getEntityId(transactionHash, type, actionIndex ?? 0)
+    const entityId = this.getEntityId(transactionHash, category, network)
     return await this.findByEntityId(entityId, tOpts)
   }
 
@@ -108,7 +105,7 @@ export default class LogTransaction extends Model {
     return await this.findOne({ entityId }, tOpts)
   }
 
-  async update(params: Partial<LogTransaction>, tOpts?: SaveOptions) {
+  async update(params: Partial<Transaction>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
