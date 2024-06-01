@@ -48,6 +48,15 @@ export default class LogDaoMetadata extends Model {
   public daoAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
+  public trustedForwarder!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public daoURI!: string
+
+  @prop({ type: () => String, default: null })
+  public ens!: string
+
+  @prop({ type: () => String, default: null })
   public metadataUri!: string
 
   @prop({ type: () => String, default: null })
