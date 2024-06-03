@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { NetworksEnum } from '@types'
+import { ILogInfo, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { ProposalHandler } from '@services/indexer/handlers/proposalHandler'
 import Web3Helper from '@helpers/web3'
@@ -24,12 +24,12 @@ describe('Indexer: ProposalHandler', () => {
       const metadataUri = 'fake-uri'
       const network = NetworksEnum.mainnet
 
-      const txLog = {
+      const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
         blockNumber: 1,
+        network,
+        eventName: 'proposalCreated',
       }
 
       const fakeEvent = {
@@ -54,21 +54,21 @@ describe('Indexer: ProposalHandler', () => {
       const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(metadataUri)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
-      await ProposalHandler.proposalCreated(fakeEvent as any, txLog, network)
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubExtractMetadataUri.calledOnceWith(fakeEvent.args.metadata)).to.be.true
-      expect(stubProposalMetadata.calledOnceWith(txLog)).to.be.true
+      expect(stubProposalMetadata.calledOnceWith(info)).to.be.true
     })
 
     it('proposalCreated throw error', async () => {
       const network = NetworksEnum.mainnet
-      const txLog = {
+      const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
         blockNumber: 1,
+        network,
+        eventName: 'proposalCreated',
       }
       const fakeEvent = {
         args: {
@@ -81,7 +81,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'extractMetadataUri').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await ProposalHandler.proposalCreated(fakeEvent as any, txLog, network)
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
       expect(stubLogger.calledOnceWith('Error proposalCreated' as any)).to.be.true
     })
@@ -111,13 +111,14 @@ describe('Indexer: ProposalHandler', () => {
       }
       await Models.LogProposal.create(rawProposal)
 
-      const txLog = {
+      const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        data: '0x789',
-        topics: ['0xabc'],
         blockNumber: 1,
+        network,
+        eventName: 'Approved',
       }
+
       const fakeEvent = {
         args: {
           proposalId: 0n,
@@ -127,17 +128,17 @@ describe('Indexer: ProposalHandler', () => {
 
       const stubLogger = sandbox.stub(logger, 'verbose')
 
-      await ProposalHandler.approved(fakeEvent as any, txLog, network)
+      await ProposalHandler.approved(fakeEvent as any, info)
 
       const newProposal = await Models.LogProposal.findByProposalId(
         Number(fakeEvent.args.proposalId),
-        txLog.address,
+        info.address,
         network,
       )
 
       expect(stubLogger.calledOnce).to.be.true
-      expect(newProposal.voteEvents[0].transactionHash).to.eq(txLog.transactionHash)
-      expect(newProposal.voteEvents[0].blockNumber).to.eq(txLog.blockNumber)
+      expect(newProposal.voteEvents[0].transactionHash).to.eq(info.transactionHash)
+      expect(newProposal.voteEvents[0].blockNumber).to.eq(info.blockNumber)
       expect(newProposal.voteEvents[0].proposalId).to.eq(Number(fakeEvent.args.proposalId))
       expect(newProposal.voteEvents[0].memberAddress).to.eq(fakeEvent.args.approver)
     })
@@ -165,12 +166,12 @@ describe('Indexer: ProposalHandler', () => {
       }
       await Models.LogProposal.create(rawProposal)
 
-      const txLog = {
+      const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        data: '0x789',
-        topics: ['0xabc'],
         blockNumber: 1,
+        network,
+        eventName: 'Approved',
       }
       const fakeEvent = {
         args: {
@@ -182,7 +183,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Models.LogProposal, 'findByProposalId').resolves(null)
       const stubLogger = sandbox.stub(logger, 'error')
 
-      const result = await ProposalHandler.approved(fakeEvent as any, txLog, network)
+      const result = await ProposalHandler.approved(fakeEvent as any, info)
 
       expect(result).to.be.undefined
 
@@ -191,12 +192,12 @@ describe('Indexer: ProposalHandler', () => {
 
     it('proposalCreated throw error', async () => {
       const network = NetworksEnum.mainnet
-      const txLog = {
+      const info: ILogInfo = {
         transactionHash: '0x123',
-        address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
+        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         blockNumber: 1,
+        network,
+        eventName: 'Approved',
       }
       const fakeEvent = {
         args: {
@@ -209,7 +210,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Models.LogProposal, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await ProposalHandler.approved(fakeEvent as any, txLog, network)
+      await ProposalHandler.approved(fakeEvent as any, info)
 
       expect(stubLogger.calledOnceWith('Error approved' as any)).to.be.true
     })
@@ -234,12 +235,12 @@ describe('Indexer: ProposalHandler', () => {
       }
       await Models.LogProposal.create(rawProposal)
 
-      const txLog = {
+      const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        data: '0x789',
-        topics: ['0xabc'],
         blockNumber: 1,
+        network,
+        eventName: 'Approved',
       }
       const fakeEvent = {
         args: {
@@ -252,17 +253,17 @@ describe('Indexer: ProposalHandler', () => {
 
       const stubLogger = sandbox.stub(logger, 'verbose')
 
-      await ProposalHandler.voteCast(fakeEvent as any, txLog, network)
+      await ProposalHandler.voteCast(fakeEvent as any, info)
 
       const newProposal = await Models.LogProposal.findByProposalId(
         Number(fakeEvent.args.proposalId),
-        txLog.address,
+        info.address,
         network,
       )
 
       expect(stubLogger.calledOnce).to.be.true
-      expect(newProposal.voteEvents[0].transactionHash).to.eq(txLog.transactionHash)
-      expect(newProposal.voteEvents[0].blockNumber).to.eq(txLog.blockNumber)
+      expect(newProposal.voteEvents[0].transactionHash).to.eq(info.transactionHash)
+      expect(newProposal.voteEvents[0].blockNumber).to.eq(info.blockNumber)
       expect(newProposal.voteEvents[0].proposalId).to.eq(Number(fakeEvent.args.proposalId))
       expect(newProposal.voteEvents[0].memberAddress).to.eq(fakeEvent.args.voter)
       expect(newProposal.voteEvents[0].voteOption).to.eq(Number(fakeEvent.args.voteOption))
@@ -287,12 +288,12 @@ describe('Indexer: ProposalHandler', () => {
       }
       await Models.LogProposal.create(rawProposal)
 
-      const txLog = {
+      const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        data: '0x789',
-        topics: ['0xabc'],
         blockNumber: 1,
+        network,
+        eventName: 'Approved',
       }
       const fakeEvent = {
         args: {
@@ -306,7 +307,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Models.LogProposal, 'findByProposalId').resolves(null)
       const stubLogger = sandbox.stub(logger, 'error')
 
-      const result = await ProposalHandler.voteCast(fakeEvent as any, txLog, network)
+      const result = await ProposalHandler.voteCast(fakeEvent as any, info)
 
       expect(result).to.be.undefined
       expect(stubLogger.calledOnceWith('proposal not found' as any)).to.be.true
@@ -314,12 +315,12 @@ describe('Indexer: ProposalHandler', () => {
 
     it('voteCast throw error', async () => {
       const network = NetworksEnum.mainnet
-      const txLog = {
+      const info: ILogInfo = {
         transactionHash: '0x123',
-        address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
+        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         blockNumber: 1,
+        network,
+        eventName: 'Approved',
       }
       const fakeEvent = {
         args: {
@@ -332,7 +333,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Models.LogProposal, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await ProposalHandler.voteCast(fakeEvent as any, txLog, network)
+      await ProposalHandler.voteCast(fakeEvent as any, info)
 
       expect(stubLogger.calledOnceWith('Error voteCast' as any)).to.be.true
     })
@@ -357,12 +358,12 @@ describe('Indexer: ProposalHandler', () => {
       }
       await Models.LogProposal.create(rawProposal)
 
-      const txLog = {
+      const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        data: '0x789',
-        topics: ['0xabc'],
         blockNumber: 1,
+        network,
+        eventName: 'ProposalExecuted',
       }
       const fakeEvent = {
         args: {
@@ -372,28 +373,28 @@ describe('Indexer: ProposalHandler', () => {
 
       const stubLogger = sandbox.stub(logger, 'verbose')
 
-      await ProposalHandler.proposalExecuted(fakeEvent as any, txLog, network)
+      await ProposalHandler.proposalExecuted(fakeEvent as any, info)
 
       const newProposal = await Models.LogProposal.findByProposalId(
         Number(fakeEvent.args.proposalId),
-        txLog.address,
+        info.address,
         network,
       )
 
       expect(stubLogger.calledOnce).to.be.true
       expect(newProposal.executed.status).to.be.true
-      expect(newProposal.executed.blockNumber).to.eq(txLog.blockNumber)
-      expect(newProposal.executed.transactionHash).to.eq(txLog.transactionHash)
+      expect(newProposal.executed.blockNumber).to.eq(info.blockNumber)
+      expect(newProposal.executed.transactionHash).to.eq(info.transactionHash)
     })
 
     it('proposalExecuted error proposal not found', async () => {
       const network = NetworksEnum.mainnet
-      const txLog = {
+      const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        data: '0x789',
-        topics: ['0xabc'],
         blockNumber: 1,
+        network,
+        eventName: 'ProposalExecuted',
       }
       const fakeEvent = {
         args: {
@@ -407,7 +408,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Models.LogProposal, 'findByProposalId').resolves(null)
       const stubLogger = sandbox.stub(logger, 'warn')
 
-      const result = await ProposalHandler.proposalExecuted(fakeEvent as any, txLog, network)
+      const result = await ProposalHandler.proposalExecuted(fakeEvent as any, info)
 
       expect(result).to.be.undefined
       expect(stubLogger.calledOnceWith('proposal not found' as any)).to.be.true
@@ -415,12 +416,12 @@ describe('Indexer: ProposalHandler', () => {
 
     it('proposalExecuted throw error', async () => {
       const network = NetworksEnum.mainnet
-      const txLog = {
+      const info: ILogInfo = {
         transactionHash: '0x123',
-        address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
+        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         blockNumber: 1,
+        network,
+        eventName: 'ProposalExecuted',
       }
       const fakeEvent = {
         args: {
@@ -433,7 +434,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Models.LogProposal, 'findByProposalId').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await ProposalHandler.proposalExecuted(fakeEvent as any, txLog, network)
+      await ProposalHandler.proposalExecuted(fakeEvent as any, info)
 
       expect(stubLogger.calledOnceWith('Error proposalExecuted' as any)).to.be.true
     })
@@ -458,12 +459,12 @@ describe('Indexer: ProposalHandler', () => {
       }
       const proposalDb = await Models.LogProposal.create(rawProposal)
 
-      const txLog = {
+      const info: ILogInfo = {
         transactionHash: '0x123',
-        address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-        data: '0x789',
-        topics: ['0xabc'],
+        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         blockNumber: 1,
+        network,
+        eventName: 'ProposalCreated',
       }
       const fakeMetadata = {
         name: 'test',
@@ -474,7 +475,7 @@ describe('Indexer: ProposalHandler', () => {
       const stubFetchMetadata = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
       const stubParseDaoMetadata = sandbox.stub(Web3Helper, 'parseProposalMetadata').returns(fakeMetadata)
 
-      await ProposalHandler.proposalMetadata(txLog, proposalDb)
+      await ProposalHandler.proposalMetadata(info, proposalDb)
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubFetchMetadata.calledOnce).to.be.true
@@ -496,19 +497,20 @@ describe('Indexer: ProposalHandler', () => {
       expect(proposalMetadataDB.proposalId).to.eq(proposalDb.proposalId)
     })
 
-    it('voteCast throw error', async () => {
-      const txLog = {
+    it('proposalMetadata throw error', async () => {
+      const network = NetworksEnum.mainnet
+      const info: ILogInfo = {
         transactionHash: '0x123',
-        address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
+        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         blockNumber: 1,
+        network,
+        eventName: 'ProposalCreated',
       }
 
       sandbox.stub(IPFSModule, 'fetchMetadata').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await ProposalHandler.proposalMetadata(txLog, { id: 1 } as any)
+      await ProposalHandler.proposalMetadata(info, { id: 1 } as any)
 
       expect(stubLogger.calledOnceWith('Error proposalMetadata' as any)).to.be.true
     })

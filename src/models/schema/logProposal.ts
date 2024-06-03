@@ -28,7 +28,7 @@ export class Vote {
   public proposalId!: number
 
   @prop({ type: () => String, default: null })
-  public memberAddress!: string
+  public memberAddress!: HexAddress
 
   @prop({ type: () => Number })
   public voteOption?: number

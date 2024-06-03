@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { NetworksEnum } from '@types'
+import { ILogInfo, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { DaoHandler } from '@services/indexer/handlers/daoHandler'
 import { Models } from '@dbModels'
@@ -30,15 +30,15 @@ describe('Indexer: DaoHandler', () => {
 
       const findExistingLogStub = sandbox.spy(Models.LogDaoRegistry, 'findExistingLog')
 
-      await DaoHandler.newURI(
-        event as any,
-        {
-          transactionHash: '0x123',
-          blockNumber: 1,
-          address: '0x456',
-        },
+      const infoLog: ILogInfo = {
         network,
-      )
+        transactionHash: '0x123',
+        blockNumber: 1,
+        address: '0x456',
+        eventName: 'test',
+      }
+
+      await DaoHandler.newURI(event as any, infoLog)
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('newURI: no daoURI' as any)).to.be.true
@@ -57,15 +57,15 @@ describe('Indexer: DaoHandler', () => {
       const findExistingLogStub = sandbox.stub(Models.LogDaoRegistry, 'findExistingLog').returns(false)
       const findByAddressStub = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').returns(false)
 
-      await DaoHandler.newURI(
-        event as any,
-        {
-          transactionHash: '0x123',
-          blockNumber: 1,
-          address: '0x456',
-        },
+      const infoLog: ILogInfo = {
         network,
-      )
+        transactionHash: '0x123',
+        blockNumber: 1,
+        address: '0x456',
+        eventName: 'test',
+      }
+
+      await DaoHandler.newURI(event as any, infoLog)
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Dao not found' as any)).to.be.true
@@ -89,15 +89,15 @@ describe('Indexer: DaoHandler', () => {
         address: '0x123',
       })
 
-      await DaoHandler.newURI(
-        event as any,
-        {
-          transactionHash: '0x123',
-          blockNumber: 1,
-          address: '0x456',
-        },
+      const infoLog: ILogInfo = {
         network,
-      )
+        transactionHash: '0x123',
+        blockNumber: 1,
+        address: '0x456',
+        eventName: 'test',
+      }
+
+      await DaoHandler.newURI(event as any, infoLog)
 
       expect(stubLogger.callCount).to.be.eq(1)
       expect(findExistingLogStub.calledOnce).to.be.true

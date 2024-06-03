@@ -8,10 +8,10 @@ import { Models } from '@dbModels'
 import { UtilsIndexer } from '@models/utils/indexer'
 import Network from '@models/schema/network'
 import Provider from '@modules/provider'
-import { Interface } from 'ethers'
 import { ProposalHandler } from '@services/indexer/handlers/proposalHandler'
 import Utils from '@helpers/utils'
 import { UnitTestUtils } from '@test/lib/utils'
+import Web3Helper from '@helpers/web3'
 
 describe('Indexer: LogProposal', () => {
   let sandbox: SinonSandbox
@@ -93,21 +93,49 @@ describe('Indexer: LogProposal', () => {
           name: event,
           args: true,
         }
+        const fakeInterface = {}
+        const fakeInfo = 'test-info'
 
         const loggerStub = sandbox.stub(logger, 'verbose')
-        const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
+        const stubInterface = sandbox.stub(LogProposal, 'getInterface').returns(fakeInterface as any)
+        const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').returns(fakeEvent as any)
+        const stubParseInfoLog = sandbox.stub(Web3Helper, 'parseInfoLog').returns(fakeInfo as any)
+
         const stubProcessHandler = sandbox.stub(ProposalHandler, Utils.lowercaseFirstLetter(event))
 
         await LogProposal.processLog(txLog as any, network)
 
-        expect(stubParseLog.calledOnceWith(txLog)).to.be.true
+        expect(stubInterface.calledOnceWith(txLog.topics[0] as any)).to.be.true
+        expect(stubParseLog.calledOnceWith(txLog, fakeInterface)).to.be.true
+        expect(stubParseInfoLog.calledOnceWith(txLog, fakeEvent.name, network)).to.be.true
         expect(loggerStub.calledOnceWith(event as any)).to.be.true
-        expect(stubProcessHandler.calledOnceWith(fakeEvent as any, txLog, network)).to.be.true
+        expect(stubProcessHandler.calledOnceWith(fakeEvent as any, fakeInfo)).to.be.true
 
         loggerStub.restore()
+        stubInterface.restore()
         stubParseLog.restore()
+        stubParseInfoLog.restore()
         stubProcessHandler.restore()
       }
+    })
+
+    it('should ignore not parsed event', async () => {
+      const network = NetworksEnum.mainnet
+      const txLog: any = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+
+      const loggerStub = sandbox.stub(logger, 'error')
+      const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').returns(false as any)
+
+      await LogProposal.processLog(txLog, network)
+
+      expect(stubParseLog.calledOnce).to.be.true
+      expect(loggerStub.notCalled).to.be.true
     })
 
     it('should not processLog unknown event', async () => {
@@ -123,13 +151,19 @@ describe('Indexer: LogProposal', () => {
         name: 'Unknown',
         args: true,
       }
+      const fakeInterface = {}
+      const fakeInfo = 'test-info'
 
       const loggerStub = sandbox.stub(logger, 'error')
-      const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
+      const stubInterface = sandbox.stub(LogProposal, 'getInterface').returns(fakeInterface as any)
+      const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').returns(fakeEvent as any)
+      const stubParseInfoLog = sandbox.stub(Web3Helper, 'parseInfoLog').returns(fakeInfo as any)
 
-      await LogProposal.processLog(txLog, network)
+      await LogProposal.processLog(txLog as any, network)
 
-      expect(stubParseLog.calledOnceWith(txLog)).to.be.true
+      expect(stubInterface.calledOnceWith(txLog.topics[0] as any)).to.be.true
+      expect(stubParseLog.calledOnceWith(txLog, fakeInterface)).to.be.true
+      expect(stubParseInfoLog.calledOnceWith(txLog, fakeEvent.name, network)).to.be.true
       expect(loggerStub.calledOnceWith('Unhandled event' as any)).to.be.true
     })
   })

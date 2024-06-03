@@ -65,35 +65,38 @@ export const LogPluginSetupProcessor = {
     )
   },
 
-  processLog: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum) => {
     const iFace = new Interface(PluginSetupProcessor.abi)
-    const { event, info } = Web3Helper.parseLog(txLog, iFace, network)
-    if (!event || !info) return
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
+    }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event.name) {
       case 'InstallationApplied':
         logger.verbose('InstallationApplied', llo(info))
-        await PluginSetupProcessorHandler.installationApplied(event, txLog, network)
+        await PluginSetupProcessorHandler.installationApplied(event, info)
         break
       case 'InstallationPrepared':
         logger.verbose('InstallationPrepared', llo(info))
-        await PluginSetupProcessorHandler.installationPrepared(event, txLog, network)
+        await PluginSetupProcessorHandler.installationPrepared(event, info)
         break
       case 'UninstallationApplied':
         logger.verbose('UninstallationApplied', llo(info))
-        await PluginSetupProcessorHandler.uninstallationApplied(event, txLog, network)
+        await PluginSetupProcessorHandler.uninstallationApplied(event, info)
         break
       case 'UninstallationPrepared':
         logger.verbose('UninstallationPrepared', llo(info))
-        await PluginSetupProcessorHandler.uninstallationPrepared(event, txLog, network)
+        await PluginSetupProcessorHandler.uninstallationPrepared(event, info)
         break
       case 'UpdateApplied':
         logger.verbose('UpdateApplied', llo(info))
-        await PluginSetupProcessorHandler.updateApplied(event, txLog, network)
+        await PluginSetupProcessorHandler.updateApplied(event, info)
         break
       case 'UpdatePrepared':
         logger.verbose('UpdatePrepared', llo(info))
-        await PluginSetupProcessorHandler.updatePrepared(event, txLog, network)
+        await PluginSetupProcessorHandler.updatePrepared(event, info)
         break
       default:
         logger.error('Unhandled event', llo(info))

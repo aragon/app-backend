@@ -70,23 +70,26 @@ export const LogMember = {
     return eventsOfTokenVoting.includes(topic) ? new Interface(GovernanceERC20.abi) : new Interface(Multisig.abi)
   },
 
-  processLog: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum) => {
     const iFace = LogMember.getInterface(txLog.topics[0])
-    const { event, info } = Web3Helper.parseLog(txLog, iFace, network)
-    if (!event || !info) return
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
+    }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event.name) {
       case 'MembersAdded':
         logger.verbose('MembersAdded', llo(info))
-        await MemberHandler.membersAdded(event, txLog, network)
+        await MemberHandler.membersAdded(event, info)
         break
       case 'MembersRemoved':
         logger.verbose('MembersRemoved', llo(info))
-        await MemberHandler.membersRemoved(event, txLog, network)
+        await MemberHandler.membersRemoved(event, info)
         break
       case 'DelegateChanged':
         logger.verbose('DelegateChanged', llo(info))
-        await MemberHandler.delegateChanged(event, txLog, network)
+        await MemberHandler.delegateChanged(event, info)
         break
       default:
         logger.error('Unhandled event', llo(info))

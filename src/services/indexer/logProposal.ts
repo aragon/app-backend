@@ -68,27 +68,30 @@ export const LogProposal = {
     return eventsOfTokenVoting.includes(topic) ? new Interface(TokenVoting.abi) : new Interface(Multisig.abi)
   },
 
-  processLog: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum) => {
     const iFace = LogProposal.getInterface(txLog.topics[0])
-    const { event, info } = Web3Helper.parseLog(txLog, iFace, network)
-    if (!event || !info) return
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
+    }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event?.name) {
       case 'ProposalCreated':
         logger.verbose('ProposalCreated', llo(info))
-        await ProposalHandler.proposalCreated(event, txLog, network)
+        await ProposalHandler.proposalCreated(event, info)
         break
       case 'Approved':
         logger.verbose('Approved', llo(info))
-        await ProposalHandler.approved(event, txLog, network)
+        await ProposalHandler.approved(event, info)
         break
       case 'ProposalExecuted':
         logger.verbose('ProposalExecuted', llo(info))
-        await ProposalHandler.proposalExecuted(event, txLog, network)
+        await ProposalHandler.proposalExecuted(event, info)
         break
       case 'VoteCast':
         logger.verbose('VoteCast', llo(info))
-        await ProposalHandler.voteCast(event, txLog, network)
+        await ProposalHandler.voteCast(event, info)
         break
       default:
         logger.error('Unhandled event', llo(info))

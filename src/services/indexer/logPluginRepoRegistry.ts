@@ -58,15 +58,18 @@ export const LogPluginRepoRegistry = {
     )
   },
 
-  processLog: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum) => {
     const iFace = new Interface(PluginRepoRegistry.abi)
-    const { event, info } = Web3Helper.parseLog(txLog, iFace, network)
-    if (!event || !info) return
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
+    }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event.name) {
       case 'PluginRepoRegistered':
         logger.verbose('PluginRepoRegistered', llo(info))
-        await PluginRepoRegistryHandler.pluginRepoRegistered(event, txLog, network)
+        await PluginRepoRegistryHandler.pluginRepoRegistered(event, info)
         break
       default:
         logger.error('Unhandled event', llo(info))

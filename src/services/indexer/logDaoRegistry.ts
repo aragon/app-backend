@@ -57,15 +57,18 @@ export const LogDaoRegistry = {
     )
   },
 
-  processLog: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum) => {
     const iFace = new Interface(DAORegistry.abi)
-    const { event, info } = Web3Helper.parseLog(txLog, iFace, network)
-    if (!event || !info) return
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
+    }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event.name) {
       case 'DAORegistered':
         logger.verbose('DAORegistered', llo(info))
-        await DaoRegistryHandler.daoRegistered(event, txLog, network)
+        await DaoRegistryHandler.daoRegistered(event, info)
         break
       default:
         logger.error('Unhandled event', llo(info))
