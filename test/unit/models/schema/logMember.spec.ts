@@ -46,13 +46,23 @@ describe('Model: LogMember', () => {
     it('Should getEntityId', async () => {
       const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
       const eventName = IEventLogMember.MembersAdded
-      const entityId = await Models.LogMember.getEntityId(transactionHash, eventName)
-      expect(entityId).to.eq(`${transactionHash}-${eventName}`)
+      const entityId = await Models.LogMember.getEntityId(
+        transactionHash,
+        eventName,
+        rawLogMember.address,
+        NetworksEnum.mainnet,
+      )
+      expect(entityId).to.eq(`${transactionHash}-${eventName}-${rawLogMember.address}-mainnet`)
     })
 
     it('Should findExistingLog', async () => {
       const createdMember = await Models.LogMember.create(rawLogMember)
-      const foundLogMember = await Models.LogMember.findExistingLog(createdMember.transactionHash, createdMember.event)
+      const foundLogMember = await Models.LogMember.findExistingLog(
+        createdMember.transactionHash,
+        createdMember.event,
+        createdMember.address,
+        createdMember.network,
+      )
       expect(foundLogMember?.entityId).to.eq(createdMember.entityId)
     })
 

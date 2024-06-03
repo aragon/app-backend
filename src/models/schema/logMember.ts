@@ -64,15 +64,22 @@ export default class LogMember extends Model {
   static async create(rawData: Partial<LogMember>, tOpts?: SaveOptions) {
     if (!rawData.entityId) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
-      assert(!!rawData.event, 'event name is required')
-      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.event!)
+      assert(!!rawData.event, 'event is required')
+      assert(!!rawData.address, 'address is required')
+      assert(!!rawData.network, 'network is required')
+      rawData.entityId = this.getEntityId(
+        rawData?.transactionHash!,
+        rawData?.event!,
+        rawData?.address!,
+        rawData?.network!,
+      )
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(transactionHash: HexAddress, event: IEventLogMember) {
-    return `${transactionHash}-${event}`
+  static getEntityId(transactionHash: HexAddress, event: IEventLogMember, member: HexAddress, network: NetworksEnum) {
+    return `${transactionHash}-${event}-${member}-${network}`
   }
 
   static async findByTxHash(transactionHash: HexAddress, tOpts?: SaveOptions) {
@@ -83,8 +90,14 @@ export default class LogMember extends Model {
     return await this.findOne({ entityId }, tOpts)
   }
 
-  static async findExistingLog(transactionHash: HexAddress, event: IEventLogMember, tOpts?: SaveOptions) {
-    const entityId = this.getEntityId(transactionHash, event)
+  static async findExistingLog(
+    transactionHash: HexAddress,
+    event: IEventLogMember,
+    member: HexAddress,
+    network: NetworksEnum,
+    tOpts?: SaveOptions,
+  ) {
+    const entityId = this.getEntityId(transactionHash, event, member, network)
     return await this.findByEntityId(entityId, tOpts)
   }
 
