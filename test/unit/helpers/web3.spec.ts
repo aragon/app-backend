@@ -7,6 +7,7 @@ import { AbiCoder, Interface } from 'ethers'
 import { ConfigState } from '@state/configState'
 import Logger from '@logger'
 import proxyquire from 'proxyquire'
+import logger from "@logger";
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -559,6 +560,59 @@ describe('Helpers:Web3', () => {
       const result = Web3Helper.extractMetadataUri(undefined as any)
       expect(result).to.equal(null)
       expect(loggerError.calledOnceWith('Error extractMetadataUri' as any)).to.be.true
+    })
+  })
+
+  describe('parseLog', () => {
+    it('should parseLog with info data', function () {
+      const txLog = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+
+      const fakeEvent = {
+        ...txLog,
+        name: 'MetadataSet',
+        args: true,
+      }
+
+      const iFace = {
+        parseLog: sandbox.stub().returns(fakeEvent as any)
+      }
+      const network = NetworksEnum.mainnet
+
+      const result = Web3Helper.parseLog(txLog, iFace, network)
+
+      expect(result.event).to.eq(fakeEvent)
+      expect(result.info?.network).to.eq(network)
+      expect(result.info?.blockNumber).to.eq(fakeEvent.blockNumber)
+      expect(result.info?.transactionHash).to.eq(fakeEvent.transactionHash)
+      expect(result.info?.eventName).to.eq(fakeEvent.name)
+    })
+
+    it('should fail parseLog', function () {
+      const txLog = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+
+      const loggerStub = sandbox.stub(logger, 'error')
+      const iFace = {
+        parseLog: sandbox.stub().throws(new Error('fake-error'))
+      }
+      const network = NetworksEnum.mainnet
+
+      const result = Web3Helper.parseLog(txLog, iFace, network)
+
+      expect(loggerStub.calledOnce).to.be.true
+      expect(result.event).to.be.null
+      expect(result.info).to.be.null
     })
   })
 

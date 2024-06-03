@@ -1,13 +1,8 @@
-import { type FunctionFragment } from 'ethers'
+import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
-export enum IAragonContract {
-  TokenVoting = 'TokenVoting',
-  DAOFactory = 'DAOFactory',
-  DAO = 'DAO',
-}
-
-export interface IDecodeTransaction {
-  contract: IAragonContract
-  functionFragment: FunctionFragment | null
-  args: any
+export interface ILogInfo {
+  eventName: string
+  network: NetworksEnum
+  transactionHash: HexAddress
+  blockNumber: number
 }

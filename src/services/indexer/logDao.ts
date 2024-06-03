@@ -9,6 +9,7 @@ import { MetadataHandler } from '@services/indexer/handlers/metadataHandler'
 import { UtilsIndexer } from '@models/utils/indexer'
 import { DAO } from '@artifacts/dao'
 import { ConfigState } from '@state/configState'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDao' })
 
@@ -57,26 +58,20 @@ export const LogDao = {
 
   processLog: async (txLog: any, network: NetworksEnum) => {
     const iFace = new Interface(DAO.abi)
-    let event = null as any
-    try {
-      event = iFace.parseLog(txLog)!
-    } catch (error: any) {
-      if (error?.message.includes('out-of-bounds')) {
-        return
-      }
-    }
+    const { event, info } = Web3Helper.parseLog(txLog, iFace, network)
+    if (!event || !info) return
 
     switch (event.name) {
       case 'MetadataSet':
-        logger.verbose('MetadataSet', llo({ eventName: event.name, network }))
+        logger.verbose('MetadataSet', llo(info))
         await MetadataHandler.metadataSet(event, txLog, network)
         break
       case 'NewURI':
-        logger.verbose('NewURI', llo({ eventName: event.name, network }))
+        logger.verbose('NewURI', llo(info))
         await DaoHandler.newURI(event, txLog, network)
         break
       default:
-        logger.error('Unhandled event', llo({ event, network }))
+        logger.error('Unhandled event', llo(info))
         break
     }
   },
