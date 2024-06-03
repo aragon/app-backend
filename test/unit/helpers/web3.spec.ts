@@ -7,7 +7,7 @@ import { AbiCoder, Interface } from 'ethers'
 import { ConfigState } from '@state/configState'
 import Logger from '@logger'
 import proxyquire from 'proxyquire'
-import logger from "@logger";
+import logger from '@logger'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -574,13 +574,12 @@ describe('Helpers:Web3', () => {
       }
 
       const fakeEvent = {
-        ...txLog,
         name: 'MetadataSet',
         args: true,
       }
 
       const iFace = {
-        parseLog: sandbox.stub().returns(fakeEvent as any)
+        parseLog: sandbox.stub().returns(fakeEvent as any),
       }
       const network = NetworksEnum.mainnet
 
@@ -588,8 +587,8 @@ describe('Helpers:Web3', () => {
 
       expect(result.event).to.eq(fakeEvent)
       expect(result.info?.network).to.eq(network)
-      expect(result.info?.blockNumber).to.eq(fakeEvent.blockNumber)
-      expect(result.info?.transactionHash).to.eq(fakeEvent.transactionHash)
+      expect(result.info?.blockNumber).to.eq(txLog.blockNumber)
+      expect(result.info?.transactionHash).to.eq(txLog.transactionHash)
       expect(result.info?.eventName).to.eq(fakeEvent.name)
     })
 
@@ -604,7 +603,7 @@ describe('Helpers:Web3', () => {
 
       const loggerStub = sandbox.stub(logger, 'error')
       const iFace = {
-        parseLog: sandbox.stub().throws(new Error('fake-error'))
+        parseLog: sandbox.stub().throws(new Error('fake-error')),
       }
       const network = NetworksEnum.mainnet
 

@@ -255,8 +255,8 @@ const Web3Helper = {
       event,
       info: {
         network,
-        blockNumber: event.blockNumber,
-        transactionHash: event.transactionHash,
+        blockNumber: txLog.blockNumber,
+        transactionHash: txLog.transactionHash || txLog.hash,
         eventName: event.name,
       },
     }
