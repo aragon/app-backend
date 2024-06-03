@@ -11,7 +11,7 @@ import Provider from '@modules/provider'
 import { Interface } from 'ethers'
 import { PluginRepoRegistryHandler } from '@services/indexer/handlers/pluginRepoRegistryHandler'
 import Utils from '@helpers/utils'
-import {UnitTestUtils} from "@test/lib/utils";
+import { UnitTestUtils } from '@test/lib/utils'
 
 describe('Indexer: LogPluginRepoRegistry', () => {
   let sandbox: SinonSandbox

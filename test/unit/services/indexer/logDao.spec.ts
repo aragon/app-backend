@@ -12,7 +12,7 @@ import { Interface } from 'ethers'
 import { DaoHandler } from '@services/indexer/handlers/daoHandler'
 import Utils from '@helpers/utils'
 import { MetadataHandler } from '@services/indexer/handlers/metadataHandler'
-import {UnitTestUtils} from "@test/lib/utils";
+import { UnitTestUtils } from '@test/lib/utils'
 
 describe('Indexer: LogDao', () => {
   let sandbox: SinonSandbox
