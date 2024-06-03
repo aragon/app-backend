@@ -12,6 +12,7 @@ import { ConfigState } from '@state/configState'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMember' })
 
+// must run after LogPluginSetupProcessor
 export const LogMember = {
   events: ['MembersAdded', 'MembersRemoved', 'DelegateChanged'],
 
