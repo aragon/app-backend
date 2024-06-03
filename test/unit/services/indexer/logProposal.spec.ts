@@ -11,7 +11,7 @@ import Provider from '@modules/provider'
 import { Interface } from 'ethers'
 import { ProposalHandler } from '@services/indexer/handlers/proposalHandler'
 import Utils from '@helpers/utils'
-import {UnitTestUtils} from "@test/lib/utils";
+import { UnitTestUtils } from '@test/lib/utils'
 
 describe('Indexer: LogProposal', () => {
   let sandbox: SinonSandbox

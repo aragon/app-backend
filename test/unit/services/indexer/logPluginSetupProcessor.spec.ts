@@ -12,7 +12,7 @@ import { Interface } from 'ethers'
 import Provider from '@modules/provider'
 import { PluginSetupProcessorHandler } from '@services/indexer/handlers/pluginSetupProcessorHandler'
 import Utils from '@helpers/utils'
-import {UnitTestUtils} from "@test/lib/utils";
+import { UnitTestUtils } from '@test/lib/utils'
 
 describe('Indexer: LogPluginSetupProcessor', () => {
   let sandbox: SinonSandbox

@@ -11,7 +11,7 @@ import { UtilsIndexer } from '@models/utils/indexer'
 import { Interface } from 'ethers'
 import Provider from '@modules/provider'
 import { DaoRegistryHandler } from '@services/indexer/handlers/daoRegistryHandler'
-import {UnitTestUtils} from "@test/lib/utils";
+import { UnitTestUtils } from '@test/lib/utils'
 
 describe('Indexer: LogDaoRegistry', () => {
   let sandbox: SinonSandbox

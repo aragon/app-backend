@@ -11,7 +11,7 @@ import { Interface } from 'ethers'
 import Utils from '@helpers/utils'
 import { MemberHandler } from '@services/indexer/handlers/memberHandler'
 import Network from '@models/schema/network'
-import {UnitTestUtils} from "@test/lib/utils";
+import { UnitTestUtils } from '@test/lib/utils'
 
 describe('Indexer: LogMember', () => {
   let sandbox: SinonSandbox

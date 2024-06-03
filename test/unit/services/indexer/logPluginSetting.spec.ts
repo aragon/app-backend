@@ -13,7 +13,7 @@ import { PluginSettingHandler } from '@services/indexer/handlers/pluginSettingHa
 import Utils from '@helpers/utils'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { Multisig } from '@artifacts/Multisig'
-import {UnitTestUtils} from "@test/lib/utils";
+import { UnitTestUtils } from '@test/lib/utils'
 
 describe('Indexer: LogPluginSetting', () => {
   let sandbox: SinonSandbox
