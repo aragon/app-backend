@@ -2,6 +2,7 @@ import {
   type HexAddress,
   type IAlchemyTokenBalance,
   type IDaoMetadata,
+  type ILogInfo,
   type IProposalMetadata,
   ITransactionType,
   type NetworksEnum,
@@ -232,6 +233,32 @@ const Web3Helper = {
     } catch (error) {
       logger.error('Error extractMetadataUri', llo({ metadataHex, error }))
       return null
+    }
+  },
+
+  parseLog(txLog: any, iFace: any, network: NetworksEnum): { event: LogDescription | null; info: ILogInfo | null } {
+    let event = null as any
+    try {
+      event = iFace.parseLog(txLog)
+    } catch (error: any) {
+      if (!error?.message.includes('out-of-bounds')) {
+        logger.error('Error parseLog', llo({ txLog, network, error }))
+      }
+
+      return {
+        event: null,
+        info: null,
+      }
+    }
+
+    return {
+      event,
+      info: {
+        network,
+        blockNumber: event.blockNumber,
+        transactionHash: event.transactionHash,
+        eventName: event.name,
+      },
     }
   },
 

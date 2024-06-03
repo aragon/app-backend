@@ -8,6 +8,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { DaoRegistryHandler } from '@services/indexer/handlers/daoRegistryHandler'
 import { UtilsIndexer } from '@models/utils/indexer'
 import { ConfigState } from '@state/configState'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDaoRegistry' })
 
@@ -58,22 +59,16 @@ export const LogDaoRegistry = {
 
   processLog: async (txLog: any, network: NetworksEnum) => {
     const iFace = new Interface(DAORegistry.abi)
-    let event = null as any
-    try {
-      event = iFace.parseLog(txLog)!
-    } catch (error: any) {
-      if (error?.message.includes('out-of-bounds')) {
-        return
-      }
-    }
+    const { event, info } = Web3Helper.parseLog(txLog, iFace, network)
+    if (!event || !info) return
 
     switch (event.name) {
       case 'DAORegistered':
-        logger.verbose('DAORegistered', llo({ eventName: event.name, network }))
+        logger.verbose('DAORegistered', llo(info))
         await DaoRegistryHandler.daoRegistered(event, txLog, network)
         break
       default:
-        logger.error('Unhandled event', llo({ eventName: event.name, network }))
+        logger.error('Unhandled event', llo(info))
         break
     }
   },

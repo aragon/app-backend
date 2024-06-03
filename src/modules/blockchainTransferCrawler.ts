@@ -197,7 +197,7 @@ class BlockchainTransferCrawler {
   }
 
   isBatchSizeError(error: any): boolean {
-    const messages = ['The query timed out. Either reduce your query filters or retry this query']
+    const messages = ['The query timed out', 'Log response size exceeded']
 
     return messages.some(msg => error.message?.includes(msg))
   }

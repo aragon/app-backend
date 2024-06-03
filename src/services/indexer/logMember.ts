@@ -9,6 +9,7 @@ import { UtilsIndexer } from '@models/utils/indexer'
 import { Multisig } from '@artifacts/Multisig'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { ConfigState } from '@state/configState'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMember' })
 
@@ -71,31 +72,24 @@ export const LogMember = {
 
   processLog: async (txLog: any, network: NetworksEnum) => {
     const iFace = LogMember.getInterface(txLog.topics[0])
-
-    let event = null as any
-    try {
-      event = iFace.parseLog(txLog)!
-    } catch (error: any) {
-      if (error?.message.includes('out-of-bounds')) {
-        return
-      }
-    }
+    const { event, info } = Web3Helper.parseLog(txLog, iFace, network)
+    if (!event || !info) return
 
     switch (event.name) {
       case 'MembersAdded':
-        logger.verbose('MembersAdded', llo({ eventName: event.name, network }))
+        logger.verbose('MembersAdded', llo(info))
         await MemberHandler.membersAdded(event, txLog, network)
         break
       case 'MembersRemoved':
-        logger.verbose('MembersRemoved', llo({ eventName: event.name, network }))
+        logger.verbose('MembersRemoved', llo(info))
         await MemberHandler.membersRemoved(event, txLog, network)
         break
       case 'DelegateChanged':
-        logger.verbose('DelegateChanged', llo({ eventName: event.name, network }))
+        logger.verbose('DelegateChanged', llo(info))
         await MemberHandler.delegateChanged(event, txLog, network)
         break
       default:
-        logger.error('Unhandled event', llo({ eventName: event.name, network, transactionHash: txLog.transactionHash }))
+        logger.error('Unhandled event', llo(info))
         break
     }
   },
