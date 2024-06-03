@@ -1,8 +1,9 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
 export interface ILogInfo {
-  eventName: string
   network: NetworksEnum
-  transactionHash: HexAddress
   blockNumber: number
+  transactionHash: HexAddress | string
+  address: HexAddress | string
+  eventName: string
 }

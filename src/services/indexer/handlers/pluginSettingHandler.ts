@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type NetworksEnum } from '@types'
+import { type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -7,24 +7,18 @@ import DbTx from '@modules/dbTx'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:PluginSettingHandler' })
 
 export const PluginSettingHandler = {
-  votingSettingsUpdated: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    const logInfo: any = {
-      txHash: txLog.transactionHash,
-      blockNumber: txLog.blockNumber,
-      network,
-    }
-
+  votingSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      const pluginAddress = txLog.address
-      const existingLog = await Models.LogPluginSetting.findExistingLog(txLog.transactionHash, pluginAddress)
+      const pluginAddress = info.address
+      const existingLog = await Models.LogPluginSetting.findExistingLog(info.transactionHash, pluginAddress)
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
           const settingLog = {
-            blockNumber: txLog.blockNumber,
-            transactionHash: txLog.transactionHash,
+            blockNumber: info.blockNumber,
+            transactionHash: info.transactionHash,
             pluginAddress,
-            network,
+            network: info.network,
             votingMode: Number(parsedEvent.args.votingMode),
             supportThreshold: Number(parsedEvent.args.supportThreshold),
             minParticipation: Number(parsedEvent.args.minParticipation),
@@ -35,32 +29,26 @@ export const PluginSettingHandler = {
 
           await session.commitTransaction()
           await session.endSession()
-          logger.verbose('New LogPluginSetting - multisigSettingsUpdated', llo({ logId: logDb.id, logInfo }))
+          logger.verbose('New LogPluginSetting - multisigSettingsUpdated', llo({ ...info, logId: logDb.id }))
         })
       }
     } catch (error) {
-      logger.error('Error votingSettingsUpdated', llo({ logInfo, error }))
+      logger.error('Error votingSettingsUpdated', llo({ ...info, error }))
     }
   },
 
-  multisigSettingsUpdated: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    const logInfo: any = {
-      txHash: txLog.transactionHash,
-      blockNumber: txLog.blockNumber,
-      network,
-    }
-
+  multisigSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      const pluginAddress = txLog.address
-      const existingLog = await Models.LogPluginSetting.findExistingLog(txLog.transactionHash, pluginAddress)
+      const pluginAddress = info.address
+      const existingLog = await Models.LogPluginSetting.findExistingLog(info.transactionHash, pluginAddress)
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
           const settingLog = {
-            blockNumber: txLog.blockNumber,
-            transactionHash: txLog.transactionHash,
+            blockNumber: info.blockNumber,
+            transactionHash: info.transactionHash,
             pluginAddress,
-            network,
+            network: info.network,
             onlyListed: parsedEvent.args.onlyListed,
             minApprovals: Number(parsedEvent.args.minApprovals),
           }
@@ -68,11 +56,11 @@ export const PluginSettingHandler = {
 
           await session.commitTransaction()
           await session.endSession()
-          logger.verbose('New LogPluginSetting - multisigSettingsUpdated', llo({ logId: logDb.id, logInfo }))
+          logger.verbose('New LogPluginSetting - multisigSettingsUpdated', llo({ ...info, logId: logDb.id }))
         })
       }
     } catch (error) {
-      logger.error('Error multisigSettingsUpdated', llo({ logInfo, error }))
+      logger.error('Error multisigSettingsUpdated', llo({ ...info, error }))
     }
   },
 }

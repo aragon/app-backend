@@ -14,6 +14,7 @@ import Utils from '@helpers/utils'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { Multisig } from '@artifacts/Multisig'
 import { UnitTestUtils } from '@test/lib/utils'
+import Web3Helper from '@helpers/web3'
 
 describe('Indexer: LogPluginSetting', () => {
   let sandbox: SinonSandbox
@@ -96,19 +97,23 @@ describe('Indexer: LogPluginSetting', () => {
           name: event,
           args: true,
         }
+        const fakeInfo = 'test-info'
 
         const loggerStub = sandbox.stub(logger, 'verbose')
-        const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
+        const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').returns(fakeEvent as any)
+        const stubParseInfoLog = sandbox.stub(Web3Helper, 'parseInfoLog').returns(fakeInfo as any)
         const stubProcessHandler = sandbox.stub(PluginSettingHandler, Utils.lowercaseFirstLetter(event))
 
         await LogPluginSetting.processLog(txLog as any, network)
 
         expect(stubParseLog.calledOnceWith(txLog)).to.be.true
+        expect(stubParseInfoLog.calledOnceWith(txLog, fakeEvent.name, network)).to.be.true
         expect(loggerStub.calledOnceWith(event as any)).to.be.true
-        expect(stubProcessHandler.calledOnceWith(fakeEvent as any, txLog, network)).to.be.true
+        expect(stubProcessHandler.calledOnceWith(fakeEvent as any, fakeInfo)).to.be.true
 
         loggerStub.restore()
         stubParseLog.restore()
+        stubParseInfoLog.restore()
         stubProcessHandler.restore()
       }
     })
@@ -122,9 +127,28 @@ describe('Indexer: LogPluginSetting', () => {
       expect(!!exist).to.be.true
     })
 
+    it('should ignore not parsed event', async () => {
+      const network = NetworksEnum.mainnet
+      const txLog: any = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+
+      const loggerStub = sandbox.stub(logger, 'error')
+      const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').returns(false as any)
+
+      await LogPluginSetting.processLog(txLog, network)
+
+      expect(stubParseLog.calledOnce).to.be.true
+      expect(loggerStub.notCalled).to.be.true
+    })
+
     it('should not processLog unknown event', async () => {
       const network = NetworksEnum.mainnet
-      const txLog = {
+      const txLog: any = {
         transactionHash: '0x123',
         address: '0x456',
         data: '0x789',
@@ -135,13 +159,16 @@ describe('Indexer: LogPluginSetting', () => {
         name: 'Unknown',
         args: true,
       }
+      const fakeInfo = 'test-info'
 
       const loggerStub = sandbox.stub(logger, 'error')
-      const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
+      const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').returns(fakeEvent as any)
+      const stubParseInfoLog = sandbox.stub(Web3Helper, 'parseInfoLog').returns(fakeInfo as any)
 
       await LogPluginSetting.processLog(txLog, network)
 
       expect(stubParseLog.calledOnceWith(txLog)).to.be.true
+      expect(stubParseInfoLog.calledOnceWith(txLog, fakeEvent.name, network)).to.be.true
       expect(loggerStub.calledOnceWith('Unhandled event' as any)).to.be.true
     })
   })

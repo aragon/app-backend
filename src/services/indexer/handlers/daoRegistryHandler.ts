@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type HexAddress, IEventLogMember, IEventLogPluginType, type NetworksEnum } from '@types'
+import { IEventLogMember, IEventLogPluginType, type ILogInfo } from '@types'
 import { type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -16,41 +16,35 @@ import { MetadataHandler } from '@services/indexer/handlers/metadataHandler'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
 
 export const DaoRegistryHandler = {
-  daoRegistered: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    const logInfo: any = {
-      txHash: txLog.transactionHash,
-      blockNumber: txLog.blockNumber,
-      network,
-    }
-
+  daoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const daoAddress = parsedEvent.args.dao
-      const existingLog = await Models.LogDaoRegistry.findExistingLog(txLog.transactionHash, daoAddress)
+      const existingLog = await Models.LogDaoRegistry.findExistingLog(info.transactionHash, daoAddress)
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
-          const implementationAddress = await ProxyContractHelper.getImplementationAddress(daoAddress, network)
+          const implementationAddress = await ProxyContractHelper.getImplementationAddress(daoAddress, info.network)
 
           const daoLog = {
-            network,
+            network: info.network,
             address: daoAddress,
             creatorAddress: parsedEvent.args.creator,
             ens: parsedEvent.args.subdomain,
-            blockNumber: txLog.blockNumber,
-            transactionHash: txLog.transactionHash,
+            blockNumber: info.blockNumber,
+            transactionHash: info.transactionHash,
             implementationAddress,
           }
 
           const logDb = await Models.LogDaoRegistry.create(daoLog, { session })
           await session.commitTransaction()
           await session.endSession()
-          logger.verbose('New DaoRegister', llo({ logId: logDb.id, logInfo }))
+          logger.verbose('New DaoRegister', llo({ ...info, logId: logDb.id }))
         })
 
-        await DaoRegistryHandler.initiateNewDaoCreation(txLog.transactionHash, network)
+        await DaoRegistryHandler.initiateNewDaoCreation(info)
       }
     } catch (error) {
-      logger.error('Error DaoRegister', llo({ logInfo, error }))
+      logger.error('Error DaoRegister', llo({ ...info, error }))
     }
   },
 
@@ -67,40 +61,41 @@ export const DaoRegistryHandler = {
    *
    */
 
-  initiateNewDaoCreation: async (transactionHash: HexAddress, network: NetworksEnum) => {
-    const allLogs = await Web3Helper.getTransactionReceipt(transactionHash, network)
-    if (!allLogs) {
+  initiateNewDaoCreation: async (info: ILogInfo) => {
+    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+    if (!txReceipt) {
       return
     }
 
     /**
      * Save the plugin Setup Processor logs that will create the plugin entry for the dao
      */
-    await DaoRegistryHandler._pluginSetup(allLogs, transactionHash, network)
+    await DaoRegistryHandler._pluginSetup(txReceipt, info)
 
     /**
      * Save the member logs that will create the member entry for the dao
      */
-    await DaoRegistryHandler._memberAdded(allLogs, transactionHash, network)
+    await DaoRegistryHandler._memberAdded(txReceipt, info)
 
     /**
      * Save the metadata logs that will create the metadata entry for the dao
      */
-    await DaoRegistryHandler._metadataHandler(allLogs, transactionHash, network)
+    await DaoRegistryHandler._metadataHandler(txReceipt, info)
   },
 
-  _metadataHandler: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
+  _metadataHandler: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
     const metadataLogs = Web3Helper.findLogsByName(txReceipt, 'MetadataSet', DAO.abi)
 
     if (!metadataLogs || metadataLogs?.length === 0) {
-      logger.warn('MetadataSet not found', llo({ transactionHash, network }))
+      logger.warn('MetadataSet not found', llo(info))
       return
     }
 
-    await MetadataHandler.metadataSet(metadataLogs[0].parsed!, metadataLogs[0].txLog, network)
+    const infoMetadata = Web3Helper.parseInfoLog(metadataLogs[0].txLog, 'MetadataSet', info.network)
+    await MetadataHandler.metadataSet(metadataLogs[0].parsed!, infoMetadata)
   },
 
-  _pluginSetup: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
+  _pluginSetup: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
     const pluginSetupLogs = Web3Helper.findLogsByName(
       txReceipt,
       IEventLogPluginType.InstallationPrepared,
@@ -108,18 +103,19 @@ export const DaoRegistryHandler = {
     )
 
     if (pluginSetupLogs.length === 0) {
-      logger.warn('PluginSetupProcessor not found', llo({ transactionHash, network }))
+      logger.warn('PluginSetupProcessor not found', llo(info))
       return
     }
 
-    await PluginSetupProcessorHandler.installationPrepared(
-      pluginSetupLogs[0].parsed!,
+    const infoPluginSetup = Web3Helper.parseInfoLog(
       pluginSetupLogs[0].txLog,
-      network,
+      IEventLogPluginType.InstallationPrepared,
+      info.network,
     )
+    await PluginSetupProcessorHandler.installationPrepared(pluginSetupLogs[0].parsed!, infoPluginSetup)
   },
 
-  _memberAdded: async (txReceipt: TransactionReceipt, transactionHash: HexAddress, network: NetworksEnum) => {
+  _memberAdded: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
     const memberAddedLogs = Web3Helper.findLogsByName(txReceipt, IEventLogMember.MembersAdded, Multisig.abi)
 
     if (memberAddedLogs.length === 0) {
@@ -130,17 +126,23 @@ export const DaoRegistryHandler = {
       )
 
       if (delegationChangedLogs.length === 0) {
-        logger.warn('Invalid member log', llo({ transactionHash, network }))
+        logger.warn('Invalid member log', llo(info))
         return
       }
 
-      return await MemberHandler.delegateChanged(
-        delegationChangedLogs[0].parsed!,
+      const infoPluginSetup = Web3Helper.parseInfoLog(
         delegationChangedLogs[0].txLog,
-        network,
+        IEventLogMember.DelegateChanged,
+        info.network,
       )
+      return await MemberHandler.delegateChanged(delegationChangedLogs[0].parsed!, infoPluginSetup)
     } else {
-      await MemberHandler.membersAdded(memberAddedLogs[0].parsed!, memberAddedLogs[0].txLog, network)
+      const infoPluginSetup = Web3Helper.parseInfoLog(
+        memberAddedLogs[0].txLog,
+        IEventLogMember.DelegateChanged,
+        info.network,
+      )
+      await MemberHandler.membersAdded(memberAddedLogs[0].parsed!, infoPluginSetup)
     }
   },
 }

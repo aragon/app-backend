@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type NetworksEnum } from '@types'
+import { type HexAddress, type ILogInfo } from '@types'
 import { Interface, type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -18,7 +18,7 @@ export const MetadataHandler = {
     DAO: new Interface(DAO.abi),
   },
 
-  metadataSet: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
+  metadataSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
     /**
      * As the tx log can a transaction Object or transaction receipt,
      * We need to properly extract the transaction hash and block number
@@ -27,20 +27,13 @@ export const MetadataHandler = {
      * dao creation lifecycle
      */
 
-    const transactionHash = txLog.transactionHash || txLog.hash
-    const logInfo: any = {
-      transactionHash,
-      blockNumber: txLog.blockNumber,
-      network,
-    }
-
     try {
-      const daoAddress = txLog.address
+      const daoAddress = info.address
 
-      const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog(transactionHash, daoAddress)
+      const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog(info.transactionHash, daoAddress)
 
       if (!existingDaoMetadata) {
-        const isDaoExists = await Models.LogDaoRegistry.findByAddress(daoAddress, network)
+        const isDaoExists = await Models.LogDaoRegistry.findByAddress(daoAddress as HexAddress, info.network)
 
         if (isDaoExists) {
           const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)
@@ -49,12 +42,12 @@ export const MetadataHandler = {
 
           await DbTx.executeTxFn(async ({ session }) => {
             const logDaoMetadata = {
-              network,
+              network: info.network,
               metadataUri,
               daoAddress,
               fetchedMetadata: !!ipfsMetadata,
-              blockNumber: txLog.blockNumber,
-              transactionHash,
+              blockNumber: info.blockNumber,
+              transactionHash: info.transactionHash,
               name: ipfsMetadata?.name,
               description: ipfsMetadata?.description,
               avatar: ipfsMetadata?.avatar,
@@ -65,12 +58,12 @@ export const MetadataHandler = {
 
             await session.commitTransaction()
             await session.endSession()
-            logger.verbose('New DaoMetadata', llo({ logId: logDb.id, logInfo }))
+            logger.verbose('New DaoMetadata', llo({ ...info, logId: logDb.id }))
           })
         }
       }
     } catch (error) {
-      logger.error('Error DaoMetadata', llo({ logInfo, error }))
+      logger.error('Error DaoMetadata', llo({ ...info, error }))
     }
   },
 }

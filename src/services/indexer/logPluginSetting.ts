@@ -73,19 +73,22 @@ export const LogPluginSetting = {
     return new Interface(Multisig.abi)
   },
 
-  processLog: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum) => {
     const iFace = LogPluginSetting.getInterface(txLog.topics[0])
-    const { event, info } = Web3Helper.parseLog(txLog, iFace, network)
-    if (!event || !info) return
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
+    }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event.name) {
       case 'VotingSettingsUpdated':
         logger.verbose('VotingSettingsUpdated', llo(info))
-        await PluginSettingHandler.votingSettingsUpdated(event, txLog, network)
+        await PluginSettingHandler.votingSettingsUpdated(event, info)
         break
       case 'MultisigSettingsUpdated':
         logger.verbose('MultisigSettingsUpdated', llo(info))
-        await PluginSettingHandler.multisigSettingsUpdated(event, txLog, network)
+        await PluginSettingHandler.multisigSettingsUpdated(event, info)
         break
       default:
         logger.error('Unhandled event', llo(info))

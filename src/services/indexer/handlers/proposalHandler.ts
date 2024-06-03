@@ -1,35 +1,29 @@
 import logger from '@logger'
-import { type NetworksEnum } from '@types'
+import { type HexAddress, type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import IPFSModule from '@modules/ipfs'
-import { type Vote } from '@models/schema/logProposal'
 import type LogProposal from '@models/schema/logProposal'
+import { type Vote } from '@models/schema/logProposal'
 import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:ProposalHandler' })
 
 export const ProposalHandler = {
-  proposalCreated: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    const logInfo: any = {
-      txHash: txLog.transactionHash,
-      blockNumber: txLog.blockNumber,
-      network,
-    }
-
+  proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)
       const proposalId = Number(parsedEvent.args.proposalId)
-      const pluginAddress = txLog.address
-      const existingLog = await Models.LogProposal.findExistingLog(txLog.transactionHash, pluginAddress, proposalId)
+      const pluginAddress = info.address
+      const existingLog = await Models.LogProposal.findExistingLog(info.transactionHash, pluginAddress, proposalId)
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
           const proposalLog = {
-            network,
-            blockNumber: txLog.blockNumber,
-            transactionHash: txLog.transactionHash,
+            network: info.network,
+            blockNumber: info.blockNumber,
+            transactionHash: info.transactionHash,
             pluginAddress,
             creatorAddress: parsedEvent.args.creator,
             proposalId,
@@ -47,129 +41,116 @@ export const ProposalHandler = {
           const logDb = await Models.LogProposal.create(proposalLog, { session })
           await session.commitTransaction()
           await session.endSession()
-          logger.verbose('New Proposal', llo({ logId: logDb.id, logInfo }))
+          logger.verbose('New Proposal', llo({ ...info, logId: logDb.id }))
 
-          await ProposalHandler.proposalMetadata(txLog, logDb)
+          await ProposalHandler.proposalMetadata(info, logDb)
         })
       }
     } catch (error) {
-      logger.error('Error proposalCreated', llo({ logInfo, error }))
+      logger.error('Error proposalCreated', llo({ ...info, error }))
     }
   },
 
-  approved: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    const logInfo: any = {
-      txHash: txLog.transactionHash,
-      blockNumber: txLog.blockNumber,
-      network,
-    }
-
+  approved: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const parsedParams: Vote = {
-        blockNumber: txLog.blockNumber,
-        transactionHash: txLog.transactionHash,
+        blockNumber: info.blockNumber,
+        transactionHash: info.transactionHash as HexAddress,
         proposalId: Number(parsedEvent.args.proposalId),
         memberAddress: parsedEvent.args.approver,
       }
-      const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, txLog.address, network)
+      const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, info.address, info.network)
 
       if (!proposal) {
-        logger.error('proposal not found', llo({ logInfo, parsedEvent }))
+        logger.error('proposal not found', llo({ ...info, parsedEvent }))
         return
       }
 
-      const existingVote = await proposal.findVote(txLog.transactionHash)
+      const existingVote = await proposal.findVote(info.transactionHash)
 
       if (!existingVote) {
         await DbTx.executeTxFn(async ({ session }) => {
           const logDb = await proposal.addVoteEvent(parsedParams, { session })
           await session.commitTransaction()
           await session.endSession()
-          logger.verbose('New approved', llo({ logId: logDb.id, logInfo }))
+          logger.verbose('New approved', llo({ ...info, logId: logDb.id }))
         })
       }
     } catch (error) {
-      logger.error('Error approved', llo({ logInfo, error }))
+      logger.error('Error approved', llo({ ...info, error }))
     }
   },
 
-  voteCast: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    const logInfo: any = {
-      txHash: txLog.transactionHash,
-      blockNumber: txLog.blockNumber,
-      network,
-    }
-
+  voteCast: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      const parsedParams = {
-        blockNumber: txLog.blockNumber,
-        transactionHash: txLog.transactionHash,
+      const parsedParams: Vote = {
+        blockNumber: info.blockNumber,
+        transactionHash: info.transactionHash as HexAddress,
         proposalId: Number(parsedEvent.args.proposalId),
         voteOption: Number(parsedEvent.args.voteOption),
         votingPower: parsedEvent.args.votingPower,
         memberAddress: parsedEvent.args.voter,
       }
-      const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, txLog.address, network)
+      const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, info.address, info.network)
 
       if (!proposal) {
-        logger.error('proposal not found', llo({ logInfo, parsedEvent }))
+        logger.error('proposal not found', llo({ ...info, parsedEvent }))
         return
       }
 
-      const existingVote = await proposal.findVote(txLog.transactionHash)
+      const existingVote = await proposal.findVote(info.transactionHash)
 
       if (!existingVote) {
         await DbTx.executeTxFn(async ({ session }) => {
           const logDb = await proposal.addVoteEvent(parsedParams, { session })
           await session.commitTransaction()
           await session.endSession()
-          logger.verbose('New voteCast', llo({ logId: logDb.id, logInfo }))
+          logger.verbose('New voteCast', llo({ ...info, logId: logDb.id }))
         })
       }
     } catch (error) {
-      logger.error('Error voteCast', llo({ logInfo, error }))
+      logger.error('Error voteCast', llo({ ...info, error }))
     }
   },
 
-  proposalExecuted: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    const logInfo: any = {
-      txHash: txLog.transactionHash,
-      blockNumber: txLog.blockNumber,
-      network,
-    }
-
+  proposalExecuted: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const parsedParams = {
         proposalId: Number(parsedEvent.args.proposalId),
       }
-      const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, txLog.address, network)
+      const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, info.address, info.network)
       if (!proposal) {
-        logger.warn('proposal not found', llo({ logInfo, parsedEvent }))
+        logger.warn('proposal not found', llo({ ...info, parsedEvent }))
         return
       }
 
       if (!proposal.executed) {
         await DbTx.executeTxFn(async ({ session }) => {
-          const logDb = await proposal.update({
-            executed: {
-              status: true,
-              blockNumber: txLog.blockNumber,
-              transactionHash: txLog.transactionHash,
+          const logDb = await proposal.update(
+            {
+              executed: {
+                status: true,
+                blockNumber: info.blockNumber,
+                transactionHash: info.transactionHash,
+              },
             },
-          })
-          logger.verbose('New proposalExecuted', llo({ logId: logDb.id, logInfo }))
+            { session },
+          )
+
+          await session.commitTransaction()
+          await session.endSession()
+
+          logger.verbose('New proposalExecuted', llo({ ...info, logId: logDb.id }))
         })
       }
     } catch (error) {
-      logger.error('Error proposalExecuted', llo({ logInfo, error }))
+      logger.error('Error proposalExecuted', llo({ ...info, error }))
     }
   },
 
-  proposalMetadata: async (txLog: any, proposalDb: LogProposal) => {
+  proposalMetadata: async (info: ILogInfo, proposalDb: LogProposal) => {
     const logInfo: any = {
-      txHash: txLog.transactionHash,
-      blockNumber: txLog.blockNumber,
-      network: proposalDb.network,
+      ...info,
       proposalId: proposalDb.id,
       metadataUri: proposalDb.metadataUri,
     }
@@ -199,11 +180,11 @@ export const ProposalHandler = {
 
           await session.commitTransaction()
           await session.endSession()
-          logger.verbose('New proposalMetadata', llo({ logId: logDb.id, logInfo }))
+          logger.verbose('New proposalMetadata', llo({ ...logInfo, logId: logDb.id }))
         })
       }
     } catch (error) {
-      logger.error('Error proposalMetadata', llo({ logInfo, error }))
+      logger.error('Error proposalMetadata', llo({ ...logInfo, error }))
     }
   },
 }

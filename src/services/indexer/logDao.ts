@@ -56,19 +56,22 @@ export const LogDao = {
     )
   },
 
-  processLog: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum) => {
     const iFace = new Interface(DAO.abi)
-    const { event, info } = Web3Helper.parseLog(txLog, iFace, network)
-    if (!event || !info) return
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
+    }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event.name) {
       case 'MetadataSet':
         logger.verbose('MetadataSet', llo(info))
-        await MetadataHandler.metadataSet(event, txLog, network)
+        await MetadataHandler.metadataSet(event, info)
         break
       case 'NewURI':
         logger.verbose('NewURI', llo(info))
-        await DaoHandler.newURI(event, txLog, network)
+        await DaoHandler.newURI(event, info)
         break
       default:
         logger.error('Unhandled event', llo(info))

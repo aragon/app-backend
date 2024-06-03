@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type NetworksEnum } from '@types'
+import { type HexAddress, type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -7,36 +7,26 @@ import DbTx from '@modules/dbTx'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoHandler' })
 
 export const DaoHandler = {
-  newURI: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    const logInfo = {
-      transactionHash: txLog.transactionHash,
-      network,
-    }
-
+  newURI: async (parsedEvent: LogDescription, info: ILogInfo) => {
     if (!parsedEvent.args.daoURI) {
-      logger.verbose('newURI: no daoURI', llo({ logInfo }))
+      logger.verbose('newURI: no daoURI', llo(info))
       return
     }
 
-    const existingLog = await Models.LogDaoRegistry.findExistingLog(txLog.transactionHash, txLog.address)
+    const existingLog = await Models.LogDaoRegistry.findExistingLog(info.transactionHash, info.address)
 
     if (!existingLog) {
-      const existingDao = await Models.LogDaoRegistry.findByAddress(txLog.address, network)
+      const existingDao = await Models.LogDaoRegistry.findByAddress(info.address as HexAddress, info.network)
 
       if (!existingDao) {
-        logger.verbose(
-          'Dao not found',
-          llo({
-            logInfo,
-          }),
-        )
+        logger.verbose('Dao not found', llo(info))
         return
       }
 
       await DbTx.executeTxFn(async ({ session }) => {
         const uriUpdates = {
-          blockNumber: txLog.blockNumber,
-          transactionHash: txLog.transactionHash,
+          blockNumber: info.blockNumber,
+          transactionHash: info.transactionHash,
           uri: parsedEvent.args.daoURI,
         }
 
@@ -47,9 +37,8 @@ export const DaoHandler = {
         logger.verbose(
           'Log Dao New URI',
           llo({
+            ...info,
             uri: parsedEvent.args.uri,
-            transactionHash: txLog.transactionHash,
-            network,
             daoId: existingDao.id,
           }),
         )
