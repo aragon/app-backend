@@ -8,6 +8,7 @@ import { PluginRepoRegistryHandler } from '@services/indexer/handlers/pluginRepo
 import { UtilsIndexer } from '@models/utils/indexer'
 import { PluginRepoRegistry } from '@artifacts/pluginRepoRegistry'
 import { ConfigState } from '@state/configState'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogPluginRepoRegistry' })
 
@@ -57,24 +58,21 @@ export const LogPluginRepoRegistry = {
     )
   },
 
-  processLog: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum) => {
     const iFace = new Interface(PluginRepoRegistry.abi)
-    let event = null as any
-    try {
-      event = iFace.parseLog(txLog)!
-    } catch (error: any) {
-      if (error?.message.includes('out-of-bounds')) {
-        return
-      }
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
     }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event.name) {
       case 'PluginRepoRegistered':
-        logger.verbose('PluginRepoRegistered', llo({ eventName: event.name, network }))
-        await PluginRepoRegistryHandler.pluginRepoRegistered(event, txLog, network)
+        logger.verbose('PluginRepoRegistered', llo(info))
+        await PluginRepoRegistryHandler.pluginRepoRegistered(event, info)
         break
       default:
-        logger.error('Unhandled event', llo({ event }))
+        logger.error('Unhandled event', llo(info))
         break
     }
   },

@@ -8,10 +8,11 @@ import { Models } from '@dbModels'
 import { UtilsIndexer } from '@models/utils/indexer'
 import Network from '@models/schema/network'
 import Provider from '@modules/provider'
-import { Interface } from 'ethers'
 import { DaoHandler } from '@services/indexer/handlers/daoHandler'
 import Utils from '@helpers/utils'
 import { MetadataHandler } from '@services/indexer/handlers/metadataHandler'
+import { UnitTestUtils } from '@test/lib/utils'
+import Web3Helper from '@helpers/web3'
 
 describe('Indexer: LogDao', () => {
   let sandbox: SinonSandbox
@@ -30,39 +31,8 @@ describe('Indexer: LogDao', () => {
 
   describe('start', () => {
     it('should start', async () => {
-      let callCount = 0
-      const getBlockNumber = sandbox.stub().callsFake(() => {
-        callCount++
-        return Promise.resolve(callCount % 2 === 0 ? 2000 : 0)
-      })
+      const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
 
-      const fakeProviders = {
-        mainnet: {
-          getBlockNumber,
-          getLogs: sandbox.stub().resolves([{ transactionHash: '0x123', blockNumber: 1 }]),
-          destroy: sandbox.stub().resolves(),
-        },
-        sepolia: {
-          getBlockNumber,
-          getLogs: sandbox.stub().resolves([{ transactionHash: '0x456', blockNumber: 2 }]),
-          destroy: sandbox.stub().resolves(),
-        },
-        polygon: {
-          getBlockNumber,
-          getLogs: sandbox.stub().resolves([{ transactionHash: '0x789', blockNumber: 3 }]),
-          destroy: sandbox.stub().resolves(),
-        },
-        arbitrum: {
-          getBlockNumber,
-          getLogs: sandbox.stub().resolves([{ transactionHash: '0xabc', blockNumber: 4 }]),
-          destroy: sandbox.stub().resolves(),
-        },
-        base: {
-          getBlockNumber,
-          getLogs: sandbox.stub().resolves([{ transactionHash: '0xdef', blockNumber: 5 }]),
-          destroy: sandbox.stub().resolves(),
-        },
-      }
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
 
@@ -79,39 +49,8 @@ describe('Indexer: LogDao', () => {
     })
 
     it('should start handle error', async () => {
-      let callCount = 0
-      const getBlockNumber = sandbox.stub().callsFake(() => {
-        callCount++
-        return Promise.resolve(callCount % 2 === 0 ? 2000 : 0)
-      })
+      const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
 
-      const fakeProviders = {
-        mainnet: {
-          getBlockNumber,
-          getLogs: sandbox.stub().resolves([{ transactionHash: '0x123', blockNumber: 1 }]),
-          destroy: sandbox.stub().resolves(),
-        },
-        sepolia: {
-          getBlockNumber,
-          getLogs: sandbox.stub().resolves([{ transactionHash: '0x456', blockNumber: 2 }]),
-          destroy: sandbox.stub().resolves(),
-        },
-        polygon: {
-          getBlockNumber,
-          getLogs: sandbox.stub().resolves([{ transactionHash: '0x789', blockNumber: 3 }]),
-          destroy: sandbox.stub().resolves(),
-        },
-        arbitrum: {
-          getBlockNumber,
-          getLogs: sandbox.stub().resolves([{ transactionHash: '0xabc', blockNumber: 4 }]),
-          destroy: sandbox.stub().resolves(),
-        },
-        base: {
-          getBlockNumber,
-          getLogs: sandbox.stub().resolves([{ transactionHash: '0xdef', blockNumber: 5 }]),
-          destroy: sandbox.stub().resolves(),
-        },
-      }
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
 
@@ -155,27 +94,31 @@ describe('Indexer: LogDao', () => {
           name: event,
           args: true,
         }
+        const fakeInfo = 'test-info'
 
         const handler: any = event === 'MetadataSet' ? MetadataHandler : DaoHandler
         const loggerStub = sandbox.stub(logger, 'verbose')
-        const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
+        const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').returns(fakeEvent as any)
+        const stubParseInfoLog = sandbox.stub(Web3Helper, 'parseInfoLog').returns(fakeInfo as any)
         const stubProcessHandler = sandbox.stub(handler, Utils.lowercaseFirstLetter(event))
 
         await LogDao.processLog(txLog as any, network)
 
         expect(stubParseLog.calledOnceWith(txLog)).to.be.true
+        expect(stubParseInfoLog.calledOnceWith(txLog, fakeEvent.name, network)).to.be.true
         expect(loggerStub.calledOnceWith(event as any)).to.be.true
-        expect(stubProcessHandler.calledOnceWith(fakeEvent as any, txLog, network)).to.be.true
+        expect(stubProcessHandler.calledOnceWith(fakeEvent as any, fakeInfo)).to.be.true
 
         loggerStub.restore()
         stubParseLog.restore()
+        stubParseInfoLog.restore()
         stubProcessHandler.restore()
       }
     })
 
-    it('should handle out-of-bounds error in processLog', async () => {
+    it('should ignore not parsed event', async () => {
       const network = NetworksEnum.mainnet
-      const txLog = {
+      const txLog: any = {
         transactionHash: '0x123',
         address: '0x456',
         data: '0x789',
@@ -183,18 +126,18 @@ describe('Indexer: LogDao', () => {
         blockNumber: 1,
       }
 
-      const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').throws(new Error('out-of-bounds'))
       const loggerStub = sandbox.stub(logger, 'error')
+      const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').returns(false as any)
 
       await LogDao.processLog(txLog, network)
 
-      expect(stubParseLog.calledOnceWith(txLog)).to.be.true
-      expect(loggerStub.called).to.be.false // ensure no error logged for out-of-bounds
+      expect(stubParseLog.calledOnce).to.be.true
+      expect(loggerStub.notCalled).to.be.true
     })
 
     it('should not processLog unknown event', async () => {
       const network = NetworksEnum.mainnet
-      const txLog = {
+      const txLog: any = {
         transactionHash: '0x123',
         address: '0x456',
         data: '0x789',
@@ -205,13 +148,16 @@ describe('Indexer: LogDao', () => {
         name: 'Unknown',
         args: true,
       }
+      const fakeInfo = 'test-info'
 
       const loggerStub = sandbox.stub(logger, 'error')
-      const stubParseLog = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeEvent as any)
+      const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').returns(fakeEvent as any)
+      const stubParseInfoLog = sandbox.stub(Web3Helper, 'parseInfoLog').returns(fakeInfo as any)
 
       await LogDao.processLog(txLog, network)
 
       expect(stubParseLog.calledOnceWith(txLog)).to.be.true
+      expect(stubParseInfoLog.calledOnceWith(txLog, fakeEvent.name, network)).to.be.true
       expect(loggerStub.calledOnceWith('Unhandled event' as any)).to.be.true
     })
   })

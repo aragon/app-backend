@@ -9,6 +9,7 @@ import { UtilsIndexer } from '@models/utils/indexer'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { Multisig } from '@artifacts/Multisig'
 import { ConfigState } from '@state/configState'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogPluginSetting' })
 
@@ -72,29 +73,25 @@ export const LogPluginSetting = {
     return new Interface(Multisig.abi)
   },
 
-  processLog: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum) => {
     const iFace = LogPluginSetting.getInterface(txLog.topics[0])
-
-    let event = null as any
-    try {
-      event = iFace.parseLog(txLog)!
-    } catch (error: any) {
-      if (error?.message.includes('out-of-bounds')) {
-        return
-      }
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
     }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event.name) {
       case 'VotingSettingsUpdated':
-        logger.verbose('VotingSettingsUpdated', llo({ eventName: event.name, network }))
-        await PluginSettingHandler.votingSettingsUpdated(event, txLog, network)
+        logger.verbose('VotingSettingsUpdated', llo(info))
+        await PluginSettingHandler.votingSettingsUpdated(event, info)
         break
       case 'MultisigSettingsUpdated':
-        logger.verbose('MultisigSettingsUpdated', llo({ eventName: event.name, network }))
-        await PluginSettingHandler.multisigSettingsUpdated(event, txLog, network)
+        logger.verbose('MultisigSettingsUpdated', llo(info))
+        await PluginSettingHandler.multisigSettingsUpdated(event, info)
         break
       default:
-        logger.error('Unhandled event', llo({ event, network }))
+        logger.error('Unhandled event', llo(info))
         break
     }
   },

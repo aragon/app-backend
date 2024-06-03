@@ -8,6 +8,7 @@ import { PluginSetupProcessorHandler } from '@services/indexer/handlers/pluginSe
 import { UtilsIndexer } from '@models/utils/indexer'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { ConfigState } from '@state/configState'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogPluginSetupProcessor' })
 
@@ -64,44 +65,41 @@ export const LogPluginSetupProcessor = {
     )
   },
 
-  processLog: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum) => {
     const iFace = new Interface(PluginSetupProcessor.abi)
-    let event = null as any
-    try {
-      event = iFace.parseLog(txLog)!
-    } catch (error: any) {
-      if (error?.message.includes('out-of-bounds')) {
-        return
-      }
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
     }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event.name) {
       case 'InstallationApplied':
-        logger.verbose('InstallationApplied', llo({ eventName: event.name, network }))
-        await PluginSetupProcessorHandler.installationApplied(event, txLog, network)
+        logger.verbose('InstallationApplied', llo(info))
+        await PluginSetupProcessorHandler.installationApplied(event, info)
         break
       case 'InstallationPrepared':
-        logger.verbose('InstallationPrepared', llo({ eventName: event.name, network }))
-        await PluginSetupProcessorHandler.installationPrepared(event, txLog, network)
+        logger.verbose('InstallationPrepared', llo(info))
+        await PluginSetupProcessorHandler.installationPrepared(event, info)
         break
       case 'UninstallationApplied':
-        logger.verbose('UninstallationApplied', llo({ eventName: event.name, network }))
-        await PluginSetupProcessorHandler.uninstallationApplied(event, txLog, network)
+        logger.verbose('UninstallationApplied', llo(info))
+        await PluginSetupProcessorHandler.uninstallationApplied(event, info)
         break
       case 'UninstallationPrepared':
-        logger.verbose('UninstallationPrepared', llo({ eventName: event.name, network }))
-        await PluginSetupProcessorHandler.uninstallationPrepared(event, txLog, network)
+        logger.verbose('UninstallationPrepared', llo(info))
+        await PluginSetupProcessorHandler.uninstallationPrepared(event, info)
         break
       case 'UpdateApplied':
-        logger.verbose('UpdateApplied', llo({ eventName: event.name, network }))
-        await PluginSetupProcessorHandler.updateApplied(event, txLog, network)
+        logger.verbose('UpdateApplied', llo(info))
+        await PluginSetupProcessorHandler.updateApplied(event, info)
         break
       case 'UpdatePrepared':
-        logger.verbose('UpdatePrepared', llo({ eventName: event.name, network }))
-        await PluginSetupProcessorHandler.updatePrepared(event, txLog, network)
+        logger.verbose('UpdatePrepared', llo(info))
+        await PluginSetupProcessorHandler.updatePrepared(event, info)
         break
       default:
-        logger.error('Unhandled event', llo({ event, network }))
+        logger.error('Unhandled event', llo(info))
         break
     }
   },

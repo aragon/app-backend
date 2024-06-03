@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { IEventLogMember, type NetworksEnum } from '@types'
+import { type HexAddress, IEventLogMember, type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 
@@ -10,19 +10,17 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:MemberHandler' })
 
 export const MemberHandler = {
-  membersAdded: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    const logInfo = {
-      transactionHash: txLog.transactionHash,
-      network,
-    }
-
-    const existingLog = await Models.LogMember.findByTxHash(logInfo.transactionHash)
+  membersAdded: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const existingLog = await Models.LogMember.findByTxHash(info.transactionHash as HexAddress)
 
     if (!existingLog) {
-      const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(txLog.address, network)
+      const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(
+        info.address as HexAddress,
+        info.network,
+      )
 
       if (!pluginExisted) {
-        logger.warn('Plugin not found', llo({ logInfo }))
+        logger.warn('Plugin not found', llo(info))
         return
       }
 
@@ -32,15 +30,13 @@ export const MemberHandler = {
         for (const member of parsedEvent.args.members) {
           const rawMember = {
             address: member,
-            blockNumber: txLog.blockNumber,
-            transactionHash: logInfo.transactionHash,
+            blockNumber: info.blockNumber,
+            transactionHash: info.transactionHash,
             event: parsedEvent.name,
-            pluginAddress: txLog.address,
-            network,
-            entityId: null,
+            pluginAddress: info.address,
+            network: info.network,
           }
 
-          rawMember.entityId = Models.LogMember.getEntityId(logInfo.transactionHash, parsedEvent.name + '_' + member)
           const daoMember = await Models.LogMember.create(rawMember, { session })
           daoMembersIds.push(daoMember.id)
         }
@@ -51,7 +47,7 @@ export const MemberHandler = {
         logger.verbose(
           'New LogMembers: Added',
           llo({
-            logInfo,
+            ...info,
             logId: daoMembersIds,
           }),
         )
@@ -59,19 +55,17 @@ export const MemberHandler = {
     }
   },
 
-  membersRemoved: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    const logInfo = {
-      transactionHash: txLog.transactionHash,
-      network,
-    }
-
-    const existingLog = await Models.LogMember.findByTxHash(logInfo.transactionHash)
+  membersRemoved: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const existingLog = await Models.LogMember.findByTxHash(info.transactionHash as HexAddress)
 
     if (!existingLog) {
-      const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(txLog.address, network)
+      const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(
+        info.address as HexAddress,
+        info.network,
+      )
 
       if (!pluginExisted) {
-        logger.warn('Plugin not found', llo({ logInfo }))
+        logger.warn('Plugin not found', llo(info))
         return
       }
 
@@ -80,15 +74,12 @@ export const MemberHandler = {
         for (const member of parsedEvent.args.members) {
           const rawMember = {
             address: member,
-            blockNumber: txLog.blockNumber,
-            transactionHash: logInfo.transactionHash,
+            blockNumber: info.blockNumber,
+            transactionHash: info.transactionHash,
             event: parsedEvent.name,
-            pluginAddress: txLog.address,
-            network,
-            entityId: null,
+            pluginAddress: info.address,
+            network: info.network,
           }
-
-          rawMember.entityId = Models.LogMember.getEntityId(logInfo.transactionHash, parsedEvent.name + '_' + member)
 
           const daoMember = await Models.LogMember.create(rawMember, { session })
           daoMembersIds.push(daoMember.id)
@@ -100,30 +91,27 @@ export const MemberHandler = {
         logger.verbose(
           'New LogMembers: Removed',
           llo({
+            ...info,
             logId: daoMembersIds,
-            logInfo,
           }),
         )
       })
     }
   },
 
-  delegateChanged: async (parsedEvent: LogDescription, txLog: any, network: NetworksEnum) => {
-    const transactionHash = txLog.transactionHash || txLog.hash
-    const logInfo = {
-      transactionHash,
-      network,
-    }
+  delegateChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
 
-    const txReceipt = await Web3Helper.getTransactionReceipt(transactionHash, network)
-
-    const existingLog = await Models.LogMember.findExistingLog(transactionHash, parsedEvent.name)
+    const existingLog = await Models.LogMember.findExistingLog(info.transactionHash, parsedEvent.name)
 
     if (!existingLog && txReceipt) {
-      const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(txLog.address, network)
+      const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(
+        info.address as HexAddress,
+        info.network,
+      )
 
       if (!relatedPlugin) {
-        logger.warn('Plugin not found', llo({ logInfo }))
+        logger.warn('Plugin not found', llo(info))
         return
       }
 
@@ -138,18 +126,18 @@ export const MemberHandler = {
       )
 
       if (!delegationVote) {
-        logger.warn('DelegateVotesChanged not found. Invalid log', llo({ txLog }))
+        logger.warn('DelegateVotesChanged not found. Invalid log', llo(info))
         return
       }
 
       await DbTx.executeTxFn(async ({ session }) => {
         const rawDaoMember = {
-          transactionHash,
-          blockNumber: txLog.blockNumber,
-          network,
+          transactionHash: info.transactionHash,
+          blockNumber: info.blockNumber,
+          network: info.network,
           address: parsedEvent.args.toDelegate,
           event: parsedEvent.name,
-          tokenAddress: txLog.address,
+          tokenAddress: info.address,
           fromDelegate: parsedEvent.args.fromDelegate,
           toDelegate: parsedEvent.args.toDelegate,
           delegatingMember: parsedEvent.args.delegator,
@@ -165,8 +153,8 @@ export const MemberHandler = {
         logger.verbose(
           'New LogMembers: Delegation Changed',
           llo({
+            ...info,
             logId: daoMember.id,
-            logInfo,
           }),
         )
       })

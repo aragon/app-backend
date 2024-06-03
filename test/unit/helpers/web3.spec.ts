@@ -7,6 +7,7 @@ import { AbiCoder, Interface } from 'ethers'
 import { ConfigState } from '@state/configState'
 import Logger from '@logger'
 import proxyquire from 'proxyquire'
+import logger from '@logger'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -383,7 +384,7 @@ describe('Helpers:Web3', () => {
       const functionSelector = Web3Helper.ERC20_transfer
       const decoded = ['0xtoAddress', 1000n]
       const txLog = { address: '0xfromAddress' }
-      const result = Web3Helper.parseERC20TransferAction(functionSelector, decoded, txLog)
+      const result = Web3Helper.parseERC20TransferAction(functionSelector, decoded, txLog as any)
 
       expect(result).to.deep.equal({
         from: '0xfromAddress',
@@ -396,7 +397,7 @@ describe('Helpers:Web3', () => {
       const functionSelector = Web3Helper.ERC20_transferFrom
       const decoded = ['0xfromAddress', '0xtoAddress', 1000n]
       const txLog = { address: '0xfromAddress' }
-      const result = Web3Helper.parseERC20TransferAction(functionSelector, decoded, txLog)
+      const result = Web3Helper.parseERC20TransferAction(functionSelector, decoded, txLog as any)
 
       expect(result).to.deep.equal({
         from: '0xfromAddress',
@@ -559,6 +560,76 @@ describe('Helpers:Web3', () => {
       const result = Web3Helper.extractMetadataUri(undefined as any)
       expect(result).to.equal(null)
       expect(loggerError.calledOnceWith('Error extractMetadataUri' as any)).to.be.true
+    })
+  })
+
+  it('should parseLog with info data', function () {
+    const txLog = {
+      transactionHash: '0x123',
+      address: '0x456',
+      data: '0x789',
+      topics: ['0xabc'],
+      blockNumber: 1,
+    }
+
+    const fakeEvent = {
+      name: 'MetadataSet',
+      args: true,
+    }
+
+    const network = NetworksEnum.mainnet
+
+    const result = Web3Helper.parseInfoLog(txLog, fakeEvent.name, network)
+
+    expect(result.network).to.eq(network)
+    expect(result.blockNumber).to.eq(txLog.blockNumber)
+    expect(result.transactionHash).to.eq(txLog.transactionHash)
+    expect(result.eventName).to.eq(fakeEvent.name)
+  })
+
+  describe('parseLog', () => {
+    it('should parseLog with info data', function () {
+      const txLog = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+
+      const fakeEvent = {
+        name: 'MetadataSet',
+        args: true,
+      }
+
+      const iFace = {
+        parseLog: sandbox.stub().returns(fakeEvent as any),
+      }
+
+      const result = Web3Helper.parseLog(txLog as any, iFace)!
+
+      expect(result.name).to.eq(fakeEvent.name)
+      expect(result.args).to.eq(fakeEvent.args)
+    })
+
+    it('should fail parseLog', function () {
+      const txLog = {
+        transactionHash: '0x123',
+        address: '0x456',
+        data: '0x789',
+        topics: ['0xabc'],
+        blockNumber: 1,
+      }
+
+      const loggerStub = sandbox.stub(logger, 'error')
+      const iFace = {
+        parseLog: sandbox.stub().throws(new Error('fake-error')),
+      }
+
+      const result = Web3Helper.parseLog(txLog as any, iFace)
+
+      expect(loggerStub.calledOnce).to.be.true
+      expect(result).to.be.null
     })
   })
 
@@ -1023,7 +1094,7 @@ describe('Helpers:Web3', () => {
         abi: '',
         network: NetworksEnum.mainnet,
       }
-      const result: any = await Web3Helper.getDataFromTxReceipt(params)
+      const result: any = await Web3Helper.getDataFromTxReceipt(params as any)
 
       expect(result.txReceipt).to.be.true
       expect(result.events[0]).to.eq(1)
@@ -1041,7 +1112,7 @@ describe('Helpers:Web3', () => {
         abi: '',
         network: NetworksEnum.mainnet,
       }
-      const result: any = await Web3Helper.getDataFromTxReceipt(params)
+      const result: any = await Web3Helper.getDataFromTxReceipt(params as any)
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Failed to find txReceipt' as any)).to.be.true
@@ -1060,7 +1131,7 @@ describe('Helpers:Web3', () => {
         abi: '',
         network: NetworksEnum.mainnet,
       }
-      const result: any = await Web3Helper.getDataFromTxReceipt(params)
+      const result: any = await Web3Helper.getDataFromTxReceipt(params as any)
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Failed to find event' as any)).to.be.true

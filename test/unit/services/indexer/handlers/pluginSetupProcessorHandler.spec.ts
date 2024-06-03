@@ -20,12 +20,12 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
   describe('installationApplied', () => {
     it('should installationApplied', async () => {
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -40,18 +40,18 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
-      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, txLog, NetworksEnum.mainnet)
+      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
 
-      expect(findTxSpy.calledWith(txLog.transactionHash, IEventLogPluginType.InstallationApplied)).to.be.true
+      expect(findTxSpy.calledWith(logInfo.transactionHash, IEventLogPluginType.InstallationApplied)).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
       const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
-        txLog.transactionHash,
+        logInfo.transactionHash,
         IEventLogPluginType.InstallationApplied,
       )
-      expect(daoMetadataDB.transactionHash).to.eq(txLog.transactionHash)
-      expect(daoMetadataDB.blockNumber).to.eq(txLog.blockNumber)
-      expect(daoMetadataDB.network).to.eq(NetworksEnum.mainnet)
+      expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
+      expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
+      expect(daoMetadataDB.network).to.eq(logInfo.network)
       expect(daoMetadataDB.event).to.eq(IEventLogPluginType.InstallationApplied)
       expect(daoMetadataDB.daoAddress).to.eq(fakeEvent.args.dao)
       expect(daoMetadataDB.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
@@ -60,13 +60,12 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     })
 
     it('InstallationApplied throw error', async () => {
-      const network = NetworksEnum.mainnet
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -79,7 +78,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, txLog, network)
+      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('Error InstallationApplied' as any)).to.be.true
     })
@@ -87,12 +86,12 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
   describe('installationPrepared', () => {
     it('should installationPrepared', async () => {
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -131,19 +130,19 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       } as any)
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
-      await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, txLog, NetworksEnum.mainnet)
+      await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
 
-      expect(findTxSpy.calledWith(txLog.transactionHash, IEventLogPluginType.InstallationPrepared)).to.be.true
+      expect(findTxSpy.calledWith(logInfo.transactionHash, IEventLogPluginType.InstallationPrepared)).to.be.true
       expect(loggerStub.calledWith('New InstallationPrepared' as any)).to.be.true
 
       const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
-        txLog.transactionHash,
+        logInfo.transactionHash,
         IEventLogPluginType.InstallationPrepared,
       )
       expect(stubToken.calledOnce).to.be.true
-      expect(daoMetadataDB.transactionHash).to.eq(txLog.transactionHash)
-      expect(daoMetadataDB.blockNumber).to.eq(txLog.blockNumber)
-      expect(daoMetadataDB.network).to.eq(NetworksEnum.mainnet)
+      expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
+      expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
+      expect(daoMetadataDB.network).to.eq(logInfo.network)
       expect(daoMetadataDB.event).to.eq(IEventLogPluginType.InstallationPrepared)
       expect(daoMetadataDB.daoAddress).to.eq(fakeEvent.args.dao)
       expect(daoMetadataDB.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
@@ -155,13 +154,12 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     })
 
     it('installationPrepared throw error', async () => {
-      const network = NetworksEnum.mainnet
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -174,7 +172,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, txLog, network)
+      await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('Error InstallationPrepared' as any)).to.be.true
     })
@@ -182,12 +180,12 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
   describe('uninstallationApplied', () => {
     it('should uninstallationApplied', async () => {
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -201,18 +199,18 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
-      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, txLog, NetworksEnum.mainnet)
+      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
 
-      expect(findTxSpy.calledWith(txLog.transactionHash, IEventLogPluginType.UninstallationApplied)).to.be.true
+      expect(findTxSpy.calledWith(logInfo.transactionHash, IEventLogPluginType.UninstallationApplied)).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
       const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
-        txLog.transactionHash,
+        logInfo.transactionHash,
         IEventLogPluginType.UninstallationApplied,
       )
-      expect(daoMetadataDB.transactionHash).to.eq(txLog.transactionHash)
-      expect(daoMetadataDB.blockNumber).to.eq(txLog.blockNumber)
-      expect(daoMetadataDB.network).to.eq(NetworksEnum.mainnet)
+      expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
+      expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
+      expect(daoMetadataDB.network).to.eq(logInfo.network)
       expect(daoMetadataDB.event).to.eq(IEventLogPluginType.UninstallationApplied)
       expect(daoMetadataDB.daoAddress).to.eq(fakeEvent.args.dao)
       expect(daoMetadataDB.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
@@ -220,13 +218,12 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     })
 
     it('uninstallationApplied throw error', async () => {
-      const network = NetworksEnum.mainnet
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -239,7 +236,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, txLog, network)
+      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('Error UninstallationApplied' as any)).to.be.true
     })
@@ -247,12 +244,12 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
   describe('uninstallationPrepared', () => {
     it('should uninstallationPrepared', async () => {
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -282,18 +279,18 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
-      await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, txLog, NetworksEnum.mainnet)
+      await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, logInfo)
 
-      expect(findTxSpy.calledWith(txLog.transactionHash, IEventLogPluginType.UninstallationPrepared)).to.be.true
+      expect(findTxSpy.calledWith(logInfo.transactionHash, IEventLogPluginType.UninstallationPrepared)).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
       const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
-        txLog.transactionHash,
+        logInfo.transactionHash,
         IEventLogPluginType.UninstallationPrepared,
       )
-      expect(daoMetadataDB.transactionHash).to.eq(txLog.transactionHash)
-      expect(daoMetadataDB.blockNumber).to.eq(txLog.blockNumber)
-      expect(daoMetadataDB.network).to.eq(NetworksEnum.mainnet)
+      expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
+      expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
+      expect(daoMetadataDB.network).to.eq(logInfo.network)
       expect(daoMetadataDB.event).to.eq(IEventLogPluginType.UninstallationPrepared)
       expect(daoMetadataDB.daoAddress).to.eq(fakeEvent.args.dao)
       expect(daoMetadataDB.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
@@ -304,13 +301,12 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     })
 
     it('uninstallationPrepared throw error', async () => {
-      const network = NetworksEnum.mainnet
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -323,7 +319,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, txLog, network)
+      await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('Error UninstallationPrepared' as any)).to.be.true
     })
@@ -331,12 +327,12 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
   describe('updateApplied', () => {
     it('should updateApplied', async () => {
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -351,18 +347,18 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
-      await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, txLog, NetworksEnum.mainnet)
+      await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
 
-      expect(findTxSpy.calledWith(txLog.transactionHash, IEventLogPluginType.UpdateApplied)).to.be.true
+      expect(findTxSpy.calledWith(logInfo.transactionHash, IEventLogPluginType.UpdateApplied)).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
       const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
-        txLog.transactionHash,
+        logInfo.transactionHash,
         IEventLogPluginType.UpdateApplied,
       )
-      expect(daoMetadataDB.transactionHash).to.eq(txLog.transactionHash)
-      expect(daoMetadataDB.blockNumber).to.eq(txLog.blockNumber)
-      expect(daoMetadataDB.network).to.eq(NetworksEnum.mainnet)
+      expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
+      expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
+      expect(daoMetadataDB.network).to.eq(logInfo.network)
       expect(daoMetadataDB.event).to.eq(IEventLogPluginType.UpdateApplied)
       expect(daoMetadataDB.daoAddress).to.eq(fakeEvent.args.dao)
       expect(daoMetadataDB.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
@@ -371,13 +367,12 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     })
 
     it('updateApplied throw error', async () => {
-      const network = NetworksEnum.mainnet
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -390,7 +385,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, txLog, network)
+      await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('Error UpdateApplied' as any)).to.be.true
     })
@@ -398,12 +393,12 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
   describe('updatePrepared', () => {
     it('should updatePrepared', async () => {
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -435,18 +430,18 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
 
-      await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, txLog, NetworksEnum.mainnet)
+      await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, logInfo)
 
-      expect(findTxSpy.calledWith(txLog.transactionHash, IEventLogPluginType.UpdatePrepared)).to.be.true
+      expect(findTxSpy.calledWith(logInfo.transactionHash, IEventLogPluginType.UpdatePrepared)).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
       const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
-        txLog.transactionHash,
+        logInfo.transactionHash,
         IEventLogPluginType.UpdatePrepared,
       )
-      expect(daoMetadataDB.transactionHash).to.eq(txLog.transactionHash)
-      expect(daoMetadataDB.blockNumber).to.eq(txLog.blockNumber)
-      expect(daoMetadataDB.network).to.eq(NetworksEnum.mainnet)
+      expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
+      expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
+      expect(daoMetadataDB.network).to.eq(logInfo.network)
       expect(daoMetadataDB.event).to.eq(IEventLogPluginType.UpdatePrepared)
       expect(daoMetadataDB.daoAddress).to.eq(fakeEvent.args.dao)
       expect(daoMetadataDB.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
@@ -457,13 +452,12 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     })
 
     it('updatePrepared throw error', async () => {
-      const network = NetworksEnum.mainnet
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -476,7 +470,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, txLog, network)
+      await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('Error UpdatePrepared' as any)).to.be.true
     })

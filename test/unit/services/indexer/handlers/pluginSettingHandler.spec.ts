@@ -19,16 +19,13 @@ describe('Indexer: PluginSettingHandler', () => {
 
   describe('votingSettingsUpdated', () => {
     it('should votingSettingsUpdated', async () => {
-      const network = NetworksEnum.mainnet
-
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
-
       const fakeEvent = {
         args: {
           votingMode: 2n,
@@ -40,13 +37,13 @@ describe('Indexer: PluginSettingHandler', () => {
       }
 
       const stubLogger = sandbox.stub(logger, 'verbose')
-      await PluginSettingHandler.votingSettingsUpdated(fakeEvent as any, txLog, network)
+      await PluginSettingHandler.votingSettingsUpdated(fakeEvent as any, logInfo)
       expect(stubLogger.calledOnce).to.be.true
 
-      const pluginSettingDB = await Models.LogPluginSetting.findExistingLog(txLog.transactionHash, txLog.address)
-      expect(pluginSettingDB.transactionHash).to.eq(txLog.transactionHash)
-      expect(pluginSettingDB.blockNumber).to.eq(txLog.blockNumber)
-      expect(pluginSettingDB.pluginAddress).to.eq(txLog.address)
+      const pluginSettingDB = await Models.LogPluginSetting.findExistingLog(logInfo.transactionHash, logInfo.address)
+      expect(pluginSettingDB.transactionHash).to.eq(logInfo.transactionHash)
+      expect(pluginSettingDB.blockNumber).to.eq(logInfo.blockNumber)
+      expect(pluginSettingDB.pluginAddress).to.eq(logInfo.address)
       expect(pluginSettingDB.votingMode).to.eq(Number(fakeEvent.args.votingMode))
       expect(pluginSettingDB.supportThreshold).to.eq(Number(fakeEvent.args.supportThreshold))
       expect(pluginSettingDB.minParticipation).to.eq(Number(fakeEvent.args.minParticipation))
@@ -55,13 +52,12 @@ describe('Indexer: PluginSettingHandler', () => {
     })
 
     it('votingSettingsUpdated throw error', async () => {
-      const network = NetworksEnum.mainnet
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -74,7 +70,7 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Models.LogPluginSetting, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await PluginSettingHandler.votingSettingsUpdated(fakeEvent as any, txLog, network)
+      await PluginSettingHandler.votingSettingsUpdated(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('Error votingSettingsUpdated' as any)).to.be.true
     })
@@ -82,16 +78,13 @@ describe('Indexer: PluginSettingHandler', () => {
 
   describe('multisigSettingsUpdated', () => {
     it('should multisigSettingsUpdated', async () => {
-      const network = NetworksEnum.mainnet
-
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
-
       const fakeEvent = {
         args: {
           onlyListed: true,
@@ -100,25 +93,24 @@ describe('Indexer: PluginSettingHandler', () => {
       }
 
       const stubLogger = sandbox.stub(logger, 'verbose')
-      await PluginSettingHandler.multisigSettingsUpdated(fakeEvent as any, txLog, network)
+      await PluginSettingHandler.multisigSettingsUpdated(fakeEvent as any, logInfo)
       expect(stubLogger.calledOnce).to.be.true
 
-      const pluginSettingDB = await Models.LogPluginSetting.findExistingLog(txLog.transactionHash, txLog.address)
-      expect(pluginSettingDB.transactionHash).to.eq(txLog.transactionHash)
-      expect(pluginSettingDB.blockNumber).to.eq(txLog.blockNumber)
-      expect(pluginSettingDB.pluginAddress).to.eq(txLog.address)
+      const pluginSettingDB = await Models.LogPluginSetting.findExistingLog(logInfo.transactionHash, logInfo.address)
+      expect(pluginSettingDB.transactionHash).to.eq(logInfo.transactionHash)
+      expect(pluginSettingDB.blockNumber).to.eq(logInfo.blockNumber)
+      expect(pluginSettingDB.pluginAddress).to.eq(logInfo.address)
       expect(pluginSettingDB.onlyListed).to.eq(fakeEvent.args.onlyListed)
       expect(pluginSettingDB.minApprovals).to.eq(Number(fakeEvent.args.minApprovals))
     })
 
     it('multisigSettingsUpdated throw error', async () => {
-      const network = NetworksEnum.mainnet
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
-        data: '0x789',
-        topics: ['0xabc'],
-        blockNumber: 1,
+        eventName: 'test',
       }
       const fakeEvent = {
         args: {
@@ -131,7 +123,7 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Models.LogPluginSetting, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await PluginSettingHandler.multisigSettingsUpdated(fakeEvent as any, txLog, network)
+      await PluginSettingHandler.multisigSettingsUpdated(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('Error multisigSettingsUpdated' as any)).to.be.true
     })
