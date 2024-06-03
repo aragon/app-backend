@@ -2,6 +2,7 @@ import {
   type HexAddress,
   type IAlchemyTokenBalance,
   type IDaoMetadata,
+  type ILogInfo,
   type IProposalMetadata,
   ITransactionType,
   type NetworksEnum,
@@ -184,7 +185,7 @@ const Web3Helper = {
   parseERC20TransferAction(
     functionSelector: string,
     decoded: any,
-    txLog: any,
+    txLog: Log,
   ): { from: string | null; to: string | null; amount: number } {
     let from: string | null = null
     let to: string | null = null
@@ -233,6 +234,30 @@ const Web3Helper = {
       logger.error('Error extractMetadataUri', llo({ metadataHex, error }))
       return null
     }
+  },
+
+  parseInfoLog(txLog: Log | any, eventName: string, network: NetworksEnum): ILogInfo {
+    return {
+      network,
+      address: txLog.address,
+      blockNumber: txLog.blockNumber,
+      transactionHash: txLog.transactionHash || txLog.hash,
+      eventName,
+    }
+  },
+
+  parseLog(txLog: Log, iFace: any): LogDescription | null {
+    let event = null as any
+    try {
+      event = iFace.parseLog(txLog)
+    } catch (error: any) {
+      if (!error?.message.includes('out-of-bounds')) {
+        logger.error('Error parseLog', llo({ txLog, error }))
+      }
+      return null
+    }
+
+    return event
   },
 
   findLogsByName: (
@@ -478,7 +503,7 @@ const Web3Helper = {
     }
   },
 
-  async getTransactionReceipt(txHash: string, network: NetworksEnum) {
+  async getTransactionReceipt(txHash: string, network: NetworksEnum): Promise<TransactionReceipt | null> {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
@@ -548,7 +573,7 @@ const Web3Helper = {
     abi,
     network,
   }: {
-    txLog: any
+    txLog: Log
     eventName: string
     abi: any
     network: NetworksEnum

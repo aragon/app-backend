@@ -8,6 +8,7 @@ import { ProposalHandler } from '@services/indexer/handlers/proposalHandler'
 import { UtilsIndexer } from '@models/utils/indexer'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { Multisig } from '@artifacts/Multisig'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogProposal' })
 
@@ -67,37 +68,33 @@ export const LogProposal = {
     return eventsOfTokenVoting.includes(topic) ? new Interface(TokenVoting.abi) : new Interface(Multisig.abi)
   },
 
-  processLog: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum) => {
     const iFace = LogProposal.getInterface(txLog.topics[0])
-
-    let event = null as any
-    try {
-      event = iFace.parseLog(txLog)!
-    } catch (error: any) {
-      if (error?.message.includes('out-of-bounds')) {
-        return
-      }
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
     }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event?.name) {
       case 'ProposalCreated':
-        logger.verbose('ProposalCreated', llo({ eventName: event.name, network }))
-        await ProposalHandler.proposalCreated(event, txLog, network)
+        logger.verbose('ProposalCreated', llo(info))
+        await ProposalHandler.proposalCreated(event, info)
         break
       case 'Approved':
-        logger.verbose('Approved', llo({ eventName: event.name, network }))
-        await ProposalHandler.approved(event, txLog, network)
+        logger.verbose('Approved', llo(info))
+        await ProposalHandler.approved(event, info)
         break
       case 'ProposalExecuted':
-        logger.verbose('ProposalExecuted', llo({ eventName: event.name, network }))
-        await ProposalHandler.proposalExecuted(event, txLog, network)
+        logger.verbose('ProposalExecuted', llo(info))
+        await ProposalHandler.proposalExecuted(event, info)
         break
       case 'VoteCast':
-        logger.verbose('VoteCast', llo({ eventName: event.name, network }))
-        await ProposalHandler.voteCast(event, txLog, network)
+        logger.verbose('VoteCast', llo(info))
+        await ProposalHandler.voteCast(event, info)
         break
       default:
-        logger.error('Unhandled event', llo({ eventName: event.name, network }))
+        logger.error('Unhandled event', llo(info))
         break
     }
   },

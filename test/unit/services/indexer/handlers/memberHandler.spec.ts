@@ -65,21 +65,23 @@ describe('Indexer: MemberHandler', () => {
         },
       } as any
 
-      const txLog = {
-        transactionHash: '0x0123123',
+      const logInfo = {
+        network: NetworksEnum.mainnet,
         blockNumber: 3,
+        transactionHash: '0x0123123',
         address: plugin.pluginAddress,
+        eventName: 'test',
       }
 
       const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
 
-      await MemberHandler.membersAdded(fakeLog, txLog, NetworksEnum.mainnet)
+      await MemberHandler.membersAdded(fakeLog, logInfo)
 
       expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogSpy.calledOnce).to.be.true
       expect(findByPluginAddressSpy.calledOnce).to.be.true
 
-      const logMember = await Models.LogMember.find({ transactionHash: txLog.transactionHash })
+      const logMember = await Models.LogMember.find({ transactionHash: logInfo.transactionHash })
 
       expect(logMember).to.be.not.null
       expect(logMember.length).to.be.eq(2)
@@ -98,15 +100,17 @@ describe('Indexer: MemberHandler', () => {
         },
       } as any
 
-      const txLog = {
-        transactionHash: '0x0123123',
+      const logInfo = {
+        network: NetworksEnum.mainnet,
         blockNumber: 3,
+        transactionHash: '0x0123123',
         address: plugin.pluginAddress,
+        eventName: 'test',
       }
 
       const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
 
-      await MemberHandler.membersAdded(fakeLog, txLog, NetworksEnum.mainnet)
+      await MemberHandler.membersAdded(fakeLog, logInfo)
 
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(findByPluginAddressSpy.notCalled).to.be.true
@@ -126,13 +130,15 @@ describe('Indexer: MemberHandler', () => {
         },
       } as any
 
-      const txLog = {
-        transactionHash: '0x0123123',
+      const logInfo = {
+        network: NetworksEnum.mainnet,
         blockNumber: 3,
+        transactionHash: '0x0123123',
         address: plugin.pluginAddress,
+        eventName: 'test',
       }
 
-      await MemberHandler.membersAdded(fakeLog, txLog, NetworksEnum.mainnet)
+      await MemberHandler.membersAdded(fakeLog, logInfo)
 
       expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogStub.calledOnce).to.be.true
@@ -152,21 +158,23 @@ describe('Indexer: MemberHandler', () => {
         },
       } as any
 
-      const txLog = {
-        transactionHash: '0x0123123',
+      const logInfo = {
+        network: NetworksEnum.mainnet,
         blockNumber: 3,
+        transactionHash: '0x0123123',
         address: plugin.pluginAddress,
+        eventName: 'test',
       }
 
       const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
 
-      await MemberHandler.membersRemoved(fakeLog, txLog, NetworksEnum.mainnet)
+      await MemberHandler.membersRemoved(fakeLog, logInfo)
 
       expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogSpy.calledOnce).to.be.true
       expect(findByPluginAddressSpy.calledOnce).to.be.true
 
-      const logMember = await Models.LogMember.find({ transactionHash: txLog.transactionHash })
+      const logMember = await Models.LogMember.find({ transactionHash: logInfo.transactionHash })
       expect(logMember).to.be.not.null
       expect(logMember.length).to.be.eq(2)
 
@@ -184,15 +192,17 @@ describe('Indexer: MemberHandler', () => {
         },
       } as any
 
-      const txLog = {
-        transactionHash: '0x0123123',
+      const logInfo = {
+        network: NetworksEnum.mainnet,
         blockNumber: 3,
+        transactionHash: '0x0123123',
         address: plugin.pluginAddress,
+        eventName: 'test',
       }
 
       const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
 
-      await MemberHandler.membersRemoved(fakeLog, txLog, NetworksEnum.mainnet)
+      await MemberHandler.membersRemoved(fakeLog, logInfo)
 
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(findByPluginAddressSpy.notCalled).to.be.true
@@ -212,13 +222,15 @@ describe('Indexer: MemberHandler', () => {
         },
       } as any
 
-      const txLog = {
-        transactionHash: '0x0123123',
+      const logInfo = {
+        network: NetworksEnum.mainnet,
         blockNumber: 3,
+        transactionHash: '0x0123123',
         address: plugin.pluginAddress,
+        eventName: 'test',
       }
 
-      await MemberHandler.membersRemoved(fakeLog, txLog, NetworksEnum.mainnet)
+      await MemberHandler.membersRemoved(fakeLog, logInfo)
 
       expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogStub.calledOnce).to.be.true
@@ -247,14 +259,16 @@ describe('Indexer: MemberHandler', () => {
         },
       }
 
-      const txLog = {
+      const logInfo = {
+        network: NetworksEnum.mainnet,
+        blockNumber: 3,
         transactionHash: '0x0123123',
-        blockNumber: 3,
         address: plugin.tokenAddress,
+        eventName: 'test',
       }
 
       sandbox.stub(Web3, 'getTransactionReceipt').resolves({
-        logs: true,
+        logs: [],
       } as any)
 
       sandbox.stub(Web3, 'findLogsByName').returns([
@@ -268,66 +282,13 @@ describe('Indexer: MemberHandler', () => {
 
       const findPluginByTokenAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress')
 
-      await MemberHandler.delegateChanged(fakeLog, txLog, NetworksEnum.mainnet)
+      await MemberHandler.delegateChanged(fakeLog, logInfo)
 
       expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(findPluginByTokenAddressSpy.calledOnce).to.be.true
 
-      const logMember = await Models.LogMember.findOne({ transactionHash: txLog.transactionHash })
-
-      expect(logMember).to.be.not.null
-      expect(logMember.address).to.be.eq('0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859')
-    })
-
-    it('should handle delegate changed with txHash', async () => {
-      const verboseStub = sandbox.stub(logger, 'verbose')
-
-      const fakeLog = {
-        name: IEventLogMember.DelegateChanged,
-        args: {
-          fromDelegate: '0xfromDelegate',
-          toDelegate: '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859',
-          delegator: '0xdelegator',
-        },
-      } as any
-
-      const deletageVotChangedLog = {
-        name: IEventLogMember.DelegateVotesChanged,
-        args: {
-          previousBalance: '0x123',
-          newBalance: '0x456',
-        },
-      }
-
-      const txLog = {
-        hash: '0x0123123',
-        blockNumber: 3,
-        address: plugin.tokenAddress,
-      }
-
-      sandbox.stub(Web3, 'getTransactionReceipt').resolves({
-        logs: true,
-      } as any)
-
-      sandbox.stub(Web3, 'findLogsByName').returns([
-        {
-          parsed: deletageVotChangedLog,
-          txLog: { topics: ['', '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859'] },
-        },
-      ] as any)
-
-      const findExistingLogStub = sandbox.spy(Models.LogMember, 'findExistingLog')
-
-      const findPluginByTokenAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress')
-
-      await MemberHandler.delegateChanged(fakeLog, txLog, NetworksEnum.mainnet)
-
-      expect(verboseStub.callCount).to.be.eq(1)
-      expect(findExistingLogStub.calledOnce).to.be.true
-      expect(findPluginByTokenAddressSpy.calledOnce).to.be.true
-
-      const logMember = await Models.LogMember.findOne({ transactionHash: txLog.hash })
+      const logMember = await Models.LogMember.findOne({ transactionHash: logInfo.transactionHash })
 
       expect(logMember).to.be.not.null
       expect(logMember.address).to.be.eq('0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859')
@@ -337,7 +298,7 @@ describe('Indexer: MemberHandler', () => {
       const findExistingLogStub = sandbox.stub(Models.LogMember, 'findExistingLog').resolves(true)
 
       sandbox.stub(Web3, 'getTransactionReceipt').resolves({
-        logs: true,
+        logs: [],
       } as any)
 
       const fakeLog = {
@@ -349,15 +310,17 @@ describe('Indexer: MemberHandler', () => {
         },
       } as any
 
-      const txLog = {
-        transactionHash: '0x0123123',
+      const logInfo = {
+        network: NetworksEnum.mainnet,
         blockNumber: 3,
+        transactionHash: '0x0123123',
         address: plugin.tokenAddress,
+        eventName: 'test',
       }
 
       const findPluginByTokenAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress')
 
-      await MemberHandler.delegateChanged(fakeLog, txLog, NetworksEnum.mainnet)
+      await MemberHandler.delegateChanged(fakeLog, logInfo)
 
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(findPluginByTokenAddressSpy.notCalled).to.be.true
@@ -371,7 +334,7 @@ describe('Indexer: MemberHandler', () => {
         .resolves(false)
 
       sandbox.stub(Web3, 'getTransactionReceipt').resolves({
-        logs: true,
+        logs: [],
       } as any)
 
       const fakeLog = {
@@ -383,15 +346,17 @@ describe('Indexer: MemberHandler', () => {
         },
       } as any
 
-      const txLog = {
-        transactionHash: '0x0123123',
+      const logInfo = {
+        network: NetworksEnum.mainnet,
         blockNumber: 3,
+        transactionHash: '0x0123123',
         address: plugin.tokenAddress,
+        eventName: 'test',
       }
 
       const findLogsByNameSpy = sandbox.spy(Web3, 'findLogsByName')
 
-      await MemberHandler.delegateChanged(fakeLog, txLog, NetworksEnum.mainnet)
+      await MemberHandler.delegateChanged(fakeLog, logInfo)
 
       expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogStub.calledOnce).to.be.true
@@ -407,7 +372,7 @@ describe('Indexer: MemberHandler', () => {
         .resolves(true)
 
       sandbox.stub(Web3, 'getTransactionReceipt').resolves({
-        logs: true,
+        logs: [],
         txLog: { topics: ['', '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859'] },
       } as any)
 
@@ -420,17 +385,19 @@ describe('Indexer: MemberHandler', () => {
         },
       } as any
 
-      const txLog = {
-        transactionHash: '0x0123123',
+      const logInfo = {
+        network: NetworksEnum.mainnet,
         blockNumber: 3,
+        transactionHash: '0x0123123',
         address: plugin.tokenAddress,
+        eventName: 'test',
       }
 
       const findLogsByNameSpy = sandbox.spy(Web3, 'findLogsByName')
 
       const createSpy = sandbox.spy(Models.LogMember, 'create')
 
-      await MemberHandler.delegateChanged(fakeLog, txLog, NetworksEnum.mainnet)
+      await MemberHandler.delegateChanged(fakeLog, logInfo)
 
       expect(verboseStub.callCount).to.be.eq(1)
       expect(findExistingLogStub.calledOnce).to.be.true

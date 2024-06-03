@@ -9,9 +9,11 @@ import { UtilsIndexer } from '@models/utils/indexer'
 import { Multisig } from '@artifacts/Multisig'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { ConfigState } from '@state/configState'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMember' })
 
+// must run after LogPluginSetupProcessor
 export const LogMember = {
   events: ['MembersAdded', 'MembersRemoved', 'DelegateChanged'],
 
@@ -68,33 +70,29 @@ export const LogMember = {
     return eventsOfTokenVoting.includes(topic) ? new Interface(GovernanceERC20.abi) : new Interface(Multisig.abi)
   },
 
-  processLog: async (txLog: any, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum) => {
     const iFace = LogMember.getInterface(txLog.topics[0])
-
-    let event = null as any
-    try {
-      event = iFace.parseLog(txLog)!
-    } catch (error: any) {
-      if (error?.message.includes('out-of-bounds')) {
-        return
-      }
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
     }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event.name) {
       case 'MembersAdded':
-        logger.verbose('MembersAdded', llo({ eventName: event.name, network }))
-        await MemberHandler.membersAdded(event, txLog, network)
+        logger.verbose('MembersAdded', llo(info))
+        await MemberHandler.membersAdded(event, info)
         break
       case 'MembersRemoved':
-        logger.verbose('MembersRemoved', llo({ eventName: event.name, network }))
-        await MemberHandler.membersRemoved(event, txLog, network)
+        logger.verbose('MembersRemoved', llo(info))
+        await MemberHandler.membersRemoved(event, info)
         break
       case 'DelegateChanged':
-        logger.verbose('DelegateChanged', llo({ eventName: event.name, network }))
-        await MemberHandler.delegateChanged(event, txLog, network)
+        logger.verbose('DelegateChanged', llo(info))
+        await MemberHandler.delegateChanged(event, info)
         break
       default:
-        logger.error('Unhandled event', llo({ eventName: event.name, network, transactionHash: txLog.transactionHash }))
+        logger.error('Unhandled event', llo(info))
         break
     }
   },
