@@ -56,12 +56,6 @@ export default class Member extends Model {
   public entityId!: string
 
   @prop({ type: () => String, required: true })
-  public transactionHash!: HexAddress
-
-  @prop({ type: () => Number, required: true })
-  public blockNumber!: number
-
-  @prop({ type: () => String, required: true })
   public address!: HexAddress
 
   @prop({ type: () => String, default: null })

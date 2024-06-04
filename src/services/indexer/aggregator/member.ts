@@ -33,7 +33,6 @@ export const AggregatorMembers = {
   async onDocument(document: any) {
     const existingLog = await Models.Member.findExistingLog(document.address)
     // TODO: find user ens
-
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any = null
       if (!existingLog) {
@@ -210,7 +209,7 @@ export const AggregatorMembers = {
       {
         $project: {
           _id: 0,
-          memberAddress: '$_id',
+          address: '$_id',
           daos: {
             $reduce: {
               input: {

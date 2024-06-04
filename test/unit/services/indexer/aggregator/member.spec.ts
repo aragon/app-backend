@@ -56,8 +56,6 @@ describe('Indexer:Aggregator:Member', () => {
 
   it('should call onDocument', async () => {
     const document = {
-      transactionHash: '0x0',
-      blockNumber: 3,
       address: '0x123',
       daos: [
         {
@@ -81,8 +79,6 @@ describe('Indexer:Aggregator:Member', () => {
     expect(stubLogger.calledOnce).to.be.true
 
     const member = await Models.Member.findExistingLog(document.address)
-    expect(member.transactionHash).to.equal(document.transactionHash)
-    expect(member.blockNumber).to.equal(document.blockNumber)
     expect(member.address).to.equal(document.address)
     expect(member.ens).to.be.null
     expect(member.daos.length).to.eq(1)
@@ -99,9 +95,7 @@ describe('Indexer:Aggregator:Member', () => {
 
   it('should update an existing aggregate member log', async () => {
     const rawDoc = {
-      transactionHash: '0x0',
-      blockNumber: 3,
-      address: '0x123',
+      address: '0x12345',
       daos: [
         {
           network: NetworksEnum.mainnet,
@@ -119,12 +113,12 @@ describe('Indexer:Aggregator:Member', () => {
     const dbDoc = await Models.Member.create(rawDoc)
     const loggerSpy = sandbox.spy(logger, 'verbose')
 
-    rawDoc.blockNumber = 4
+    rawDoc.daos[0].delegateFromAddress = '0x011'
     await AggregatorMembers.onDocument(rawDoc)
 
     const updatedDoc = await dbDoc.reload()
 
-    expect(updatedDoc.blockNumber).to.equal(4)
+    expect(updatedDoc.daos[0].delegateFromAddress).to.equal('0x011')
     expect(loggerSpy.calledOnceWith('Update Aggregate Member' as any)).to.be.true
   })
 

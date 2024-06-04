@@ -26,6 +26,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["./**/*", "./utils/**/*"],
+  "include": ["./**/*"],
   "exclude": ["node_modules", "types"]
 }

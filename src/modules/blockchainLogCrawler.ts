@@ -170,7 +170,7 @@ class BlockchainLogCrawler {
     }
 
     this.crawling = false
-    logger.info('Finished crawling logs', llo({ crawlResult: this.crawlResult }))
+    logger.verbose('Finished crawling logs', llo({ crawlResult: this.crawlResult, filter: this.filter }))
   }
 
   async handleErrors(error: any) {

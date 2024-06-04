@@ -91,7 +91,7 @@ export const AggregatorTransactions = {
         return
       }
 
-      await DbTx.executeTxFn(async ({ session }) => {
+      const transactionDb = await DbTx.executeTxFn(async ({ session }) => {
         const rawTx: Partial<Transaction> = {
           transactionHash: tx.hash,
           blockNumber: tx.blockNum,
@@ -115,7 +115,12 @@ export const AggregatorTransactions = {
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('New Transaction', llo({ logId: logDb?.id }))
+        return logDb
       })
+
+      if (transactionDb.tokenAddress) {
+        await UtilsIndexer.saveAndGetToken(transactionDb.tokenAddress, transactionDb.network)
+      }
     } catch (error) {
       logger.error('Error Transaction', llo({ error, logId: daoRegistry.id }))
     }

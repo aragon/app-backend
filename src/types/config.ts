@@ -95,6 +95,7 @@ export interface IConfig {
 
   COINGECKO: {
     URI: string
+    API_KEY: string
   }
 
   PINATA: {
@@ -139,6 +140,7 @@ export interface IConfig {
     SYNC_DATA: {
       TOKEN_INTERVAL: number
       TOKEN_FETCH_BATCH_SIZE: number
+      RATES_INTERVAL: number
       DAO_INTERVAL: number
       DAO_FETCH_BATCH_SIZE: number
     }
