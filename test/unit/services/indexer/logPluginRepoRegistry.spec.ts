@@ -41,7 +41,7 @@ describe('Indexer: LogPluginRepoRegistry', () => {
 
       await LogPluginRepoRegistry.start()
 
-      expect(loggerVerboseStub.callCount).to.eq(10)
+      expect(loggerVerboseStub.callCount).to.eq(15)
       expect(processMetadataStub.callCount).to.eq(2)
       expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
@@ -61,7 +61,7 @@ describe('Indexer: LogPluginRepoRegistry', () => {
       await LogPluginRepoRegistry.start()
 
       expect(errorStub.callCount).to.eq(2)
-      expect(loggerVerboseStub.callCount).to.eq(10)
+      expect(loggerVerboseStub.callCount).to.eq(15)
       expect(processMetadataStub.callCount).to.eq(2)
       expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
       expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)

@@ -19,7 +19,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     BOTTLENECK: {
       NODE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MAX_CONCURRENT', 20),
-      NODE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MIN_TIME', 100),
+      NODE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MIN_TIME', 300),
       NODE_TRANSFER_MAX_CONCURRENT: utils.configParser(
         sourceConfig,
         'number',
@@ -55,12 +55,13 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       API_KEY: utils.configParser(sourceConfig, 'string', 'COVALENT_API_KEY', null),
     },
 
-    ETHERSCAN: {
-      API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_KEY', null),
-    },
-
     COINGECKO: {
       URI: utils.configParser(sourceConfig, 'string', 'COINGECKO_URI', 'https://api.coingecko.com/api/v3'),
+      API_KEY: utils.configParser(sourceConfig, 'string', 'COINGECKO_API_KEY', null),
+    },
+
+    ETHERSCAN: {
+      API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_KEY', null),
     },
 
     PINATA: {
@@ -139,6 +140,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
 
       SYNC_DATA: {
+        RATES_INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_RATES_INTERVAL', 12 * 60 * 60 * 1000), // 12 hours
         DAO_INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_DAO_INTERVAL', 3 * 60 * 60 * 1000), // 3 hours
         DAO_FETCH_BATCH_SIZE: utils.configParser(
           sourceConfig,

@@ -363,7 +363,7 @@ const Web3Helper = {
     return parsedMetadata
   },
 
-  parseAddress(address: HexAddress, extraLog?: any): HexAddress | null {
+  parseAddress(address: HexAddress): HexAddress | null {
     try {
       return getAddress(address) as HexAddress
     } catch (error) {
@@ -371,8 +371,7 @@ const Web3Helper = {
         'Error checksum dao address',
         llo({
           address,
-          error,
-          extraLog,
+          error
         }),
       )
       return null

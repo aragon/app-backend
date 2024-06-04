@@ -57,7 +57,7 @@ export default class Token extends Model {
   public totalSupply!: number
 
   @prop({ type: () => Number, default: 0 })
-  public priceChangeOnDayUsd!: number
+  public priceChangeOnDayUsd!: string
 
   @prop({ type: () => String, default: '0' })
   public priceUsd!: string

@@ -13,13 +13,9 @@ describe('Model: Member', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-
-    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
 
     rawMember = {
-      transactionHash,
-      blockNumber: 3,
       address,
       daos: [
         {
@@ -49,8 +45,8 @@ describe('Model: Member', () => {
 
     it('should update Member', async () => {
       const member = await Models.Member.create(rawMember)
-      const updatedMember = await member.update({ blockNumber: 200 })
-      expect(updatedMember.blockNumber).to.eq(200)
+      const updatedMember = await member.update({ address: '0x00' })
+      expect(updatedMember.address).to.eq('0x00')
     })
 
     it('Should getEntityId', async () => {

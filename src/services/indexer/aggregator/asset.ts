@@ -79,7 +79,7 @@ export const AggregatorAssets = {
               tokenAddress: token.contractAddress,
             }
 
-            await DbTx.executeTxFn(async ({ session }) => {
+            const assetDb = await DbTx.executeTxFn(async ({ session }) => {
               let logDb: any = null
               if (existingAssetDb) {
                 logDb = await existingAssetDb.update(rawData, { session })
@@ -90,7 +90,12 @@ export const AggregatorAssets = {
               await session.commitTransaction()
               await session.endSession()
               logger.verbose(existingAssetDb ? 'Update Token Asset' : 'New Token Asset', llo({ logId: logDb?.id }))
+              return logDb
             })
+
+            if (assetDb.tokenAddress) {
+              await UtilsIndexer.saveAndGetToken(assetDb.tokenAddress, assetDb.network)
+            }
           }),
       )
     } catch (error) {

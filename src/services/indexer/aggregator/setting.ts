@@ -58,13 +58,6 @@ export const AggregatorSetting = {
         },
       },
       {
-        $match: {
-          $expr: {
-            $gt: [{ $size: '$events' }, 2],
-          },
-        },
-      },
-      {
         $project: {
           _id: 0,
           pluginAddress: '$_id.pluginAddress',

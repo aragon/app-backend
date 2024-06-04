@@ -43,7 +43,7 @@ describe('Indexer: LogMember', () => {
       expect(networkFindStub.callCount).to.eq(5)
       expect(saveSyncStub.callCount).to.eq(5)
       expect(processLogStub.callCount).to.eq(2)
-      expect(loggerVerboseStub.callCount).to.eq(10)
+      expect(loggerVerboseStub.callCount).to.eq(15)
     })
 
     it('should start handle error', async () => {
@@ -60,7 +60,7 @@ describe('Indexer: LogMember', () => {
       expect(networkFindStub.callCount).to.eq(5)
       expect(saveSyncStub.callCount).to.eq(5)
       expect(processLogStub.callCount).to.eq(2)
-      expect(loggerVerboseStub.callCount).to.eq(10)
+      expect(loggerVerboseStub.callCount).to.eq(15)
     })
 
     it('should skip unsupported networks', async () => {
