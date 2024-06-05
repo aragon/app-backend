@@ -363,7 +363,7 @@ const Web3Helper = {
     return parsedMetadata
   },
 
-  parseAddress(address: HexAddress, extraLog?: any): HexAddress | null {
+  parseAddress(address: HexAddress): HexAddress | null {
     try {
       return getAddress(address) as HexAddress
     } catch (error) {
@@ -372,7 +372,6 @@ const Web3Helper = {
         llo({
           address,
           error,
-          extraLog,
         }),
       )
       return null

@@ -52,7 +52,7 @@ const PinataHelper = {
   async unPin(hashToUnpin: string): Promise<boolean> {
     try {
       await this.pinata.unpin(hashToUnpin)
-      logger.info('Successfully unpinned', llo({ hashToUnpin }))
+      logger.verbose('Successfully unpinned', llo({ hashToUnpin }))
       return true
     } catch (error) {
       logger.error('Failed to unpin', llo({ hashToUnpin, error }))

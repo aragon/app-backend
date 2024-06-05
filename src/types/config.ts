@@ -95,6 +95,7 @@ export interface IConfig {
 
   COINGECKO: {
     URI: string
+    API_KEY: string
   }
 
   PINATA: {
@@ -129,18 +130,21 @@ export interface IConfig {
   }
 
   SERVICES: {
-    API: {
+    ARAGON_API: {
       BASE_URL: string
       NAME: string
       PORT: number
       TIMEOUT: number
       CORS: string[]
     }
-    SYNC_DATA: {
+    ARAGON_INDEXER: {
       TOKEN_INTERVAL: number
       TOKEN_FETCH_BATCH_SIZE: number
       DAO_INTERVAL: number
       DAO_FETCH_BATCH_SIZE: number
+    }
+    ARAGON_RATES: {
+      RATES_INTERVAL: number
     }
   }
 

@@ -1,4 +1,6 @@
 import Runner from '@modules/runner'
-import APIService from '@services/api'
+import AragonAPIService from '@services/aragon-api'
+import AragonIndexerService from '@services/aragon-indexer'
+import AragonRatesService from '@services/aragon-rates'
 
-Runner([{ app: APIService }])
+Runner([{ app: AragonAPIService }, { app: AragonIndexerService }, { app: AragonRatesService }])

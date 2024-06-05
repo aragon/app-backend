@@ -31,26 +31,43 @@ describe('Model: Dao', () => {
     })
 
     rawDao = {
-      avatar: 'fake-avatar',
+      network: NetworksEnum.mainnet,
+      transactionHash: '0x0',
+      blockNumber: 0,
+      blockTime: dayjs().utc().toDate(),
+      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      ens: 'dao.eth',
+      members: 10,
+      metadataIpfs: 'metadataIpfs',
       name: 'fake-name',
       description: 'fake-description',
-      daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-      network: ethereumNetwork.name,
-      members: 10,
+      avatar: 'fake-avatar',
+      links: [
+        {
+          name: 'fake-name',
+          url: 'fake-url',
+        },
+      ],
       proposalsCreated: 5,
       proposalsExecuted: 3,
-      tvlUSD: 10000,
+      tvlUSD: '10000',
       uniqueVoters: 100,
       votes: 500,
       plugins: [
         {
+          transactionHash: '0x0',
+          blockNumber: 0,
           type: EnumPluginType.MultisigPlugin,
           address: '0x0',
+          implementationAddress: '0x0',
+          release: '0',
+          build: '0',
+          subdomain: 'test',
         },
       ],
       hideDao: false,
-      txHash: '0x0',
     }
   })
 
@@ -63,25 +80,37 @@ describe('Model: Dao', () => {
       const createdDao = await Models.Dao.create(rawDao)
 
       expect(createdDao.id).to.exist
-      expect(createdDao.permalink).to.eq(`${createdDao.network}-${createdDao.daoAddress}`)
-      expect(createdDao.avatar).to.eq(rawDao.avatar)
+      expect(createdDao.network).to.eq(rawDao.network)
+      expect(createdDao.transactionHash).to.eq(rawDao.transactionHash)
+      expect(createdDao.blockNumber).to.eq(rawDao.blockNumber)
+      expect(createdDao.blockTime.toString()).to.eq(rawDao.blockTime?.toString())
+      expect(createdDao.permalink).to.eq(`${createdDao.network}-${createdDao.ens || createdDao.address}`)
+      expect(createdDao.address).to.eq(rawDao.address)
+      expect(createdDao.implementationAddress).to.eq(rawDao.implementationAddress)
+      expect(createdDao.creatorAddress).to.eq(rawDao.creatorAddress)
+      expect(createdDao.ens).to.eq(rawDao.ens)
+      expect(createdDao.members).to.eq(rawDao.members)
+      expect(createdDao.metadataIpfs).to.eq(rawDao.metadataIpfs)
       expect(createdDao.name).to.eq(rawDao.name)
       expect(createdDao.description).to.eq(rawDao.description)
-      expect(createdDao.daoAddress).to.eq(rawDao.daoAddress)
-      expect(createdDao.creatorAddress).to.eq(rawDao.creatorAddress)
-      expect(createdDao.network).to.eq(ethereumNetwork.name)
-      expect(createdDao.members).to.eq(rawDao.members)
+      expect(createdDao.avatar).to.eq(rawDao.avatar)
+      expect(createdDao.links[0].name).to.eq(rawDao.links?.[0].name)
+      expect(createdDao.links[0].url).to.eq(rawDao.links?.[0].url)
       expect(createdDao.proposalsCreated).to.eq(rawDao.proposalsCreated)
       expect(createdDao.proposalsExecuted).to.eq(rawDao.proposalsExecuted)
       expect(createdDao.tvlUSD).to.eq(rawDao.tvlUSD)
       expect(createdDao.uniqueVoters).to.eq(rawDao.uniqueVoters)
       expect(createdDao.votes).to.eq(rawDao.votes)
       expect(createdDao.plugins.length).to.eq(1)
+      expect(createdDao.plugins[0].transactionHash).to.eq(rawDao.plugins![0].transactionHash)
+      expect(createdDao.plugins[0].blockNumber).to.eq(rawDao.plugins![0].blockNumber)
       expect(createdDao.plugins[0].type).to.eq(rawDao.plugins![0].type)
+      expect(createdDao.plugins[0].address).to.eq(rawDao.plugins![0].address)
+      expect(createdDao.plugins[0].implementationAddress).to.eq(rawDao.plugins![0].implementationAddress)
+      expect(createdDao.plugins[0].release).to.eq(rawDao.plugins![0].release)
+      expect(createdDao.plugins[0].build).to.eq(rawDao.plugins![0].build)
+      expect(createdDao.plugins[0].subdomain).to.eq(rawDao.plugins![0].subdomain)
       expect(createdDao.hideDao).to.eq(rawDao.hideDao)
-      expect(createdDao.txHash).to.eq(rawDao.txHash)
-      expect(createdDao.metadataIpfs).to.eq(null)
-      expect(createdDao.lastUpdatedAt).to.eq(null)
     })
 
     it('Should create DAO with ens on permalink', async () => {
@@ -103,27 +132,21 @@ describe('Model: Dao', () => {
     })
   })
 
+  it('Should findByPermalink', async () => {
+    const createdDao = await Models.Dao.create(rawDao)
+    const dao = await Models.Dao.findByPermalink(createdDao.permalink)
+    expect(dao?.address).to.eq(createdDao.address)
+  })
+
   it('Should update DAO', async () => {
     const createdDao = await Models.Dao.create(rawDao)
-    expect(createdDao.creatorAddress).to.eq('0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969')
+    expect(createdDao.creatorAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5409')
 
     await createdDao.update({
       creatorAddress: '0x558c9997f8d382f02dfce79e275af637d8bb19e6',
     })
 
     expect(createdDao.creatorAddress).to.eq('0x558c9997f8d382f02dfce79e275af637d8bb19e6')
-  })
-
-  it('Should find DAO by address', async () => {
-    const createdDao = await Models.Dao.create(rawDao)
-    const dao = await Models.Dao.findByDaoAddress(createdDao.daoAddress)
-    expect(dao?.daoAddress).to.eq(createdDao.daoAddress)
-  })
-
-  it('Should find DAO by address and networks', async () => {
-    const createdDao = await Models.Dao.create(rawDao)
-    const dao = await Models.Dao.findByDaoAddressAndNetwork(createdDao.daoAddress, rawDao.network as NetworksEnum)
-    expect(dao?.daoAddress).to.eq(createdDao.daoAddress)
   })
 
   it('Should reload', async () => {
@@ -140,7 +163,7 @@ describe('Model: Dao', () => {
           avatar: 'fake-avatar',
           name: 'fake-name',
           description: 'fake-description',
-          daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+          address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
           network: ethereumNetwork.name,
           members: 10,
@@ -162,7 +185,7 @@ describe('Model: Dao', () => {
           avatar: 'fake-avatar',
           name: 'fake-name',
           description: 'fake-description',
-          daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+          address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
           network: polygonNetwork.name,
           members: 15,
@@ -184,7 +207,7 @@ describe('Model: Dao', () => {
           avatar: 'fake-avatar',
           name: 'fake-name',
           description: 'fake-description',
-          daoAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
+          address: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
           creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
           network: arbitrumNetwork.name,
           members: 15,
@@ -239,13 +262,13 @@ describe('Model: Dao', () => {
 
     it('Should find Pagination with from to date', async () => {
       await Models.Dao.create({
-        daoAddress: '0xee0627bA21e9114336977482372486d084497efa',
+        address: '0xee0627bA21e9114336977482372486d084497efa',
         creatorAddress: '0xEFbB4E6e5CF4bB4Ae8Cdc2c109da90D2a2433B50',
         network: polygonNetwork.name,
         members: 15,
         proposalsCreated: 7,
         proposalsExecuted: 5,
-        tvlUSD: 20000,
+        tvlUSD: '20000',
         uniqueVoters: 130,
         votes: 700,
         plugins: [
@@ -373,6 +396,6 @@ describe('Model: Dao', () => {
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(23)
+    expect(Object.keys(filterDao).length).to.eq(22)
   })
 })
