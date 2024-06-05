@@ -1,0 +1,36 @@
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import { expect } from 'chai'
+import StatusRouter from '@services/aragon-api/routers/status'
+import StatusController from '@services/aragon-api/controllers/status'
+import { NetworksEnum } from '@types'
+
+describe('Router: Status', () => {
+  let sandbox: SinonSandbox
+
+  beforeEach(async () => {
+    sandbox = sinon.createSandbox()
+  })
+
+  afterEach(() => {
+    sandbox?.restore()
+  })
+
+  it('Should get status', async () => {
+    const fakeRes = {
+      status: 'status',
+      appName: 'appName',
+      nodeVersion: 'nodeVersion',
+      environment: 'environment',
+      supportedNetworks: [NetworksEnum.mainnet],
+      appVersionPackage: 'appVersionPackage',
+      time: 'time',
+    }
+
+    sandbox.stub(StatusController, 'getStatus').returns(fakeRes)
+    const ctx: any = {}
+    await StatusRouter.status(ctx)
+
+    expect(ctx.body).to.eq(fakeRes)
+  })
+})

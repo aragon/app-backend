@@ -44,6 +44,7 @@ export enum AggregatorTypeEnum {
   settings = 'settings',
   assets = 'assets',
   transactions = 'transactions',
+  rates = 'rates',
 }
 
 export enum IEventLogPluginType {

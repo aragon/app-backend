@@ -1,0 +1,89 @@
+import logger from '@logger'
+import { Interface, type Log } from 'ethers'
+import Network from '@models/schema/network'
+import { Models } from '@dbModels'
+import { type NetworksEnum } from '@types'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { PluginRepoRegistryHandler } from '@services/aragon-indexer/handlers/pluginRepoRegistryHandler'
+import { UtilsIndexer } from '@models/utils/indexer'
+import { PluginRepoRegistry } from '@artifacts/pluginRepoRegistry'
+import { ConfigState } from '@state/configState'
+import Web3Helper from '@helpers/web3'
+
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogPluginRepoRegistry' })
+
+export const LogPluginRepoRegistry = {
+  events: ['PluginRepoRegistered'],
+
+  start: async () => {
+    const networks = Object.values(Network.NETWORKS)
+
+    await Promise.all(
+      networks.map(async networkName => {
+        logger.verbose('Start LogPluginRepoRegistry', llo({ networkName }))
+
+        const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
+        const provider = ConfigState.getInstance().getConfigItem(networkName as NetworksEnum)
+
+        if (!networkDb || !provider) {
+          logger.warn('Unsupported Network', llo({ networkName }))
+          return
+        }
+
+        const eventTopics = PluginRepoRegistry.abi
+          .filter((item: any) => item.type && LogPluginRepoRegistry.events.includes(item.name))
+          .map((event: any) => new Interface(PluginRepoRegistry.abi).getEvent(event.name)?.topicHash)
+
+        const filter = {
+          topics: eventTopics,
+          fromBlock: networkDb.lastBlockPluginRepoRegistry,
+          toBlock: 'latest',
+        }
+
+        const crawler = new BlockchainLogCrawler({
+          network: networkName as NetworksEnum,
+          filter,
+          onLog: async (txLog: Log) => LogPluginRepoRegistry.processLog(txLog, networkName as NetworksEnum),
+          onError: async (error: any) => LogPluginRepoRegistry.processError(error, networkName as NetworksEnum),
+          stopOnError: true,
+        })
+
+        await crawler.crawl()
+        await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockPluginRepoRegistry')
+        logger.verbose(
+          'End LogPluginRepoRegistry',
+          llo({ networkName, latestBlockSync: crawler.crawlResult.latestBlockNumber }),
+        )
+      }),
+    )
+  },
+
+  processLog: async (txLog: Log, network: NetworksEnum) => {
+    const iFace = new Interface(PluginRepoRegistry.abi)
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) {
+      return
+    }
+    const info = Web3Helper.parseInfoLog(txLog, event.name, network)
+
+    switch (event.name) {
+      case 'PluginRepoRegistered':
+        logger.verbose('PluginRepoRegistered', llo(info))
+        await PluginRepoRegistryHandler.pluginRepoRegistered(event, info)
+        break
+      default:
+        logger.error('Unhandled event', llo(info))
+        break
+    }
+  },
+
+  processError: async (error: any, network: NetworksEnum) => {
+    logger.error(
+      'Error PluginRepoRegistered',
+      llo({
+        error,
+        network,
+      }),
+    )
+  },
+}
