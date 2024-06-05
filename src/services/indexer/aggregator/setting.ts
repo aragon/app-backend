@@ -14,7 +14,7 @@ export const AggregatorSetting = {
     const aggregatorDb = await Models.Aggregator.findByType(AggregatorTypeEnum.plugin)
 
     const crawler = new DBCrawler({
-      model: Models.LogPluginSetupProcessor,
+      model: Models.LogPluginSetting,
       onDocument: AggregatorSetting.onDocument,
       onError: (error: any) => {
         logger.error('Error AggregatorSetting', llo({ error }))

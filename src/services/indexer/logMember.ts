@@ -13,7 +13,6 @@ import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMember' })
 
-// must run after LogPluginSetupProcessor
 export const LogMember = {
   events: ['MembersAdded', 'MembersRemoved', 'DelegateChanged'],
 
@@ -42,7 +41,7 @@ export const LogMember = {
 
         const filter = {
           topics: [...multiSigTopics, ...governanceTopics],
-          fromBlock: networkDb.lastBlockDao,
+          fromBlock: networkDb.lastBlockMember,
           toBlock: 'latest',
         }
 
@@ -76,6 +75,7 @@ export const LogMember = {
     if (!event) {
       return
     }
+
     const info = Web3Helper.parseInfoLog(txLog, event.name, network)
 
     switch (event.name) {

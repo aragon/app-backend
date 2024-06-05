@@ -3,9 +3,7 @@ export interface ITokenCoinGecko {
   usd_24h_change: number
 }
 
-export interface ITokenCoinGeckoResponse {
-  [address: string]: ITokenCoinGecko
-}
+export type ITokenCoinGeckoResponse = Record<string, ITokenCoinGecko>
 
 export interface ITokenPriceCoinGecko {
   usd: number

@@ -8,7 +8,7 @@ import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Token from '@models/schema/token'
-import {RateModule} from "@modules/rates";
+import { RateModule } from '@modules/rates'
 
 const llo = logger.logMeta.bind(null, { service: 'models:utils:indexer' })
 

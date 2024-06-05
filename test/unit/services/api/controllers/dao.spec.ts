@@ -116,7 +116,7 @@ describe('Controller: Dao', () => {
     const dao = await DaoController.getDaoByPermalink(dbDao.permalink)
 
     expect(dao.id).not.to.exist
-    expect(dao.daoAddress).to.eq(mockDao.daoAddress)
+    expect(dao.address).to.eq(mockDao.address)
     expect(dao.network).to.eq(mockDao.network)
     expect(dao.permalink).to.eq(mockDao.permalink)
   })

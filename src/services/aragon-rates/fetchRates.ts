@@ -3,7 +3,7 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import dayjs from '@helpers/dayjs'
-import Token from '@models/schema/token'
+import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:FetchRates' })

@@ -140,7 +140,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
 
       SYNC_DATA: {
-        RATES_INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_RATES_INTERVAL', 12 * 60 * 60 * 1000), // 12 hours
+        RATES_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_SYNC_DATA_RATES_INTERVAL',
+          12 * 60 * 60 * 1000,
+        ), // 12 hours
         DAO_INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_DAO_INTERVAL', 3 * 60 * 60 * 1000), // 3 hours
         DAO_FETCH_BATCH_SIZE: utils.configParser(
           sourceConfig,

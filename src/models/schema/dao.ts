@@ -1,4 +1,4 @@
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { ENS, EnumPluginType, HexAddress, type IDao, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -15,11 +15,29 @@ class Link {
 }
 
 class Plugin {
+  @prop({ type: () => String, default: null })
+  public transactionHash!: HexAddress
+
+  @prop({ type: () => Number })
+  public blockNumber!: number
+
   @prop({ type: () => String, enum: EnumPluginType, required: true })
   public type!: EnumPluginType
 
   @prop({ type: () => String, required: true })
   public address!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public implementationAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public release!: string
+
+  @prop({ type: () => String, default: null })
+  public build!: string
+
+  @prop({ type: () => String, default: null })
+  public subdomain!: string
 }
 
 @modelOptions({
@@ -33,17 +51,31 @@ class Plugin {
     customName,
   },
 })
-// @index({
-//   daoAddress: 1,
-//   tvlUSD: 1,
-//   proposalsCreated: 1,
-//   members: 1,
-//   network: 1,
-//   hideDao: 1,
-// })
+@index({
+  address: 1,
+  permalink: 1,
+  name: 1,
+  creatorAddress: 1,
+  tvlUSD: 1,
+})
 export default class Dao extends Model {
+  @prop({ type: () => String, enum: NetworksEnum, required: true })
+  public network!: NetworksEnum
+
+  @prop({ type: () => String, default: null })
+  public transactionHash!: HexAddress
+
+  @prop({ type: () => Number })
+  public blockNumber!: number
+
+  @utcDateProp({ default: null })
+  public blockTime!: Date
+
+  @prop({ type: () => String, required: true, unique: true })
+  public permalink!: string
+
   @prop({ type: () => String, required: true })
-  public daoAddress!: HexAddress
+  public address!: HexAddress
 
   @prop({ type: () => String, default: null })
   public implementationAddress!: HexAddress
@@ -51,20 +83,11 @@ export default class Dao extends Model {
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress
 
-  @prop({ type: () => String, required: true, unique: true })
-  public permalink!: string
-
   @prop({ type: () => String, default: null })
   public ens!: ENS
 
   @prop({ type: () => Number, default: 0 })
   public members!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public block!: number
-
-  @utcDateProp({ default: null })
-  public blockTime!: Date
 
   @prop({ type: () => String, default: null })
   public metadataIpfs!: string
@@ -78,11 +101,14 @@ export default class Dao extends Model {
   @prop({ type: () => String, default: null })
   public avatar!: string
 
-  @prop({ type: () => String, enum: NetworksEnum, required: true })
-  public network!: NetworksEnum
+  @prop({ type: () => [Link], default: [] })
+  public links?: Link[]
 
   @prop({ type: () => [Plugin], default: [] })
   public plugins?: Plugin[]
+
+  @prop({ type: () => String, default: '0' })
+  public tvlUSD!: string
 
   @prop({ type: () => Number, required: true })
   public proposalsCreated!: number
@@ -90,44 +116,24 @@ export default class Dao extends Model {
   @prop({ type: () => Number, required: true })
   public proposalsExecuted!: number
 
-  @prop({ type: () => Number, required: true })
-  public tvlUSD!: number
-
-  @prop({ type: () => Number, required: true })
+  @prop({ type: () => Number, default: 0 })
   public uniqueVoters!: number
 
-  @prop({ type: () => Number, required: true })
+  @prop({ type: () => Number, default: 0 })
   public votes!: number
 
-  @prop({ type: () => String, default: null })
-  public txHash!: HexAddress
-
-  @prop({ type: () => Boolean, required: true })
+  @prop({ type: () => Boolean, default: false })
   public hideDao!: boolean
-
-  @utcDateProp({ default: null })
-  public lastUpdatedAt!: Date
-
-  @prop({ type: () => [Link], default: [] })
-  public links?: Link[]
 
   static async create(rawData: Partial<Dao>, tOpts?: SaveOptions) {
     if (!rawData.permalink) {
       const network = rawData.network
-      const ensOrAddress = rawData.ens || rawData.daoAddress
+      const ensOrAddress = rawData.ens || rawData.address
       rawData.permalink = `${network}-${ensOrAddress}`
     }
 
     const data = new this(rawData)
     return await data.save(tOpts)
-  }
-
-  static async findByDaoAddress(daoAddress: HexAddress) {
-    return await this.findOne({ daoAddress })
-  }
-
-  static async findByDaoAddressAndNetwork(daoAddress: HexAddress, network: NetworksEnum) {
-    return await this.findOne({ daoAddress, network })
   }
 
   static async findByPermalink(permalink: string) {

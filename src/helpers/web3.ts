@@ -371,7 +371,7 @@ const Web3Helper = {
         'Error checksum dao address',
         llo({
           address,
-          error
+          error,
         }),
       )
       return null
