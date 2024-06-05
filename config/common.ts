@@ -131,40 +131,47 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     SERVICES: {
-      API: {
-        BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_API_BASE_URL', 'http://localhost:3000'),
-        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_API_NAME', 'API'),
-        PORT: utils.configParser(sourceConfig, 'number', 'SERVICES_API_PORT', 3000),
-        TIMEOUT: utils.configParser(sourceConfig, 'number', 'SERVICES_API_TIMEOUT', 30), // seconds
-        CORS: utils.configParser(sourceConfig, 'array', 'SERVICES_API_CORS_ORIGIN', []),
+      ARAGON_API: {
+        BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
+        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_NAME', 'API'),
+        PORT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_PORT', 3000),
+        TIMEOUT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_TIMEOUT', 30), // seconds
+        CORS: utils.configParser(sourceConfig, 'array', 'SERVICES_ARAGON_API_CORS_ORIGIN', []),
       },
 
-      SYNC_DATA: {
-        RATES_INTERVAL: utils.configParser(
+      ARAGON_INDEXER: {
+        DAO_INTERVAL: utils.configParser(
           sourceConfig,
           'number',
-          'SERVICES_SYNC_DATA_RATES_INTERVAL',
-          12 * 60 * 60 * 1000,
-        ), // 12 hours
-        DAO_INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_SYNC_DATA_DAO_INTERVAL', 3 * 60 * 60 * 1000), // 3 hours
+          'SERVICES_ARAGON_INDEXER_DAO_INTERVAL',
+          3 * 60 * 60 * 1000,
+        ), // 3 hours
         DAO_FETCH_BATCH_SIZE: utils.configParser(
           sourceConfig,
           'number',
-          'SERVICES_SYNC_DATA_DAO_FETCH_BATCH_SIZE',
+          'SERVICES_ARAGON_INDEXER_DAO_FETCH_BATCH_SIZE',
           2000,
         ),
         TOKEN_INTERVAL: utils.configParser(
           sourceConfig,
           'number',
-          'SERVICES_SYNC_DATA_TOKEN_INTERVAL',
+          'SERVICES_ARAGON_INDEXER_TOKEN_INTERVAL',
           24 * 60 * 60 * 1000,
         ), // 24 hours
         TOKEN_FETCH_BATCH_SIZE: utils.configParser(
           sourceConfig,
           'number',
-          'SERVICES_SYNC_DATA_TOKEN_FETCH_BATCH_SIZE',
+          'SERVICES_ARAGON_INDEXER_TOKEN_FETCH_BATCH_SIZE',
           500,
         ),
+      },
+      ARAGON_RATES: {
+        RATES_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_RATES_RATES_INTERVAL',
+          12 * 60 * 60 * 1000,
+        ), // 12 hours
       },
     },
 

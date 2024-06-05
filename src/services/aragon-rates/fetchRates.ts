@@ -5,6 +5,8 @@ import DbTx from '@modules/dbTx'
 import dayjs from '@helpers/dayjs'
 import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
+import { AggregatorTypeEnum } from '@types'
+import { UtilsIndexer } from '@models/utils/indexer'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:FetchRates' })
 
@@ -12,7 +14,7 @@ export const FetchRates = {
   start: async () => {
     logger.verbose('Start FetchRates', llo({}))
 
-    // const aggregatorDb = await Models.Aggregator.findByType(AggregatorTypeEnum.plugin)
+    const aggregatorDb = await Models.Aggregator.findByType(AggregatorTypeEnum.plugin)
 
     const crawler = new DBCrawler({
       model: Models.Token,
@@ -28,7 +30,7 @@ export const FetchRates = {
     })
 
     await crawler.crawl()
-    // await UtilsIndexer.saveAggregationSync(crawler, aggregatorDb, 'lastTimeSync')
+    await UtilsIndexer.saveAggregationSync(crawler, aggregatorDb, 'lastTimeSync')
     logger.verbose('End FetchRates', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt }))
   },
 

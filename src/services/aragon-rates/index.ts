@@ -16,7 +16,7 @@ const RatesService: IService = {
 
     const taskOptions = {
       fn: () => [task],
-      interval: config.SERVICES.SYNC_DATA.RATES_INTERVAL,
+      interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
       onError: (error: any) => {
         logger.error('RatesService task error', llo({ error }))
       },

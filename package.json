@@ -8,8 +8,8 @@
   "scripts": {
     "start": "yarn run service:main",
     "service:main": "ts-node -r tsconfig-paths/register runners/main.ts",
-    "service:api": "ts-node -r tsconfig-paths/register runners/api.ts",
-    "service:indexer": "ts-node -r tsconfig-paths/register runners/indexer.ts",
+    "service:aragon-api": "ts-node -r tsconfig-paths/register runners/aragon-api.ts",
+    "service:aragon-indexer": "ts-node -r tsconfig-paths/register runners/aragon-indexer.ts",
     "service:init-data": "ts-node -r tsconfig-paths/register runners/initialData.ts",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
@@ -21,7 +21,7 @@
     "test:unit:coverage": "rm -rf coverage .nyc_output && nyc --debug --no-clean --temp-dir=.nyc_output/ yarn test:unit",
     "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 97 --branches 83 --functions 96 --lines 97",
     "docker:dependencies": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica",
-    "docker:services": "docker-compose up --build -d service-api service-data-sync",
+    "docker:services": "docker-compose up --build -d service-aragon-api service-aragon-indexer",
     "wait:db": "bash test/lib/scripts/waitUp.sh mongo1 27017 && bash test/lib/scripts/waitUp.sh mongo2 27017 && bash test/lib/scripts/waitUp.sh mongo3 27017"
   },
   "repository": {

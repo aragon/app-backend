@@ -20,7 +20,9 @@
       "@modules/*": ["./src/modules/*"],
       "@services/*": ["./src/services/*"],
       "@state/*": ["./src/state/*"],
-      "@api/*": ["./src/services/api/*"],
+      "@api/*": ["./src/services/aragon-api/*"],
+      "@indexer/*": ["./src/services/aragon-indexer/*"],
+      "@rates/*": ["./src/services/aragon-rates/*"],
       "@test/*": ["./test/*"]
     },
     "esModuleInterop": true,
