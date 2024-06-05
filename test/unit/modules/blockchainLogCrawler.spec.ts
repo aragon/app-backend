@@ -11,6 +11,7 @@ describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
   let mockProvider: any
   let logError: any
+  let logVerbose: any
   let logWarn: any
   let logInfo: any
 
@@ -20,6 +21,7 @@ describe('Module: blockchainLogCrawler', () => {
       getBlockNumber: sandbox.stub(),
       getLogs: sandbox.stub(),
     }
+    logVerbose = sandbox.spy(logger, 'verbose')
     logWarn = sandbox.spy(logger, 'warn')
     logInfo = sandbox.spy(logger, 'info')
     logError = sandbox.spy(logger, 'error')
@@ -50,7 +52,7 @@ describe('Module: blockchainLogCrawler', () => {
 
     expect(onLogStub.calledTwice).to.be.true
     expect(onLogStub.calledTwice).to.be.true
-    expect(logInfo.calledWith('Finished crawling logs')).to.be.true
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
   it('should handle continuous crawling with new blocks added', async () => {
@@ -83,7 +85,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(stubProcessLogs.args[0][0][0].transactionHash).to.exist
     expect(stubProcessLogs.args[1][0][0].transactionHash).to.exist
     expect(onLogStub.callCount).to.be.eq(2)
-    expect(logInfo.calledWith('Finished crawling logs')).to.be.true
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
   it('should handle rate limiting by pausing and retrying', async () => {
@@ -115,7 +117,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(waitStub.calledOnce).to.be.true
     expect(onLogStub.calledTwice).to.be.true
     expect(onLogStub.calledTwice).to.be.true
-    expect(logInfo.calledWith('Finished crawling logs')).to.be.true
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
   it('should reduce batch size and retry on batch size error', async () => {
@@ -178,7 +180,7 @@ describe('Module: blockchainLogCrawler', () => {
     await crawler.crawl()
 
     expect(onLogStub.callCount).to.equal(0)
-    expect(logInfo.calledWith('Finished crawling logs')).to.be.true
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
   it('should properly handle network errors', async () => {

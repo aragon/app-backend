@@ -82,10 +82,7 @@ const CovalentHelper = {
     const priceChangeOnDayUsd = mostRecentPrice - dayBeforePrice
 
     return {
-      address: Web3Helper.parseAddress(token.contract_address, {
-        ...token,
-        service: 'covalent',
-      })!,
+      address: Web3Helper.parseAddress(token.contract_address)!,
       network,
       logo: token.logo_url,
       name: token.contract_name,

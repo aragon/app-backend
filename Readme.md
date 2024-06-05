@@ -46,16 +46,22 @@ You can set environment variables in the `.env` file, you can find examples in .
 
 ## Run locally
 
-- Run service API
+- Run Aragon API
 
 ```bash
-yarn service:api
+yarn service:aragon-api
 ```
 
-- Run service Indexer
+- Run Aragon Indexer
 
 ```bash
-yarn service:indexer
+yarn service:aragon-indexer
+```
+
+- Run Aragon Rates
+
+```bash
+yarn service:aragon-rates
 ```
 
 ## Run with Docker
@@ -72,16 +78,22 @@ yarn docker:dependencies
 yarn docker:services
 ```
 
-- Run only service API
+- Run only Aragon API
 
 ```bash
-docker-compose up --build -d service-api
+docker-compose up --build -d service-aragon-api
 ```
 
-- Run only service Indexer
+- Run only Aragon Indexer
 
 ```bash
-docker-compose up --build -d service-indexer
+docker-compose up --build -d service-aragon-indexer
+```
+
+- Run only Aragon Rates
+
+```bash
+docker-compose up --build -d service-aragon-rates
 ```
 
 Access the Aragon App by opening [http://localhost:3000](http://localhost:3000) in your web browser.

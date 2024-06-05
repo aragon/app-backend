@@ -1,4 +1,4 @@
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -46,20 +46,13 @@ class MemberDao {
     customName,
   },
 })
-// @index({
-//   address: 1,
-//   network: 1,
-//   lastBlockSync: 1,
-// })
+@index({
+  address: 1,
+  'daos.pluginAddress': 1,
+})
 export default class Member extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public entityId!: string
-
-  @prop({ type: () => String, required: true })
-  public transactionHash!: HexAddress
-
-  @prop({ type: () => Number, required: true })
-  public blockNumber!: number
 
   @prop({ type: () => String, required: true })
   public address!: HexAddress

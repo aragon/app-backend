@@ -3,7 +3,7 @@ version: '3.7'
 services:
   ### Services
 
-  service-api:
+  service-aragon-api:
     build:
       context: ./
     ports:
@@ -16,9 +16,9 @@ services:
       - mongo3
     env_file:
       - ./docker.env
-    command: bash -c 'yarn wait:db & wait && yarn service:api'
+    command: bash -c 'yarn wait:db & wait && yarn service:aragon-api'
 
-  service-data-sync:
+  service-aragon-indexer:
     build:
       context: ./
     depends_on:
@@ -27,7 +27,18 @@ services:
       - mongo3
     env_file:
       - ./docker.env
-    command: bash -c 'yarn wait:db & wait && yarn service:data-sync'
+    command: bash -c 'yarn wait:db & wait && yarn service:aragon-indexer'
+
+  service-aragon-rates:
+    build:
+      context: ./
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    env_file:
+      - ./docker.env
+    command: bash -c 'yarn wait:db & wait && yarn service:aragon-rates'
 
   ### Dependencies
 

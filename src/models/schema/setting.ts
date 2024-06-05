@@ -1,4 +1,4 @@
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -57,11 +57,9 @@ class HistorySetting {
     customName,
   },
 })
-// @index({
-//   entityId: 1,
-//   pluginAddress: 1,
-//   network: 1,
-// })
+@index({
+  pluginAddress: 1,
+})
 export default class Setting extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public entityId!: string

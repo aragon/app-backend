@@ -1,4 +1,4 @@
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -25,10 +25,12 @@ class ERC1155Metadata {
     customName,
   },
 })
-// @index({
-//   blockNumber: 1,
-//   transactionHash: 1,
-// })
+@index({
+  fromAddress: 1,
+  toAddress: 1,
+  tokenAddress: 1,
+  daoAddress: 1,
+})
 export default class Transaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public entityId!: string

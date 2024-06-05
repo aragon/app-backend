@@ -21,16 +21,16 @@ describe('Model: Token', () => {
     })
 
     rawToken = {
-      address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       network: ethereumNetwork.name,
       type: ITokenType.ERC20,
+      address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       logo: 'fake-logo',
       name: 'ethereum',
       symbol: 'WETH',
       decimals: 18,
       holders: 10,
       totalSupply: 100,
-      priceChangeOnDayUsd: 1,
+      priceChangeOnDayUsd: '1',
       priceUsd: '1',
       lastUpdatedAt: dayjs.utc().toDate(),
     }
