@@ -11,7 +11,7 @@ class URIUpdate {
   public uri!: string
 
   @prop({ type: () => String, required: true })
-  public transactionHash!: string
+  public transactionHash!: HexAddress
 
   @prop({ type: () => String, required: true })
   public blockNumber!: string
@@ -29,7 +29,7 @@ class URIUpdate {
   },
 })
 @index({
-  daoAddress: 1,
+  address: 1,
 })
 export default class LogDaoRegistry extends Model {
   @prop({ type: () => String, required: true, unique: true })

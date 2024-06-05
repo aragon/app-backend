@@ -11,92 +11,87 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:MemberHandler'
 
 export const MemberHandler = {
   membersAdded: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const existingLog = await Models.LogMember.findByTxHash(info.transactionHash as HexAddress)
+    const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(
+      info.address as HexAddress,
+      info.network,
+    )
 
-    if (!existingLog) {
-      const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(
-        info.address as HexAddress,
-        info.network,
-      )
-
-      if (!pluginExisted) {
-        logger.warn('Plugin not found', llo(info))
-        return
-      }
-
-      await DbTx.executeTxFn(async ({ session }) => {
-        const daoMembersIds: any = []
-
-        for (const member of parsedEvent.args.members) {
-          const rawMember = {
-            address: member,
-            blockNumber: info.blockNumber,
-            transactionHash: info.transactionHash,
-            event: parsedEvent.name,
-            pluginAddress: info.address,
-            network: info.network,
-          }
-
-          const daoMember = await Models.LogMember.create(rawMember, { session })
-          daoMembersIds.push(daoMember.id)
-        }
-
-        await session.commitTransaction()
-        await session.endSession()
-
-        logger.verbose(
-          'New LogMembers: Added',
-          llo({
-            ...info,
-            logId: daoMembersIds,
-          }),
-        )
-      })
+    if (!pluginExisted) {
+      logger.warn('Plugin not found', llo(info))
+      return
     }
+
+    await Promise.all(
+      parsedEvent.args.members.map(async (member: HexAddress) => {
+        const existingLog = await Models.LogMember.findExistingLog(
+          info.transactionHash as HexAddress,
+          parsedEvent.name,
+          member,
+          info.network,
+        )
+
+        if (!existingLog) {
+          await DbTx.executeTxFn(async ({ session }) => {
+            const rawMember = {
+              address: member,
+              blockNumber: info.blockNumber,
+              transactionHash: info.transactionHash,
+              event: parsedEvent.name,
+              pluginAddress: info.address,
+              network: info.network,
+            }
+
+            const daoMember = await Models.LogMember.create(rawMember, { session })
+            await session.commitTransaction()
+            await session.endSession()
+
+            logger.verbose('New LogMembers Added', llo({ ...info, logId: daoMember.id }))
+          })
+        }
+      }),
+    )
   },
 
   membersRemoved: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const existingLog = await Models.LogMember.findByTxHash(info.transactionHash as HexAddress)
+    const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(
+      info.address as HexAddress,
+      info.network,
+    )
 
-    if (!existingLog) {
-      const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(
-        info.address as HexAddress,
-        info.network,
-      )
-
-      if (!pluginExisted) {
-        logger.warn('Plugin not found', llo(info))
-        return
-      }
-
-      await DbTx.executeTxFn(async ({ session }) => {
-        const daoMembersIds: any = []
-        for (const member of parsedEvent.args.members) {
-          const rawMember = {
-            address: member,
-            blockNumber: info.blockNumber,
-            transactionHash: info.transactionHash,
-            event: parsedEvent.name,
-            pluginAddress: info.address,
-            network: info.network,
-          }
-
-          const daoMember = await Models.LogMember.create(rawMember, { session })
-          daoMembersIds.push(daoMember.id)
-        }
-
-        await session.commitTransaction()
-        await session.endSession()
-
-        logger.verbose(
-          'New LogMembers: Removed',
-          llo({
-            ...info,
-            logId: daoMembersIds,
-          }),
-        )
-      })
+    if (!pluginExisted) {
+      logger.warn('Plugin not found', llo(info))
+      return
     }
+
+    await Promise.all(
+      parsedEvent.args.members.map(async (member: HexAddress) => {
+        const existingLog = await Models.LogMember.findExistingLog(
+          info.transactionHash as HexAddress,
+          parsedEvent.name,
+          member,
+          info.network,
+        )
+
+        if (!existingLog) {
+          await DbTx.executeTxFn(async ({ session }) => {
+            const rawMember = {
+              address: member,
+              blockNumber: info.blockNumber,
+              transactionHash: info.transactionHash,
+              event: parsedEvent.name,
+              pluginAddress: info.address,
+              network: info.network,
+            }
+
+            const daoMember = await Models.LogMember.create(rawMember, { session })
+            await session.commitTransaction()
+            await session.endSession()
+
+            logger.verbose('New LogMembers Removed', llo({ ...info, logId: daoMember.id }))
+          })
+        }
+      }),
+    )
   },
 
   delegateChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -151,7 +146,7 @@ export const MemberHandler = {
         await session.endSession()
 
         logger.verbose(
-          'New LogMembers: Delegation Changed',
+          'New LogMembers Delegation Changed',
           llo({
             ...info,
             logId: daoMember.id,

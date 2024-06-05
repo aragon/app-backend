@@ -5,6 +5,7 @@ import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import Logger from '@logger'
+import Web3Helper from '@helpers/web3'
 
 describe('Modules:BlockchainTransferCrawler', () => {
   let sandbox: sinon.SinonSandbox
@@ -106,23 +107,6 @@ describe('Modules:BlockchainTransferCrawler', () => {
   })
 
   describe('crawl', () => {
-    it('should throw an error if already crawling', async () => {
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
-      const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
-        filter: {},
-        onTx: async () => {},
-      })
-      crawler['crawling'] = true
-
-      try {
-        await crawler.crawl()
-      } catch (error: any) {
-        expect(error.message).to.equal('Already crawling')
-      }
-    })
-
     it('should handle transfers correctly', async () => {
       const getBlockNumberStub = sandbox.stub().resolves(10)
       const providerStub = {
@@ -139,6 +123,74 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
       const result = await crawler.crawl()
       expect(result).to.be.undefined
+    })
+
+    it('should handle transfers correctly - call convertToHoxNumber', async () => {
+      const getBlockNumberStub = sandbox.stub().resolves(10)
+      const providerStub = {
+        getBlockNumber: getBlockNumberStub,
+        send: sandbox.stub().resolves({ transfers: [] }),
+      }
+      const convertToHoxNumberStub = sandbox.spy(Web3Helper, 'convertToHoxNumber')
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.mainnet,
+        filter: { fromBlock: 0, toBlock: 0 },
+        onTx: async () => {},
+      })
+
+      sandbox.stub(crawler, 'updateAndCheckConditions').onFirstCall().resolves(true).onSecondCall().resolves(false)
+      sandbox.stub(crawler, 'getBlockNumber').onFirstCall().resolves(1).onSecondCall().resolves(0)
+      const stubProcessTxs = sandbox.stub(crawler, 'processTxs').resolves(true as any)
+
+      await crawler.crawl()
+
+      expect(stubProcessTxs.calledOnce).to.be.true
+      expect(convertToHoxNumberStub.calledTwice).to.be.true
+    })
+
+    it('should handle transfers correctly - shutdown', async () => {
+      const getBlockNumberStub = sandbox.stub().resolves(10)
+      const providerStub = {
+        getBlockNumber: getBlockNumberStub,
+        send: sandbox.stub().resolves({ transfers: [] }),
+      }
+      const convertToHoxNumberStub = sandbox.spy(Web3Helper, 'convertToHoxNumber')
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.mainnet,
+        filter: { fromBlock: 0, toBlock: 0 },
+        onTx: async () => {},
+        shutdown: true,
+      })
+
+      sandbox.stub(crawler, 'updateAndCheckConditions').onFirstCall().resolves(true)
+      sandbox.stub(crawler, 'getBlockNumber').onFirstCall().resolves(1).onSecondCall().resolves(0)
+      const stubProcessTxs = sandbox.stub(crawler, 'processTxs').resolves(true as any)
+
+      await crawler.crawl()
+
+      expect(stubProcessTxs.calledOnce).to.be.true
+      expect(convertToHoxNumberStub.calledTwice).to.be.true
+    })
+
+    it('should throw an error if already crawling', async () => {
+      const providerStub = {}
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.mainnet,
+        filter: {},
+        onTx: async () => {},
+      })
+      crawler['crawling'] = true
+
+      try {
+        await crawler.crawl()
+      } catch (error: any) {
+        expect(error.message).to.equal('Already crawling')
+      }
     })
 
     it('should break the crawl loop when an error occurs and stopOnError and shutdown are true', async () => {

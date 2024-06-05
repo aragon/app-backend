@@ -1,4 +1,4 @@
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -17,11 +17,9 @@ const customName = 'LogPluginSetting'
     customName,
   },
 })
-// @index({
-//   address: 1,
-//   network: 1,
-//   lastBlockSync: 1,
-// })
+@index({
+  pluginAddress: 1,
+})
 export default class LogPluginSetting extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public entityId!: string

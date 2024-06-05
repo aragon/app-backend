@@ -263,14 +263,8 @@ const SatsumaHelper = {
       name: null,
       permalink: null,
       links: [],
-      creatorAddress: Web3Helper.parseAddress(dao.creator, {
-        ...dao,
-        service: 'satsuma',
-      })!,
-      daoAddress: Web3Helper.parseAddress(dao.id, {
-        ...dao,
-        service: 'satsuma',
-      })!,
+      creatorAddress: Web3Helper.parseAddress(dao.creator)!,
+      daoAddress: Web3Helper.parseAddress(dao.id)!,
       block: Number(dao.createdAt),
       blockTime: dayjs.utc(Number(dao.createdAt) * 1000).toDate(),
       createdAt: dayjs.utc(Number(dao.createdAt) * 1000).toDate(),

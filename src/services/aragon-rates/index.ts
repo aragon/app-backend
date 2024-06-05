@@ -2,7 +2,7 @@ import logger from '@logger'
 import { EnumConnection, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
-import {FetchRates} from "@services/aragon-rates/fetchRates";
+import { FetchRates } from '@services/aragon-rates/fetchRates'
 
 const llo = logger.logMeta.bind(null, { service: 'service:RatesService' })
 

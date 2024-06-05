@@ -36,6 +36,7 @@ class BlockchainTransferCrawler {
     onTx: (log: IAlchemyTransferResponse) => Promise<void>
     onError?: (error: Error, log?: IAlchemyTransferResponse) => void
     stopOnError?: boolean
+    shutdown?: boolean
   }) {
     this.network = opts.network
     this.provider = ConfigState.getInstance().getConfigItem(opts.network) as WebSocketProvider
@@ -53,7 +54,7 @@ class BlockchainTransferCrawler {
     this.onTx = opts.onTx
     this.onError = opts.onError || BlockchainTransferCrawler.defaultOnError
     this.stopOnError = opts.stopOnError ?? true
-    this.shutdown = false
+    this.shutdown = opts.shutdown ?? false
     this.crawling = false
     this.isOnError = false
     this.crawlResult = {
@@ -109,7 +110,7 @@ class BlockchainTransferCrawler {
     this.crawling = true
     let currentBlock = await this.getBlockNumber(this.filter.fromBlock as any)
     const latestBlock = await this.getBlockNumber(this.filter.toBlock as any)
-    this.batchSize = latestBlock - currentBlock
+    this.batchSize = Math.max(0, latestBlock - currentBlock)
     this.crawlResult.latestBlockNumber = latestBlock
 
     while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {

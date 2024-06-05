@@ -1,7 +1,7 @@
 import { ZeroAddress } from 'ethers'
-import { HexAddress, type NetworksEnum } from '@types'
+import { type HexAddress, type NetworksEnum } from '@types'
 import CoinGeckoHelper from '@helpers/coinGecko'
-import dayjs from "@helpers/dayjs";
+import dayjs from '@helpers/dayjs'
 
 export const RateModule = {
   fetchRate: async (

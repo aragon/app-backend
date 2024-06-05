@@ -35,6 +35,7 @@ class Permission {
   },
 })
 @index({
+  daoAddress: 1,
   pluginAddress: 1,
 })
 export default class LogPluginSetupProcessor extends Model {

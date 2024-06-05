@@ -1,4 +1,4 @@
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, IEventLogMember, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -17,10 +17,12 @@ const customName = 'LogMember'
     customName,
   },
 })
-// @index({
-//   blockNumber: 1,
-//   transactionHash: 1,
-// })
+@index({
+  event: 1,
+  address: 1,
+  tokenAddress: 1,
+  pluginAddress: 1,
+})
 export default class LogMember extends Model {
   @prop({ type: () => String, enum: IEventLogMember, required: true })
   public event!: IEventLogMember
@@ -80,10 +82,6 @@ export default class LogMember extends Model {
 
   static getEntityId(transactionHash: HexAddress, event: IEventLogMember, member: HexAddress, network: NetworksEnum) {
     return `${transactionHash}-${event}-${member}-${network}`
-  }
-
-  static async findByTxHash(transactionHash: HexAddress, tOpts?: SaveOptions) {
-    return await this.findOne({ transactionHash }, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {

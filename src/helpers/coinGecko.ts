@@ -1,4 +1,10 @@
-import {type HexAddress, type INetworks, ITokenCoinGeckoResponse, ITokenPriceCoinGecko, NetworksEnum} from '@types'
+import {
+  type HexAddress,
+  type INetworks,
+  type ITokenCoinGeckoResponse,
+  type ITokenPriceCoinGecko,
+  NetworksEnum,
+} from '@types'
 import config from '@config'
 import axios from 'axios'
 import logger from '@logger'
@@ -25,7 +31,7 @@ const CoinGeckoHelper = {
 
   coinsMap: {
     polygon: 'polygon-ecosystem-token',
-    ethereum: 'ethereum',
+    mainnet: 'ethereum',
     base: 'base',
     arbitrum: 'arbitrum',
   },
@@ -59,16 +65,14 @@ const CoinGeckoHelper = {
     try {
       const response = await CoinGeckoHelper._rpCall<ITokenCoinGeckoResponse[]>(path)
 
-      if (response && response[tokenAddress]) {
+      if (response?.[tokenAddress]) {
         return {
-          usd: response && response[tokenAddress].usd,
-          usd24hChange: response && response[tokenAddress].usd_24h_change,
+          usd: response?.[tokenAddress].usd,
+          usd24hChange: response?.[tokenAddress].usd_24h_change,
         }
       }
-      return
     } catch (error) {
       logger.error('Error token price', llo({ error, network, tokenAddress }))
-      return
     }
   },
 
@@ -83,16 +87,14 @@ const CoinGeckoHelper = {
     try {
       const response = await CoinGeckoHelper._rpCall<ITokenCoinGeckoResponse[]>(path)
 
-      if (response && response[coinId]) {
+      if (response?.[coinId]) {
         return {
-          usd: response && response[coinId].usd as any,
-          usd24hChange: response && response[coinId].usd_24h_change as any,
+          usd: response && (response[coinId].usd as any),
+          usd24hChange: response && (response[coinId].usd_24h_change as any),
         }
       }
-      return
     } catch (error) {
       logger.error('Error coin price', llo({ error, network, coinId }))
-      return
     }
   },
 }

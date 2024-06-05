@@ -56,7 +56,7 @@ describe('Indexer: MemberHandler', () => {
   describe('membersAdded', () => {
     it('Should handle member added', async () => {
       const verboseStub = sandbox.stub(logger, 'verbose')
-      const findExistingLogSpy = sandbox.spy(Models.LogMember, 'findByTxHash')
+      const findExistingLogSpy = sandbox.spy(Models.LogMember, 'findExistingLog')
 
       const fakeLog = {
         name: IEventLogMember.MembersAdded,
@@ -77,21 +77,31 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.membersAdded(fakeLog, logInfo)
 
-      expect(verboseStub.callCount).to.be.eq(1)
-      expect(findExistingLogSpy.calledOnce).to.be.true
+      expect(verboseStub.calledTwice).to.be.true
+      expect(findExistingLogSpy.calledTwice).to.be.true
       expect(findByPluginAddressSpy.calledOnce).to.be.true
 
-      const logMember = await Models.LogMember.find({ transactionHash: logInfo.transactionHash })
+      const logMember = await Models.LogMember.find({ transactionHash: logInfo.transactionHash }).sort({ address: 1 })
 
       expect(logMember).to.be.not.null
       expect(logMember.length).to.be.eq(2)
 
-      expect(logMember[0].address).to.be.eq('0xmember1')
       expect(logMember[1].address).to.be.eq('0xmember2')
+      expect(logMember[1].event).to.be.eq(fakeLog.name)
+      expect(logMember[1].pluginAddress).to.be.eq(plugin.pluginAddress)
+      expect(logMember[1].network).to.be.eq(logInfo.network)
+      expect(logMember[1].transactionHash).to.be.eq(logInfo.transactionHash)
+
+      expect(logMember[0].address).to.be.eq('0xmember1')
+      expect(logMember[0].event).to.be.eq(fakeLog.name)
+      expect(logMember[0].pluginAddress).to.be.eq(plugin.pluginAddress)
+      expect(logMember[0].network).to.be.eq(logInfo.network)
+      expect(logMember[0].transactionHash).to.be.eq(logInfo.transactionHash)
     })
 
     it('should return true if log already exists', async () => {
-      const findExistingLogStub = sandbox.stub(Models.LogMember, 'findByTxHash').resolves(true)
+      const findExistingLogStub = sandbox.stub(Models.LogMember, 'findExistingLog').resolves(true)
+      const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
 
       const fakeLog = {
         name: IEventLogMember.MembersAdded,
@@ -108,17 +118,15 @@ describe('Indexer: MemberHandler', () => {
         eventName: 'test',
       }
 
-      const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
-
       await MemberHandler.membersAdded(fakeLog, logInfo)
 
-      expect(findExistingLogStub.calledOnce).to.be.true
-      expect(findByPluginAddressSpy.notCalled).to.be.true
+      console.log(findExistingLogStub.callCount)
+      expect(findExistingLogStub.calledTwice).to.be.true
+      expect(findByPluginAddressSpy.calledOnce).to.be.true
     })
 
     it('should return if the plugin is not found', async () => {
       const verboseStub = sandbox.stub(logger, 'warn')
-      const findExistingLogStub = sandbox.stub(Models.LogMember, 'findByTxHash').resolves(false)
       const findByPluginAddressStub = sandbox
         .stub(Models.LogPluginSetupProcessor, 'findByPluginAddress')
         .resolves(false)
@@ -141,7 +149,6 @@ describe('Indexer: MemberHandler', () => {
       await MemberHandler.membersAdded(fakeLog, logInfo)
 
       expect(verboseStub.callCount).to.be.eq(1)
-      expect(findExistingLogStub.calledOnce).to.be.true
       expect(findByPluginAddressStub.calledOnce).to.be.true
     })
   })
@@ -149,7 +156,8 @@ describe('Indexer: MemberHandler', () => {
   describe('membersRemoved', () => {
     it('should handle member removed', async () => {
       const verboseStub = sandbox.stub(logger, 'verbose')
-      const findExistingLogSpy = sandbox.spy(Models.LogMember, 'findByTxHash')
+      const findExistingLogSpy = sandbox.spy(Models.LogMember, 'findExistingLog')
+      const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
 
       const fakeLog = {
         name: IEventLogMember.MembersRemoved,
@@ -166,24 +174,32 @@ describe('Indexer: MemberHandler', () => {
         eventName: 'test',
       }
 
-      const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
-
       await MemberHandler.membersRemoved(fakeLog, logInfo)
 
-      expect(verboseStub.callCount).to.be.eq(1)
-      expect(findExistingLogSpy.calledOnce).to.be.true
+      expect(verboseStub.calledTwice).to.be.true
+      expect(findExistingLogSpy.calledTwice).to.be.true
       expect(findByPluginAddressSpy.calledOnce).to.be.true
 
-      const logMember = await Models.LogMember.find({ transactionHash: logInfo.transactionHash })
+      const logMember = await Models.LogMember.find({ transactionHash: logInfo.transactionHash }).sort({ address: 1 })
       expect(logMember).to.be.not.null
       expect(logMember.length).to.be.eq(2)
 
-      expect(logMember[0].address).to.be.eq('member1')
       expect(logMember[1].address).to.be.eq('member2')
+      expect(logMember[1].event).to.be.eq(fakeLog.name)
+      expect(logMember[1].pluginAddress).to.be.eq(plugin.pluginAddress)
+      expect(logMember[1].network).to.be.eq(logInfo.network)
+      expect(logMember[1].transactionHash).to.be.eq(logInfo.transactionHash)
+
+      expect(logMember[0].address).to.be.eq('member1')
+      expect(logMember[0].event).to.be.eq(fakeLog.name)
+      expect(logMember[0].pluginAddress).to.be.eq(plugin.pluginAddress)
+      expect(logMember[0].network).to.be.eq(logInfo.network)
+      expect(logMember[0].transactionHash).to.be.eq(logInfo.transactionHash)
     })
 
     it('fails if tx is already processed', async () => {
-      const findExistingLogStub = sandbox.stub(Models.LogMember, 'findByTxHash').resolves(true)
+      const findExistingLogStub = sandbox.stub(Models.LogMember, 'findExistingLog').resolves(true)
+      const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
 
       const fakeLog = {
         name: IEventLogMember.MembersRemoved,
@@ -200,17 +216,14 @@ describe('Indexer: MemberHandler', () => {
         eventName: 'test',
       }
 
-      const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
-
       await MemberHandler.membersRemoved(fakeLog, logInfo)
 
-      expect(findExistingLogStub.calledOnce).to.be.true
-      expect(findByPluginAddressSpy.notCalled).to.be.true
+      expect(findExistingLogStub.calledTwice).to.be.true
+      expect(findByPluginAddressSpy.calledOnce).to.be.true
     })
 
     it('fails if plugin is not found', async () => {
-      const verboseStub = sandbox.stub(logger, 'warn')
-      const findExistingLogStub = sandbox.stub(Models.LogMember, 'findByTxHash').resolves(false)
+      const loggerStub = sandbox.stub(logger, 'warn')
       const findByPluginAddressStub = sandbox
         .stub(Models.LogPluginSetupProcessor, 'findByPluginAddress')
         .resolves(false)
@@ -232,8 +245,7 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.membersRemoved(fakeLog, logInfo)
 
-      expect(verboseStub.callCount).to.be.eq(1)
-      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(loggerStub.callCount).to.be.eq(1)
       expect(findByPluginAddressStub.calledOnce).to.be.true
     })
   })

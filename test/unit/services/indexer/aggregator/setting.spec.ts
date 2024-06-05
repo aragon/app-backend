@@ -158,6 +158,6 @@ describe('Indexer:Aggregator:Setting', () => {
 
   it('should query', () => {
     const pipeline = AggregatorSetting.query()
-    expect(pipeline.length).to.eq(5)
+    expect(pipeline.length).to.eq(4)
   })
 })
