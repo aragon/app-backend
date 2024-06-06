@@ -2,7 +2,6 @@ import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
-import dayjs from '@helpers/dayjs'
 import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
 import { AggregatorTypeEnum } from '@types'
@@ -23,7 +22,7 @@ export const FetchRates = {
         logger.error('Error FetchRates', llo({ error }))
       },
       where: {
-        lastUpdatedAt: { $lte: dayjs.utc().subtract(6, 'hours').toDate() },
+        // lastUpdatedAt: { $lte: dayjs.utc().subtract(6, 'hours').toDate() },
       },
       batchSize: 1000,
       concurrency: 1,
