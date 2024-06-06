@@ -25,6 +25,16 @@ class BottleneckModule {
     }
     return this.transferLimiters[network]
   }
+
+  static getCoinGeckoLimiter(network: NetworksEnum) {
+    if (!this.transferLimiters[network]) {
+      this.transferLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.COINGECKO_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.COINGECKO_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.transferLimiters[network]
+  }
 }
 
 export default BottleneckModule

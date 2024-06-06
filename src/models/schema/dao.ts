@@ -2,7 +2,8 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { ENS, EnumPluginType, HexAddress, type IDao, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import ModelUtils, { utcDateProp } from '@models/utils/models'
+import ModelUtils from '@models/utils/models'
+import { assert } from '@errors'
 
 const customName = 'Dao'
 
@@ -59,6 +60,9 @@ class Plugin {
   tvlUSD: 1,
 })
 export default class Dao extends Model {
+  @prop({ type: () => String, required: true, unique: true })
+  public entityId!: string
+
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
@@ -68,8 +72,8 @@ export default class Dao extends Model {
   @prop({ type: () => Number })
   public blockNumber!: number
 
-  @utcDateProp({ default: null })
-  public blockTime!: Date
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
 
   @prop({ type: () => String, required: true, unique: true })
   public permalink!: string
@@ -126,14 +130,32 @@ export default class Dao extends Model {
   public hideDao!: boolean
 
   static async create(rawData: Partial<Dao>, tOpts?: SaveOptions) {
+    if (!rawData.entityId) {
+      assert(!!rawData.network, 'network is required')
+      assert(!!rawData.address, 'address is required')
+      rawData.entityId = this.getEntityId(rawData?.address!, rawData?.network as any)
+    }
     if (!rawData.permalink) {
       const network = rawData.network
       const ensOrAddress = rawData.ens || rawData.address
       rawData.permalink = `${network}-${ensOrAddress}`
     }
-
     const data = new this(rawData)
     return await data.save(tOpts)
+  }
+
+  static getEntityId(address: HexAddress, network: NetworksEnum) {
+    const entityId = `${address}-${network}`
+    return entityId
+  }
+
+  static async findExistingLog(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(address, network)
+    return await this.findByEntityId(entityId, tOpts)
+  }
+
+  static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
+    return await this.findOne({ entityId }, tOpts)
   }
 
   static async findByPermalink(permalink: string) {
@@ -185,7 +207,9 @@ export default class Dao extends Model {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
           const parsedObj = this.toObject()
 
-          if (!_.isEqual(parsedObj[key], value)) {
+          if (key === 'permalink') {
+            this[key] = `${params.network || this.network}-${params.ens || this.ens || params.address || this.address}`
+          } else if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }
         }

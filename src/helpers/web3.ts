@@ -149,7 +149,7 @@ const Web3Helper = {
       const trimmedAddress = address.replace(/^0x0+/, '0x')
       return getAddress(trimmedAddress)
     } catch (error) {
-      logger.error('Error formatAddress', llo({ address, error }))
+      logger.warn('Error formatAddress', llo({ address, error }))
       return address.replace(/^0x0+/, '0x')
     }
   },
@@ -383,6 +383,19 @@ const Web3Helper = {
       return
     }
     return '0x' + number?.toString(16)
+  },
+
+  async getBlockTimestamp(blockNumber: number, network: NetworksEnum): Promise<number> {
+    try {
+      const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+
+      const block = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber))
+
+      return block?.timestamp || 0
+    } catch (error) {
+      logger.error('Error getBlockTimestamp', llo({ blockNumber, network, error }))
+      return 0
+    }
   },
 
   async getBalance(address: HexAddress, network: NetworksEnum): Promise<string> {
