@@ -68,6 +68,8 @@ export interface IConfig {
     NODE_MIN_TIME: number
     NODE_TRANSFER_MAX_CONCURRENT: number
     NODE_TRANSFER_MIN_TIME: number
+    COINGECKO_MAX_CONCURRENT: number
+    COINGECKO_MIN_TIME: number
   }
   MONGO_DB: {
     NAME: string

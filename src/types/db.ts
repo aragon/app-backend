@@ -17,6 +17,7 @@ import type Plugin from '@models/schema/plugin'
 import type Setting from '@models/schema/setting'
 import type Asset from '@models/schema/asset'
 import type Transaction from '@models/schema/transaction'
+import type Proposal from '@models/schema/proposal'
 
 export interface IMongoModel {
   Network: Model<InstanceType<typeof Network>>
@@ -35,13 +36,16 @@ export interface IMongoModel {
   Plugin: Model<InstanceType<typeof Plugin>>
   Setting: Model<InstanceType<typeof Setting>>
   Asset: Model<InstanceType<typeof Asset>>
+  Proposal: Model<InstanceType<typeof Proposal>>
   Transaction: Model<InstanceType<typeof Transaction>>
 }
 
 export enum AggregatorTypeEnum {
+  daos = 'daos',
   plugin = 'plugin',
-  members = 'members',
   settings = 'settings',
+  proposals = 'proposals',
+  members = 'members',
   assets = 'assets',
   transactions = 'transactions',
   rates = 'rates',

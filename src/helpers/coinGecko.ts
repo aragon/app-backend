@@ -8,6 +8,8 @@ import {
 import config from '@config'
 import axios from 'axios'
 import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import { retryRequest } from '@helpers/retryRequest'
 
 const llo = logger.logMeta.bind(null, { service: 'CoinGecko' })
 
@@ -46,7 +48,12 @@ const CoinGeckoHelper = {
 
   _rpCall: async <T>(path: string): Promise<T> => {
     try {
-      const response = await CoinGeckoHelper.axiosInstance.get(`${config.COINGECKO.URI}${path}`)
+      const response = await retryRequest(async () =>
+        BottleneckModule.getCoinGeckoLimiter(NetworksEnum.mainnet)!.schedule(async () =>
+          CoinGeckoHelper.axiosInstance.get(`${config.COINGECKO.URI}${path}`),
+        ),
+      )
+
       return response.data
     } catch (error) {
       logger.error('Error in CoinGecko RPC Call', llo({ path, error }))

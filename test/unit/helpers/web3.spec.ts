@@ -6,8 +6,8 @@ import { ITransactionType, NetworksEnum } from '@types'
 import { AbiCoder, Interface } from 'ethers'
 import { ConfigState } from '@state/configState'
 import Logger from '@logger'
-import proxyquire from 'proxyquire'
 import logger from '@logger'
+import proxyquire from 'proxyquire'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -88,7 +88,7 @@ describe('Helpers:Web3', () => {
 
   it('should throw error format address', () => {
     const mockInvalidAddress = '0x000000000000000000000000zzz60f584879f024299da0f19cdb47b931e35b53'
-    const stubLoggerError = sandbox.stub(Logger, 'error')
+    const stubLoggerError = sandbox.stub(Logger, 'warn')
 
     const formattedAddress = Web3Helper.formatAddress(mockInvalidAddress)
 
@@ -832,6 +832,41 @@ describe('Helpers:Web3', () => {
 
       expect(result).to.be.null
       expect(stubLogger.calledWith('Error checksum dao address' as any)).to.be.true
+    })
+  })
+
+  describe('getBlockTimestamp', () => {
+    it('should getBlockTimestamp', async () => {
+      const blockNumber = 123456
+      const expectedTimestamp = 1615551010 // Example Unix timestamp
+      const stubGetBlock = sandbox.stub().resolves({ timestamp: expectedTimestamp })
+      const resolveName = sandbox.stub().resolves('0x000001')
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+        resolveName,
+        getBlock: stubGetBlock,
+      })
+
+      const timestamp = await Web3Helper.getBlockTimestamp(blockNumber, NetworksEnum.mainnet)
+
+      expect(timestamp).to.equal(expectedTimestamp)
+      expect(stubGetBlock.calledOnceWith(blockNumber)).to.be.true
+    })
+
+    it('should fail getBlockTimestamp', async () => {
+      const blockNumber = 123456
+      const stubLogger = sandbox.stub(Logger, 'error')
+      const stubGetBlock = sandbox.stub().rejects(new Error('fake-error'))
+      const resolveName = sandbox.stub().resolves('0x000001')
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+        resolveName,
+        getBlock: stubGetBlock,
+      })
+
+      const timestamp = await Web3Helper.getBlockTimestamp(blockNumber, NetworksEnum.mainnet)
+
+      expect(timestamp).to.equal(0)
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubGetBlock.calledOnceWith(blockNumber)).to.be.true
     })
   })
 

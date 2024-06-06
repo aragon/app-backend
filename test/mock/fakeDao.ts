@@ -5,7 +5,6 @@ export const DaoList = [
     network: NetworksEnum.mainnet,
     transactionHash: '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9c',
     blockNumber: 1677529415,
-    blockTime: '2023-02-27T20:23:35.000Z',
     permalink: 'mainnet-management.dao.eth',
     address: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
     implementationAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7d0',

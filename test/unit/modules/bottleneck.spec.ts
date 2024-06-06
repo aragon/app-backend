@@ -52,4 +52,23 @@ describe('Module: bottleneck', () => {
       expect(limiter1).not.eq(limiter2)
     })
   })
+
+  describe('getCoinGeckoLimiter', () => {
+    it('returns the same instance for the same network', () => {
+      const limiter1 = BottleneckModule.getCoinGeckoLimiter(NetworksEnum.mainnet)
+      const limiter2 = BottleneckModule.getCoinGeckoLimiter(NetworksEnum.mainnet)
+
+      expect(limiter1).to.eq(limiter2)
+
+      const limiter3 = BottleneckModule.getCoinGeckoLimiter[NetworksEnum.mainnet]
+      expect(limiter3).to.eq(limiter1)
+    })
+
+    it('returns different instances for different networks', () => {
+      const limiter1 = BottleneckModule.getCoinGeckoLimiter(NetworksEnum.mainnet)
+      const limiter2 = BottleneckModule.getCoinGeckoLimiter(NetworksEnum.sepolia)
+
+      expect(limiter1).not.eq(limiter2)
+    })
+  })
 })

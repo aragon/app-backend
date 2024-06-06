@@ -80,6 +80,7 @@ describe('Model: Dao', () => {
       const createdDao = await Models.Dao.create(rawDao)
 
       expect(createdDao.id).to.exist
+      expect(createdDao.entityId).to.exist
       expect(createdDao.network).to.eq(rawDao.network)
       expect(createdDao.transactionHash).to.eq(rawDao.transactionHash)
       expect(createdDao.blockNumber).to.eq(rawDao.blockNumber)

@@ -8,7 +8,6 @@ import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Token from '@models/schema/token'
-import { RateModule } from '@modules/rates'
 
 const llo = logger.logMeta.bind(null, { service: 'models:utils:indexer' })
 
@@ -55,7 +54,9 @@ export const UtilsIndexer = {
     if (tokenTypeInfo?.type !== ITokenType.unknown) {
       const tokenInfo = await Web3Helper.getTokenInfo(tokenAddress, network)
 
-      const rate = await RateModule.fetchRate(tokenAddress, network)
+      // Note: we could fetch the rates while sync but this will slow down the sync process due to the coinGecko rate limit
+      // const rate = await RateModule.fetchRate(tokenAddress, network)
+
       return await DbTx.executeTxFn(
         async ({ session }) => {
           const rawToken = {
@@ -67,7 +68,7 @@ export const UtilsIndexer = {
             decimals: tokenInfo.decimals,
             symbol: tokenInfo.symbol,
             totalSupply: tokenInfo.totalSupply,
-            ...rate,
+            // ...rate,
           }
           const logDb = await Models.Token.create(rawToken, { session })
           await session.commitTransaction()

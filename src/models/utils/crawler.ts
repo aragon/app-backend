@@ -175,7 +175,7 @@ class DBCrawler {
     try {
       await this.onDocument(document, stat)
       this.crawlResult.nbSuccess++
-      this.crawlResult.lastCreatedAt = (document as any)?.createdAt ?? null
+      this.crawlResult.lastCreatedAt = ((document as any)?.updatedAt || (document as any)?.createdAt) ?? null
     } catch (error: any) {
       this.onError(document, error)
       this.crawlResult.nbError++
