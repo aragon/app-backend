@@ -14,6 +14,7 @@ import { AggregatorAssets } from '@services/aragon-indexer/aggregator/asset'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
 import { AggregatorTransactions } from '@services/aragon-indexer/aggregator/transaction'
+import { AggregatorDao } from '@indexer/aggregator/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -38,10 +39,11 @@ const IndexerService: IService = {
       async () => AggregatorSetting.start(),
       async () => AggregatorAssets.start(),
     ]
-    const task4 = [async () => AggregatorTransactions.start()]
+    const task4 = [async () => AggregatorDao.start()]
+    const task5 = [async () => AggregatorTransactions.start()]
 
     const taskOptions = {
-      fn: () => [task0, task1, task2, task3, task4],
+      fn: () => [task0, task1, task2, task3, task4, task5],
       interval: config.SERVICES.ARAGON_INDEXER.DAO_INTERVAL,
       onError: (error: any) => {
         logger.error('IndexerService task error', llo({ error }))
