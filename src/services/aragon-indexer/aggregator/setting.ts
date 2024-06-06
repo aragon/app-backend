@@ -34,7 +34,7 @@ export const AggregatorSetting = {
     const existingLog = await Models.Setting.findExistingLog(document.pluginAddress, document.network)
 
     await DbTx.executeTxFn(async ({ session }) => {
-      let logDb: any = null
+      let logDb: any
       if (!existingLog) {
         logDb = await Models.Setting.create(document, { session })
       } else {

@@ -34,7 +34,7 @@ export const AggregatorMembers = {
     const existingLog = await Models.Member.findExistingLog(document.address)
     // TODO: find user ens
     await DbTx.executeTxFn(async ({ session }) => {
-      let logDb: any = null
+      let logDb: any
       if (!existingLog) {
         logDb = await Models.Member.create(document, { session })
       } else {

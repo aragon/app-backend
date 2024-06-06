@@ -8,6 +8,7 @@ import type Asset from '@models/schema/asset'
 import { UtilsIndexer } from '@models/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorAssets' })
 
@@ -50,7 +51,7 @@ export const AggregatorAssets = {
         const existingEthAssetDb = await Models.Asset.findExistingLog(document.address, ZeroAddress, document.network)
 
         await DbTx.executeTxFn(async ({ session }) => {
-          let logDb: any = null
+          let logDb: any
           if (existingEthAssetDb) {
             logDb = await existingEthAssetDb.update(ethAssetData, { session })
           } else {
@@ -80,7 +81,7 @@ export const AggregatorAssets = {
             }
 
             const assetDb = await DbTx.executeTxFn(async ({ session }) => {
-              let logDb: any = null
+              let logDb: any
               if (existingAssetDb) {
                 logDb = await existingAssetDb.update(rawData, { session })
               } else {
@@ -94,7 +95,7 @@ export const AggregatorAssets = {
             })
 
             if (assetDb.tokenAddress) {
-              await UtilsIndexer.saveAndGetToken(assetDb.tokenAddress, assetDb.network)
+              Utils.setImmediateAsync(async () => UtilsIndexer.saveAndGetToken(assetDb.tokenAddress, assetDb.network))
             }
           }),
       )

@@ -19,6 +19,7 @@ import { AggregatorPlugin } from '@services/aragon-indexer/aggregator/plugin'
 import { AggregatorSetting } from '@services/aragon-indexer/aggregator/setting'
 import { AggregatorAssets } from '@services/aragon-indexer/aggregator/asset'
 import { AggregatorTransactions } from '@services/aragon-indexer/aggregator/transaction'
+import { AggregatorDao } from '@services/aragon-indexer/aggregator/dao'
 
 describe('Indexer: index', () => {
   let sandbox: SinonSandbox
@@ -53,6 +54,7 @@ describe('Indexer: index', () => {
       sandbox.stub(AggregatorSetting, 'start').resolves(),
       sandbox.stub(AggregatorAssets, 'start').resolves(),
       sandbox.stub(AggregatorTransactions, 'start').resolves(),
+      sandbox.stub(AggregatorDao, 'start').resolves(),
     ]
 
     await IndexerService.start()

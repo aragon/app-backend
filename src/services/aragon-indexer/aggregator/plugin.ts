@@ -5,7 +5,6 @@ import logger from '@logger'
 import { type IAPlugin } from '@src/types/plugin'
 import DbTx from '@modules/dbTx'
 import dayjs from '@helpers/dayjs'
-import ProxyContractHelper from '@helpers/proxyContract'
 import { UtilsIndexer } from '@models/utils/indexer'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorPlugin' })
@@ -35,19 +34,18 @@ export const AggregatorPlugin = {
 
   async onDocument(document: IAPlugin) {
     const existingLog = await Models.Plugin.findExistingLog(document.transactionHash, document.type, document.network)
-    if (!existingLog) {
-      document.implementationAddress = await ProxyContractHelper.getImplementationAddress(
-        document.address,
-        document.network,
-      )
 
-      await DbTx.executeTxFn(async ({ session }) => {
-        const logDb = await Models.Plugin.create(document, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('Aggregate Plugin', llo({ logId: logDb.id }))
-      })
-    }
+    await DbTx.executeTxFn(async ({ session }) => {
+      let logDb: any
+      if (!existingLog) {
+        logDb = await Models.Plugin.create(document, { session })
+      } else {
+        logDb = await existingLog.update(document, { session })
+      }
+      await session.commitTransaction()
+      await session.endSession()
+      logger.verbose(existingLog ? 'Update Aggregate Plugin' : 'New Aggregate Plugin', llo({ logId: logDb?.id }))
+    })
   },
 
   query(createdAt: Date = dayjs.utc('1970-01-01T00:00:00Z').toDate()) {

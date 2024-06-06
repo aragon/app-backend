@@ -8,6 +8,7 @@ import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import type Transaction from '@models/schema/transaction'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import type Aggregator from '@models/schema/aggregator'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorTransactions' })
 
@@ -119,7 +120,9 @@ export const AggregatorTransactions = {
       })
 
       if (transactionDb.tokenAddress) {
-        await UtilsIndexer.saveAndGetToken(transactionDb.tokenAddress, transactionDb.network)
+        Utils.setImmediateAsync(async () =>
+          UtilsIndexer.saveAndGetToken(transactionDb.tokenAddress, transactionDb.network),
+        )
       }
     } catch (error) {
       logger.error('Error Transaction', llo({ error, logId: daoRegistry.id }))
