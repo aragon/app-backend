@@ -76,7 +76,7 @@ describe('Model: Dao', () => {
   })
 
   describe('Create DAO', async () => {
-    it.only('Should create DAO', async () => {
+    it('Should create DAO', async () => {
       const createdDao = await Models.Dao.create(rawDao)
 
       expect(createdDao.id).to.exist
