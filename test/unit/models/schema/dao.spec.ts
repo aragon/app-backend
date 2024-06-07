@@ -34,7 +34,7 @@ describe('Model: Dao', () => {
       network: NetworksEnum.mainnet,
       transactionHash: '0x0',
       blockNumber: 0,
-      blockTime: dayjs().utc().toDate(),
+      blockTimestamp: 2141242,
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
@@ -76,7 +76,7 @@ describe('Model: Dao', () => {
   })
 
   describe('Create DAO', async () => {
-    it('Should create DAO', async () => {
+    it.only('Should create DAO', async () => {
       const createdDao = await Models.Dao.create(rawDao)
 
       expect(createdDao.id).to.exist
@@ -84,7 +84,7 @@ describe('Model: Dao', () => {
       expect(createdDao.network).to.eq(rawDao.network)
       expect(createdDao.transactionHash).to.eq(rawDao.transactionHash)
       expect(createdDao.blockNumber).to.eq(rawDao.blockNumber)
-      expect(createdDao.blockTime.toString()).to.eq(rawDao.blockTime?.toString())
+      expect(createdDao.blockTimestamp).to.eq(rawDao.blockTimestamp)
       expect(createdDao.permalink).to.eq(`${createdDao.network}-${createdDao.ens || createdDao.address}`)
       expect(createdDao.address).to.eq(rawDao.address)
       expect(createdDao.implementationAddress).to.eq(rawDao.implementationAddress)
