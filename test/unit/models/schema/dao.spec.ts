@@ -129,7 +129,7 @@ describe('Model: Dao', () => {
     it('Should not create DAO with same permalink', async () => {
       const createdDao = await Models.Dao.create(rawDao)
       expect(createdDao.id).to.exist
-      await expect(Models.Dao.create(rawDao)).rejectedWith(Error, 'permalink_1 dup key')
+      await expect(Models.Dao.create(rawDao)).rejectedWith(Error, 'entityId_1 dup key')
     })
   })
 
@@ -397,6 +397,6 @@ describe('Model: Dao', () => {
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(22)
+    expect(Object.keys(filterDao).length).to.eq(23)
   })
 })
