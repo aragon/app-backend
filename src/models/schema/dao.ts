@@ -165,7 +165,15 @@ export default class Dao extends Model {
   static async findWithPagination({ networks, pluginAddress }, opts: IPaginationParams) {
     const params = Object.assign(
       {},
-      ModelUtils.parseParams(opts, ['permalink', 'daoAddress', 'creatorAddress', 'ens', 'name', 'txHash']),
+      ModelUtils.parseParams(opts, [
+        'permalink',
+        'address',
+        'implementationAddress',
+        'creatorAddress',
+        'ens',
+        'name',
+        'transactionHash',
+      ]),
     )
     params.hideDao = { $ne: true }
 
