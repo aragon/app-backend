@@ -40,6 +40,7 @@ export const AggregatorTransactions = {
   },
 
   onDocument: async (daoRegistry: LogDaoRegistry, aggregatorDb: Aggregator) => {
+    // txs to daoAddress
     const depositTxCrawler = new BlockchainTransferCrawler({
       network: daoRegistry.network,
       filter: {
@@ -62,6 +63,7 @@ export const AggregatorTransactions = {
     })
     await depositTxCrawler.crawl()
 
+    // txs from daoAddress
     const withdrawTxCrawler = new BlockchainTransferCrawler({
       network: daoRegistry.network,
       filter: {
@@ -86,12 +88,12 @@ export const AggregatorTransactions = {
   },
 
   saveTransaction: async (tx: IAlchemyTransferResponse, type: ITransactionType, daoRegistry: LogDaoRegistry) => {
-    try {
-      const existingTxDb = await Models.Transaction.findExistingLog(tx.hash, tx.category, daoRegistry.network)
-      if (existingTxDb) {
-        return
-      }
+    const existingTxDb = await Models.Transaction.findExistingLog(tx.hash, tx.category, daoRegistry.network)
+    if (existingTxDb) {
+      return
+    }
 
+    try {
       const transactionDb = await DbTx.executeTxFn(async ({ session }) => {
         const rawTx: Partial<Transaction> = {
           transactionHash: tx.hash,
