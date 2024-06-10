@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { IPluginType, NetworksEnum } from '@types'
+import { IPluginAction, NetworksEnum } from '@types'
 import Plugin from '@models/schema/plugin'
 import Network from '@models/schema/network'
 import { Models } from '@dbModels'
@@ -25,7 +25,7 @@ describe('Model: Plugin', () => {
       transactionHash,
       blockNumber: 3,
       network: NetworksEnum.mainnet,
-      type: IPluginType.install,
+      action: IPluginAction.install,
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
       daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5402',
@@ -44,7 +44,7 @@ describe('Model: Plugin', () => {
 
   describe('Create Plugin', async () => {
     it('Should create Plugin', async () => {
-      const entityId = Models.Plugin.getEntityId(rawPlugin.transactionHash, rawPlugin.type)
+      const entityId = Models.Plugin.getEntityId(rawPlugin.transactionHash, rawPlugin.action)
       rawPlugin.entityId = entityId
       const createdLogDao = await Models.Plugin.create(rawPlugin)
 
@@ -53,7 +53,7 @@ describe('Model: Plugin', () => {
       expect(createdLogDao.transactionHash).to.eq(rawPlugin.transactionHash)
       expect(createdLogDao.blockNumber).to.eq(rawPlugin.blockNumber)
       expect(createdLogDao.network).to.eq(rawPlugin.network)
-      expect(createdLogDao.type).to.eq(rawPlugin.type)
+      expect(createdLogDao.action).to.eq(rawPlugin.action)
       expect(createdLogDao.address).to.eq(rawPlugin.address)
       expect(createdLogDao.implementationAddress).to.eq(rawPlugin.implementationAddress)
       expect(createdLogDao.daoAddress).to.eq(rawPlugin.daoAddress)
@@ -79,17 +79,17 @@ describe('Model: Plugin', () => {
 
   it('Should getEntityId', async () => {
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const type = IPluginType.install
+    const action = IPluginAction.install
     const network = NetworksEnum.mainnet
-    const entityId = Models.Plugin.getEntityId(transactionHash, type, network)
-    expect(entityId).to.eq(`${transactionHash}-${type}-${network}`)
+    const entityId = Models.Plugin.getEntityId(transactionHash, action, network)
+    expect(entityId).to.eq(`${transactionHash}-${action}-${network}`)
   })
 
   it('Should findExistingLog', async () => {
     const createdLogPluginSetupProcessor = await Models.Plugin.create(rawPlugin)
     const foundLogPluginSetupProcessor = await Models.Plugin.findExistingLog(
       createdLogPluginSetupProcessor.transactionHash,
-      createdLogPluginSetupProcessor.type,
+      createdLogPluginSetupProcessor.action,
       createdLogPluginSetupProcessor.network,
     )
     expect(foundLogPluginSetupProcessor?.entityId).to.eq(createdLogPluginSetupProcessor.entityId)

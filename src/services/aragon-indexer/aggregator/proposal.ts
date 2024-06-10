@@ -8,6 +8,7 @@ import type Proposal from '@models/schema/proposal'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorProposal' })
 
+// must run after AggregatorSetting
 export const AggregatorProposal = {
   start: async () => {
     logger.verbose('Start AggregatorProposal', llo({}))
@@ -55,11 +56,15 @@ export const AggregatorProposal = {
     return [
       {
         $project: {
-          entityId: 1,
+          _id: 0,
           pluginAddress: 1,
           creatorAddress: 1,
           proposalId: 1,
-          executed: 1,
+          executed: {
+            status: 1,
+            transactionHash: 1,
+            blockNumber: 1,
+          },
           startDate: 1,
           endDate: 1,
           transactionHash: 1,
@@ -185,11 +190,16 @@ export const AggregatorProposal = {
       },
       {
         $project: {
+          _id: 0,
           blockNumber: 1,
           entityId: 1,
           startDate: 1,
           endDate: 1,
-          executed: 1,
+          executed: {
+            status: 1,
+            transactionHash: 1,
+            blockNumber: 1,
+          },
           pluginAddress: 1,
           transactionHash: 1,
           network: 1,
@@ -200,8 +210,23 @@ export const AggregatorProposal = {
           title: '$metadata.title',
           description: '$metadata.description',
           summary: '$metadata.summary',
-          media: '$metadata.media',
-          settings: 1,
+          media: {
+            header: '$metadata.media.header',
+            logo: '$metadata.media.logo',
+          },
+          settings: {
+            votingMode: 1,
+            supportThreshold: 1,
+            minParticipation: 1,
+            minDuration: 1,
+            minProposerVotingPower: 1,
+            minApprovals: 1,
+            onlyListed: 1,
+            fromBlockNumber: 1,
+            toBlockNumber: 1,
+            fromTxHash: 1,
+            toTxHash: 1,
+          },
         },
       },
     ]

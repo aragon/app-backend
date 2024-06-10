@@ -1,6 +1,13 @@
 import { type HexAddress, type NetworksEnum } from '@types'
 
-export enum IPluginType {
+export enum IPluginSubdomain {
+  multisig = 'multisig',
+  token = 'token-voting',
+  address = 'address-voting',
+  admin = 'admin',
+}
+
+export enum IPluginAction {
   install = 'install',
   update = 'update',
   uninstall = 'uninstall',
@@ -19,5 +26,5 @@ export interface IAPlugin {
   release: string | null
   subdomain: string | null
   sender: HexAddress | null
-  type: IPluginType
+  action: IPluginAction
 }

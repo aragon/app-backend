@@ -7,6 +7,7 @@ import { LogDaoRegistry } from '@services/aragon-indexer/logDaoRegistry'
 import { LogMember } from '@services/aragon-indexer/logMember'
 import { LogDao } from '@services/aragon-indexer/logDao'
 import { LogProposal } from '@services/aragon-indexer/logProposal'
+import { AggregatorProposal } from '@services/aragon-indexer/aggregator/proposal'
 import { AggregatorPlugin } from '@services/aragon-indexer/aggregator/plugin'
 import { AggregatorMembers } from '@services/aragon-indexer/aggregator/member'
 import { AggregatorSetting } from '@services/aragon-indexer/aggregator/setting'
@@ -33,17 +34,20 @@ const IndexerService: IService = {
       async () => LogProposal.start(),
     ]
     const task2 = [async () => LogMember.start(), async () => LogDao.start()]
+
+    // order is important
     const task3 = [
       async () => AggregatorPlugin.start(),
-      async () => AggregatorMembers.start(),
       async () => AggregatorSetting.start(),
-      async () => AggregatorAssets.start(),
+      async () => AggregatorMembers.start(),
     ]
-    const task4 = [async () => AggregatorDao.start()]
-    const task5 = [async () => AggregatorTransactions.start()]
+    const task4 = [async () => AggregatorProposal.start()]
+    const task5 = [async () => AggregatorDao.start()]
+    const task6 = [async () => AggregatorAssets.start()]
+    const task7 = [async () => AggregatorTransactions.start()]
 
     const taskOptions = {
-      fn: () => [task0, task1, task2, task3, task4, task5],
+      fn: () => [task0, task1, task2, task3, task4, task5, task6, task7],
       interval: config.SERVICES.ARAGON_INDEXER.DAO_INTERVAL,
       onError: (error: any) => {
         logger.error('IndexerService task error', llo({ error }))

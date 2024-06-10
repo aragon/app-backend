@@ -60,7 +60,7 @@ describe('Module: bottleneck', () => {
 
       expect(limiter1).to.eq(limiter2)
 
-      const limiter3 = BottleneckModule.getCoinGeckoLimiter[NetworksEnum.mainnet]
+      const limiter3 = BottleneckModule.coinGeckoLimiters[NetworksEnum.mainnet]
       expect(limiter3).to.eq(limiter1)
     })
 

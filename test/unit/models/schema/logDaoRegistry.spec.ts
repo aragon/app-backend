@@ -28,7 +28,7 @@ describe('Model: LogDaoRegistry', () => {
       network: NetworksEnum.mainnet,
       address,
       creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-      ens: 'fake-ens.eth',
+      subdomain: 'fake-subdomain',
     }
   })
 
@@ -49,7 +49,7 @@ describe('Model: LogDaoRegistry', () => {
       expect(createdLogDaoRegistry.network).to.eq(rawLogDaoRegistry.network)
       expect(createdLogDaoRegistry.address).to.eq(rawLogDaoRegistry.address)
       expect(createdLogDaoRegistry.creatorAddress).to.eq(rawLogDaoRegistry.creatorAddress)
-      expect(createdLogDaoRegistry.ens).to.eq(rawLogDaoRegistry.ens)
+      expect(createdLogDaoRegistry.subdomain).to.eq(rawLogDaoRegistry.subdomain)
     })
 
     it('Should create LogDaoRegistry without entityId', async () => {
@@ -63,7 +63,7 @@ describe('Model: LogDaoRegistry', () => {
       expect(createdLogDaoRegistry.network).to.eq(rawLogDaoRegistry.network)
       expect(createdLogDaoRegistry.address).to.eq(rawLogDaoRegistry.address)
       expect(createdLogDaoRegistry.creatorAddress).to.eq(rawLogDaoRegistry.creatorAddress)
-      expect(createdLogDaoRegistry.ens).to.eq(rawLogDaoRegistry.ens)
+      expect(createdLogDaoRegistry.subdomain).to.eq(rawLogDaoRegistry.subdomain)
     })
   })
 

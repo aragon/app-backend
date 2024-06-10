@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { ENS, EnumPluginType, HexAddress, type IDao, type IPaginationParams, NetworksEnum } from '@types'
+import { type ENS, HexAddress, type IDao, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import ModelUtils from '@models/utils/models'
@@ -22,14 +22,17 @@ class Plugin {
   @prop({ type: () => Number })
   public blockNumber!: number
 
-  @prop({ type: () => String, enum: EnumPluginType, required: true })
-  public type!: EnumPluginType
-
   @prop({ type: () => String, required: true })
   public address!: HexAddress
 
   @prop({ type: () => String, default: null })
   public implementationAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public tokenAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public pluginSetupRepoAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
   public release!: string
@@ -88,7 +91,7 @@ export default class Dao extends Model {
   public creatorAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public ens!: ENS
+  public ens?: ENS | null
 
   @prop({ type: () => Number, default: 0 })
   public members!: number
@@ -210,19 +213,22 @@ export default class Dao extends Model {
   }
 
   async update(params: Partial<Dao>, tOpts?: SaveOptions) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (this.schema.tree[key]) {
-        if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
+    Object.entries(params)
+      .filter(([key]) => key !== 'permalink')
+      .forEach(([key, value]) => {
+        if (this.schema.tree[key]) {
+          if (!this.schema.tree[key].required || this.schema.tree[key].required) {
+            const parsedObj = this.toObject()
+            if (!_.isEqual(parsedObj[key], value)) {
+              this[key] = value
 
-          if (key === 'permalink') {
-            this[key] = `${params.network || this.network}-${params.ens || this.ens || params.address || this.address}`
-          } else if (!_.isEqual(parsedObj[key], value)) {
-            this[key] = value
+              if (key === 'ens' || key === 'address') {
+                this['permalink'] = `${this.network}-${this.ens || this.address}`
+              }
+            }
           }
         }
-      }
-    })
+      })
 
     return await this.save(tOpts)
   }

@@ -185,7 +185,7 @@ describe('Controller: Dao', () => {
 
     const fakeResponse = [
       {
-        address: '0x826976d7c600d45fb8287ca1d7c76fc8eb732030',
+        address: mockDao.plugins[0].address,
         balance: '69000000000000000000',
         votingPower: '69000000000000000000',
         delegatee: {

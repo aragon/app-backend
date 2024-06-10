@@ -57,10 +57,11 @@ describe('Indexer:Aggregator:Dao', () => {
 
   describe('onDocument', () => {
     it('should call onDocument', async () => {
-      const document = DaoList[1]
+      const document = { ...DaoList[1] }
 
       const stubLogger = sandbox.spy(Logger, 'verbose')
       const stubBlock = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(100)
+      sandbox.stub(Web3Helper, 'subdomainExists').resolves(true)
 
       await AggregatorDao.onDocument(document as any)
 
@@ -96,7 +97,8 @@ describe('Indexer:Aggregator:Dao', () => {
       expect(dao.plugins.length).to.eq(1)
       expect(dao.plugins[0].transactionHash).to.eq(document.plugins![0].transactionHash)
       expect(dao.plugins[0].blockNumber).to.eq(document.plugins![0].blockNumber)
-      expect(dao.plugins[0].type).to.eq(document.plugins![0].type)
+      expect(dao.plugins[0].subdomain).to.eq(document.plugins![0].subdomain)
+      expect(dao.plugins[0].tokenAddress).to.eq(document.plugins![0].tokenAddress)
       expect(dao.plugins[0].address).to.eq(document.plugins![0].address)
       expect(dao.plugins[0].implementationAddress).to.eq(document.plugins![0].implementationAddress)
       expect(dao.plugins[0].release).to.eq(document.plugins![0].release)
@@ -105,12 +107,13 @@ describe('Indexer:Aggregator:Dao', () => {
     })
 
     it('should call onDocument update', async () => {
-      const document = DaoList[1]
+      const document = { ...DaoList[1] }
+
       await Models.Dao.create(document)
 
       const stubLogger = sandbox.spy(Logger, 'verbose')
 
-      document.ens = 'newEns'
+      document.implementationAddress = '0x0000'
       await AggregatorDao.onDocument(document as any)
 
       expect(stubLogger.calledWith('Update Aggregate Dao' as any)).to.be.true
@@ -121,7 +124,6 @@ describe('Indexer:Aggregator:Dao', () => {
       expect(dao.network).to.equal(document.network)
       expect(dao.transactionHash).to.equal(document.transactionHash)
       expect(dao.blockNumber).to.equal(document.blockNumber)
-      expect(dao.blockTimestamp).to.eq(100)
       expect(dao.permalink).to.eq(`${document.network}-${document.ens || document.address}`)
       expect(dao.address).to.equal(document.address)
       expect(dao.implementationAddress).to.equal(document.implementationAddress)
@@ -142,17 +144,19 @@ describe('Indexer:Aggregator:Dao', () => {
       expect(dao.plugins.length).to.eq(1)
       expect(dao.plugins[0].transactionHash).to.eq(document.plugins![0].transactionHash)
       expect(dao.plugins[0].blockNumber).to.eq(document.plugins![0].blockNumber)
-      expect(dao.plugins[0].type).to.eq(document.plugins![0].type)
+      expect(dao.plugins[0].subdomain).to.eq(document.plugins![0].subdomain)
       expect(dao.plugins[0].address).to.eq(document.plugins![0].address)
       expect(dao.plugins[0].implementationAddress).to.eq(document.plugins![0].implementationAddress)
+      expect(dao.plugins[0].tokenAddress).to.eq(document.plugins![0].tokenAddress)
+      expect(dao.plugins[0].pluginSetupRepoAddress).to.eq(document.plugins![0].pluginSetupRepoAddress)
       expect(dao.plugins[0].release).to.eq(document.plugins![0].release)
       expect(dao.plugins[0].build).to.eq(document.plugins![0].build)
       expect(dao.hideDao).to.eq(document.hideDao)
     })
   })
 
-  it('should use default date when none is provided', () => {
+  it('should query', () => {
     const pipeline = AggregatorDao.query()
-    expect(pipeline.length).to.eq(13)
+    expect(pipeline.length).to.eq(17)
   })
 })

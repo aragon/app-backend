@@ -928,8 +928,8 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('ensExists', () => {
-    it('should check if ensExists', async () => {
+  describe('subdomainExists', () => {
+    it('should check if subdomainExists', async () => {
       const stubConfigState = {
         getConfigItem: sandbox.stub().returns({}),
       }
@@ -949,7 +949,7 @@ describe('Helpers:Web3', () => {
       })
 
       const ensName = 'aavegotchi.dao.eth'
-      const result = await MockedWeb3Helper.ensExists(ensName, NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.subdomainExists(ensName, NetworksEnum.mainnet)
 
       expect(result).to.be.true
       expect(stubRecordExistsStub.calledOnce).to.be.true
@@ -979,11 +979,11 @@ describe('Helpers:Web3', () => {
       })
 
       const ensName = 'aavegotchi.dao.eth'
-      const result = await MockedWeb3Helper.ensExists(ensName, NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.subdomainExists(ensName, NetworksEnum.mainnet)
 
       expect(result).to.be.false
       expect(stubLoggerError.calledOnce).to.be.true
-      expect(stubLoggerError.calledWith('Error ensExists' as any)).to.be.true
+      expect(stubLoggerError.calledWith('Error subdomainExists' as any)).to.be.true
     })
   })
 
@@ -1091,7 +1091,7 @@ describe('Helpers:Web3', () => {
       const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
       const stubDecimals = sandbox.stub().rejects(new Error('Test Error'))
       const stubTotalSupply = sandbox.stub().rejects(new Error('Test Error'))
-      const stubLogger = sandbox.stub(Logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'warn')
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {

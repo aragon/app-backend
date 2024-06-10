@@ -34,10 +34,10 @@ export const FetchRates = {
   },
 
   async onDocument(token: Token) {
-    const rate = await RateModule.fetchRate(token.address, token.network)
+    const rawUpdate = await RateModule.fetchRate(token.address, token.network)
 
     await DbTx.executeTxFn(async ({ session }) => {
-      const logDb = await token.update(rate, { session })
+      const logDb = await token.update(rawUpdate, { session })
       await session.commitTransaction()
       await session.endSession()
       logger.verbose('Token rate updated', llo({ logId: logDb.id }))

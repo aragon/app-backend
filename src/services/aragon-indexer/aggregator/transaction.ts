@@ -88,12 +88,12 @@ export const AggregatorTransactions = {
   },
 
   saveTransaction: async (tx: IAlchemyTransferResponse, type: ITransactionType, daoRegistry: LogDaoRegistry) => {
-    const existingTxDb = await Models.Transaction.findExistingLog(tx.hash, tx.category, daoRegistry.network)
-    if (existingTxDb) {
-      return
-    }
-
     try {
+      const existingTxDb = await Models.Transaction.findExistingLog(tx.hash, tx.category, daoRegistry.network)
+      if (existingTxDb) {
+        return
+      }
+
       const transactionDb = await DbTx.executeTxFn(async ({ session }) => {
         const rawTx: Partial<Transaction> = {
           transactionHash: tx.hash,

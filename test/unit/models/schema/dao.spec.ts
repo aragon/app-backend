@@ -59,9 +59,10 @@ describe('Model: Dao', () => {
         {
           transactionHash: '0x0',
           blockNumber: 0,
-          type: EnumPluginType.MultisigPlugin,
           address: '0x0',
           implementationAddress: '0x0',
+          tokenAddress: '0x01',
+          pluginSetupRepoAddress: '0x02',
           release: '0',
           build: '0',
           subdomain: 'test',
@@ -105,7 +106,8 @@ describe('Model: Dao', () => {
       expect(createdDao.plugins.length).to.eq(1)
       expect(createdDao.plugins[0].transactionHash).to.eq(rawDao.plugins![0].transactionHash)
       expect(createdDao.plugins[0].blockNumber).to.eq(rawDao.plugins![0].blockNumber)
-      expect(createdDao.plugins[0].type).to.eq(rawDao.plugins![0].type)
+      expect(createdDao.plugins[0].tokenAddress).to.eq(rawDao.plugins![0].tokenAddress)
+      expect(createdDao.plugins[0].pluginSetupRepoAddress).to.eq(rawDao.plugins![0].pluginSetupRepoAddress)
       expect(createdDao.plugins[0].address).to.eq(rawDao.plugins![0].address)
       expect(createdDao.plugins[0].implementationAddress).to.eq(rawDao.plugins![0].implementationAddress)
       expect(createdDao.plugins[0].release).to.eq(rawDao.plugins![0].release)
