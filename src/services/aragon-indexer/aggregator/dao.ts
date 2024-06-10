@@ -227,6 +227,7 @@ export const AggregatorDao = {
                 pluginSetupRepoAddress: '$$plugin.pluginSetupRepoAddress',
                 release: '$$plugin.release',
                 build: '$$plugin.build',
+                subdomain: '$$plugin.subdomain'
               },
             },
           },
