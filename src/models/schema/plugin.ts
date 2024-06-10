@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, IPluginType, NetworksEnum } from '@types'
+import { HexAddress, IPluginAction, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -35,8 +35,8 @@ export default class Plugin extends Model {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
-  @prop({ type: () => String, enum: IPluginType, required: true })
-  public type!: IPluginType
+  @prop({ type: () => String, enum: IPluginAction, required: true })
+  public action!: IPluginAction
 
   @prop({ type: () => String, required: true })
   public address!: HexAddress
@@ -68,25 +68,25 @@ export default class Plugin extends Model {
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.entityId) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
-      assert(!!rawData.type, 'type is required')
-      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.type as any, rawData?.network!)
+      assert(!!rawData.action, 'action is required')
+      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.action as any, rawData?.network!)
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(transactionHash: HexAddress, type: IPluginType, network: NetworksEnum) {
-    const entityId = `${transactionHash}-${type}-${network}`
+  static getEntityId(transactionHash: HexAddress, action: IPluginAction, network: NetworksEnum) {
+    const entityId = `${transactionHash}-${action}-${network}`
     return entityId
   }
 
   static async findExistingLog(
     transactionHash: HexAddress,
-    type: IPluginType,
+    action: IPluginAction,
     network: NetworksEnum,
     tOpts?: SaveOptions,
   ) {
-    const entityId = this.getEntityId(transactionHash, type, network)
+    const entityId = this.getEntityId(transactionHash, action, network)
     return await this.findByEntityId(entityId, tOpts)
   }
 

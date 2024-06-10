@@ -1,5 +1,14 @@
 import config from '@config'
-import { AggregatorTypeEnum, EnumConnection, type IService, StatusNetworkEnum } from '@types'
+import {
+  AggregatorTypeEnum,
+  EnumConnection,
+  type HexAddress,
+  type IService,
+  NetworksEnum,
+  StatusNetworkEnum,
+} from '@types'
+import { TokensList } from './tokens'
+import { UtilsIndexer } from '@models/utils/indexer'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
 
@@ -38,6 +47,14 @@ export const InitialData: IService = {
           type,
           lastTimeSync: dayjs.utc('1970-01-01T00:00:00Z').toDate(),
         })
+      }),
+    )
+
+    // Tokens init data
+    const tokens = TokensList.filter(tk => tk.network === NetworksEnum.mainnet)
+    await Promise.all(
+      tokens.map(async token => {
+        await UtilsIndexer.saveAndGetToken(token.contractAddress as HexAddress, token.network)
       }),
     )
   },

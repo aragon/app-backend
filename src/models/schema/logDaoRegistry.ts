@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { ENS, HexAddress, NetworksEnum } from '@types'
+import { HexAddress, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -54,7 +54,7 @@ export default class LogDaoRegistry extends Model {
   public creatorAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public ens!: ENS
+  public subdomain!: string
 
   @prop({ type: () => [URIUpdate], default: [] })
   public uriUpdates?: URIUpdate[]

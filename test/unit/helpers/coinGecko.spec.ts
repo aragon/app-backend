@@ -5,6 +5,7 @@ import CoinGeckoHelper from '@helpers/coinGecko'
 import { NetworksEnum } from '@types'
 import config from '@config'
 import Logger from '@logger'
+import utils from '@helpers/utils'
 
 describe('Modules:CoinGeckoHelper', () => {
   let sandbox: SinonSandbox
@@ -106,6 +107,71 @@ describe('Modules:CoinGeckoHelper', () => {
 
       expect(price).to.be.undefined
       expect(stubLogger.calledOnce).to.be.true
+    })
+  })
+
+  describe('getCoinTokenPrice', () => {
+    it('should getCoinTokenPrice - native', async () => {
+      const address = utils.zeroAddress
+
+      const stubCall = sandbox.stub(CoinGeckoHelper, '_rpCall').resolves({
+        [address]: { usd: 100, usd_24h_change: -0.5 },
+      })
+
+      const price = await CoinGeckoHelper.getCoinTokenPrice(address, NetworksEnum.mainnet)
+
+      expect(stubCall.calledOnceWith(`/coins/${address}`)).to.be.true
+
+      expect(price?.usd).to.equal(100)
+      expect(price?.usd24hChange).to.equal(-0.5)
+    })
+
+    it('should getCoinTokenPrice - token', async () => {
+      const address = '0x0111'
+
+      const stubCall = sandbox.stub(CoinGeckoHelper, '_rpCall').resolves({
+        [address]: { usd: 100, usd_24h_change: -0.5 },
+      })
+
+      const price = await CoinGeckoHelper.getCoinTokenPrice(address, NetworksEnum.mainnet)
+
+      expect(
+        stubCall.calledOnceWith(
+          `/coins/${CoinGeckoHelper.networkToCoinGecko(NetworksEnum.mainnet)}/contract/${address}`,
+        ),
+      ).to.be.true
+
+      expect(price?.usd).to.equal(100)
+      expect(price?.usd24hChange).to.equal(-0.5)
+    })
+
+    it('should getCoinTokenPrice - error', async () => {
+      const address = '0x0111'
+
+      const stubLogger = sandbox.stub(Logger, 'error')
+      const stubCall = sandbox.stub(CoinGeckoHelper, '_rpCall').rejects(new Error('fake-error'))
+
+      const price = await CoinGeckoHelper.getCoinTokenPrice(address, NetworksEnum.mainnet)
+
+      expect(
+        stubCall.calledOnceWith(
+          `/coins/${CoinGeckoHelper.networkToCoinGecko(NetworksEnum.mainnet)}/contract/${address}`,
+        ),
+      ).to.be.true
+
+      expect(price).to.be.undefined
+      expect(stubLogger.calledOnce).to.be.true
+    })
+
+    it('should getCoinTokenPrice - unsupported network', async () => {
+      const address = '0x0111'
+
+      const stubCall = sandbox.stub(CoinGeckoHelper, '_rpCall').rejects(new Error('fake-error'))
+
+      const price = await CoinGeckoHelper.getCoinTokenPrice(address, NetworksEnum.sepolia as any)
+
+      expect(stubCall.notCalled).to.be.true
+      expect(price).to.be.undefined
     })
   })
 })

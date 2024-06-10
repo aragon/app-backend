@@ -29,7 +29,7 @@ export const DaoRegistryHandler = {
             network: info.network,
             address: daoAddress,
             creatorAddress: parsedEvent.args.creator,
-            ens: parsedEvent.args.subdomain,
+            subdomain: parsedEvent.args.subdomain,
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
             implementationAddress,

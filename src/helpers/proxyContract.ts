@@ -2,6 +2,7 @@ import { type HexAddress, type NetworksEnum } from '@types'
 import { Contract, ethers, getAddress, type WebSocketProvider, ZeroAddress } from 'ethers'
 import { ConfigState } from '@state/configState'
 import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyContractHelper' })
 
@@ -36,13 +37,13 @@ const ProxyContractHelper = {
     )
 
     try {
-      return await contract.getImplementation()
+      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getImplementation())
     } catch (error) {
       // ignore
     }
 
     try {
-      return await contract.implementation()
+      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.implementation())
     } catch (error) {
       // ignore
     }
@@ -56,7 +57,9 @@ const ProxyContractHelper = {
     // Helper function to extract an address from a storage slot
     async function getAddressFromStorage(slot: string): Promise<HexAddress | null> {
       try {
-        const storageValue = await provider.getStorage(address, slot)
+        const storageValue = await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+          provider.getStorage(address, slot),
+        )
         const addressFromStorage = getAddress('0x' + storageValue.slice(-40))
         return addressFromStorage === ZeroAddress ? null : (addressFromStorage as HexAddress)
       } catch (error) {
@@ -79,7 +82,8 @@ const ProxyContractHelper = {
 
       // Check minimal proxy pattern if other slots failed
       if (!implementationAddress) {
-        implementationAddress = ProxyContractHelper._getImplementationForMinimalProxy(await provider.getCode(address))
+        const code = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getCode(address))
+        implementationAddress = ProxyContractHelper._getImplementationForMinimalProxy(code)
       }
 
       // Fallback via explicit view call if still not found

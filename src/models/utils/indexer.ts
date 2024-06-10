@@ -3,7 +3,7 @@ import type Network from '@models/schema/network'
 import DbTx from '@modules/dbTx'
 import type DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
-import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
+import { type HexAddress, type NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -50,36 +50,31 @@ export const UtilsIndexer = {
     }
 
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
+    const tokenInfo = await Web3Helper.getTokenInfo(tokenAddress, network)
 
-    if (tokenTypeInfo?.type !== ITokenType.unknown) {
-      const tokenInfo = await Web3Helper.getTokenInfo(tokenAddress, network)
+    // Note: we could fetch the rates while sync but this will slow down the sync process due to the coinGecko rate limit
+    // const rate = await RateModule.fetchRate(tokenAddress, network)
 
-      // Note: we could fetch the rates while sync but this will slow down the sync process due to the coinGecko rate limit
-      // const rate = await RateModule.fetchRate(tokenAddress, network)
-
-      return await DbTx.executeTxFn(
-        async ({ session }) => {
-          const rawToken = {
-            address: tokenAddress,
-            type: tokenTypeInfo?.type,
-            implementationAddress: tokenTypeInfo?.implementationAddress,
-            network,
-            name: tokenInfo.name,
-            decimals: tokenInfo.decimals,
-            symbol: tokenInfo.symbol,
-            totalSupply: tokenInfo.totalSupply,
-            // ...rate,
-          }
-          const logDb = await Models.Token.create(rawToken, { session })
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose('New Token', llo({ logId: logDb.id }))
-          return logDb
-        },
-        { stopRetry: true },
-      )
-    }
-
-    return null
+    return await DbTx.executeTxFn(
+      async ({ session }) => {
+        const rawToken = {
+          address: tokenAddress,
+          type: tokenTypeInfo?.type,
+          implementationAddress: tokenTypeInfo?.implementationAddress,
+          network,
+          name: tokenInfo.name,
+          decimals: tokenInfo.decimals,
+          symbol: tokenInfo.symbol,
+          totalSupply: tokenInfo.totalSupply,
+          // ...rate,
+        }
+        const logDb = await Models.Token.create(rawToken, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('New Token', llo({ logId: logDb.id }))
+        return logDb
+      },
+      { stopRetry: true },
+    )
   },
 }

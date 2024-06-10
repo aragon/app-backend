@@ -61,6 +61,7 @@ export interface IConfig {
   TIMEZONE: string
   REMOTE_EXECUTION: boolean
   PROXY: string | null
+  ENS_DOMAIN: string
   SUPPORTED_NETWORKS: INetworks[]
   DEFAULT_CURRENCY: string
   BOTTLENECK: {

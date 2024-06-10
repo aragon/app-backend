@@ -18,8 +18,8 @@ export const AggregatorDao = {
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
       onDocument: AggregatorDao.onDocument,
-      onError: (error: any) => {
-        logger.error('Error AggregatorDao', llo({ error }))
+      onError: (error: any, document: any) => {
+        logger.error('Error AggregatorDao', llo({ error, document }))
       },
       useAggregate: true,
       aggregate: AggregatorDao.query(),
@@ -37,6 +37,14 @@ export const AggregatorDao = {
 
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
+
+      document.proposalsCreated = Math.floor(document.proposalsCreated)
+      document.proposalsExecuted = Math.floor(document.proposalsExecuted)
+      document.uniqueVoters = Math.floor(document.uniqueVoters)
+      document.votes = Math.floor(document.votes)
+      const isValid = await Web3Helper.subdomainExists(document.subdomain, document.network)
+      document.ens = isValid ? Web3Helper.parseSubdomainToEns(document.subdomain) : null
+
       if (!existingLog) {
         document.blockTimestamp = await Web3Helper.getBlockTimestamp(document.blockNumber, document.network)
         logDb = await Models.Dao.create(document, { session })
@@ -54,51 +62,48 @@ export const AggregatorDao = {
       {
         $lookup: {
           from: 'plugin',
-          let: { daoAddress: '$address' },
-          pipeline: [
-            { $match: { $expr: { $eq: ['$daoAddress', '$$daoAddress'] } } },
-            {
-              $sort: {
-                pluginSetupRepoAddress: 1,
-                blockNumber: -1,
-              },
-            },
-            {
-              $group: {
-                _id: '$pluginSetupRepoAddress',
-                doc: { $first: '$$ROOT' },
-              },
-            },
-            {
-              $replaceRoot: { newRoot: '$doc' },
-            },
-            {
-              $project: {
-                transactionHash: 1,
-                blockNumber: 1,
-                network: 1,
-                type: 1,
-                address: 1,
-                implementationAddress: 1,
-                release: 1,
-                build: 1,
-                subdomain: 1,
-                pluginSetupRepoAddress: 1,
-              },
-            },
-          ],
+          localField: 'address',
+          foreignField: 'daoAddress',
           as: 'plugins',
         },
       },
       {
+        $unwind: {
+          path: '$plugins',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $sort: {
+          'plugins.subdomain': 1,
+          'plugins.blockNumber': -1,
+        },
+      },
+      {
         $group: {
-          _id: '$address',
+          _id: {
+            address: '$address',
+            subdomain: '$plugins.subdomain',
+          },
           network: { $first: '$network' },
           creatorAddress: { $first: '$creatorAddress' },
-          ens: { $first: '$ens' },
-          plugins: { $push: '$plugins' },
+          subdomain: { $first: '$subdomain' },
+          plugin: { $first: '$plugins' },
           transactionHash: { $first: '$transactionHash' },
           blockNumber: { $first: '$blockNumber' },
+          implementationAddress: { $first: '$implementationAddress' },
+        },
+      },
+      {
+        $group: {
+          _id: '$_id.address',
+          network: { $first: '$network' },
+          creatorAddress: { $first: '$creatorAddress' },
+          subdomain: { $first: '$subdomain' },
+          plugins: { $push: '$plugin' },
+          transactionHash: { $first: '$transactionHash' },
+          blockNumber: { $first: '$blockNumber' },
+          implementationAddress: { $first: '$implementationAddress' },
         },
       },
       {
@@ -128,15 +133,20 @@ export const AggregatorDao = {
       },
       {
         $addFields: {
-          members: {
-            $map: {
-              input: '$members',
-              as: 'member',
-              in: '$$member.address',
-            },
-          },
+          members: { $size: '$members' },
         },
       },
+      // {
+      //   $addFields: {
+      //     members: {
+      //       $map: {
+      //         input: '$members',
+      //         as: 'member',
+      //         in: '$$member.address',
+      //       },
+      //     },
+      //   },
+      // },
       {
         $lookup: {
           from: 'logProposal',
@@ -191,6 +201,7 @@ export const AggregatorDao = {
       {
         $addFields: {
           totalUniqueVoters: { $size: { $ifNull: ['$flattenedUniqueVoters', []] } },
+          votes: { $floor: '$proposals.votes' },
         },
       },
       {
@@ -199,9 +210,26 @@ export const AggregatorDao = {
           transactionHash: 1,
           network: 1,
           address: '$_id',
-          ens: '$ens',
+          implementationAddress: 1,
+          subdomain: '$subdomain',
           creatorAddress: 1,
-          plugins: 1,
+          plugins: {
+            $map: {
+              input: '$plugins',
+              as: 'plugin',
+              in: {
+                transactionHash: '$$plugin.transactionHash',
+                blockNumber: '$$plugin.blockNumber',
+                type: '$$plugin.type',
+                address: '$$plugin.address',
+                implementationAddress: '$$plugin.implementationAddress',
+                tokenAddress: '$$plugin.tokenAddress',
+                pluginSetupRepoAddress: '$$plugin.pluginSetupRepoAddress',
+                release: '$$plugin.release',
+                build: '$$plugin.build',
+              },
+            },
+          },
           proposalsCreated: '$proposals.proposalsCreated',
           proposalsExecuted: '$proposals.proposalsExecuted',
           latestBlockNumber: '$proposals.latestBlockNumber',
@@ -241,18 +269,19 @@ export const AggregatorDao = {
           mergedData: {
             $mergeObjects: [
               {
-                creatorAddress: '$creatorAddress',
-                address: '$address',
-                plugins: '$plugins',
-                uniqueVoters: '$totalUniqueVoters',
-                votes: { $ifNull: ['$votes', 0] },
-                proposalsCreated: { $ifNull: ['$proposalsCreated', 0] },
-                proposalsExecuted: { $ifNull: ['$proposalsExecuted', 0] },
-                ens: '$ens',
+                network: '$network',
                 blockNumber: '$blockNumber',
                 transactionHash: '$transactionHash',
-                network: '$network',
+                address: '$address',
+                implementationAddress: '$implementationAddress',
+                creatorAddress: '$creatorAddress',
+                subdomain: '$subdomain',
                 members: '$members',
+                plugins: '$plugins',
+                proposalsCreated: { $ifNull: ['$proposalsCreated', 0] },
+                proposalsExecuted: { $ifNull: ['$proposalsExecuted', 0] },
+                uniqueVoters: '$totalUniqueVoters',
+                votes: { $ifNull: ['$votes', 0] },
                 latestBlockNumber: '$latestBlockNumber',
                 latestTxHash: '$latestTxHash',
               },
@@ -261,7 +290,16 @@ export const AggregatorDao = {
                 name: '$metadata.name',
                 description: '$metadata.description',
                 avatar: '$metadata.avatar',
-                links: '$metadata.links',
+                links: {
+                  $map: {
+                    input: '$metadata.links',
+                    as: 'link',
+                    in: {
+                      name: '$$link.name',
+                      url: '$$link.url',
+                    },
+                  },
+                },
               },
             ],
           },
@@ -270,6 +308,11 @@ export const AggregatorDao = {
       {
         $replaceRoot: {
           newRoot: '$mergedData',
+        },
+      },
+      {
+        $sort: {
+          blockNumber: 1,
         },
       },
     ]

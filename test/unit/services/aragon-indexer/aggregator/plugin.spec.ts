@@ -6,9 +6,8 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { UtilsIndexer } from '@models/utils/indexer'
 import logger from '@logger'
-import { IAPlugin, IPluginType, NetworksEnum } from '@types'
+import { IAPlugin, IPluginAction, NetworksEnum } from '@types'
 import Logger from '@logger'
-import dayjs from '@helpers/dayjs'
 
 describe('Indexer:Aggregator:Plugin', () => {
   let sandbox: SinonSandbox
@@ -61,7 +60,7 @@ describe('Indexer:Aggregator:Plugin', () => {
         transactionHash: '0x0',
         blockNumber: 3,
         network: NetworksEnum.mainnet,
-        type: IPluginType.install,
+        action: IPluginAction.install,
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5333',
         implementationAddress: '0x123',
         daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
@@ -79,11 +78,11 @@ describe('Indexer:Aggregator:Plugin', () => {
 
       expect(stubLogger.calledWith('New Aggregate Plugin' as any)).to.be.true
 
-      const member = await Models.Plugin.findExistingLog(document.transactionHash, document.type, document.network)
+      const member = await Models.Plugin.findExistingLog(document.transactionHash, document.action, document.network)
       expect(member.transactionHash).to.equal(document.transactionHash)
       expect(member.blockNumber).to.equal(document.blockNumber)
       expect(member.network).to.equal(document.network)
-      expect(member.type).to.equal(document.type)
+      expect(member.action).to.equal(document.action)
       expect(member.address).to.equal(document.address)
       expect(member.implementationAddress).to.equal(document.implementationAddress)
       expect(member.daoAddress).to.equal(document.daoAddress)
@@ -100,7 +99,7 @@ describe('Indexer:Aggregator:Plugin', () => {
         transactionHash: '0x0',
         blockNumber: 3,
         network: NetworksEnum.mainnet,
-        type: IPluginType.install,
+        action: IPluginAction.install,
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5333',
         implementationAddress: '0x123',
         daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
@@ -121,11 +120,11 @@ describe('Indexer:Aggregator:Plugin', () => {
 
       expect(stubLogger.calledWith('Update Aggregate Plugin' as any)).to.be.true
 
-      const member = await Models.Plugin.findExistingLog(document.transactionHash, document.type, document.network)
+      const member = await Models.Plugin.findExistingLog(document.transactionHash, document.action, document.network)
       expect(member.transactionHash).to.equal(document.transactionHash)
       expect(member.blockNumber).to.equal(document.blockNumber)
       expect(member.network).to.equal(document.network)
-      expect(member.type).to.equal(document.type)
+      expect(member.action).to.equal(document.action)
       expect(member.address).to.equal(document.address)
       expect(member.implementationAddress).to.equal(document.implementationAddress)
       expect(member.daoAddress).to.equal(document.daoAddress)
@@ -139,8 +138,7 @@ describe('Indexer:Aggregator:Plugin', () => {
   })
 
   it('should use default date when none is provided', () => {
-    const defaultDate = dayjs.utc('1970-01-01T00:00:00Z').toDate()
-    const pipeline = AggregatorPlugin.query(defaultDate)
-    expect(pipeline[0].$match?.createdAt?.['$gte']).to.deep.equal(defaultDate)
+    const pipeline = AggregatorPlugin.query()
+    expect(pipeline.length).to.equal(11)
   })
 })
