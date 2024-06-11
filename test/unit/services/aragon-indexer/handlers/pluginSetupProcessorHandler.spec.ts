@@ -125,7 +125,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         name: 'FakeToken',
         symbol: 'FTK',
         decimals: 18,
-        totalSupply: 100,
+        totalSupply: '100',
         type: ITokenType.GovernanceERC20,
       } as any)
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')

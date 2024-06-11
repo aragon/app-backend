@@ -8,6 +8,7 @@ import utils from '@helpers/utils'
 import { EnumConnection } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import logger from '@logger'
+import { DaoTvl } from '@rates/daoTvl'
 
 describe('Rates: index', () => {
   let sandbox: SinonSandbox
@@ -30,6 +31,7 @@ describe('Rates: index', () => {
     config.SERVICES.ARAGON_RATES.RATES_INTERVAL = 200
 
     const taskStubs = [sandbox.stub(FetchRates, 'start').resolves()]
+    const task2Stubs = [sandbox.stub(DaoTvl, 'start').resolves()]
 
     await RatesService.start()
     await utils.wait(100)
@@ -45,6 +47,7 @@ describe('Rates: index', () => {
     }
 
     expect(taskStubs.every(stub => stub.calledOnce)).to.be.true
+    expect(task2Stubs.every(stub => stub.calledOnce)).to.be.true
 
     await RatesService.stop()
 

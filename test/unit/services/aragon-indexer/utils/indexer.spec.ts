@@ -38,7 +38,7 @@ describe('Model/Utils: indexer', () => {
         name: 'TokenName',
         decimals: 18,
         symbol: 'TKN',
-        totalSupply: 2000,
+        totalSupply: '2000',
       })
 
       const token = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.mainnet)
@@ -52,7 +52,7 @@ describe('Model/Utils: indexer', () => {
       expect(token!.name).to.eq('TokenName')
       expect(token!.decimals).to.eq(18)
       expect(token!.symbol).to.eq('TKN')
-      expect(token!.totalSupply).to.eq(2000)
+      expect(token!.totalSupply).to.eq('2000')
       expect(token!.network).to.eq(NetworksEnum.mainnet)
     })
 
@@ -66,7 +66,7 @@ describe('Model/Utils: indexer', () => {
         name: 'TokenName',
         decimals: 18,
         symbol: 'TKN',
-        totalSupply: 2000,
+        totalSupply: '2000',
       })
 
       const token = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.mainnet)
