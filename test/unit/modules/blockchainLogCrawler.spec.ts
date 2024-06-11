@@ -6,6 +6,7 @@ import logger from '@logger'
 import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
+import { Models } from '@dbModels'
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
@@ -335,6 +336,56 @@ describe('Module: blockchainLogCrawler', () => {
       expect(() => crawler.calculateBatchSize(unsupportedNetwork as NetworksEnum)).to.throw(
         `Unsupported network: ${unsupportedNetwork}`,
       )
+    })
+  })
+
+  describe('onSaveProgress', () => {
+    it('should onSaveProgress - create', async () => {
+      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      const blockNumber = 10
+
+      const crawler = new BlockchainLogCrawler({
+        network: NetworksEnum.mainnet,
+        filter: {},
+        batchSize: 5,
+        onLog: async () => {},
+        onError: () => {},
+        stopOnError: true,
+        logService: 'testService' as any,
+      })
+
+      const spyModelFind = sandbox.spy(Models.ConfigIndexer, 'findExistingLog')
+      const spyModelCreate = sandbox.spy(Models.ConfigIndexer, 'create')
+
+      await crawler.onSaveProgress(blockNumber)
+
+      expect(spyModelFind.calledOnceWith(NetworksEnum.mainnet, 'testService')).to.be.true
+      expect(spyModelCreate.calledOnce).to.be.true
+    })
+
+    it('should onSaveProgress - update', async () => {
+      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      const blockNumber = 10
+
+      const crawler = new BlockchainLogCrawler({
+        network: NetworksEnum.mainnet,
+        filter: {},
+        batchSize: 5,
+        onLog: async () => {},
+        onError: () => {},
+        stopOnError: true,
+        logService: 'testService' as any,
+      })
+
+      const fakeModel = { update: sandbox.stub().resolves() }
+      const spyModelFind = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(fakeModel)
+      const spyModelCreate = sandbox.spy(Models.ConfigIndexer, 'create')
+
+      await crawler.onSaveProgress(blockNumber)
+
+      expect(spyModelFind.calledOnceWith(NetworksEnum.mainnet, 'testService')).to.be.true
+      expect(fakeModel.update.calledOnce).to.be.true
+      expect(spyModelCreate.notCalled).to.be.true
     })
   })
 })

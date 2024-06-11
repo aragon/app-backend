@@ -39,10 +39,7 @@ describe('Model: ConfigIndexer', () => {
 
   it('Should findExistingLog', async () => {
     const createdLogDao = await Models.ConfigIndexer.create(rawConfigIndexer)
-    const foundLogDao = await Models.ConfigIndexer.findExistingLog(
-      rawConfigIndexer.network,
-      rawConfigIndexer.service,
-    )
+    const foundLogDao = await Models.ConfigIndexer.findExistingLog(rawConfigIndexer.network, rawConfigIndexer.service)
     expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
   })
 
