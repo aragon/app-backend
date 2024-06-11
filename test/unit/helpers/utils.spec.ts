@@ -6,7 +6,7 @@ import logger from '@logger'
 import dayjs from '@helpers/dayjs'
 import utils from '@helpers/utils'
 
-describe.only('Helpers:Utils', () => {
+describe('Helpers:Utils', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
