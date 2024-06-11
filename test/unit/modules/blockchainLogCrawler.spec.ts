@@ -61,7 +61,10 @@ describe('Module: blockchainLogCrawler', () => {
     mockProvider.getBlockNumber.resolves(16721863 + 10)
     mockProvider.getLogs
       .onFirstCall()
-      .resolves([{ transactionHash: '0x1', blockNumber: 2 }, { transactionHash: '0x2', blockNumber: 3 }])
+      .resolves([
+        { transactionHash: '0x1', blockNumber: 2 },
+        { transactionHash: '0x2', blockNumber: 3 },
+      ])
       .onSecondCall()
       .resolves([])
 
