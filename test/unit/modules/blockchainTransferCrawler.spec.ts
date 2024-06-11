@@ -6,9 +6,9 @@ import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import Logger from '@logger'
 import Web3Helper from '@helpers/web3'
-import BlockchainLogCrawler from "@modules/blockchainLogCrawler";
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 
-describe.only('Modules:BlockchainTransferCrawler', () => {
+describe('Modules:BlockchainTransferCrawler', () => {
   let sandbox: sinon.SinonSandbox
   let mockProvider: any
   let logError: any
@@ -119,14 +119,18 @@ describe.only('Modules:BlockchainTransferCrawler', () => {
     })
   })
 
-  describe.only('crawl', () => {
-
+  describe('crawl', () => {
     it('should crawl logs correctly', async () => {
       sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
       mockProvider.getBlockNumber.resolves(16721863 + 10)
       mockProvider.send
         .onFirstCall()
-        .resolves({transfers: [{ transactionHash: '0x1', blockNum: 2 }, { transactionHash: '0x2', blockNum: 3 }]})
+        .resolves({
+          transfers: [
+            { transactionHash: '0x1', blockNum: 2 },
+            { transactionHash: '0x2', blockNum: 3 },
+          ],
+        })
         .onSecondCall()
         .resolves([])
 
@@ -151,7 +155,12 @@ describe.only('Modules:BlockchainTransferCrawler', () => {
       mockProvider.getBlockNumber.resolves(16721863 + 10)
       mockProvider.send
         .onFirstCall()
-        .resolves({transfers: [{ transactionHash: '0x1', blockNum: 2 }, { transactionHash: '0x2', blockNum: 3 }]})
+        .resolves({
+          transfers: [
+            { transactionHash: '0x1', blockNum: 2 },
+            { transactionHash: '0x2', blockNum: 3 },
+          ],
+        })
         .onSecondCall()
         .resolves([])
 
@@ -175,7 +184,7 @@ describe.only('Modules:BlockchainTransferCrawler', () => {
       sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
       let blockNumber = 16721863 + 10
       mockProvider.getBlockNumber.callsFake(() => Promise.resolve(blockNumber++))
-      mockProvider.send.resolves({transfers: [{ transactionHash: `0x${blockNumber}`, blockNum: blockNumber }]})
+      mockProvider.send.resolves({ transfers: [{ transactionHash: `0x${blockNumber}`, blockNum: blockNumber }] })
 
       const onTxStub = sandbox.stub().resolves()
       const crawler = new BlockchainTransferCrawler({
@@ -202,9 +211,6 @@ describe.only('Modules:BlockchainTransferCrawler', () => {
       expect(onTxStub.callCount).to.be.eq(2)
       expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
     })
-
-
-
 
     it('should handle transfers correctly', async () => {
       const getBlockNumberStub = sandbox.stub().resolves(10)

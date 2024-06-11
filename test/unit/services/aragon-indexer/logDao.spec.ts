@@ -10,9 +10,9 @@ import Utils from '@helpers/utils'
 import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
 import { UnitTestUtils } from '@test/lib/utils'
 import Web3Helper from '@helpers/web3'
-import {NetworkHelper} from "@helpers/network";
-import Logger from "@logger";
-import BlockchainLogCrawler from "@modules/blockchainLogCrawler";
+import { NetworkHelper } from '@helpers/network'
+import Logger from '@logger'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 
 describe('Indexer: LogDao', () => {
   let sandbox: SinonSandbox
@@ -33,7 +33,9 @@ describe('Indexer: LogDao', () => {
     it('should start', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
-      sandbox.stub(NetworkHelper, 'supportedNetworks').returns(Object.values(NetworksEnum).map(networkName => ({ networkName, provider: {} as any })))
+      sandbox
+        .stub(NetworkHelper, 'supportedNetworks')
+        .returns(Object.values(NetworksEnum).map(networkName => ({ networkName, provider: {} as any })))
 
       const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any) {
@@ -49,7 +51,9 @@ describe('Indexer: LogDao', () => {
     it('should start handle error', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
-      sandbox.stub(NetworkHelper, 'supportedNetworks').returns(Object.values(NetworksEnum).map(networkName => ({ networkName, provider: {} as any })))
+      sandbox
+        .stub(NetworkHelper, 'supportedNetworks')
+        .returns(Object.values(NetworksEnum).map(networkName => ({ networkName, provider: {} as any })))
 
       const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any) {
