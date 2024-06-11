@@ -5,7 +5,6 @@ import { FetchRates } from '@services/aragon-rates/fetchRates'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
-import { UtilsIndexer } from '@models/utils/indexer'
 import { RateModule } from '@modules/rates'
 import { ITokenType, NetworksEnum } from '@types'
 
@@ -22,39 +21,31 @@ describe('Rates: FetchRates', () => {
 
   describe('start', async () => {
     it('should start the FetchRates', async () => {
-      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubFetchRates = sandbox.stub(FetchRates, 'onDocument')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onDocument(true)
       })
-      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
       await FetchRates.start()
 
       expect(stubLogger.calledWith('End FetchRates' as any)).to.be.true
       expect(stubFetchRates.calledOnceWith(true as any)).to.be.true
-      expect(findByTypeStub.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(saveAggregationSyncStub.calledOnce).to.be.true
     })
 
     it('should error the FetchRates', async () => {
-      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
       const stubLoggerError = sandbox.stub(logger, 'error')
       const stubLogger = sandbox.stub(logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onError(true)
       })
-      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
       await FetchRates.start()
 
       expect(stubLogger.calledWith('End FetchRates' as any)).to.be.true
       expect(stubLoggerError.calledOnce).to.be.true
-      expect(findByTypeStub.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(saveAggregationSyncStub.calledOnce).to.be.true
     })
   })
 

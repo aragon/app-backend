@@ -77,8 +77,8 @@ const CovalentHelper = {
   },
 
   _parseToken: (token: ITokenCovalentResponse, network: NetworksEnum): Partial<any> => {
-    const mostRecentPrice = token.prices && token.prices.length > 0 ? token.prices[0].price : 0
-    const dayBeforePrice = token.prices && token.prices.length > 1 ? token.prices[1].price : mostRecentPrice
+    const mostRecentPrice = token.prices?.[0]?.price ?? 0
+    const dayBeforePrice = token.prices?.[1]?.price ?? mostRecentPrice
     const priceChangeOnDayUsd = mostRecentPrice - dayBeforePrice
 
     return {
@@ -88,9 +88,7 @@ const CovalentHelper = {
       name: token.contract_name,
       symbol: token.contract_ticker_symbol,
       decimals: token.contract_decimals,
-      priceUsd: token?.prices?.length > 0 ? token?.prices[0].price.toString() : '0',
-      holders: 0,
-      totalSupply: 0,
+      priceUsd: mostRecentPrice.toString(),
       priceChangeOnDayUsd,
       lastUpdatedAt: dayjs().utc().toDate(),
     }

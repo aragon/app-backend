@@ -24,7 +24,6 @@ describe('Model/Utils: setModels', () => {
     const schemas = await setMongoModels()
 
     expect(schemas).to.have.property('Dao')
-    expect(schemas).to.have.property('Network')
     expect(stubLogger.notCalled).to.be.true
   })
 
@@ -35,7 +34,6 @@ describe('Model/Utils: setModels', () => {
     const schemas = await setMongoModels()
 
     expect(schemas).not.to.have.property('Dao')
-    expect(schemas).not.to.have.property('Network')
     expect(stubPromise.calledOnce).to.be.true
     expect(stubLogger.callCount).to.eq(2)
   })

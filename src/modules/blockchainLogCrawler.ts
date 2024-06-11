@@ -1,9 +1,12 @@
 import logger from '@logger'
 import { type Filter, type Log, type WebSocketProvider } from 'ethers'
 import { ConfigState } from '@state/configState'
-import { NetworksEnum } from '@types'
+import { type IEnumIndexerService, NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import BottleneckModule from '@modules/bottleneck'
+import { Models } from '@dbModels'
+import DbTx from '@modules/dbTx'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' })
 
@@ -15,6 +18,7 @@ class BlockchainLogCrawler {
   private readonly onError: (error: any, log?: Log) => void
   private readonly filter: Filter
   private readonly stopOnError: boolean
+  private readonly logService: IEnumIndexerService | null
   private batchSize: number
   private crawling: boolean
   private isOnError: boolean
@@ -24,8 +28,7 @@ class BlockchainLogCrawler {
     nbSuccess: number
     nbError: number
     nbTotal: number
-    lastBlockSync: number
-    latestBlockNumber: number
+    lastSync: number
   }
 
   constructor(opts: {
@@ -35,6 +38,7 @@ class BlockchainLogCrawler {
     onLog: (log: Log) => Promise<void>
     onError?: (error: Error, log?: Log) => void
     stopOnError?: boolean
+    logService?: IEnumIndexerService
   }) {
     this.provider = ConfigState.getInstance().getConfigItem(opts.network) as WebSocketProvider
     if (!this.provider) {
@@ -55,10 +59,11 @@ class BlockchainLogCrawler {
     this.shutdown = false
     this.crawling = false
     this.isOnError = false
+    this.logService = opts.logService ?? null
+
     this.crawlResult = {
       network: opts.network,
-      latestBlockNumber: 0,
-      lastBlockSync: 0,
+      lastSync: 0,
       nbSuccess: 0,
       nbError: 0,
       nbTotal: 0,
@@ -122,9 +127,15 @@ class BlockchainLogCrawler {
     }
 
     this.crawling = true
+
+    // override when use log service
+    if (this.logService) {
+      this.filter.fromBlock = await this.getServiceStartBlock()
+      this.filter.toBlock = 'latest'
+    }
+
     let currentBlock = await this.getBlockNumber(this.filter.fromBlock as any)
     const latestBlock = await this.getBlockNumber(this.filter.toBlock as any)
-    this.crawlResult.latestBlockNumber = latestBlock
 
     while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
       const toBlock = Math.min(currentBlock + this.batchSize - 1, latestBlock)
@@ -164,6 +175,9 @@ class BlockchainLogCrawler {
         }
       }
 
+      if (this.logService) {
+        await this.onSaveProgress(toBlock)
+      }
       if (this.shutdown) break
       currentBlock = toBlock + 1
       if (currentBlock >= latestBlock) break
@@ -190,7 +204,12 @@ class BlockchainLogCrawler {
       try {
         await this.onLog(log)
         this.crawlResult.nbSuccess++
-        this.crawlResult.lastBlockSync = log?.blockNumber
+        if (log.blockNumber) {
+          this.crawlResult.lastSync = log?.blockNumber
+        }
+        if (this.logService && log.blockNumber) {
+          await this.onSaveProgress(log.blockNumber)
+        }
       } catch (error) {
         this.onError(error, log)
         this.crawlResult.nbError++
@@ -212,6 +231,35 @@ class BlockchainLogCrawler {
     const messages = ['The query timed out', 'Log response size exceeded']
 
     return messages.some(msg => error.message?.includes(msg))
+  }
+
+  async getServiceStartBlock() {
+    const existingConfig = await Models.ConfigIndexer.findExistingLog(this.crawlResult.network, this.logService)
+    return existingConfig
+      ? existingConfig.lastSync
+      : config.ARAGON_SUPPORTED_BLOCK[this.crawlResult.network.toUpperCase()]
+  }
+
+  async onSaveProgress(blockNumber: number) {
+    const existingConfig = await Models.ConfigIndexer.findExistingLog(this.crawlResult.network, this.logService)
+
+    await DbTx.executeTxFn(async ({ session }) => {
+      if (existingConfig) {
+        await existingConfig.update({ lastSync: blockNumber })
+      } else {
+        await Models.ConfigIndexer.create(
+          {
+            network: this.crawlResult.network,
+            service: this.logService,
+            lastSync: blockNumber,
+          },
+          { session },
+        )
+      }
+
+      await session.commitTransaction()
+      await session.endSession()
+    })
   }
 }
 

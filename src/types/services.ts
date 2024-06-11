@@ -10,3 +10,15 @@ export interface IService {
 
   stop: () => void | Promise<void>
 }
+
+export enum IEnumIndexerService {
+  daoLog = 'daoLog',
+  daoRegistryLog = 'daoRegistryLog',
+  memberLog = 'memberLog',
+  pluginRepoRegistryLog = 'pluginRepoRegistryLog',
+  pluginSettingLog = 'pluginSettingLog',
+  pluginSetupProcessorLog = 'pluginSetupProcessorLog',
+  proposalLog = 'proposalLog',
+  depositTxs = 'depositTxs',
+  withdrawTxs = 'withdrawTxs',
+}

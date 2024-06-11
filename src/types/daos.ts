@@ -6,25 +6,6 @@ export interface DaoResourceLink {
   url: string
 }
 
-export interface IDaoDune {
-  block_number: number
-  block_time: string
-  creator_address: HexAddress
-  dao_address: HexAddress
-  ens: ENS
-  hide_dao: boolean
-  metadata_ipfs: string
-  network: string
-  tx_hash: HexAddress
-  // members: number
-  // plugin_name: string
-  // proposals_created: number
-  // proposals_executed: number
-  // tvl_usd: number
-  // unique_voters: number
-  // votes: number
-}
-
 export interface IDaoSatsumaResponse {
   daos: IDao[]
   limit: number
@@ -72,6 +53,12 @@ export interface ILink {
 export interface IPlugin {
   type: EnumPluginType
   address: HexAddress
+}
+
+export interface IPluginMember {
+  address: HexAddress
+  ens: ENS
+  votingPower?: string
 }
 
 export interface IDaoMultiSigMember {

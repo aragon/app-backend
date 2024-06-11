@@ -8,6 +8,9 @@ import {
 import config from '@config'
 import axios from 'axios'
 import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import { retryRequest } from '@helpers/retryRequest'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'CoinGecko' })
 
@@ -46,11 +49,41 @@ const CoinGeckoHelper = {
 
   _rpCall: async <T>(path: string): Promise<T> => {
     try {
-      const response = await CoinGeckoHelper.axiosInstance.get(`${config.COINGECKO.URI}${path}`)
+      const response = await retryRequest(async () =>
+        BottleneckModule.getCoinGeckoLimiter(NetworksEnum.mainnet)!.schedule(async () =>
+          CoinGeckoHelper.axiosInstance.get(`${config.COINGECKO.URI}${path}`),
+        ),
+      )
+
       return response.data
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error in CoinGecko RPC Call', llo({ path, error }))
       throw error
+    }
+  },
+
+  getCoinTokenPrice: async (address: HexAddress, network: NetworksEnum): Promise<ITokenPriceCoinGecko | undefined> => {
+    if (CoinGeckoHelper.unsupportedNetworks.includes(network)) {
+      return
+    }
+
+    const networkId = CoinGeckoHelper.networkToCoinGecko(network)
+    const isNative = address === utils.zeroAddress
+
+    const path = isNative ? `/coins/${address}` : `/coins/${networkId}/contract/${address}`
+
+    try {
+      const response = await CoinGeckoHelper._rpCall<ITokenCoinGeckoResponse[]>(path)
+
+      // TODO: check the response retrive token info
+      if (response?.[address]) {
+        return {
+          usd: response?.[address].usd,
+          usd24hChange: response?.[address].usd_24h_change,
+        }
+      }
+    } catch (error) {
+      logger.error('Error coin token price', llo({ error, network, address }))
     }
   },
 

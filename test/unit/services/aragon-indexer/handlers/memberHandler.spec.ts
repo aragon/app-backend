@@ -14,11 +14,6 @@ describe('Indexer: MemberHandler', () => {
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    await Models.Network.create({
-      name: NetworksEnum.mainnet,
-      status: 'healthy',
-    })
-
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
 
     let rawLogPluginSetupProcessor = {

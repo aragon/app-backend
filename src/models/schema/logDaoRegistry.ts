@@ -1,20 +1,20 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { ENS, HexAddress, NetworksEnum } from '@types'
+import { HexAddress, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 
 const customName = 'LogDaoRegistry'
 
-class URIUpdate {
-  @prop({ type: () => String, required: true })
-  public uri!: string
-
+export class URIUpdate {
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
 
   @prop({ type: () => String, required: true })
-  public blockNumber!: string
+  public uri!: string
+
+  @prop({ type: () => Number, required: true })
+  public blockNumber!: number
 }
 
 @modelOptions({
@@ -54,7 +54,7 @@ export default class LogDaoRegistry extends Model {
   public creatorAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public ens!: ENS
+  public subdomain!: string
 
   @prop({ type: () => [URIUpdate], default: [] })
   public uriUpdates?: URIUpdate[]
@@ -103,9 +103,21 @@ export default class LogDaoRegistry extends Model {
     return await this.save(tOpts)
   }
 
-  async addURIUpdates(uriUpdates: URIUpdate, tOpts?: SaveOptions) {
-    this.uriUpdates = this.uriUpdates || []
-    this.uriUpdates.push(uriUpdates)
+  async findUriEvent(transactionHash: any) {
+    if (!this.uriUpdates || this.uriUpdates.length === 0) {
+      return false
+    }
+
+    const uriEvent = this.uriUpdates.find(
+      v => v.transactionHash?.trim().toLowerCase() === transactionHash.trim().toLowerCase(),
+    )
+    return uriEvent || false
+  }
+
+  async addUriEvent(rawUri: URIUpdate, tOpts = {}) {
+    this.uriUpdates = this.uriUpdates ?? []
+    this.uriUpdates.push(rawUri)
+
     return await this.save(tOpts)
   }
 

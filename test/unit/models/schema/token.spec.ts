@@ -2,7 +2,6 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { ITokenType, NetworksEnum } from '@types'
-import Network from '@models/schema/network'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
@@ -10,18 +9,12 @@ import Token from '@models/schema/token'
 describe('Model: Token', () => {
   let sandbox: SinonSandbox
   let rawToken: Partial<Token>
-  let ethereumNetwork: Network
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    ethereumNetwork = await Models.Network.create({
-      name: NetworksEnum.mainnet,
-      status: 'healthy',
-    })
-
     rawToken = {
-      network: ethereumNetwork.name,
+      network: NetworksEnum.mainnet,
       type: ITokenType.ERC20,
       address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       logo: 'fake-logo',

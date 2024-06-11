@@ -17,7 +17,7 @@ class DBCrawler {
   private readonly sort: string
   private readonly raw: boolean
   private readonly populate: string
-  private readonly onError: (document: Document, error: Error) => void
+  private readonly onError: (error: Error, document: Document) => void
   private readonly concurrency: number
   private readonly batchSize: number
   private crawling: boolean
@@ -126,7 +126,7 @@ class DBCrawler {
     this.queue = async.queue(this._worker.bind(this) as any, this.concurrency)
   }
 
-  static defaultOnError(document: Document, error: Error): void {
+  static defaultOnError(error: Error, document: Document): void {
     logger.error(
       'error on db crawler',
       llo({
@@ -175,9 +175,9 @@ class DBCrawler {
     try {
       await this.onDocument(document, stat)
       this.crawlResult.nbSuccess++
-      this.crawlResult.lastCreatedAt = (document as any)?.createdAt ?? null
+      this.crawlResult.lastCreatedAt = ((document as any)?.updatedAt || (document as any)?.createdAt) ?? null
     } catch (error: any) {
-      this.onError(document, error)
+      this.onError(error, document)
       this.crawlResult.nbError++
       if (this.stopOnError) {
         this.isOnError = true
