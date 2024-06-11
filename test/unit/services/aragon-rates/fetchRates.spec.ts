@@ -63,7 +63,7 @@ describe('Rates: FetchRates', () => {
       symbol: 'WETH',
       decimals: 18,
       holders: 10,
-      totalSupply: 100,
+      totalSupply: '100',
       priceChangeOnDayUsd: '1',
       priceUsd: '1',
     })
