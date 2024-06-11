@@ -21,10 +21,10 @@ describe('Module: blockchainLogCrawler', () => {
       getBlockNumber: sandbox.stub(),
       getLogs: sandbox.stub(),
     }
-    logVerbose = sandbox.spy(logger, 'verbose')
-    logWarn = sandbox.spy(logger, 'warn')
-    logInfo = sandbox.spy(logger, 'info')
-    logError = sandbox.spy(logger, 'error')
+    logVerbose = sandbox.stub(logger, 'verbose')
+    logWarn = sandbox.stub(logger, 'warn')
+    logInfo = sandbox.stub(logger, 'info')
+    logError = sandbox.stub(logger, 'error')
   })
 
   afterEach(() => {
@@ -52,6 +52,33 @@ describe('Module: blockchainLogCrawler', () => {
 
     expect(onLogStub.calledTwice).to.be.true
     expect(onLogStub.calledTwice).to.be.true
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+  })
+
+  it('should crawl logs correctly with logService', async () => {
+    const stubSaveProgress = sandbox.stub(BlockchainLogCrawler.prototype, 'onSaveProgress').resolves()
+    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+    mockProvider.getBlockNumber.resolves(16721863 + 10)
+    mockProvider.getLogs
+      .onFirstCall()
+      .resolves([{ transactionHash: '0x1', blockNumber: 2 }, { transactionHash: '0x2', blockNumber: 3 }])
+      .onSecondCall()
+      .resolves([])
+
+    const onLogStub = sandbox.stub().resolves()
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.mainnet,
+      filter: {},
+      batchSize: 10,
+      onLog: onLogStub,
+      logService: 'testService' as any,
+    })
+
+    await crawler.crawl()
+
+    expect(onLogStub.calledTwice).to.be.true
+    expect(onLogStub.calledTwice).to.be.true
+    expect(stubSaveProgress.calledThrice).to.be.true
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 

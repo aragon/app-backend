@@ -1,9 +1,7 @@
-import { AggregatorTypeEnum } from '@types'
 import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
-import { UtilsIndexer } from '@models/utils/indexer'
 import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
 
@@ -12,8 +10,6 @@ const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorD
 export const AggregatorDao = {
   start: async () => {
     logger.verbose('Start AggregatorDao', llo({}))
-
-    const aggregatorDb = await Models.Aggregator.findByType(AggregatorTypeEnum.daos)
 
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
@@ -28,7 +24,6 @@ export const AggregatorDao = {
     })
 
     await crawler.crawl()
-    await UtilsIndexer.saveAggregationSync(crawler, aggregatorDb, 'lastTimeSync')
     logger.verbose('End AggregatorDao', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
   },
 
@@ -227,7 +222,7 @@ export const AggregatorDao = {
                 pluginSetupRepoAddress: '$$plugin.pluginSetupRepoAddress',
                 release: '$$plugin.release',
                 build: '$$plugin.build',
-                subdomain: '$$plugin.subdomain'
+                subdomain: '$$plugin.subdomain',
               },
             },
           },

@@ -1,11 +1,11 @@
-import { AggregatorTypeEnum, type IAlchemyTokenBalance } from '@types'
+import { type IAlchemyTokenBalance } from '@types'
 import DBCrawler from '@models/utils/crawler'
 import { ZeroAddress } from 'ethers'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Asset from '@models/schema/asset'
-import { UtilsIndexer } from '@models/utils/indexer'
+import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import Utils from '@helpers/utils'
@@ -15,8 +15,6 @@ const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorA
 export const AggregatorAssets = {
   start: async () => {
     logger.verbose('Start AggregatorAssets', llo({}))
-
-    const aggregatorDb = await Models.Aggregator.findByType(AggregatorTypeEnum.assets)
 
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
@@ -30,8 +28,7 @@ export const AggregatorAssets = {
     })
 
     await crawler.crawl()
-    await UtilsIndexer.saveAggregationSync(crawler, aggregatorDb, 'lastTimeSync')
-    logger.verbose('End AggregatorAssets', llo({}))
+    logger.verbose('End AggregatorAssets', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
   },
 
   onDocument: async (document: LogDaoRegistry) => {

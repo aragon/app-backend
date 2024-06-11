@@ -1,15 +1,12 @@
 import logger from '@logger'
 import { ethers, Interface, type Log } from 'ethers'
-import Network from '@models/schema/network'
-import { Models } from '@dbModels'
-import { type NetworksEnum } from '@types'
+import { IEnumIndexerService, type NetworksEnum } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { MemberHandler } from '@services/aragon-indexer/handlers/memberHandler'
-import { UtilsIndexer } from '@models/utils/indexer'
 import { Multisig } from '@artifacts/Multisig'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { ConfigState } from '@state/configState'
 import Web3Helper from '@helpers/web3'
+import { NetworkHelper } from '@helpers/network'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMember' })
 
@@ -17,19 +14,9 @@ export const LogMember = {
   events: ['MembersAdded', 'MembersRemoved', 'DelegateChanged'],
 
   start: async () => {
-    const networks = Object.values(Network.NETWORKS)
-
     await Promise.all(
-      networks.map(async networkName => {
+      NetworkHelper.supportedNetworks().map(async ({ networkName }) => {
         logger.verbose('Start LogMember', llo({ networkName }))
-
-        const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
-        const provider = ConfigState.getInstance().getConfigItem(networkName as NetworksEnum)
-
-        if (!networkDb || !provider) {
-          logger.warn('Unsupported Network', llo({ networkName }))
-          return
-        }
 
         const multiSigTopics = Multisig.abi
           .filter((item: any) => item.type && LogMember.events.includes(item.name))
@@ -41,21 +28,19 @@ export const LogMember = {
 
         const filter = {
           topics: [...multiSigTopics, ...governanceTopics],
-          fromBlock: networkDb.lastBlockMember,
-          toBlock: 'latest',
         }
 
         const crawler = new BlockchainLogCrawler({
-          network: networkName as NetworksEnum,
+          network: networkName,
           filter,
-          onLog: async (txLog: Log) => LogMember.processLog(txLog, networkName as NetworksEnum),
-          onError: async (error: any) => LogMember.processError(error, networkName as NetworksEnum),
+          onLog: async (txLog: Log) => LogMember.processLog(txLog, networkName),
+          onError: async (error: any) => LogMember.processError(error, networkName),
+          logService: IEnumIndexerService.memberLog,
           stopOnError: true,
         })
 
         await crawler.crawl()
-        await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockMember')
-        logger.verbose('End LogMember', llo({ networkName, latestBlockSync: crawler.crawlResult.latestBlockNumber }))
+        logger.verbose('End LogMember', llo({ networkName, latestBlockSync: crawler.crawlResult.lastSync }))
       }),
     )
   },

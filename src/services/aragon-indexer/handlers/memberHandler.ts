@@ -97,7 +97,12 @@ export const MemberHandler = {
   delegateChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
 
-    const existingLog = await Models.LogMember.findExistingLog(info.transactionHash, parsedEvent.name)
+    const existingLog = await Models.LogMember.findExistingLog(
+      info.transactionHash,
+      parsedEvent.name,
+      parsedEvent.args.toDelegate,
+      info.network,
+    )
 
     if (!existingLog && txReceipt) {
       const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(

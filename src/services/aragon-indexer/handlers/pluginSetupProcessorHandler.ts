@@ -4,7 +4,7 @@ import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import Utils from '@helpers/utils'
-import { UtilsIndexer } from '@models/utils/indexer'
+import { UtilsIndexer } from '@indexer/utils/indexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:pluginSetupProcessorHandler' })
 
