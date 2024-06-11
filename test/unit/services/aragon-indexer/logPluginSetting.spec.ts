@@ -66,7 +66,7 @@ describe('Indexer: LogPluginSetting', () => {
 
       const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any) {
-        await this.onLog({ topics: ['0x123'] } as any)
+        await this.onError(true)
       })
 
       await LogPluginSetting.start()
