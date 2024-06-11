@@ -3,8 +3,9 @@ import { type HexAddress, type NetworksEnum } from '@types'
 export enum IPluginSubdomain {
   multisig = 'multisig',
   token = 'token-voting',
-  address = 'address-voting',
+  address = 'address-list-voting',
   admin = 'admin',
+  // subdaoPlugin = 'pattern-subdao-plugin',
 }
 
 export enum IPluginAction {

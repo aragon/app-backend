@@ -62,6 +62,13 @@ export interface IConfig {
   REMOTE_EXECUTION: boolean
   PROXY: string | null
   ENS_DOMAIN: string
+  ARAGON_SUPPORTED_BLOCK: {
+    MAINNET: number
+    SEPOLIA: number
+    POLYGON: number
+    BASE: number
+    ARBITRUM: number
+  }
   SUPPORTED_NETWORKS: INetworks[]
   DEFAULT_CURRENCY: string
   BOTTLENECK: {

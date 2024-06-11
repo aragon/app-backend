@@ -18,6 +18,14 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
     ENS_DOMAIN: utils.configParser(sourceConfig, 'string', 'ENS_DOMAIN', 'dao.eth'),
 
+    ARAGON_SUPPORTED_BLOCK: {
+      MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_MAINNET', 16721863),
+      SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_SEPOLIA', 4421517),
+      POLYGON: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_POLYGON', 40830344),
+      BASE: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_BASE', 2094740),
+      ARBITRUM: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ARBITRUM', 145462209),
+    },
+
     BOTTLENECK: {
       NODE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MAX_CONCURRENT', 20),
       NODE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MIN_TIME', 300),
@@ -168,6 +176,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           500,
         ),
       },
+
       ARAGON_RATES: {
         RATES_INTERVAL: utils.configParser(
           sourceConfig,
