@@ -193,10 +193,10 @@ describe('Helpers:Web3', () => {
     expect(result).to.be.true
   })
 
-  it('convertToHoxNumber', () => {
-    expect(Web3Helper.convertToHoxNumber(1)).to.eq('0x1')
-    expect(Web3Helper.convertToHoxNumber(0)).to.eq('0x0')
-    expect(Web3Helper.convertToHoxNumber(undefined as any)).to.eq(undefined)
+  it('convertToHexNumber', () => {
+    expect(Web3Helper.convertToHexNumber(1)).to.eq('0x1')
+    expect(Web3Helper.convertToHexNumber(0)).to.eq('0x0')
+    expect(Web3Helper.convertToHexNumber(undefined as any)).to.eq(undefined)
   })
 
   describe('supportsERC721', () => {

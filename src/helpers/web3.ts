@@ -379,7 +379,7 @@ const Web3Helper = {
     }
   },
 
-  convertToHoxNumber(number: number): string | undefined {
+  convertToHexNumber(number: number): string | undefined {
     if (!number && number !== 0) {
       return
     }
