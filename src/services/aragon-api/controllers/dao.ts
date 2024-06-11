@@ -1,17 +1,15 @@
 import { Models } from '@dbModels'
 import {
-  EnumPluginType,
   ErrorKeyEnum,
   type HexAddress,
   type IDaoMembersResponse,
-  type IPlugin,
-  type IResponseWithPagination,
   type IPaginationParams,
+  IPluginSubdomain,
+  type IResponseWithPagination,
   type NetworksEnum,
 } from '@types'
 import type Dao from '@models/schema/dao'
 import { assertExposable } from '@errors'
-import Satsuma from '@helpers/satsuma'
 
 const DaoController = {
   getWithPagination: async (
@@ -58,11 +56,12 @@ const DaoController = {
     assertExposable(dao, ErrorKeyEnum.notFound)
 
     const multiSigPlugin = dao.plugins.find(
-      (w: IPlugin) => w.type === EnumPluginType.MultisigPlugin && w.address === pluginAddress,
+      (w: { subdomain: IPluginSubdomain; address: string }) =>
+        w.subdomain === IPluginSubdomain.multisig && w.address === pluginAddress,
     )
     assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
 
-    const members = await Satsuma.getMultiSigMembers(dao.network, multiSigPlugin.address, memberFilters)
+    const members = await Models.Member.findMembersByPlugin(pluginAddress, memberFilters)
 
     return {
       ...memberFilters,
@@ -78,12 +77,13 @@ const DaoController = {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
-    const multiSigPlugin = dao.plugins.find(
-      (w: IPlugin) => w.type === EnumPluginType.TokenVotingPlugin && w.address === pluginAddress,
+    const tokenPlugin = dao.plugins.find(
+      (w: { subdomain: IPluginSubdomain; address: string }) =>
+        w.subdomain === IPluginSubdomain.token && w.address === pluginAddress,
     )
-    assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
+    assertExposable(tokenPlugin, ErrorKeyEnum.pluginNotFound)
 
-    const members = await Satsuma.getTokenVotingMembers(dao.network, multiSigPlugin.address, memberFilters)
+    const members = await Models.Member.findMembersByPlugin(pluginAddress, memberFilters)
 
     return {
       ...memberFilters,

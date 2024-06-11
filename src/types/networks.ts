@@ -4,6 +4,11 @@ export type ENS = `${string}.eth`
 
 export type INetworks = keyof typeof NetworksEnum
 
+export interface ISupportedNetwork {
+  provider: WebSocketProvider
+  networkName: NetworksEnum
+}
+
 export enum NetworksEnum {
   mainnet = 'mainnet',
   sepolia = 'sepolia',

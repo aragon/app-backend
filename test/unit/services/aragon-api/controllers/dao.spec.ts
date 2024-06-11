@@ -127,7 +127,6 @@ describe('Controller: Dao', () => {
 
     const pluginAddress = mockDao.plugins[0].address
     const permalink = mockDao.permalink
-    const network = mockDao.network
 
     const filters = {
       limit: 10,
@@ -153,7 +152,7 @@ describe('Controller: Dao', () => {
         address: '0xdf62645a2c714febbf6060d1fb607e7eccef0659',
       },
     ]
-    const stubSatsuma = sandbox.stub(Satsuma, 'getMultiSigMembers').resolves(fakeResponse as any)
+    const stubMember = sandbox.stub(Models.Member, 'findMembersByPlugin').resolves(fakeResponse as any)
 
     const result = await DaoController.getDaoMembersMultiSig(permalink as any, pluginAddress as HexAddress, filters)
 
@@ -162,10 +161,9 @@ describe('Controller: Dao', () => {
     expect(result.orderProp).to.eq('address')
     expect(result.order).to.eq('asc')
     expect(result.members.length).to.eq(5)
-    expect(stubSatsuma.calledOnce).to.be.true
-    expect(stubSatsuma.args[0][0]).to.eq(network)
-    expect(stubSatsuma.args[0][1]).to.eq(mockDao.plugins[0].address)
-    expect(stubSatsuma.args[0][2]).to.eq(filters)
+    expect(stubMember.calledOnce).to.be.true
+    expect(stubMember.args[0][0]).to.eq(mockDao.plugins[0].address)
+    expect(stubMember.args[0][1]).to.eq(filters)
   })
 
   it('getDaoMembers with tokenVotingMembers', async () => {
@@ -174,7 +172,6 @@ describe('Controller: Dao', () => {
 
     const pluginAddress = mockDao.plugins[0].address
     const permalink = mockDao.permalink
-    const network = mockDao.network
 
     const filters = {
       limit: 10,
@@ -185,7 +182,7 @@ describe('Controller: Dao', () => {
 
     const fakeResponse = [
       {
-        address: '0x826976d7c600d45fb8287ca1d7c76fc8eb732030',
+        address: mockDao.plugins[0].address,
         balance: '69000000000000000000',
         votingPower: '69000000000000000000',
         delegatee: {
@@ -213,7 +210,7 @@ describe('Controller: Dao', () => {
         ],
       },
     ]
-    const stubSatsuma = sandbox.stub(Satsuma, 'getTokenVotingMembers').resolves(fakeResponse as any)
+    const stubMember = sandbox.stub(Models.Member, 'findMembersByPlugin').resolves(fakeResponse as any)
 
     const result = await DaoController.getDaoMembersTokenVoting(permalink, pluginAddress as HexAddress, filters)
 
@@ -222,9 +219,8 @@ describe('Controller: Dao', () => {
     expect(result.orderProp).to.eq('address')
     expect(result.order).to.eq('asc')
     expect(result.members.length).to.eq(2)
-    expect(stubSatsuma.calledOnce).to.be.true
-    expect(stubSatsuma.args[0][0]).to.eq(network)
-    expect(stubSatsuma.args[0][1]).to.eq(mockDao.plugins[0].address)
-    expect(stubSatsuma.args[0][2]).to.eq(filters)
+    expect(stubMember.calledOnce).to.be.true
+    expect(stubMember.args[0][0]).to.eq(mockDao.plugins[0].address)
+    expect(stubMember.args[0][1]).to.eq(filters)
   })
 })

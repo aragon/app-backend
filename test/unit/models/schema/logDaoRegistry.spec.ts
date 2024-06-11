@@ -2,22 +2,15 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { NetworksEnum } from '@types'
-import Network from '@models/schema/network'
 import { Models } from '@dbModels'
-import LogDaoRegistry from '@models/schema/logDaoRegistry'
+import LogDaoRegistry, { URIUpdate } from '@models/schema/logDaoRegistry'
 
 describe('Model: LogDaoRegistry', () => {
   let sandbox: SinonSandbox
   let rawLogDaoRegistry: Partial<LogDaoRegistry>
-  let ethereumNetwork: Network
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-
-    ethereumNetwork = await Models.Network.create({
-      name: NetworksEnum.mainnet,
-      status: 'healthy',
-    })
 
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
@@ -28,7 +21,7 @@ describe('Model: LogDaoRegistry', () => {
       network: NetworksEnum.mainnet,
       address,
       creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-      ens: 'fake-ens.eth',
+      subdomain: 'fake-subdomain',
     }
   })
 
@@ -49,7 +42,7 @@ describe('Model: LogDaoRegistry', () => {
       expect(createdLogDaoRegistry.network).to.eq(rawLogDaoRegistry.network)
       expect(createdLogDaoRegistry.address).to.eq(rawLogDaoRegistry.address)
       expect(createdLogDaoRegistry.creatorAddress).to.eq(rawLogDaoRegistry.creatorAddress)
-      expect(createdLogDaoRegistry.ens).to.eq(rawLogDaoRegistry.ens)
+      expect(createdLogDaoRegistry.subdomain).to.eq(rawLogDaoRegistry.subdomain)
     })
 
     it('Should create LogDaoRegistry without entityId', async () => {
@@ -63,7 +56,7 @@ describe('Model: LogDaoRegistry', () => {
       expect(createdLogDaoRegistry.network).to.eq(rawLogDaoRegistry.network)
       expect(createdLogDaoRegistry.address).to.eq(rawLogDaoRegistry.address)
       expect(createdLogDaoRegistry.creatorAddress).to.eq(rawLogDaoRegistry.creatorAddress)
-      expect(createdLogDaoRegistry.ens).to.eq(rawLogDaoRegistry.ens)
+      expect(createdLogDaoRegistry.subdomain).to.eq(rawLogDaoRegistry.subdomain)
     })
   })
 
@@ -116,15 +109,51 @@ describe('Model: LogDaoRegistry', () => {
     expect(foundLogDaoRegistry?.entityId).to.eq(createdLogDaoRegistry.entityId)
   })
 
+  it('Should addUriEvent when empty', async () => {
+    const daoRegistry = await Models.LogDaoRegistry.create(rawLogDaoRegistry)
+    daoRegistry.uriUpdates = undefined
+
+    const rawUri: URIUpdate = {
+      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+      blockNumber: 3,
+      uri: '1',
+    }
+    const daoRegistryDb = await daoRegistry.addUriEvent(rawUri)
+    const uriDb = await daoRegistryDb.findUriEvent(rawUri.transactionHash)
+
+    expect(daoRegistryDb?.transactionHash).to.eq(rawLogDaoRegistry.transactionHash)
+
+    expect(uriDb?.transactionHash).to.eq(rawUri.transactionHash)
+    expect(uriDb?.blockNumber).to.eq(rawUri.blockNumber)
+    expect(uriDb?.uri).to.eq(rawUri.uri)
+  })
+
+  it('Should addUriEvent/findUriEvent', async () => {
+    const proposal = await Models.LogDaoRegistry.create(rawLogDaoRegistry)
+
+    const rawUri: URIUpdate = {
+      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+      blockNumber: 3,
+      uri: '1',
+    }
+    const proposalDb = await proposal.addUriEvent(rawUri)
+    const uriDb = await proposalDb.findUriEvent(rawUri.transactionHash)
+
+    expect(proposalDb?.transactionHash).to.eq(rawLogDaoRegistry.transactionHash)
+
+    expect(uriDb?.transactionHash).to.eq(rawUri.transactionHash)
+    expect(uriDb?.blockNumber).to.eq(rawUri.blockNumber)
+    expect(uriDb?.uri).to.eq(rawUri.uri)
+  })
+
   it('save uri update', async () => {
     const createdLogDaoRegistry = await Models.LogDaoRegistry.create(rawLogDaoRegistry)
     const uri = 'fake-uri'
-    await createdLogDaoRegistry.addURIUpdates({
+    await createdLogDaoRegistry.addUriEvent({
       uri,
       transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       blockNumber: 3,
-    })
+    } as any)
     expect(createdLogDaoRegistry.uriUpdates[0].uri).to.eq(uri)
   })
 })

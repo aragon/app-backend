@@ -3,38 +3,21 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { EnumPluginType, NetworksEnum } from '@types'
 import Dao from '@models/schema/dao'
-import Network from '@models/schema/network'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
 
 describe('Model: Dao', () => {
   let sandbox: SinonSandbox
   let rawDao: Partial<Dao>
-  let ethereumNetwork: Network
-  let polygonNetwork: Network
-  let arbitrumNetwork: Network
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-
-    ethereumNetwork = await Models.Network.create({
-      name: NetworksEnum.mainnet,
-      status: 'healthy',
-    })
-    polygonNetwork = await Models.Network.create({
-      name: NetworksEnum.polygon,
-      status: 'healthy',
-    })
-    arbitrumNetwork = await Models.Network.create({
-      name: NetworksEnum.arbitrum,
-      status: 'healthy',
-    })
 
     rawDao = {
       network: NetworksEnum.mainnet,
       transactionHash: '0x0',
       blockNumber: 0,
-      blockTime: dayjs().utc().toDate(),
+      blockTimestamp: 2141242,
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
@@ -59,9 +42,10 @@ describe('Model: Dao', () => {
         {
           transactionHash: '0x0',
           blockNumber: 0,
-          type: EnumPluginType.MultisigPlugin,
           address: '0x0',
           implementationAddress: '0x0',
+          tokenAddress: '0x01',
+          pluginSetupRepoAddress: '0x02',
           release: '0',
           build: '0',
           subdomain: 'test',
@@ -80,10 +64,11 @@ describe('Model: Dao', () => {
       const createdDao = await Models.Dao.create(rawDao)
 
       expect(createdDao.id).to.exist
+      expect(createdDao.entityId).to.exist
       expect(createdDao.network).to.eq(rawDao.network)
       expect(createdDao.transactionHash).to.eq(rawDao.transactionHash)
       expect(createdDao.blockNumber).to.eq(rawDao.blockNumber)
-      expect(createdDao.blockTime.toString()).to.eq(rawDao.blockTime?.toString())
+      expect(createdDao.blockTimestamp).to.eq(rawDao.blockTimestamp)
       expect(createdDao.permalink).to.eq(`${createdDao.network}-${createdDao.ens || createdDao.address}`)
       expect(createdDao.address).to.eq(rawDao.address)
       expect(createdDao.implementationAddress).to.eq(rawDao.implementationAddress)
@@ -104,7 +89,8 @@ describe('Model: Dao', () => {
       expect(createdDao.plugins.length).to.eq(1)
       expect(createdDao.plugins[0].transactionHash).to.eq(rawDao.plugins![0].transactionHash)
       expect(createdDao.plugins[0].blockNumber).to.eq(rawDao.plugins![0].blockNumber)
-      expect(createdDao.plugins[0].type).to.eq(rawDao.plugins![0].type)
+      expect(createdDao.plugins[0].tokenAddress).to.eq(rawDao.plugins![0].tokenAddress)
+      expect(createdDao.plugins[0].pluginSetupRepoAddress).to.eq(rawDao.plugins![0].pluginSetupRepoAddress)
       expect(createdDao.plugins[0].address).to.eq(rawDao.plugins![0].address)
       expect(createdDao.plugins[0].implementationAddress).to.eq(rawDao.plugins![0].implementationAddress)
       expect(createdDao.plugins[0].release).to.eq(rawDao.plugins![0].release)
@@ -128,7 +114,7 @@ describe('Model: Dao', () => {
     it('Should not create DAO with same permalink', async () => {
       const createdDao = await Models.Dao.create(rawDao)
       expect(createdDao.id).to.exist
-      await expect(Models.Dao.create(rawDao)).rejectedWith(Error, 'permalink_1 dup key')
+      await expect(Models.Dao.create(rawDao)).rejectedWith(Error, 'entityId_1 dup key')
     })
   })
 
@@ -165,7 +151,7 @@ describe('Model: Dao', () => {
           description: 'fake-description',
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-          network: ethereumNetwork.name,
+          network: NetworksEnum.mainnet,
           members: 10,
           proposalsCreated: 5,
           proposalsExecuted: 3,
@@ -187,7 +173,7 @@ describe('Model: Dao', () => {
           description: 'fake-description',
           address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
-          network: polygonNetwork.name,
+          network: NetworksEnum.polygon,
           members: 15,
           proposalsCreated: 7,
           proposalsExecuted: 5,
@@ -209,7 +195,7 @@ describe('Model: Dao', () => {
           description: 'fake-description',
           address: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
           creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
-          network: arbitrumNetwork.name,
+          network: NetworksEnum.arbitrum,
           members: 15,
           proposalsCreated: 7,
           proposalsExecuted: 5,
@@ -264,7 +250,7 @@ describe('Model: Dao', () => {
       await Models.Dao.create({
         address: '0xee0627bA21e9114336977482372486d084497efa',
         creatorAddress: '0xEFbB4E6e5CF4bB4Ae8Cdc2c109da90D2a2433B50',
-        network: polygonNetwork.name,
+        network: NetworksEnum.polygon,
         members: 15,
         proposalsCreated: 7,
         proposalsExecuted: 5,
@@ -396,6 +382,6 @@ describe('Model: Dao', () => {
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(22)
+    expect(Object.keys(filterDao).length).to.eq(23)
   })
 })

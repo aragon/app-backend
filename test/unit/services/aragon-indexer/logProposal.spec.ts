@@ -3,15 +3,15 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { LogProposal } from '@services/aragon-indexer/logProposal'
 import logger from '@logger'
+import Logger from '@logger'
 import { NetworksEnum } from '@types'
-import { Models } from '@dbModels'
-import { UtilsIndexer } from '@models/utils/indexer'
-import Network from '@models/schema/network'
 import Provider from '@modules/provider'
 import { ProposalHandler } from '@services/aragon-indexer/handlers/proposalHandler'
 import Utils from '@helpers/utils'
 import { UnitTestUtils } from '@test/lib/utils'
 import Web3Helper from '@helpers/web3'
+import { NetworkHelper } from '@helpers/network'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 
 describe('Indexer: LogProposal', () => {
   let sandbox: SinonSandbox
@@ -31,49 +31,44 @@ describe('Indexer: LogProposal', () => {
   describe('start', () => {
     it('should start', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
-
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
-      const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
+        Object.values(NetworksEnum).map(networkName => ({
+          networkName,
+          provider: {} as any,
+        })),
+      )
 
-      const processMetadataStub = sandbox.stub(LogProposal, 'processLog').resolves()
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
-      const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onLog({ topics: ['0x123'] } as any)
+      })
 
       await LogProposal.start()
 
-      expect(loggerVerboseStub.callCount).to.eq(15)
-      expect(processMetadataStub.callCount).to.eq(4)
-      expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
-      expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
+      expect(stubLogger.calledWith('End LogProposal' as any)).to.be.true
+      expect(crawlerStub.callCount).to.eq(Object.values(NetworksEnum).length)
     })
 
     it('should start handle error', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
-
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
-      const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
+        Object.values(NetworksEnum).map(networkName => ({
+          networkName,
+          provider: {} as any,
+        })),
+      )
 
-      const processMetadataStub = sandbox.stub(LogProposal, 'processLog').rejects()
-      const errorStub = sandbox.stub(LogProposal, 'processError').resolves()
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
-      const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onError(true)
+      })
 
       await LogProposal.start()
 
-      expect(errorStub.callCount).to.eq(4)
-      expect(loggerVerboseStub.callCount).to.eq(15)
-      expect(processMetadataStub.callCount).to.eq(4)
-      expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
-      expect(saveSyncStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
-    })
-
-    it('should skip unsupported networks', async () => {
-      const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves(null)
-      const stubLogger = sandbox.stub(logger, 'warn')
-      await LogProposal.start()
-
-      expect(stubLogger.calledWith('Unsupported Network' as any)).to.be.true
-      expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
+      expect(stubLogger.calledWith('End LogProposal' as any)).to.be.true
+      expect(crawlerStub.callCount).to.eq(Object.values(NetworksEnum).length)
     })
   })
 

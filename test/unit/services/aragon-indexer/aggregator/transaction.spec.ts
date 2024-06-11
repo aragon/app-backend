@@ -3,8 +3,6 @@ import { expect } from 'chai'
 import { AggregatorTransactions } from '@services/aragon-indexer/aggregator/transaction'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
-import { UtilsIndexer } from '@models/utils/indexer'
-import logger from '@logger'
 import Logger from '@logger'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
@@ -25,39 +23,31 @@ describe('Indexer:Aggregator:Transactions', () => {
 
   describe('start', async () => {
     it('should start the AggregatorTransactions', async () => {
-      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
       const stubAggregatorTransactions = sandbox.stub(AggregatorTransactions, 'onDocument')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onDocument(true)
       })
-      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
       await AggregatorTransactions.start()
 
       expect(stubLogger.calledWith('End AggregatorTransactions' as any)).to.be.true
       expect(stubAggregatorTransactions.calledOnceWith(true as any)).to.be.true
-      expect(findByTypeStub.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(saveAggregationSyncStub.calledOnce).to.be.true
     })
 
     it('should error the AggregatorTransactions', async () => {
-      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
-      const stubLoggerError = sandbox.stub(logger, 'error')
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubLoggerError = sandbox.stub(Logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onError(true)
       })
-      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
       await AggregatorTransactions.start()
 
       expect(stubLogger.calledWith('End AggregatorTransactions' as any)).to.be.true
       expect(stubLoggerError.calledOnce).to.be.true
-      expect(findByTypeStub.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(saveAggregationSyncStub.calledOnce).to.be.true
     })
   })
 
@@ -88,9 +78,8 @@ describe('Indexer:Aggregator:Transactions', () => {
         await this.onTx(txLog)
       })
       const saveTransactionStub = sandbox.stub(AggregatorTransactions, 'saveTransaction').resolves()
-      const fakeAggregatorDb = { lastBlockNumber: 1 }
 
-      await AggregatorTransactions.onDocument(daoRegistry as any, fakeAggregatorDb as any)
+      await AggregatorTransactions.onDocument(daoRegistry as any)
 
       expect(crawlStub.calledTwice).to.be.true
       expect(saveTransactionStub.calledTwice).to.be.true
@@ -125,9 +114,8 @@ describe('Indexer:Aggregator:Transactions', () => {
         await this.onError(true)
       })
       const stubLogger = sandbox.stub(Logger, 'error')
-      const fakeAggregatorDb = { lastBlockNumber: 1 }
 
-      await AggregatorTransactions.onDocument(daoRegistry as any, fakeAggregatorDb as any)
+      await AggregatorTransactions.onDocument(daoRegistry as any)
 
       expect(crawlStub.calledTwice).to.be.true
       expect(stubLogger.calledTwice).to.be.true
@@ -139,7 +127,7 @@ describe('Indexer:Aggregator:Transactions', () => {
 
     tests.forEach((tx: any) => {
       it(`should saveTransaction for ${tx.category}`, async () => {
-        const daoRegistry = { id: 'daoRegistryId', address: tx.to, network: 'mainnet' }
+        const daoRegistry = { id: 'daoRegistryId', address: tx.to, network: NetworksEnum.mainnet }
         const expectedTransaction = {
           transactionHash: tx.hash,
           blockNumber: parseInt(tx.blockNum, 16),
@@ -165,7 +153,7 @@ describe('Indexer:Aggregator:Transactions', () => {
     })
 
     it('skip existing transaction', async () => {
-      const daoRegistry = { id: 'daoRegistryId', address: '0x01', network: 'mainnet' }
+      const daoRegistry = { id: 'daoRegistryId', address: '0x01', network: NetworksEnum.mainnet }
       const tx = {
         transactionHash: '0x0',
       }
@@ -183,7 +171,7 @@ describe('Indexer:Aggregator:Transactions', () => {
     })
 
     it(`error saveTransaction`, async () => {
-      const daoRegistry = { id: 'daoRegistryId', address: '0x01', network: 'mainnet' }
+      const daoRegistry = { id: 'daoRegistryId', address: '0x01', network: NetworksEnum.mainnet }
       const tx = {
         transactionHash: '0x0',
       }

@@ -1,21 +1,20 @@
-import { AggregatorTypeEnum, type IAlchemyTokenBalance } from '@types'
+import { type IAlchemyTokenBalance } from '@types'
 import DBCrawler from '@models/utils/crawler'
 import { ZeroAddress } from 'ethers'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Asset from '@models/schema/asset'
-import { UtilsIndexer } from '@models/utils/indexer'
+import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorAssets' })
 
 export const AggregatorAssets = {
   start: async () => {
     logger.verbose('Start AggregatorAssets', llo({}))
-
-    const aggregatorDb = await Models.Aggregator.findByType(AggregatorTypeEnum.assets)
 
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
@@ -29,8 +28,7 @@ export const AggregatorAssets = {
     })
 
     await crawler.crawl()
-    await UtilsIndexer.saveAggregationSync(crawler, aggregatorDb, 'lastTimeSync')
-    logger.verbose('End AggregatorAssets', llo({}))
+    logger.verbose('End AggregatorAssets', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
   },
 
   onDocument: async (document: LogDaoRegistry) => {
@@ -50,7 +48,7 @@ export const AggregatorAssets = {
         const existingEthAssetDb = await Models.Asset.findExistingLog(document.address, ZeroAddress, document.network)
 
         await DbTx.executeTxFn(async ({ session }) => {
-          let logDb: any = null
+          let logDb: any
           if (existingEthAssetDb) {
             logDb = await existingEthAssetDb.update(ethAssetData, { session })
           } else {
@@ -80,7 +78,7 @@ export const AggregatorAssets = {
             }
 
             const assetDb = await DbTx.executeTxFn(async ({ session }) => {
-              let logDb: any = null
+              let logDb: any
               if (existingAssetDb) {
                 logDb = await existingAssetDb.update(rawData, { session })
               } else {
@@ -94,7 +92,7 @@ export const AggregatorAssets = {
             })
 
             if (assetDb.tokenAddress) {
-              await UtilsIndexer.saveAndGetToken(assetDb.tokenAddress, assetDb.network)
+              Utils.setImmediateAsync(async () => UtilsIndexer.saveAndGetToken(assetDb.tokenAddress, assetDb.network))
             }
           }),
       )

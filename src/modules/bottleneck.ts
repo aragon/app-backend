@@ -5,6 +5,7 @@ import { type NetworksEnum } from '@types'
 class BottleneckModule {
   static nodeLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static transferLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static coinGeckoLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
 
   static getNodeLimiter(network: NetworksEnum) {
     if (!this.nodeLimiters[network]) {
@@ -24,6 +25,16 @@ class BottleneckModule {
       })
     }
     return this.transferLimiters[network]
+  }
+
+  static getCoinGeckoLimiter(network: NetworksEnum) {
+    if (!this.coinGeckoLimiters[network]) {
+      this.coinGeckoLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.COINGECKO_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.COINGECKO_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.coinGeckoLimiters[network]
   }
 }
 

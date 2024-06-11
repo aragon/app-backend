@@ -6,6 +6,7 @@ import logger from '@logger'
 import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
+import { Models } from '@dbModels'
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
@@ -21,10 +22,10 @@ describe('Module: blockchainLogCrawler', () => {
       getBlockNumber: sandbox.stub(),
       getLogs: sandbox.stub(),
     }
-    logVerbose = sandbox.spy(logger, 'verbose')
-    logWarn = sandbox.spy(logger, 'warn')
-    logInfo = sandbox.spy(logger, 'info')
-    logError = sandbox.spy(logger, 'error')
+    logVerbose = sandbox.stub(logger, 'verbose')
+    logWarn = sandbox.stub(logger, 'warn')
+    logInfo = sandbox.stub(logger, 'info')
+    logError = sandbox.stub(logger, 'error')
   })
 
   afterEach(() => {
@@ -52,6 +53,36 @@ describe('Module: blockchainLogCrawler', () => {
 
     expect(onLogStub.calledTwice).to.be.true
     expect(onLogStub.calledTwice).to.be.true
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+  })
+
+  it('should crawl logs correctly with logService', async () => {
+    const stubSaveProgress = sandbox.stub(BlockchainLogCrawler.prototype, 'onSaveProgress').resolves()
+    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+    mockProvider.getBlockNumber.resolves(16721863 + 10)
+    mockProvider.getLogs
+      .onFirstCall()
+      .resolves([
+        { transactionHash: '0x1', blockNumber: 2 },
+        { transactionHash: '0x2', blockNumber: 3 },
+      ])
+      .onSecondCall()
+      .resolves([])
+
+    const onLogStub = sandbox.stub().resolves()
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.mainnet,
+      filter: {},
+      batchSize: 10,
+      onLog: onLogStub,
+      logService: 'testService' as any,
+    })
+
+    await crawler.crawl()
+
+    expect(onLogStub.calledTwice).to.be.true
+    expect(onLogStub.calledTwice).to.be.true
+    expect(stubSaveProgress.calledThrice).to.be.true
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
@@ -305,6 +336,56 @@ describe('Module: blockchainLogCrawler', () => {
       expect(() => crawler.calculateBatchSize(unsupportedNetwork as NetworksEnum)).to.throw(
         `Unsupported network: ${unsupportedNetwork}`,
       )
+    })
+  })
+
+  describe('onSaveProgress', () => {
+    it('should onSaveProgress - create', async () => {
+      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      const blockNumber = 10
+
+      const crawler = new BlockchainLogCrawler({
+        network: NetworksEnum.mainnet,
+        filter: {},
+        batchSize: 5,
+        onLog: async () => {},
+        onError: () => {},
+        stopOnError: true,
+        logService: 'testService' as any,
+      })
+
+      const spyModelFind = sandbox.spy(Models.ConfigIndexer, 'findExistingLog')
+      const spyModelCreate = sandbox.spy(Models.ConfigIndexer, 'create')
+
+      await crawler.onSaveProgress(blockNumber)
+
+      expect(spyModelFind.calledOnceWith(NetworksEnum.mainnet, 'testService')).to.be.true
+      expect(spyModelCreate.calledOnce).to.be.true
+    })
+
+    it('should onSaveProgress - update', async () => {
+      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      const blockNumber = 10
+
+      const crawler = new BlockchainLogCrawler({
+        network: NetworksEnum.mainnet,
+        filter: {},
+        batchSize: 5,
+        onLog: async () => {},
+        onError: () => {},
+        stopOnError: true,
+        logService: 'testService' as any,
+      })
+
+      const fakeModel = { update: sandbox.stub().resolves() }
+      const spyModelFind = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(fakeModel)
+      const spyModelCreate = sandbox.spy(Models.ConfigIndexer, 'create')
+
+      await crawler.onSaveProgress(blockNumber)
+
+      expect(spyModelFind.calledOnceWith(NetworksEnum.mainnet, 'testService')).to.be.true
+      expect(fakeModel.update.calledOnce).to.be.true
+      expect(spyModelCreate.notCalled).to.be.true
     })
   })
 })

@@ -1,14 +1,12 @@
 import logger from '@logger'
 import { ethers, Interface, type Log } from 'ethers'
-import Network from '@models/schema/network'
-import { Models } from '@dbModels'
-import { type NetworksEnum } from '@types'
+import { IEnumIndexerService, type NetworksEnum } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { ProposalHandler } from '@services/aragon-indexer/handlers/proposalHandler'
-import { UtilsIndexer } from '@models/utils/indexer'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { Multisig } from '@artifacts/Multisig'
 import Web3Helper from '@helpers/web3'
+import { NetworkHelper } from '@helpers/network'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogProposal' })
 
@@ -16,18 +14,9 @@ export const LogProposal = {
   events: ['Approved', 'ProposalCreated', 'ProposalExecuted', 'VoteCast'],
 
   start: async () => {
-    const networks = Object.values(Network.NETWORKS)
-
     await Promise.all(
-      networks.map(async networkName => {
+      NetworkHelper.supportedNetworks().map(async ({ networkName }) => {
         logger.verbose('Start LogProposal', llo({ networkName }))
-
-        const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
-
-        if (!networkDb) {
-          logger.warn('Unsupported Network', llo({ networkName }))
-          return
-        }
 
         const tokenVotingTopics = TokenVoting.abi
           .filter((item: any) => item.type && LogProposal.events.includes(item.name))
@@ -39,21 +28,19 @@ export const LogProposal = {
 
         const filter = {
           topics: [...tokenVotingTopics, ...multisigTopics],
-          fromBlock: networkDb.lastBlockProposal,
-          toBlock: 'latest',
         }
 
         const crawler = new BlockchainLogCrawler({
-          network: networkName as NetworksEnum,
+          network: networkName,
           filter,
-          onLog: async (txLog: Log) => LogProposal.processLog(txLog, networkName as NetworksEnum),
-          onError: async (error: any) => LogProposal.processError(error, networkName as NetworksEnum),
+          onLog: async (txLog: Log) => LogProposal.processLog(txLog, networkName),
+          onError: async (error: any) => LogProposal.processError(error, networkName),
+          logService: IEnumIndexerService.proposalLog,
           stopOnError: true,
         })
 
         await crawler.crawl()
-        await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockProposal')
-        logger.verbose('End LogProposal', llo({ networkName, latestBlockSync: crawler.crawlResult.latestBlockNumber }))
+        logger.verbose('End LogProposal', llo({ networkName, latestBlockSync: crawler.crawlResult.lastSync }))
       }),
     )
   },

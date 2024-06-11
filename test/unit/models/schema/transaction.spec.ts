@@ -2,27 +2,20 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
-import Network from '@models/schema/network'
 import { Models } from '@dbModels'
 import Transaction from '@models/schema/transaction'
 
 describe('Model: Transaction', () => {
   let sandbox: SinonSandbox
   let rawTransaction: Partial<Transaction>
-  let ethereumNetwork: Network
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    ethereumNetwork = await Models.Network.create({
-      name: NetworksEnum.mainnet,
-      status: 'healthy',
-    })
-
     rawTransaction = {
       transactionHash: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       blockNumber: 1,
-      network: ethereumNetwork.name,
+      network: NetworksEnum.mainnet,
       type: ITransactionType.deposit,
       category: ITransactionCategory.Internal,
       fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',

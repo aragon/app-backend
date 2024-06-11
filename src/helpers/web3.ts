@@ -1,4 +1,5 @@
 import {
+  type ENS,
   type HexAddress,
   type IAlchemyTokenBalance,
   type IDaoMetadata,
@@ -19,12 +20,12 @@ import {
   type WebSocketProvider,
 } from 'ethers'
 import { ConfigState } from '@state/configState'
-import { ENSSubdomainRegistrar } from '@artifacts/ENSSubdomainRegistrar'
 import logger from '@logger'
 import config from '@config'
 import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import BottleneckModule from '@modules/bottleneck'
+import { ENSRegistry } from '@artifacts/ENSRegistry'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -149,7 +150,7 @@ const Web3Helper = {
       const trimmedAddress = address.replace(/^0x0+/, '0x')
       return getAddress(trimmedAddress)
     } catch (error) {
-      logger.error('Error formatAddress', llo({ address, error }))
+      logger.warn('Error formatAddress', llo({ address, error }))
       return address.replace(/^0x0+/, '0x')
     }
   },
@@ -378,11 +379,24 @@ const Web3Helper = {
     }
   },
 
-  convertToHoxNumber(number: number): string | undefined {
+  convertToHexNumber(number: number): string | undefined {
     if (!number && number !== 0) {
       return
     }
     return '0x' + number?.toString(16)
+  },
+
+  async getBlockTimestamp(blockNumber: number, network: NetworksEnum): Promise<number> {
+    try {
+      const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+
+      const block = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber))
+
+      return block?.timestamp || 0
+    } catch (error) {
+      logger.error('Error getBlockTimestamp', llo({ blockNumber, network, error }))
+      return 0
+    }
   },
 
   async getBalance(address: HexAddress, network: NetworksEnum): Promise<string> {
@@ -460,11 +474,15 @@ const Web3Helper = {
     }
   },
 
-  async ensExists(ensName: string, network: NetworksEnum): Promise<boolean> {
+  parseSubdomainToEns(subdomain: string): ENS | undefined {
+    return `${subdomain}.${config.ENS_DOMAIN}` as ENS
+  },
+
+  async subdomainExists(ensName: string, network: NetworksEnum): Promise<boolean> {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      const ensContract = new Contract(config.CONTRACTS.ENS_REGISTRY, ENSSubdomainRegistrar.abi, provider)
+      const ensContract = new Contract(config.CONTRACTS.ENS_REGISTRY, ENSRegistry.abi, provider)
 
       const nameHashed = namehash(ensName)
 
@@ -475,7 +493,7 @@ const Web3Helper = {
       return recordExists
     } catch (error) {
       logger.error(
-        'Error ensExists',
+        'Error subdomainExists',
         llo({
           ensName,
           network,
@@ -538,20 +556,20 @@ const Web3Helper = {
     try {
       token.name = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.name())
     } catch (error) {
-      logger.error('Error getting token info name', llo({ error, address }))
+      logger.warn('Error getting token info name', llo({ error, address }))
     }
 
     try {
       token.symbol = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.symbol())
     } catch (error) {
-      logger.error('Error getting token symbol', llo({ error, address }))
+      logger.warn('Error getting token symbol', llo({ error, address }))
     }
 
     try {
       const decimals = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.decimals())
       token.decimals = Number(decimals)
     } catch (error) {
-      logger.error('Error getting token symbol', llo({ error, address }))
+      logger.warn('Error getting token symbol', llo({ error, address }))
     }
 
     try {
@@ -560,7 +578,7 @@ const Web3Helper = {
       )
       token.totalSupply = Number(totalSupply)
     } catch (error) {
-      logger.error('Error getting token total supply:', llo({ error, address }))
+      logger.warn('Error getting token total supply:', llo({ error, address }))
     }
 
     return token

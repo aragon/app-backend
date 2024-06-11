@@ -61,6 +61,14 @@ export interface IConfig {
   TIMEZONE: string
   REMOTE_EXECUTION: boolean
   PROXY: string | null
+  ENS_DOMAIN: string
+  ARAGON_SUPPORTED_BLOCK: {
+    MAINNET: number
+    SEPOLIA: number
+    POLYGON: number
+    BASE: number
+    ARBITRUM: number
+  }
   SUPPORTED_NETWORKS: INetworks[]
   DEFAULT_CURRENCY: string
   BOTTLENECK: {
@@ -68,6 +76,8 @@ export interface IConfig {
     NODE_MIN_TIME: number
     NODE_TRANSFER_MAX_CONCURRENT: number
     NODE_TRANSFER_MIN_TIME: number
+    COINGECKO_MAX_CONCURRENT: number
+    COINGECKO_MIN_TIME: number
   }
   MONGO_DB: {
     NAME: string

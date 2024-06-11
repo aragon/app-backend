@@ -65,5 +65,12 @@ describe('Model: Member', () => {
       const foundMember = await createdMember.reload()
       expect(foundMember?.entityId).to.eq(createdMember.entityId)
     })
+
+    it('should find the member by plugin address', async () => {
+      const member = await Models.Member.create(rawMember)
+      const foundMembers = await Models.Member.findMembersByPlugin(rawMember.daos![0].pluginAddress)
+      expect(foundMembers.length).to.eq(1)
+      expect(foundMembers[0]?.address).to.eq(member.address)
+    })
   })
 })

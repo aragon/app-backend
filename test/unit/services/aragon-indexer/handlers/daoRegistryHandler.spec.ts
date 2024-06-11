@@ -59,7 +59,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(savedDaoLog.network).to.eq(network)
       expect(savedDaoLog.address).to.eq(fakeEvent.args.dao)
       expect(savedDaoLog.creatorAddress).to.eq(fakeEvent.args.creator)
-      expect(savedDaoLog.ens).to.eq(fakeEvent.args.subdomain)
+      expect(savedDaoLog.subdomain).to.eq(fakeEvent.args.subdomain)
       expect(savedDaoLog.blockNumber).to.eq(logInfo.blockNumber)
       expect(savedDaoLog.transactionHash).to.eq(logInfo.transactionHash)
       expect(initNewDaoStub.calledOnce).to.be.true
@@ -407,7 +407,6 @@ describe('Indexer: DaoRegistryHandler', () => {
 
   describe('_metadataHandler', () => {
     it('should call metadataSet', async () => {
-      const transactionHash = '0x0'
       const txReceipt = {
         transactionHash: '0x123',
         address: '0x123',

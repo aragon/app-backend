@@ -1,10 +1,18 @@
 import logger from '@logger'
 import { type WebSocketProvider } from 'ethers'
 import { ConfigState } from '@state/configState'
-import { type IAlchemyTransferOptions, type IAlchemyTransferResponse, NetworksEnum } from '@types'
+import {
+  type IAlchemyTransferOptions,
+  type IAlchemyTransferResponse,
+  type IEnumIndexerService,
+  NetworksEnum,
+} from '@types'
 import Utils from '@helpers/utils'
 import BottleneckModule from '@modules/bottleneck'
 import Web3Helper from '@helpers/web3'
+import { Models } from '@dbModels'
+import config from '@config'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainTransferCrawler' })
 
@@ -15,6 +23,7 @@ class BlockchainTransferCrawler {
   private readonly provider: WebSocketProvider
   private readonly filter: IAlchemyTransferOptions
   private readonly stopOnError: boolean
+  private readonly logService: IEnumIndexerService | null
   batchSize: number = 0
   crawling: boolean
   isOnError: boolean
@@ -26,8 +35,7 @@ class BlockchainTransferCrawler {
     nbSuccess: number
     nbError: number
     nbTotal: number
-    lastBlockSync: number
-    latestBlockNumber: number
+    lastSync: number
   }
 
   constructor(opts: {
@@ -37,6 +45,7 @@ class BlockchainTransferCrawler {
     onError?: (error: Error, log?: IAlchemyTransferResponse) => void
     stopOnError?: boolean
     shutdown?: boolean
+    logService?: IEnumIndexerService
   }) {
     this.network = opts.network
     this.provider = ConfigState.getInstance().getConfigItem(opts.network) as WebSocketProvider
@@ -57,13 +66,13 @@ class BlockchainTransferCrawler {
     this.shutdown = opts.shutdown ?? false
     this.crawling = false
     this.isOnError = false
+    this.logService = opts.logService ?? null
     this.crawlResult = {
       network: opts.network,
-      latestBlockNumber: 0,
-      lastBlockSync: 0,
       nbSuccess: 0,
       nbError: 0,
       nbTotal: 0,
+      lastSync: 0,
     }
   }
 
@@ -108,10 +117,16 @@ class BlockchainTransferCrawler {
     }
 
     this.crawling = true
+
+    // override when use log service
+    if (this.logService) {
+      this.filter.fromBlock = await this.getServiceStartBlock()
+      this.filter.toBlock = 'latest'
+    }
+
     let currentBlock = await this.getBlockNumber(this.filter.fromBlock as any)
     const latestBlock = await this.getBlockNumber(this.filter.toBlock as any)
     this.batchSize = Math.max(0, latestBlock - currentBlock)
-    this.crawlResult.latestBlockNumber = latestBlock
 
     while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
       const toBlock = Math.min(currentBlock + this.batchSize - 1, latestBlock)
@@ -127,13 +142,12 @@ class BlockchainTransferCrawler {
         }),
       )
 
-      let isError = false
       try {
         const response = await BottleneckModule.getNodeTransferLimiter(this.network)!.schedule(async () =>
           this.provider.send('alchemy_getAssetTransfers', [
             {
-              fromBlock: toBlock === 0 ? Web3Helper.convertToHoxNumber(currentBlock) : undefined,
-              toBlock: toBlock === 0 ? Web3Helper.convertToHoxNumber(toBlock) : undefined,
+              fromBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(currentBlock) : undefined,
+              toBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(toBlock) : undefined,
               fromAddress: this.filter.fromAddress,
               toAddress: this.filter.toAddress,
               category: this.filter.category,
@@ -143,16 +157,16 @@ class BlockchainTransferCrawler {
 
         await this.processTxs(response.transfers)
       } catch (error) {
-        isError = true
         await this.handleErrors(error)
         if (this.stopOnError && this.shutdown) break
       }
 
-      if (this.shutdown) break
-      if (!isError) {
-        currentBlock = toBlock + 1
-        if (currentBlock >= latestBlock) break
+      if (this.logService) {
+        await this.onSaveProgress(toBlock)
       }
+      if (this.shutdown) break
+      currentBlock = toBlock + 1
+      if (currentBlock >= latestBlock) break
     }
 
     this.crawling = false
@@ -176,7 +190,12 @@ class BlockchainTransferCrawler {
       try {
         await this.onTx(tx)
         this.crawlResult.nbSuccess++
-        this.crawlResult.lastBlockSync = tx?.blockNum
+        if (tx?.blockNum) {
+          this.crawlResult.lastSync = Number(tx.blockNum)
+        }
+        if (this.logService && tx?.blockNum) {
+          await this.onSaveProgress(tx.blockNum)
+        }
       } catch (error) {
         this.onError(error, tx)
         this.crawlResult.nbError++
@@ -201,6 +220,35 @@ class BlockchainTransferCrawler {
     const messages = ['The query timed out', 'Log response size exceeded']
 
     return messages.some(msg => error.message?.includes(msg))
+  }
+
+  async getServiceStartBlock() {
+    const existingConfig = await Models.ConfigIndexer.findExistingLog(this.crawlResult.network, this.logService)
+    return existingConfig
+      ? existingConfig.lastSync
+      : config.ARAGON_SUPPORTED_BLOCK[this.crawlResult.network.toUpperCase()]
+  }
+
+  async onSaveProgress(blockNumber: number) {
+    const existingConfig = await Models.ConfigIndexer.findExistingLog(this.crawlResult.network, this.logService)
+
+    await DbTx.executeTxFn(async ({ session }) => {
+      if (existingConfig) {
+        await existingConfig.update({ lastSync: blockNumber })
+      } else {
+        await Models.ConfigIndexer.create(
+          {
+            network: this.crawlResult.network,
+            service: this.logService,
+            lastSync: blockNumber,
+          },
+          { session },
+        )
+      }
+
+      await session.commitTransaction()
+      await session.endSession()
+    })
   }
 }
 

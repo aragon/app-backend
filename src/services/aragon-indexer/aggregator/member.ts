@@ -1,17 +1,13 @@
-import { AggregatorTypeEnum } from '@types'
 import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
-import { UtilsIndexer } from '@models/utils/indexer'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMembers' })
 
 export const AggregatorMembers = {
   start: async () => {
     logger.verbose('Start AggregatorMembers', llo({}))
-
-    const aggregatorDb = await Models.Aggregator.findByType(AggregatorTypeEnum.members)
 
     const crawler = new DBCrawler({
       model: Models.LogMember,
@@ -26,7 +22,6 @@ export const AggregatorMembers = {
     })
 
     await crawler.crawl()
-    await UtilsIndexer.saveAggregationSync(crawler, aggregatorDb, 'lastTimeSync')
     logger.verbose('End AggregatorMembers', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt }))
   },
 
@@ -34,7 +29,7 @@ export const AggregatorMembers = {
     const existingLog = await Models.Member.findExistingLog(document.address)
     // TODO: find user ens
     await DbTx.executeTxFn(async ({ session }) => {
-      let logDb: any = null
+      let logDb: any
       if (!existingLog) {
         logDb = await Models.Member.create(document, { session })
       } else {

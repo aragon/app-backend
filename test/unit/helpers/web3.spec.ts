@@ -6,8 +6,8 @@ import { ITransactionType, NetworksEnum } from '@types'
 import { AbiCoder, Interface } from 'ethers'
 import { ConfigState } from '@state/configState'
 import Logger from '@logger'
-import proxyquire from 'proxyquire'
 import logger from '@logger'
+import proxyquire from 'proxyquire'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -88,7 +88,7 @@ describe('Helpers:Web3', () => {
 
   it('should throw error format address', () => {
     const mockInvalidAddress = '0x000000000000000000000000zzz60f584879f024299da0f19cdb47b931e35b53'
-    const stubLoggerError = sandbox.stub(Logger, 'error')
+    const stubLoggerError = sandbox.stub(Logger, 'warn')
 
     const formattedAddress = Web3Helper.formatAddress(mockInvalidAddress)
 
@@ -193,10 +193,10 @@ describe('Helpers:Web3', () => {
     expect(result).to.be.true
   })
 
-  it('convertToHoxNumber', () => {
-    expect(Web3Helper.convertToHoxNumber(1)).to.eq('0x1')
-    expect(Web3Helper.convertToHoxNumber(0)).to.eq('0x0')
-    expect(Web3Helper.convertToHoxNumber(undefined as any)).to.eq(undefined)
+  it('convertToHexNumber', () => {
+    expect(Web3Helper.convertToHexNumber(1)).to.eq('0x1')
+    expect(Web3Helper.convertToHexNumber(0)).to.eq('0x0')
+    expect(Web3Helper.convertToHexNumber(undefined as any)).to.eq(undefined)
   })
 
   describe('supportsERC721', () => {
@@ -835,6 +835,41 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('getBlockTimestamp', () => {
+    it('should getBlockTimestamp', async () => {
+      const blockNumber = 123456
+      const expectedTimestamp = 1615551010 // Example Unix timestamp
+      const stubGetBlock = sandbox.stub().resolves({ timestamp: expectedTimestamp })
+      const resolveName = sandbox.stub().resolves('0x000001')
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+        resolveName,
+        getBlock: stubGetBlock,
+      })
+
+      const timestamp = await Web3Helper.getBlockTimestamp(blockNumber, NetworksEnum.mainnet)
+
+      expect(timestamp).to.equal(expectedTimestamp)
+      expect(stubGetBlock.calledOnceWith(blockNumber)).to.be.true
+    })
+
+    it('should fail getBlockTimestamp', async () => {
+      const blockNumber = 123456
+      const stubLogger = sandbox.stub(Logger, 'error')
+      const stubGetBlock = sandbox.stub().rejects(new Error('fake-error'))
+      const resolveName = sandbox.stub().resolves('0x000001')
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+        resolveName,
+        getBlock: stubGetBlock,
+      })
+
+      const timestamp = await Web3Helper.getBlockTimestamp(blockNumber, NetworksEnum.mainnet)
+
+      expect(timestamp).to.equal(0)
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubGetBlock.calledOnceWith(blockNumber)).to.be.true
+    })
+  })
+
   describe('getAddressFromEns', () => {
     it('should get address from ens', async () => {
       const resolveName = sandbox.stub().resolves('0x000001')
@@ -893,8 +928,8 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('ensExists', () => {
-    it('should check if ensExists', async () => {
+  describe('subdomainExists', () => {
+    it('should check if subdomainExists', async () => {
       const stubConfigState = {
         getConfigItem: sandbox.stub().returns({}),
       }
@@ -914,7 +949,7 @@ describe('Helpers:Web3', () => {
       })
 
       const ensName = 'aavegotchi.dao.eth'
-      const result = await MockedWeb3Helper.ensExists(ensName, NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.subdomainExists(ensName, NetworksEnum.mainnet)
 
       expect(result).to.be.true
       expect(stubRecordExistsStub.calledOnce).to.be.true
@@ -944,11 +979,11 @@ describe('Helpers:Web3', () => {
       })
 
       const ensName = 'aavegotchi.dao.eth'
-      const result = await MockedWeb3Helper.ensExists(ensName, NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.subdomainExists(ensName, NetworksEnum.mainnet)
 
       expect(result).to.be.false
       expect(stubLoggerError.calledOnce).to.be.true
-      expect(stubLoggerError.calledWith('Error ensExists' as any)).to.be.true
+      expect(stubLoggerError.calledWith('Error subdomainExists' as any)).to.be.true
     })
   })
 
@@ -1056,7 +1091,7 @@ describe('Helpers:Web3', () => {
       const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
       const stubDecimals = sandbox.stub().rejects(new Error('Test Error'))
       const stubTotalSupply = sandbox.stub().rejects(new Error('Test Error'))
-      const stubLogger = sandbox.stub(Logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'warn')
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
