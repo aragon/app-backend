@@ -10,7 +10,6 @@ import {
 } from '@types'
 import type Dao from '@models/schema/dao'
 import { assertExposable } from '@errors'
-import Satsuma from '@helpers/satsuma'
 
 const DaoController = {
   getWithPagination: async (
@@ -62,8 +61,7 @@ const DaoController = {
     )
     assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
 
-    Models.Member.find({ daoId: dao._id })
-    const members = await Satsuma.getMultiSigMembers(dao.network, multiSigPlugin.address, memberFilters)
+    const members = await Models.Member.findMembersByPlugin(pluginAddress, memberFilters)
 
     return {
       ...memberFilters,
@@ -85,7 +83,7 @@ const DaoController = {
     )
     assertExposable(tokenPlugin, ErrorKeyEnum.pluginNotFound)
 
-    const members = await Satsuma.getTokenVotingMembers(dao.network, tokenPlugin.address, memberFilters)
+    const members = await Models.Member.findMembersByPlugin(pluginAddress, memberFilters)
 
     return {
       ...memberFilters,
