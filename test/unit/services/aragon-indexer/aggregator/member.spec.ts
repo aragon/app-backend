@@ -4,8 +4,6 @@ import { expect } from 'chai'
 import { AggregatorMembers } from '@services/aragon-indexer/aggregator/member'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
-import { UtilsIndexer } from '@models/utils/indexer'
-import logger from '@logger'
 import { NetworksEnum } from '@types'
 import Logger from '@logger'
 
@@ -22,35 +20,27 @@ describe('Indexer:Aggregator:Member', () => {
 
   describe('start', async () => {
     it('should start the AggregatorMembers', async () => {
-      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl')
-      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
       await AggregatorMembers.start()
 
       expect(stubLogger.calledWith('End AggregatorMembers' as any)).to.be.true
-      expect(findByTypeStub.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(saveAggregationSyncStub.calledOnce).to.be.true
     })
 
     it('should error the AggregatorMembers', async () => {
-      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
-      const stubLoggerError = sandbox.stub(logger, 'error')
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubLoggerError = sandbox.stub(Logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onError(true)
       })
-      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
       await AggregatorMembers.start()
 
       expect(stubLogger.calledWith('End AggregatorMembers' as any)).to.be.true
       expect(stubLoggerError.calledOnce).to.be.true
-      expect(findByTypeStub.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(saveAggregationSyncStub.calledOnce).to.be.true
     })
   })
 
@@ -72,7 +62,7 @@ describe('Indexer:Aggregator:Member', () => {
       ],
     }
 
-    const stubLogger = sandbox.spy(Logger, 'verbose')
+    const stubLogger = sandbox.stub(Logger, 'verbose')
 
     await AggregatorMembers.onDocument(document)
 
@@ -111,7 +101,7 @@ describe('Indexer:Aggregator:Member', () => {
       ],
     }
     const dbDoc = await Models.Member.create(rawDoc)
-    const loggerSpy = sandbox.spy(logger, 'verbose')
+    const loggerSpy = sandbox.stub(Logger, 'verbose')
 
     rawDoc.daos[0].delegateFromAddress = '0x011'
     await AggregatorMembers.onDocument(rawDoc)

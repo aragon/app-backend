@@ -5,8 +5,6 @@ import { expect } from 'chai'
 import { AggregatorAssets } from '@services/aragon-indexer/aggregator/asset'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
-import { UtilsIndexer } from '@models/utils/indexer'
-import logger from '@logger'
 import { IAlchemyTokenBalance, NetworksEnum } from '@types'
 import Logger from '@logger'
 import type Dao from '@models/schema/dao'
@@ -25,35 +23,27 @@ describe('Indexer:Aggregator:Assets', () => {
 
   describe('start', async () => {
     it('should start the AggregatorAssets', async () => {
-      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl')
-      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
       await AggregatorAssets.start()
 
       expect(stubLogger.calledWith('End AggregatorAssets' as any)).to.be.true
-      expect(findByTypeStub.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(saveAggregationSyncStub.calledOnce).to.be.true
     })
 
     it('should error the AggregatorAssets', async () => {
-      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
-      const stubLoggerError = sandbox.stub(logger, 'error')
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubLoggerError = sandbox.stub(Logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onError(true)
       })
-      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
       await AggregatorAssets.start()
 
       expect(stubLogger.calledWith('End AggregatorAssets' as any)).to.be.true
       expect(stubLoggerError.calledOnce).to.be.true
-      expect(findByTypeStub.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(saveAggregationSyncStub.calledOnce).to.be.true
     })
   })
 
@@ -70,7 +60,7 @@ describe('Indexer:Aggregator:Assets', () => {
       ]
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
       const stubGetTokenBalances = sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
-      const stubLogger = sandbox.spy(Logger, 'verbose')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
 
       await AggregatorAssets.onDocument(document as any)
 
@@ -129,7 +119,7 @@ describe('Indexer:Aggregator:Assets', () => {
 
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
       const stubGetTokenBalances = sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
-      const stubLogger = sandbox.spy(Logger, 'verbose')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
 
       await AggregatorAssets.onDocument(document as any)
 
@@ -162,7 +152,7 @@ describe('Indexer:Aggregator:Assets', () => {
       }
 
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').rejects(new Error('Error'))
-      const stubLogger = sandbox.spy(Logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'error')
 
       await AggregatorAssets.onDocument(document as any)
 

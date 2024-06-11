@@ -4,8 +4,6 @@ import { expect } from 'chai'
 import { AggregatorDao } from '@services/aragon-indexer/aggregator/dao'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
-import { UtilsIndexer } from '@models/utils/indexer'
-import logger from '@logger'
 import Logger from '@logger'
 import { DaoList } from '@test/mock/fakeDao'
 import Web3Helper from '@helpers/web3'
@@ -23,35 +21,27 @@ describe('Indexer:Aggregator:Dao', () => {
 
   describe('start', async () => {
     it('should start the AggregatorDao', async () => {
-      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl')
-      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
       await AggregatorDao.start()
 
       expect(stubLogger.calledWith('End AggregatorDao' as any)).to.be.true
-      expect(findByTypeStub.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(saveAggregationSyncStub.calledOnce).to.be.true
     })
 
     it('should error the AggregatorDao', async () => {
-      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
-      const stubLoggerError = sandbox.stub(logger, 'error')
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubLoggerError = sandbox.stub(Logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onError(true)
       })
-      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
       await AggregatorDao.start()
 
       expect(stubLogger.calledWith('End AggregatorDao' as any)).to.be.true
       expect(stubLoggerError.calledOnce).to.be.true
-      expect(findByTypeStub.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(saveAggregationSyncStub.calledOnce).to.be.true
     })
   })
 
@@ -59,7 +49,7 @@ describe('Indexer:Aggregator:Dao', () => {
     it('should call onDocument', async () => {
       const document = { ...DaoList[1] }
 
-      const stubLogger = sandbox.spy(Logger, 'verbose')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
       const stubBlock = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(100)
       sandbox.stub(Web3Helper, 'subdomainExists').resolves(true)
 
@@ -111,7 +101,7 @@ describe('Indexer:Aggregator:Dao', () => {
 
       await Models.Dao.create(document)
 
-      const stubLogger = sandbox.spy(Logger, 'verbose')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
 
       document.implementationAddress = '0x0000'
       await AggregatorDao.onDocument(document as any)

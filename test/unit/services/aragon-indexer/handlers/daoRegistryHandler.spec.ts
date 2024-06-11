@@ -407,7 +407,6 @@ describe('Indexer: DaoRegistryHandler', () => {
 
   describe('_metadataHandler', () => {
     it('should call metadataSet', async () => {
-      const transactionHash = '0x0'
       const txReceipt = {
         transactionHash: '0x123',
         address: '0x123',

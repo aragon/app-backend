@@ -6,7 +6,7 @@ import { IEventLogPluginType, ITokenType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { PluginSetupProcessorHandler } from '@services/aragon-indexer/handlers/pluginSetupProcessorHandler'
 import { Models } from '@dbModels'
-import { UtilsIndexer } from '@models/utils/indexer'
+import { UtilsIndexer } from '@indexer/utils/indexer'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox

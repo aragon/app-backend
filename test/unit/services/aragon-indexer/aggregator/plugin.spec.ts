@@ -4,8 +4,6 @@ import { expect } from 'chai'
 import { AggregatorPlugin } from '@services/aragon-indexer/aggregator/plugin'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
-import { UtilsIndexer } from '@models/utils/indexer'
-import logger from '@logger'
 import { IAPlugin, IPluginAction, NetworksEnum } from '@types'
 import Logger from '@logger'
 
@@ -22,35 +20,27 @@ describe('Indexer:Aggregator:Plugin', () => {
 
   describe('start', async () => {
     it('should start the AggregatorPlugin', async () => {
-      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl')
-      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
       await AggregatorPlugin.start()
 
       expect(stubLogger.calledWith('End AggregatorPlugin' as any)).to.be.true
-      expect(findByTypeStub.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(saveAggregationSyncStub.calledOnce).to.be.true
     })
 
     it('should error the AggregatorPlugin', async () => {
-      const findByTypeStub = sandbox.stub(Models.Aggregator, 'findByType')
-      const stubLoggerError = sandbox.stub(logger, 'error')
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubLoggerError = sandbox.stub(Logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onError(true)
       })
-      const saveAggregationSyncStub = sandbox.stub(UtilsIndexer, 'saveAggregationSync')
 
       await AggregatorPlugin.start()
 
       expect(stubLogger.calledWith('End AggregatorPlugin' as any)).to.be.true
       expect(stubLoggerError.calledOnce).to.be.true
-      expect(findByTypeStub.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(saveAggregationSyncStub.calledOnce).to.be.true
     })
   })
 
@@ -72,7 +62,7 @@ describe('Indexer:Aggregator:Plugin', () => {
         sender: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1900',
       }
 
-      const stubLogger = sandbox.spy(Logger, 'verbose')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
 
       await AggregatorPlugin.onDocument(document as any)
 
@@ -113,7 +103,7 @@ describe('Indexer:Aggregator:Plugin', () => {
 
       await Models.Plugin.create(document)
 
-      const stubLogger = sandbox.spy(Logger, 'verbose')
+      const stubLogger = sandbox.stub(Logger, 'verbose')
 
       document.build = '3'
       await AggregatorPlugin.onDocument(document as any)

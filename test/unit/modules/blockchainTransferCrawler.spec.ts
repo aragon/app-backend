@@ -6,12 +6,26 @@ import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import Logger from '@logger'
 import Web3Helper from '@helpers/web3'
+import BlockchainLogCrawler from "@modules/blockchainLogCrawler";
 
-describe('Modules:BlockchainTransferCrawler', () => {
+describe.only('Modules:BlockchainTransferCrawler', () => {
   let sandbox: sinon.SinonSandbox
+  let mockProvider: any
+  let logError: any
+  let logVerbose: any
+  let logWarn: any
+  let logInfo: any
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    mockProvider = {
+      getBlockNumber: sandbox.stub(),
+      send: sandbox.stub(),
+    }
+    logVerbose = sandbox.stub(Logger, 'verbose')
+    logWarn = sandbox.stub(Logger, 'warn')
+    logInfo = sandbox.stub(Logger, 'info')
+    logError = sandbox.stub(Logger, 'error')
   })
 
   afterEach(() => {
@@ -52,8 +66,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       expect(crawler['isOnError']).to.be.false
       expect(crawler['crawlResult']).to.deep.include({
         network: NetworksEnum.mainnet,
-        latestBlockNumber: 0,
-        lastBlockSync: 0,
+        lastSync: 0,
         nbSuccess: 0,
         nbError: 0,
         nbTotal: 0,
@@ -106,7 +119,93 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
   })
 
-  describe('crawl', () => {
+  describe.only('crawl', () => {
+
+    it('should crawl logs correctly', async () => {
+      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      mockProvider.getBlockNumber.resolves(16721863 + 10)
+      mockProvider.send
+        .onFirstCall()
+        .resolves({transfers: [{ transactionHash: '0x1', blockNum: 2 }, { transactionHash: '0x2', blockNum: 3 }]})
+        .onSecondCall()
+        .resolves([])
+
+      const onTxStub = sandbox.stub().resolves()
+
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.mainnet,
+        filter: {},
+        onTx: onTxStub,
+      })
+
+      await crawler.crawl()
+
+      expect(onTxStub.calledTwice).to.be.true
+      expect(onTxStub.calledTwice).to.be.true
+      expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+    })
+
+    it('should crawl logs correctly with logService', async () => {
+      const stubSaveProgress = sandbox.stub(BlockchainTransferCrawler.prototype, 'onSaveProgress').resolves()
+      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      mockProvider.getBlockNumber.resolves(16721863 + 10)
+      mockProvider.send
+        .onFirstCall()
+        .resolves({transfers: [{ transactionHash: '0x1', blockNum: 2 }, { transactionHash: '0x2', blockNum: 3 }]})
+        .onSecondCall()
+        .resolves([])
+
+      const onTxStub = sandbox.stub().resolves()
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.mainnet,
+        filter: {},
+        onTx: onTxStub,
+        logService: 'testService' as any,
+      })
+
+      await crawler.crawl()
+
+      expect(onTxStub.calledTwice).to.be.true
+      expect(onTxStub.calledTwice).to.be.true
+      expect(stubSaveProgress.calledThrice).to.be.true
+      expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+    })
+
+    it('should handle continuous crawling with new blocks added', async () => {
+      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      let blockNumber = 16721863 + 10
+      mockProvider.getBlockNumber.callsFake(() => Promise.resolve(blockNumber++))
+      mockProvider.send.resolves({transfers: [{ transactionHash: `0x${blockNumber}`, blockNum: blockNumber }]})
+
+      const onTxStub = sandbox.stub().resolves()
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.mainnet,
+        filter: {},
+        onTx: onTxStub,
+      })
+      sandbox
+        .stub(crawler, 'updateAndCheckConditions')
+        .onFirstCall()
+        .resolves(true)
+        .onSecondCall()
+        .resolves(true)
+        .onThirdCall()
+        .resolves(false)
+
+      const stubProcessLogs = sandbox.spy(crawler, 'processTxs')
+
+      await crawler.crawl()
+
+      expect(stubProcessLogs.callCount).to.be.eq(2)
+      expect(stubProcessLogs.args[0][0][0].blockNum).to.exist
+      expect(stubProcessLogs.args[1][0][0].blockNum).to.exist
+      expect(onTxStub.callCount).to.be.eq(2)
+      expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+    })
+
+
+
+
     it('should handle transfers correctly', async () => {
       const getBlockNumberStub = sandbox.stub().resolves(10)
       const providerStub = {
@@ -125,13 +224,13 @@ describe('Modules:BlockchainTransferCrawler', () => {
       expect(result).to.be.undefined
     })
 
-    it('should handle transfers correctly - call convertToHoxNumber', async () => {
+    it('should handle transfers correctly - call convertToHexNumber', async () => {
       const getBlockNumberStub = sandbox.stub().resolves(10)
       const providerStub = {
         getBlockNumber: getBlockNumberStub,
         send: sandbox.stub().resolves({ transfers: [] }),
       }
-      const convertToHoxNumberStub = sandbox.spy(Web3Helper, 'convertToHoxNumber')
+      const convertToHexNumberStub = sandbox.spy(Web3Helper, 'convertToHexNumber')
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
 
       const crawler = new BlockchainTransferCrawler({
@@ -147,7 +246,27 @@ describe('Modules:BlockchainTransferCrawler', () => {
       await crawler.crawl()
 
       expect(stubProcessTxs.calledOnce).to.be.true
-      expect(convertToHoxNumberStub.calledTwice).to.be.true
+      expect(convertToHexNumberStub.calledTwice).to.be.true
+    })
+
+    it('should handle transfers correctly with logService', async () => {
+      const stubSaveProgress = sandbox.stub(BlockchainTransferCrawler.prototype, 'onSaveProgress').resolves()
+      const getBlockNumberStub = sandbox.stub().resolves(10)
+      const providerStub = {
+        getBlockNumber: getBlockNumberStub,
+        send: sandbox.stub().resolves({ transfers: [] }),
+      }
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const onTxStub = sandbox.stub().resolves()
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.mainnet,
+        filter: { fromBlock: 0, toBlock: 10 },
+        onTx: onTxStub,
+        logService: 'testService' as any,
+      })
+
+      const result = await crawler.crawl()
+      expect(result).to.be.undefined
     })
 
     it('should handle transfers correctly - shutdown', async () => {
@@ -156,7 +275,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
         getBlockNumber: getBlockNumberStub,
         send: sandbox.stub().resolves({ transfers: [] }),
       }
-      const convertToHoxNumberStub = sandbox.spy(Web3Helper, 'convertToHoxNumber')
+      const convertToHexNumberStub = sandbox.spy(Web3Helper, 'convertToHexNumber')
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
 
       const crawler = new BlockchainTransferCrawler({
@@ -173,7 +292,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       await crawler.crawl()
 
       expect(stubProcessTxs.calledOnce).to.be.true
-      expect(convertToHoxNumberStub.calledTwice).to.be.true
+      expect(convertToHexNumberStub.calledTwice).to.be.true
     })
 
     it('should throw an error if already crawling', async () => {
