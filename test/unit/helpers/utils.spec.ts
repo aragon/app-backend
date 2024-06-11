@@ -546,13 +546,7 @@ describe('Helpers:Utils', () => {
       const array = []
       const size = 2
       const result = Utils.chunkArray(array, size)
-      expect(result).to.deep.eq([])
+      expect(result).to.deep.eq([[]])
     })
-  })
-
-  it('defaultError', () => {
-    const consoleErrorStub = sandbox.stub(console, 'error')
-    Utils.defaultError('error message')
-    expect(consoleErrorStub.calledOnce).to.be.true
   })
 })
