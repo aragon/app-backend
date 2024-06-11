@@ -1,14 +1,11 @@
 import logger from '@logger'
 import { Interface, type Log } from 'ethers'
-import Network from '@models/schema/network'
-import { Models } from '@dbModels'
-import { type NetworksEnum } from '@types'
+import { IEnumIndexerService, type NetworksEnum } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { PluginRepoRegistryHandler } from '@services/aragon-indexer/handlers/pluginRepoRegistryHandler'
-import { UtilsIndexer } from '@models/utils/indexer'
 import { PluginRepoRegistry } from '@artifacts/pluginRepoRegistry'
-import { ConfigState } from '@state/configState'
 import Web3Helper from '@helpers/web3'
+import { NetworkHelper } from '@helpers/network'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogPluginRepoRegistry' })
 
@@ -16,19 +13,9 @@ export const LogPluginRepoRegistry = {
   events: ['PluginRepoRegistered'],
 
   start: async () => {
-    const networks = Object.values(Network.NETWORKS)
-
     await Promise.all(
-      networks.map(async networkName => {
+      NetworkHelper.supportedNetworks().map(async ({ networkName }) => {
         logger.verbose('Start LogPluginRepoRegistry', llo({ networkName }))
-
-        const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
-        const provider = ConfigState.getInstance().getConfigItem(networkName as NetworksEnum)
-
-        if (!networkDb || !provider) {
-          logger.warn('Unsupported Network', llo({ networkName }))
-          return
-        }
 
         const eventTopics = PluginRepoRegistry.abi
           .filter((item: any) => item.type && LogPluginRepoRegistry.events.includes(item.name))
@@ -36,24 +23,19 @@ export const LogPluginRepoRegistry = {
 
         const filter = {
           topics: eventTopics,
-          fromBlock: networkDb.lastBlockPluginRepoRegistry,
-          toBlock: 'latest',
         }
 
         const crawler = new BlockchainLogCrawler({
-          network: networkName as NetworksEnum,
+          network: networkName,
           filter,
-          onLog: async (txLog: Log) => LogPluginRepoRegistry.processLog(txLog, networkName as NetworksEnum),
-          onError: async (error: any) => LogPluginRepoRegistry.processError(error, networkName as NetworksEnum),
+          onLog: async (txLog: Log) => LogPluginRepoRegistry.processLog(txLog, networkName),
+          onError: async (error: any) => LogPluginRepoRegistry.processError(error, networkName),
+          logService: IEnumIndexerService.pluginRepoRegistryLog,
           stopOnError: true,
         })
 
         await crawler.crawl()
-        await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockPluginRepoRegistry')
-        logger.verbose(
-          'End LogPluginRepoRegistry',
-          llo({ networkName, latestBlockSync: crawler.crawlResult.latestBlockNumber }),
-        )
+        logger.verbose('End LogPluginRepoRegistry', llo({ networkName, latestBlockSync: crawler.crawlResult.lastSync }))
       }),
     )
   },

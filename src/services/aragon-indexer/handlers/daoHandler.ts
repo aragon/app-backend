@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type HexAddress, type ILogInfo } from '@types'
+import { type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -9,28 +9,28 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoHandler' })
 export const DaoHandler = {
   newURI: async (parsedEvent: LogDescription, info: ILogInfo) => {
     if (!parsedEvent.args.daoURI) {
-      logger.verbose('newURI: no daoURI', llo(info))
+      logger.warn('newURI - no daoURI', llo(info))
       return
     }
 
-    const existingLog = await Models.LogDaoRegistry.findExistingLog(info.transactionHash, info.address)
+    const existingDao = await Models.LogDaoRegistry.findByAddress(info.address as any, info.network)
 
-    if (!existingLog) {
-      const existingDao = await Models.LogDaoRegistry.findByAddress(info.address as HexAddress, info.network)
+    if (!existingDao) {
+      logger.error('dao not found', llo({ ...info, parsedEvent }))
+      return
+    }
 
-      if (!existingDao) {
-        logger.verbose('Dao not found', llo(info))
-        return
-      }
+    const existingUriEvent = await existingDao.findUriEvent(info.transactionHash)
 
+    if (!existingUriEvent) {
       await DbTx.executeTxFn(async ({ session }) => {
-        const uriUpdates = {
+        const rawUriEvent = {
           blockNumber: info.blockNumber,
           transactionHash: info.transactionHash,
           uri: parsedEvent.args.daoURI,
         }
 
-        await existingDao.addURIUpdates(uriUpdates, session)
+        const logDb = await existingDao.addUriEvent(rawUriEvent as any, { session })
 
         await session.commitTransaction()
         await session.endSession()
@@ -38,8 +38,7 @@ export const DaoHandler = {
           'Log Dao New URI',
           llo({
             ...info,
-            uri: parsedEvent.args.uri,
-            daoId: existingDao.id,
+            logId: logDb.id,
           }),
         )
       })

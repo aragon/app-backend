@@ -26,28 +26,30 @@ const IndexerService: IService = {
   start: async function () {
     logger.info('IndexerService service sync start', llo({}))
 
-    const task0 = [async () => LogDaoRegistry.start()]
-    const task1 = [
-      async () => LogPluginRepoRegistry.start(),
-      async () => LogPluginSetting.start(),
-      async () => LogPluginSetupProcessor.start(),
-      async () => LogProposal.start(),
+    // order is important
+    const logTasks = [
+      [async () => LogDaoRegistry.start()],
+      [async () => LogDao.start()],
+      [async () => LogPluginRepoRegistry.start()],
+      [async () => LogPluginSetting.start()],
+      [async () => LogPluginSetupProcessor.start()],
+      [async () => LogProposal.start()],
+      [async () => LogMember.start()],
     ]
-    const task2 = [async () => LogMember.start(), async () => LogDao.start()]
 
     // order is important
-    const task3 = [
-      async () => AggregatorPlugin.start(),
-      async () => AggregatorSetting.start(),
-      async () => AggregatorMembers.start(),
+    const aggregatorTasks = [
+      [async () => AggregatorPlugin.start()],
+      [async () => AggregatorSetting.start()],
+      [async () => AggregatorMembers.start()],
+      [async () => AggregatorProposal.start()],
+      [async () => AggregatorDao.start()],
+      [async () => AggregatorAssets.start()],
+      [async () => AggregatorTransactions.start()],
     ]
-    const task4 = [async () => AggregatorProposal.start()]
-    const task5 = [async () => AggregatorDao.start()]
-    const task6 = [async () => AggregatorAssets.start()]
-    const task7 = [async () => AggregatorTransactions.start()]
 
     const taskOptions = {
-      fn: () => [task0, task1, task2, task3, task4, task5, task6, task7],
+      fn: () => [...logTasks, ...aggregatorTasks],
       interval: config.SERVICES.ARAGON_INDEXER.DAO_INTERVAL,
       onError: (error: any) => {
         logger.error('IndexerService task error', llo({ error }))

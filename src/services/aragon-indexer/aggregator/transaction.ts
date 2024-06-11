@@ -1,13 +1,12 @@
-import { AggregatorTypeEnum, ITransactionCategory, type IAlchemyTransferResponse, ITransactionType } from '@types'
+import { ITransactionCategory, type IAlchemyTransferResponse, ITransactionType, IEnumIndexerService } from '@types'
 import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
-import { UtilsIndexer } from '@models/utils/indexer'
+import { UtilsIndexer } from '@indexer/utils/indexer'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import type Transaction from '@models/schema/transaction'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
-import type Aggregator from '@models/schema/aggregator'
 import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorTransactions' })
@@ -21,11 +20,9 @@ export const AggregatorTransactions = {
   start: async () => {
     logger.verbose('Start AggregatorTransactions', llo({}))
 
-    const aggregatorDb = await Models.Aggregator.findByType(AggregatorTypeEnum.transactions)
-
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
-      onDocument: async (daoRegistry: LogDaoRegistry) => AggregatorTransactions.onDocument(daoRegistry, aggregatorDb),
+      onDocument: async (daoRegistry: LogDaoRegistry) => AggregatorTransactions.onDocument(daoRegistry),
       onError: (error: any) => {
         logger.error('Error AggregatorTransactions', llo({ error }))
       },
@@ -35,16 +32,15 @@ export const AggregatorTransactions = {
     })
 
     await crawler.crawl()
-    await UtilsIndexer.saveAggregationSync(crawler, aggregatorDb, 'lastBlockNumber')
-    logger.verbose('End AggregatorTransactions', llo({}))
+    logger.verbose('End AggregatorTransactions', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
   },
 
-  onDocument: async (daoRegistry: LogDaoRegistry, aggregatorDb: Aggregator) => {
+  onDocument: async (daoRegistry: LogDaoRegistry) => {
     // txs to daoAddress
     const depositTxCrawler = new BlockchainTransferCrawler({
       network: daoRegistry.network,
       filter: {
-        fromBlock: aggregatorDb?.lastBlockNumber,
+        // fromBlock: aggregatorDb?.lastBlockNumber,
         toAddress: daoRegistry.address,
         category: [
           ITransactionCategory.ERC20,
@@ -59,6 +55,7 @@ export const AggregatorTransactions = {
       onError: async (error: any) => {
         logger.error('Error deposit transfer', llo({ error, type: ITransactionType.withdraw, daoId: daoRegistry.id }))
       },
+      logService: IEnumIndexerService.depositTxs,
       stopOnError: true,
     })
     await depositTxCrawler.crawl()
@@ -67,7 +64,7 @@ export const AggregatorTransactions = {
     const withdrawTxCrawler = new BlockchainTransferCrawler({
       network: daoRegistry.network,
       filter: {
-        fromBlock: aggregatorDb?.lastBlockNumber,
+        // fromBlock: aggregatorDb?.lastBlockNumber,
         fromAddress: daoRegistry.address,
         category: [
           ITransactionCategory.ERC20,
@@ -82,6 +79,7 @@ export const AggregatorTransactions = {
       onError: async (error: any) => {
         logger.error('Error withdraw transfer', llo({ error, type: ITransactionType.withdraw, daoId: daoRegistry.id }))
       },
+      logService: IEnumIndexerService.withdrawTxs,
       stopOnError: true,
     })
     await withdrawTxCrawler.crawl()

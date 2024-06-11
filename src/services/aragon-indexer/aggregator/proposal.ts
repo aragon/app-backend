@@ -1,9 +1,7 @@
-import { AggregatorTypeEnum } from '@types'
 import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
-import { UtilsIndexer } from '@models/utils/indexer'
 import type Proposal from '@models/schema/proposal'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorProposal' })
@@ -12,8 +10,6 @@ const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorP
 export const AggregatorProposal = {
   start: async () => {
     logger.verbose('Start AggregatorProposal', llo({}))
-
-    const aggregatorDb = await Models.Aggregator.findByType(AggregatorTypeEnum.proposals)
 
     const crawler = new DBCrawler({
       model: Models.LogProposal,
@@ -28,7 +24,6 @@ export const AggregatorProposal = {
     })
 
     await crawler.crawl()
-    await UtilsIndexer.saveAggregationSync(crawler, aggregatorDb, 'lastTimeSync')
     logger.verbose('End AggregatorProposal', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
   },
 

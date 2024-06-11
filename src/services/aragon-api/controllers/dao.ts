@@ -62,6 +62,7 @@ const DaoController = {
     )
     assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
 
+    Models.Member.find({ daoId: dao._id })
     const members = await Satsuma.getMultiSigMembers(dao.network, multiSigPlugin.address, memberFilters)
 
     return {

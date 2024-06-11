@@ -1,14 +1,11 @@
 import logger from '@logger'
 import { Interface, type Log } from 'ethers'
-import Network from '@models/schema/network'
 import { DAORegistry } from '@artifacts/daoRegistry'
-import { Models } from '@dbModels'
-import { type NetworksEnum } from '@types'
+import { IEnumIndexerService, type NetworksEnum } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { DaoRegistryHandler } from '@services/aragon-indexer/handlers/daoRegistryHandler'
-import { UtilsIndexer } from '@models/utils/indexer'
-import { ConfigState } from '@state/configState'
 import Web3Helper from '@helpers/web3'
+import { NetworkHelper } from '@helpers/network'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDaoRegistry' })
 
@@ -16,18 +13,9 @@ export const LogDaoRegistry = {
   events: ['DAORegistered'],
 
   start: async () => {
-    const networks = Object.values(Network.NETWORKS)
     await Promise.all(
-      networks.map(async networkName => {
+      NetworkHelper.supportedNetworks().map(async ({ networkName }) => {
         logger.verbose('Start LogDaoRegistry', llo({ networkName }))
-
-        const networkDb = await Models.Network.findByName(networkName as NetworksEnum)
-        const provider = ConfigState.getInstance().getConfigItem(networkName as NetworksEnum)
-
-        if (!networkDb || !provider) {
-          logger.warn('Unsupported Network', llo({ networkName }))
-          return
-        }
 
         const eventTopics = DAORegistry.abi
           .filter((item: any) => item.type === 'event' && LogDaoRegistry.events.includes(item.name))
@@ -35,24 +23,19 @@ export const LogDaoRegistry = {
 
         const filter = {
           topics: eventTopics,
-          fromBlock: networkDb.lastBlockDaoRegistry,
-          toBlock: 'latest',
         }
 
         const crawler = new BlockchainLogCrawler({
-          network: networkName as NetworksEnum,
+          network: networkName,
           filter,
           onLog: async (txLog: Log) => LogDaoRegistry.processLog(txLog, networkName as NetworksEnum),
           onError: async (error: any) => LogDaoRegistry.processError(error, networkName as NetworksEnum),
+          logService: IEnumIndexerService.daoRegistryLog,
           stopOnError: true,
         })
 
         await crawler.crawl()
-        await UtilsIndexer.saveSync(crawler, networkDb, 'lastBlockDaoRegistry')
-        logger.verbose(
-          'End LogDaoRegistry',
-          llo({ networkName, latestBlockSync: crawler.crawlResult.latestBlockNumber }),
-        )
+        logger.verbose('End LogDaoRegistry', llo({ networkName, latestBlockSync: crawler.crawlResult.lastSync }))
       }),
     )
   },
