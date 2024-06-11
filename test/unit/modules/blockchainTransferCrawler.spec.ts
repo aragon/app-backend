@@ -404,7 +404,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
   })
 
-  it.only('defaultOnError', async () => {
+  it('defaultOnError', async () => {
     BlockchainTransferCrawler.defaultOnError(new Error('Already crawling'))
     expect(logError.calledOnce).to.be.true
   })
