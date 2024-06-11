@@ -86,7 +86,8 @@ export default class Member extends Model {
     return await this.findOne({ entityId }, tOpts)
   }
 
-  static async findMembersByPlugin(pluginAddress: string): Promise<IPlugin[]> {
+  // TODO: add pagination
+  static async findMembersByPlugin(pluginAddress: string, memberFilters: any): Promise<IPlugin[]> {
     return await this.aggregate([
       {
         $unwind: '$daos',
