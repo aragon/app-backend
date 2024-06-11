@@ -6,7 +6,7 @@ import logger from '@logger'
 import dayjs from '@helpers/dayjs'
 import utils from '@helpers/utils'
 
-describe('Helpers:Utils', () => {
+describe.only('Helpers:Utils', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -528,5 +528,31 @@ describe('Helpers:Utils', () => {
       expect(epoch.isValid()).to.be.true
       expect(epoch.unix()).to.equal(0)
     })
+  })
+
+  describe('arrayChunk', () => {
+    it('should chunkArray', () => {
+      const array = [1, 2, 3, 4, 5, 6]
+      const size = 2
+      const result = Utils.chunkArray(array, size)
+      expect(result).to.deep.eq([
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ])
+    })
+
+    it('should return empty array if array is empty', () => {
+      const array = []
+      const size = 2
+      const result = Utils.chunkArray(array, size)
+      expect(result).to.deep.eq([])
+    })
+  })
+
+  it('defaultError', () => {
+    const consoleErrorStub = sandbox.stub(console, 'error')
+    Utils.defaultError('error message')
+    expect(consoleErrorStub.calledOnce).to.be.true
   })
 })
