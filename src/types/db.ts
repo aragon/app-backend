@@ -1,6 +1,5 @@
 import { type Model } from 'mongoose'
 import type Dao from '@models/schema/dao'
-import type Network from '@models/schema/network'
 import { type IDao } from '@src/types/daos'
 import type Token from '@models/schema/token'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
@@ -11,16 +10,15 @@ import type LogPluginRepo from '@models/schema/logPluginRepo'
 import type LogProposal from '@models/schema/logProposal'
 import type LogPluginSetting from '@models/schema/logPluginSetting'
 import type LogMember from '@models/schema/logMember'
-import type Aggregator from '@models/schema/aggregator'
 import type Member from '@models/schema/member'
 import type Plugin from '@models/schema/plugin'
 import type Setting from '@models/schema/setting'
 import type Asset from '@models/schema/asset'
 import type Transaction from '@models/schema/transaction'
 import type Proposal from '@models/schema/proposal'
+import type ConfigIndexer from '@models/schema/configIndexer'
 
 export interface IMongoModel {
-  Network: Model<InstanceType<typeof Network>>
   Dao: Model<InstanceType<typeof Dao>>
   Token: Model<InstanceType<typeof Token>>
   LogDaoRegistry: Model<InstanceType<typeof LogDaoRegistry>>
@@ -31,24 +29,13 @@ export interface IMongoModel {
   LogProposal: Model<InstanceType<typeof LogProposal>>
   LogPluginSetting: Model<InstanceType<typeof LogPluginSetting>>
   LogMember: Model<InstanceType<typeof LogMember>>
-  Aggregator: Model<InstanceType<typeof Aggregator>>
   Member: Model<InstanceType<typeof Member>>
   Plugin: Model<InstanceType<typeof Plugin>>
   Setting: Model<InstanceType<typeof Setting>>
   Asset: Model<InstanceType<typeof Asset>>
   Proposal: Model<InstanceType<typeof Proposal>>
   Transaction: Model<InstanceType<typeof Transaction>>
-}
-
-export enum AggregatorTypeEnum {
-  daos = 'daos',
-  plugin = 'plugin',
-  settings = 'settings',
-  proposals = 'proposals',
-  members = 'members',
-  assets = 'assets',
-  transactions = 'transactions',
-  rates = 'rates',
+  ConfigIndexer: Model<InstanceType<typeof ConfigIndexer>>
 }
 
 export enum IEventLogPluginType {

@@ -55,6 +55,12 @@ export interface IPlugin {
   address: HexAddress
 }
 
+export interface IPluginMember {
+  address: HexAddress
+  ens: ENS
+  votingPower?: string
+}
+
 export interface IDaoMultiSigMember {
   address: HexAddress
 }
