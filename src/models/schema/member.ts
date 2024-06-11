@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, NetworksEnum } from '@types'
+import { HexAddress, type IPlugin, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -84,6 +84,33 @@ export default class Member extends Model {
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ entityId }, tOpts)
+  }
+
+  async findMembersByPlugin(pluginAddress: string): Promise<IPlugin[]> {
+    return await this.model(customName).aggregate([
+      {
+        $unwind: '$daos',
+      },
+      {
+        $match: {
+          'daos.pluginAddress': pluginAddress,
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: 1,
+          ens: 1,
+          votingPower: {
+            $cond: {
+              if: { $gt: [{ $type: '$daos.votingPower' }, 'missing'] },
+              then: '$daos.votingPower',
+              else: '$$REMOVE',
+            },
+          },
+        },
+      },
+    ])
   }
 
   async update(params: Partial<Member>, tOpts?: SaveOptions) {

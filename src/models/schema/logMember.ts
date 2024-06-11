@@ -24,6 +24,9 @@ const customName = 'LogMember'
   pluginAddress: 1,
 })
 export default class LogMember extends Model {
+  @prop({ type: () => String, required: true, unique: true })
+  public entityId!: string
+
   @prop({ type: () => String, enum: IEventLogMember, required: true })
   public event!: IEventLogMember
 
@@ -38,9 +41,6 @@ export default class LogMember extends Model {
 
   @prop({ type: () => String, required: true })
   public address!: HexAddress
-
-  @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
 
   @prop({ type: () => String })
   public tokenAddress!: HexAddress
@@ -80,8 +80,13 @@ export default class LogMember extends Model {
     return await data.save(tOpts)
   }
 
-  static getEntityId(transactionHash: HexAddress, event: IEventLogMember, member: HexAddress, network: NetworksEnum) {
-    return `${transactionHash}-${event}-${member}-${network}`
+  static getEntityId(
+    transactionHash: HexAddress,
+    event: IEventLogMember,
+    memberAddress: HexAddress,
+    network: NetworksEnum,
+  ) {
+    return `${transactionHash}-${event}-${memberAddress}-${network}`
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
@@ -91,11 +96,11 @@ export default class LogMember extends Model {
   static async findExistingLog(
     transactionHash: HexAddress,
     event: IEventLogMember,
-    member: HexAddress,
+    memberAddress: HexAddress,
     network: NetworksEnum,
     tOpts?: SaveOptions,
   ) {
-    const entityId = this.getEntityId(transactionHash, event, member, network)
+    const entityId = this.getEntityId(transactionHash, event, memberAddress, network)
     return await this.findByEntityId(entityId, tOpts)
   }
 

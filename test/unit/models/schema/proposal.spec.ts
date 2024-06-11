@@ -2,23 +2,16 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { NetworksEnum } from '@types'
-import Proposal, { Vote } from '@models/schema/logProposal'
-import Network from '@models/schema/network'
+import Proposal from '@models/schema/logProposal'
 import { Models } from '@dbModels'
 
 describe('Model: Proposal', () => {
   let sandbox: SinonSandbox
   let rawProposalMultisig: Partial<Proposal>
   let rawProposalTokenVoting: Partial<Proposal>
-  let ethereumNetwork: Network
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-
-    ethereumNetwork = await Models.Network.create({
-      name: NetworksEnum.mainnet,
-      status: 'healthy',
-    })
 
     rawProposalMultisig = {
       transactionHash: '0xf7150dd71a976384fd3d3ef755fbf7487ffb3e8cc67024b53be578e6173f7618',

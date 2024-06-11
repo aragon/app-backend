@@ -3,21 +3,14 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import LogProposal, { Vote } from '@models/schema/logProposal'
-import Network from '@models/schema/network'
 import { Models } from '@dbModels'
 
 describe('Model: LogProposal', () => {
   let sandbox: SinonSandbox
   let rawLogProposal: Partial<LogProposal>
-  let ethereumNetwork: Network
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-
-    ethereumNetwork = await Models.Network.create({
-      name: NetworksEnum.mainnet,
-      status: 'healthy',
-    })
 
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const pluginAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
