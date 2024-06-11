@@ -18,97 +18,109 @@ describe('Indexer: DaoHandler', () => {
   })
 
   describe('newURI', () => {
-    it('uri updated fails when no uri presented', async () => {
-      const network = NetworksEnum.mainnet
-      const stubLogger = sandbox.stub(logger, 'verbose')
-
-      const event = {
-        args: {
-          daoURI: '',
-        },
-      }
-
-      const findExistingLogStub = sandbox.spy(Models.LogDaoRegistry, 'findExistingLog')
-
-      const infoLog: ILogInfo = {
-        network,
-        transactionHash: '0x123',
-        blockNumber: 1,
-        address: '0x456',
-        eventName: 'test',
-      }
-
-      await DaoHandler.newURI(event as any, infoLog)
-
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('newURI: no daoURI' as any)).to.be.true
-      expect(findExistingLogStub.notCalled).to.be.true
-    })
-
-    it('should fails when dao not exists', async () => {
-      const network = NetworksEnum.mainnet
-      const stubLogger = sandbox.stub(logger, 'verbose')
-      const event = {
-        args: {
-          daoURI: 'test',
-        },
-      }
-
-      const findExistingLogStub = sandbox.stub(Models.LogDaoRegistry, 'findExistingLog').returns(false)
-      const findByAddressStub = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').returns(false)
-
-      const infoLog: ILogInfo = {
-        network,
-        transactionHash: '0x123',
-        blockNumber: 1,
-        address: '0x456',
-        eventName: 'test',
-      }
-
-      await DaoHandler.newURI(event as any, infoLog)
-
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Dao not found' as any)).to.be.true
-      expect(findExistingLogStub.calledOnce).to.be.true
-      expect(findByAddressStub.calledOnce).to.be.true
-    })
-
     it('uri updated', async () => {
       const network = NetworksEnum.mainnet
-      const stubLogger = sandbox.stub(logger, 'verbose')
+      const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+      const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
+      const rawLogDaoRegistry = {
+        transactionHash,
+        blockNumber: 3,
+        network,
+        address,
+        creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+        subdomain: 'fake-subdomain',
+      }
+      const createdLogDaoRegistry = await Models.LogDaoRegistry.create(rawLogDaoRegistry)
       const event = {
         args: {
           daoURI: 'test',
         },
       }
-
-      const addURIUpdatesStub = sandbox.stub()
-      const findExistingLogStub = sandbox.stub(Models.LogDaoRegistry, 'findExistingLog').returns(false)
-      const findByAddressStub = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').returns({
-        addURIUpdates: addURIUpdatesStub,
-        address: '0x123',
-      })
-
       const infoLog: ILogInfo = {
         network,
-        transactionHash: '0x123',
+        transactionHash: rawLogDaoRegistry.transactionHash,
         blockNumber: 1,
-        address: '0x456',
+        address: rawLogDaoRegistry.address,
         eventName: 'test',
       }
 
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const spyFindByAddress = sandbox.spy(Models.LogDaoRegistry, 'findByAddress')
+
       await DaoHandler.newURI(event as any, infoLog)
 
-      expect(stubLogger.callCount).to.be.eq(1)
-      expect(findExistingLogStub.calledOnce).to.be.true
-      expect(addURIUpdatesStub.calledOnce).to.be.true
-      expect(findByAddressStub.calledOnce).to.be.true
+      expect(spyFindByAddress.calledOnceWith(infoLog.address, infoLog.network)).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
 
-      expect(addURIUpdatesStub.args[0][0]).to.be.deep.eq({
+      const updated = await createdLogDaoRegistry.reload()
+      expect(updated.uriUpdates.length).to.eq(1)
+    })
+
+    it('uri updated - not existing dao', async () => {
+      const network = NetworksEnum.mainnet
+      const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+      const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
+      const rawLogDaoRegistry = {
+        transactionHash,
+        blockNumber: 3,
+        network,
+        address,
+        creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+        subdomain: 'fake-subdomain',
+      }
+      const createdLogDaoRegistry = await Models.LogDaoRegistry.create(rawLogDaoRegistry)
+      const event = {
+        args: {
+          daoURI: 'test',
+        },
+      }
+      const infoLog: ILogInfo = {
+        network,
+        transactionHash: rawLogDaoRegistry.transactionHash,
         blockNumber: 1,
-        transactionHash: '0x123',
-        uri: 'test',
-      })
+        address: rawLogDaoRegistry.address,
+        eventName: 'test',
+      }
+
+      const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').returns(undefined)
+
+      await DaoHandler.newURI(event as any, infoLog)
+
+      expect(stubLogger.calledOnceWith('dao not found' as any)).to.be.true
+    })
+
+    it('uri updated - missing daoURI', async () => {
+      const network = NetworksEnum.mainnet
+      const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+      const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
+      const rawLogDaoRegistry = {
+        transactionHash,
+        blockNumber: 3,
+        network,
+        address,
+        creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+        subdomain: 'fake-subdomain',
+      }
+      const event = {
+        args: {
+          daoURI: undefined,
+        },
+      }
+      const infoLog: ILogInfo = {
+        network,
+        transactionHash: rawLogDaoRegistry.transactionHash,
+        blockNumber: 1,
+        address: rawLogDaoRegistry.address,
+        eventName: 'test',
+      }
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').returns(undefined)
+
+      await DaoHandler.newURI(event as any, infoLog)
+
+      expect(stubLogger.calledOnceWith('newURI - no daoURI' as any)).to.be.true
     })
   })
 })

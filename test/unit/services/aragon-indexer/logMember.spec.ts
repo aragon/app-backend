@@ -3,15 +3,15 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { LogMember } from '@services/aragon-indexer/logMember'
 import Provider from '@modules/provider'
-import { Models } from '@dbModels'
-import { UtilsIndexer } from '@models/utils/indexer'
 import logger from '@logger'
+import Logger from '@logger'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import { MemberHandler } from '@services/aragon-indexer/handlers/memberHandler'
-import Network from '@models/schema/network'
 import { UnitTestUtils } from '@test/lib/utils'
 import Web3Helper from '@helpers/web3'
+import { NetworkHelper } from '@helpers/network'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 
 describe('Indexer: LogMember', () => {
   let sandbox: SinonSandbox
@@ -31,45 +31,44 @@ describe('Indexer: LogMember', () => {
   describe('start', () => {
     it('should start', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
-
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
-      const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
-      const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
-      const processLogStub = sandbox.stub(LogMember, 'processLog').resolves()
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
+        Object.values(NetworksEnum).map(networkName => ({
+          networkName,
+          provider: {} as any,
+        })),
+      )
+
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onLog(true)
+      })
 
       await LogMember.start()
 
-      expect(networkFindStub.callCount).to.eq(5)
-      expect(saveSyncStub.callCount).to.eq(5)
-      expect(processLogStub.callCount).to.eq(2)
-      expect(loggerVerboseStub.callCount).to.eq(15)
+      expect(stubLogger.calledWith('End LogMember' as any)).to.be.true
+      expect(crawlerStub.callCount).to.eq(Object.values(NetworksEnum).length)
     })
 
     it('should start handle error', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
-
       sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
-      const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves({ lastBlockMetadataLog: 123 })
-      const saveSyncStub = sandbox.stub(UtilsIndexer, 'saveSync').resolves()
-      const processLogStub = sandbox.stub(LogMember, 'processLog').throws()
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
+        Object.values(NetworksEnum).map(networkName => ({
+          networkName,
+          provider: {} as any,
+        })),
+      )
+
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onError(true)
+      })
 
       await LogMember.start()
 
-      expect(networkFindStub.callCount).to.eq(5)
-      expect(saveSyncStub.callCount).to.eq(5)
-      expect(processLogStub.callCount).to.eq(2)
-      expect(loggerVerboseStub.callCount).to.eq(15)
-    })
-
-    it('should skip unsupported networks', async () => {
-      const networkFindStub = sandbox.stub(Models.Network, 'findByName').resolves(null)
-      const stubLogger = sandbox.stub(logger, 'warn')
-      await LogMember.start()
-
-      expect(stubLogger.calledWith('Unsupported Network' as any)).to.be.true
-      expect(networkFindStub.callCount).to.eq(Object.values(Network.NETWORKS).length)
+      expect(stubLogger.calledWith('End LogMember' as any)).to.be.true
+      expect(crawlerStub.callCount).to.eq(Object.values(NetworksEnum).length)
     })
   })
 
