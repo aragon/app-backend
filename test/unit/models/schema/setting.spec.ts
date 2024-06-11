@@ -3,21 +3,14 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import Setting from '@models/schema/setting'
-import Network from '@models/schema/network'
 import { Models } from '@dbModels'
 
 describe('Model: Setting', () => {
   let sandbox: SinonSandbox
   let rawSetting: Partial<Setting>
-  let ethereumNetwork: Network
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-
-    ethereumNetwork = await Models.Network.create({
-      name: NetworksEnum.mainnet,
-      status: 'healthy',
-    })
 
     rawSetting = {
       pluginAddress: '0x1C9776b903DbA78C597C0512c6291F618d20427f',

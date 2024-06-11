@@ -2,25 +2,18 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { HexAddress, NetworksEnum } from '@types'
-import Network from '@models/schema/network'
 import { Models } from '@dbModels'
 import Asset from '@models/schema/asset'
 
 describe('Model: Asset', () => {
   let sandbox: SinonSandbox
   let rawAsset: Partial<Asset>
-  let ethereumNetwork: Network
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    ethereumNetwork = await Models.Network.create({
-      name: NetworksEnum.mainnet,
-      status: 'healthy',
-    })
-
     rawAsset = {
-      network: ethereumNetwork.name,
+      network: NetworksEnum.mainnet,
       daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
       amount: '32423423',
