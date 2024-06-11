@@ -7,7 +7,7 @@ import { Models } from '@dbModels'
 import { DaoList } from '@test/mock/fakeDao'
 import Satsuma from '@helpers/satsuma'
 
-describe.only('Controller: Dao', () => {
+describe('Controller: Dao', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
