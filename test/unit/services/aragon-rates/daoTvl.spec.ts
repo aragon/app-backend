@@ -30,7 +30,7 @@ describe('Rates: DaoTvl', () => {
           name: 'fake-name',
           description: 'fake-description',
           avatar: 'fake-avatar',
-        }
+        },
       ]
       const tokens = [
         {

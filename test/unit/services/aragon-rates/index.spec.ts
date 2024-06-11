@@ -8,7 +8,7 @@ import utils from '@helpers/utils'
 import { EnumConnection } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import logger from '@logger'
-import {DaoTvl} from "@rates/daoTvl";
+import { DaoTvl } from '@rates/daoTvl'
 
 describe('Rates: index', () => {
   let sandbox: SinonSandbox
