@@ -3,6 +3,7 @@ import { EnumConnection, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
+import { DaoTvl } from '@services/aragon-rates/daoTvl'
 
 const llo = logger.logMeta.bind(null, { service: 'service:RatesService' })
 
@@ -12,10 +13,11 @@ const RatesService: IService = {
   start: async function () {
     logger.info('RatesService service sync start', llo({}))
 
-    const task = [async () => FetchRates.start()]
+    const taskFetchRates = [async () => FetchRates.start()]
+    const taskUpdateDaoTvl = [async () => DaoTvl.start()]
 
     const taskOptions = {
-      fn: () => [task],
+      fn: () => [taskFetchRates, taskUpdateDaoTvl],
       interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
       onError: (error: any) => {
         logger.error('RatesService task error', llo({ error }))

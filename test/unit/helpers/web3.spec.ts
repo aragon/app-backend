@@ -1074,7 +1074,7 @@ describe('Helpers:Web3', () => {
         name: 'Test Token',
         symbol: 'TST',
         decimals: 18,
-        totalSupply: 200,
+        totalSupply: '200',
       })
 
       expect(stubName.calledOnce).to.be.true

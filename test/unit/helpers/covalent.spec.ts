@@ -53,7 +53,7 @@ describe('Helpers: Covalent', () => {
         decimals: 18,
         priceUsd: '4086.604',
         holders: 0,
-        totalSupply: 0,
+        totalSupply: '0',
         priceChangeOnDayUsd: 22.262699999999768,
         lastUpdatedAt: '2024-03-12T00:28:29.991Z',
       }
@@ -82,7 +82,7 @@ describe('Helpers: Covalent', () => {
         decimals: 18,
         priceUsd: '4021.0115',
         holders: 0,
-        totalSupply: 0,
+        totalSupply: '0',
         priceChangeOnDayUsd: 42.428699999999935,
         lastUpdatedAt: '2024-03-13T02:45:39.390Z',
       }

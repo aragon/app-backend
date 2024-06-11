@@ -547,7 +547,7 @@ const Web3Helper = {
     name: string
     symbol: string
     decimals: number
-    totalSupply: number
+    totalSupply: string
   }> {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
     const tokenInstance = new Contract(address, ERC20.abi, provider)
@@ -576,7 +576,7 @@ const Web3Helper = {
       const totalSupply = await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
         tokenInstance.totalSupply(),
       )
-      token.totalSupply = Number(totalSupply)
+      token.totalSupply = BigInt(totalSupply).toString()
     } catch (error) {
       logger.warn('Error getting token total supply:', llo({ error, address }))
     }
