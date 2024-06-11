@@ -191,7 +191,7 @@ class BlockchainTransferCrawler {
         await this.onTx(tx)
         this.crawlResult.nbSuccess++
         if (tx?.blockNum) {
-          this.crawlResult.lastSync = tx.blockNum
+          this.crawlResult.lastSync = Number(tx.blockNum)
         }
         if (this.logService && tx?.blockNum) {
           await this.onSaveProgress(tx.blockNum)
