@@ -117,10 +117,10 @@ export default class Dao extends Model {
   @prop({ type: () => String, default: '0' })
   public tvlUSD!: string
 
-  @prop({ type: () => Number, required: true })
+  @prop({ type: () => Number, default: 0 })
   public proposalsCreated!: number
 
-  @prop({ type: () => Number, required: true })
+  @prop({ type: () => Number, default: 0 })
   public proposalsExecuted!: number
 
   @prop({ type: () => Number, default: 0 })

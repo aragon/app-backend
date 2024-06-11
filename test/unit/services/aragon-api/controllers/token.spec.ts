@@ -30,7 +30,7 @@ describe('Controller: Token', () => {
         decimals: 18,
         priceUsd: '4086.604',
         holders: 0,
-        totalSupply: 0,
+        totalSupply: '0',
         priceChangeOnDayUsd: '22.262699999999768',
         lastUpdatedAt: dayjs().toISOString(),
       }
@@ -74,7 +74,7 @@ describe('Controller: Token', () => {
         decimals: 18,
         priceUsd: '4086.604',
         holders: 0,
-        totalSupply: 0,
+        totalSupply: '0',
         priceChangeOnDayUsd: '22.262699999999768',
         lastUpdatedAt: '2024-03-12T00:28:29.991Z',
       }

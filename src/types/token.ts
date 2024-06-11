@@ -8,8 +8,8 @@ export interface IToken {
   symbol: string
   decimals: number
   holders: number
-  totalSupply: number
-  priceChangeOnDayUsd: number
+  totalSupply: string
+  priceChangeOnDayUsd: string
   priceUsd: string
   lastUpdatedAt: string
   createdAt: string
