@@ -39,18 +39,17 @@ const IndexerService: IService = {
 
     // order is important
     const aggregatorTasks = [
-      // [async () => AggregatorPlugin.start()],
-      // [async () => AggregatorSetting.start()],
-      // [async () => AggregatorMembers.start()],
-      // [async () => AggregatorProposal.start()],
-      // [async () => AggregatorDao.start()],
+      [async () => AggregatorPlugin.start()],
+      [async () => AggregatorSetting.start()],
+      [async () => AggregatorMembers.start()],
+      [async () => AggregatorProposal.start()],
+      [async () => AggregatorDao.start()],
       [async () => AggregatorAssets.start()],
       [async () => AggregatorTransactions.start()],
     ]
 
     const taskOptions = {
-      fn: () => [...aggregatorTasks],
-      // fn: () => [...logTasks, ...aggregatorTasks],
+      fn: () => [...logTasks, ...aggregatorTasks],
       interval: config.SERVICES.ARAGON_INDEXER.DAO_INTERVAL,
       onError: (error: any) => {
         logger.error('IndexerService task error', llo({ error }))
