@@ -6,7 +6,6 @@ import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import Logger from '@logger'
 import Web3Helper from '@helpers/web3'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { Models } from '@dbModels'
 
 describe('Modules:BlockchainTransferCrawler', () => {
