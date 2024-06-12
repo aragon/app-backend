@@ -16,14 +16,7 @@ const DaoSchema = {
     permalink: Joi.string().required(),
   }),
 
-  getDaoMultisigMembersWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
-      permalink: Joi.string().required(),
-      pluginAddress: ValidationSchema.joiAddress.required(),
-    }),
-  ),
-
-  getDaoTokenVotingMembersWithPagination: Joi.object(
+  getDaoMembersWithPagination: Joi.object(
     Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
       permalink: Joi.string().required(),
       pluginAddress: ValidationSchema.joiAddress.required(),

@@ -58,7 +58,7 @@ describe('Helpers:ValidationSchema', () => {
     })
 
     it('generateJoiDaoPluginPagination', async () => {
-      const result = await DaoSchema.getDaoMultisigMembersWithPagination.validateAsync({
+      const result = await DaoSchema.getDaoMembersWithPagination.validateAsync({
         permalink: 'xxx',
         pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
       })

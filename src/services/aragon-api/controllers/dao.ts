@@ -2,10 +2,10 @@ import { Models } from '@dbModels'
 import {
   ErrorKeyEnum,
   type HexAddress,
-  type IDaoMembersResponse,
+  IMembersResponse,
+  IPaginatedResult,
   type IPaginationParams,
   IPluginSubdomain,
-  type IResponseWithPagination,
   type NetworksEnum,
 } from '@types'
 import type Dao from '@models/schema/dao'
@@ -14,7 +14,7 @@ import { assertExposable } from '@errors'
 const DaoController = {
   getWithPagination: async (
     params: IPaginationParams & { network: NetworksEnum; pluginAddress: HexAddress },
-  ): Promise<IResponseWithPagination> => {
+  ): Promise<IPaginatedResult<Dao>> => {
     const { data, currentPage, totPages, totRecords } = await Models.Dao.findWithPagination(
       {
         networks: params.network ? [params.network] : [],
@@ -32,63 +32,38 @@ const DaoController = {
     )
 
     return {
-      ...params,
-      currentPage,
-      totPages,
-      totRecords,
+      metadata: {
+        ...params,
+        currentPage,
+        totPages,
+        totRecords,
+      },
       data: data.map((dao: Dao) => dao.filterKeys()),
     }
   },
 
-  getDaoByPermalink: async (permalink: string) => {
+  getDaoByPermalink: async (permalink: string): Promise<Dao> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
     return dao.filterKeys()
   },
 
-  getDaoMembersMultiSig: async (
-    permalink: string,
-    pluginAddress: HexAddress,
-    memberFilters: IPaginationParams,
-  ): Promise<IDaoMembersResponse> => {
+  getDaoMembers: async ({
+    permalink,
+    pluginAddress,
+    subdomain,
+    filterParams,
+  }): Promise<IPaginatedResult<IMembersResponse>> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
     const multiSigPlugin = dao.plugins.find(
-      (w: { subdomain: IPluginSubdomain; address: string }) =>
-        w.subdomain === IPluginSubdomain.multisig && w.address === pluginAddress,
+      (w: { subdomain: IPluginSubdomain; address: string }) => w.subdomain === subdomain && w.address === pluginAddress,
     )
     assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
 
-    const members = await Models.Member.findMembersByPlugin(pluginAddress, memberFilters)
-
-    return {
-      ...memberFilters,
-      members,
-    }
-  },
-
-  getDaoMembersTokenVoting: async (
-    permalink: string,
-    pluginAddress: HexAddress,
-    memberFilters: IPaginationParams,
-  ): Promise<IDaoMembersResponse> => {
-    const dao = await Models.Dao.findByPermalink(permalink)
-    assertExposable(dao, ErrorKeyEnum.notFound)
-
-    const tokenPlugin = dao.plugins.find(
-      (w: { subdomain: IPluginSubdomain; address: string }) =>
-        w.subdomain === IPluginSubdomain.token && w.address === pluginAddress,
-    )
-    assertExposable(tokenPlugin, ErrorKeyEnum.pluginNotFound)
-
-    const members = await Models.Member.findMembersByPlugin(pluginAddress, memberFilters)
-
-    return {
-      ...memberFilters,
-      members,
-    }
+    return await Models.Member.findMembersByPlugin(pluginAddress, filterParams)
   },
 }
 

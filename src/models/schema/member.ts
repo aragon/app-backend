@@ -1,8 +1,15 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type IPlugin, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  IMembersResponse,
+  IPaginatedResult,
+  type IPaginationParams,
+  NetworksEnum
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import ModelUtils from "@models/utils/models";
 
 const customName = 'Member'
 
@@ -86,8 +93,9 @@ export default class Member extends Model {
     return await this.findOne({ entityId }, tOpts)
   }
 
-  // TODO: add pagination
-  static async findMembersByPlugin(pluginAddress: string, memberFilters: any): Promise<IPlugin[]> {
+  static async findMembersByPlugin(pluginAddress: string, opts: IPaginationParams): Promise<IPaginatedResult<IMembersResponse>> {
+    const request = Object.assign({}, ModelUtils.requestPaginate(opts, {orderProp: 'fromBlockNumber'}))
+
     return await this.aggregate([
       {
         $unwind: '$daos',
@@ -109,9 +117,53 @@ export default class Member extends Model {
               else: '$$REMOVE',
             },
           },
+          fromBlockNumber: '$daos.fromBlockNumber',
+          toBlockNumber: '$daos.toBlockNumber',
         },
       },
-    ])
+      {
+        $sort: {
+          [request.orderProp]: request.order === 'asc' ? 1 : -1,
+        },
+      },
+      {
+        $facet: {
+          metadata: [
+            { $count: 'total' },
+            {
+              $addFields: {
+                currentPage: { $literal: Math.floor(request.skip / request.limit) + 1 },
+                limit: { $toInt: request.limit },
+                skip: { $toInt: request.skip },
+                order: { $literal: request.order },
+                orderProp: { $literal: request.orderProp },
+                totPages: {
+                  $ceil: { $divide: ['$total', request.limit] },
+                },
+              },
+            },
+          ],
+          data: [{ $skip: request.skip }, { $limit: request.limit }],
+        },
+      },
+      {
+        $unwind: '$metadata',
+      },
+      {
+        $project: {
+          data: 1,
+          metadata: {
+            totRecords: '$metadata.total',
+            limit: { $toInt: '$metadata.limit' },
+            skip: { $toInt: '$metadata.skip' },
+            order: '$metadata.order',
+            orderProp: '$metadata.orderProp',
+            currentPage: { $toInt: '$metadata.currentPage' },
+            totPages: { $toInt: '$metadata.totPages' },
+          },
+        },
+      },
+    ]) as any
   }
 
   async update(params: Partial<Member>, tOpts?: SaveOptions) {

@@ -2,10 +2,9 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DaoController from '@services/aragon-api/controllers/dao'
-import { HexAddress, IPaginationParams, NetworksEnum } from '@types'
+import {HexAddress, IPaginationParams, IPluginSubdomain, NetworksEnum} from '@types'
 import { Models } from '@dbModels'
 import { DaoList } from '@test/mock/fakeDao'
-import Satsuma from '@helpers/satsuma'
 
 describe('Controller: Dao', () => {
   let sandbox: SinonSandbox
@@ -61,9 +60,9 @@ describe('Controller: Dao', () => {
       ).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].name).to.eq('Test DAO')
-      expect(response.currentPage).to.eq(1)
-      expect(response.totPages).to.eq(1)
-      expect(response.totRecords).to.eq(1)
+      expect(response.metadata.currentPage).to.eq(1)
+      expect(response.metadata.totPages).to.eq(1)
+      expect(response.metadata.totRecords).to.eq(1)
     })
 
     it('get daos with pagination - missing network, plugin', async () => {
@@ -103,9 +102,9 @@ describe('Controller: Dao', () => {
       ).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].name).to.eq('Test DAO')
-      expect(response.currentPage).to.eq(1)
-      expect(response.totPages).to.eq(1)
-      expect(response.totRecords).to.eq(1)
+      expect(response.metadata.currentPage).to.eq(1)
+      expect(response.metadata.totPages).to.eq(1)
+      expect(response.metadata.totRecords).to.eq(1)
     })
   })
 
@@ -121,7 +120,7 @@ describe('Controller: Dao', () => {
     expect(dao.permalink).to.eq(mockDao.permalink)
   })
 
-  it('getDaoMembers with multiSigMembers', async () => {
+  it('getDaoMembers by plugin address', async () => {
     const mockDao = DaoList[1]
     await Models.Dao.create(mockDao)
 
@@ -154,71 +153,18 @@ describe('Controller: Dao', () => {
     ]
     const stubMember = sandbox.stub(Models.Member, 'findMembersByPlugin').resolves(fakeResponse as any)
 
-    const result = await DaoController.getDaoMembersMultiSig(permalink as any, pluginAddress as HexAddress, filters)
+    const result = await DaoController.getDaoMembers({
+      permalink,
+      pluginAddress,
+      subdomain: IPluginSubdomain.multisig,
+      filterParams: filters,
+    })
 
-    expect(result.limit).to.eq(10)
-    expect(result.skip).to.eq(0)
-    expect(result.orderProp).to.eq('address')
-    expect(result.order).to.eq('asc')
-    expect(result.members.length).to.eq(5)
-    expect(stubMember.calledOnce).to.be.true
-    expect(stubMember.args[0][0]).to.eq(mockDao.plugins[0].address)
-    expect(stubMember.args[0][1]).to.eq(filters)
-  })
-
-  it('getDaoMembers with tokenVotingMembers', async () => {
-    const mockDao = DaoList[3]
-    await Models.Dao.create(mockDao)
-
-    const pluginAddress = mockDao.plugins[0].address
-    const permalink = mockDao.permalink
-
-    const filters = {
-      limit: 10,
-      skip: 0,
-      orderProp: 'address',
-      order: 'asc',
-    }
-
-    const fakeResponse = [
-      {
-        address: mockDao.plugins[0].address,
-        balance: '69000000000000000000',
-        votingPower: '69000000000000000000',
-        delegatee: {
-          address: '0x826976d7c600d45fb8287ca1d7c76fc8eb732030',
-        },
-        delegators: [
-          {
-            address: '0x826976d7c600d45fb8287ca1d7c76fc8eb732030',
-            balance: '69000000000000000000',
-          },
-        ],
-      },
-      {
-        address: '0x839395e20bbb182fa440d08f850e6c7a8f6f0780',
-        balance: '69000000000000000000',
-        votingPower: '69000000000000000000',
-        delegatee: {
-          address: '0x839395e20bbb182fa440d08f850e6c7a8f6f0780',
-        },
-        delegators: [
-          {
-            address: '0x839395e20bbb182fa440d08f850e6c7a8f6f0780',
-            balance: '69000000000000000000',
-          },
-        ],
-      },
-    ]
-    const stubMember = sandbox.stub(Models.Member, 'findMembersByPlugin').resolves(fakeResponse as any)
-
-    const result = await DaoController.getDaoMembersTokenVoting(permalink, pluginAddress as HexAddress, filters)
-
-    expect(result.limit).to.eq(10)
-    expect(result.skip).to.eq(0)
-    expect(result.orderProp).to.eq('address')
-    expect(result.order).to.eq('asc')
-    expect(result.members.length).to.eq(2)
+    expect(result.metadata.limit).to.eq(10)
+    expect(result.metadata.skip).to.eq(0)
+    expect(result.metadata.orderProp).to.eq('address')
+    expect(result.metadata.order).to.eq('asc')
+    expect(result.data.length).to.eq(5)
     expect(stubMember.calledOnce).to.be.true
     expect(stubMember.args[0][0]).to.eq(mockDao.plugins[0].address)
     expect(stubMember.args[0][1]).to.eq(filters)

@@ -13,8 +13,8 @@ const MainRouter = {
 
     mainRouter.use(statusRouter.routes(), statusRouter.allowedMethods())
 
-    mainRouter.use('/dao', daoRouter.routes(), daoRouter.allowedMethods())
-    mainRouter.use('/token', tokenRouter.routes(), tokenRouter.allowedMethods())
+    mainRouter.use('/daos', daoRouter.routes(), daoRouter.allowedMethods())
+    mainRouter.use('/tokens', tokenRouter.routes(), tokenRouter.allowedMethods())
 
     return mainRouter
   },

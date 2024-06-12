@@ -1,6 +1,5 @@
 import { type Model } from 'mongoose'
 import type Dao from '@models/schema/dao'
-import { type IDao } from '@src/types/daos'
 import type Token from '@models/schema/token'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import type LogDaoMetadata from '@models/schema/logDaoMetadata'
@@ -60,19 +59,3 @@ export enum IEventLogMember {
   DelegateVotesChanged = 'DelegateVotesChanged',
 }
 
-export interface IPaginationParams {
-  search?: string
-  fromDate?: string
-  toDate?: string
-  limit?: number
-  skip?: number
-  order?: string
-  orderProp?: string
-}
-
-export interface IResponseWithPagination {
-  data: IDao[]
-  currentPage: number
-  totPages: number
-  totRecords: number
-}

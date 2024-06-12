@@ -99,8 +99,8 @@ describe('Router: Dao', () => {
     })
   })
 
-  describe('getDaoMembersMultiSigWithPagination', async () => {
-    it('Should get daoMembersMultiSigWithPagination', async () => {
+  describe('getDaoMembersWithPagination', async () => {
+    it('Should get getDaoMembersWithPagination', async () => {
       const params = {
         permalink: 'xxx',
         pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
@@ -110,52 +110,27 @@ describe('Router: Dao', () => {
         limit: 10,
         skip: 0,
         order: 'desc',
-        orderProp: 'createdAt',
+        orderProp: 'blockNumber',
       }
 
-      const stubCtrl = sandbox.stub(DaoController, 'getDaoMembersMultiSig').returns(true as any)
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoMembers').returns(true as any)
 
       const ctx: any = {
         params,
         query: filterParams,
       }
 
-      await DaoRouter.getDaoMembersMultiSigWithPagination(ctx)
+      await DaoRouter.getDaoMembersWithPagination(ctx)
 
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
 
-      expect(stubCtrl.calledWith(params.permalink, params.pluginAddress as HexAddress, filterParams)).to.be.true
-    })
-  })
-
-  describe('getDaoMembersTokenVotingWithPagination', async () => {
-    it('Should get getDaoMembersTokenVotingWithPagination', async () => {
-      const params = {
-        permalink: 'xxx',
-        pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
-      }
-
-      const filterParams = {
-        limit: 10,
-        skip: 0,
-        order: 'desc',
-        orderProp: 'createdAt',
-      }
-
-      const stubCtrl = sandbox.stub(DaoController, 'getDaoMembersTokenVoting').returns(true as any)
-
-      const ctx: any = {
-        params,
-        query: filterParams,
-      }
-
-      await DaoRouter.getDaoMembersTokenVotingWithPagination(ctx)
-
-      expect(ctx.body).to.eq(true)
-      expect(stubCtrl.calledOnce).to.be.true
-
-      expect(stubCtrl.calledWith(params.permalink, params.pluginAddress as HexAddress, filterParams)).to.be.true
+      expect(stubCtrl.calledWith({
+        permalink: params.permalink,
+        pluginAddress: params.pluginAddress,
+        subdomain:
+        filterParams
+      })).to.be.true
     })
   })
 })
