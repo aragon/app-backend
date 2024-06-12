@@ -165,7 +165,7 @@ export default class Dao extends Model {
     return await this.findOne({ permalink })
   }
 
-  static async findWithPagination({ networks, pluginAddress }, opts: IPaginationParams) {
+  static async findWithPagination({ networks, pluginAddress }, opts: IPaginationParams = {}) {
     const params = Object.assign(
       {},
       ModelUtils.parseParams(opts, [
@@ -191,7 +191,7 @@ export default class Dao extends Model {
     const request = Object.assign({}, ModelUtils.requestPaginate(opts))
     const currentPage = opts.skip || 1
 
-    const [daos, totRecords] = await Promise.all([this.find(params, null, request), this.countDocuments(params)])
+    const [data, totRecords] = await Promise.all([this.find(params, null, request), this.countDocuments(params)])
 
     const totPages = Math.ceil(totRecords / request.limit)
 
@@ -201,14 +201,24 @@ export default class Dao extends Model {
         totRecords: 0,
         currentPage: 1,
         totPages: 1,
+        limit: request.limit,
+        skip: request.skip,
+        order: opts.order,
+        orderProp: opts.orderProp,
       }
     }
 
     return {
-      data: daos,
-      totRecords,
-      currentPage,
-      totPages,
+      metadata: {
+        currentPage,
+        totPages,
+        totRecords,
+        limit: request.limit,
+        skip: request.skip,
+        order: opts.order,
+        orderProp: opts.orderProp,
+      },
+      data,
     }
   }
 

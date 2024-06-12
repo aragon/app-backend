@@ -16,10 +16,22 @@ const DaoSchema = {
     permalink: Joi.string().required(),
   }),
 
+  getDaoPlugin: Joi.object({
+    permalink: Joi.string().required(),
+    pluginAddress: ValidationSchema.joiAddress.optional(),
+  }),
+
   getDaoMembersWithPagination: Joi.object(
     Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
       permalink: Joi.string().required(),
-      pluginAddress: ValidationSchema.joiAddress.required(),
+      pluginAddress: ValidationSchema.joiAddress.optional(),
+    }),
+  ),
+
+  getProposalsWithPagination: Joi.object(
+    Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
+      permalink: Joi.string().required(),
+      pluginAddress: ValidationSchema.joiAddress.optional(),
     }),
   ),
 }
