@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DaoController from '@services/aragon-api/controllers/dao'
-import {HexAddress, IPaginationParams, IPluginSubdomain, NetworksEnum} from '@types'
+import { HexAddress, IPaginationParams, IPluginSubdomain, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { DaoList } from '@test/mock/fakeDao'
 
@@ -157,7 +157,7 @@ describe('Controller: Dao', () => {
       permalink,
       pluginAddress,
       subdomain: IPluginSubdomain.multisig,
-      filterParams: filters,
+      opts: filters,
     })
 
     expect(result.metadata.limit).to.eq(10)
