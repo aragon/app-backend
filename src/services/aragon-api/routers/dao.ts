@@ -2,7 +2,7 @@ import Router, { type RouterContext } from '@koa/router'
 import DaoController from '@services/aragon-api/controllers/dao'
 import ValidationSchema from '@helpers/validationSchema'
 import DaoSchema from '@services/aragon-api/routers/schema/dao'
-import { type HexAddress } from '@types'
+import { type HexAddress, IPluginSubdomain } from '@types'
 
 const DaoRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -33,12 +33,12 @@ const DaoRouter = {
     ctx.body = await DaoController.getDaoByPermalink(params.permalink)
   },
 
-  getDaoMembersMultiSigWithPagination: async function (ctx: RouterContext) {
+  getDaoMembersWithPagination: async function (ctx: RouterContext) {
     const filterParams: any = {
       limit: Number(ctx.query.limit || 10),
       skip: Number(ctx.query.skip || 0),
       order: ctx.query.order || 'desc',
-      orderProp: ctx.query.orderProp,
+      orderProp: ctx.query.orderProp || 'blockNumber',
     }
 
     const params = {
@@ -46,30 +46,15 @@ const DaoRouter = {
       pluginAddress: ctx.params.pluginAddress as HexAddress,
     }
 
-    await ValidationSchema.validateParams(DaoSchema.getDaoMultisigMembersWithPagination, { ...filterParams, ...params })
+    await ValidationSchema.validateParams(DaoSchema.getDaoMembersWithPagination, { ...filterParams, ...params })
+    const subdomain = (ctx.path.includes('/multisig-members/')) ? IPluginSubdomain.multisig : IPluginSubdomain.token
 
-    ctx.body = await DaoController.getDaoMembersMultiSig(params.permalink, params.pluginAddress, filterParams)
-  },
-
-  getDaoMembersTokenVotingWithPagination: async function (ctx: RouterContext) {
-    const filterParams: any = {
-      limit: Number(ctx.query.limit || 10),
-      skip: Number(ctx.query.skip || 0),
-      order: ctx.query.order || 'desc',
-      orderProp: ctx.query.orderProp,
-    }
-
-    const params = {
-      permalink: ctx.params.permalink,
-      pluginAddress: ctx.params.pluginAddress as HexAddress,
-    }
-
-    await ValidationSchema.validateParams(DaoSchema.getDaoTokenVotingMembersWithPagination, {
-      ...filterParams,
-      ...params,
+    ctx.body = await DaoController.getDaoMembers({
+      permalink: params.permalink,
+      pluginAddress: params.pluginAddress,
+      subdomain,
+      filterParams,
     })
-
-    ctx.body = await DaoController.getDaoMembersTokenVoting(params.permalink, params.pluginAddress, filterParams)
   },
 
   router() {
@@ -77,8 +62,8 @@ const DaoRouter = {
 
     /**
      * @api {get} / Get Daos
-     * @apiName Dao
-     * @apiGroup Dao
+     * @apiName Daos
+     * @apiGroup Daos
      * @apiDescription Get Daos
      *
      * @apiSampleRequest /
@@ -87,9 +72,9 @@ const DaoRouter = {
     router.get('/', DaoRouter.getWithPagination)
 
     /**
-     * @api {get} /:permalink Get Dao
-     * @apiName Dao
-     * @apiGroup Dao
+     * @api {get} /:permalink Get Dao by permalink
+     * @apiName Daos
+     * @apiGroup Daos
      * @apiDescription Get Dao
      *
      * @apiSampleRequest /:permalink
@@ -97,24 +82,15 @@ const DaoRouter = {
     router.get('/:permalink', DaoRouter.getDaoByPermalink)
 
     /**
-     * @api {get} /:permalink/multisig-members/:pluginAddress Get multisig members
-     * @apiName Dao
-     * @apiGroup Dao
-     * @apiDescription Get multisig members
+     * @api {get} /:permalink/[plugin]-members/:pluginAddress Get members by plugin subdomain
+     * @apiName Daos
+     * @apiGroup Daos
+     * @apiDescription Get dao members
      *
      * @apiSampleRequest /:permalink/multisig-members/:pluginAddress
      */
-    router.get('/:permalink/multisig-members/:pluginAddress', DaoRouter.getDaoMembersMultiSigWithPagination)
-
-    /**
-     * @api {get} /token-voting-members Get Dao token-voting-members
-     * @apiName Dao
-     * @apiGroup Dao
-     * @apiDescription Get Dao token-voting-members
-     *
-     * @apiSampleRequest /token-voting-members
-     */
-    router.get('/:permalink/token-voting-members/:pluginAddress', DaoRouter.getDaoMembersTokenVotingWithPagination)
+    router.get('/:permalink/multisig-members/:pluginAddress', DaoRouter.getDaoMembersWithPagination)
+    router.get('/:permalink/token-members/:pluginAddress', DaoRouter.getDaoMembersWithPagination)
 
     return router
   },

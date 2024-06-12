@@ -1,5 +1,6 @@
-import { type ENS, type HexAddress } from '@src/types/networks'
+import { type HexAddress } from '@src/types/networks'
 import { type EnumPluginType } from '@src/types/subgraph'
+import Dao from "@models/schema/dao";
 
 export interface DaoResourceLink {
   name: string
@@ -7,7 +8,7 @@ export interface DaoResourceLink {
 }
 
 export interface IDaoSatsumaResponse {
-  daos: IDao[]
+  daos: Dao[]
   limit: number
   skip: number
   results: number
@@ -45,20 +46,9 @@ export interface IPermission {
   permissionId: string
 }
 
-export interface ILink {
-  name: string
-  url: string
-}
-
 export interface IPlugin {
   type: EnumPluginType
   address: HexAddress
-}
-
-export interface IPluginMember {
-  address: HexAddress
-  ens: ENS
-  votingPower?: string
 }
 
 export interface IDaoMultiSigMember {
@@ -73,32 +63,3 @@ export interface IDaoTokenVotingMember {
   delegators: { address: HexAddress; balance: string }[]
 }
 
-export interface IDaoMembersResponse {
-  members: IDaoMultiSigMember[] | IDaoTokenVotingMember[]
-  limit?: number
-  skip?: number
-  orderProp?: string
-  order?: string
-}
-
-export interface IDao extends IDaoMetadata {
-  creatorAddress: HexAddress
-  daoAddress: HexAddress
-  permalink: string | null
-  block: number
-  blockTime: Date
-  createdAt: Date
-  ens: ENS
-  members: number
-  metadataIpfs: string | null
-  network: string
-  plugins: IPlugin[]
-  proposalsCreated: number
-  proposalsExecuted: number
-  tvlUSD: number
-  txHash: HexAddress | null
-  uniqueVoters: number
-  votes: number
-  hideDao: boolean
-  links: ILink[]
-}

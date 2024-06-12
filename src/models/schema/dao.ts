@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { type ENS, HexAddress, type IDao, type IPaginationParams, NetworksEnum } from '@types'
+import { type ENS, HexAddress, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import ModelUtils from '@models/utils/models'
@@ -241,6 +241,6 @@ export default class Dao extends Model {
     const obj = this.toObject()
     const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
     filtered.plugins = filtered.plugins.map((plugin: any) => _.omit(plugin, 'id', '_id', '__v'))
-    return filtered as IDao
+    return filtered
   }
 }
