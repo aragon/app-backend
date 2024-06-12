@@ -125,12 +125,13 @@ describe('Router: Dao', () => {
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
 
-      expect(stubCtrl.calledWith({
-        permalink: params.permalink,
-        pluginAddress: params.pluginAddress,
-        subdomain:
-        filterParams
-      })).to.be.true
+      expect(
+        stubCtrl.calledWith({
+          permalink: params.permalink,
+          pluginAddress: params.pluginAddress,
+          subdomain: filterParams,
+        }),
+      ).to.be.true
     })
   })
 })
