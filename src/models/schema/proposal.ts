@@ -1,8 +1,9 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, NetworksEnum } from '@types'
+import { HexAddress, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
 
 const customName = 'Proposal'
 
@@ -160,6 +161,78 @@ export default class Proposal extends Model {
     return await this.findOne({ proposalId, pluginAddress, network }, tOpts)
   }
 
+  static async findByDaoWithPagination({ daoAddress }, opts: IPaginationParams) {
+    const params = Object.assign(
+      {},
+      ModelUtils.parseParams(opts, ['proposalId', 'implementationAddress', 'title', 'description']),
+    )
+
+    const query = {
+      daoAddress,
+      ...params,
+    }
+
+    const request = Object.assign({}, ModelUtils.requestPaginate(opts))
+    const currentPage = opts.skip || 1
+
+    const [proposals, totRecords] = await Promise.all([this.find(query, null, request), this.countDocuments(query)])
+
+    const totPages = Math.ceil(totRecords / request.limit)
+
+    if (currentPage > totPages) {
+      return {
+        data: [],
+        totRecords: 0,
+        currentPage: 1,
+        totPages: 1,
+      }
+    }
+
+    return {
+      data: proposals,
+      totRecords,
+      currentPage,
+      totPages,
+    }
+  }
+
+  static async findByMemberAndDao({ daoAddress, memberAddress }, opts: IPaginationParams) {
+    const params = Object.assign(
+      {},
+      ModelUtils.parseParams(opts, ['proposalId', 'implementationAddress', 'title', 'description']),
+    )
+
+    const query = {
+      daoAddress,
+      creatorAddress: memberAddress,
+      ...params,
+    }
+
+    const request = Object.assign({}, ModelUtils.requestPaginate(opts))
+
+    const currentPage = opts.skip || 1
+
+    const [proposals, totRecords] = await Promise.all([this.find(query, null, request), this.countDocuments(query)])
+
+    const totPages = Math.ceil(totRecords / request.limit)
+
+    if (currentPage > totPages) {
+      return {
+        data: [],
+        totRecords: 0,
+        currentPage: 1,
+        totPages: 1,
+      }
+    }
+
+    return {
+      data: proposals,
+      totRecords,
+      currentPage,
+      totPages,
+    }
+  }
+
   async update(params: Partial<Proposal>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
@@ -178,5 +251,17 @@ export default class Proposal extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
+  }
+
+  filterKeys() {
+    const obj = this.toObject()
+
+    const filtered = _.omit(obj, 'entityId', 'transactionHash', 'id', '_id', '__v', 'createdAt', 'updatedAt')
+
+    filtered.executed = _.omit(filtered.executed, '_id')
+    filtered.settings = _.omit(filtered.settings, '_id')
+    filtered.media = _.omit(filtered.media, '_id')
+
+    return filtered
   }
 }
