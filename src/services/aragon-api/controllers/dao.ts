@@ -2,10 +2,10 @@ import { Models } from '@dbModels'
 import {
   ErrorKeyEnum,
   type HexAddress,
-  IMembersResponse,
-  IPaginatedResult,
+  type IMembersResponse,
+  type IPaginatedResult,
   type IPaginationParams,
-  IPluginSubdomain,
+  type IPluginSubdomain,
   type NetworksEnum,
 } from '@types'
 import type Dao from '@models/schema/dao'
@@ -49,12 +49,7 @@ const DaoController = {
     return dao.filterKeys()
   },
 
-  getDaoMembers: async ({
-    permalink,
-    pluginAddress,
-    subdomain,
-    filterParams,
-  }): Promise<IPaginatedResult<IMembersResponse>> => {
+  getDaoMembers: async ({ permalink, pluginAddress, subdomain, opts }): Promise<IPaginatedResult<IMembersResponse>> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
@@ -63,7 +58,7 @@ const DaoController = {
     )
     assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
 
-    return await Models.Member.findMembersByPlugin(pluginAddress, filterParams)
+    return await Models.Member.findMembersByPlugin(pluginAddress, opts)
   },
 }
 

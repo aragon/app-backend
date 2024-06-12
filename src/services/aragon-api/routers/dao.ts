@@ -38,7 +38,7 @@ const DaoRouter = {
       limit: Number(ctx.query.limit || 10),
       skip: Number(ctx.query.skip || 0),
       order: ctx.query.order || 'desc',
-      orderProp: ctx.query.orderProp || 'blockNumber',
+      orderProp: ctx.query.orderProp || 'fromBlockNumber',
     }
 
     const params = {
@@ -47,13 +47,13 @@ const DaoRouter = {
     }
 
     await ValidationSchema.validateParams(DaoSchema.getDaoMembersWithPagination, { ...filterParams, ...params })
-    const subdomain = (ctx.path.includes('/multisig-members/')) ? IPluginSubdomain.multisig : IPluginSubdomain.token
+    const subdomain = ctx.path.includes('/multisig-members/') ? IPluginSubdomain.multisig : IPluginSubdomain.token
 
     ctx.body = await DaoController.getDaoMembers({
       permalink: params.permalink,
       pluginAddress: params.pluginAddress,
       subdomain,
-      filterParams,
+      opts: filterParams,
     })
   },
 

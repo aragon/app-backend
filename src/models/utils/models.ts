@@ -44,7 +44,7 @@ const ModelUtils = {
   requestPaginate(opts: IPaginationParams, baseValues: IPaginationParams = {}) {
     const paginateParams = _.pick(opts || {}, 'limit', 'skip', 'orderProp', 'order')
     const params = _.defaults(paginateParams, {
-      limit: baseValues.limit ?? 15,
+      limit: baseValues.limit ?? 10,
       skip: baseValues.skip ?? 1,
       orderProp: baseValues.orderProp ?? 'createdAt',
       order: baseValues.order ?? 'desc',
