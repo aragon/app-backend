@@ -1,15 +1,9 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import {
-  HexAddress,
-  IMembersResponse,
-  IPaginatedResult,
-  type IPaginationParams,
-  NetworksEnum
-} from '@types'
+import { HexAddress, type IMembersResponse, type IPaginatedResult, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
-import ModelUtils from "@models/utils/models";
+import ModelUtils from '@models/utils/models'
 
 const customName = 'Member'
 
@@ -93,23 +87,32 @@ export default class Member extends Model {
     return await this.findOne({ entityId }, tOpts)
   }
 
-  static async findMembersByPlugin(pluginAddress: string, opts: IPaginationParams): Promise<IPaginatedResult<IMembersResponse>> {
-    const request = Object.assign({}, ModelUtils.requestPaginate(opts, {orderProp: 'fromBlockNumber'}))
+  static async findMembersByPlugin(
+    pluginAddress: string,
+    opts: IPaginationParams,
+  ): Promise<IPaginatedResult<IMembersResponse>> {
+    const request = Object.assign({}, ModelUtils.requestPaginate(opts, { orderProp: opts.orderProp }))
 
-    return await this.aggregate([
-      {
-        $unwind: '$daos',
-      },
-      {
-        $match: {
-          'daos.pluginAddress': pluginAddress,
-        },
-      },
+    const matchStage: any = {
+      'daos.pluginAddress': pluginAddress,
+    }
+
+    const totalCount = await this.countDocuments(matchStage)
+    const totalPages = Math.ceil(totalCount / request.limit)
+
+    const result = await this.aggregate([
+      { $unwind: '$daos' },
+      { $match: matchStage },
+      { $sort: { [request.orderProp]: request.order === 'desc' ? -1 : 1 } },
+      { $skip: request.skip },
+      { $limit: request.limit },
       {
         $project: {
           _id: 0,
           address: 1,
           ens: 1,
+          fromBlockNumber: '$daos.fromBlockNumber',
+          toBlockNumber: '$daos.toBlockNumber',
           votingPower: {
             $cond: {
               if: { $gt: [{ $type: '$daos.votingPower' }, 'missing'] },
@@ -117,53 +120,22 @@ export default class Member extends Model {
               else: '$$REMOVE',
             },
           },
-          fromBlockNumber: '$daos.fromBlockNumber',
-          toBlockNumber: '$daos.toBlockNumber',
         },
       },
-      {
-        $sort: {
-          [request.orderProp]: request.order === 'asc' ? 1 : -1,
-        },
+    ])
+
+    return {
+      metadata: {
+        limit: request.limit,
+        skip: request.skip,
+        order: opts.order,
+        orderProp: opts.orderProp,
+        currentPage: request.skip / request.limit + 1,
+        totPages: totalPages,
+        totRecords: totalCount,
       },
-      {
-        $facet: {
-          metadata: [
-            { $count: 'total' },
-            {
-              $addFields: {
-                currentPage: { $literal: Math.floor(request.skip / request.limit) + 1 },
-                limit: { $toInt: request.limit },
-                skip: { $toInt: request.skip },
-                order: { $literal: request.order },
-                orderProp: { $literal: request.orderProp },
-                totPages: {
-                  $ceil: { $divide: ['$total', request.limit] },
-                },
-              },
-            },
-          ],
-          data: [{ $skip: request.skip }, { $limit: request.limit }],
-        },
-      },
-      {
-        $unwind: '$metadata',
-      },
-      {
-        $project: {
-          data: 1,
-          metadata: {
-            totRecords: '$metadata.total',
-            limit: { $toInt: '$metadata.limit' },
-            skip: { $toInt: '$metadata.skip' },
-            order: '$metadata.order',
-            orderProp: '$metadata.orderProp',
-            currentPage: { $toInt: '$metadata.currentPage' },
-            totPages: { $toInt: '$metadata.totPages' },
-          },
-        },
-      },
-    ]) as any
+      data: result,
+    }
   }
 
   async update(params: Partial<Member>, tOpts?: SaveOptions) {

@@ -2,7 +2,7 @@ import type { HexAddress, IPermission } from '@types'
 import { assert } from '@errors'
 import async from 'async'
 import dayjs from '@helpers/dayjs'
-import Dao from "@models/schema/dao";
+import type Dao from '@models/schema/dao'
 
 const Utils = {
   noop: (): number => 0,
