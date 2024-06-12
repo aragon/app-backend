@@ -62,7 +62,7 @@ export default class Token extends Model {
   public priceUsd!: string
 
   @utcDateProp({ default: null })
-  public lastUpdatedAt!: Date
+  public lastUpdatedAt!: number
 
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
     if (!rawData.entityId) {

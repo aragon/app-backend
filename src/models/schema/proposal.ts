@@ -1,8 +1,9 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, NetworksEnum } from '@types'
+import { HexAddress, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
 
 const customName = 'Proposal'
 
@@ -160,6 +161,54 @@ export default class Proposal extends Model {
     return await this.findOne({ proposalId, pluginAddress, network }, tOpts)
   }
 
+  static async findWithPagination({ daoAddress, pluginAddress }, opts: IPaginationParams = {}) {
+    const params = Object.assign(
+      {},
+      ModelUtils.parseParams(opts, ['title', 'description', 'summary', 'creatorAddress', 'transactionHash']),
+    )
+
+    if (pluginAddress) {
+      params.pluginAddress = pluginAddress
+    }
+
+    if (daoAddress) {
+      params.daoAddress = daoAddress
+    }
+
+    const request = Object.assign({}, ModelUtils.requestPaginate(opts))
+    const currentPage = opts.skip || 1
+
+    const [data, totRecords] = await Promise.all([this.find(params, null, request), this.countDocuments(params)])
+
+    const totPages = Math.ceil(totRecords / request.limit)
+
+    if (currentPage > totPages) {
+      return {
+        data: [],
+        totRecords: 0,
+        currentPage: 1,
+        totPages: 1,
+        limit: request.limit,
+        skip: request.skip,
+        order: opts.order,
+        orderProp: opts.orderProp,
+      }
+    }
+
+    return {
+      metadata: {
+        currentPage,
+        totPages,
+        totRecords,
+        limit: request.limit,
+        skip: request.skip,
+        order: opts.order,
+        orderProp: opts.orderProp,
+      },
+      data,
+    }
+  }
+
   async update(params: Partial<Proposal>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
@@ -178,5 +227,13 @@ export default class Proposal extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
+  }
+
+  filterKeys() {
+    const obj = this.toObject()
+    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
+    filtered.settings = _.omit(filtered.settings, 'id', '_id', '__v')
+    filtered.media = _.omit(filtered.media, 'id', '_id', '__v')
+    return filtered
   }
 }

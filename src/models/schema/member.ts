@@ -12,6 +12,9 @@ class MemberDao {
   public network!: NetworksEnum
 
   @prop({ type: () => String, required: true })
+  public daoAddress!: HexAddress
+
+  @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
 
   @prop({ type: () => Number })
@@ -87,14 +90,20 @@ export default class Member extends Model {
     return await this.findOne({ entityId }, tOpts)
   }
 
-  static async findMembersByPlugin(
-    pluginAddress: string,
-    opts: IPaginationParams,
+  static async findWithPagination(
+    { daoAddress, pluginAddress },
+    opts: IPaginationParams = {},
   ): Promise<IPaginatedResult<IMembersResponse>> {
     const request = Object.assign({}, ModelUtils.requestPaginate(opts, { orderProp: opts.orderProp }))
 
-    const matchStage: any = {
-      'daos.pluginAddress': pluginAddress,
+    const matchStage: any = {}
+
+    if (daoAddress) {
+      matchStage['daos.daoAddress'] = daoAddress
+    }
+
+    if (pluginAddress) {
+      matchStage['daos.pluginAddress'] = pluginAddress
     }
 
     const totalCount = await this.countDocuments(matchStage)

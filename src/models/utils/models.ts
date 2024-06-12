@@ -4,7 +4,7 @@ import dayjs from '@helpers/dayjs'
 import { prop } from '@typegoose/typegoose'
 
 const ModelUtils = {
-  parseParams(opts: IPaginationParams, searchBy: string[] = []) {
+  parseParams(opts: IPaginationParams = {}, searchBy: string[] = []) {
     const queryParams = _.pick(opts || {}, 'search', 'fromDate', 'toDate')
     const params = _.defaults(queryParams, {
       search: undefined,

@@ -100,6 +100,22 @@ export const AggregatorMembers = {
         },
       },
       {
+        $lookup: {
+          from: 'logPluginSetupProcessor',
+          localField: '_id.pluginAddress',
+          foreignField: 'pluginAddress',
+          as: 'pluginInfo',
+        },
+      },
+      {
+        $addFields: {
+          daoAddress: {
+            $arrayElemAt: ['$pluginInfo.daoAddress', 0],
+          },
+        },
+      },
+
+      {
         $project: {
           _id: 0,
           memberAddress: '$_id.memberAddress',
@@ -111,6 +127,7 @@ export const AggregatorMembers = {
                 $cond: [
                   { $eq: ['$$entry.event', 'MembersAdded'] },
                   {
+                    daoAddress: '$daoAddress',
                     pluginAddress: '$_id.pluginAddress',
                     fromBlockNumber: '$$entry.blockNumber',
                     fromTxHash: '$$entry.transactionHash',
@@ -166,6 +183,7 @@ export const AggregatorMembers = {
                     $cond: [
                       { $eq: ['$$entry.event', 'DelegateChanged'] },
                       {
+                        daoAddress: '$daoAddress',
                         pluginAddress: '$_id.pluginAddress',
                         fromBlockNumber: '$$entry.blockNumber',
                         fromTxHash: '$$entry.transactionHash',
