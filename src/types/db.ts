@@ -58,4 +58,3 @@ export enum IEventLogMember {
   DelegateChanged = 'DelegateChanged',
   DelegateVotesChanged = 'DelegateVotesChanged',
 }
-

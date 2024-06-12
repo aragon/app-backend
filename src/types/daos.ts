@@ -1,6 +1,6 @@
 import { type HexAddress } from '@src/types/networks'
 import { type EnumPluginType } from '@src/types/subgraph'
-import Dao from "@models/schema/dao";
+import type Dao from '@models/schema/dao'
 
 export interface DaoResourceLink {
   name: string
@@ -62,4 +62,3 @@ export interface IDaoTokenVotingMember {
   delegatee: { address: HexAddress }
   delegators: { address: HexAddress; balance: string }[]
 }
-
