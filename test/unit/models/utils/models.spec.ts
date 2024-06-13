@@ -43,12 +43,20 @@ describe('Model/Utils: models', () => {
       expect(dayjs(result.createdAt.$lte).toISOString()).to.equal(dayjs.utc(toDate).endOf('day').toISOString())
     })
 
-    it('should generate date range query for createdAt', function () {
+    it('should generate date range query for createdAt with toDate only', function () {
       const toDate = '2021-01-31'
       const opts = { toDate }
       const result = ModelUtils.parseParams(opts)
 
       expect(dayjs(result.createdAt.$lte).toISOString()).to.equal(dayjs.utc(toDate).endOf('day').toISOString())
+    })
+
+    it('should generate date range query for createdAt with fromDate only', function () {
+      const fromDate = '2021-01-01'
+      const opts = { fromDate }
+      const result = ModelUtils.parseParams(opts)
+
+      expect(dayjs(result.createdAt.$gte).toISOString()).to.equal(dayjs.utc(fromDate).startOf('day').toISOString())
     })
   })
 
@@ -71,6 +79,20 @@ describe('Model/Utils: models', () => {
       expect(result.limit).to.equal(10)
       expect(result.skip).to.equal(0)
       expect(result.sort).to.deep.equal({ createdAt: -1 })
+    })
+
+    it('result limit should be zero when request limit is zero', function () {
+      const opts = { limit: 0 }
+      const result = ModelUtils.requestPaginate(opts as any)
+
+      expect(result.limit).to.equal(0)
+    })
+
+    it('result skip should be zero when request skip is zero', function () {
+      const opts = { skip: 0 }
+      const result = ModelUtils.requestPaginate(opts as any)
+
+      expect(result.skip).to.equal(0)
     })
   })
 

@@ -99,6 +99,23 @@ describe('Router: Dao', () => {
     })
   })
 
+  describe('getDaoPlugin', async () => {
+    it('should get dao plugin', async () => {
+      const params = {
+        permalink: 'xxx',
+        pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
+      }
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoPlugin').returns(true as any)
+      const ctx: any = {
+        params,
+      }
+      await DaoRouter.getDaoPlugin(ctx)
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.calledWith(params)).to.be.true
+    })
+  })
+
   describe('getDaoMembersWithPagination', async () => {
     it('Should get getDaoMembersWithPagination', async () => {
       const params = {
@@ -128,6 +145,97 @@ describe('Router: Dao', () => {
         stubCtrl.calledWith({
           permalink: params.permalink,
           pluginAddress: ctx.query.pluginAddress,
+          opts: filterParams,
+        }),
+      ).to.be.true
+    })
+  })
+
+  describe('getDaoProposalsWithPagination', async () => {
+    it('Should get getDaoProposalsWithPagination', async () => {
+      const params = {
+        permalink: 'xxx',
+      }
+      const filterParams = {
+        limit: 10,
+        skip: 0,
+        order: 'desc',
+        orderProp: 'proposalId',
+      }
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoProposalsWithPagination').returns(true as any)
+      const ctx: any = {
+        params,
+        query: { ...filterParams, pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA' },
+      }
+      await DaoRouter.getProposalsWithPagination(ctx)
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(
+        stubCtrl.calledWith({
+          permalink: params.permalink,
+          pluginAddress: ctx.query.pluginAddress,
+          opts: filterParams,
+        }),
+      ).to.be.true
+    })
+  })
+
+  describe('getAssetsWithPagination', async () => {
+    it('Should get getAssetsWithPagination', async () => {
+      const params = {
+        permalink: 'xxx',
+      }
+      const filterParams = {
+        limit: 10,
+        skip: 0,
+        order: 'desc',
+        orderProp: 'amountUsd',
+      }
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoAssetsWithPagination').returns(true as any)
+      const ctx: any = {
+        params,
+        query: { ...filterParams },
+      }
+      await DaoRouter.getAssetsWithPagination(ctx)
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(
+        stubCtrl.calledWith({
+          permalink: params.permalink,
+          opts: filterParams,
+        }),
+      ).to.be.true
+    })
+  })
+
+  describe('getTransactionsWithPagination', async () => {
+    it('Should get getTransactionsWithPagination', async () => {
+      const params = {
+        permalink: 'xxx',
+      }
+
+      const filterParams = {
+        limit: 10,
+        skip: 0,
+        order: 'desc',
+        orderProp: 'blockNumber',
+      }
+
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoTransactionsWithPagination').returns(true as any)
+
+      const ctx: any = {
+        params,
+        query: { ...filterParams },
+      }
+
+      await DaoRouter.getTransactionsWithPagination(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+
+      expect(
+        stubCtrl.calledWith({
+          permalink: params.permalink,
           opts: filterParams,
         }),
       ).to.be.true
