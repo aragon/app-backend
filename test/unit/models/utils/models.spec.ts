@@ -68,7 +68,7 @@ describe('Model/Utils: models', () => {
       const opts = {}
       const result = ModelUtils.requestPaginate(opts)
 
-      expect(result.limit).to.equal(15)
+      expect(result.limit).to.equal(10)
       expect(result.skip).to.equal(0)
       expect(result.sort).to.deep.equal({ createdAt: -1 })
     })

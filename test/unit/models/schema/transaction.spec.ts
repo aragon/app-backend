@@ -4,6 +4,7 @@ import { expect } from 'chai'
 import { ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Transaction from '@models/schema/transaction'
+import { beforeEach } from 'mocha'
 
 describe('Model: Transaction', () => {
   let sandbox: SinonSandbox
@@ -100,5 +101,83 @@ describe('Model: Transaction', () => {
     await createdToken.reload()
 
     expect(createdToken.address).to.eq(rawTransaction.address)
+  })
+
+  describe('pagination', () => {
+    beforeEach(async () => {
+      const rawTxs = [
+        {
+          transactionHash: '0xb02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+          blockNumber: 1,
+          network: NetworksEnum.mainnet,
+          type: ITransactionType.deposit,
+          category: ITransactionCategory.Internal,
+          fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',
+          toAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
+          value: '0x0',
+          tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+          daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc8',
+          tokenId: '1',
+          erc721TokenId: '1',
+          erc1155Metadata: [
+            {
+              tokenId: '1',
+              value: '0',
+            },
+          ],
+          proposalId: '18',
+        },
+        {
+          transactionHash: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+          blockNumber: 1,
+          network: NetworksEnum.mainnet,
+          type: ITransactionType.deposit,
+          category: ITransactionCategory.Internal,
+          fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',
+          toAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
+          value: '0x0',
+          tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+          daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc8',
+          tokenId: '1',
+          erc721TokenId: '1',
+          erc1155Metadata: [
+            {
+              tokenId: '1',
+              value: '0',
+            },
+          ],
+          proposalId: '19',
+        },
+      ]
+
+      await Promise.all(rawTxs.map(rawTx => Models.Transaction.create(rawTx)))
+    })
+
+    it('Should paginate', async () => {
+      const {
+        data,
+        metadata: { totRecords, currentPage, totPages },
+      } = await Models.Transaction.findWithPagination({ daoAddress: null, pluginAddress: null }, {})
+
+      expect(data).to.have.lengthOf(2)
+      expect(totRecords).to.eq(2)
+      expect(currentPage).to.eq(1)
+      expect(totPages).to.eq(1)
+    })
+
+    it('should paginate with daoAddress', async () => {
+      const {
+        data,
+        metadata: { totRecords, currentPage, totPages },
+      } = await Models.Transaction.findWithPagination(
+        { daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc8', pluginAddress: null },
+        {},
+      )
+
+      expect(data).to.have.lengthOf(2)
+      expect(totRecords).to.eq(2)
+      expect(currentPage).to.eq(1)
+      expect(totPages).to.eq(1)
+    })
   })
 })

@@ -4,6 +4,7 @@ import { expect } from 'chai'
 import { IPluginAction, NetworksEnum } from '@types'
 import Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
+import { beforeEach } from 'mocha'
 
 describe('Model: Plugin', () => {
   let sandbox: SinonSandbox
@@ -99,5 +100,23 @@ describe('Model: Plugin', () => {
     await createdLogDao.reload()
 
     expect(createdLogDao.daoAddress).to.eq(rawPlugin.daoAddress)
+  })
+
+  it('Should filterKeys of plugin', async () => {
+    const createdPlugin = await Models.Plugin.create(rawPlugin)
+    const filterDao = createdPlugin.filterKeys()
+
+    expect(filterDao.id).to.be.undefined
+    expect(filterDao._id).to.be.undefined
+    expect(filterDao.__v).to.be.undefined
+    expect(filterDao.createdAt).to.be.undefined
+    expect(filterDao.updatedAt).to.be.undefined
+    expect(Object.keys(filterDao).length).to.eq(14)
+  })
+
+  it('should findByAddress', async () => {
+    const createdPlugin = await Models.Plugin.create(rawPlugin)
+    const foundPlugin = await Models.Plugin.findByAddress(createdPlugin.address)
+    expect(foundPlugin?.address).to.eq(createdPlugin.address)
   })
 })

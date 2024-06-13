@@ -25,7 +25,7 @@ describe('Model: Token', () => {
       totalSupply: '100',
       priceChangeOnDayUsd: '1',
       priceUsd: '1',
-      lastUpdatedAt: dayjs.utc().toDate(),
+      lastUpdatedAt: dayjs.utc().toDate() as any,
     }
   })
 
@@ -48,7 +48,7 @@ describe('Model: Token', () => {
     expect(createdToken.totalSupply).to.eq(rawToken.totalSupply)
     expect(createdToken.priceChangeOnDayUsd).to.eq(rawToken.priceChangeOnDayUsd)
     expect(createdToken.priceUsd).to.eq(rawToken.priceUsd)
-    expect(createdToken.lastUpdatedAt.getTime()).to.eq(rawToken?.lastUpdatedAt!.getTime())
+    expect(createdToken.lastUpdatedAt.toString()).to.eq(rawToken?.lastUpdatedAt!.toString())
   })
 
   it('Should getEntityId', async () => {

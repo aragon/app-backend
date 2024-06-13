@@ -10,6 +10,19 @@ import Logger from '@logger'
 describe('Indexer:Aggregator:Member', () => {
   let sandbox: SinonSandbox
 
+  const rawDaoDoc = {
+    network: NetworksEnum.mainnet,
+    pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+    fromBlockNumber: 1,
+    toBlockNumber: 2,
+    daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+    fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+    toTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+    delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+    delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+    votingPower: '100',
+  }
+
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
   })
@@ -47,19 +60,7 @@ describe('Indexer:Aggregator:Member', () => {
   it('should call onDocument', async () => {
     const document = {
       address: '0x123',
-      daos: [
-        {
-          network: NetworksEnum.mainnet,
-          pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-          fromBlockNumber: 1,
-          toBlockNumber: 2,
-          fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-          toTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-          delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-          delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-          votingPower: '100',
-        },
-      ],
+      daos: [rawDaoDoc],
     }
 
     const stubLogger = sandbox.stub(Logger, 'verbose')
@@ -86,19 +87,7 @@ describe('Indexer:Aggregator:Member', () => {
   it('should update an existing aggregate member log', async () => {
     const rawDoc = {
       address: '0x12345',
-      daos: [
-        {
-          network: NetworksEnum.mainnet,
-          pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-          fromBlockNumber: 1,
-          toBlockNumber: 2,
-          fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-          toTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-          delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-          delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-          votingPower: '100',
-        },
-      ],
+      daos: [rawDaoDoc],
     }
     const dbDoc = await Models.Member.create(rawDoc)
     const loggerSpy = sandbox.stub(Logger, 'verbose')

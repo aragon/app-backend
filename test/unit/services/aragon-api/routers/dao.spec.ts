@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DaoRouter from '@services/aragon-api/routers/dao'
 import DaoController from '@services/aragon-api/controllers/dao'
-import { NetworksEnum, HexAddress } from '@types'
+import { NetworksEnum } from '@types'
 
 describe('Router: Dao', () => {
   let sandbox: SinonSandbox
@@ -27,7 +27,7 @@ describe('Router: Dao', () => {
         orderProp: 'createdAt',
       }
 
-      const stubCtrl = sandbox.stub(DaoController, 'getWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(DaoController, 'getDaosWithPagination').returns(true as any)
 
       const ctx: any = {
         query: params,
@@ -53,7 +53,7 @@ describe('Router: Dao', () => {
         orderProp: 'createdAt',
       }
 
-      const stubCtrl = sandbox.stub(DaoController, 'getWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(DaoController, 'getDaosWithPagination').returns(true as any)
 
       const ctx: any = {
         query: params,
@@ -103,7 +103,6 @@ describe('Router: Dao', () => {
     it('Should get getDaoMembersWithPagination', async () => {
       const params = {
         permalink: 'xxx',
-        pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
       }
 
       const filterParams = {
@@ -113,11 +112,11 @@ describe('Router: Dao', () => {
         orderProp: 'blockNumber',
       }
 
-      const stubCtrl = sandbox.stub(DaoController, 'getDaoMembers').returns(true as any)
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoMembersWithPagination').returns(true as any)
 
       const ctx: any = {
         params,
-        query: filterParams,
+        query: { ...filterParams, pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA' },
       }
 
       await DaoRouter.getDaoMembersWithPagination(ctx)
@@ -128,8 +127,8 @@ describe('Router: Dao', () => {
       expect(
         stubCtrl.calledWith({
           permalink: params.permalink,
-          pluginAddress: params.pluginAddress,
-          subdomain: filterParams,
+          pluginAddress: ctx.query.pluginAddress,
+          opts: filterParams,
         }),
       ).to.be.true
     })
