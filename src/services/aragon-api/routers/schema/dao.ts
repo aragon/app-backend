@@ -34,6 +34,18 @@ const DaoSchema = {
       pluginAddress: ValidationSchema.joiAddress.optional(),
     }),
   ),
+
+  getAssetsWithPagination: Joi.object(
+    Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
+      permalink: Joi.string().required(),
+    }),
+  ),
+
+  getTransactionsWithPagination: Joi.object(
+    Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
+      permalink: Joi.string().required(),
+    }),
+  ),
 }
 
 export default DaoSchema

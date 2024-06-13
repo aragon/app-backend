@@ -97,6 +97,46 @@ const DaoRouter = {
     })
   },
 
+  getAssetsWithPagination: async function (ctx: RouterContext) {
+    const filterParams: any = {
+      limit: Number(ctx.query.limit || 10),
+      skip: Number(ctx.query.skip || 0),
+      order: ctx.query.order || 'desc',
+      orderProp: ctx.query.orderProp || 'amountUsd',
+    }
+
+    const params = {
+      permalink: ctx.params.permalink,
+    }
+
+    await ValidationSchema.validateParams(DaoSchema.getAssetsWithPagination, { ...filterParams, ...params })
+
+    ctx.body = await DaoController.getDaoAssetsWithPagination({
+      permalink: params.permalink,
+      opts: filterParams,
+    })
+  },
+
+  getTransactionsWithPagination: async function (ctx: RouterContext) {
+    const filterParams: any = {
+      limit: Number(ctx.query.limit || 10),
+      skip: Number(ctx.query.skip || 0),
+      order: ctx.query.order || 'desc',
+      orderProp: ctx.query.orderProp || 'blockNumber',
+    }
+
+    const params = {
+      permalink: ctx.params.permalink,
+    }
+
+    await ValidationSchema.validateParams(DaoSchema.getTransactionsWithPagination, { ...filterParams, ...params })
+
+    ctx.body = await DaoController.getDaoTransactionsWithPagination({
+      permalink: params.permalink,
+      opts: filterParams,
+    })
+  },
+
   router() {
     const router = new Router()
 
@@ -132,20 +172,40 @@ const DaoRouter = {
     router.get('/:permalink/members', DaoRouter.getDaoMembersWithPagination)
 
     /**
-     * @api {get}  /:permalink/proposals/proposals Get proposals by plugin address
+     * @api {get}  /:permalink/proposals Get dao proposals
      * @apiName Daos
      * @apiGroup Daos
-     * @apiDescription Get plugin proposals
+     * @apiDescription Get dao proposals
      *
      * @apiSampleRequest /:permalink/proposals
      */
     router.get('/:permalink/proposals', DaoRouter.getProposalsWithPagination)
 
     /**
+     * @api {get}  /:permalink/assets Get dao assets
+     * @apiName Daos
+     * @apiGroup Daos
+     * @apiDescription Get dao assets
+     *
+     * @apiSampleRequest /:permalink/assets
+     */
+    router.get('/:permalink/assets', DaoRouter.getAssetsWithPagination)
+
+    /**
+     * @api {get}  /:permalink/transactions Get dao transactions
+     * @apiName Daos
+     * @apiGroup Daos
+     * @apiDescription Get dao transactions
+     *
+     * @apiSampleRequest /:permalink/transactions
+     */
+    router.get('/:permalink/transactions', DaoRouter.getTransactionsWithPagination)
+
+    /**
      * @api {get} /:permalink/plugins/:pluginAddress Get dao plugin
      * @apiName Daos
      * @apiGroup Daos
-     * @apiDescription Get dao members
+     * @apiDescription Get dao plugin
      *
      * @apiSampleRequest /:permalink/plugins/:pluginAddress
      */

@@ -43,11 +43,7 @@ const DaoController = {
     return await Models.Member.findWithPagination({ daoAddress: dao.address, pluginAddress }, opts)
   },
 
-  getDaoProposalsWithPagination: async ({
-    permalink,
-    pluginAddress,
-    opts,
-  }): Promise<IPaginatedResult<IMembersResponse>> => {
+  getDaoProposalsWithPagination: async ({ permalink, pluginAddress, opts }): Promise<IPaginatedResult<any>> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
@@ -55,6 +51,20 @@ const DaoController = {
 
     result.data = result.data.map((proposal: Proposal) => proposal.filterKeys())
     return result
+  },
+
+  getDaoAssetsWithPagination: async ({ permalink, opts }): Promise<IPaginatedResult<any>> => {
+    const dao = await Models.Dao.findByPermalink(permalink)
+    assertExposable(dao, ErrorKeyEnum.notFound)
+
+    return await Models.Asset.findWithPagination({ daoAddress: dao.address }, opts)
+  },
+
+  getDaoTransactionsWithPagination: async ({ permalink, opts }): Promise<IPaginatedResult<any>> => {
+    const dao = await Models.Dao.findByPermalink(permalink)
+    assertExposable(dao, ErrorKeyEnum.notFound)
+
+    return await Models.Transaction.findWithPagination({ daoAddress: dao.address }, opts)
   },
 }
 
