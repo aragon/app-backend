@@ -192,7 +192,7 @@ export default class Dao extends Model {
     }
 
     const request = Object.assign({}, ModelUtils.requestPaginate(opts))
-    const currentPage = opts.skip || 1
+    const currentPage = request.skip / request.limit + 1
 
     const [data, totRecords] = await Promise.all([this.find(params, null, request), this.countDocuments(params)])
 

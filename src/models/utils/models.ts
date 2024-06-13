@@ -45,7 +45,7 @@ const ModelUtils = {
     const paginateParams = _.pick(opts || {}, 'limit', 'skip', 'orderProp', 'order')
     const params = _.defaults(paginateParams, {
       limit: baseValues.limit ?? 10,
-      skip: baseValues.skip ?? 1,
+      skip: baseValues.skip ?? 0,
       orderProp: baseValues.orderProp ?? 'createdAt',
       order: baseValues.order ?? 'desc',
     })
@@ -54,17 +54,15 @@ const ModelUtils = {
 
     if (params.limit) {
       request.limit = parseInt(String(params.limit))
-    } else if (params.limit === 0) {
-      request.limit = 0
     }
 
     if (params.skip) {
-      request.skip = parseInt(String(params.limit)) * (parseInt(String(params.skip)) - 1)
-    } else if (params.skip === 0) {
+      request.skip = (request.limit || 0) * parseInt(String(params.skip))
+    } else {
       request.skip = 0
     }
 
-    if (params.order || params.orderProp) {
+    if (params.orderProp && params.order) {
       request.sort = { [params.orderProp]: params.order === 'desc' ? -1 : 1 }
     }
 

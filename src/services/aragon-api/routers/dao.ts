@@ -21,12 +21,16 @@ const DaoRouter = {
       pluginAddress: ctx.query.pluginAddress,
     }
 
-    const formattedParams = await ValidationSchema.validateParams(DaoSchema.getWithPagination, {
+    await ValidationSchema.validateParams(DaoSchema.getWithPagination, {
       ...filterParams,
       ...params,
     })
 
-    ctx.body = await DaoController.getDaosWithPagination(formattedParams)
+    ctx.body = await DaoController.getDaosWithPagination({
+      network: params.network,
+      pluginAddress: params.pluginAddress,
+      opts: filterParams,
+    })
   },
 
   getDaoByPermalink: async function (ctx: RouterContext) {
