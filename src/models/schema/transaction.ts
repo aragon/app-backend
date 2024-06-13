@@ -1,8 +1,17 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  type IPaginatedResult,
+  type IPaginationParams,
+  ITransactionCategory,
+  ITransactionType,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
+import utils from '@helpers/utils'
 
 const customName = 'Transaction'
 
@@ -105,6 +114,90 @@ export default class Transaction extends Model {
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ entityId }, tOpts)
+  }
+
+  static async findWithPagination({ daoAddress }, opts: IPaginationParams = {}): Promise<IPaginatedResult<any>> {
+    const request = Object.assign({}, ModelUtils.requestPaginate(opts, { orderProp: opts.orderProp }))
+
+    const matchStage: any = {}
+
+    if (daoAddress) {
+      matchStage.daoAddress = daoAddress
+    }
+
+    const totalCount = await this.countDocuments(matchStage)
+    const totalPages = Math.ceil(totalCount / request.limit)
+
+    const result = await this.aggregate([
+      { $match: matchStage },
+      {
+        $lookup: {
+          from: 'token',
+          let: {
+            tokenAddr: { $ifNull: ['$tokenAddress', utils.zeroAddress] },
+            net: '$network',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ['$address', '$$tokenAddr'] }, { $eq: ['$network', '$$net'] }],
+                },
+              },
+            },
+          ],
+          as: 'tokenDetails',
+        },
+      },
+      {
+        $unwind: {
+          path: '$tokenDetails',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          entityId: 1,
+          transactionHash: 1,
+          blockNumber: 1,
+          network: 1,
+          type: 1,
+          category: 1,
+          fromAddress: 1,
+          toAddress: 1,
+          value: 1,
+          tokenAddress: 1,
+          daoAddress: 1,
+          token: {
+            address: '$tokenDetails.address',
+            symbol: '$tokenDetails.symbol',
+            name: '$tokenDetails.name',
+            type: '$tokenDetails.type',
+            logo: '$tokenDetails.logo',
+            decimals: '$tokenDetails.decimals',
+            priceChangeOnDayUsd: '$tokenDetails.priceChangeOnDayUsd',
+            priceUsd: '$tokenDetails.priceUsd',
+          },
+        },
+      },
+      { $sort: request.sort },
+      { $skip: request.skip },
+      { $limit: request.limit },
+    ])
+
+    return {
+      metadata: {
+        limit: request.limit,
+        skip: request.skip,
+        order: opts.order,
+        orderProp: opts.orderProp,
+        currentPage: request.skip / request.limit + 1,
+        totPages: totalPages,
+        totRecords: totalCount,
+      },
+      data: result,
+    }
   }
 
   async update(params: Partial<Transaction>, tOpts?: SaveOptions) {

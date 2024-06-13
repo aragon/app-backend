@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type IPaginationParams, NetworksEnum } from '@types'
+import { HexAddress, type IPaginatedResult, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -161,7 +161,10 @@ export default class Proposal extends Model {
     return await this.findOne({ proposalId, pluginAddress, network }, tOpts)
   }
 
-  static async findWithPagination({ daoAddress, pluginAddress }, opts: IPaginationParams = {}) {
+  static async findWithPagination(
+    { daoAddress, pluginAddress },
+    opts: IPaginationParams = {},
+  ): Promise<IPaginatedResult<any>> {
     const params = Object.assign(
       {},
       ModelUtils.parseParams(opts, ['title', 'description', 'summary', 'creatorAddress', 'transactionHash']),
@@ -184,14 +187,16 @@ export default class Proposal extends Model {
 
     if (currentPage > totPages) {
       return {
+        metadata: {
+          totRecords: 0,
+          currentPage: 1,
+          totPages: 1,
+          limit: request.limit,
+          skip: request.skip,
+          order: opts.order,
+          orderProp: opts.orderProp,
+        },
         data: [],
-        totRecords: 0,
-        currentPage: 1,
-        totPages: 1,
-        limit: request.limit,
-        skip: request.skip,
-        order: opts.order,
-        orderProp: opts.orderProp,
       }
     }
 

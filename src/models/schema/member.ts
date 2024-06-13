@@ -112,7 +112,6 @@ export default class Member extends Model {
     const result = await this.aggregate([
       { $unwind: '$daos' },
       { $match: matchStage },
-      { $sort: { [request.orderProp]: request.order === 'desc' ? -1 : 1 } },
       { $skip: request.skip },
       { $limit: request.limit },
       {
@@ -131,6 +130,7 @@ export default class Member extends Model {
           },
         },
       },
+      { $sort: request.sort },
     ])
 
     return {
