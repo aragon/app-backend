@@ -94,4 +94,53 @@ describe('Model: Asset', () => {
 
     expect(createdAsset.tokenAddress).to.eq(rawAsset.tokenAddress)
   })
+
+  describe('Pagination', () => {
+    beforeEach(async () => {
+      const fakeAsset = [
+        {
+          network: NetworksEnum.mainnet,
+          daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
+          tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+          amount: '2423423',
+        },
+        {
+          network: NetworksEnum.mainnet,
+          daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc3',
+          tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc3',
+          amount: '3223423',
+        },
+        {
+          network: NetworksEnum.mainnet,
+          daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc3',
+          tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc4',
+          amount: '3223423',
+        },
+      ]
+
+      await Promise.all(fakeAsset.map(w => Models.Asset.create(w)))
+    })
+
+    it('should find with pagination', async () => {
+      const {
+        data,
+        metadata: { totRecords, currentPage, totPages },
+      } = await Models.Asset.findWithPagination({ daoAddress: null }, {})
+      expect(data.length).to.eq(3)
+      expect(totRecords).to.eq(3)
+      expect(currentPage).to.eq(1)
+      expect(totPages).to.eq(1)
+    })
+
+    it('should find with pagination with daoAddress', async () => {
+      const {
+        data,
+        metadata: { totRecords, currentPage, totPages },
+      } = await Models.Asset.findWithPagination({ daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc3' }, {})
+      expect(data.length).to.eq(2)
+      expect(totRecords).to.eq(2)
+      expect(currentPage).to.eq(1)
+      expect(totPages).to.eq(1)
+    })
+  })
 })

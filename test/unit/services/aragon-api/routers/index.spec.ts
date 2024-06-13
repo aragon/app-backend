@@ -31,8 +31,8 @@ describe('Router: MainRouter', () => {
       })
     }
 
-    stubRouter(DaoRouter, 'dao')
-    stubRouter(TokenRouter, 'token')
+    stubRouter(DaoRouter, 'daos')
+    stubRouter(TokenRouter, 'tokens')
     stubRouter(StatusRouter, 'status')
 
     await utils.wait(1000)
@@ -47,8 +47,8 @@ describe('Router: MainRouter', () => {
       expect(use.calledWith(`/${name}`, `${name}Routes`, `${name}AllowedMethod`)).to.be.true
     }
 
-    expectRouter('dao')
-    expectRouter('token')
+    expectRouter('daos')
+    expectRouter('tokens')
   })
 
   it('Should setup main router with all child routers', async () => {

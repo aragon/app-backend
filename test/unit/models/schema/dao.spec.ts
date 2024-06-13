@@ -217,7 +217,10 @@ describe('Model: Dao', () => {
     })
 
     it('Should find Pagination', async () => {
-      const { data, totRecords, currentPage, totPages } = await Models.Dao.findWithPagination(
+      const {
+        data,
+        metadata: { totRecords, currentPage, totPages },
+      } = await Models.Dao.findWithPagination(
         {
           networks: [],
           pluginAddress: undefined,
@@ -232,7 +235,10 @@ describe('Model: Dao', () => {
     })
 
     it('Should find Pagination with networks and plugin', async () => {
-      const { data, totRecords, currentPage, totPages } = await Models.Dao.findWithPagination(
+      const {
+        data,
+        metadata: { totRecords, currentPage, totPages },
+      } = await Models.Dao.findWithPagination(
         {
           networks: [NetworksEnum.mainnet],
           pluginAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
@@ -277,9 +283,9 @@ describe('Model: Dao', () => {
       )
 
       expect(result.data.length).to.eq(3)
-      expect(result.totRecords).to.eq(3)
-      expect(result.currentPage).to.eq(1)
-      expect(result.totPages).to.eq(1)
+      expect(result.metadata.totRecords).to.eq(3)
+      expect(result.metadata.currentPage).to.eq(1)
+      expect(result.metadata.totPages).to.eq(1)
 
       const result2 = await Models.Dao.findWithPagination(
         {
@@ -293,9 +299,9 @@ describe('Model: Dao', () => {
       )
 
       expect(result2.data.length).to.eq(4)
-      expect(result2.totRecords).to.eq(4)
-      expect(result2.currentPage).to.eq(1)
-      expect(result2.totPages).to.eq(1)
+      expect(result2.metadata.totRecords).to.eq(4)
+      expect(result2.metadata.currentPage).to.eq(1)
+      expect(result2.metadata.totPages).to.eq(1)
 
       const result3 = await Models.Dao.findWithPagination(
         {
@@ -308,9 +314,9 @@ describe('Model: Dao', () => {
       )
 
       expect(result3.data.length).to.eq(4)
-      expect(result3.totRecords).to.eq(4)
-      expect(result3.currentPage).to.eq(1)
-      expect(result3.totPages).to.eq(1)
+      expect(result3.metadata.totRecords).to.eq(4)
+      expect(result3.metadata.currentPage).to.eq(1)
+      expect(result3.metadata.totPages).to.eq(1)
     })
 
     it('Should find Pagination with limit', async () => {
@@ -327,9 +333,9 @@ describe('Model: Dao', () => {
       )
 
       expect(result.data.length).to.eq(2)
-      expect(result.totRecords).to.eq(3)
-      expect(result.totPages).to.eq(2)
-      expect(result.currentPage).to.eq(1)
+      expect(result.metadata.totRecords).to.eq(3)
+      expect(result.metadata.totPages).to.eq(2)
+      expect(result.metadata.currentPage).to.eq(1)
     })
 
     it('Should find Pagination with skip and limit', async () => {
@@ -347,9 +353,9 @@ describe('Model: Dao', () => {
       )
 
       expect(result.data.length).to.eq(2)
-      expect(result.totRecords).to.eq(3)
-      expect(result.currentPage).to.eq(1)
-      expect(result.totPages).to.eq(2)
+      expect(result.metadata.totRecords).to.eq(3)
+      expect(result.metadata.currentPage).to.eq(1)
+      expect(result.metadata.totPages).to.eq(2)
     })
 
     it('Should not found documents', async () => {
@@ -367,9 +373,9 @@ describe('Model: Dao', () => {
       )
 
       expect(result.data.length).to.eq(0)
-      expect(result.totRecords).to.eq(0)
-      expect(result.currentPage).to.eq(1)
-      expect(result.totPages).to.eq(1)
+      expect(result.metadata.totRecords).to.eq(0)
+      expect(result.metadata.currentPage).to.eq(1)
+      expect(result.metadata.totPages).to.eq(1)
     })
   })
 
