@@ -57,18 +57,6 @@ describe('Helpers:ValidationSchema', () => {
       )
     })
 
-    it('generateJoiDaoPluginPagination', async () => {
-      const result = await DaoSchema.getDaoMembersWithPagination.validateAsync({
-        permalink: 'xxx',
-        pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
-      })
-
-      expect(result.error).to.be.undefined
-      expect(result.limit).to.eq(10)
-      expect(result.skip).to.eq(0)
-      expect(result.order).to.eq('asc')
-    })
-
     it('generateJoiPagination', async () => {
       const result = await DaoSchema.getWithPagination.validateAsync({
         search: '0xb794F5eA0ba39494cE839613fffBA74279579268',
@@ -76,22 +64,22 @@ describe('Helpers:ValidationSchema', () => {
 
       expect(result.search).to.eq('0xb794F5eA0ba39494cE839613fffBA74279579268')
       expect(result.error).to.be.undefined
-      expect(result.limit).to.eq(10)
-      expect(result.skip).to.eq(0)
+      expect(result.pageSize).to.eq(10)
+      expect(result.page).to.eq(1)
       expect(result.order).to.eq('asc')
     })
 
     it('generateJoiPagination wrong address', async () => {
       const result = await DaoSchema.getWithPagination.validateAsync({
         search: 'not_a_valid_address',
-        skip: 1,
-        limit: 12,
+        page: 1,
+        pageSize: 12,
       })
 
       expect(result.search).to.eq('not_a_valid_address')
       expect(result.error).to.be.undefined
-      expect(result.limit).to.eq(12)
-      expect(result.skip).to.eq(1)
+      expect(result.pageSize).to.eq(12)
+      expect(result.page).to.eq(1)
       expect(result.order).to.eq('asc')
     })
 
@@ -103,16 +91,16 @@ describe('Helpers:ValidationSchema', () => {
       expect(res).to.equal(checksumAddress)
     })
 
-    it('should allow toDate to be after fromDate', async () => {
-      const fromDate = '2023-01-01'
-      const toDate = '2023-01-02'
+    it('should allow endDate to be after startDate', async () => {
+      const startDate = '2023-01-01'
+      const endDate = '2023-01-02'
 
       const schema = DaoSchema.getWithPagination
 
-      const result = await schema.validateAsync({ fromDate, toDate })
+      const result = await schema.validateAsync({ startDate, endDate })
 
-      expect(result.fromDate).to.deep.equal(new Date(fromDate))
-      expect(result.toDate).to.deep.equal(new Date(toDate))
+      expect(result.startDate).to.deep.equal(new Date(startDate))
+      expect(result.endDate).to.deep.equal(new Date(endDate))
     })
 
     it('joiAddress should handle invalid mainnet address', async () => {

@@ -1,22 +1,17 @@
 export interface IPaginationParams {
   search?: string
-  fromDate?: string
-  toDate?: string
-  limit?: number
-  skip?: number
-  order?: string
-  orderProp?: string
+  startDate?: string
+  endDate?: string
+  pageSize?: number
+  page?: number
+  order?: string // the property to order by
+  sort?: string // asc or desc
 }
 
 export interface IPaginationMetadata {
-  search?: string
-  totRecords: number
-  limit?: number
-  skip?: number
-  order?: string
-  orderProp?: string
   currentPage: number
-  totPages: number
+  totalPages: number
+  totalRecords: number
 }
 
 export interface IPaginatedResult<T> {

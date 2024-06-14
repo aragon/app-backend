@@ -1,24 +1,40 @@
 import { Models } from '@dbModels'
-import { ErrorKeyEnum, type IMembersResponse, type IPaginatedResult, type IPluginSubdomain } from '@types'
+import {
+  ErrorKeyEnum,
+  type IDaoResponse,
+  type IMembersResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type IPluginResponse,
+  type IPluginSubdomain,
+  type IProposalResponse,
+  type ITransactionResponse,
+} from '@types'
 import type Dao from '@models/schema/dao'
 import { assertExposable } from '@errors'
 import type Proposal from '@models/schema/proposal'
 
 const DaoController = {
-  getDaosWithPagination: async ({ network, pluginAddress, opts }): Promise<IPaginatedResult<Dao>> => {
-    const result = await Models.Dao.findWithPagination({ networks: network ? [network] : [], pluginAddress }, opts)
+  getDaosWithPagination: async (
+    paginationParams: IPaginationParams,
+    { network, pluginAddress },
+  ): Promise<IPaginatedResult<IDaoResponse>> => {
+    const result = await Models.Dao.findWithPagination(
+      { networks: network ? [network] : [], pluginAddress },
+      paginationParams,
+    )
     result.data = result.data.map((dao: Dao) => dao.filterKeys())
     return result
   },
 
-  getDaoByPermalink: async (permalink: string): Promise<Dao> => {
+  getDaoByPermalink: async (permalink: string): Promise<IDaoResponse> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
     return dao.filterKeys()
   },
 
-  getDaoPlugin: async ({ permalink, pluginAddress }): Promise<any> => {
+  getDaoPlugin: async ({ permalink, pluginAddress }): Promise<IPluginResponse> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
@@ -32,39 +48,50 @@ const DaoController = {
     return plugin.filterKeys()
   },
 
-  getDaoMembersWithPagination: async ({
-    permalink,
-    pluginAddress,
-    opts,
-  }): Promise<IPaginatedResult<IMembersResponse>> => {
+  getDaoMembersWithPagination: async (
+    paginationParams: IPaginationParams,
+    { permalink, pluginAddress },
+  ): Promise<IPaginatedResult<IMembersResponse>> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
-    return await Models.Member.findWithPagination({ daoAddress: dao.address, pluginAddress }, opts)
+    return await Models.Member.findWithPagination({ daoAddress: dao.address, pluginAddress }, paginationParams)
   },
 
-  getDaoProposalsWithPagination: async ({ permalink, pluginAddress, opts }): Promise<IPaginatedResult<any>> => {
+  getDaoProposalsWithPagination: async (
+    paginationParams: IPaginationParams,
+    { permalink, pluginAddress },
+  ): Promise<IPaginatedResult<IProposalResponse>> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
-    const result = await Models.Proposal.findWithPagination({ daoAddress: dao.address, pluginAddress }, opts)
+    const result = await Models.Proposal.findWithPagination(
+      { daoAddress: dao.address, pluginAddress },
+      paginationParams,
+    )
 
     result.data = result.data.map((proposal: Proposal) => proposal.filterKeys())
     return result
   },
 
-  getDaoAssetsWithPagination: async ({ permalink, opts }): Promise<IPaginatedResult<any>> => {
+  getDaoAssetsWithPagination: async (
+    paginationParams: IPaginationParams,
+    { permalink },
+  ): Promise<IPaginatedResult<any>> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
-    return await Models.Asset.findWithPagination({ daoAddress: dao.address }, opts)
+    return await Models.Asset.findWithPagination({ daoAddress: dao.address }, paginationParams)
   },
 
-  getDaoTransactionsWithPagination: async ({ permalink, opts }): Promise<IPaginatedResult<any>> => {
+  getDaoTransactionsWithPagination: async (
+    paginationParams: IPaginationParams,
+    { permalink },
+  ): Promise<IPaginatedResult<ITransactionResponse>> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
-    return await Models.Transaction.findWithPagination({ daoAddress: dao.address }, opts)
+    return await Models.Transaction.findWithPagination({ daoAddress: dao.address }, paginationParams)
   },
 }
 

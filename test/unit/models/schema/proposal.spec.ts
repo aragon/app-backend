@@ -325,55 +325,55 @@ describe('Model: Proposal', () => {
     it('Should find with pagination', async () => {
       const {
         data,
-        metadata: { totRecords, currentPage, totPages },
+        metadata: { totalRecords, currentPage, totalPages },
       } = await Models.Proposal.findWithPagination({ daoAddress: null, pluginAddress: null }, {})
 
       expect(data.length).to.eq(2)
-      expect(totRecords).to.eq(2)
+      expect(totalRecords).to.eq(2)
       expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalPages).to.eq(1)
     })
 
     it('Should find with pagination with daoAddress', async () => {
       const {
         data,
-        metadata: { totRecords, currentPage, totPages },
+        metadata: { totalRecords, currentPage, totalPages },
       } = await Models.Proposal.findWithPagination({ daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254' }, {})
       expect(data.length).to.eq(1)
-      expect(totRecords).to.eq(1)
+      expect(totalRecords).to.eq(1)
       expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalPages).to.eq(1)
     })
 
     it('Should find with pagination with pluginAddress', async () => {
       const {
         data,
-        metadata: { totRecords, currentPage, totPages },
+        metadata: { totalRecords, currentPage, totalPages },
       } = await Models.Proposal.findWithPagination(
         { daoAddress: null, pluginAddress: '0x563Ebb4972bb6fABb1128c5895A31B6FAC2f6e14' },
         {},
       )
       expect(data.length).to.eq(1)
-      expect(totRecords).to.eq(1)
+      expect(totalRecords).to.eq(1)
       expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalPages).to.eq(1)
     })
 
     it('should return the metadata atleast if no result found', async () => {
       const {
         data,
-        metadata: { totRecords, currentPage, totPages },
+        metadata: { totalRecords, currentPage, totalPages },
       } = await Models.Proposal.findWithPagination({ daoAddress: '0xBeB63a3565942D16C1c1211bD78F1B3Dcfe1A254' }, {})
       expect(data.length).to.eq(0)
-      expect(totRecords).to.eq(0)
+      expect(totalRecords).to.eq(0)
       expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalPages).to.eq(1)
     })
 
     it('Should find with pagination with daoAddress and pluginAddress', async () => {
       const {
         data,
-        metadata: { totRecords, currentPage, totPages },
+        metadata: { totalRecords, currentPage, totalPages },
       } = await Models.Proposal.findWithPagination(
         {
           daoAddress: '0x59447788F9dCf2df550F257F3692a07f05b922D7',
@@ -382,9 +382,9 @@ describe('Model: Proposal', () => {
         {},
       )
       expect(data.length).to.eq(1)
-      expect(totRecords).to.eq(1)
+      expect(totalRecords).to.eq(1)
       expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalPages).to.eq(1)
     })
   })
 })

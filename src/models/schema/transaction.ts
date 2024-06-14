@@ -4,6 +4,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   ITransactionCategory,
+  type ITransactionResponse,
   ITransactionType,
   NetworksEnum,
 } from '@types'
@@ -116,87 +117,97 @@ export default class Transaction extends Model {
     return await this.findOne({ entityId }, tOpts)
   }
 
-  static async findWithPagination({ daoAddress }, opts: IPaginationParams = {}): Promise<IPaginatedResult<any>> {
-    const request = Object.assign({}, ModelUtils.requestPaginate(opts, { orderProp: opts.orderProp }))
-
-    const matchStage: any = {}
+  static async findWithPagination(
+    { daoAddress },
+    paginationParams: IPaginationParams = {},
+  ): Promise<IPaginatedResult<ITransactionResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const filter = ModelUtils.createFilter(paginationParams, [
+      'transactionHash',
+      'fromAddress',
+      'toAddress',
+      'tokenAddress',
+    ])
 
     if (daoAddress) {
-      matchStage.daoAddress = daoAddress
+      filter.daoAddress = daoAddress
     }
 
-    const totalCount = await this.countDocuments(matchStage)
-    const totalPages = Math.ceil(totalCount / request.limit)
-
-    const result = await this.aggregate([
-      { $match: matchStage },
-      {
-        $lookup: {
-          from: 'token',
-          let: {
-            tokenAddr: { $ifNull: ['$tokenAddress', utils.zeroAddress] },
-            net: '$network',
-          },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [{ $eq: ['$address', '$$tokenAddr'] }, { $eq: ['$network', '$$net'] }],
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate([
+        { $match: filter },
+        {
+          $lookup: {
+            from: 'token',
+            let: {
+              tokenAddr: { $ifNull: ['$tokenAddress', utils.zeroAddress] },
+              net: '$network',
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [{ $eq: ['$address', '$$tokenAddr'] }, { $eq: ['$network', '$$net'] }],
+                  },
                 },
               },
-            },
-          ],
-          as: 'tokenDetails',
-        },
-      },
-      {
-        $unwind: {
-          path: '$tokenDetails',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          entityId: 1,
-          transactionHash: 1,
-          blockNumber: 1,
-          network: 1,
-          type: 1,
-          category: 1,
-          fromAddress: 1,
-          toAddress: 1,
-          value: 1,
-          tokenAddress: 1,
-          daoAddress: 1,
-          token: {
-            address: '$tokenDetails.address',
-            symbol: '$tokenDetails.symbol',
-            name: '$tokenDetails.name',
-            type: '$tokenDetails.type',
-            logo: '$tokenDetails.logo',
-            decimals: '$tokenDetails.decimals',
-            priceChangeOnDayUsd: '$tokenDetails.priceChangeOnDayUsd',
-            priceUsd: '$tokenDetails.priceUsd',
+            ],
+            as: 'tokenDetails',
           },
         },
-      },
-      { $sort: request.sort },
-      { $skip: request.skip },
-      { $limit: request.limit },
+        {
+          $unwind: {
+            path: '$tokenDetails',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            entityId: 1,
+            transactionHash: 1,
+            blockNumber: 1,
+            network: 1,
+            type: 1,
+            category: 1,
+            fromAddress: 1,
+            toAddress: 1,
+            value: 1,
+            tokenAddress: 1,
+            daoAddress: 1,
+            token: {
+              address: '$tokenDetails.address',
+              symbol: '$tokenDetails.symbol',
+              name: '$tokenDetails.name',
+              type: '$tokenDetails.type',
+              logo: '$tokenDetails.logo',
+              decimals: '$tokenDetails.decimals',
+              priceChangeOnDayUsd: '$tokenDetails.priceChangeOnDayUsd',
+              priceUsd: '$tokenDetails.priceUsd',
+            },
+          },
+        },
+        { $sort: request.sort },
+        { $skip: request.skip },
+        { $limit: request.limit },
+      ]),
+      this.countDocuments(filter),
     ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse()
+    }
 
     return {
       metadata: {
-        limit: request.limit,
-        skip: request.skip,
-        order: opts.order,
-        orderProp: opts.orderProp,
-        currentPage: request.skip / request.limit + 1,
-        totPages: totalPages,
-        totRecords: totalCount,
+        currentPage,
+        totalPages,
+        totalRecords,
       },
-      data: result,
+      data,
     }
   }
 

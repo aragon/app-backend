@@ -22,27 +22,27 @@ const DaoSchema = {
   }),
 
   getDaoMembersWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
+    Object.assign(ValidationSchema.generateJoiPagination, {
       permalink: Joi.string().required(),
       pluginAddress: ValidationSchema.joiAddress.optional(),
     }),
   ),
 
   getProposalsWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
+    Object.assign(ValidationSchema.generateJoiPagination, {
       permalink: Joi.string().required(),
       pluginAddress: ValidationSchema.joiAddress.optional(),
     }),
   ),
 
   getAssetsWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
+    Object.assign(ValidationSchema.generateJoiPagination, {
       permalink: Joi.string().required(),
     }),
   ),
 
   getTransactionsWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
+    Object.assign(ValidationSchema.generateJoiPagination, {
       permalink: Joi.string().required(),
     }),
   ),

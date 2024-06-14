@@ -4,6 +4,7 @@ import { expect } from 'chai'
 import { HexAddress, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Asset from '@models/schema/asset'
+import ModelUtils from '@models/utils/models'
 
 describe('Model: Asset', () => {
   let sandbox: SinonSandbox
@@ -124,23 +125,37 @@ describe('Model: Asset', () => {
     it('should find with pagination', async () => {
       const {
         data,
-        metadata: { totRecords, currentPage, totPages },
+        metadata: { totalRecords, currentPage, totalPages },
       } = await Models.Asset.findWithPagination({ daoAddress: null }, {})
       expect(data.length).to.eq(3)
-      expect(totRecords).to.eq(3)
+      expect(totalRecords).to.eq(3)
       expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalPages).to.eq(1)
     })
 
     it('should find with pagination with daoAddress', async () => {
       const {
         data,
-        metadata: { totRecords, currentPage, totPages },
+        metadata: { totalRecords, currentPage, totalPages },
       } = await Models.Asset.findWithPagination({ daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc3' }, {})
       expect(data.length).to.eq(2)
-      expect(totRecords).to.eq(2)
+      expect(totalRecords).to.eq(2)
       expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalPages).to.eq(1)
+    })
+
+    it('should find with pagination empty result', async () => {
+      const spyUtils = sandbox.spy(ModelUtils, 'paginateEmptyResponse')
+      const {
+        data,
+        metadata: { totalRecords, currentPage, totalPages },
+      } = await Models.Asset.findWithPagination({ daoAddress: '0x0000000000000000000000000000000000000000' }, {})
+
+      expect(spyUtils.calledOnce).to.be.true
+      expect(data.length).to.eq(0)
+      expect(totalRecords).to.eq(0)
+      expect(currentPage).to.eq(1)
+      expect(totalPages).to.eq(1)
     })
   })
 })

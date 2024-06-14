@@ -92,58 +92,60 @@ export default class Member extends Model {
 
   static async findWithPagination(
     { daoAddress, pluginAddress },
-    opts: IPaginationParams = {},
+    paginationParams: IPaginationParams = {},
   ): Promise<IPaginatedResult<IMembersResponse>> {
-    const request = Object.assign({}, ModelUtils.requestPaginate(opts, { orderProp: opts.orderProp }))
-
-    const matchStage: any = {}
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const filter = ModelUtils.createFilter(paginationParams, ['address', 'ens'])
 
     if (daoAddress) {
-      matchStage['daos.daoAddress'] = daoAddress
+      filter['daos.daoAddress'] = daoAddress
     }
 
     if (pluginAddress) {
-      matchStage['daos.pluginAddress'] = pluginAddress
+      filter['daos.pluginAddress'] = pluginAddress
     }
 
-    const totalCount = await this.countDocuments(matchStage)
-    const totalPages = Math.ceil(totalCount / request.limit)
-
-    const result = await this.aggregate([
-      { $unwind: '$daos' },
-      { $match: matchStage },
-      { $skip: request.skip },
-      { $limit: request.limit },
-      {
-        $project: {
-          _id: 0,
-          address: 1,
-          ens: 1,
-          fromBlockNumber: '$daos.fromBlockNumber',
-          toBlockNumber: '$daos.toBlockNumber',
-          votingPower: {
-            $cond: {
-              if: { $gt: [{ $type: '$daos.votingPower' }, 'missing'] },
-              then: '$daos.votingPower',
-              else: '$$REMOVE',
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate([
+        { $unwind: '$daos' },
+        { $match: filter },
+        { $skip: request.skip },
+        { $limit: request.limit },
+        {
+          $project: {
+            _id: 0,
+            address: 1,
+            ens: 1,
+            fromBlockNumber: '$daos.fromBlockNumber',
+            toBlockNumber: '$daos.toBlockNumber',
+            votingPower: {
+              $cond: {
+                if: { $gt: [{ $type: '$daos.votingPower' }, 'missing'] },
+                then: '$daos.votingPower',
+                else: '$$REMOVE',
+              },
             },
           },
         },
-      },
-      { $sort: request.sort },
+        { $sort: request.sort },
+      ]),
+      this.countDocuments(filter),
     ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse()
+    }
 
     return {
       metadata: {
-        limit: request.limit,
-        skip: request.skip,
-        order: opts.order,
-        orderProp: opts.orderProp,
-        currentPage: request.skip / request.limit + 1,
-        totPages: totalPages,
-        totRecords: totalCount,
+        currentPage,
+        totalPages,
+        totalRecords,
       },
-      data: result,
+      data,
     }
   }
 
