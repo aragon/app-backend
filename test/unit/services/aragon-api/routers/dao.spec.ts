@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DaoRouter from '@services/aragon-api/routers/dao'
 import DaoController from '@services/aragon-api/controllers/dao'
-import { NetworksEnum, HexAddress } from '@types'
+import { NetworksEnum } from '@types'
 
 describe('Router: Dao', () => {
   let sandbox: SinonSandbox
@@ -18,19 +18,21 @@ describe('Router: Dao', () => {
 
   describe('getWithPagination', async () => {
     it('Should get dao with pagination - all params', async () => {
-      const params = {
+      const filterParams = {
         network: NetworksEnum.mainnet,
         pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
-        limit: 10,
-        skip: 1,
+      }
+      const paginationParams = {
+        pageSize: 10,
+        page: 1,
         order: 'asc',
-        orderProp: 'createdAt',
+        sort: 'createdAt',
       }
 
-      const stubCtrl = sandbox.stub(DaoController, 'getWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(DaoController, 'getDaosWithPagination').returns(true as any)
 
       const ctx: any = {
-        query: params,
+        query: { ...filterParams, ...paginationParams },
       }
 
       await DaoRouter.getWithPagination(ctx)
@@ -38,25 +40,27 @@ describe('Router: Dao', () => {
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
 
-      const fakeRes = {
-        ...params,
+      const missingParams = {
+        endDate: undefined,
+        startDate: undefined,
         search: undefined,
-        fromDate: undefined,
-        toDate: undefined,
       }
-      expect(stubCtrl.calledWith(fakeRes as any)).to.be.true
+      expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
+      expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
     })
 
     it('Should get dao with pagination - missing pagination params', async () => {
-      const params = {
+      const filterParams = {
         network: NetworksEnum.mainnet,
-        orderProp: 'createdAt',
+      }
+      const paginationParams = {
+        sort: 'createdAt',
       }
 
-      const stubCtrl = sandbox.stub(DaoController, 'getWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(DaoController, 'getDaosWithPagination').returns(true as any)
 
       const ctx: any = {
-        query: params,
+        query: { ...filterParams, ...paginationParams },
       }
 
       await DaoRouter.getWithPagination(ctx)
@@ -64,17 +68,16 @@ describe('Router: Dao', () => {
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
 
-      const fakeRes = {
-        ...params,
+      const missingParams = {
+        endDate: undefined,
+        startDate: undefined,
         search: undefined,
-        fromDate: undefined,
-        toDate: undefined,
-        pluginAddress: undefined,
-        limit: 10,
-        skip: 0,
         order: 'desc',
+        page: 1,
+        pageSize: 10,
       }
-      expect(stubCtrl.calledWith(fakeRes as any)).to.be.true
+      expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
+      expect(stubCtrl.args[0][1]).to.deep.eq({ ...filterParams, ...{ pluginAddress: undefined } })
     })
   })
 
@@ -99,63 +102,156 @@ describe('Router: Dao', () => {
     })
   })
 
-  describe('getDaoMembersMultiSigWithPagination', async () => {
-    it('Should get daoMembersMultiSigWithPagination', async () => {
+  describe('getDaoPlugin', async () => {
+    it('should get dao plugin', async () => {
       const params = {
         permalink: 'xxx',
         pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
       }
-
-      const filterParams = {
-        limit: 10,
-        skip: 0,
-        order: 'desc',
-        orderProp: 'createdAt',
-      }
-
-      const stubCtrl = sandbox.stub(DaoController, 'getDaoMembersMultiSig').returns(true as any)
-
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoPlugin').returns(true as any)
       const ctx: any = {
         params,
-        query: filterParams,
       }
-
-      await DaoRouter.getDaoMembersMultiSigWithPagination(ctx)
-
+      await DaoRouter.getDaoPlugin(ctx)
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
-
-      expect(stubCtrl.calledWith(params.permalink, params.pluginAddress as HexAddress, filterParams)).to.be.true
+      expect(stubCtrl.calledWith(params)).to.be.true
     })
   })
 
-  describe('getDaoMembersTokenVotingWithPagination', async () => {
-    it('Should get getDaoMembersTokenVotingWithPagination', async () => {
-      const params = {
-        permalink: 'xxx',
-        pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
-      }
-
+  describe('getDaoMembersWithPagination', async () => {
+    it('Should get getDaoMembersWithPagination', async () => {
       const filterParams = {
-        limit: 10,
-        skip: 0,
-        order: 'desc',
-        orderProp: 'createdAt',
+        permalink: 'xxx',
       }
 
-      const stubCtrl = sandbox.stub(DaoController, 'getDaoMembersTokenVoting').returns(true as any)
+      const paginationParams = {
+        pageSize: 10,
+        page: 1,
+        order: 'desc',
+        sort: 'blockNumber',
+      }
+
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoMembersWithPagination').returns(true as any)
 
       const ctx: any = {
-        params,
-        query: filterParams,
+        params: filterParams,
+        query: { ...paginationParams, pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA' },
       }
 
-      await DaoRouter.getDaoMembersTokenVotingWithPagination(ctx)
+      await DaoRouter.getDaoMembersWithPagination(ctx)
 
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
 
-      expect(stubCtrl.calledWith(params.permalink, params.pluginAddress as HexAddress, filterParams)).to.be.true
+      const missingParams = {
+        endDate: undefined,
+        startDate: undefined,
+        search: undefined,
+      }
+      expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        ...filterParams,
+        ...{ pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA' },
+      })
+    })
+  })
+
+  describe('getDaoProposalsWithPagination', async () => {
+    it('Should get getDaoProposalsWithPagination', async () => {
+      const filterParams = {
+        permalink: 'xxx',
+      }
+      const paginationParams = {
+        pageSize: 10,
+        page: 1,
+        order: 'desc',
+        sort: 'proposalId',
+      }
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoProposalsWithPagination').returns(true as any)
+      const ctx: any = {
+        params: filterParams,
+        query: { ...paginationParams, pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA' },
+      }
+      await DaoRouter.getProposalsWithPagination(ctx)
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+
+      const missingParams = {
+        endDate: undefined,
+        startDate: undefined,
+        search: undefined,
+      }
+      expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        ...filterParams,
+        ...{ pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA' },
+      })
+    })
+  })
+
+  describe('getAssetsWithPagination', async () => {
+    it('Should get getAssetsWithPagination', async () => {
+      const filterParams = {
+        permalink: 'xxx',
+      }
+      const paginationParams = {
+        pageSize: 10,
+        page: 1,
+        order: 'desc',
+        sort: 'amountUsd',
+      }
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoAssetsWithPagination').returns(true as any)
+      const ctx: any = {
+        params: filterParams,
+        query: { ...paginationParams },
+      }
+      await DaoRouter.getAssetsWithPagination(ctx)
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+
+      const missingParams = {
+        endDate: undefined,
+        startDate: undefined,
+        search: undefined,
+      }
+      expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
+      expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
+    })
+  })
+
+  describe('getTransactionsWithPagination', async () => {
+    it('Should get getTransactionsWithPagination', async () => {
+      const filterParams = {
+        permalink: 'xxx',
+      }
+
+      const paginationParams = {
+        pageSize: 10,
+        page: 1,
+        order: 'desc',
+        sort: 'blockNumber',
+      }
+
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoTransactionsWithPagination').returns(true as any)
+
+      const ctx: any = {
+        params: filterParams,
+        query: { ...paginationParams },
+      }
+
+      await DaoRouter.getTransactionsWithPagination(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+
+      const missingParams = {
+        endDate: undefined,
+        startDate: undefined,
+        search: undefined,
+      }
+      expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
+      expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
     })
   })
 })

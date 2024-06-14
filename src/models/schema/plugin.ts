@@ -94,6 +94,10 @@ export default class Plugin extends Model {
     return await this.findOne({ entityId }, tOpts)
   }
 
+  static async findByAddress(address: HexAddress, tOpts?: SaveOptions) {
+    return await this.findOne({ address }, tOpts)
+  }
+
   async update(params: Partial<Plugin>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
@@ -112,5 +116,11 @@ export default class Plugin extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
+  }
+
+  filterKeys() {
+    const obj = this.toObject()
+    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
+    return filtered
   }
 }

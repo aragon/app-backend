@@ -6,6 +6,7 @@ import {
   type NetworksEnum,
   type ITokenBalanceResponse,
   type TokensBalancesType,
+  ITokenType,
 } from '@types'
 import config from '@config'
 import dayjs from '@helpers/dayjs'
@@ -56,6 +57,18 @@ const CovalentHelper = {
     }
   },
 
+  getTokenType: (token: ITokenCovalentResponse): ITokenType => {
+    let type = ITokenType.native
+
+    if (token.supports_erc['erc20']) {
+      type = ITokenType.ERC20
+    } else if (token.supports_erc['erc721']) {
+      type = ITokenType.ERC721
+    }
+
+    return type
+  },
+
   getToken: async (tokenContractAddress: string, network: NetworksEnum): Promise<Partial<IToken> | false> => {
     if (tokenContractAddress === utils.zeroAddress) {
       tokenContractAddress = CovalentHelper.nativeTokenAddress
@@ -80,10 +93,12 @@ const CovalentHelper = {
     const mostRecentPrice = token.prices?.[0]?.price ?? 0
     const dayBeforePrice = token.prices?.[1]?.price ?? mostRecentPrice
     const priceChangeOnDayUsd = mostRecentPrice - dayBeforePrice
+    const type = CovalentHelper.getTokenType(token)
 
     return {
       address: Web3Helper.parseAddress(token.contract_address)!,
       network,
+      type,
       logo: token.logo_url,
       name: token.contract_name,
       symbol: token.contract_ticker_symbol,

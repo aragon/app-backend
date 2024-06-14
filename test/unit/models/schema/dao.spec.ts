@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { EnumPluginType, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import Dao from '@models/schema/dao'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
@@ -160,7 +160,6 @@ describe('Model: Dao', () => {
           votes: 500,
           plugins: [
             {
-              type: EnumPluginType.MultisigPlugin,
               address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
             },
           ],
@@ -182,7 +181,6 @@ describe('Model: Dao', () => {
           votes: 700,
           plugins: [
             {
-              type: EnumPluginType.TokenVotingPlugin,
               address: '0x0',
             },
           ],
@@ -204,7 +202,6 @@ describe('Model: Dao', () => {
           votes: 700,
           plugins: [
             {
-              type: EnumPluginType.TokenVotingPlugin,
               address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1962',
             },
           ],
@@ -217,7 +214,10 @@ describe('Model: Dao', () => {
     })
 
     it('Should find Pagination', async () => {
-      const { data, totRecords, currentPage, totPages } = await Models.Dao.findWithPagination(
+      const {
+        data,
+        metadata: { totalRecords, currentPage, totalPages },
+      } = await Models.Dao.findWithPagination(
         {
           networks: [],
           pluginAddress: undefined,
@@ -226,13 +226,16 @@ describe('Model: Dao', () => {
       )
 
       expect(data.length).to.eq(3)
-      expect(totRecords).to.eq(3)
+      expect(totalRecords).to.eq(3)
       expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalPages).to.eq(1)
     })
 
     it('Should find Pagination with networks and plugin', async () => {
-      const { data, totRecords, currentPage, totPages } = await Models.Dao.findWithPagination(
+      const {
+        data,
+        metadata: { totalRecords, currentPage, totalPages },
+      } = await Models.Dao.findWithPagination(
         {
           networks: [NetworksEnum.mainnet],
           pluginAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
@@ -241,9 +244,9 @@ describe('Model: Dao', () => {
       )
 
       expect(data.length).to.eq(1)
-      expect(totRecords).to.eq(1)
+      expect(totalRecords).to.eq(1)
       expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalPages).to.eq(1)
     })
 
     it('Should find Pagination with from to date', async () => {
@@ -259,7 +262,6 @@ describe('Model: Dao', () => {
         votes: 700,
         plugins: [
           {
-            type: EnumPluginType.TokenVotingPlugin,
             address: '0x0',
           },
         ],
@@ -273,13 +275,13 @@ describe('Model: Dao', () => {
           networks: [],
           pluginTypes: [],
         },
-        { fromDate: dayjs().utc().subtract(4, 'day').toDate() },
+        { startDate: dayjs().utc().subtract(4, 'day').toDate() },
       )
 
       expect(result.data.length).to.eq(3)
-      expect(result.totRecords).to.eq(3)
-      expect(result.currentPage).to.eq(1)
-      expect(result.totPages).to.eq(1)
+      expect(result.metadata.totalRecords).to.eq(3)
+      expect(result.metadata.currentPage).to.eq(1)
+      expect(result.metadata.totalPages).to.eq(1)
 
       const result2 = await Models.Dao.findWithPagination(
         {
@@ -287,15 +289,15 @@ describe('Model: Dao', () => {
           pluginAddress: undefined,
         },
         {
-          fromDate: dayjs().utc().subtract(6, 'days').toDate(),
-          toDate: dayjs().utc().add(6, 'days').toDate(),
+          startDate: dayjs().utc().subtract(6, 'days').toDate(),
+          endDate: dayjs().utc().add(6, 'days').toDate(),
         },
       )
 
       expect(result2.data.length).to.eq(4)
-      expect(result2.totRecords).to.eq(4)
-      expect(result2.currentPage).to.eq(1)
-      expect(result2.totPages).to.eq(1)
+      expect(result2.metadata.totalRecords).to.eq(4)
+      expect(result2.metadata.currentPage).to.eq(1)
+      expect(result2.metadata.totalPages).to.eq(1)
 
       const result3 = await Models.Dao.findWithPagination(
         {
@@ -303,19 +305,19 @@ describe('Model: Dao', () => {
           pluginAddress: undefined,
         },
         {
-          fromDate: new Date().setDate(new Date().getDate() - 4).toString(),
+          startDate: new Date().setDate(new Date().getDate() - 4).toString(),
         },
       )
 
       expect(result3.data.length).to.eq(4)
-      expect(result3.totRecords).to.eq(4)
-      expect(result3.currentPage).to.eq(1)
-      expect(result3.totPages).to.eq(1)
+      expect(result3.metadata.totalRecords).to.eq(4)
+      expect(result3.metadata.currentPage).to.eq(1)
+      expect(result3.metadata.totalPages).to.eq(1)
     })
 
-    it('Should find Pagination with limit', async () => {
+    it('Should find Pagination with pageSize', async () => {
       const params = {
-        limit: 2,
+        pageSize: 2,
       }
 
       const result = await Models.Dao.findWithPagination(
@@ -327,15 +329,15 @@ describe('Model: Dao', () => {
       )
 
       expect(result.data.length).to.eq(2)
-      expect(result.totRecords).to.eq(3)
-      expect(result.totPages).to.eq(2)
-      expect(result.currentPage).to.eq(1)
+      expect(result.metadata.totalRecords).to.eq(3)
+      expect(result.metadata.totalPages).to.eq(2)
+      expect(result.metadata.currentPage).to.eq(1)
     })
 
-    it('Should find Pagination with skip and limit', async () => {
+    it('Should find Pagination with page and pageSize', async () => {
       const opts = {
-        skip: 1,
-        limit: 2,
+        page: 1,
+        pageSize: 2,
       }
 
       const result = await Models.Dao.findWithPagination(
@@ -347,15 +349,15 @@ describe('Model: Dao', () => {
       )
 
       expect(result.data.length).to.eq(2)
-      expect(result.totRecords).to.eq(3)
-      expect(result.currentPage).to.eq(1)
-      expect(result.totPages).to.eq(2)
+      expect(result.metadata.totalRecords).to.eq(3)
+      expect(result.metadata.currentPage).to.eq(1)
+      expect(result.metadata.totalPages).to.eq(2)
     })
 
     it('Should not found documents', async () => {
       const opts = {
-        skip: 7,
-        limit: 2,
+        page: 7,
+        pageSize: 2,
       }
 
       const result = await Models.Dao.findWithPagination(
@@ -367,9 +369,9 @@ describe('Model: Dao', () => {
       )
 
       expect(result.data.length).to.eq(0)
-      expect(result.totRecords).to.eq(0)
-      expect(result.currentPage).to.eq(1)
-      expect(result.totPages).to.eq(1)
+      expect(result.metadata.totalRecords).to.eq(0)
+      expect(result.metadata.currentPage).to.eq(1)
+      expect(result.metadata.totalPages).to.eq(1)
     })
   })
 

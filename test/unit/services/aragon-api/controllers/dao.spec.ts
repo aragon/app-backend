@@ -2,10 +2,9 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DaoController from '@services/aragon-api/controllers/dao'
-import { HexAddress, IPaginationParams, NetworksEnum } from '@types'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { DaoList } from '@test/mock/fakeDao'
-import Satsuma from '@helpers/satsuma'
 
 describe('Controller: Dao', () => {
   let sandbox: SinonSandbox
@@ -22,205 +21,326 @@ describe('Controller: Dao', () => {
     it('get daos with pagination - all params', async () => {
       const stupReq = sandbox.stub(Models.Dao, 'findWithPagination').resolves({
         data: [{ id: 1, name: 'Test DAO', filterKeys: () => ({ name: 'Test DAO' }) }],
-        currentPage: 1,
-        totPages: 1,
-        totRecords: 1,
+        metadata: {
+          currentPage: 1,
+          totalPages: 1,
+          totalRecords: 1,
+        },
       })
 
-      const params: IPaginationParams & {
-        network: NetworksEnum
-        pluginAddress: HexAddress
-      } = {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams = {
         network: NetworksEnum.mainnet,
         pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
-        search: '',
-        toDate: '',
-        fromDate: '',
-        limit: 10,
-        skip: 1,
-        order: 'asc',
-        orderProp: 'createdAt',
       }
 
-      const response = await DaoController.getWithPagination(params as any)
+      const response = await DaoController.getDaosWithPagination(paginationParams, filterParams)
 
       expect(stupReq.calledOnce).to.be.true
       expect(
         stupReq.calledWith(
-          { networks: [params.network], pluginAddress: params.pluginAddress },
+          { networks: [filterParams.network], pluginAddress: filterParams.pluginAddress },
           {
             search: '',
-            toDate: '',
-            fromDate: '',
-            limit: 10,
-            skip: 1,
+            endDate: '',
+            startDate: '',
+            pageSize: 10,
+            page: 1,
             order: 'asc',
-            orderProp: 'createdAt',
+            sort: 'createdAt',
           },
         ),
       ).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].name).to.eq('Test DAO')
-      expect(response.currentPage).to.eq(1)
-      expect(response.totPages).to.eq(1)
-      expect(response.totRecords).to.eq(1)
+      expect(response.metadata.currentPage).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
     })
 
-    it('get daos with pagination - missing network, plugin', async () => {
-      const stupReq = sandbox.stub(Models.Dao, 'findWithPagination').resolves({
-        data: [{ id: 1, name: 'Test DAO', filterKeys: () => ({ name: 'Test DAO' }) }],
-        currentPage: 1,
-        totPages: 1,
-        totRecords: 1,
+    describe('getDaoByPermalink', () => {
+      it('should get by permalink', async () => {
+        const stub = sandbox.stub(Models.Dao, 'findByPermalink').resolves({
+          ...DaoList[0],
+          filterKeys: () => DaoList[0],
+        })
+        const permalink = 'test-dao'
+        const dao = await DaoController.getDaoByPermalink(permalink)
+        expect(stub.calledOnce).to.be.true
+        expect(dao).to.deep.eq(DaoList[0])
       })
 
-      const params: any = {
-        search: '',
-        toDate: '',
-        fromDate: '',
-        limit: 10,
-        skip: 1,
-        order: 'asc',
-        orderProp: 'createdAt',
-      }
+      it('should fail to get by permalink', async () => {
+        sandbox.stub(Models.Dao, 'findByPermalink').resolves(null)
+        const permalink = 'test-dao'
+        await expect(DaoController.getDaoByPermalink(permalink)).to.be.rejectedWith(ErrorKeyEnum.notFound)
+      })
+    })
 
-      const response = await DaoController.getWithPagination(params as any)
+    describe('getDaoPlugin', () => {
+      it('should get dao plugin', async () => {
+        const stub = sandbox.stub(Models.Dao, 'findByPermalink').resolves({
+          ...DaoList[0],
+          filterKeys: () => DaoList[0],
+        })
+        const permalink = 'test-dao'
+        const pluginAddress = '0x4423f3a76d2090e1388cb67fb7b2ae162f754281'
 
-      expect(stupReq.calledOnce).to.be.true
-      expect(
-        stupReq.calledWith(
-          { networks: [], pluginAddress: undefined },
-          {
-            search: '',
-            toDate: '',
-            fromDate: '',
-            limit: 10,
-            skip: 1,
-            order: 'asc',
-            orderProp: 'createdAt',
-          },
-        ),
-      ).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].name).to.eq('Test DAO')
-      expect(response.currentPage).to.eq(1)
-      expect(response.totPages).to.eq(1)
-      expect(response.totRecords).to.eq(1)
+        const findByAddressPluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+          ...DaoList[0].plugins[0],
+          filterKeys: () => DaoList[0].plugins[0],
+        })
+
+        const plugin = await DaoController.getDaoPlugin({ permalink, pluginAddress })
+        expect(stub.calledOnce).to.be.true
+        expect(findByAddressPluginStub.calledOnce).to.be.true
+        expect(plugin).to.deep.eq(DaoList[0].plugins[0])
+      })
+
+      it('should fail to get dao plugin', async () => {
+        sandbox.stub(Models.Dao, 'findByPermalink').resolves(null)
+        const permalink = 'test-dao'
+        const pluginAddress = '0x4423f3a76d2090e1388cb67fb7b2ae162f754281'
+        await expect(DaoController.getDaoPlugin({ permalink, pluginAddress })).to.be.rejectedWith(ErrorKeyEnum.notFound)
+      })
+
+      it('should fail if the plugin is not from dao', async () => {
+        sandbox.stub(Models.Dao, 'findByPermalink').resolves(DaoList[0])
+        const permalink = 'test-dao'
+        const pluginAddress = '0x4423f3a76d2090e1388cb67fb7b2ae162f754282'
+        await expect(
+          DaoController.getDaoPlugin({
+            permalink,
+            pluginAddress,
+          }),
+        ).to.be.rejectedWith(ErrorKeyEnum.pluginNotFound)
+      })
     })
   })
 
-  it('getDaoByPermalink', async () => {
-    const mockDao = DaoList[1]
-    const dbDao = await Models.Dao.create(mockDao)
+  describe('getDaoMembersWithPagination', () => {
+    it('should get dao members with pagination', async () => {
+      const stub = sandbox.stub(Models.Dao, 'findByPermalink').resolves({
+        ...DaoList[0],
+        filterKeys: () => DaoList[0],
+      })
+      const permalink = 'test-dao'
+      const pluginAddress = '0x4423f3a76d2090e1388cb67fb7b2ae162f754281'
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
 
-    const dao = await DaoController.getDaoByPermalink(dbDao.permalink)
-
-    expect(dao.id).not.to.exist
-    expect(dao.address).to.eq(mockDao.address)
-    expect(dao.network).to.eq(mockDao.network)
-    expect(dao.permalink).to.eq(mockDao.permalink)
-  })
-
-  it('getDaoMembers with multiSigMembers', async () => {
-    const mockDao = DaoList[1]
-    await Models.Dao.create(mockDao)
-
-    const pluginAddress = mockDao.plugins[0].address
-    const permalink = mockDao.permalink
-
-    const filters = {
-      limit: 10,
-      skip: 0,
-      orderProp: 'address',
-      order: 'asc',
-    }
-
-    const fakeResponse = [
-      {
-        address: '0x25cd4b8a02a8f9e920eb02fac38c2954694a3fa5',
-      },
-      {
-        address: '0x3ffe3f16d47a54b1c6a3f47c9e6ff5c2c1b32859',
-      },
-      {
-        address: '0x42342037e0fc34c130cdb079139f8ae56d38453f',
-      },
-      {
-        address: '0xaf2c536f9af22548829b20e9afc567259c820c62',
-      },
-      {
-        address: '0xdf62645a2c714febbf6060d1fb607e7eccef0659',
-      },
-    ]
-    const stubMember = sandbox.stub(Models.Member, 'findMembersByPlugin').resolves(fakeResponse as any)
-
-    const result = await DaoController.getDaoMembersMultiSig(permalink as any, pluginAddress as HexAddress, filters)
-
-    expect(result.limit).to.eq(10)
-    expect(result.skip).to.eq(0)
-    expect(result.orderProp).to.eq('address')
-    expect(result.order).to.eq('asc')
-    expect(result.members.length).to.eq(5)
-    expect(stubMember.calledOnce).to.be.true
-    expect(stubMember.args[0][0]).to.eq(mockDao.plugins[0].address)
-    expect(stubMember.args[0][1]).to.eq(filters)
-  })
-
-  it('getDaoMembers with tokenVotingMembers', async () => {
-    const mockDao = DaoList[3]
-    await Models.Dao.create(mockDao)
-
-    const pluginAddress = mockDao.plugins[0].address
-    const permalink = mockDao.permalink
-
-    const filters = {
-      limit: 10,
-      skip: 0,
-      orderProp: 'address',
-      order: 'asc',
-    }
-
-    const fakeResponse = [
-      {
-        address: mockDao.plugins[0].address,
-        balance: '69000000000000000000',
-        votingPower: '69000000000000000000',
-        delegatee: {
-          address: '0x826976d7c600d45fb8287ca1d7c76fc8eb732030',
-        },
-        delegators: [
+      const findByMemberStub = sandbox.stub(Models.Member, 'findWithPagination').resolves({
+        data: [
           {
-            address: '0x826976d7c600d45fb8287ca1d7c76fc8eb732030',
-            balance: '69000000000000000000',
+            address: '0x123',
           },
         ],
-      },
-      {
-        address: '0x839395e20bbb182fa440d08f850e6c7a8f6f0780',
-        balance: '69000000000000000000',
-        votingPower: '69000000000000000000',
-        delegatee: {
-          address: '0x839395e20bbb182fa440d08f850e6c7a8f6f0780',
-        },
-        delegators: [
+      })
+
+      const members = await DaoController.getDaoMembersWithPagination(paginationParams, { permalink, pluginAddress })
+      expect(stub.calledOnce).to.be.true
+      expect(members).to.have.property('data').with.lengthOf(1)
+      expect(findByMemberStub.calledOnce).to.be.true
+      expect(findByMemberStub.calledWith({ daoAddress: DaoList[0].address, pluginAddress }, paginationParams)).to.be
+        .true
+    })
+
+    it('should fail to get dao members with pagination', async () => {
+      sandbox.stub(Models.Dao, 'findByPermalink').resolves(null)
+      const permalink = 'test-dao'
+      const pluginAddress = '0x4423f3a76d2090e1388cb67fb7b2ae162f754281'
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      await expect(
+        DaoController.getDaoMembersWithPagination(paginationParams, { permalink, pluginAddress }),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+  })
+
+  describe('getDaoProposalsWithPagination', () => {
+    it('should get dao proposals with pagination', async () => {
+      const stub = sandbox.stub(Models.Dao, 'findByPermalink').resolves({
+        ...DaoList[0],
+        filterKeys: () => DaoList[0],
+      })
+
+      const permalink = 'test-dao'
+      const pluginAddress = '0x4423f3a76d2090e1388cb67fb7b2ae162f754281'
+
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const findByProposalStub = sandbox.stub(Models.Proposal, 'findWithPagination').resolves({
+        data: [
           {
-            address: '0x839395e20bbb182fa440d08f850e6c7a8f6f0780',
-            balance: '69000000000000000000',
+            address: '0x123',
+            filterKeys: () => ({ address: '0x123' }),
           },
         ],
-      },
-    ]
-    const stubMember = sandbox.stub(Models.Member, 'findMembersByPlugin').resolves(fakeResponse as any)
+      })
 
-    const result = await DaoController.getDaoMembersTokenVoting(permalink, pluginAddress as HexAddress, filters)
+      const proposals = await DaoController.getDaoProposalsWithPagination(paginationParams, {
+        permalink,
+        pluginAddress,
+      })
 
-    expect(result.limit).to.eq(10)
-    expect(result.skip).to.eq(0)
-    expect(result.orderProp).to.eq('address')
-    expect(result.order).to.eq('asc')
-    expect(result.members.length).to.eq(2)
-    expect(stubMember.calledOnce).to.be.true
-    expect(stubMember.args[0][0]).to.eq(mockDao.plugins[0].address)
-    expect(stubMember.args[0][1]).to.eq(filters)
+      expect(stub.calledOnce).to.be.true
+      expect(proposals).to.have.property('data').with.lengthOf(1)
+      expect(findByProposalStub.calledOnce).to.be.true
+      expect(findByProposalStub.calledWith({ daoAddress: DaoList[0].address, pluginAddress }, paginationParams)).to.be
+        .true
+    })
+
+    it('should fail to get dao proposals with pagination', async () => {
+      sandbox.stub(Models.Dao, 'findByPermalink').resolves(null)
+      const permalink = 'test-dao'
+      const pluginAddress = '0x4423f3a76d2090e1388cb67fb7b2ae162f754281'
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      await expect(
+        DaoController.getDaoProposalsWithPagination(paginationParams, { permalink, pluginAddress }),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+  })
+
+  describe('getDaoAssetsWithPagination', () => {
+    it('should get dao assets with pagination', async () => {
+      const stub = sandbox.stub(Models.Dao, 'findByPermalink').resolves({
+        ...DaoList[0],
+        filterKeys: () => DaoList[0],
+      })
+
+      const permalink = 'test-dao'
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const findByAssetStub = sandbox.stub(Models.Asset, 'findWithPagination').resolves({
+        data: [
+          {
+            address: '0x123',
+          },
+        ],
+      })
+
+      const assets = await DaoController.getDaoAssetsWithPagination(paginationParams, { permalink })
+
+      expect(stub.calledOnce).to.be.true
+      expect(assets).to.have.property('data').with.lengthOf(1)
+      expect(findByAssetStub.calledOnce).to.be.true
+      expect(findByAssetStub.calledWith({ daoAddress: DaoList[0].address }, paginationParams)).to.be.true
+    })
+
+    it('should fail to get dao assets with pagination', async () => {
+      sandbox.stub(Models.Dao, 'findByPermalink').resolves(null)
+      const permalink = 'test-dao'
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      await expect(DaoController.getDaoAssetsWithPagination(paginationParams, { permalink })).to.be.rejectedWith(
+        ErrorKeyEnum.notFound,
+      )
+    })
+  })
+
+  describe('getDaoTransactionsWithPagination', () => {
+    it('should get dao transactions with pagination', async () => {
+      const stub = sandbox.stub(Models.Dao, 'findByPermalink').resolves({
+        ...DaoList[0],
+        filterKeys: () => DaoList[0],
+      })
+
+      const permalink = 'test-dao'
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const findByTransactionStub = sandbox.stub(Models.Transaction, 'findWithPagination').resolves({
+        data: [
+          {
+            address: '0x123',
+          },
+        ],
+      })
+
+      const transactions = await DaoController.getDaoTransactionsWithPagination(paginationParams, { permalink })
+
+      expect(stub.calledOnce).to.be.true
+      expect(transactions).to.have.property('data').with.lengthOf(1)
+      expect(findByTransactionStub.calledOnce).to.be.true
+      expect(findByTransactionStub.calledWith({ daoAddress: DaoList[0].address }, paginationParams)).to.be.true
+    })
+
+    it('should fail to get dao transactions with pagination', async () => {
+      sandbox.stub(Models.Dao, 'findByPermalink').resolves(null)
+      const permalink = 'test-dao'
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      await expect(DaoController.getDaoTransactionsWithPagination(paginationParams, { permalink })).to.be.rejectedWith(
+        ErrorKeyEnum.notFound,
+      )
+    })
   })
 })

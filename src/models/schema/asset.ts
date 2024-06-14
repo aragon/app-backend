@@ -1,8 +1,9 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, NetworksEnum } from '@types'
+import { HexAddress, type IPaginatedResult, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
 
 const customName = 'Asset'
 
@@ -73,6 +74,108 @@ export default class Asset extends Model {
 
   static async findAssetByTokenAndDao(tokenAddress: HexAddress, daoAddress: HexAddress, network: NetworksEnum) {
     return await this.findOne({ tokenAddress, daoAddress, network })
+  }
+
+  static async findWithPagination(
+    { daoAddress },
+    paginationParams: IPaginationParams = {},
+  ): Promise<IPaginatedResult<any>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const filter = ModelUtils.createFilter(paginationParams, ['tokenAddress'])
+
+    if (daoAddress) {
+      filter.daoAddress = daoAddress
+    }
+
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate([
+        { $match: filter },
+        {
+          $lookup: {
+            from: 'token',
+            localField: 'tokenAddress',
+            foreignField: 'address',
+            as: 'tokenDetails',
+          },
+        },
+        {
+          $unwind: {
+            path: '$tokenDetails',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            entityId: '$entityId',
+            network: 1,
+            daoAddress: 1,
+            tokenAddress: 1,
+            amount: 1,
+            token: {
+              address: '$tokenDetails.address',
+              symbol: '$tokenDetails.symbol',
+              name: '$tokenDetails.name',
+              type: '$tokenDetails.type',
+              logo: '$tokenDetails.logo',
+              decimals: '$tokenDetails.decimals',
+              priceChangeOnDayUsd: '$tokenDetails.priceChangeOnDayUsd',
+              priceUsd: '$tokenDetails.priceUsd',
+            },
+          },
+        },
+        {
+          $addFields: {
+            amountUsd: {
+              $cond: {
+                if: {
+                  $and: ['$token.priceUsd', { $gt: ['$token.decimals', null] }],
+                },
+                then: {
+                  $multiply: [
+                    {
+                      $divide: [{ $toDecimal: '$amount' }, { $pow: [10, { $toDecimal: '$token.decimals' }] }],
+                    },
+                    { $toDecimal: '$token.priceUsd' },
+                  ],
+                },
+                else: 0,
+              },
+            },
+          },
+        },
+        { $sort: request.sort },
+        { $skip: request.skip },
+        { $limit: request.limit },
+        {
+          $project: {
+            network: 1,
+            daoAddress: 1,
+            tokenAddress: 1,
+            amount: 1,
+            token: 1,
+            amountUsd: { $toString: '$amountUsd' },
+          },
+        },
+      ]),
+      this.countDocuments(filter),
+    ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse()
+    }
+
+    return {
+      metadata: {
+        currentPage,
+        totalPages,
+        totalRecords,
+      },
+      data,
+    }
   }
 
   async update(params: Partial<Plugin>, tOpts?: SaveOptions) {
