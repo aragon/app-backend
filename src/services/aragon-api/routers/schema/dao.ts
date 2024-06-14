@@ -16,17 +16,34 @@ const DaoSchema = {
     permalink: Joi.string().required(),
   }),
 
-  getDaoMultisigMembersWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
+  getDaoPlugin: Joi.object({
+    permalink: Joi.string().required(),
+    pluginAddress: ValidationSchema.joiAddress.optional(),
+  }),
+
+  getDaoMembersWithPagination: Joi.object(
+    Object.assign(ValidationSchema.generateJoiPagination, {
       permalink: Joi.string().required(),
-      pluginAddress: ValidationSchema.joiAddress.required(),
+      pluginAddress: ValidationSchema.joiAddress.optional(),
     }),
   ),
 
-  getDaoTokenVotingMembersWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiDaoPluginPagination, {
+  getProposalsWithPagination: Joi.object(
+    Object.assign(ValidationSchema.generateJoiPagination, {
       permalink: Joi.string().required(),
-      pluginAddress: ValidationSchema.joiAddress.required(),
+      pluginAddress: ValidationSchema.joiAddress.optional(),
+    }),
+  ),
+
+  getAssetsWithPagination: Joi.object(
+    Object.assign(ValidationSchema.generateJoiPagination, {
+      permalink: Joi.string().required(),
+    }),
+  ),
+
+  getTransactionsWithPagination: Joi.object(
+    Object.assign(ValidationSchema.generateJoiPagination, {
+      permalink: Joi.string().required(),
     }),
   ),
 }

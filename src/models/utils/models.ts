@@ -1,70 +1,7 @@
-import _ from 'lodash'
-import { type IPaginationParams } from '@types'
+import { type RouterContext } from '@koa/router'
+import { type IPaginatedResult, type IPaginationParams } from '@types'
 import dayjs from '@helpers/dayjs'
 import { prop } from '@typegoose/typegoose'
-
-const ModelUtils = {
-  parseParams(opts: IPaginationParams, searchBy: string[] = []) {
-    const queryParams = _.pick(opts || {}, 'search', 'fromDate', 'toDate')
-    const params = _.defaults(queryParams, {
-      search: undefined,
-      fromDate: undefined,
-      toDate: undefined,
-    })
-
-    const request: any = {}
-
-    if (params.search) {
-      // TODO: maybe we can also search by _id model, first should check if its valid mongoId
-      request.$or = searchBy.map(prop => ({
-        [prop]: { $regex: `^${params.search}`, $options: 'i' },
-      }))
-    }
-
-    if (params.fromDate && !params.toDate) {
-      request.createdAt = {
-        $gte: dayjs.utc(opts.fromDate).startOf('day').toDate(),
-      }
-    }
-
-    if (opts.toDate && !opts.fromDate) {
-      request.createdAt = { $lte: dayjs.utc(opts.toDate).endOf('day').toDate() }
-    }
-
-    if (opts.toDate && opts.fromDate) {
-      request.createdAt = {
-        $gte: dayjs.utc(opts.fromDate).startOf('day').toDate(),
-        $lte: dayjs.utc(opts.toDate).endOf('day').toDate(),
-      }
-    }
-
-    return request
-  },
-
-  requestPaginate(opts: IPaginationParams) {
-    const paginateParams = _.pick(opts || {}, 'limit', 'skip', 'orderProp', 'order')
-    const params = _.defaults(paginateParams, {
-      limit: 15,
-      skip: 1,
-      orderProp: 'createdAt',
-      order: 'desc',
-    })
-
-    const request: any = {}
-
-    if (params.limit) {
-      request.limit = parseInt(String(params.limit))
-    }
-    if (params.skip) {
-      request.skip = parseInt(String(params.limit)) * (parseInt(String(params.skip)) - 1)
-    }
-    if (params.order || params.orderProp) {
-      request.sort = { [params.orderProp]: params.order === 'desc' ? -1 : 1 }
-    }
-
-    return request
-  },
-}
 
 export function utcDateProp(options = {}) {
   return prop({
@@ -81,6 +18,72 @@ export function utcDateProp(options = {}) {
       return val
     },
   })
+}
+
+const ModelUtils = {
+  paginateAndSort({ pageSize = 10, page = 1, sort = 'createdAt', order = 'desc' }: IPaginationParams = {}) {
+    const paginationAndSorting: any = {}
+
+    // Pagination
+    paginationAndSorting.limit = Math.max(1, parseInt(String(pageSize)))
+    paginationAndSorting.skip = (page - 1) * paginationAndSorting.limit
+
+    // Sorting
+    paginationAndSorting.sort = { [sort]: order === 'desc' ? -1 : 1 }
+
+    return paginationAndSorting
+  },
+
+  createFilter({ search, startDate, endDate }: IPaginationParams = {}, searchBy: string[] = []) {
+    const filter: any = {}
+
+    // Search functionality using regex
+    if (search && searchBy.length > 0) {
+      filter.$or = searchBy.map(field => ({
+        [field]: { $regex: `^${search}`, $options: 'i' }, // Starts with search term, case-insensitive
+      }))
+    }
+
+    // Date range filtering with dayjs and UTC
+    if (startDate) {
+      filter.createdAt = filter.createdAt || {}
+      filter.createdAt.$gte = dayjs.utc(startDate).startOf('day').toDate()
+    }
+    if (endDate) {
+      filter.createdAt = filter.createdAt || {}
+      filter.createdAt.$lte = dayjs.utc(endDate).endOf('day').toDate()
+    }
+
+    return filter
+  },
+
+  parsePaginationParams(
+    ctx: RouterContext,
+    defaultParams: { defaultOrder?: 'asc' | 'desc'; defaultSort?: string } = {},
+  ): IPaginationParams {
+    const { defaultOrder = 'desc', defaultSort = 'createdAt' } = defaultParams
+
+    return {
+      search: ctx.query.search as string,
+      startDate: ctx.query.startDate as string,
+      endDate: ctx.query.endDate as string,
+      pageSize: Number(ctx.query.pageSize ?? 10),
+      page: Number(ctx.query.page ?? 1),
+      order: (ctx.query.order as 'asc' | 'desc') ?? defaultOrder,
+      sort: (ctx.query.sort as string) ?? defaultSort,
+    }
+  },
+
+  paginateEmptyResponse(): IPaginatedResult<any> {
+    return {
+      metadata: {
+        currentPage: 1,
+        totalRecords: 0,
+        totalPages: 1,
+      },
+      data: [],
+    }
+  },
 }
 
 export default ModelUtils

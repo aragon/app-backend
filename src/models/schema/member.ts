@@ -1,14 +1,18 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type IPlugin, NetworksEnum } from '@types'
+import { HexAddress, type IMembersResponse, type IPaginatedResult, type IPaginationParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
 
 const customName = 'Member'
 
 class MemberDao {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
+
+  @prop({ type: () => String, required: true })
+  public daoAddress!: HexAddress
 
   @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
@@ -86,32 +90,63 @@ export default class Member extends Model {
     return await this.findOne({ entityId }, tOpts)
   }
 
-  // TODO: add pagination
-  static async findMembersByPlugin(pluginAddress: string, memberFilters: any): Promise<IPlugin[]> {
-    return await this.aggregate([
-      {
-        $unwind: '$daos',
-      },
-      {
-        $match: {
-          'daos.pluginAddress': pluginAddress,
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          address: 1,
-          ens: 1,
-          votingPower: {
-            $cond: {
-              if: { $gt: [{ $type: '$daos.votingPower' }, 'missing'] },
-              then: '$daos.votingPower',
-              else: '$$REMOVE',
+  static async findWithPagination(
+    { daoAddress, pluginAddress },
+    paginationParams: IPaginationParams = {},
+  ): Promise<IPaginatedResult<IMembersResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const filter = ModelUtils.createFilter(paginationParams, ['address', 'ens'])
+
+    if (daoAddress) {
+      filter['daos.daoAddress'] = daoAddress
+    }
+
+    if (pluginAddress) {
+      filter['daos.pluginAddress'] = pluginAddress
+    }
+
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate([
+        { $unwind: '$daos' },
+        { $match: filter },
+        { $skip: request.skip },
+        { $limit: request.limit },
+        {
+          $project: {
+            _id: 0,
+            address: 1,
+            ens: 1,
+            fromBlockNumber: '$daos.fromBlockNumber',
+            toBlockNumber: '$daos.toBlockNumber',
+            votingPower: {
+              $cond: {
+                if: { $gt: [{ $type: '$daos.votingPower' }, 'missing'] },
+                then: '$daos.votingPower',
+                else: '$$REMOVE',
+              },
             },
           },
         },
-      },
+        { $sort: request.sort },
+      ]),
+      this.countDocuments(filter),
     ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse()
+    }
+
+    return {
+      metadata: {
+        currentPage,
+        totalPages,
+        totalRecords,
+      },
+      data,
+    }
   }
 
   async update(params: Partial<Member>, tOpts?: SaveOptions) {

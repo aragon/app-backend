@@ -20,13 +20,6 @@ const ValidationSchema = {
       'string.invalid': '{{#label}} is not a valid address',
     }),
 
-  generateJoiDaoPluginPagination: {
-    limit: Joi.number().integer().optional().default(10),
-    skip: Joi.number().integer().greater(-1).optional().default(0),
-    order: Joi.string().valid('asc', 'desc').optional().default('asc'),
-    orderProp: Joi.string().optional().default('createdAt'),
-  },
-
   generateJoiPagination: {
     search: Joi.string()
       .allow('')
@@ -38,13 +31,13 @@ const ValidationSchema = {
           return value
         }
       }, 'Address or General Search Validation'),
-    limit: Joi.number().integer().optional().default(10),
-    skip: Joi.number().integer().greater(-1).optional().default(0),
+    pageSize: Joi.number().integer().optional().default(10),
+    page: Joi.number().integer().greater(-1).optional().default(1),
     order: Joi.string().valid('asc', 'desc').optional().default('asc'),
-    orderProp: Joi.string().optional().default('createdAt'),
-    fromDate: Joi.date().optional(),
-    toDate: Joi.date()
-      .min(Joi.ref('fromDate', { adjust: value => new Date(value) }))
+    sort: Joi.string().optional().default('createdAt'),
+    startDate: Joi.date().optional(),
+    endDate: Joi.date()
+      .min(Joi.ref('startDate', { adjust: value => new Date(value) }))
       .optional(),
   },
 

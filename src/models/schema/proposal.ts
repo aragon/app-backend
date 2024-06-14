@@ -1,8 +1,9 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, NetworksEnum } from '@types'
+import { HexAddress, type IPaginatedResult, type IPaginationParams, type IProposalResponse, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
 
 const customName = 'Proposal'
 
@@ -160,6 +161,46 @@ export default class Proposal extends Model {
     return await this.findOne({ proposalId, pluginAddress, network }, tOpts)
   }
 
+  static async findWithPagination(
+    { daoAddress, pluginAddress },
+    paginationParams: IPaginationParams = {},
+  ): Promise<IPaginatedResult<IProposalResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const filter = ModelUtils.createFilter(paginationParams, [
+      'title',
+      'description',
+      'summary',
+      'creatorAddress',
+      'transactionHash',
+    ])
+
+    if (daoAddress) {
+      filter.daoAddress = daoAddress
+    }
+
+    if (pluginAddress) {
+      filter.pluginAddress = pluginAddress
+    }
+
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse()
+    }
+
+    return {
+      metadata: {
+        currentPage,
+        totalPages,
+        totalRecords,
+      },
+      data: data as any,
+    }
+  }
+
   async update(params: Partial<Proposal>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
@@ -178,5 +219,13 @@ export default class Proposal extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
+  }
+
+  filterKeys() {
+    const obj = this.toObject()
+    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
+    filtered.settings = _.omit(filtered.settings, 'id', '_id', '__v')
+    filtered.media = _.omit(filtered.media, 'id', '_id', '__v')
+    return filtered
   }
 }

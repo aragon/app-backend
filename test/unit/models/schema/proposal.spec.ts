@@ -4,6 +4,7 @@ import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import Proposal from '@models/schema/logProposal'
 import { Models } from '@dbModels'
+import { beforeEach } from 'mocha'
 
 describe('Model: Proposal', () => {
   let sandbox: SinonSandbox
@@ -236,5 +237,154 @@ describe('Model: Proposal', () => {
     await createdProposal.reload()
 
     expect(createdProposal.daoAddress).to.eq(rawProposalMultisig.daoAddress)
+  })
+
+  it('should filter keys', async () => {
+    const createdProposal = await Models.Proposal.create(rawProposalMultisig)
+    const filterProposal = createdProposal.filterKeys()
+
+    expect(filterProposal.id).to.be.undefined
+    expect(filterProposal._id).to.be.undefined
+    expect(filterProposal.__v).to.be.undefined
+    expect(filterProposal.createdAt).to.be.undefined
+    expect(filterProposal.updatedAt).to.be.undefined
+    expect(Object.keys(filterProposal).length).to.eq(16)
+  })
+
+  describe('paginate', () => {
+    beforeEach(async () => {
+      const rawPlugins = [
+        {
+          transactionHash: '0xf7150dd71a976384fd3d3ef755fbf7487ffb3e8cc67024b53be578e6173f7618',
+          blockNumber: 16726919,
+          network: NetworksEnum.mainnet,
+          pluginAddress: '0x563Ebb4972bb6fABb1128c5895A31B6FAC2f6e14',
+          proposalId: 0,
+          creatorAddress: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+          startDate: 1677591000,
+          endDate: 1678023600,
+          metadataUri: 'ipfs://QmeyZSVahzCR3WYR5SnvGswhPEBr4S2fZT7E4WPsCMgBCH',
+          settings: {
+            minApprovals: 1,
+            onlyListed: true,
+            fromBlockNumber: 16726867,
+            toBlockNumber: null,
+            fromTxHash: '0x8c325e119c9728b60094a13cdc76a06a3821364259596dc968b60c31010e4988',
+            toTxHash: null,
+          },
+          daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+          title: "Let's pate pate!",
+          description: null,
+          summary: "Let's pate pate!",
+          media: {
+            header: null,
+            logo: null,
+          },
+        },
+        {
+          transactionHash: '0x90a26411d62d1ba9f7b82e3697e94ff1ae9b5cce89e3f594ebe57b897245d39e',
+          blockNumber: 16733645,
+          network: NetworksEnum.mainnet,
+          pluginAddress: '0xB85380977eC3435aeBc13e29b01AF990393bdED9',
+          proposalId: 0,
+          creatorAddress: '0xc1d60f584879f024299DA0F19Cdb47B931E35b53',
+          startDate: 1677672720,
+          endDate: 1677676920,
+          metadataUri: 'ipfs://QmVgY3QEEDypzjW8Udj1LECNDZTDNYkNZ5VNKTPYff1Vwz',
+          executed: {
+            status: true,
+            transactionHash: '0xe49a4a878ed2073e012249ef39960b9c9a21446f223e4e5a6ef0edc97831c37e',
+            blockNumber: 16733707,
+          },
+          settings: {
+            votingMode: 1,
+            supportThreshold: 500000,
+            minParticipation: 150000,
+            minDuration: 3600,
+            minProposerVotingPower: '5e+19',
+            fromBlockNumber: 16726558,
+            toBlockNumber: 16733707,
+            fromTxHash: '0xdcff8f4477f3b39529de62394883707a2468d46bff3eb5e99335f5c49ec41f81',
+            toTxHash: '0xe49a4a878ed2073e012249ef39960b9c9a21446f223e4e5a6ef0edc97831c37e',
+          },
+          daoAddress: '0x59447788F9dCf2df550F257F3692a07f05b922D7',
+          title: 'New Look!',
+          description:
+            '<p>Changing the following metadata on the DAO:<br><strong>Name - Feel the Breeze</strong></p><p><strong>Logo</strong></p>',
+          summary: 'Changing DAO metadata',
+          media: {
+            header: null,
+            logo: null,
+          },
+        },
+      ]
+
+      await Promise.all(rawPlugins.map(rawPlugin => Models.Proposal.create(rawPlugin)))
+    })
+
+    it('Should find with pagination', async () => {
+      const {
+        data,
+        metadata: { totalRecords, currentPage, totalPages },
+      } = await Models.Proposal.findWithPagination({ daoAddress: null, pluginAddress: null }, {})
+
+      expect(data.length).to.eq(2)
+      expect(totalRecords).to.eq(2)
+      expect(currentPage).to.eq(1)
+      expect(totalPages).to.eq(1)
+    })
+
+    it('Should find with pagination with daoAddress', async () => {
+      const {
+        data,
+        metadata: { totalRecords, currentPage, totalPages },
+      } = await Models.Proposal.findWithPagination({ daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254' }, {})
+      expect(data.length).to.eq(1)
+      expect(totalRecords).to.eq(1)
+      expect(currentPage).to.eq(1)
+      expect(totalPages).to.eq(1)
+    })
+
+    it('Should find with pagination with pluginAddress', async () => {
+      const {
+        data,
+        metadata: { totalRecords, currentPage, totalPages },
+      } = await Models.Proposal.findWithPagination(
+        { daoAddress: null, pluginAddress: '0x563Ebb4972bb6fABb1128c5895A31B6FAC2f6e14' },
+        {},
+      )
+      expect(data.length).to.eq(1)
+      expect(totalRecords).to.eq(1)
+      expect(currentPage).to.eq(1)
+      expect(totalPages).to.eq(1)
+    })
+
+    it('should return the metadata atleast if no result found', async () => {
+      const {
+        data,
+        metadata: { totalRecords, currentPage, totalPages },
+      } = await Models.Proposal.findWithPagination({ daoAddress: '0xBeB63a3565942D16C1c1211bD78F1B3Dcfe1A254' }, {})
+      expect(data.length).to.eq(0)
+      expect(totalRecords).to.eq(0)
+      expect(currentPage).to.eq(1)
+      expect(totalPages).to.eq(1)
+    })
+
+    it('Should find with pagination with daoAddress and pluginAddress', async () => {
+      const {
+        data,
+        metadata: { totalRecords, currentPage, totalPages },
+      } = await Models.Proposal.findWithPagination(
+        {
+          daoAddress: '0x59447788F9dCf2df550F257F3692a07f05b922D7',
+          pluginAddress: '0xB85380977eC3435aeBc13e29b01AF990393bdED9',
+        },
+        {},
+      )
+      expect(data.length).to.eq(1)
+      expect(totalRecords).to.eq(1)
+      expect(currentPage).to.eq(1)
+      expect(totalPages).to.eq(1)
+    })
   })
 })

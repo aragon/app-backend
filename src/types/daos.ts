@@ -1,19 +1,6 @@
-import { type ENS, type HexAddress } from '@src/types/networks'
-import { type EnumPluginType } from '@src/types/subgraph'
-
 export interface DaoResourceLink {
   name: string
   url: string
-}
-
-export interface IDaoSatsumaResponse {
-  daos: IDao[]
-  limit: number
-  skip: number
-  results: number
-  nextCursor: number
-  skipResult: number
-  excludedResult: number
 }
 
 export interface IDaoMetadata {
@@ -43,62 +30,4 @@ export interface IPermission {
   who: string
   condition: string
   permissionId: string
-}
-
-export interface ILink {
-  name: string
-  url: string
-}
-
-export interface IPlugin {
-  type: EnumPluginType
-  address: HexAddress
-}
-
-export interface IPluginMember {
-  address: HexAddress
-  ens: ENS
-  votingPower?: string
-}
-
-export interface IDaoMultiSigMember {
-  address: HexAddress
-}
-
-export interface IDaoTokenVotingMember {
-  address: HexAddress
-  balance: string
-  votingPower: string
-  delegatee: { address: HexAddress }
-  delegators: { address: HexAddress; balance: string }[]
-}
-
-export interface IDaoMembersResponse {
-  members: IDaoMultiSigMember[] | IDaoTokenVotingMember[]
-  limit?: number
-  skip?: number
-  orderProp?: string
-  order?: string
-}
-
-export interface IDao extends IDaoMetadata {
-  creatorAddress: HexAddress
-  daoAddress: HexAddress
-  permalink: string | null
-  block: number
-  blockTime: Date
-  createdAt: Date
-  ens: ENS
-  members: number
-  metadataIpfs: string | null
-  network: string
-  plugins: IPlugin[]
-  proposalsCreated: number
-  proposalsExecuted: number
-  tvlUSD: number
-  txHash: HexAddress | null
-  uniqueVoters: number
-  votes: number
-  hideDao: boolean
-  links: ILink[]
 }

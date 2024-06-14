@@ -1,94 +1,97 @@
 import { Models } from '@dbModels'
 import {
   ErrorKeyEnum,
-  type HexAddress,
-  type IDaoMembersResponse,
+  type IDaoResponse,
+  type IMembersResponse,
+  type IPaginatedResult,
   type IPaginationParams,
-  IPluginSubdomain,
-  type IResponseWithPagination,
-  type NetworksEnum,
+  type IPluginResponse,
+  type IPluginSubdomain,
+  type IProposalResponse,
+  type ITransactionResponse,
 } from '@types'
 import type Dao from '@models/schema/dao'
 import { assertExposable } from '@errors'
+import type Proposal from '@models/schema/proposal'
 
 const DaoController = {
-  getWithPagination: async (
-    params: IPaginationParams & { network: NetworksEnum; pluginAddress: HexAddress },
-  ): Promise<IResponseWithPagination> => {
-    const { data, currentPage, totPages, totRecords } = await Models.Dao.findWithPagination(
-      {
-        networks: params.network ? [params.network] : [],
-        pluginAddress: params.pluginAddress,
-      },
-      {
-        search: params.search,
-        toDate: params.toDate,
-        fromDate: params.fromDate,
-        limit: params.limit,
-        skip: params.skip,
-        order: params.order,
-        orderProp: params.orderProp,
-      },
+  getDaosWithPagination: async (
+    paginationParams: IPaginationParams,
+    { network, pluginAddress },
+  ): Promise<IPaginatedResult<IDaoResponse>> => {
+    const result = await Models.Dao.findWithPagination(
+      { networks: network ? [network] : [], pluginAddress },
+      paginationParams,
     )
-
-    return {
-      ...params,
-      currentPage,
-      totPages,
-      totRecords,
-      data: data.map((dao: Dao) => dao.filterKeys()),
-    }
+    result.data = result.data.map((dao: Dao) => dao.filterKeys())
+    return result
   },
 
-  getDaoByPermalink: async (permalink: string) => {
+  getDaoByPermalink: async (permalink: string): Promise<IDaoResponse> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
     return dao.filterKeys()
   },
 
-  getDaoMembersMultiSig: async (
-    permalink: string,
-    pluginAddress: HexAddress,
-    memberFilters: IPaginationParams,
-  ): Promise<IDaoMembersResponse> => {
+  getDaoPlugin: async ({ permalink, pluginAddress }): Promise<IPluginResponse> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
     const multiSigPlugin = dao.plugins.find(
-      (w: { subdomain: IPluginSubdomain; address: string }) =>
-        w.subdomain === IPluginSubdomain.multisig && w.address === pluginAddress,
+      (w: { subdomain: IPluginSubdomain; address: string }) => w.address === pluginAddress,
     )
     assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
 
-    const members = await Models.Member.findMembersByPlugin(pluginAddress, memberFilters)
+    const plugin = await Models.Plugin.findByAddress(pluginAddress)
 
-    return {
-      ...memberFilters,
-      members,
-    }
+    return plugin.filterKeys()
   },
 
-  getDaoMembersTokenVoting: async (
-    permalink: string,
-    pluginAddress: HexAddress,
-    memberFilters: IPaginationParams,
-  ): Promise<IDaoMembersResponse> => {
+  getDaoMembersWithPagination: async (
+    paginationParams: IPaginationParams,
+    { permalink, pluginAddress },
+  ): Promise<IPaginatedResult<IMembersResponse>> => {
     const dao = await Models.Dao.findByPermalink(permalink)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
-    const tokenPlugin = dao.plugins.find(
-      (w: { subdomain: IPluginSubdomain; address: string }) =>
-        w.subdomain === IPluginSubdomain.token && w.address === pluginAddress,
+    return await Models.Member.findWithPagination({ daoAddress: dao.address, pluginAddress }, paginationParams)
+  },
+
+  getDaoProposalsWithPagination: async (
+    paginationParams: IPaginationParams,
+    { permalink, pluginAddress },
+  ): Promise<IPaginatedResult<IProposalResponse>> => {
+    const dao = await Models.Dao.findByPermalink(permalink)
+    assertExposable(dao, ErrorKeyEnum.notFound)
+
+    const result = await Models.Proposal.findWithPagination(
+      { daoAddress: dao.address, pluginAddress },
+      paginationParams,
     )
-    assertExposable(tokenPlugin, ErrorKeyEnum.pluginNotFound)
 
-    const members = await Models.Member.findMembersByPlugin(pluginAddress, memberFilters)
+    result.data = result.data.map((proposal: Proposal) => proposal.filterKeys())
+    return result
+  },
 
-    return {
-      ...memberFilters,
-      members,
-    }
+  getDaoAssetsWithPagination: async (
+    paginationParams: IPaginationParams,
+    { permalink },
+  ): Promise<IPaginatedResult<any>> => {
+    const dao = await Models.Dao.findByPermalink(permalink)
+    assertExposable(dao, ErrorKeyEnum.notFound)
+
+    return await Models.Asset.findWithPagination({ daoAddress: dao.address }, paginationParams)
+  },
+
+  getDaoTransactionsWithPagination: async (
+    paginationParams: IPaginationParams,
+    { permalink },
+  ): Promise<IPaginatedResult<ITransactionResponse>> => {
+    const dao = await Models.Dao.findByPermalink(permalink)
+    assertExposable(dao, ErrorKeyEnum.notFound)
+
+    return await Models.Transaction.findWithPagination({ daoAddress: dao.address }, paginationParams)
   },
 }
 
