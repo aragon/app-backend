@@ -1,5 +1,12 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { type ENS, HexAddress, type IPaginatedResult, type IPaginationParams, NetworksEnum } from '@types'
+import {
+  type ENS,
+  HexAddress,
+  type IDaoResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import ModelUtils from '@models/utils/models'
@@ -166,64 +173,46 @@ export default class Dao extends Model {
   }
 
   static async findWithPagination(
-    { networks, pluginAddress },
-    opts: IPaginationParams = {},
-  ): Promise<IPaginatedResult<any>> {
-    const params = Object.assign(
-      {},
-      ModelUtils.parseParams(opts, [
-        'permalink',
-        'address',
-        'implementationAddress',
-        'creatorAddress',
-        'ens',
-        'name',
-        'transactionHash',
-      ]),
-    )
-    params.hideDao = { $ne: true }
+    { networks, pluginAddress }: { networks: NetworksEnum[]; pluginAddress: HexAddress },
+    paginationParams: IPaginationParams,
+  ): Promise<IPaginatedResult<IDaoResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const filter = ModelUtils.createFilter(paginationParams, [
+      'permalink',
+      'address',
+      'implementationAddress',
+      'creatorAddress',
+      'ens',
+      'name',
+      'transactionHash',
+    ])
+
+    filter.hideDao = { $ne: true }
 
     if (pluginAddress) {
-      params['plugins.address'] = pluginAddress
+      filter['plugins.address'] = pluginAddress
     }
 
     if (networks?.length > 0) {
-      params.network = { $in: networks }
+      filter.network = { $in: networks }
     }
 
-    const request = Object.assign({}, ModelUtils.requestPaginate(opts))
     const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
 
-    const [data, totRecords] = await Promise.all([this.find(params, null, request), this.countDocuments(params)])
+    const totalPages = Math.ceil(totalRecords / request.limit)
 
-    const totPages = Math.ceil(totRecords / request.limit)
-
-    if (currentPage > totPages) {
-      return {
-        metadata: {
-          totRecords: 0,
-          currentPage: 1,
-          totPages: 1,
-          limit: request.limit,
-          skip: request.skip,
-          order: opts.order,
-          orderProp: opts.orderProp,
-        },
-        data: [],
-      }
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse()
     }
 
     return {
       metadata: {
         currentPage,
-        totPages,
-        totRecords,
-        limit: request.limit,
-        skip: request.skip,
-        order: opts.order,
-        orderProp: opts.orderProp,
+        totalPages,
+        totalRecords,
       },
-      data,
+      data: data as any,
     }
   }
 

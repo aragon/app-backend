@@ -76,100 +76,105 @@ export default class Asset extends Model {
     return await this.findOne({ tokenAddress, daoAddress, network })
   }
 
-  static async findWithPagination({ daoAddress }, opts: IPaginationParams = {}): Promise<IPaginatedResult<any>> {
-    const request = Object.assign({}, ModelUtils.requestPaginate(opts, { orderProp: opts.orderProp }))
-
-    const matchStage: any = {}
+  static async findWithPagination(
+    { daoAddress },
+    paginationParams: IPaginationParams = {},
+  ): Promise<IPaginatedResult<any>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const filter = ModelUtils.createFilter(paginationParams, ['tokenAddress'])
 
     if (daoAddress) {
-      matchStage.daoAddress = daoAddress
+      filter.daoAddress = daoAddress
     }
 
-    const totalCount = await this.countDocuments(matchStage)
-    const totalPages = Math.ceil(totalCount / request.limit)
-
-    const result = await this.aggregate([
-      { $match: matchStage },
-      {
-        $lookup: {
-          from: 'token',
-          localField: 'tokenAddress',
-          foreignField: 'address',
-          as: 'tokenDetails',
-        },
-      },
-      {
-        $unwind: {
-          path: '$tokenDetails',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          entityId: '$entityId',
-          network: 1,
-          daoAddress: 1,
-          tokenAddress: 1,
-          amount: 1,
-          token: {
-            address: '$tokenDetails.address',
-            symbol: '$tokenDetails.symbol',
-            name: '$tokenDetails.name',
-            type: '$tokenDetails.type',
-            logo: '$tokenDetails.logo',
-            decimals: '$tokenDetails.decimals',
-            priceChangeOnDayUsd: '$tokenDetails.priceChangeOnDayUsd',
-            priceUsd: '$tokenDetails.priceUsd',
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate([
+        { $match: filter },
+        {
+          $lookup: {
+            from: 'token',
+            localField: 'tokenAddress',
+            foreignField: 'address',
+            as: 'tokenDetails',
           },
         },
-      },
-      {
-        $addFields: {
-          amountUsd: {
-            $cond: {
-              if: {
-                $and: ['$token.priceUsd', { $gt: ['$token.decimals', null] }],
-              },
-              then: {
-                $multiply: [
-                  {
-                    $divide: [{ $toDecimal: '$amount' }, { $pow: [10, { $toDecimal: '$token.decimals' }] }],
-                  },
-                  { $toDecimal: '$token.priceUsd' },
-                ],
-              },
-              else: 0,
+        {
+          $unwind: {
+            path: '$tokenDetails',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            entityId: '$entityId',
+            network: 1,
+            daoAddress: 1,
+            tokenAddress: 1,
+            amount: 1,
+            token: {
+              address: '$tokenDetails.address',
+              symbol: '$tokenDetails.symbol',
+              name: '$tokenDetails.name',
+              type: '$tokenDetails.type',
+              logo: '$tokenDetails.logo',
+              decimals: '$tokenDetails.decimals',
+              priceChangeOnDayUsd: '$tokenDetails.priceChangeOnDayUsd',
+              priceUsd: '$tokenDetails.priceUsd',
             },
           },
         },
-      },
-      { $sort: request.sort },
-      { $skip: request.skip },
-      { $limit: request.limit },
-      {
-        $project: {
-          network: 1,
-          daoAddress: 1,
-          tokenAddress: 1,
-          amount: 1,
-          token: 1,
-          amountUsd: { $toString: '$amountUsd' },
+        {
+          $addFields: {
+            amountUsd: {
+              $cond: {
+                if: {
+                  $and: ['$token.priceUsd', { $gt: ['$token.decimals', null] }],
+                },
+                then: {
+                  $multiply: [
+                    {
+                      $divide: [{ $toDecimal: '$amount' }, { $pow: [10, { $toDecimal: '$token.decimals' }] }],
+                    },
+                    { $toDecimal: '$token.priceUsd' },
+                  ],
+                },
+                else: 0,
+              },
+            },
+          },
         },
-      },
+        { $sort: request.sort },
+        { $skip: request.skip },
+        { $limit: request.limit },
+        {
+          $project: {
+            network: 1,
+            daoAddress: 1,
+            tokenAddress: 1,
+            amount: 1,
+            token: 1,
+            amountUsd: { $toString: '$amountUsd' },
+          },
+        },
+      ]),
+      this.countDocuments(filter),
     ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse()
+    }
 
     return {
       metadata: {
-        limit: request.limit,
-        skip: request.skip,
-        order: opts.order,
-        orderProp: opts.orderProp,
-        currentPage: request.skip / request.limit + 1,
-        totPages: totalPages,
-        totRecords: totalCount,
+        currentPage,
+        totalPages,
+        totalRecords,
       },
-      data: result,
+      data,
     }
   }
 

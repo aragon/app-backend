@@ -1,36 +1,24 @@
 import Router, { type RouterContext } from '@koa/router'
 import DaoController from '@services/aragon-api/controllers/dao'
 import ValidationSchema from '@helpers/validationSchema'
+import ModelUtils from '@models/utils/models'
 import DaoSchema from '@services/aragon-api/routers/schema/dao'
 import { type HexAddress } from '@types'
 
 const DaoRouter = {
   getWithPagination: async function (ctx: RouterContext) {
-    const filterParams: any = {
-      search: ctx.query.search,
-      limit: Number(ctx.query.limit || 10),
-      skip: Number(ctx.query.skip || 0),
-      order: ctx.query.order || 'desc',
-      orderProp: ctx.query.orderProp || 'blockNumber',
-      fromDate: ctx.query.fromDate,
-      toDate: ctx.query.toDate,
-    }
-
-    const params = {
-      network: ctx.query.network,
+    const paginationParams = ModelUtils.parsePaginationParams(ctx)
+    const filterParams = {
       pluginAddress: ctx.query.pluginAddress,
+      network: ctx.query.network,
     }
 
     await ValidationSchema.validateParams(DaoSchema.getWithPagination, {
+      ...paginationParams,
       ...filterParams,
-      ...params,
     })
 
-    ctx.body = await DaoController.getDaosWithPagination({
-      network: params.network,
-      pluginAddress: params.pluginAddress,
-      opts: filterParams,
-    })
+    ctx.body = await DaoController.getDaosWithPagination(paginationParams, filterParams)
   },
 
   getDaoByPermalink: async function (ctx: RouterContext) {
@@ -58,87 +46,58 @@ const DaoRouter = {
   },
 
   getDaoMembersWithPagination: async function (ctx: RouterContext) {
-    const filterParams: any = {
-      limit: Number(ctx.query.limit || 10),
-      skip: Number(ctx.query.skip || 0),
-      order: ctx.query.order || 'desc',
-      orderProp: ctx.query.orderProp || 'fromBlockNumber',
-    }
-
-    const params = {
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'fromBlockNumber' })
+    const filterParams = {
       permalink: ctx.params.permalink,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
     }
 
-    await ValidationSchema.validateParams(DaoSchema.getDaoMembersWithPagination, { ...filterParams, ...params })
-
-    ctx.body = await DaoController.getDaoMembersWithPagination({
-      permalink: params.permalink,
-      pluginAddress: params.pluginAddress,
-      opts: filterParams,
+    await ValidationSchema.validateParams(DaoSchema.getDaoMembersWithPagination, {
+      ...paginationParams,
+      ...filterParams,
     })
+
+    ctx.body = await DaoController.getDaoMembersWithPagination(paginationParams, filterParams)
   },
 
   getProposalsWithPagination: async function (ctx: RouterContext) {
-    const filterParams: any = {
-      limit: Number(ctx.query.limit || 10),
-      skip: Number(ctx.query.skip || 0),
-      order: ctx.query.order || 'desc',
-      orderProp: ctx.query.orderProp || 'proposalId',
-    }
-
-    const params = {
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'proposalId' })
+    const filterParams = {
       permalink: ctx.params.permalink,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
     }
 
-    await ValidationSchema.validateParams(DaoSchema.getProposalsWithPagination, { ...filterParams, ...params })
-
-    ctx.body = await DaoController.getDaoProposalsWithPagination({
-      permalink: params.permalink,
-      pluginAddress: params.pluginAddress,
-      opts: filterParams,
+    await ValidationSchema.validateParams(DaoSchema.getProposalsWithPagination, {
+      ...paginationParams,
+      ...filterParams,
     })
+
+    ctx.body = await DaoController.getDaoProposalsWithPagination(paginationParams, filterParams)
   },
 
   getAssetsWithPagination: async function (ctx: RouterContext) {
-    const filterParams: any = {
-      limit: Number(ctx.query.limit || 10),
-      skip: Number(ctx.query.skip || 0),
-      order: ctx.query.order || 'desc',
-      orderProp: ctx.query.orderProp || 'amountUsd',
-    }
-
-    const params = {
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'amountUsd' })
+    const filterParams = {
       permalink: ctx.params.permalink,
     }
 
-    await ValidationSchema.validateParams(DaoSchema.getAssetsWithPagination, { ...filterParams, ...params })
+    await ValidationSchema.validateParams(DaoSchema.getAssetsWithPagination, { ...paginationParams, ...filterParams })
 
-    ctx.body = await DaoController.getDaoAssetsWithPagination({
-      permalink: params.permalink,
-      opts: filterParams,
-    })
+    ctx.body = await DaoController.getDaoAssetsWithPagination(paginationParams, filterParams)
   },
 
   getTransactionsWithPagination: async function (ctx: RouterContext) {
-    const filterParams: any = {
-      limit: Number(ctx.query.limit || 10),
-      skip: Number(ctx.query.skip || 0),
-      order: ctx.query.order || 'desc',
-      orderProp: ctx.query.orderProp || 'blockNumber',
-    }
-
-    const params = {
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockNumber' })
+    const filterParams = {
       permalink: ctx.params.permalink,
     }
 
-    await ValidationSchema.validateParams(DaoSchema.getTransactionsWithPagination, { ...filterParams, ...params })
-
-    ctx.body = await DaoController.getDaoTransactionsWithPagination({
-      permalink: params.permalink,
-      opts: filterParams,
+    await ValidationSchema.validateParams(DaoSchema.getTransactionsWithPagination, {
+      ...paginationParams,
+      ...filterParams,
     })
+
+    ctx.body = await DaoController.getDaoTransactionsWithPagination(paginationParams, filterParams)
   },
 
   router() {

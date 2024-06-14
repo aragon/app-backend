@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import CovalentHelper from '@helpers/covalent'
 import logger from '@logger'
 import config from '@config'
-import { IToken, NetworksEnum } from '@types'
+import { IToken, ITokenType, NetworksEnum } from '@types'
 import { TokenList } from '@test/mock/fakeCovalentTokens'
 
 describe('Helpers: Covalent', () => {
@@ -221,6 +221,32 @@ describe('Helpers: Covalent', () => {
       const covalentNetwork = 'invalid-network'
       const result = CovalentHelper.networkFromCovalent(covalentNetwork)
       expect(result).to.be.undefined
+    })
+  })
+
+  describe('getTokenType', () => {
+    it('should return ITokenType.native if no ERC support is indicated', () => {
+      const token = { supports_erc: {} }
+      const result = CovalentHelper.getTokenType(token as any)
+      expect(result).to.equal(ITokenType.native)
+    })
+
+    it('should return ITokenType.ERC20 if token supports ERC20', () => {
+      const token = { supports_erc: { erc20: true } }
+      const result = CovalentHelper.getTokenType(token as any)
+      expect(result).to.equal(ITokenType.ERC20)
+    })
+
+    it('should return ITokenType.ERC721 if token supports ERC721 and not ERC20', () => {
+      const token = { supports_erc: { erc721: true } }
+      const result = CovalentHelper.getTokenType(token as any)
+      expect(result).to.equal(ITokenType.ERC721)
+    })
+
+    it('should prioritize ITokenType.ERC20 over ITokenType.ERC721 if both are supported', () => {
+      const token = { supports_erc: { erc20: true, erc721: true } }
+      const result = CovalentHelper.getTokenType(token as any)
+      expect(result).to.equal(ITokenType.ERC20)
     })
   })
 })

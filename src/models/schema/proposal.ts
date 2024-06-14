@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type IPaginatedResult, type IPaginationParams, NetworksEnum } from '@types'
+import { HexAddress, type IPaginatedResult, type IPaginationParams, type IProposalResponse, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -163,54 +163,41 @@ export default class Proposal extends Model {
 
   static async findWithPagination(
     { daoAddress, pluginAddress },
-    opts: IPaginationParams = {},
-  ): Promise<IPaginatedResult<any>> {
-    const params = Object.assign(
-      {},
-      ModelUtils.parseParams(opts, ['title', 'description', 'summary', 'creatorAddress', 'transactionHash']),
-    )
-
-    if (pluginAddress) {
-      params.pluginAddress = pluginAddress
-    }
+    paginationParams: IPaginationParams = {},
+  ): Promise<IPaginatedResult<IProposalResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const filter = ModelUtils.createFilter(paginationParams, [
+      'title',
+      'description',
+      'summary',
+      'creatorAddress',
+      'transactionHash',
+    ])
 
     if (daoAddress) {
-      params.daoAddress = daoAddress
+      filter.daoAddress = daoAddress
     }
 
-    const request = Object.assign({}, ModelUtils.requestPaginate(opts))
-    const currentPage = opts.skip || 1
+    if (pluginAddress) {
+      filter.pluginAddress = pluginAddress
+    }
 
-    const [data, totRecords] = await Promise.all([this.find(params, null, request), this.countDocuments(params)])
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
 
-    const totPages = Math.ceil(totRecords / request.limit)
+    const totalPages = Math.ceil(totalRecords / request.limit)
 
-    if (currentPage > totPages) {
-      return {
-        metadata: {
-          totRecords: 0,
-          currentPage: 1,
-          totPages: 1,
-          limit: request.limit,
-          skip: request.skip,
-          order: opts.order,
-          orderProp: opts.orderProp,
-        },
-        data: [],
-      }
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse()
     }
 
     return {
       metadata: {
         currentPage,
-        totPages,
-        totRecords,
-        limit: request.limit,
-        skip: request.skip,
-        order: opts.order,
-        orderProp: opts.orderProp,
+        totalPages,
+        totalRecords,
       },
-      data,
+      data: data as any,
     }
   }
 

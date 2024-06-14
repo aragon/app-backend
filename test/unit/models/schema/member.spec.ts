@@ -6,6 +6,7 @@ import Member from '@models/schema/member'
 import { afterEach, beforeEach } from 'mocha'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
+import ModelUtils from '@models/utils/models'
 
 describe('Model: Member', () => {
   let sandbox: SinonSandbox
@@ -104,37 +105,51 @@ describe('Model: Member', () => {
     it('should find with pagination', async () => {
       const {
         data,
-        metadata: { totRecords, currentPage, totPages },
+        metadata: { totalRecords, currentPage, totalPages },
       } = await Models.Member.findWithPagination({ daoAddress: null, pluginAddress: null }, {})
 
       expect(data.length).to.eq(3)
-      expect(totRecords).to.eq(3)
+      expect(totalRecords).to.eq(3)
       expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalPages).to.eq(1)
     })
 
     it('should find with pagination with daoAddress', async () => {
       const {
         data,
-        metadata: { totRecords, currentPage, totPages },
+        metadata: { totalRecords, currentPage, totalPages },
       } = await Models.Member.findWithPagination({ daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409' }, {})
 
       expect(data.length).to.eq(3)
-      expect(totRecords).to.eq(3)
+      expect(totalRecords).to.eq(3)
       expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalPages).to.eq(1)
     })
 
     it('should find with pagination with pluginAddress', async () => {
       const {
         data,
-        metadata: { totRecords, currentPage, totPages },
+        metadata: { totalRecords, currentPage, totalPages },
       } = await Models.Member.findWithPagination({ pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409' }, {})
 
       expect(data.length).to.eq(3)
-      expect(totRecords).to.eq(3)
+      expect(totalRecords).to.eq(3)
       expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalPages).to.eq(1)
+    })
+
+    it('should find with pagination empty result', async () => {
+      const spyUtils = sandbox.spy(ModelUtils, 'paginateEmptyResponse')
+      const {
+        data,
+        metadata: { totalRecords, currentPage, totalPages },
+      } = await Models.Member.findWithPagination({ pluginAddress: '0x0000000000000000000000000000000000000000' }, {})
+
+      expect(spyUtils.calledOnce).to.be.true
+      expect(data.length).to.eq(0)
+      expect(totalRecords).to.eq(0)
+      expect(currentPage).to.eq(1)
+      expect(totalPages).to.eq(1)
     })
   })
 })
