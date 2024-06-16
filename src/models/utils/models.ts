@@ -2,6 +2,7 @@ import { type RouterContext } from '@koa/router'
 import { type IPaginatedResult, type IPaginationParams } from '@types'
 import dayjs from '@helpers/dayjs'
 import { prop } from '@typegoose/typegoose'
+import { getAddress } from 'ethers'
 
 export function utcDateProp(options = {}) {
   return prop({
@@ -63,8 +64,15 @@ const ModelUtils = {
   ): IPaginationParams {
     const { defaultOrder = 'desc', defaultSort = 'createdAt' } = defaultParams
 
+    let searchAddress = ctx.query.search as string
+    if (searchAddress?.startsWith('0x')) {
+      try {
+        searchAddress = getAddress(searchAddress)
+      } catch (_) {}
+    }
+
     return {
-      search: ctx.query.search as string,
+      search: searchAddress,
       startDate: ctx.query.startDate as string,
       endDate: ctx.query.endDate as string,
       pageSize: Number(ctx.query.pageSize ?? 10),
