@@ -9,6 +9,7 @@ import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import Utils from '@helpers/utils'
+import {NetworkHelper} from "@helpers/network";
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorAssets' })
 
@@ -22,7 +23,9 @@ export const AggregatorAssets = {
       onError: (error: any) => {
         logger.error('Error AggregatorAssets', llo({ error }))
       },
-      where: {},
+      where: {
+        network: { $in: NetworkHelper.supportedNetworks().map(network => network.networkName) },
+      },
       batchSize: 500,
       concurrency: 1,
     })
@@ -56,7 +59,7 @@ export const AggregatorAssets = {
           }
           await session.commitTransaction()
           await session.endSession()
-          logger.verbose(existingEthAssetDb ? 'Update ETH Asset' : 'New ETH Asset', llo({ logId: logDb?.id }))
+          logger.verbose(existingEthAssetDb ? 'Update ETH Asset' : 'New ETH Asset', llo({ logId: logDb?.id, network: logDb?.network }))
         })
       }
 
