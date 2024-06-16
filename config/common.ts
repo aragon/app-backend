@@ -1,8 +1,3 @@
-import * as arbitrumJson from './contracts/arbitrum.json'
-import * as baseJson from './contracts/base.json'
-import * as mainnetJson from './contracts/mainnet.json'
-import * as polygonJson from './contracts/polygon.json'
-import * as sepoliaJson from './contracts/sepolia.json'
 import utils from '@helpers/utils'
 import { type IConfig, NetworksEnum } from '@types'
 
@@ -99,39 +94,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ),
     },
 
-    SUBGRAPH: {
-      SUBGRAPH_ARBITRUM_URI: utils.configParser(
-        sourceConfig,
-        'string',
-        'SUBGRAPH_ARBITRUM_URI',
-        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-arbitrum/version/v1.4.0/api',
-      ),
-      SUBGRAPH_BASE_URI: utils.configParser(
-        sourceConfig,
-        'string',
-        'SUBGRAPH_BASE_URI',
-        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-baseMainnet/version/v1.4.0/api',
-      ),
-      SUBGRAPH_ETHEREUM_URI: utils.configParser(
-        sourceConfig,
-        'string',
-        'SUBGRAPH_ETHEREUM_URI',
-        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-mainnet/version/v1.4.0/api',
-      ),
-      SUBGRAPH_POLYGON_URI: utils.configParser(
-        sourceConfig,
-        'string',
-        'SUBGRAPH_POLYGON_URI',
-        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-polygon/version/v1.4.0/api',
-      ),
-      SUBGRAPH_SEPOLIA_URI: utils.configParser(
-        sourceConfig,
-        'string',
-        'SUBGRAPH_SEPOLIA_URI',
-        'https://subgraph.satsuma-prod.com/qHR2wGfc5RLi6/aragon/osx-sepolia/version/v1.4.0/api',
-      ),
-    },
-
     IPFS: {
       METADATA_FETCH_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_RETRY', 2),
       METADATA_FETCH_DELAY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_DELAY', 500),
@@ -149,7 +111,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     SERVICES: {
       ARAGON_API: {
         BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
-        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_NAME', 'API'),
+        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_NAME', 'ARAGON-API'),
         PORT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_PORT', 3000),
         TIMEOUT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_TIMEOUT', 30), // seconds
         CORS: utils.configParser(sourceConfig, 'array', 'SERVICES_ARAGON_API_CORS_ORIGIN', []),
@@ -172,8 +134,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           sourceConfig,
           'number',
           'SERVICES_ARAGON_INDEXER_TOKEN_INTERVAL',
-          24 * 60 * 60 * 1000,
-        ), // 24 hours
+          6 * 60 * 60 * 1000,
+        ), // 6 hours
         TOKEN_FETCH_BATCH_SIZE: utils.configParser(
           sourceConfig,
           'number',
@@ -187,17 +149,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           sourceConfig,
           'number',
           'SERVICES_ARAGON_RATES_RATES_INTERVAL',
-          12 * 60 * 60 * 1000,
-        ), // 12 hours
+          6 * 60 * 60 * 1000,
+        ), // 6 hours
       },
-    },
-
-    ARAGON_CONTRACTS: {
-      ARBITRUM: arbitrumJson,
-      BASE: baseJson,
-      MAINNET: mainnetJson,
-      POLYGON: polygonJson,
-      SEPOLIA: sepoliaJson,
     },
   }
 }
