@@ -100,6 +100,25 @@ describe('Router: Dao', () => {
 
       expect(stubCtrl.calledWith(params.permalink)).to.be.true
     })
+
+    it('Should get dao with unformatted address in permalink', async () => {
+      const params = {
+        permalink: 'polygon-0x6aab1ce54b204f96d0c7bc022055b78ade2d71e9',
+      }
+
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoByPermalink').returns(true as any)
+
+      const ctx: any = {
+        params,
+      }
+
+      await DaoRouter.getDaoByPermalink(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+
+      expect(stubCtrl.calledWith('polygon-0x6AaB1cE54B204f96d0c7Bc022055b78adE2D71e9')).to.be.true
+    })
   })
 
   describe('getDaoPlugin', async () => {
@@ -113,6 +132,23 @@ describe('Router: Dao', () => {
         params,
       }
       await DaoRouter.getDaoPlugin(ctx)
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.calledWith(params)).to.be.true
+    })
+  })
+
+  describe('getDaoPluginSettings', async () => {
+    it('should get dao plugin settings', async () => {
+      const params = {
+        permalink: 'xxx',
+        pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
+      }
+      const stubCtrl = sandbox.stub(DaoController, 'getDaoPluginSettings').returns(true as any)
+      const ctx: any = {
+        params,
+      }
+      await DaoRouter.getDaoPluginSettings(ctx)
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
       expect(stubCtrl.calledWith(params)).to.be.true

@@ -40,7 +40,7 @@ class HistorySetting {
   public fromBlockNumber!: number
 
   @prop({ type: () => Number })
-  public toBlockNumber!: number
+  public toBlockNumber?: number
 
   @prop({ type: () => Settings })
   public settings?: Settings
@@ -95,6 +95,41 @@ export default class Setting extends Model {
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ entityId }, tOpts)
+  }
+
+  static async getSettingByPluginAddress(pluginAddress: HexAddress) {
+    const result = await this.aggregate([
+      {
+        $match: {
+          pluginAddress,
+          'history.toBlockNumber': null,
+        },
+      },
+      {
+        $unwind: '$history',
+      },
+      {
+        $match: {
+          'history.toBlockNumber': null,
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          transactionHash: '$history.fromTxHash',
+          blockNumber: '$history.fromBlockNumber',
+          settings: {
+            $setField: {
+              input: '$history.settings',
+              field: '_id',
+              value: '$$REMOVE',
+            },
+          },
+        },
+      },
+    ])
+
+    return result?.length > 0 ? result[0] : undefined
   }
 
   async update(params: Partial<Setting>, tOpts?: SaveOptions) {
