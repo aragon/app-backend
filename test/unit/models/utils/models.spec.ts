@@ -3,6 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ModelUtils, { utcDateProp } from '@models/utils/models'
 import dayjs from '@helpers/dayjs'
+import { getAddress } from 'ethers'
 import { getModelForClass } from '@typegoose/typegoose'
 
 describe('Model/Utils: models', () => {
@@ -74,6 +75,29 @@ describe('Model/Utils: models', () => {
         order: 'desc',
         sort: 'createdAt',
       })
+    })
+
+    it('should return a checksummed Ethereum address if a valid lowercase address is provided', () => {
+      const validLowercaseAddress = '0x837f0dcf97125bc9586af49bb4a727e009d0f5f3'
+      const ctx = {
+        query: {
+          search: validLowercaseAddress,
+        },
+      }
+      const result = ModelUtils.parsePaginationParams(ctx as any)
+      const checksumAddress = getAddress(validLowercaseAddress)
+      expect(result.search).to.equal(checksumAddress)
+    })
+
+    it('should retain the original search value if Ethereum address parsing fails', () => {
+      const invalidAddress = '0x123'
+      const ctx = {
+        query: {
+          search: invalidAddress,
+        },
+      }
+      const result = ModelUtils.parsePaginationParams(ctx as any)
+      expect(result.search).to.equal(invalidAddress)
     })
   })
 
