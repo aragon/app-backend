@@ -9,7 +9,7 @@ import Logger from '@logger'
 import logger from '@logger'
 import proxyquire from 'proxyquire'
 
-describe.only('Helpers:Web3', () => {
+describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
