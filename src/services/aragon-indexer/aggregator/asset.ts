@@ -9,7 +9,7 @@ import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import Utils from '@helpers/utils'
-import {NetworkHelper} from "@helpers/network";
+import { NetworkHelper } from '@helpers/network'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorAssets' })
 
@@ -59,7 +59,10 @@ export const AggregatorAssets = {
           }
           await session.commitTransaction()
           await session.endSession()
-          logger.verbose(existingEthAssetDb ? 'Update ETH Asset' : 'New ETH Asset', llo({ logId: logDb?.id, network: logDb?.network }))
+          logger.verbose(
+            existingEthAssetDb ? 'Update ETH Asset' : 'New ETH Asset',
+            llo({ logId: logDb?.id, network: logDb?.network }),
+          )
         })
       }
 
