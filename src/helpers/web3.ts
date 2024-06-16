@@ -147,11 +147,11 @@ const Web3Helper = {
 
   formatAddress(address: HexAddress) {
     try {
-      const trimmedAddress = address.replace(/^0x0+/, '0x')
-      return getAddress(trimmedAddress)
+      const abi = AbiCoder.defaultAbiCoder().decode(['address'], address)
+      return abi[0]
     } catch (error) {
       logger.warn('Error formatAddress', llo({ address, error }))
-      return address.replace(/^0x0+/, '0x')
+      return address
     }
   },
 

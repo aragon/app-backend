@@ -71,6 +71,10 @@ export interface IConfig {
   }
   SUPPORTED_NETWORKS: INetworks[]
   DEFAULT_CURRENCY: string
+  NODE_CONFIG: {
+    MAX_RECONNECT_ATTEMPTS: number
+    RECONNECT_INTERVAL: number
+  }
   BOTTLENECK: {
     NODE_MAX_CONCURRENT: number
     NODE_MIN_TIME: number
