@@ -170,6 +170,23 @@ describe('Module: provider', () => {
 
       config.NODE_CONFIG.RECONNECT_INTERVAL = oldConfig
     })
+
+    it('Should fail reconnectToNetwork', async () => {
+      const oldConfig = config.NODE_CONFIG.RECONNECT_INTERVAL
+      config.NODE_CONFIG.RECONNECT_INTERVAL = 0
+      sandbox.stub(WebSocketProvider.prototype, 'on').callsFake((event: any, callback: any): any => {
+        if (event === 'connect') callback()
+      })
+
+      const mockUrl = 'wss://ethereum-rpc.publicnode.com'
+      const stubLogger = sandbox.stub(Logger, 'error')
+
+      await Provider.reconnectToNetwork(NetworksEnum.mainnet, mockUrl, 10)
+
+      expect(stubLogger.calledOnce).to.be.true
+
+      config.NODE_CONFIG.RECONNECT_INTERVAL = oldConfig
+    })
   })
 
   describe('closeAllNetworks', () => {
