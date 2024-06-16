@@ -47,6 +47,11 @@ const ProviderModule = {
           resolve(provider)
         })
 
+        provider.websocket.on('close', () => {
+          logger.error(`WebSocket connection closed unexpectedly for ${network}. Attempting to reconnect...`)
+          ProviderModule.reconnectToNetwork(network, nodeUrl)
+        })
+
         provider.websocket.on('error', (error: any) => {
           logger.error(
             'WebSocket error',
@@ -62,6 +67,23 @@ const ProviderModule = {
         reject(error)
       }
     })
+  },
+
+  async reconnectToNetwork(network: NetworksEnum, nodeUrl: string, attempt = 0) {
+    if (attempt >= config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS) {
+      logger.error(`Max reconnect attempts reached for ${network}`)
+      return
+    }
+    const delay = config.NODE_CONFIG.RECONNECT_INTERVAL * Math.pow(2, attempt)
+    setTimeout(async () => {
+      try {
+        logger.info(`Reconnecting to ${network}... Attempt ${attempt + 1}`)
+        await ProviderModule.connectToNetwork(network, nodeUrl)
+      } catch (error) {
+        logger.error(`Reconnection attempt ${attempt + 1} failed for ${network}`, llo({ error }))
+        ProviderModule.reconnectToNetwork(network, nodeUrl, attempt + 1)
+      }
+    }, delay)
   },
 
   async closeAllNetworks() {

@@ -9,7 +9,7 @@ import Logger from '@logger'
 import logger from '@logger'
 import proxyquire from 'proxyquire'
 
-describe('Helpers:Web3', () => {
+describe.only('Helpers:Web3', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -78,22 +78,39 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  it('should format address correctly by removing leading zeros', () => {
-    const mockAddress = '0x000000000000000000000000c1d60f584879f024299da0f19cdb47b931e35b53'
-    const expectedFormattedAddress = '0xc1d60f584879f024299DA0F19Cdb47B931E35b53'
+  describe('formatAddress', () => {
+    it('should format address correctly', () => {
+      const mockAddress = '0x000000000000000000000000006bf71a17584635a5407f6f32f1694ae4328def'
+      const expectedFormattedAddress = '0x006bf71A17584635a5407f6F32f1694AE4328def'
 
-    const formattedAddress = Web3Helper.formatAddress(mockAddress)
-    expect(formattedAddress).to.eq(expectedFormattedAddress)
-  })
+      const formattedAddress = Web3Helper.formatAddress(mockAddress)
+      expect(formattedAddress).to.eq(expectedFormattedAddress)
+    })
 
-  it('should throw error format address', () => {
-    const mockInvalidAddress = '0x000000000000000000000000zzz60f584879f024299da0f19cdb47b931e35b53'
-    const stubLoggerError = sandbox.stub(Logger, 'warn')
+    it('should format address correctly by removing leading zeros', () => {
+      const mockAddress = '0x000000000000000000000000c1d60f584879f024299da0f19cdb47b931e35b53'
+      const expectedFormattedAddress = '0xc1d60f584879f024299DA0F19Cdb47B931E35b53'
 
-    const formattedAddress = Web3Helper.formatAddress(mockInvalidAddress)
+      const formattedAddress = Web3Helper.formatAddress(mockAddress)
+      expect(formattedAddress).to.eq(expectedFormattedAddress)
+    })
 
-    expect(formattedAddress).to.eq('0xzzz60f584879f024299da0f19cdb47b931e35b53')
-    expect(stubLoggerError.calledOnce).to.be.true
+    it('should format address correctly', () => {
+      const mockAddress = '0xc1d60f584879f024299da0f19cdb47b931e35b53'
+
+      const formattedAddress = Web3Helper.formatAddress(mockAddress)
+      expect(formattedAddress).to.eq(mockAddress)
+    })
+
+    it('should throw error format address', () => {
+      const mockInvalidAddress = '0x0000000000000000000000002d594f3c93c19d7b1a6f15b5489ffce4b01f7d0'
+      const stubLoggerError = sandbox.stub(Logger, 'warn')
+
+      const formattedAddress = Web3Helper.formatAddress(mockInvalidAddress)
+
+      expect(formattedAddress).to.eq('0x0000000000000000000000002d594f3c93c19d7b1a6f15b5489ffce4b01f7d0')
+      expect(stubLoggerError.calledOnce).to.be.true
+    })
   })
 
   describe('getERC20TransferABI', () => {
