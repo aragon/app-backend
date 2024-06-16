@@ -8,6 +8,7 @@ import {
   type IPluginResponse,
   type IPluginSubdomain,
   type IProposalResponse,
+  type ISettingResponse,
   type ITransactionResponse,
 } from '@types'
 import type Dao from '@models/schema/dao'
@@ -46,6 +47,18 @@ const DaoController = {
     const plugin = await Models.Plugin.findByAddress(pluginAddress)
 
     return plugin.filterKeys()
+  },
+
+  getDaoPluginSettings: async ({ permalink, pluginAddress }): Promise<ISettingResponse> => {
+    const dao = await Models.Dao.findByPermalink(permalink)
+    assertExposable(dao, ErrorKeyEnum.notFound)
+
+    const multiSigPlugin = dao.plugins.find(
+      (w: { subdomain: IPluginSubdomain; address: string }) => w.address === pluginAddress,
+    )
+    assertExposable(multiSigPlugin, ErrorKeyEnum.pluginNotFound)
+
+    return await Models.Setting.getSettingByPluginAddress(pluginAddress)
   },
 
   getDaoMembersWithPagination: async (

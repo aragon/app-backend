@@ -71,6 +71,20 @@ export interface IPluginResponse {
   subdomain: string
 }
 
+export interface ISettingResponse {
+  transactionHash: string
+  blockNumber: string
+  settings: {
+    minApprovals?: number
+    onlyListed?: boolean
+    votingMode?: number
+    supportThreshold?: number
+    minParticipation?: number
+    minDuration?: number
+    minProposerVotingPower?: string
+  }
+}
+
 export interface IProposalResponse {
   entityId: string
   transactionHash: string

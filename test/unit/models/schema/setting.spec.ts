@@ -11,7 +11,6 @@ describe('Model: Setting', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-
     rawSetting = {
       pluginAddress: '0x1C9776b903DbA78C597C0512c6291F618d20427f',
       network: NetworksEnum.mainnet,
@@ -102,6 +101,36 @@ describe('Model: Setting', () => {
     const createdLogPluginSetupProcessor = await Models.Setting.create(rawSetting)
     const foundLogPluginSetupProcessor = await Models.Setting.findByEntityId(createdLogPluginSetupProcessor.entityId)
     expect(foundLogPluginSetupProcessor?.entityId).to.eq(createdLogPluginSetupProcessor.entityId)
+  })
+
+  it('Should getSettingByPluginAddress', async () => {
+    rawSetting = {
+      pluginAddress: '0x1C9776b903DbA78C597C0512c6291F618d20427f',
+      network: NetworksEnum.mainnet,
+      history: [
+        {
+          fromBlockNumber: 41326113,
+          fromTxHash: '0x2f0dd7d3799da5079efbf5623c062c846d3289ccc6011194f4c83c6b9a6535eb',
+          toTxHash: '0x2f0dd7d3799da5079efbf5623c062c846d3289ccc6011194f4c83c6b9a653500',
+          settings: {
+            votingMode: 1,
+            supportThreshold: 670000,
+            minParticipation: 50000,
+            minDuration: 86400,
+            minProposerVotingPower: '1e+23',
+
+            minApprovals: 1,
+            onlyListed: true,
+          },
+        },
+      ],
+    }
+
+    const createdLogPluginSetupProcessor = await Models.Setting.create(rawSetting)
+    const foundLogPluginSetupProcessor = await Models.Setting.getSettingByPluginAddress(
+      createdLogPluginSetupProcessor.pluginAddress,
+    )
+    expect(foundLogPluginSetupProcessor?.transactionHash).to.eq(createdLogPluginSetupProcessor.history[0].fromTxHash)
   })
 
   it('Should reload', async () => {

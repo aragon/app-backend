@@ -343,4 +343,48 @@ describe('Controller: Dao', () => {
       )
     })
   })
+
+  describe('getDaoPluginSettings', () => {
+    it('should get dao plugin setting', async () => {
+      const daoDb = await Models.Dao.create(DaoList[0])
+
+      const rawSetting = {
+        network: NetworksEnum.mainnet,
+        pluginAddress: DaoList[0].plugins[0].address,
+        history: [
+          {
+            fromTxHash: '0xbc7bd245fc5775d05d546d69136879bff2d5b9c43e969e644536e895a31e635d',
+            toTxHash: null,
+            fromBlockNumber: 18939029,
+            toBlockNumber: null,
+            settings: {
+              minApprovals: 1,
+              onlyListed: true,
+              votingMode: 1,
+              supportThreshold: 500000,
+              minParticipation: 170000,
+              minDuration: 172800,
+              minProposerVotingPower: '1.4844e+23',
+            },
+          },
+        ],
+      }
+      await Models.Setting.create(rawSetting)
+
+      const setting = await DaoController.getDaoPluginSettings({
+        permalink: daoDb.permalink,
+        pluginAddress: rawSetting.pluginAddress,
+      })
+
+      expect(setting.blockNumber).to.eq(rawSetting.history[0].fromBlockNumber)
+      expect(setting.transactionHash).to.eq(rawSetting.history[0].fromTxHash)
+      expect(setting.settings.minApprovals).to.eq(rawSetting.history[0].settings.minApprovals)
+      expect(setting.settings.onlyListed).to.eq(rawSetting.history[0].settings.onlyListed)
+      expect(setting.settings.votingMode).to.eq(rawSetting.history[0].settings.votingMode)
+      expect(setting.settings.supportThreshold).to.eq(rawSetting.history[0].settings.supportThreshold)
+      expect(setting.settings.minParticipation).to.eq(rawSetting.history[0].settings.minParticipation)
+      expect(setting.settings.minDuration).to.eq(rawSetting.history[0].settings.minDuration)
+      expect(setting.settings.minProposerVotingPower).to.eq(rawSetting.history[0].settings.minProposerVotingPower)
+    })
+  })
 })
