@@ -7,6 +7,7 @@ import { WebSocketProvider } from 'ethers'
 import Logger from '@logger'
 import config from '@config'
 import logger from '@logger'
+import utils from '@helpers/utils'
 
 describe('Module: provider', () => {
   let sandbox: SinonSandbox
@@ -74,6 +75,27 @@ describe('Module: provider', () => {
         expect(stubConfig.notCalled).to.be.true
       }
     })
+
+    it('Should trigger reconnect on WebSocket close', async () => {
+      const mockUrl = 'wss://ethereum-rpc.publicnode.com'
+      const network = NetworksEnum.mainnet
+
+      // Stub the WebSocketProvider and simulate 'close' event
+      const provider = new WebSocketProvider(mockUrl)
+      sandbox.stub(WebSocketProvider.prototype, 'websocket').value({
+        on: (event: any, callback: any) => {
+          if (event === 'close') setTimeout(callback, 10) // Simulate close event
+          if (event === 'open') callback() // Simulate open event
+        },
+      })
+
+      const reconnectStub = sandbox.stub(Provider, 'reconnectToNetwork')
+
+      await Provider.connectToNetwork(network, mockUrl)
+      await new Promise(resolve => setTimeout(resolve, 50)) // Wait for the close event to be handled
+
+      expect(reconnectStub.calledOnceWith(network, mockUrl)).to.be.true
+    })
   })
 
   describe('connectToNetwork', async () => {
@@ -95,6 +117,56 @@ describe('Module: provider', () => {
 
       expect(stubConneect.callCount).to.eq(0)
       expect(stubLoggerError.callCount).to.eq(5)
+    })
+  })
+
+  describe('reconnectToNetwork', () => {
+    it('Should reconnectToNetwork first time', async () => {
+      const oldConfig = config.NODE_CONFIG.RECONNECT_INTERVAL
+      config.NODE_CONFIG.RECONNECT_INTERVAL = 10
+      sandbox.stub(WebSocketProvider.prototype, 'on').callsFake((event: any, callback: any): any => {
+        if (event === 'connect') callback()
+      })
+
+      const mockUrl = 'wss://ethereum-rpc.publicnode.com'
+      const stubLoggerInfo = sandbox.stub(Logger, 'info')
+      const stubConnect = sandbox.stub(Provider, 'connectToNetwork').resolves().resolves()
+
+      await Provider.reconnectToNetwork(NetworksEnum.mainnet, mockUrl)
+      await utils.wait(20)
+      expect(stubLoggerInfo.calledOnce).to.be.true
+      expect(stubConnect.calledOnce).to.be.true
+      expect(stubConnect.calledWith(NetworksEnum.mainnet, mockUrl)).to.be.true
+
+      config.NODE_CONFIG.RECONNECT_INTERVAL = oldConfig
+    })
+
+    it('Should reconnectToNetwork second time', async () => {
+      const oldConfig = config.NODE_CONFIG.RECONNECT_INTERVAL
+      config.NODE_CONFIG.RECONNECT_INTERVAL = 10
+      sandbox.stub(WebSocketProvider.prototype, 'on').callsFake((event: any, callback: any): any => {
+        if (event === 'connect') callback()
+      })
+
+      const mockUrl = 'wss://ethereum-rpc.publicnode.com'
+      const stubLoggerError = sandbox.stub(Logger, 'error')
+      const stubLoggerInfo = sandbox.stub(Logger, 'info')
+      const stubConnect = sandbox
+        .stub(Provider, 'connectToNetwork')
+        .resolves()
+        .onFirstCall()
+        .rejects(new Error('Error'))
+        .onSecondCall()
+        .resolves()
+
+      await Provider.reconnectToNetwork(NetworksEnum.mainnet, mockUrl)
+      await utils.wait(100)
+      expect(stubLoggerInfo.calledTwice).to.be.true
+      expect(stubConnect.calledTwice).to.be.true
+      expect(stubConnect.calledWith(NetworksEnum.mainnet, mockUrl)).to.be.true
+      expect(stubLoggerError.calledOnce).to.be.true
+
+      config.NODE_CONFIG.RECONNECT_INTERVAL = oldConfig
     })
   })
 
