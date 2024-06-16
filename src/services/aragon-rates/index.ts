@@ -8,7 +8,7 @@ import { DaoTvl } from '@services/aragon-rates/daoTvl'
 const llo = logger.logMeta.bind(null, { service: 'service:RatesService' })
 
 const RatesService: IService = {
-  NEED_CONNECTIONS: [EnumConnection.MONGODB],
+  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async function () {
     logger.info('RatesService service sync start', llo({}))
