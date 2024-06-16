@@ -26,9 +26,9 @@ const DaoRouter = {
       permalink: ctx.params.permalink,
     }
 
-    await ValidationSchema.validateParams(DaoSchema.getDaoByPermalink, params)
+    const formattedValues = await ValidationSchema.validateParams(DaoSchema.getDaoByPermalink, params)
 
-    ctx.body = await DaoController.getDaoByPermalink(params.permalink)
+    ctx.body = await DaoController.getDaoByPermalink(formattedValues.permalink)
   },
 
   getDaoPlugin: async function (ctx: RouterContext) {
@@ -40,6 +40,20 @@ const DaoRouter = {
     await ValidationSchema.validateParams(DaoSchema.getDaoPlugin, params)
 
     ctx.body = await DaoController.getDaoPlugin({
+      permalink: params.permalink,
+      pluginAddress: params.pluginAddress,
+    })
+  },
+
+  getDaoPluginSettings: async function (ctx: RouterContext) {
+    const params = {
+      permalink: ctx.params.permalink,
+      pluginAddress: ctx.params.pluginAddress as HexAddress,
+    }
+
+    await ValidationSchema.validateParams(DaoSchema.getDaoPlugin, params)
+
+    ctx.body = await DaoController.getDaoPluginSettings({
       permalink: params.permalink,
       pluginAddress: params.pluginAddress,
     })
@@ -173,6 +187,16 @@ const DaoRouter = {
      * @apiSampleRequest /:permalink/plugins/:pluginAddress
      */
     router.get('/:permalink/plugins/:pluginAddress', DaoRouter.getDaoPlugin)
+
+    /**
+     * @api {get} /:permalink/plugins/:pluginAddress/settings Get dao plugin settings
+     * @apiName Daos
+     * @apiGroup Daos
+     * @apiDescription Get dao plugin settings
+     *
+     * @apiSampleRequest /:permalink/plugins/:pluginAddress/settings
+     */
+    router.get('/:permalink/plugins/:pluginAddress/settings', DaoRouter.getDaoPluginSettings)
 
     return router
   },
