@@ -16,7 +16,8 @@ describe('Module: provider', () => {
     sandbox = sinon.createSandbox()
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    await Provider.closeAllNetworks()
     sandbox?.restore()
   })
 
@@ -39,12 +40,13 @@ describe('Module: provider', () => {
     it('Should fail create connectToNetwork', async () => {
       const mockUrl = 'wss://nonexistent-url.com'
       const stubLoggerError = sandbox.stub(Logger, 'error')
+      const stubReconnect = sandbox.stub(Provider, 'reconnectToNetwork').resolves()
 
       try {
         await Provider.connectToNetwork(NetworksEnum.mainnet, mockUrl)
       } catch (error) {
-        expect(stubLoggerError.calledOnce).to.be.true
-        console.log(stubLoggerError.args)
+        expect(stubLoggerError.calledTwice).to.be.true
+        expect(stubReconnect.calledOnce).to.be.true
         expect(stubLoggerError.calledWith('WebSocket error' as any)).to.be.true
       }
     })
@@ -98,7 +100,7 @@ describe('Module: provider', () => {
     })
   })
 
-  describe('connectToNetwork', async () => {
+  describe('connectToAllNetworks', async () => {
     it('should connectToAllNetworks', async () => {
       const backupConfig = config.BLOCKCHAIN_NODES.MAINNET
       config.BLOCKCHAIN_NODES.MAINNET = 'wss://ethereum-rpc.publicnode.com'

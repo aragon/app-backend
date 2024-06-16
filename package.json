@@ -12,6 +12,7 @@
     "service:aragon-indexer": "ts-node -r tsconfig-paths/register runners/aragon-indexer.ts",
     "service:aragon-rates": "ts-node -r tsconfig-paths/register runners/aragon-rates.ts",
     "service:init-data": "ts-node -r tsconfig-paths/register runners/initialData.ts",
+    "push:check": "yarn lint:fix && yarn format:fix && yarn test:dotonly",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format:check": "prettier --check .",
