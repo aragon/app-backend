@@ -12,48 +12,6 @@ export enum IEnumNodeEnv {
   production = 'production',
 }
 
-interface ContractEventFilter {
-  address: string
-  blockNumber: number
-  deploymentTx: string
-}
-
-interface ContractEvent {
-  AddresslistVotingSetup: ContractEventFilter
-  AddresslistVotingSetupImplementation: ContractEventFilter
-  AdminSetup: ContractEventFilter
-  AdminSetupImplementation: ContractEventFilter
-  DAOBase: ContractEventFilter
-  DAOFactory: ContractEventFilter
-  DAORegistryProxy: ContractEventFilter
-  DAORegistryImplementation: ContractEventFilter
-  DAOENSSubdomainRegistrarProxy: ContractEventFilter
-  DAOENSSubdomainRegistrarImplementation: ContractEventFilter
-  GovernanceERC20: ContractEventFilter
-  GovernanceWrappedERC20: ContractEventFilter
-  MultisigSetup: ContractEventFilter
-  MultisigSetupImplementation: ContractEventFilter
-  PluginRepoBase: ContractEventFilter
-  PluginRepoFactory: ContractEventFilter
-  PluginRepoRegistryProxy: ContractEventFilter
-  PluginRepoRegistryImplementation: ContractEventFilter
-  PluginSetupProcessor: ContractEventFilter
-  PluginENSSubdomainRegistrarProxy: ContractEventFilter
-  PluginENSSubdomainRegistrarImplementation: ContractEventFilter
-  TokenVotingSetup: ContractEventFilter
-  TokenVotingSetupImplementation: ContractEventFilter
-  AddresslistVotingRepoProxy: ContractEventFilter
-  AddresslistVotingRepoImplementation: ContractEventFilter
-  AdminRepoProxy: ContractEventFilter
-  AdminRepoImplementation: ContractEventFilter
-  ManagementDAOProxy: ContractEventFilter
-  ManagementDAOImplementation: ContractEventFilter
-  MultisigRepoProxy: ContractEventFilter
-  MultisigRepoImplementation: ContractEventFilter
-  TokenVotingRepoProxy: ContractEventFilter
-  TokenVotingRepoImplementation: ContractEventFilter
-}
-
 export interface IConfig {
   APP_NAME: string
   ENVIRONMENT: IEnumEnvironment
@@ -121,14 +79,6 @@ export interface IConfig {
     ENS_REGISTRY: string
   }
 
-  SUBGRAPH: {
-    SUBGRAPH_ARBITRUM_URI: string
-    SUBGRAPH_BASE_URI: string
-    SUBGRAPH_ETHEREUM_URI: string
-    SUBGRAPH_POLYGON_URI: string
-    SUBGRAPH_SEPOLIA_URI: string
-  }
-
   IPFS: {
     METADATA_FETCH_RETRY: number
     METADATA_FETCH_DELAY: number
@@ -159,26 +109,6 @@ export interface IConfig {
     }
     ARAGON_RATES: {
       RATES_INTERVAL: number
-    }
-  }
-
-  ARAGON_CONTRACTS: {
-    ARBITRUM: {
-      'v1.3.0': ContractEvent
-    }
-    BASE: {
-      'v1.3.0': ContractEvent
-    }
-    MAINNET: {
-      'v1.0.0': ContractEvent
-      'v1.3.0': ContractEvent
-    }
-    POLYGON: {
-      'v1.0.0': ContractEvent
-      'v1.3.0': ContractEvent
-    }
-    SEPOLIA: {
-      'v1.3.0': ContractEvent
     }
   }
 }
