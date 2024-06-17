@@ -50,8 +50,8 @@ describe('Indexer:Aggregator:Dao', () => {
       const document = { ...DaoList[1] }
 
       const stubLogger = sandbox.stub(Logger, 'verbose')
+      const stubSubdomain = sandbox.stub(Web3Helper, 'subdomainExists').resolves(true)
       const stubBlock = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(100)
-      sandbox.stub(Web3Helper, 'subdomainExists').resolves(true)
 
       await AggregatorDao.onDocument(document as any)
 
@@ -59,6 +59,7 @@ describe('Indexer:Aggregator:Dao', () => {
 
       const dao = await Models.Dao.findExistingLog(document.address, document.network)
 
+      expect(stubSubdomain.calledOnce).to.be.true
       expect(stubBlock.calledOnceWith(document.blockNumber, document.network)).to.be.true
 
       expect(dao.id).to.exist
@@ -102,6 +103,7 @@ describe('Indexer:Aggregator:Dao', () => {
       await Models.Dao.create(document)
 
       const stubLogger = sandbox.stub(Logger, 'verbose')
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(100)
 
       document.implementationAddress = '0x0000'
       await AggregatorDao.onDocument(document as any)
