@@ -44,6 +44,8 @@ export const AggregatorDao = {
         document.blockTimestamp = await Web3Helper.getBlockTimestamp(document.blockNumber, document.network)
         logDb = await Models.Dao.create(document, { session })
       } else {
+        // TODO: remove
+        document.blockTimestamp = await Web3Helper.getBlockTimestamp(document.blockNumber, document.network)
         logDb = await existingLog.update(document, { session })
       }
       await session.commitTransaction()
