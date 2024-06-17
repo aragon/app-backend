@@ -243,7 +243,7 @@ export default class Dao extends Model {
 
   filterKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
+    const filtered = _.omit(obj, 'id', '_id', 'hideDao', '__v', 'createdAt', 'updatedAt')
     filtered.plugins = filtered.plugins.map((plugin: any) => _.omit(plugin, 'id', '_id', '__v'))
     return filtered
   }

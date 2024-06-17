@@ -40,8 +40,11 @@ export const AggregatorDao = {
       const isValid = await Web3Helper.subdomainExists(document.subdomain, document.network)
       document.ens = isValid ? Web3Helper.parseSubdomainToEns(document.subdomain) : null
 
-      if (!existingLog) {
+      if (!document.blockTimestamp || document.blockTimestamp === 0) {
         document.blockTimestamp = await Web3Helper.getBlockTimestamp(document.blockNumber, document.network)
+      }
+
+      if (!existingLog) {
         logDb = await Models.Dao.create(document, { session })
       } else {
         logDb = await existingLog.update(document, { session })
