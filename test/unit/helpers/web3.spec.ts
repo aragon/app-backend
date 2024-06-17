@@ -80,26 +80,32 @@ describe('Helpers:Web3', () => {
 
   describe('formatAddress', () => {
     it('should format address correctly', () => {
+      const stubLoggerError = sandbox.stub(Logger, 'warn')
       const mockAddress = '0x000000000000000000000000006bf71a17584635a5407f6f32f1694ae4328def'
       const expectedFormattedAddress = '0x006bf71A17584635a5407f6F32f1694AE4328def'
 
       const formattedAddress = Web3Helper.formatAddress(mockAddress)
       expect(formattedAddress).to.eq(expectedFormattedAddress)
+      expect(stubLoggerError.notCalled).to.be.true
     })
 
     it('should format address correctly by removing leading zeros', () => {
+      const stubLoggerError = sandbox.stub(Logger, 'warn')
       const mockAddress = '0x000000000000000000000000c1d60f584879f024299da0f19cdb47b931e35b53'
       const expectedFormattedAddress = '0xc1d60f584879f024299DA0F19Cdb47B931E35b53'
 
       const formattedAddress = Web3Helper.formatAddress(mockAddress)
       expect(formattedAddress).to.eq(expectedFormattedAddress)
+      expect(stubLoggerError.notCalled).to.be.true
     })
 
-    it('should format address correctly', () => {
+    it('should format correct address', () => {
+      const stubLoggerError = sandbox.stub(Logger, 'warn')
       const mockAddress = '0xc1d60f584879f024299da0f19cdb47b931e35b53'
 
       const formattedAddress = Web3Helper.formatAddress(mockAddress)
       expect(formattedAddress).to.eq(mockAddress)
+      expect(stubLoggerError.calledOnce).to.be.true
     })
 
     it('should throw error format address', () => {
