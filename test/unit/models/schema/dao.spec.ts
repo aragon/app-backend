@@ -384,6 +384,7 @@ describe('Model: Dao', () => {
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(23)
+    expect(filterDao.hideDao).to.be.undefined
+    expect(Object.keys(filterDao).length).to.eq(22)
   })
 })
