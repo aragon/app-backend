@@ -83,12 +83,12 @@ describe('Controller: Proposal', () => {
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].proposalId).to.eq(rawProposal.network)
+      expect(response.data[0].network).to.eq(rawProposal.network)
       expect(response.data[0].blockNumber).to.eq(rawProposal.blockNumber)
       expect(response.data[0].transactionHash).to.eq(rawProposal.transactionHash)
       expect(response.data[0].daoAddress).to.eq(rawProposal.daoAddress)
       expect(response.data[0].pluginAddress).to.eq(rawProposal.pluginAddress)
-      expect(response.data[0].network).to.eq(rawProposal.proposalId)
+      expect(response.data[0].proposalId).to.eq(rawProposal.proposalId)
       expect(response.data[0].title).to.eq(rawProposal.title)
       expect(response.data[0].executed.status).to.eq(rawProposal.executed?.status)
       expect(response.data[0].executed.transactionHash).to.eq(rawProposal.executed?.transactionHash)
