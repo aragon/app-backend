@@ -71,7 +71,7 @@ describe('Controller: Asset', () => {
       expect(response.data[0].tokenAddress).to.eq(rawAsset.tokenAddress)
       expect(response.data[0].amount).to.eq(rawAsset.amount)
       expect(response.data[0].token).to.exist
-      expect(response.metadata.currentPage).to.eq(1)
+      expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
     })
@@ -118,7 +118,7 @@ describe('Controller: Asset', () => {
       expect(response.data[0].tokenAddress).to.eq(rawAsset.tokenAddress)
       expect(response.data[0].amount).to.eq(rawAsset.amount)
       expect(response.data[0].token).to.exist
-      expect(response.metadata.currentPage).to.eq(1)
+      expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
     })

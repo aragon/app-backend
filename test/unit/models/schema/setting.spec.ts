@@ -137,7 +137,7 @@ describe('Model: Setting', () => {
     it('Should find Pagination', async () => {
       const {
         data,
-        metadata: { totalRecords, currentPage, totalPages },
+        metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Setting.findWithPagination({
         extraParams: {},
         paginationParams: {},
@@ -145,14 +145,15 @@ describe('Model: Setting', () => {
 
       expect(data.length).to.eq(2)
       expect(totalRecords).to.eq(2)
-      expect(currentPage).to.eq(1)
+      expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
     })
 
     it('Should find Pagination with pluginAddress', async () => {
       const {
         data,
-        metadata: { totalRecords, currentPage, totalPages },
+        metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Setting.findWithPagination({
         extraParams: {
           network: NetworksEnum.polygon,
@@ -163,8 +164,9 @@ describe('Model: Setting', () => {
 
       expect(data.length).to.eq(1)
       expect(totalRecords).to.eq(1)
-      expect(currentPage).to.eq(1)
+      expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
     })
 
     it('Should not found documents', async () => {
@@ -180,7 +182,7 @@ describe('Model: Setting', () => {
 
       expect(result.data.length).to.eq(0)
       expect(result.metadata.totalRecords).to.eq(0)
-      expect(result.metadata.currentPage).to.eq(1)
+      expect(result.metadata.page).to.eq(1)
       expect(result.metadata.totalPages).to.eq(1)
     })
   })

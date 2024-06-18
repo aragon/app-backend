@@ -48,7 +48,8 @@ export interface IPaginationParams {
 }
 
 export interface IPaginationMetadata {
-  currentPage: number
+  page: number
+  pageSize: number
   totalPages: number
   totalRecords: number
 }

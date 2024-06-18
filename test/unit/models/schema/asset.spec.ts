@@ -123,33 +123,35 @@ describe('Model: Asset', () => {
     it('should find with pagination', async () => {
       const {
         data,
-        metadata: { totalRecords, currentPage, totalPages },
+        metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Asset.findWithPagination({ daoAddress: null }, {})
       expect(data.length).to.eq(3)
       expect(totalRecords).to.eq(3)
-      expect(currentPage).to.eq(1)
+      expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
     })
 
     it('should find with pagination with daoAddress', async () => {
       const {
         data,
-        metadata: { totalRecords, currentPage, totalPages },
+        metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Asset.findWithPagination({
         extraParams: { daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc3' },
         paginationParams: {},
       })
       expect(data.length).to.eq(2)
       expect(totalRecords).to.eq(2)
-      expect(currentPage).to.eq(1)
+      expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
     })
 
     it('should find with pagination empty result', async () => {
       const spyUtils = sandbox.spy(ModelUtils, 'paginateEmptyResponse')
       const {
         data,
-        metadata: { totalRecords, currentPage, totalPages },
+        metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Asset.findWithPagination({
         extraParams: { daoAddress: '0x0000000000000000000000000000000000000000' },
         paginationParams: {},
@@ -158,8 +160,9 @@ describe('Model: Asset', () => {
       expect(spyUtils.calledOnce).to.be.true
       expect(data.length).to.eq(0)
       expect(totalRecords).to.eq(0)
-      expect(currentPage).to.eq(1)
+      expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
     })
   })
 

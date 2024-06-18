@@ -219,7 +219,7 @@ describe('Model: Dao', () => {
     it('Should find Pagination', async () => {
       const {
         data,
-        metadata: { totalRecords, currentPage, totalPages },
+        metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Dao.findWithPagination({
         extraParams: {},
         paginationParams: {},
@@ -227,14 +227,15 @@ describe('Model: Dao', () => {
 
       expect(data.length).to.eq(3)
       expect(totalRecords).to.eq(3)
-      expect(currentPage).to.eq(1)
+      expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
     })
 
     it('Should find Pagination with networks and plugin', async () => {
       const {
         data,
-        metadata: { totalRecords, currentPage, totalPages },
+        metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Dao.findWithPagination({
         extraParams: {
           network: NetworksEnum.mainnet,
@@ -245,8 +246,9 @@ describe('Model: Dao', () => {
 
       expect(data.length).to.eq(1)
       expect(totalRecords).to.eq(1)
-      expect(currentPage).to.eq(1)
+      expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
     })
 
     it('Should find Pagination with from to date', async () => {
@@ -279,7 +281,7 @@ describe('Model: Dao', () => {
 
       expect(result.data.length).to.eq(3)
       expect(result.metadata.totalRecords).to.eq(3)
-      expect(result.metadata.currentPage).to.eq(1)
+      expect(result.metadata.page).to.eq(1)
       expect(result.metadata.totalPages).to.eq(1)
 
       const result2 = await Models.Dao.findWithPagination({
@@ -292,7 +294,7 @@ describe('Model: Dao', () => {
 
       expect(result2.data.length).to.eq(4)
       expect(result2.metadata.totalRecords).to.eq(4)
-      expect(result2.metadata.currentPage).to.eq(1)
+      expect(result2.metadata.page).to.eq(1)
       expect(result2.metadata.totalPages).to.eq(1)
 
       const result3 = await Models.Dao.findWithPagination({
@@ -304,7 +306,7 @@ describe('Model: Dao', () => {
 
       expect(result3.data.length).to.eq(4)
       expect(result3.metadata.totalRecords).to.eq(4)
-      expect(result3.metadata.currentPage).to.eq(1)
+      expect(result3.metadata.page).to.eq(1)
       expect(result3.metadata.totalPages).to.eq(1)
     })
 
@@ -321,7 +323,7 @@ describe('Model: Dao', () => {
       expect(result.data.length).to.eq(2)
       expect(result.metadata.totalRecords).to.eq(3)
       expect(result.metadata.totalPages).to.eq(2)
-      expect(result.metadata.currentPage).to.eq(1)
+      expect(result.metadata.page).to.eq(1)
     })
 
     it('Should find Pagination with page and pageSize', async () => {
@@ -337,7 +339,7 @@ describe('Model: Dao', () => {
 
       expect(result.data.length).to.eq(2)
       expect(result.metadata.totalRecords).to.eq(3)
-      expect(result.metadata.currentPage).to.eq(1)
+      expect(result.metadata.page).to.eq(1)
       expect(result.metadata.totalPages).to.eq(2)
     })
 
@@ -354,7 +356,7 @@ describe('Model: Dao', () => {
 
       expect(result.data.length).to.eq(0)
       expect(result.metadata.totalRecords).to.eq(0)
-      expect(result.metadata.currentPage).to.eq(1)
+      expect(result.metadata.page).to.eq(1)
       expect(result.metadata.totalPages).to.eq(1)
     })
   })
