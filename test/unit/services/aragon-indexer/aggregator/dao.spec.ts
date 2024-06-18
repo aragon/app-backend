@@ -57,18 +57,19 @@ describe('Indexer:Aggregator:Dao', () => {
 
       expect(stubLogger.calledWith('New Aggregate Dao' as any)).to.be.true
 
-      const dao = await Models.Dao.findExistingLog(document.address, document.network)
+      const dao = await Models.Dao.findExistingLog({
+        address: document.address,
+        network: document.network,
+      })
 
       expect(stubSubdomain.calledOnce).to.be.true
       expect(stubBlock.calledOnceWith(document.blockNumber, document.network)).to.be.true
 
       expect(dao.id).to.exist
-      expect(dao.entityId).to.exist
       expect(dao.network).to.equal(document.network)
       expect(dao.transactionHash).to.equal(document.transactionHash)
       expect(dao.blockNumber).to.equal(document.blockNumber)
       expect(dao.blockTimestamp).to.equal(100)
-      expect(dao.permalink).to.eq(`${document.network}-${document.ens || document.address}`)
       expect(dao.address).to.equal(document.address)
       expect(dao.implementationAddress).to.equal(document.implementationAddress)
       expect(dao.creatorAddress).to.eq(document.creatorAddress)
@@ -100,7 +101,7 @@ describe('Indexer:Aggregator:Dao', () => {
     it('should call onDocument update', async () => {
       const document = { ...DaoList[1] }
 
-      await Models.Dao.create(document)
+      await Models.Dao.create(document as any)
 
       const stubLogger = sandbox.stub(Logger, 'verbose')
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(100)
@@ -110,13 +111,14 @@ describe('Indexer:Aggregator:Dao', () => {
 
       expect(stubLogger.calledWith('Update Aggregate Dao' as any)).to.be.true
 
-      const dao = await Models.Dao.findExistingLog(document.address, document.network)
+      const dao = await Models.Dao.findExistingLog({
+        address: document.address,
+        network: document.network,
+      })
       expect(dao.id).to.exist
-      expect(dao.entityId).to.exist
       expect(dao.network).to.equal(document.network)
       expect(dao.transactionHash).to.equal(document.transactionHash)
       expect(dao.blockNumber).to.equal(document.blockNumber)
-      expect(dao.permalink).to.eq(`${document.network}-${document.ens || document.address}`)
       expect(dao.address).to.equal(document.address)
       expect(dao.implementationAddress).to.equal(document.implementationAddress)
       expect(dao.creatorAddress).to.eq(document.creatorAddress)

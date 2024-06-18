@@ -1,5 +1,13 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type IPaginatedResult, type IPaginationParams, type IProposalResponse, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type IProposalExtraParams,
+  type IProposalIdParams,
+  type IProposalsResponse,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -63,6 +71,7 @@ export class ProposalExecuted {
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'proposal',
     toJSON: { virtuals: true },
@@ -77,7 +86,7 @@ export class ProposalExecuted {
 })
 export default class Proposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
@@ -128,58 +137,56 @@ export default class Proposal extends Model {
   public media!: Media
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
       assert(!!(rawData?.proposalId! >= 0), 'proposalId is required')
-      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.pluginAddress!, rawData?.proposalId!)
+      rawData.id = this.getEntityId({
+        transactionHash: rawData?.transactionHash!,
+        pluginAddress: rawData?.pluginAddress!,
+        proposalId: rawData?.proposalId!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(transactionHash: HexAddress, pluginAddress: HexAddress, proposalId: number) {
-    const entityId = `${transactionHash}-${pluginAddress}-${proposalId}`
+  static getEntityId(params: IProposalIdParams) {
+    const entityId = `${params.transactionHash}-${params.pluginAddress}-${params.proposalId}`
     return entityId
   }
 
-  static async findExistingLog(
-    transactionHash: HexAddress,
-    pluginAddress: HexAddress,
-    proposalId: number,
-    tOpts?: SaveOptions,
-  ) {
-    const entityId = this.getEntityId(transactionHash, pluginAddress, proposalId)
+  static async findExistingLog(params: IProposalIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
   static async findByProposalId(proposalId: number, pluginAddress: string, network: NetworksEnum, tOpts?: SaveOptions) {
     return await this.findOne({ proposalId, pluginAddress, network }, tOpts)
   }
 
-  static async findWithPagination(
-    { daoAddress, pluginAddress },
-    paginationParams: IPaginationParams = {},
-  ): Promise<IPaginatedResult<IProposalResponse>> {
+  static async findWithPagination({
+    extraParams = {},
+    paginationParams = {},
+  }: {
+    extraParams?: IProposalExtraParams
+    paginationParams?: IPaginationParams
+  }): Promise<IPaginatedResult<IProposalsResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const filter = ModelUtils.createFilter(paginationParams, [
-      'title',
-      'description',
-      'summary',
-      'creatorAddress',
-      'transactionHash',
-    ])
-
-    if (daoAddress) {
-      filter.daoAddress = daoAddress
-    }
-
-    if (pluginAddress) {
-      filter.pluginAddress = pluginAddress
+    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([_, v]) => v !== undefined))
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, [
+        'title',
+        'description',
+        'summary',
+        'creatorAddress',
+        'transactionHash',
+      ]),
+      ...dynamicFilter,
     }
 
     const currentPage = request.skip / request.limit + 1
@@ -223,7 +230,7 @@ export default class Proposal extends Model {
 
   filterKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
+    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
     filtered.settings = _.omit(filtered.settings, 'id', '_id', '__v')
     filtered.media = _.omit(filtered.media, 'id', '_id', '__v')
     return filtered

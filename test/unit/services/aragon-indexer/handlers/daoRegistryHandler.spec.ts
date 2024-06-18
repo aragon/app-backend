@@ -49,11 +49,18 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
 
-      expect(findTxHashSpy.calledOnce).to.be.true
-      expect(findTxHashSpy.calledWith(logInfo.transactionHash, fakeEvent.args.dao)).to.be.true
+      expect(
+        findTxHashSpy.calledOnceWith({
+          transactionHash: logInfo.transactionHash,
+          address: fakeEvent.args.dao,
+        }),
+      ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
-      const savedDaoLog = await Models.LogDaoRegistry.findExistingLog(logInfo.transactionHash, fakeEvent.args.dao)
+      const savedDaoLog = await Models.LogDaoRegistry.findExistingLog({
+        transactionHash: logInfo.transactionHash,
+        address: fakeEvent.args.dao,
+      })
       expect(!!savedDaoLog).to.be.true
 
       expect(savedDaoLog.network).to.eq(network)
@@ -91,7 +98,12 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
 
-      expect(findTxHashStub.calledOnceWith(logInfo.transactionHash, fakeEvent.args.dao)).to.be.true
+      expect(
+        findTxHashStub.calledOnceWith({
+          transactionHash: logInfo.transactionHash,
+          address: fakeEvent.args.dao,
+        }),
+      ).to.be.true
       expect(createStub.notCalled).to.be.true
     })
 

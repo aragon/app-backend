@@ -1,5 +1,5 @@
 import { type WebSocketProvider } from 'ethers'
-export type HexAddress = `0x${string}`
+export type HexAddress = `0x${string}` | string
 export type ENS = `${string}.eth`
 
 export type INetworks = keyof typeof NetworksEnum

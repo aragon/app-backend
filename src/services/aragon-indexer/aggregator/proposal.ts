@@ -27,17 +27,17 @@ export const AggregatorProposal = {
     logger.verbose('End AggregatorProposal', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
   },
 
-  async onDocument(document: Proposal) {
-    const existingLog = await Models.Proposal.findExistingLog(
-      document.transactionHash,
-      document.pluginAddress,
-      document.proposalId,
-    )
+  async onDocument(document: Partial<Proposal>) {
+    const existingLog = await Models.Proposal.findExistingLog({
+      transactionHash: document.transactionHash!,
+      pluginAddress: document.pluginAddress!,
+      proposalId: document.proposalId!,
+    })
 
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
       if (!existingLog) {
-        logDb = await Models.Proposal.create(document, { session })
+        logDb = await Models.Proposal.create(document, { session } as any)
       } else {
         logDb = await existingLog.update(document, { session })
       }

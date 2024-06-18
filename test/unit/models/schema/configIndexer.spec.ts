@@ -24,29 +24,39 @@ describe('Model: ConfigIndexer', () => {
   })
 
   it('Should create ConfigIndexer', async () => {
+    const entityId = Models.ConfigIndexer.getEntityId({
+      network: rawConfigIndexer.network!,
+      service: rawConfigIndexer.service!,
+    })
     const createdConfigIndexer = await Models.ConfigIndexer.create(rawConfigIndexer)
 
-    expect(createdConfigIndexer.id).to.exist
+    expect(createdConfigIndexer.id).to.eq(entityId)
     expect(createdConfigIndexer.network).to.eq(rawConfigIndexer.network)
     expect(createdConfigIndexer.service).to.eq(rawConfigIndexer.service)
     expect(createdConfigIndexer.lastSync).to.eq(rawConfigIndexer.lastSync)
   })
 
   it('Should getEntityId', async () => {
-    const entityId = await Models.ConfigIndexer.getEntityId(rawConfigIndexer.network, rawConfigIndexer.service)
+    const entityId = Models.ConfigIndexer.getEntityId({
+      network: rawConfigIndexer.network!,
+      service: rawConfigIndexer.service!,
+    })
     expect(entityId).to.eq(`${rawConfigIndexer.network}-${rawConfigIndexer.service}`)
   })
 
   it('Should findExistingLog', async () => {
     const createdLogDao = await Models.ConfigIndexer.create(rawConfigIndexer)
-    const foundLogDao = await Models.ConfigIndexer.findExistingLog(rawConfigIndexer.network, rawConfigIndexer.service)
-    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+    const foundLogDao = await Models.ConfigIndexer.findExistingLog({
+      network: rawConfigIndexer.network!,
+      service: rawConfigIndexer.service!,
+    })
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   it('Should findByEntityId', async () => {
     const createdLogDao = await Models.ConfigIndexer.create(rawConfigIndexer)
-    const foundLogDao = await Models.ConfigIndexer.findByEntityId(createdLogDao.entityId)
-    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+    const foundLogDao = await Models.ConfigIndexer.findByEntityId(createdLogDao.id)
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   it('Should update ConfigIndexer', async () => {

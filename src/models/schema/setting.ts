@@ -1,8 +1,15 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  type IPaginationParams,
+  type ISettingExtraParams,
+  type ISettingIdParams,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
 
 const customName = 'Setting'
 
@@ -29,25 +36,9 @@ class Settings {
   public onlyListed!: boolean
 }
 
-class HistorySetting {
-  @prop({ type: () => String, required: true })
-  public fromTxHash!: HexAddress
-
-  @prop({ type: () => String })
-  public toTxHash!: HexAddress
-
-  @prop({ type: () => Number, required: true })
-  public fromBlockNumber!: number
-
-  @prop({ type: () => Number })
-  public toBlockNumber?: number
-
-  @prop({ type: () => Settings })
-  public settings?: Settings
-}
-
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'setting',
     toJSON: { virtuals: true },
@@ -62,74 +53,87 @@ class HistorySetting {
 })
 export default class Setting extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
   @prop({ type: () => String, required: true })
+  public fromTxHash!: HexAddress
+
+  @prop({ type: () => String })
+  public toTxHash!: HexAddress
+
+  @prop({ type: () => Number, required: true })
+  public fromBlockNumber!: number
+
+  @prop({ type: () => Number })
+  public toBlockNumber?: number
+
+  @prop({ type: () => String, required: true })
+  public daoAddress!: HexAddress
+
+  @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
 
-  @prop({ type: () => [HistorySetting], default: [] })
-  public history!: HistorySetting[]
+  @prop({ type: () => Settings })
+  public settings?: Settings
 
   static async create(rawData: Partial<Setting>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
-      assert(!!rawData.pluginAddress, 'pluginAddress is required')
+    if (!rawData.id) {
+      assert(!!rawData.fromTxHash, 'fromTxHash is required')
       assert(!!rawData.network, 'network is required')
-      rawData.entityId = this.getEntityId(rawData?.pluginAddress!, rawData?.network!)
+      rawData.id = this.getEntityId({ fromTxHash: rawData?.fromTxHash!, network: rawData?.network! })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(pluginAddress: HexAddress, network: NetworksEnum) {
-    const entityId = `${pluginAddress}-${network}`
+  static getEntityId(params: ISettingIdParams) {
+    const entityId = `${params.fromTxHash}-${params.network}`
     return entityId
   }
 
-  static async findExistingLog(pluginAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    const entityId = this.getEntityId(pluginAddress, network)
+  static async findExistingLog(params: ISettingIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
-  static async getSettingByPluginAddress(pluginAddress: HexAddress) {
-    const result = await this.aggregate([
-      {
-        $match: {
-          pluginAddress,
-          'history.toBlockNumber': null,
-        },
-      },
-      {
-        $unwind: '$history',
-      },
-      {
-        $match: {
-          'history.toBlockNumber': null,
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          transactionHash: '$history.fromTxHash',
-          blockNumber: '$history.fromBlockNumber',
-          settings: {
-            $setField: {
-              input: '$history.settings',
-              field: '_id',
-              value: '$$REMOVE',
-            },
-          },
-        },
-      },
-    ])
+  static async findWithPagination({
+    extraParams = {},
+    paginationParams = {},
+  }: {
+    extraParams?: ISettingExtraParams
+    paginationParams?: IPaginationParams
+  }) {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([key, value]) => value !== undefined))
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, ['pluginAddress', 'daoAddress', 'network']),
+      ...dynamicFilter,
+    }
 
-    return result?.length > 0 ? result[0] : undefined
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse()
+    }
+
+    return {
+      metadata: {
+        currentPage,
+        totalPages,
+        totalRecords,
+      },
+      data,
+    }
   }
 
   async update(params: Partial<Setting>, tOpts?: SaveOptions) {
@@ -150,5 +154,12 @@ export default class Setting extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
+  }
+
+  filterKeys() {
+    const obj = this.toObject()
+    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
+    filtered.settings = _.omit(filtered.settings, 'id', '_id', '__v')
+    return filtered
   }
 }

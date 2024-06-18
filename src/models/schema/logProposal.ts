@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, NetworksEnum } from '@types'
+import { HexAddress, type ILogProposalIdParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -50,6 +50,7 @@ export class ProposalExecuted {
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'logProposal',
     toJSON: { virtuals: true },
@@ -64,7 +65,7 @@ export class ProposalExecuted {
 })
 export default class LogProposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
@@ -106,33 +107,32 @@ export default class LogProposal extends Model {
   public executed!: ProposalExecuted
 
   static async create(rawData: Partial<LogProposal>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
       assert(!!(rawData?.proposalId! >= 0), 'proposalId is required')
-      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.pluginAddress!, rawData?.proposalId!)
+      rawData.id = this.getEntityId({
+        transactionHash: rawData?.transactionHash!,
+        pluginAddress: rawData?.pluginAddress!,
+        proposalId: rawData?.proposalId!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(transactionHash: HexAddress, pluginAddress: HexAddress, proposalId: number) {
-    const entityId = `${transactionHash}-${pluginAddress}-${proposalId}`
+  static getEntityId(params: ILogProposalIdParams) {
+    const entityId = `${params.transactionHash}-${params.pluginAddress}-${params.proposalId}`
     return entityId
   }
 
-  static async findExistingLog(
-    transactionHash: HexAddress,
-    pluginAddress: HexAddress,
-    proposalId: number,
-    tOpts?: SaveOptions,
-  ) {
-    const entityId = this.getEntityId(transactionHash, pluginAddress, proposalId)
+  static async findExistingLog(params: ILogProposalIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
   static async findByProposalId(proposalId: number, pluginAddress: string, network: NetworksEnum, tOpts?: SaveOptions) {

@@ -2,6 +2,8 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   type ENS,
   HexAddress,
+  type IDaoExtraParams,
+  type IDaoIdParams,
   type IDaoResponse,
   type IPaginatedResult,
   type IPaginationParams,
@@ -53,6 +55,7 @@ class Plugin {
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'dao',
     toJSON: { virtuals: true },
@@ -64,14 +67,13 @@ class Plugin {
 })
 @index({
   address: 1,
-  permalink: 1,
   name: 1,
   creatorAddress: 1,
   tvlUSD: 1,
 })
 export default class Dao extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -84,9 +86,6 @@ export default class Dao extends Model {
 
   @prop({ type: () => Number })
   public blockTimestamp!: number
-
-  @prop({ type: () => String, required: true, unique: true })
-  public permalink!: string
 
   @prop({ type: () => String, required: true })
   public address!: HexAddress
@@ -140,62 +139,61 @@ export default class Dao extends Model {
   public hideDao!: boolean
 
   static async create(rawData: Partial<Dao>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.address, 'address is required')
-      rawData.entityId = this.getEntityId(rawData?.address!, rawData?.network as any)
-    }
-    if (!rawData.permalink) {
-      const network = rawData.network
-      const ensOrAddress = rawData.ens || rawData.address
-      rawData.permalink = `${network}-${ensOrAddress}`
+      rawData.id = this.getEntityId({
+        network: rawData?.network!,
+        address: rawData?.address!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(address: HexAddress, network: NetworksEnum) {
-    const entityId = `${address}-${network}`
+  static getEntityId(params: IDaoIdParams) {
+    const entityId = `${params.network}-${params.address}`
     return entityId
   }
 
-  static async findExistingLog(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    const entityId = this.getEntityId(address, network)
+  static async findExistingLog(params: IDaoIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
-  static async findByPermalink(permalink: string) {
-    return await this.findOne({ permalink })
-  }
-
-  static async findWithPagination(
-    { networks, pluginAddress }: { networks: NetworksEnum[]; pluginAddress: HexAddress },
-    paginationParams: IPaginationParams,
-  ): Promise<IPaginatedResult<IDaoResponse>> {
+  static async findWithPagination({
+    extraParams = {},
+    paginationParams = {},
+  }: {
+    extraParams?: IDaoExtraParams
+    paginationParams?: IPaginationParams
+  }): Promise<IPaginatedResult<IDaoResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const filter = ModelUtils.createFilter(paginationParams, [
-      'permalink',
-      'address',
-      'implementationAddress',
-      'creatorAddress',
-      'ens',
-      'name',
-      'transactionHash',
-    ])
+    const dynamicFilter = Object.fromEntries(
+      Object.entries(extraParams).filter(([key, value]) => value !== undefined && key !== 'pluginAddress'),
+    )
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, [
+        'id',
+        'address',
+        'implementationAddress',
+        'creatorAddress',
+        'ens',
+        'name',
+        'transactionHash',
+      ]),
+      ...dynamicFilter,
+    }
+
+    if (extraParams.pluginAddress) {
+      filter['plugins.address'] = extraParams.pluginAddress
+    }
 
     filter.hideDao = { $ne: true }
-
-    if (pluginAddress) {
-      filter['plugins.address'] = pluginAddress
-    }
-
-    if (networks?.length > 0) {
-      filter.network = { $in: networks }
-    }
 
     const currentPage = request.skip / request.limit + 1
     const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
@@ -218,7 +216,7 @@ export default class Dao extends Model {
 
   async update(params: Partial<Dao>, tOpts?: SaveOptions) {
     Object.entries(params)
-      .filter(([key]) => key !== 'permalink')
+      .filter(([key]) => key !== 'id')
       .forEach(([key, value]) => {
         if (this.schema.tree[key]) {
           if (!this.schema.tree[key].required || this.schema.tree[key].required) {
@@ -226,8 +224,8 @@ export default class Dao extends Model {
             if (!_.isEqual(parsedObj[key], value)) {
               this[key] = value
 
-              if (key === 'ens' || key === 'address') {
-                this['permalink'] = `${this.network}-${this.ens || this.address}`
+              if (key === 'address') {
+                this['id'] = `${this.network}-${this.address}`
               }
             }
           }
@@ -243,8 +241,8 @@ export default class Dao extends Model {
 
   filterKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, 'id', '_id', 'hideDao', '__v', 'createdAt', 'updatedAt')
-    filtered.plugins = filtered.plugins.map((plugin: any) => _.omit(plugin, 'id', '_id', '__v'))
+    const filtered = _.omit(obj, '_id', '__v', 'hideDao', 'createdAt', 'updatedAt')
+    filtered.plugins = filtered.plugins.map((plugin: any) => _.omit(plugin, '_id', '__v'))
     return filtered
   }
 }

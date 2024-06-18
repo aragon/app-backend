@@ -65,11 +65,11 @@ describe('Indexer:Aggregator:Member', () => {
 
     const stubLogger = sandbox.stub(Logger, 'verbose')
 
-    await AggregatorMembers.onDocument(document)
+    await AggregatorMembers.onDocument(document as any)
 
     expect(stubLogger.calledOnce).to.be.true
 
-    const member = await Models.Member.findExistingLog(document.address)
+    const member = await Models.Member.findExistingLog({ address: document.address })
     expect(member.address).to.equal(document.address)
     expect(member.ens).to.be.null
     expect(member.daos.length).to.eq(1)
@@ -93,7 +93,7 @@ describe('Indexer:Aggregator:Member', () => {
     const loggerSpy = sandbox.stub(Logger, 'verbose')
 
     rawDoc.daos[0].delegateFromAddress = '0x011'
-    await AggregatorMembers.onDocument(rawDoc)
+    await AggregatorMembers.onDocument(rawDoc as any)
 
     const updatedDoc = await dbDoc.reload()
 

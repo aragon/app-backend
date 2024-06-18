@@ -1,4 +1,4 @@
-import { EnumConnection, type HexAddress, type IService, NetworksEnum } from '@types'
+import { EnumConnection, type IService, NetworksEnum } from '@types'
 import { TokensList } from './tokens'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 
@@ -10,7 +10,7 @@ export const InitialData: IService = {
     const tokens = TokensList.filter(tk => tk.network === NetworksEnum.mainnet)
     await Promise.all(
       tokens.map(async token => {
-        await UtilsIndexer.saveAndGetToken(token.contractAddress as HexAddress, token.network)
+        await UtilsIndexer.saveAndGetToken(token.contractAddress, token.network)
       }),
     )
   },

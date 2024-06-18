@@ -19,7 +19,10 @@ export const DaoRegistryHandler = {
   daoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const daoAddress = parsedEvent.args.dao
-      const existingLog = await Models.LogDaoRegistry.findExistingLog(info.transactionHash, daoAddress)
+      const existingLog = await Models.LogDaoRegistry.findExistingLog({
+        transactionHash: info.transactionHash,
+        address: daoAddress,
+      })
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
@@ -32,10 +35,10 @@ export const DaoRegistryHandler = {
             subdomain: parsedEvent.args.subdomain,
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
-            implementationAddress,
+            implementationAddress: implementationAddress!,
           }
 
-          const logDb = await Models.LogDaoRegistry.create(daoLog, { session })
+          const logDb = await Models.LogDaoRegistry.create(daoLog, { session } as any)
           await session.commitTransaction()
           await session.endSession()
           logger.verbose('New DaoRegister', llo({ ...info, logId: logDb.id }))

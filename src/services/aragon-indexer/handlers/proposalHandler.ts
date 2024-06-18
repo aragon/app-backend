@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type HexAddress, type ILogInfo } from '@types'
+import { type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -13,10 +13,14 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:ProposalHandle
 export const ProposalHandler = {
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)
+      const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
       const proposalId = Number(parsedEvent.args.proposalId)
       const pluginAddress = info.address
-      const existingLog = await Models.LogProposal.findExistingLog(info.transactionHash, pluginAddress, proposalId)
+      const existingLog = await Models.LogProposal.findExistingLog({
+        transactionHash: info.transactionHash,
+        pluginAddress,
+        proposalId,
+      })
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
@@ -38,7 +42,7 @@ export const ProposalHandler = {
             })),
           }
 
-          const logDb = await Models.LogProposal.create(proposalLog, { session })
+          const logDb = await Models.LogProposal.create(proposalLog, { session } as any)
           await session.commitTransaction()
           await session.endSession()
           logger.verbose('New Proposal', llo({ ...info, logId: logDb.id }))
@@ -55,7 +59,7 @@ export const ProposalHandler = {
     try {
       const parsedParams: Vote = {
         blockNumber: info.blockNumber,
-        transactionHash: info.transactionHash as HexAddress,
+        transactionHash: info.transactionHash,
         proposalId: Number(parsedEvent.args.proposalId),
         memberAddress: parsedEvent.args.approver,
       }
@@ -85,7 +89,7 @@ export const ProposalHandler = {
     try {
       const parsedParams: Vote = {
         blockNumber: info.blockNumber,
-        transactionHash: info.transactionHash as HexAddress,
+        transactionHash: info.transactionHash,
         proposalId: Number(parsedEvent.args.proposalId),
         voteOption: Number(parsedEvent.args.voteOption),
         votingPower: parsedEvent.args.votingPower,
@@ -158,11 +162,11 @@ export const ProposalHandler = {
     try {
       const ipfsMetadata = await IPFSModule.fetchMetadata(proposalDb.metadataUri, { retries: 1 })
       const proposalMetadata = Web3Helper.parseProposalMetadata(ipfsMetadata!)
-      const existingProposalMetadata = await Models.LogProposalMetadata.findExistingLog(
-        proposalDb.transactionHash,
-        proposalDb.pluginAddress,
-        proposalDb.proposalId,
-      )
+      const existingProposalMetadata = await Models.LogProposalMetadata.findExistingLog({
+        transactionHash: proposalDb.transactionHash,
+        pluginAddress: proposalDb.pluginAddress,
+        proposalId: proposalDb.proposalId,
+      })
 
       if (!existingProposalMetadata) {
         await DbTx.executeTxFn(async ({ session }) => {
@@ -176,7 +180,7 @@ export const ProposalHandler = {
             transactionHash: proposalDb.transactionHash,
             blockNumber: proposalDb.blockNumber,
           }
-          const logDb = await Models.LogProposalMetadata.create(logProposalMetadata, { session })
+          const logDb = await Models.LogProposalMetadata.create(logProposalMetadata as any, { session } as any)
 
           await session.commitTransaction()
           await session.endSession()

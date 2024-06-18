@@ -2,7 +2,6 @@ import type { HexAddress, IPermission } from '@types'
 import { assert } from '@errors'
 import async from 'async'
 import dayjs from '@helpers/dayjs'
-import type Dao from '@models/schema/dao'
 
 const Utils = {
   noop: (): number => 0,
@@ -180,19 +179,6 @@ const Utils = {
     }
 
     return result
-  },
-
-  getDaoPermalink(dao: Partial<Dao>): string {
-    const path: any = {
-      network: dao.network,
-      address: dao.daoAddress,
-    }
-
-    if (dao.ens?.length! > 0) {
-      path.address = dao.ens
-    }
-
-    return `${path.network}-${path.address}`
   },
 
   parsePermissions(permissions: IPermission[]) {

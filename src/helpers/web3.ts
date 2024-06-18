@@ -366,7 +366,7 @@ const Web3Helper = {
 
   parseAddress(address: HexAddress): HexAddress | null {
     try {
-      return getAddress(address) as HexAddress
+      return getAddress(address)
     } catch (error) {
       logger.error(
         'Error checksum dao address',
@@ -444,7 +444,7 @@ const Web3Helper = {
 
     try {
       const address = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.resolveName(name))
-      return address as HexAddress | null
+      return address
     } catch (error) {
       logger.error(
         'Error resolving ENS name',

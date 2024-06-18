@@ -1,4 +1,4 @@
-import { ITransactionCategory, type IAlchemyTransferResponse, ITransactionType, IEnumIndexerService } from '@types'
+import { type IAlchemyTransferResponse, IEnumIndexerService, ITransactionCategory, ITransactionType } from '@types'
 import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -87,7 +87,12 @@ export const AggregatorTransactions = {
 
   saveTransaction: async (tx: IAlchemyTransferResponse, type: ITransactionType, daoRegistry: LogDaoRegistry) => {
     try {
-      const existingTxDb = await Models.Transaction.findExistingLog(tx.hash, tx.category, daoRegistry.network)
+      const existingTxDb = await Models.Transaction.findExistingLog({
+        transactionHash: tx.hash,
+        category: tx.category,
+        network: daoRegistry.network,
+      })
+
       if (existingTxDb) {
         return
       }
@@ -112,7 +117,7 @@ export const AggregatorTransactions = {
           category: tx.category,
         }
 
-        const logDb = await Models.Transaction.create(rawTx, { session })
+        const logDb = await Models.Transaction.create(rawTx, { session } as any)
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('New Transaction', llo({ logId: logDb?.id }))

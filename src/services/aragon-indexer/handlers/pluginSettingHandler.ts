@@ -10,7 +10,10 @@ export const PluginSettingHandler = {
   votingSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const pluginAddress = info.address
-      const existingLog = await Models.LogPluginSetting.findExistingLog(info.transactionHash, pluginAddress)
+      const existingLog = await Models.LogPluginSetting.findExistingLog({
+        transactionHash: info.transactionHash,
+        pluginAddress,
+      })
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
@@ -25,7 +28,7 @@ export const PluginSettingHandler = {
             minDuration: Number(parsedEvent.args.minDuration),
             minProposerVotingPower: Number(parsedEvent.args.minProposerVotingPower),
           }
-          const logDb = await Models.LogPluginSetting.create(settingLog, { session })
+          const logDb = await Models.LogPluginSetting.create(settingLog, { session } as any)
 
           await session.commitTransaction()
           await session.endSession()
@@ -40,7 +43,10 @@ export const PluginSettingHandler = {
   multisigSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const pluginAddress = info.address
-      const existingLog = await Models.LogPluginSetting.findExistingLog(info.transactionHash, pluginAddress)
+      const existingLog = await Models.LogPluginSetting.findExistingLog({
+        transactionHash: info.transactionHash,
+        pluginAddress,
+      })
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
@@ -52,7 +58,7 @@ export const PluginSettingHandler = {
             onlyListed: parsedEvent.args.onlyListed,
             minApprovals: Number(parsedEvent.args.minApprovals),
           }
-          const logDb = await Models.LogPluginSetting.create(settingLog, { session })
+          const logDb = await Models.LogPluginSetting.create(settingLog, { session } as any)
 
           await session.commitTransaction()
           await session.endSession()

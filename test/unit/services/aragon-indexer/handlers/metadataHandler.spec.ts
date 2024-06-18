@@ -104,7 +104,12 @@ describe('Indexer: MetadataHandler', () => {
       await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubFindLog.calledWith(logInfo.transactionHash, logInfo.address)).to.be.true
+      expect(
+        stubFindLog.calledWith({
+          transactionHash: logInfo.transactionHash,
+          daoAddress: logInfo.address,
+        }),
+      ).to.be.true
     })
   })
 })

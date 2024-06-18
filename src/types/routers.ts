@@ -1,4 +1,4 @@
-import { type ENS, type INetworks, type NetworksEnum } from './networks'
+import { type ENS, type HexAddress, type INetworks, type NetworksEnum } from './networks'
 
 export interface IStatusResponse {
   status: string
@@ -11,23 +11,22 @@ export interface IStatusResponse {
 }
 
 export interface IMembersResponse {
-  address: string
-  ens: string | null
+  address: HexAddress
+  ens: ENS | null
   votingPower?: string
   fromBlockNumber: number
   toBlockNumber?: number
 }
 
 export interface IDaoResponse {
-  entityId: string
+  id: string
   network: NetworksEnum
-  transactionHash: string
+  transactionHash: HexAddress
   blockNumber: number
   blockTimestamp: number
-  permalink: string
-  address: string
-  implementationAddress: string
-  creatorAddress: string
+  address: HexAddress
+  implementationAddress: HexAddress
+  creatorAddress: HexAddress
   ens: ENS | null
   members: number
   metadataIpfs: string | null
@@ -36,12 +35,12 @@ export interface IDaoResponse {
   avatar: string
   links: string[]
   plugins: {
-    transactionHash: string
+    transactionHash: HexAddress
     blockNumber: number
-    address: string
-    implementationAddress: string | null
+    address: HexAddress
+    implementationAddress: HexAddress | null
     tokenAddress: string
-    pluginSetupRepoAddress: string
+    pluginSetupRepoAddress: HexAddress
     release: string
     build: string
     subdomain: string
@@ -55,25 +54,30 @@ export interface IDaoResponse {
 }
 
 export interface IPluginResponse {
-  entityId: string
-  transactionHash: string
+  id: string
+  transactionHash: HexAddress
   blockNumber: number
   network: NetworksEnum
   action: string
-  address: string
-  implementationAddress: string | null
-  daoAddress: string
-  tokenAddress: string | null
-  pluginSetupRepoAddress: string
-  sender: string
+  address: HexAddress
+  implementationAddress: HexAddress | null
+  daoAddress: HexAddress
+  tokenAddress: HexAddress | null
+  pluginSetupRepoAddress: HexAddress
+  sender: HexAddress
   release: string
   build: string
   subdomain: string
 }
 
 export interface ISettingResponse {
-  transactionHash: string
-  blockNumber: string
+  fromTxHash: HexAddress
+  toTxHash: HexAddress | null
+  fromBlockNumber: number
+  toBlockNumber: number
+  daoAddress: HexAddress
+  pluginAddress: HexAddress
+  network: NetworksEnum
   settings: {
     minApprovals?: number
     onlyListed?: boolean
@@ -85,8 +89,8 @@ export interface ISettingResponse {
   }
 }
 
-export interface IProposalResponse {
-  entityId: string
+export interface IProposalsResponse {
+  id: string
   transactionHash: string
   blockNumber: number
   network: NetworksEnum
@@ -100,6 +104,11 @@ export interface IProposalResponse {
   title: string
   description: string | null
   summary: string
+  executed: {
+    status: boolean
+    transactionHash: HexAddress
+    blockNumber: number
+  }
   settings: {
     fromTxHash: string
     toTxHash: string | null
@@ -133,7 +142,7 @@ export interface IAssetResponse {
 }
 
 export interface ITransactionResponse {
-  entityId: string
+  id: string
   transactionHash: string
   blockNumber: number
   network: string

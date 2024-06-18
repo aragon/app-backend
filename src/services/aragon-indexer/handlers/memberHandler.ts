@@ -2,7 +2,6 @@ import logger from '@logger'
 import { type HexAddress, IEventLogMember, type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
-
 import DbTx from '@modules/dbTx'
 import Web3Helper from '@helpers/web3'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
@@ -11,10 +10,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:MemberHandler'
 
 export const MemberHandler = {
   membersAdded: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(
-      info.address as HexAddress,
-      info.network,
-    )
+    const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(info.address, info.network)
 
     if (!pluginExisted) {
       logger.warn('Plugin not found', llo(info))
@@ -23,12 +19,12 @@ export const MemberHandler = {
 
     await Promise.all(
       parsedEvent.args.members.map(async (member: HexAddress) => {
-        const existingLog = await Models.LogMember.findExistingLog(
-          info.transactionHash as HexAddress,
-          parsedEvent.name,
-          member,
-          info.network,
-        )
+        const existingLog = await Models.LogMember.findExistingLog({
+          transactionHash: info.transactionHash,
+          event: parsedEvent.name,
+          address: member,
+          network: info.network,
+        })
 
         if (!existingLog) {
           await DbTx.executeTxFn(async ({ session }) => {
@@ -36,12 +32,12 @@ export const MemberHandler = {
               address: member,
               blockNumber: info.blockNumber,
               transactionHash: info.transactionHash,
-              event: parsedEvent.name,
+              event: parsedEvent.name as any,
               pluginAddress: info.address,
               network: info.network,
             }
 
-            const daoMember = await Models.LogMember.create(rawMember, { session })
+            const daoMember = await Models.LogMember.create(rawMember, { session } as any)
             await session.commitTransaction()
             await session.endSession()
 
@@ -53,10 +49,7 @@ export const MemberHandler = {
   },
 
   membersRemoved: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(
-      info.address as HexAddress,
-      info.network,
-    )
+    const pluginExisted = await Models.LogPluginSetupProcessor.findByPluginAddress(info.address, info.network)
 
     if (!pluginExisted) {
       logger.warn('Plugin not found', llo(info))
@@ -65,12 +58,12 @@ export const MemberHandler = {
 
     await Promise.all(
       parsedEvent.args.members.map(async (member: HexAddress) => {
-        const existingLog = await Models.LogMember.findExistingLog(
-          info.transactionHash as HexAddress,
-          parsedEvent.name,
-          member,
-          info.network,
-        )
+        const existingLog = await Models.LogMember.findExistingLog({
+          transactionHash: info.transactionHash,
+          event: parsedEvent.name,
+          address: member,
+          network: info.network,
+        })
 
         if (!existingLog) {
           await DbTx.executeTxFn(async ({ session }) => {
@@ -83,7 +76,7 @@ export const MemberHandler = {
               network: info.network,
             }
 
-            const daoMember = await Models.LogMember.create(rawMember, { session })
+            const daoMember = await Models.LogMember.create(rawMember, { session } as any)
             await session.commitTransaction()
             await session.endSession()
 
@@ -97,18 +90,15 @@ export const MemberHandler = {
   delegateChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
 
-    const existingLog = await Models.LogMember.findExistingLog(
-      info.transactionHash,
-      parsedEvent.name,
-      parsedEvent.args.toDelegate,
-      info.network,
-    )
+    const existingLog = await Models.LogMember.findExistingLog({
+      transactionHash: info.transactionHash,
+      event: parsedEvent.name,
+      address: parsedEvent.args.toDelegate,
+      network: info.network,
+    })
 
     if (!existingLog && txReceipt) {
-      const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(
-        info.address as HexAddress,
-        info.network,
-      )
+      const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(info.address, info.network)
 
       if (!relatedPlugin) {
         logger.warn('Plugin not found', llo(info))
@@ -146,7 +136,7 @@ export const MemberHandler = {
           pluginAddress: relatedPlugin.pluginAddress,
         }
 
-        const daoMember = await Models.LogMember.create(rawDaoMember, { session })
+        const daoMember = await Models.LogMember.create(rawDaoMember, { session } as any)
         await session.commitTransaction()
         await session.endSession()
 

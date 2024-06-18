@@ -18,6 +18,7 @@ describe('Model: Member', () => {
 
     rawMember = {
       address,
+      ens: undefined,
       daos: [
         {
           daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
@@ -41,8 +42,9 @@ describe('Model: Member', () => {
 
   describe('Create Member', async () => {
     it('Should create Member', async () => {
+      const entityId = Models.Member.getEntityId({ address: rawMember.address! })
       const member = await Models.Member.create(rawMember)
-      expect(member.entityId).to.exist
+      expect(member.id).to.eq(entityId)
     })
 
     it('should update Member', async () => {
@@ -52,21 +54,41 @@ describe('Model: Member', () => {
     })
 
     it('Should getEntityId', async () => {
-      const entityId = await Models.Member.getEntityId(rawMember.address)
+      const entityId = Models.Member.getEntityId({ address: rawMember.address! })
       expect(entityId).to.eq(`${rawMember.address}`)
     })
 
     it('Should findExistingLog', async () => {
       const createdMember = await Models.Member.create(rawMember)
-      const foundMember = await Models.Member.findExistingLog(rawMember.address)
-      expect(foundMember?.entityId).to.eq(createdMember.entityId)
+      const foundMember = await Models.Member.findExistingLog({ address: rawMember.address! })
+      expect(foundMember?.id).to.eq(createdMember.id)
     })
 
     it('should reload Member', async () => {
       const createdMember = await Models.Member.create(rawMember)
       const foundMember = await createdMember.reload()
-      expect(foundMember?.entityId).to.eq(createdMember.entityId)
+      expect(foundMember?.id).to.eq(createdMember.id)
     })
+  })
+
+  it('Should getEntityId', async () => {
+    const address = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+    const entityId = Models.Member.getEntityId({ address })
+    expect(entityId).to.eq(`${address}`)
+  })
+
+  it('Should findExistingLog', async () => {
+    const createdLogDao = await Models.Member.create(rawMember)
+    const foundLogDao = await Models.Member.findExistingLog({
+      address: createdLogDao.address!,
+    })
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
+  })
+
+  it('Should findByEntityId', async () => {
+    const createdLogDao = await Models.Member.create(rawMember)
+    const foundLogDao = await Models.Member.findByEntityId(createdLogDao.id)
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   describe('Pagination', () => {
@@ -106,7 +128,10 @@ describe('Model: Member', () => {
       const {
         data,
         metadata: { totalRecords, currentPage, totalPages },
-      } = await Models.Member.findWithPagination({ daoAddress: null, pluginAddress: null }, {})
+      } = await Models.Member.findWithPagination({
+        extraParams: {},
+        paginationParams: {},
+      })
 
       expect(data.length).to.eq(3)
       expect(totalRecords).to.eq(3)
@@ -118,7 +143,10 @@ describe('Model: Member', () => {
       const {
         data,
         metadata: { totalRecords, currentPage, totalPages },
-      } = await Models.Member.findWithPagination({ daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409' }, {})
+      } = await Models.Member.findWithPagination({
+        extraParams: { daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409' },
+        paginationParams: {},
+      })
 
       expect(data.length).to.eq(3)
       expect(totalRecords).to.eq(3)
@@ -130,7 +158,10 @@ describe('Model: Member', () => {
       const {
         data,
         metadata: { totalRecords, currentPage, totalPages },
-      } = await Models.Member.findWithPagination({ pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409' }, {})
+      } = await Models.Member.findWithPagination({
+        extraParams: { pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409' },
+        paginationParams: {},
+      })
 
       expect(data.length).to.eq(3)
       expect(totalRecords).to.eq(3)
@@ -143,7 +174,10 @@ describe('Model: Member', () => {
       const {
         data,
         metadata: { totalRecords, currentPage, totalPages },
-      } = await Models.Member.findWithPagination({ pluginAddress: '0x0000000000000000000000000000000000000000' }, {})
+      } = await Models.Member.findWithPagination({
+        extraParams: { pluginAddress: '0x0000000000000000000000000000000000000000' },
+        paginationParams: {},
+      })
 
       expect(spyUtils.calledOnce).to.be.true
       expect(data.length).to.eq(0)
@@ -151,5 +185,24 @@ describe('Model: Member', () => {
       expect(currentPage).to.eq(1)
       expect(totalPages).to.eq(1)
     })
+  })
+
+  it('Should reload', async () => {
+    const createdLogDao = await Models.Member.create(rawMember)
+    await createdLogDao.reload()
+
+    expect(createdLogDao.address).to.eq(rawMember.address)
+  })
+
+  it('Should filterKeys', async () => {
+    const createdDao = await Models.Member.create(rawMember)
+    const filterDao = createdDao.filterKeys()
+
+    expect(filterDao.id).to.exist
+    expect(filterDao._id).to.be.undefined
+    expect(filterDao.__v).to.be.undefined
+    expect(filterDao.createdAt).to.be.undefined
+    expect(filterDao.updatedAt).to.be.undefined
+    expect(Object.keys(filterDao).length).to.eq(4)
   })
 })

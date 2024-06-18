@@ -483,11 +483,11 @@ describe('Indexer: ProposalHandler', () => {
       expect(stubParseDaoMetadata.calledOnce).to.be.true
       expect(stubParseDaoMetadata.calledWith(fakeMetadata)).to.be.true
 
-      const proposalMetadataDB = await Models.LogProposalMetadata.findExistingLog(
-        proposalDb.transactionHash,
-        proposalDb.pluginAddress,
-        proposalDb.proposalId,
-      )
+      const proposalMetadataDB = await Models.LogProposalMetadata.findExistingLog({
+        transactionHash: proposalDb.transactionHash,
+        pluginAddress: proposalDb.pluginAddress,
+        proposalId: proposalDb.proposalId,
+      })
       expect(proposalMetadataDB.transactionHash).to.eq(proposalDb.transactionHash)
       expect(proposalMetadataDB.blockNumber).to.eq(proposalDb.blockNumber)
       expect(proposalMetadataDB.network).to.eq(NetworksEnum.mainnet)

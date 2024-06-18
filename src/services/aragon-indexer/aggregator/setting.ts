@@ -2,6 +2,7 @@ import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
+import type Setting from '@models/schema/setting'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorSetting' })
 
@@ -25,13 +26,16 @@ export const AggregatorSetting = {
     logger.verbose('End AggregatorSetting', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt }))
   },
 
-  async onDocument(document: any) {
-    const existingLog = await Models.Setting.findExistingLog(document.pluginAddress, document.network)
+  async onDocument(document: Partial<Setting>) {
+    const existingLog = await Models.Setting.findExistingLog({
+      fromTxHash: document.fromTxHash!,
+      network: document.network!,
+    })
 
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
       if (!existingLog) {
-        logDb = await Models.Setting.create(document, { session })
+        logDb = await Models.Setting.create(document, { session } as any)
       } else {
         logDb = await existingLog.update(document, { session })
       }
@@ -44,6 +48,9 @@ export const AggregatorSetting = {
   query() {
     return [
       {
+        $sort: { blockNumber: 1 },
+      },
+      {
         $group: {
           _id: {
             pluginAddress: '$pluginAddress',
@@ -53,51 +60,31 @@ export const AggregatorSetting = {
         },
       },
       {
-        $project: {
-          _id: 0,
-          pluginAddress: '$_id.pluginAddress',
-          network: '$_id.network',
-          events: 1,
+        $lookup: {
+          from: 'logPluginSetupProcessor',
+          localField: '_id.pluginAddress',
+          foreignField: 'pluginAddress',
+          as: 'pluginInfo',
         },
       },
       {
-        $set: {
-          history: {
-            $map: {
-              input: {
-                $range: [0, { $size: '$events' }],
+        $unwind: '$events',
+      },
+      {
+        $setWindowFields: {
+          partitionBy: '$_id',
+          sortBy: { 'events.blockNumber': 1 },
+          output: {
+            nextTransactionHash: {
+              $shift: {
+                output: '$events.transactionHash',
+                by: 1,
               },
-              as: 'idx',
-              in: {
-                $let: {
-                  vars: {
-                    current: { $arrayElemAt: ['$events', '$$idx'] },
-                    next: { $arrayElemAt: ['$events', { $add: ['$$idx', 1] }] },
-                  },
-                  in: {
-                    fromTxHash: '$$current.transactionHash',
-                    toTxHash: { $ifNull: ['$$next.transactionHash', null] },
-                    fromBlockNumber: { $ifNull: ['$$current.blockNumber', '$$current.blockNumber'] },
-                    toBlockNumber: { $ifNull: ['$$next.blockNumber', null] },
-
-                    settings: {
-                      $cond: {
-                        if: { $ne: [{ $ifNull: ['$$current.minApprovals', null] }, null] },
-                        then: {
-                          minApprovals: '$$current.minApprovals',
-                          onlyListed: '$$current.onlyListed',
-                        },
-                        else: {
-                          votingMode: '$$current.votingMode',
-                          supportThreshold: '$$current.supportThreshold',
-                          minParticipation: '$$current.minParticipation',
-                          minDuration: '$$current.minDuration',
-                          minProposerVotingPower: { $toString: '$$current.minProposerVotingPower' },
-                        },
-                      },
-                    },
-                  },
-                },
+            },
+            nextBlockNumber: {
+              $shift: {
+                output: '$events.blockNumber',
+                by: 1,
               },
             },
           },
@@ -105,9 +92,30 @@ export const AggregatorSetting = {
       },
       {
         $project: {
-          pluginAddress: 1,
-          network: 1,
-          history: 1,
+          _id: 0,
+          daoAddress: { $arrayElemAt: ['$pluginInfo.daoAddress', 0] },
+          pluginAddress: '$_id.pluginAddress',
+          network: '$_id.network',
+          fromTxHash: '$events.transactionHash',
+          toTxHash: '$nextTransactionHash',
+          fromBlockNumber: '$events.blockNumber',
+          toBlockNumber: '$nextBlockNumber',
+          settings: {
+            $cond: {
+              if: { $ne: [{ $ifNull: ['$events.minApprovals', null] }, null] },
+              then: {
+                minApprovals: '$events.minApprovals',
+                onlyListed: '$events.onlyListed',
+              },
+              else: {
+                votingMode: '$events.votingMode',
+                supportThreshold: '$events.supportThreshold',
+                minParticipation: '$events.minParticipation',
+                minDuration: '$events.minDuration',
+                minProposerVotingPower: { $toString: '$events.minProposerVotingPower' },
+              },
+            },
+          },
         },
       },
     ]

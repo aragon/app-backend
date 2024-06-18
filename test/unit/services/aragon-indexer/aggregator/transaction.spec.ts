@@ -146,7 +146,11 @@ describe('Indexer:Aggregator:Transactions', () => {
 
         await AggregatorTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any)
 
-        const existingTxDb = await Models.Transaction.findExistingLog(tx.hash, tx.category, daoRegistry.network)
+        const existingTxDb = await Models.Transaction.findExistingLog({
+          transactionHash: tx.hash,
+          category: tx.category,
+          network: daoRegistry.network,
+        })
 
         expect(existingTxDb.transactionHash).to.equal(expectedTransaction.transactionHash)
       })

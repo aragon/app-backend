@@ -89,14 +89,13 @@ describe('Indexer:Aggregator:Proposal', () => {
 
       expect(stubLogger.calledWith('New Aggregate Proposal' as any)).to.be.true
 
-      const member = await Models.Proposal.findExistingLog(
-        document.transactionHash,
-        document.pluginAddress,
-        document.proposalId,
-      )
+      const member = await Models.Proposal.findExistingLog({
+        transactionHash: document.transactionHash,
+        pluginAddress: document.pluginAddress,
+        proposalId: document.proposalId,
+      })
 
       expect(member.id).to.exist
-      expect(member.entityId).to.exist
       expect(member.transactionHash).to.eq(document.transactionHash)
       expect(member.blockNumber).to.eq(document.blockNumber)
       expect(member.network).to.eq(document.network)
@@ -173,14 +172,13 @@ describe('Indexer:Aggregator:Proposal', () => {
 
       expect(stubLogger.calledWith('Update Aggregate Proposal' as any)).to.be.true
 
-      const member = await Models.Proposal.findExistingLog(
-        document.transactionHash,
-        document.pluginAddress,
-        document.proposalId,
-      )
+      const member = await Models.Proposal.findExistingLog({
+        transactionHash: document.transactionHash,
+        pluginAddress: document.pluginAddress,
+        proposalId: document.proposalId,
+      })
 
       expect(member.id).to.exist
-      expect(member.entityId).to.exist
       expect(member.transactionHash).to.eq(document.transactionHash)
       expect(member.blockNumber).to.eq(document.blockNumber)
       expect(member.network).to.eq(document.network)

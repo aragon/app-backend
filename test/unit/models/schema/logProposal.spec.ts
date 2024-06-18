@@ -12,16 +12,12 @@ describe('Model: LogProposal', () => {
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const pluginAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
-    const proposalId = 1
-
     rawLogProposal = {
-      transactionHash,
+      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
       blockNumber: 3,
       network: NetworksEnum.mainnet,
-      pluginAddress,
-      proposalId,
+      pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      proposalId: 1,
       allowFailureMap: 0,
       creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
       startDate: 234234223,
@@ -48,11 +44,10 @@ describe('Model: LogProposal', () => {
         rawLogProposal.pluginAddress,
         rawLogProposal.proposalId,
       )
-      rawLogProposal.entityId = entityId
+      rawLogProposal.id = entityId
       const createdLogProposal = await Models.LogProposal.create(rawLogProposal)
 
-      expect(createdLogProposal.id).to.exist
-      expect(createdLogProposal.entityId).to.eq(rawLogProposal.entityId)
+      expect(createdLogProposal.id).to.eq(rawLogProposal.id)
       expect(createdLogProposal.transactionHash).to.eq(rawLogProposal.transactionHash)
       expect(createdLogProposal.blockNumber).to.eq(rawLogProposal.blockNumber)
       expect(createdLogProposal.network).to.eq(rawLogProposal.network)
@@ -71,15 +66,14 @@ describe('Model: LogProposal', () => {
     })
 
     it('Should create LogProposal without entityId', async () => {
-      const entityId = Models.LogProposal.getEntityId(
-        rawLogProposal.transactionHash,
-        rawLogProposal.pluginAddress,
-        rawLogProposal.proposalId,
-      )
+      const entityId = Models.LogProposal.getEntityId({
+        transactionHash: rawLogProposal.transactionHash!,
+        pluginAddress: rawLogProposal.pluginAddress!,
+        proposalId: rawLogProposal.proposalId!,
+      })
       const createdLogProposal = await Models.LogProposal.create(rawLogProposal)
 
-      expect(createdLogProposal.id).to.exist
-      expect(createdLogProposal.entityId).to.eq(entityId)
+      expect(createdLogProposal.id).to.eq(entityId)
       expect(createdLogProposal.transactionHash).to.eq(rawLogProposal.transactionHash)
       expect(createdLogProposal.blockNumber).to.eq(rawLogProposal.blockNumber)
       expect(createdLogProposal.network).to.eq(rawLogProposal.network)
@@ -113,24 +107,24 @@ describe('Model: LogProposal', () => {
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const pluginAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
     const proposalId = 1
-    const entityId = Models.LogProposal.getEntityId(transactionHash, pluginAddress, proposalId)
+    const entityId = Models.LogProposal.getEntityId({ transactionHash, pluginAddress, proposalId })
     expect(entityId).to.eq(`${transactionHash}-${pluginAddress}-${proposalId}`)
   })
 
   it('Should findExistingLog', async () => {
     const createdLogProposal = await Models.LogProposal.create(rawLogProposal)
-    const foundLogProposal = await Models.LogProposal.findExistingLog(
-      createdLogProposal.transactionHash,
-      createdLogProposal.pluginAddress,
-      createdLogProposal.proposalId,
-    )
-    expect(foundLogProposal?.entityId).to.eq(createdLogProposal.entityId)
+    const foundLogProposal = await Models.LogProposal.findExistingLog({
+      transactionHash: createdLogProposal.transactionHash,
+      pluginAddress: createdLogProposal.pluginAddress,
+      proposalId: createdLogProposal.proposalId,
+    })
+    expect(foundLogProposal?.id).to.eq(createdLogProposal.id)
   })
 
   it('Should findByEntityId', async () => {
     const createdLogProposal = await Models.LogProposal.create(rawLogProposal)
-    const foundLogProposal = await Models.LogProposal.findByEntityId(createdLogProposal.entityId)
-    expect(foundLogProposal?.entityId).to.eq(createdLogProposal.entityId)
+    const foundLogProposal = await Models.LogProposal.findByEntityId(createdLogProposal.id)
+    expect(foundLogProposal?.id).to.eq(createdLogProposal.id)
   })
 
   it('Should addVoteEvent when empty', async () => {

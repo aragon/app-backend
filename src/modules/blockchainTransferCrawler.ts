@@ -223,14 +223,20 @@ class BlockchainTransferCrawler {
   }
 
   async getServiceStartBlock() {
-    const existingConfig = await Models.ConfigIndexer.findExistingLog(this.crawlResult.network, this.logService)
+    const existingConfig = await Models.ConfigIndexer.findExistingLog({
+      network: this.crawlResult.network,
+      service: this.logService!,
+    })
     return existingConfig
       ? existingConfig.lastSync
       : config.ARAGON_SUPPORTED_BLOCK[this.crawlResult.network.toUpperCase()]
   }
 
   async onSaveProgress(blockNumber: number) {
-    const existingConfig = await Models.ConfigIndexer.findExistingLog(this.crawlResult.network, this.logService)
+    const existingConfig = await Models.ConfigIndexer.findExistingLog({
+      network: this.crawlResult.network,
+      service: this.logService!,
+    })
 
     await DbTx.executeTxFn(async ({ session }) => {
       if (existingConfig) {
@@ -239,10 +245,10 @@ class BlockchainTransferCrawler {
         await Models.ConfigIndexer.create(
           {
             network: this.crawlResult.network,
-            service: this.logService,
+            service: this.logService!,
             lastSync: blockNumber,
           },
-          { session },
+          { session } as any,
         )
       }
 

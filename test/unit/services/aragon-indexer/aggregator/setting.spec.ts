@@ -4,7 +4,6 @@ import { expect } from 'chai'
 import { AggregatorSetting } from '@services/aragon-indexer/aggregator/setting'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
-import { NetworksEnum } from '@types'
 import Logger from '@logger'
 
 describe('Indexer:Aggregator:Setting', () => {
@@ -46,108 +45,86 @@ describe('Indexer:Aggregator:Setting', () => {
 
   it('should call onDocument', async () => {
     const document = {
-      network: NetworksEnum.mainnet,
-      pluginAddress: '0x12345',
-      history: [
-        {
-          fromBlockNumber: 41326113,
-          toBlockNumber: 41847296,
-          fromTxHash: '0x2f0dd7d3799da5079efbf5623c062c846d3289ccc6011194f4c83c6b9a6535eb',
-          toTxHash: '0x2f0dd7d3799da5079efbf5623c062c846d3289ccc6011194f4c83c6b9a653500',
-          settings: {
-            votingMode: 1,
-            supportThreshold: 670000,
-            minParticipation: 50000,
-            minDuration: 86400,
-            minProposerVotingPower: '1e+23',
+      daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
+      pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
+      network: 'polygon',
+      fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef8',
+      toTxHash: '0x11ed65ce6ba3dbed7194ead9d3ffdfafdb921f39b1e55bd5139f0277ea219083',
+      fromBlockNumber: 47758873,
+      toBlockNumber: 48097896,
+      settings: {
+        votingMode: 1,
+        supportThreshold: 500000,
+        minParticipation: 150000,
+        minDuration: 86400,
+        minProposerVotingPower: '5e+18',
 
-            minApprovals: 1,
-            onlyListed: true,
-          },
-        },
-      ],
+        minApprovals: 1,
+        onlyListed: true,
+      },
     }
 
     const stubLogger = sandbox.stub(Logger, 'verbose')
 
-    await AggregatorSetting.onDocument(document)
+    await AggregatorSetting.onDocument(document as any)
 
     expect(stubLogger.calledOnce).to.be.true
 
-    const setting = await Models.Setting.findExistingLog(document.pluginAddress, document.network)
+    const setting = await Models.Setting.findExistingLog({
+      fromTxHash: document.fromTxHash,
+      network: document.network,
+    } as any)
     expect(setting.id).to.exist
-    expect(setting.entityId).to.exist
     expect(setting.pluginAddress).to.eq(document.pluginAddress)
     expect(setting.network).to.eq(document.network)
 
-    expect(setting.history[0].fromTxHash).to.eq(document?.history?.[0]?.fromTxHash)
-    expect(setting.history[0].toTxHash).to.eq(document?.history?.[0]?.toTxHash)
-    expect(setting.history[0].fromBlockNumber).to.eq(document?.history?.[0]?.fromBlockNumber)
-    expect(setting.history[0].toBlockNumber).to.eq(document?.history?.[0]?.toBlockNumber)
-    expect(setting.history[0].settings.votingMode).to.eq(document?.history?.[0]?.settings?.votingMode)
-    expect(setting.history[0].settings.supportThreshold).to.eq(document?.history?.[0]?.settings?.supportThreshold)
-    expect(setting.history[0].settings.minParticipation).to.eq(document?.history?.[0]?.settings?.minParticipation)
-    expect(setting.history[0].settings.minDuration).to.eq(document?.history?.[0]?.settings?.minDuration)
-    expect(setting.history[0].settings.minProposerVotingPower).to.eq(
-      document?.history?.[0]?.settings?.minProposerVotingPower,
-    )
-    expect(setting.history[0].settings.minApprovals).to.eq(document?.history?.[0]?.settings?.minApprovals)
-    expect(setting.history[0].settings.onlyListed).to.eq(document?.history?.[0]?.settings?.onlyListed)
+    expect(setting.fromTxHash).to.eq(document.fromTxHash)
+    expect(setting.toTxHash).to.eq(document.toTxHash)
+    expect(setting.fromBlockNumber).to.eq(document.fromBlockNumber)
+    expect(setting.toBlockNumber).to.eq(document.toBlockNumber)
+    expect(setting.settings.votingMode).to.eq(document.settings?.votingMode)
+    expect(setting.settings.supportThreshold).to.eq(document.settings?.supportThreshold)
+    expect(setting.settings.minParticipation).to.eq(document.settings?.minParticipation)
+    expect(setting.settings.minDuration).to.eq(document.settings?.minDuration)
+    expect(setting.settings.minProposerVotingPower).to.eq(document.settings?.minProposerVotingPower)
+    expect(setting.settings.minApprovals).to.eq(document.settings?.minApprovals)
+    expect(setting.settings.onlyListed).to.eq(document.settings?.onlyListed)
   })
 
   it('should update an existing aggregate setting log', async () => {
-    const rawDoc = {
-      network: NetworksEnum.mainnet,
-      pluginAddress: '0x12345',
-      history: [
-        {
-          fromBlockNumber: 41326113,
-          toBlockNumber: 41847296,
-          fromTxHash: '0x2f0dd7d3799da5079efbf5623c062c846d3289ccc6011194f4c83c6b9a6535eb',
-          toTxHash: '0x2f0dd7d3799da5079efbf5623c062c846d3289ccc6011194f4c83c6b9a653500',
-          settings: {
-            votingMode: 1,
-            supportThreshold: 670000,
-            minParticipation: 50000,
-            minDuration: 86400,
-            minProposerVotingPower: '1e+23',
+    const rawDoc: any = {
+      daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
+      pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
+      network: 'polygon',
+      fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef8',
+      toTxHash: '0x11ed65ce6ba3dbed7194ead9d3ffdfafdb921f39b1e55bd5139f0277ea219083',
+      fromBlockNumber: 47758873,
+      toBlockNumber: 48097896,
+      settings: {
+        votingMode: 1,
+        supportThreshold: 500000,
+        minParticipation: 150000,
+        minDuration: 86400,
+        minProposerVotingPower: '5e+18',
 
-            minApprovals: 1,
-            onlyListed: true,
-          },
-        },
-      ],
+        minApprovals: 1,
+        onlyListed: true,
+      },
     }
     const dbDoc = await Models.Setting.create(rawDoc)
     const loggerSpy = sandbox.stub(Logger, 'verbose')
 
-    rawDoc.history = [
-      {
-        fromBlockNumber: 41326113,
-        toBlockNumber: 41847296,
-        fromTxHash: '0x2f0dd7d3799da5079efbf5623c062c846d3289ccc6011194f4c83c6b9a6535eb',
-        toTxHash: '0x2f0dd7d3799da5079efbf5623c062c846d3289ccc6011194f4c83c6b9a653500',
-        settings: {
-          votingMode: 1,
-          supportThreshold: 670000,
-          minParticipation: 50000,
-          minDuration: 86400,
-          minProposerVotingPower: '1e+23',
-          minApprovals: 10,
-          onlyListed: true,
-        },
-      },
-    ]
+    rawDoc.settings.minApprovals = 10
     await AggregatorSetting.onDocument(rawDoc)
 
     const updatedDoc = await dbDoc.reload()
 
-    expect(updatedDoc.history[0].settings.minApprovals).to.equal(10)
+    expect(updatedDoc.settings.minApprovals).to.equal(10)
     expect(loggerSpy.calledOnceWith('Update Aggregate Setting' as any)).to.be.true
   })
 
   it('should query', () => {
     const pipeline = AggregatorSetting.query()
-    expect(pipeline.length).to.eq(4)
+    expect(pipeline.length).to.eq(6)
   })
 })

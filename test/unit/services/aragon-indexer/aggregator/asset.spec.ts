@@ -70,26 +70,30 @@ describe('Indexer:Aggregator:Assets', () => {
       expect(stubGetTokenBalances.calledWith(document.address, document.network)).to.be.true
       expect(stubLogger.calledThrice).to.be.true
 
-      const asset = await Models.Asset.findExistingLog(
-        document.address,
-        fakeTokenBalances[0].contractAddress,
-        document.network,
-      )
+      const asset = await Models.Asset.findExistingLog({
+        daoAddress: document.address,
+        tokenAddress: fakeTokenBalances[0].contractAddress,
+        network: document.network,
+      })
       expect(asset.daoAddress).to.equal(document.address)
       expect(asset.network).to.equal(document.network)
       expect(asset.tokenAddress).to.equal(fakeTokenBalances[0].contractAddress)
       expect(asset.amount).to.equal(fakeTokenBalances[0].tokenBalance)
 
-      const asset2 = await Models.Asset.findExistingLog(
-        document.address,
-        fakeTokenBalances[1].contractAddress,
-        document.network,
-      )
+      const asset2 = await Models.Asset.findExistingLog({
+        daoAddress: document.address,
+        tokenAddress: fakeTokenBalances[1].contractAddress,
+        network: document.network,
+      })
       expect(asset2.daoAddress).to.equal(document.address)
       expect(asset2.tokenAddress).to.equal(fakeTokenBalances[1].contractAddress)
       expect(asset2.amount).to.equal(fakeTokenBalances[1].tokenBalance)
 
-      const asset3 = await Models.Asset.findExistingLog(document.address, ZeroAddress, document.network)
+      const asset3 = await Models.Asset.findExistingLog({
+        daoAddress: document.address,
+        tokenAddress: ZeroAddress,
+        network: document.network,
+      })
       expect(asset3.daoAddress).to.equal(document.address)
       expect(asset3.tokenAddress).to.equal(ZeroAddress)
       expect(asset3.amount).to.equal(fakeEthBalance)
@@ -129,17 +133,21 @@ describe('Indexer:Aggregator:Assets', () => {
       expect(stubGetTokenBalances.calledWith(document.address, document.network)).to.be.true
       expect(stubLogger.calledTwice).to.be.true
 
-      const asset = await Models.Asset.findExistingLog(
-        document.address,
-        fakeTokenBalances[0].contractAddress,
-        document.network,
-      )
+      const asset = await Models.Asset.findExistingLog({
+        daoAddress: document.address,
+        tokenAddress: fakeTokenBalances[0].contractAddress,
+        network: document.network,
+      })
       expect(asset.daoAddress).to.equal(document.address)
       expect(asset.network).to.equal(document.network)
       expect(asset.tokenAddress).to.equal(fakeTokenBalances[0].contractAddress)
       expect(asset.amount).to.equal(fakeTokenBalances[0].tokenBalance)
 
-      const asset2 = await Models.Asset.findExistingLog(document.address, ZeroAddress, document.network)
+      const asset2 = await Models.Asset.findExistingLog({
+        daoAddress: document.address,
+        tokenAddress: ZeroAddress,
+        network: document.network,
+      })
       expect(asset2.daoAddress).to.equal(document.address)
       expect(asset2.tokenAddress).to.equal(ZeroAddress)
       expect(asset2.amount).to.equal(fakeEthBalance)
