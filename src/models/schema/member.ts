@@ -165,12 +165,13 @@ export default class Member extends Model {
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages) {
-      return ModelUtils.paginateEmptyResponse()
+      return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
     return {
       metadata: {
-        currentPage,
+        page: currentPage,
+        pageSize: request.limit,
         totalPages,
         totalRecords,
       },

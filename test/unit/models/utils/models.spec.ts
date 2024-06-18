@@ -103,10 +103,11 @@ describe('Model/Utils: models', () => {
 
   describe('paginateEmptyResponse', () => {
     it('should return a standardized empty pagination response', () => {
-      const result = ModelUtils.paginateEmptyResponse()
+      const result = ModelUtils.paginateEmptyResponse(10)
       expect(result).to.deep.equal({
         metadata: {
-          currentPage: 1,
+          page: 1,
+          pageSize: 10,
           totalRecords: 0,
           totalPages: 1,
         },
