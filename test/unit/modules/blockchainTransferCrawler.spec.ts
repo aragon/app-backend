@@ -429,7 +429,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
       await crawler.onSaveProgress(blockNumber)
 
-      expect(spyModelFind.calledOnceWith(NetworksEnum.mainnet, 'testService')).to.be.true
+      expect(spyModelFind.calledOnceWith({ network: NetworksEnum.mainnet, service: 'testService' })).to.be.true
       expect(spyModelCreate.calledOnce).to.be.true
     })
 
@@ -452,7 +452,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
       await crawler.onSaveProgress(blockNumber)
 
-      expect(spyModelFind.calledOnceWith(NetworksEnum.mainnet, 'testService')).to.be.true
+      expect(spyModelFind.calledOnceWith({ network: NetworksEnum.mainnet, service: 'testService' })).to.be.true
       expect(fakeModel.update.calledOnce).to.be.true
       expect(spyModelCreate.notCalled).to.be.true
     })

@@ -181,9 +181,11 @@ describe('Module: provider', () => {
       const mockUrl = 'wss://ethereum-rpc.publicnode.com'
       const stubLogger = sandbox.stub(Logger, 'error')
 
-      await Provider.reconnectToNetwork(NetworksEnum.mainnet, mockUrl, 10)
+      const result = await Provider.reconnectToNetwork(NetworksEnum.mainnet, mockUrl, 10)
 
+      expect(result).to.eq(undefined)
       expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith(`Max reconnect attempts reached for ${NetworksEnum.mainnet}` as any)).to.be.true
 
       config.NODE_CONFIG.RECONNECT_INTERVAL = oldConfig
     })

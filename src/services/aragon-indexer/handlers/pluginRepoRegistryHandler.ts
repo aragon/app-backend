@@ -10,7 +10,10 @@ export const PluginRepoRegistryHandler = {
   pluginRepoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const pluginRepo = parsedEvent.args.pluginRepo
-      const existingLog = await Models.LogPluginRepo.findExistingLog(info.transactionHash, pluginRepo)
+      const existingLog = await Models.LogPluginRepo.findExistingLog({
+        transactionHash: info.transactionHash,
+        pluginRepo,
+      })
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
@@ -21,7 +24,7 @@ export const PluginRepoRegistryHandler = {
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
           }
-          const logDb = await Models.LogPluginRepo.create(pluginRepoLog, { session })
+          const logDb = await Models.LogPluginRepo.create(pluginRepoLog, { session } as any)
 
           await session.commitTransaction()
           await session.endSession()

@@ -84,7 +84,10 @@ describe('Rates: DaoTvl', () => {
       await DaoTvl.start()
 
       const rawDao = daos[0]
-      const daoDb = await Models.Dao.findExistingLog(rawDao.address, rawDao.network)
+      const daoDb = await Models.Dao.findExistingLog({
+        address: rawDao.address,
+        network: rawDao.network,
+      })
 
       expect(stubLogger.calledTwice).to.be.true
       expect(daoDb.tvlUSD).to.eq('11204.20')
@@ -93,6 +96,6 @@ describe('Rates: DaoTvl', () => {
 
   it('should query', () => {
     const pipeline = DaoTvl.query()
-    expect(pipeline.length).to.eq(8)
+    expect(pipeline.length).to.eq(10)
   })
 })

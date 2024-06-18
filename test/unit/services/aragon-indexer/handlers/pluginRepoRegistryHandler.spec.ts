@@ -40,13 +40,18 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, logInfo)
 
       expect(findTxHashSpy.calledOnce).to.be.true
-      expect(findTxHashSpy.calledWith(logInfo.transactionHash, fakeEvent.args.pluginRepo)).to.be.true
+      expect(
+        findTxHashSpy.calledWith({
+          transactionHash: logInfo.transactionHash,
+          pluginRepo: fakeEvent.args.pluginRepo,
+        }),
+      ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
-      const savedPluginRepoLog = await Models.LogPluginRepo.findExistingLog(
-        logInfo.transactionHash,
-        fakeEvent.args.pluginRepo,
-      )
+      const savedPluginRepoLog = await Models.LogPluginRepo.findExistingLog({
+        transactionHash: logInfo.transactionHash,
+        pluginRepo: fakeEvent.args.pluginRepo,
+      })
       expect(!!savedPluginRepoLog).to.be.true
 
       expect(savedPluginRepoLog.network).to.eq(logInfo.network)

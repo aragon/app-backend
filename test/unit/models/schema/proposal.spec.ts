@@ -86,16 +86,14 @@ describe('Model: Proposal', () => {
 
   describe('Create Proposal', async () => {
     it('Should create Proposal multisig', async () => {
-      const entityId = Models.Proposal.getEntityId(
-        rawProposalMultisig.transactionHash,
-        rawProposalMultisig.pluginAddress,
-        rawProposalMultisig.proposalId,
-      )
-      rawProposalMultisig.entityId = entityId
+      rawProposalMultisig.id = Models.Proposal.getEntityId({
+        transactionHash: rawProposalMultisig.transactionHash!,
+        pluginAddress: rawProposalMultisig.pluginAddress!,
+        proposalId: rawProposalMultisig.proposalId!,
+      })
       const createdProposal = await Models.Proposal.create(rawProposalMultisig)
 
-      expect(createdProposal.id).to.exist
-      expect(createdProposal.entityId).to.eq(rawProposalMultisig.entityId)
+      expect(createdProposal.id).to.eq(rawProposalMultisig.id)
       expect(createdProposal.transactionHash).to.eq(rawProposalMultisig.transactionHash)
       expect(createdProposal.blockNumber).to.eq(rawProposalMultisig.blockNumber)
       expect(createdProposal.network).to.eq(rawProposalMultisig.network)
@@ -124,16 +122,15 @@ describe('Model: Proposal', () => {
     })
 
     it('Should create Proposal token-voting', async () => {
-      const entityId = Models.Proposal.getEntityId(
-        rawProposalTokenVoting.transactionHash,
-        rawProposalTokenVoting.pluginAddress,
-        rawProposalTokenVoting.proposalId,
-      )
-      rawProposalTokenVoting.entityId = entityId
+      rawProposalTokenVoting.id = Models.Proposal.getEntityId({
+        transactionHash: rawProposalTokenVoting.transactionHash!,
+        pluginAddress: rawProposalTokenVoting.pluginAddress!,
+        proposalId: rawProposalTokenVoting.proposalId!,
+      })
+
       const createdProposal = await Models.Proposal.create(rawProposalTokenVoting)
 
-      expect(createdProposal.id).to.exist
-      expect(createdProposal.entityId).to.eq(rawProposalTokenVoting.entityId)
+      expect(createdProposal.id).to.eq(rawProposalTokenVoting.id)
       expect(createdProposal.transactionHash).to.eq(rawProposalTokenVoting.transactionHash)
       expect(createdProposal.blockNumber).to.eq(rawProposalTokenVoting.blockNumber)
       expect(createdProposal.network).to.eq(rawProposalTokenVoting.network)
@@ -167,15 +164,14 @@ describe('Model: Proposal', () => {
     })
 
     it('Should create Proposal without entityId', async () => {
-      const entityId = Models.Proposal.getEntityId(
-        rawProposalMultisig.transactionHash,
-        rawProposalMultisig.pluginAddress,
-        rawProposalMultisig.proposalId,
-      )
+      const entityId = Models.Proposal.getEntityId({
+        transactionHash: rawProposalMultisig.transactionHash!,
+        pluginAddress: rawProposalMultisig.pluginAddress!,
+        proposalId: rawProposalMultisig.proposalId!,
+      })
       const createdProposal = await Models.Proposal.create(rawProposalMultisig)
 
-      expect(createdProposal.id).to.exist
-      expect(createdProposal.entityId).to.eq(entityId)
+      expect(createdProposal.id).to.eq(entityId)
       expect(createdProposal.transactionHash).to.eq(rawProposalMultisig.transactionHash)
       expect(createdProposal.blockNumber).to.eq(rawProposalMultisig.blockNumber)
       expect(createdProposal.network).to.eq(rawProposalMultisig.network)
@@ -202,24 +198,24 @@ describe('Model: Proposal', () => {
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const pluginAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
     const proposalId = 1
-    const entityId = Models.Proposal.getEntityId(transactionHash, pluginAddress, proposalId)
+    const entityId = Models.Proposal.getEntityId({ transactionHash, pluginAddress, proposalId })
     expect(entityId).to.eq(`${transactionHash}-${pluginAddress}-${proposalId}`)
   })
 
   it('Should findExistingLog', async () => {
     const createdProposal = await Models.Proposal.create(rawProposalMultisig)
-    const foundProposal = await Models.Proposal.findExistingLog(
-      createdProposal.transactionHash,
-      createdProposal.pluginAddress,
-      createdProposal.proposalId,
-    )
-    expect(foundProposal?.entityId).to.eq(createdProposal.entityId)
+    const foundProposal = await Models.Proposal.findExistingLog({
+      transactionHash: createdProposal.transactionHash,
+      pluginAddress: createdProposal.pluginAddress,
+      proposalId: createdProposal.proposalId,
+    })
+    expect(foundProposal?.id).to.eq(createdProposal.id)
   })
 
   it('Should findByEntityId', async () => {
     const createdProposal = await Models.Proposal.create(rawProposalMultisig)
-    const foundProposal = await Models.Proposal.findByEntityId(createdProposal.entityId)
-    expect(foundProposal?.entityId).to.eq(createdProposal.entityId)
+    const foundProposal = await Models.Proposal.findByEntityId(createdProposal.id)
+    expect(foundProposal?.id).to.eq(createdProposal.id)
   })
 
   it('Should findByProposalId', async () => {
@@ -237,18 +233,6 @@ describe('Model: Proposal', () => {
     await createdProposal.reload()
 
     expect(createdProposal.daoAddress).to.eq(rawProposalMultisig.daoAddress)
-  })
-
-  it('should filter keys', async () => {
-    const createdProposal = await Models.Proposal.create(rawProposalMultisig)
-    const filterProposal = createdProposal.filterKeys()
-
-    expect(filterProposal.id).to.be.undefined
-    expect(filterProposal._id).to.be.undefined
-    expect(filterProposal.__v).to.be.undefined
-    expect(filterProposal.createdAt).to.be.undefined
-    expect(filterProposal.updatedAt).to.be.undefined
-    expect(Object.keys(filterProposal).length).to.eq(16)
   })
 
   describe('paginate', () => {
@@ -326,7 +310,10 @@ describe('Model: Proposal', () => {
       const {
         data,
         metadata: { totalRecords, currentPage, totalPages },
-      } = await Models.Proposal.findWithPagination({ daoAddress: null, pluginAddress: null }, {})
+      } = await Models.Proposal.findWithPagination({
+        extraParams: {},
+        paginationParams: {},
+      })
 
       expect(data.length).to.eq(2)
       expect(totalRecords).to.eq(2)
@@ -338,7 +325,10 @@ describe('Model: Proposal', () => {
       const {
         data,
         metadata: { totalRecords, currentPage, totalPages },
-      } = await Models.Proposal.findWithPagination({ daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254' }, {})
+      } = await Models.Proposal.findWithPagination({
+        extraParams: { daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254' },
+        paginationParams: {},
+      })
       expect(data.length).to.eq(1)
       expect(totalRecords).to.eq(1)
       expect(currentPage).to.eq(1)
@@ -349,10 +339,10 @@ describe('Model: Proposal', () => {
       const {
         data,
         metadata: { totalRecords, currentPage, totalPages },
-      } = await Models.Proposal.findWithPagination(
-        { daoAddress: null, pluginAddress: '0x563Ebb4972bb6fABb1128c5895A31B6FAC2f6e14' },
-        {},
-      )
+      } = await Models.Proposal.findWithPagination({
+        extraParams: { pluginAddress: '0x563Ebb4972bb6fABb1128c5895A31B6FAC2f6e14' },
+        paginationParams: {},
+      })
       expect(data.length).to.eq(1)
       expect(totalRecords).to.eq(1)
       expect(currentPage).to.eq(1)
@@ -363,7 +353,10 @@ describe('Model: Proposal', () => {
       const {
         data,
         metadata: { totalRecords, currentPage, totalPages },
-      } = await Models.Proposal.findWithPagination({ daoAddress: '0xBeB63a3565942D16C1c1211bD78F1B3Dcfe1A254' }, {})
+      } = await Models.Proposal.findWithPagination({
+        extraParams: { daoAddress: '0xBeB63a3565942D16C1c1211bD78F1B3Dcfe1A254' },
+        paginationParams: {},
+      })
       expect(data.length).to.eq(0)
       expect(totalRecords).to.eq(0)
       expect(currentPage).to.eq(1)
@@ -374,17 +367,29 @@ describe('Model: Proposal', () => {
       const {
         data,
         metadata: { totalRecords, currentPage, totalPages },
-      } = await Models.Proposal.findWithPagination(
-        {
+      } = await Models.Proposal.findWithPagination({
+        extraParams: {
           daoAddress: '0x59447788F9dCf2df550F257F3692a07f05b922D7',
           pluginAddress: '0xB85380977eC3435aeBc13e29b01AF990393bdED9',
         },
-        {},
-      )
+        paginationParams: {},
+      })
       expect(data.length).to.eq(1)
       expect(totalRecords).to.eq(1)
       expect(currentPage).to.eq(1)
       expect(totalPages).to.eq(1)
     })
+  })
+
+  it('should filter keys', async () => {
+    const createdProposal = await Models.Proposal.create(rawProposalMultisig)
+    const filterProposal = createdProposal.filterKeys()
+
+    expect(filterProposal.id).to.exist
+    expect(filterProposal._id).to.be.undefined
+    expect(filterProposal.__v).to.be.undefined
+    expect(filterProposal.createdAt).to.be.undefined
+    expect(filterProposal.updatedAt).to.be.undefined
+    expect(Object.keys(filterProposal).length).to.eq(16)
   })
 })

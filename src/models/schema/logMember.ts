@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, IEventLogMember, NetworksEnum } from '@types'
+import { HexAddress, IEventLogMember, type ILogMemberIdParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -8,6 +8,7 @@ const customName = 'LogMember'
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'logMember',
     toJSON: { virtuals: true },
@@ -25,7 +26,7 @@ const customName = 'LogMember'
 })
 export default class LogMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, enum: IEventLogMember, required: true })
   public event!: IEventLogMember
@@ -69,38 +70,27 @@ export default class LogMember extends Model {
       assert(!!rawData.event, 'event is required')
       assert(!!rawData.address, 'address is required')
       assert(!!rawData.network, 'network is required')
-      rawData.entityId = this.getEntityId(
-        rawData?.transactionHash!,
-        rawData?.event!,
-        rawData?.address!,
-        rawData?.network!,
-      )
+      rawData.id = this.getEntityId({
+        transactionHash: rawData?.transactionHash!,
+        event: rawData?.event!,
+        address: rawData?.address!,
+        network: rawData?.network!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(
-    transactionHash: HexAddress,
-    event: IEventLogMember,
-    memberAddress: HexAddress,
-    network: NetworksEnum,
-  ) {
-    return `${transactionHash}-${event}-${memberAddress}-${network}`
+  static getEntityId(params: ILogMemberIdParams) {
+    return `${params.transactionHash}-${params.event}-${params.address}-${params.network}`
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
-  static async findExistingLog(
-    transactionHash: HexAddress,
-    event: IEventLogMember,
-    memberAddress: HexAddress,
-    network: NetworksEnum,
-    tOpts?: SaveOptions,
-  ) {
-    const entityId = this.getEntityId(transactionHash, event, memberAddress, network)
+  static async findExistingLog(params: ILogMemberIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 

@@ -54,20 +54,23 @@ describe('Model: Token', () => {
   it('Should getEntityId', async () => {
     const address = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const network = NetworksEnum.mainnet
-    const entityId = await Models.Token.getEntityId(address, network)
+    const entityId = Models.Token.getEntityId({ address, network })
     expect(entityId).to.eq(`${address}-${network}`)
   })
 
   it('Should findExistingLog', async () => {
     const createdLogDao = await Models.Token.create(rawToken)
-    const foundLogDao = await Models.Token.findExistingLog(createdLogDao.address, createdLogDao.network)
-    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+    const foundLogDao = await Models.Token.findExistingLog({
+      address: createdLogDao.address,
+      network: createdLogDao.network,
+    })
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   it('Should findByEntityId', async () => {
     const createdLogDao = await Models.Token.create(rawToken)
-    const foundLogDao = await Models.Token.findByEntityId(createdLogDao.entityId)
-    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+    const foundLogDao = await Models.Token.findByEntityId(createdLogDao.id)
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   it('Should update Token', async () => {
@@ -107,7 +110,7 @@ describe('Model: Token', () => {
     const createdToken = await Models.Token.create(rawToken)
     const filterToken = createdToken.filterKeys()
 
-    expect(filterToken.id).to.be.undefined
+    expect(filterToken.id).to.exist
     expect(filterToken._id).to.be.undefined
     expect(filterToken.__v).to.be.undefined
     expect(filterToken.createdAt).to.be.undefined

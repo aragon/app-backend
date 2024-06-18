@@ -12,14 +12,11 @@ describe('Model: LogDaoRegistry', () => {
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
-
     rawLogDaoRegistry = {
-      transactionHash,
+      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
       blockNumber: 3,
       network: NetworksEnum.mainnet,
-      address,
+      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
       subdomain: 'fake-subdomain',
     }
@@ -32,11 +29,10 @@ describe('Model: LogDaoRegistry', () => {
   describe('Create LogDaoRegistry', async () => {
     it('Should create LogDaoRegistry', async () => {
       const entityId = Models.LogDaoRegistry.getEntityId(rawLogDaoRegistry.transactionHash, rawLogDaoRegistry.address)
-      rawLogDaoRegistry.entityId = entityId
+      rawLogDaoRegistry.id = entityId
       const createdLogDaoRegistry = await Models.LogDaoRegistry.create(rawLogDaoRegistry)
 
-      expect(createdLogDaoRegistry.id).to.exist
-      expect(createdLogDaoRegistry.entityId).to.eq(rawLogDaoRegistry.entityId)
+      expect(createdLogDaoRegistry.id).to.eq(entityId)
       expect(createdLogDaoRegistry.transactionHash).to.eq(rawLogDaoRegistry.transactionHash)
       expect(createdLogDaoRegistry.blockNumber).to.eq(rawLogDaoRegistry.blockNumber)
       expect(createdLogDaoRegistry.network).to.eq(rawLogDaoRegistry.network)
@@ -46,11 +42,13 @@ describe('Model: LogDaoRegistry', () => {
     })
 
     it('Should create LogDaoRegistry without entityId', async () => {
-      const entityId = Models.LogDaoRegistry.getEntityId(rawLogDaoRegistry.transactionHash, rawLogDaoRegistry.address)
+      const entityId = Models.LogDaoRegistry.getEntityId({
+        transactionHash: rawLogDaoRegistry.transactionHash!,
+        address: rawLogDaoRegistry.address!,
+      })
       const createdLogDaoRegistry = await Models.LogDaoRegistry.create(rawLogDaoRegistry)
 
-      expect(createdLogDaoRegistry.id).to.exist
-      expect(createdLogDaoRegistry.entityId).to.eq(entityId)
+      expect(createdLogDaoRegistry.id).to.eq(entityId)
       expect(createdLogDaoRegistry.transactionHash).to.eq(rawLogDaoRegistry.transactionHash)
       expect(createdLogDaoRegistry.blockNumber).to.eq(rawLogDaoRegistry.blockNumber)
       expect(createdLogDaoRegistry.network).to.eq(rawLogDaoRegistry.network)
@@ -74,23 +72,23 @@ describe('Model: LogDaoRegistry', () => {
   it('Should getEntityId', async () => {
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
-    const entityId = Models.LogDaoRegistry.getEntityId(transactionHash, address)
+    const entityId = Models.LogDaoRegistry.getEntityId({ transactionHash, address })
     expect(entityId).to.eq(`${transactionHash}-${address}`)
   })
 
   it('Should findExistingLog', async () => {
     const createdLogDaoRegistry = await Models.LogDaoRegistry.create(rawLogDaoRegistry)
-    const foundLogDaoRegistry = await Models.LogDaoRegistry.findExistingLog(
-      createdLogDaoRegistry.transactionHash,
-      createdLogDaoRegistry.address,
-    )
-    expect(foundLogDaoRegistry?.entityId).to.eq(createdLogDaoRegistry.entityId)
+    const foundLogDaoRegistry = await Models.LogDaoRegistry.findExistingLog({
+      transactionHash: createdLogDaoRegistry.transactionHash,
+      address: createdLogDaoRegistry.address,
+    })
+    expect(foundLogDaoRegistry?.id).to.eq(createdLogDaoRegistry.id)
   })
 
   it('Should findByEntityId', async () => {
     const createdLogDaoRegistry = await Models.LogDaoRegistry.create(rawLogDaoRegistry)
-    const foundLogDaoRegistry = await Models.LogDaoRegistry.findByEntityId(createdLogDaoRegistry.entityId)
-    expect(foundLogDaoRegistry?.entityId).to.eq(createdLogDaoRegistry.entityId)
+    const foundLogDaoRegistry = await Models.LogDaoRegistry.findByEntityId(createdLogDaoRegistry.id)
+    expect(foundLogDaoRegistry?.id).to.eq(createdLogDaoRegistry.id)
   })
 
   it('Should reload', async () => {
@@ -106,7 +104,7 @@ describe('Model: LogDaoRegistry', () => {
       createdLogDaoRegistry.address,
       createdLogDaoRegistry.network,
     )
-    expect(foundLogDaoRegistry?.entityId).to.eq(createdLogDaoRegistry.entityId)
+    expect(foundLogDaoRegistry?.id).to.eq(createdLogDaoRegistry.id)
   })
 
   it('Should addUriEvent when empty', async () => {

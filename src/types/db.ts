@@ -1,4 +1,3 @@
-import { type Model } from 'mongoose'
 import type Dao from '@models/schema/dao'
 import type Token from '@models/schema/token'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
@@ -18,23 +17,23 @@ import type Proposal from '@models/schema/proposal'
 import type ConfigIndexer from '@models/schema/configIndexer'
 
 export interface IMongoModel {
-  Dao: Model<InstanceType<typeof Dao>>
-  Token: Model<InstanceType<typeof Token>>
-  LogDaoRegistry: Model<InstanceType<typeof LogDaoRegistry>>
-  LogDaoMetadata: Model<InstanceType<typeof LogDaoMetadata>>
-  LogProposalMetadata: Model<InstanceType<typeof LogProposalMetadata>>
-  LogPluginSetupProcessor: Model<InstanceType<typeof LogPluginSetupProcessor>>
-  LogPluginRepo: Model<InstanceType<typeof LogPluginRepo>>
-  LogProposal: Model<InstanceType<typeof LogProposal>>
-  LogPluginSetting: Model<InstanceType<typeof LogPluginSetting>>
-  LogMember: Model<InstanceType<typeof LogMember>>
-  Member: Model<InstanceType<typeof Member>>
-  Plugin: Model<InstanceType<typeof Plugin>>
-  Setting: Model<InstanceType<typeof Setting>>
-  Asset: Model<InstanceType<typeof Asset>>
-  Proposal: Model<InstanceType<typeof Proposal>>
-  Transaction: Model<InstanceType<typeof Transaction>>
-  ConfigIndexer: Model<InstanceType<typeof ConfigIndexer>>
+  Dao: typeof Dao
+  Token: typeof Token
+  LogDaoRegistry: typeof LogDaoRegistry
+  LogDaoMetadata: typeof LogDaoMetadata
+  LogProposalMetadata: typeof LogProposalMetadata
+  LogPluginSetupProcessor: typeof LogPluginSetupProcessor
+  LogPluginRepo: typeof LogPluginRepo
+  LogProposal: typeof LogProposal
+  LogPluginSetting: typeof LogPluginSetting
+  LogMember: typeof LogMember
+  Member: typeof Member
+  Plugin: typeof Plugin
+  Setting: typeof Setting
+  Asset: typeof Asset
+  Proposal: typeof Proposal
+  Transaction: typeof Transaction
+  ConfigIndexer: typeof ConfigIndexer
 }
 
 export enum IEventLogPluginType {

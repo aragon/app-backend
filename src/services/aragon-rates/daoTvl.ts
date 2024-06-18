@@ -1,11 +1,12 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
-import { type HexAddress, type NetworksEnum } from '@types'
+import { type ENS, type HexAddress, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:DaoTvl' })
 
 interface IQueryResult {
+  ens: ENS
   address: HexAddress
   network: NetworksEnum
   tvlUsd: number
@@ -19,7 +20,7 @@ export const DaoTvl = {
 
     await Promise.all(
       result.map(async (data: IQueryResult) => {
-        const dao = await Models.Dao.findExistingLog(data.address, data.network)
+        const dao = await Models.Dao.findExistingLog({ address: data.address, network: data.network })
         if (dao) {
           await DbTx.executeTxFn(async ({ session }) => {
             await dao.update({ tvlUSD: data.tvlUsd.toString() }, { session })
@@ -98,11 +99,26 @@ export const DaoTvl = {
         },
       },
       {
+        $lookup: {
+          from: 'dao',
+          localField: 'dao.daoAddress',
+          foreignField: 'address',
+          as: 'daoInfo',
+        },
+      },
+      {
+        $unwind: {
+          path: '$daoInfo',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
         $project: {
           _id: 0,
           address: '$dao.daoAddress',
           network: '$dao.network',
           tvlUsd: '$totalValueUsdRounded',
+          ens: { $ifNull: ['$daoInfo.ens', null] },
         },
       },
     ]

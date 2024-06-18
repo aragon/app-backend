@@ -417,24 +417,6 @@ describe('Helpers:Utils', () => {
     expect(result.length).to.eq(length)
   })
 
-  it('getDaoPermalink', async () => {
-    expect(
-      Utils.getDaoPermalink({
-        network: 'fake-network',
-        daoAddress: 'fake-address',
-        ens: 'fake-ens',
-      } as any),
-    ).to.eq(`fake-network-fake-ens`)
-
-    expect(
-      Utils.getDaoPermalink({
-        network: 'fake-network',
-        daoAddress: 'fake-address',
-        ens: null,
-      } as any),
-    ).to.eq(`fake-network-fake-address`)
-  })
-
   describe('parsePermissions', () => {
     it('should correctly parse and convert permissions array', () => {
       const permissionsInput = [

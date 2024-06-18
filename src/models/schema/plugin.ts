@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, IPluginAction, NetworksEnum } from '@types'
+import { HexAddress, IPluginAction, type IPluginIdParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -8,6 +8,7 @@ const customName = 'Plugin'
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'plugin',
     toJSON: { virtuals: true },
@@ -24,7 +25,7 @@ const customName = 'Plugin'
 })
 export default class Plugin extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
@@ -66,32 +67,31 @@ export default class Plugin extends Model {
   public subdomain!: string
 
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.action, 'action is required')
-      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.action as any, rawData?.network!)
+      rawData.id = this.getEntityId({
+        transactionHash: rawData?.transactionHash!,
+        action: rawData?.action as any,
+        network: rawData?.network!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(transactionHash: HexAddress, action: IPluginAction, network: NetworksEnum) {
-    const entityId = `${transactionHash}-${action}-${network}`
+  static getEntityId(params: IPluginIdParams) {
+    const entityId = `${params.transactionHash}-${params.action}-${params.network}`
     return entityId
   }
 
-  static async findExistingLog(
-    transactionHash: HexAddress,
-    action: IPluginAction,
-    network: NetworksEnum,
-    tOpts?: SaveOptions,
-  ) {
-    const entityId = this.getEntityId(transactionHash, action, network)
+  static async findExistingLog(params: IPluginIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
   static async findByAddress(address: HexAddress, tOpts?: SaveOptions) {
@@ -120,7 +120,7 @@ export default class Plugin extends Model {
 
   filterKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
+    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
     return filtered
   }
 }

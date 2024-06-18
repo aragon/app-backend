@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import { AggregatorPlugin } from '@services/aragon-indexer/aggregator/plugin'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
-import { IAPlugin, IPluginAction, NetworksEnum } from '@types'
+import { IPluginAction, NetworksEnum } from '@types'
 import Logger from '@logger'
 
 describe('Indexer:Aggregator:Plugin', () => {
@@ -46,7 +46,7 @@ describe('Indexer:Aggregator:Plugin', () => {
 
   describe('onDocument', async () => {
     it('should call onDocument', async () => {
-      const document: IAPlugin = {
+      const document: any = {
         transactionHash: '0x0',
         blockNumber: 3,
         network: NetworksEnum.mainnet,
@@ -68,7 +68,11 @@ describe('Indexer:Aggregator:Plugin', () => {
 
       expect(stubLogger.calledWith('New Aggregate Plugin' as any)).to.be.true
 
-      const member = await Models.Plugin.findExistingLog(document.transactionHash, document.action, document.network)
+      const member = await Models.Plugin.findExistingLog({
+        transactionHash: document.transactionHash,
+        action: document.action,
+        network: document.network,
+      })
       expect(member.transactionHash).to.equal(document.transactionHash)
       expect(member.blockNumber).to.equal(document.blockNumber)
       expect(member.network).to.equal(document.network)
@@ -85,7 +89,7 @@ describe('Indexer:Aggregator:Plugin', () => {
     })
 
     it('should call update', async () => {
-      const document: IAPlugin = {
+      const document: any = {
         transactionHash: '0x0',
         blockNumber: 3,
         network: NetworksEnum.mainnet,
@@ -110,7 +114,11 @@ describe('Indexer:Aggregator:Plugin', () => {
 
       expect(stubLogger.calledWith('Update Aggregate Plugin' as any)).to.be.true
 
-      const member = await Models.Plugin.findExistingLog(document.transactionHash, document.action, document.network)
+      const member = await Models.Plugin.findExistingLog({
+        transactionHash: document.transactionHash,
+        action: document.action,
+        network: document.network,
+      })
       expect(member.transactionHash).to.equal(document.transactionHash)
       expect(member.blockNumber).to.equal(document.blockNumber)
       expect(member.network).to.equal(document.network)

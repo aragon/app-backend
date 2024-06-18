@@ -1,5 +1,12 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type IPaginatedResult, type IPaginationParams, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  type IAssetExtraParams,
+  type IAssetIdParams,
+  type IPaginatedResult,
+  type IPaginationParams,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -9,6 +16,7 @@ const customName = 'Asset'
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'asset',
     toJSON: { virtuals: true },
@@ -24,7 +32,7 @@ const customName = 'Asset'
 })
 export default class Asset extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -33,39 +41,38 @@ export default class Asset extends Model {
   public daoAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public tokenAddress!: HexAddress | string
+  public tokenAddress!: HexAddress
 
   @prop({ type: () => String, default: '0' })
   public amount!: string
 
   static async create(rawData: Partial<Asset>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.daoAddress, 'daoAddress is required')
       assert(!!rawData.tokenAddress, 'tokenAddress is required')
       assert(!!rawData.network, 'network is required')
-      rawData.entityId = this.getEntityId(rawData?.daoAddress!, rawData?.tokenAddress! as HexAddress, rawData?.network!)
+      rawData.id = this.getEntityId({
+        daoAddress: rawData?.daoAddress!,
+        tokenAddress: rawData?.tokenAddress!,
+        network: rawData?.network!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(daoAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum) {
-    const entityId = `${daoAddress}-${tokenAddress}-${network}`
+  static getEntityId(params: IAssetIdParams) {
+    const entityId = `${params.daoAddress}-${params.tokenAddress}-${params.network}`
     return entityId
   }
 
-  static async findExistingLog(
-    daoAddress: HexAddress,
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-    tOpts?: SaveOptions,
-  ) {
-    const entityId = this.getEntityId(daoAddress, tokenAddress, network)
+  static async findExistingLog(params: IAssetIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
   static async findAssetsByDao(daoAddress: HexAddress, network: NetworksEnum) {
@@ -76,15 +83,18 @@ export default class Asset extends Model {
     return await this.findOne({ tokenAddress, daoAddress, network })
   }
 
-  static async findWithPagination(
-    { daoAddress },
-    paginationParams: IPaginationParams = {},
-  ): Promise<IPaginatedResult<any>> {
+  static async findWithPagination({
+    extraParams = {},
+    paginationParams = {},
+  }: {
+    extraParams?: IAssetExtraParams
+    paginationParams?: IPaginationParams
+  }): Promise<IPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const filter = ModelUtils.createFilter(paginationParams, ['tokenAddress'])
-
-    if (daoAddress) {
-      filter.daoAddress = daoAddress
+    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([_, v]) => v !== undefined))
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, ['tokenAddress']),
+      ...dynamicFilter,
     }
 
     const currentPage = request.skip / request.limit + 1

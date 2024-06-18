@@ -10,11 +10,12 @@ const DaoSchema = {
         .valid(...Object.values(NetworksEnum))
         .optional(),
       pluginAddress: ValidationSchema.joiAddress.optional(),
+      address: ValidationSchema.joiAddress.optional(),
     }),
   ),
 
-  getDaoByPermalink: Joi.object({
-    permalink: Joi.string()
+  getDaoById: Joi.object({
+    id: Joi.string()
       .required()
       .custom((value, helpers) => {
         try {
@@ -33,39 +34,8 @@ const DaoSchema = {
         } catch (error) {
           return value
         }
-      }, 'Permalink Address Validation'),
+      }, 'Dao Id validation'),
   }),
-
-  getDaoPlugin: Joi.object({
-    permalink: Joi.string().required(),
-    pluginAddress: ValidationSchema.joiAddress.optional(),
-  }),
-
-  getDaoMembersWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiPagination, {
-      permalink: Joi.string().required(),
-      pluginAddress: ValidationSchema.joiAddress.optional(),
-    }),
-  ),
-
-  getProposalsWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiPagination, {
-      permalink: Joi.string().required(),
-      pluginAddress: ValidationSchema.joiAddress.optional(),
-    }),
-  ),
-
-  getAssetsWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiPagination, {
-      permalink: Joi.string().required(),
-    }),
-  ),
-
-  getTransactionsWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiPagination, {
-      permalink: Joi.string().required(),
-    }),
-  ),
 }
 
 export default DaoSchema

@@ -11,10 +11,10 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:pluginSetupPro
 export const PluginSetupProcessorHandler = {
   installationApplied: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
-        info.transactionHash,
-        IEventLogPluginType.InstallationApplied,
-      )
+      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
+        transactionHash: info.transactionHash,
+        event: IEventLogPluginType.InstallationApplied,
+      })
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
@@ -28,7 +28,7 @@ export const PluginSetupProcessorHandler = {
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
           }
-          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session })
+          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session } as any)
 
           await session.commitTransaction()
           await session.endSession()
@@ -50,10 +50,10 @@ export const PluginSetupProcessorHandler = {
      */
 
     try {
-      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
-        info.transactionHash,
-        IEventLogPluginType.InstallationPrepared,
-      )
+      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
+        transactionHash: info.transactionHash,
+        event: IEventLogPluginType.InstallationPrepared,
+      })
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
@@ -66,11 +66,11 @@ export const PluginSetupProcessorHandler = {
             preparedSetupId: parsedEvent.args.preparedSetupId,
             pluginSetupRepo: parsedEvent.args.pluginSetupRepo,
             pluginAddress: parsedEvent.args.plugin,
-            release: Number(parsedEvent.args.versionTag.release),
-            build: Number(parsedEvent.args.versionTag.build),
+            release: parsedEvent.args.versionTag.release,
+            build: parsedEvent.args.versionTag.build,
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
-            tokenAddress: null,
+            tokenAddress: undefined,
           }
 
           /**
@@ -92,7 +92,7 @@ export const PluginSetupProcessorHandler = {
             }
           }
 
-          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session })
+          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session } as any)
 
           await session.commitTransaction()
           await session.endSession()
@@ -106,10 +106,10 @@ export const PluginSetupProcessorHandler = {
 
   uninstallationApplied: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
-        info.transactionHash,
-        IEventLogPluginType.UninstallationApplied,
-      )
+      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
+        transactionHash: info.transactionHash,
+        event: IEventLogPluginType.UninstallationApplied,
+      })
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
@@ -122,7 +122,7 @@ export const PluginSetupProcessorHandler = {
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
           }
-          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session })
+          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session } as any)
 
           await session.commitTransaction()
           await session.endSession()
@@ -136,10 +136,10 @@ export const PluginSetupProcessorHandler = {
 
   uninstallationPrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
-        info.transactionHash,
-        IEventLogPluginType.UninstallationPrepared,
-      )
+      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
+        transactionHash: info.transactionHash,
+        event: IEventLogPluginType.UninstallationPrepared,
+      })
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
@@ -152,12 +152,12 @@ export const PluginSetupProcessorHandler = {
             preparedSetupId: parsedEvent.args.preparedSetupId,
             pluginSetupRepo: parsedEvent.args.pluginSetupRepo,
             pluginAddress: parsedEvent.args.plugin,
-            release: Number(parsedEvent.args.versionTag.release),
-            build: Number(parsedEvent.args.versionTag.build),
+            release: parsedEvent.args.versionTag.release,
+            build: parsedEvent.args.versionTag.build,
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
           }
-          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session })
+          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session } as any)
 
           await session.commitTransaction()
           await session.endSession()
@@ -171,10 +171,10 @@ export const PluginSetupProcessorHandler = {
 
   updateApplied: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
-        info.transactionHash,
-        IEventLogPluginType.UpdateApplied,
-      )
+      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
+        transactionHash: info.transactionHash,
+        event: IEventLogPluginType.UpdateApplied,
+      })
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
@@ -188,7 +188,7 @@ export const PluginSetupProcessorHandler = {
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
           }
-          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session })
+          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session } as any)
 
           await session.commitTransaction()
           await session.endSession()
@@ -202,10 +202,10 @@ export const PluginSetupProcessorHandler = {
 
   updatePrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog(
-        info.transactionHash,
-        IEventLogPluginType.UpdatePrepared,
-      )
+      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
+        transactionHash: info.transactionHash,
+        event: IEventLogPluginType.UpdatePrepared,
+      })
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
@@ -218,12 +218,12 @@ export const PluginSetupProcessorHandler = {
             preparedSetupId: parsedEvent.args.preparedSetupId,
             pluginSetupRepo: parsedEvent.args.pluginSetupRepo,
             pluginAddress: parsedEvent.args.setupPayload.plugin,
-            release: Number(parsedEvent.args.versionTag.release),
-            build: Number(parsedEvent.args.versionTag.build),
+            release: parsedEvent.args.versionTag.release,
+            build: parsedEvent.args.versionTag.build,
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
           }
-          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session })
+          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session } as any)
 
           await session.commitTransaction()
           await session.endSession()

@@ -2,6 +2,7 @@ import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
+import type Member from '@models/schema/member'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMembers' })
 
@@ -25,13 +26,13 @@ export const AggregatorMembers = {
     logger.verbose('End AggregatorMembers', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt }))
   },
 
-  async onDocument(document: any) {
-    const existingLog = await Models.Member.findExistingLog(document.address)
+  async onDocument(document: Partial<Member>) {
+    const existingLog = await Models.Member.findExistingLog({ address: document.address! })
     // TODO: find user ens
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
       if (!existingLog) {
-        logDb = await Models.Member.create(document, { session })
+        logDb = await Models.Member.create(document, { session } as any)
       } else {
         logDb = await existingLog.update(document, { session })
       }

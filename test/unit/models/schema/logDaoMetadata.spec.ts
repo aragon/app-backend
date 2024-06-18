@@ -12,15 +12,12 @@ describe('Model: LogDaoMetadata', () => {
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const daoAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
-
     rawLogDaoMetadata = {
-      transactionHash,
+      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
       blockNumber: 3,
       network: NetworksEnum.mainnet,
       fetchedMetadata: true,
-      daoAddress,
+      daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       trustedForwarder: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       daoURI: 'test',
       ens: 'fake-ens.eth',
@@ -42,12 +39,11 @@ describe('Model: LogDaoMetadata', () => {
         rawLogDaoMetadata.transactionHash,
         rawLogDaoMetadata.daoAddress,
       )
-      rawLogDaoMetadata.entityId = entityId
+      rawLogDaoMetadata.id = entityId
 
       const createdLogDao = await Models.LogDaoMetadata.create(rawLogDaoMetadata)
 
-      expect(createdLogDao.id).to.exist
-      expect(createdLogDao.entityId).to.eq(rawLogDaoMetadata.entityId)
+      expect(createdLogDao.id).to.eq(entityId)
       expect(createdLogDao.transactionHash).to.eq(rawLogDaoMetadata.transactionHash)
       expect(createdLogDao.blockNumber).to.eq(rawLogDaoMetadata.blockNumber)
       expect(createdLogDao.network).to.eq(rawLogDaoMetadata.network)
@@ -62,14 +58,13 @@ describe('Model: LogDaoMetadata', () => {
     })
 
     it('Should create without entityId', async () => {
-      const entityId = Models.LogDaoMetadata.getEntityId(
-        rawLogDaoMetadata.transactionHash,
-        rawLogDaoMetadata.daoAddress,
-      )
+      const entityId = Models.LogDaoMetadata.getEntityId({
+        transactionHash: rawLogDaoMetadata.transactionHash!,
+        daoAddress: rawLogDaoMetadata.daoAddress!,
+      })
       const createdLogDao = await Models.LogDaoMetadata.create(rawLogDaoMetadata)
 
-      expect(createdLogDao.id).to.exist
-      expect(createdLogDao.entityId).to.eq(entityId)
+      expect(createdLogDao.id).to.eq(entityId)
       expect(createdLogDao.transactionHash).to.eq(rawLogDaoMetadata.transactionHash)
       expect(createdLogDao.blockNumber).to.eq(rawLogDaoMetadata.blockNumber)
       expect(createdLogDao.network).to.eq(rawLogDaoMetadata.network)
@@ -98,23 +93,23 @@ describe('Model: LogDaoMetadata', () => {
   it('Should getEntityId', async () => {
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const daoAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
-    const entityId = await Models.LogDaoMetadata.getEntityId(transactionHash, daoAddress)
+    const entityId = Models.LogDaoMetadata.getEntityId({ transactionHash, daoAddress })
     expect(entityId).to.eq(`${transactionHash}-${daoAddress}`)
   })
 
   it('Should findExistingLog', async () => {
     const createdLogDao = await Models.LogDaoMetadata.create(rawLogDaoMetadata)
-    const foundLogDao = await Models.LogDaoMetadata.findExistingLog(
-      createdLogDao.transactionHash,
-      createdLogDao.daoAddress,
-    )
-    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+    const foundLogDao = await Models.LogDaoMetadata.findExistingLog({
+      transactionHash: createdLogDao.transactionHash,
+      daoAddress: createdLogDao.daoAddress,
+    })
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   it('Should findByEntityId', async () => {
     const createdLogDao = await Models.LogDaoMetadata.create(rawLogDaoMetadata)
-    const foundLogDao = await Models.LogDaoMetadata.findByEntityId(createdLogDao.entityId)
-    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+    const foundLogDao = await Models.LogDaoMetadata.findByEntityId(createdLogDao.id)
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   it('Should reload', async () => {

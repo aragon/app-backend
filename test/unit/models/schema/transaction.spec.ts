@@ -42,9 +42,14 @@ describe('Model: Transaction', () => {
   })
 
   it('Should create Transaction', async () => {
+    const entityId = Models.Transaction.getEntityId({
+      transactionHash: rawTransaction.transactionHash!,
+      category: rawTransaction.category!,
+      network: rawTransaction.network!,
+    })
     const createdToken = await Models.Transaction.create(rawTransaction)
 
-    expect(createdToken.id).to.exist
+    expect(createdToken.id).to.eq(entityId)
     expect(createdToken.transactionHash).to.eq(rawTransaction.transactionHash)
     expect(createdToken.blockNumber).to.eq(rawTransaction.blockNumber)
     expect(createdToken.network).to.eq(rawTransaction.network)
@@ -66,24 +71,24 @@ describe('Model: Transaction', () => {
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const category = ITransactionCategory.ERC20
     const network = NetworksEnum.mainnet
-    const entityId = await Models.Transaction.getEntityId(transactionHash, category, network)
+    const entityId = Models.Transaction.getEntityId({ transactionHash, category, network })
     expect(entityId).to.eq(`${transactionHash}-${category}-${network}`)
   })
 
   it('Should findExistingLog', async () => {
     const createdLogDao = await Models.Transaction.create(rawTransaction)
-    const foundLogDao = await Models.Transaction.findExistingLog(
-      createdLogDao.transactionHash,
-      createdLogDao.category,
-      createdLogDao.network,
-    )
-    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+    const foundLogDao = await Models.Transaction.findExistingLog({
+      transactionHash: createdLogDao.transactionHash,
+      category: createdLogDao.category,
+      network: createdLogDao.network,
+    })
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   it('Should findByEntityId', async () => {
     const createdLogDao = await Models.Transaction.create(rawTransaction)
-    const foundLogDao = await Models.Transaction.findByEntityId(createdLogDao.entityId)
-    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+    const foundLogDao = await Models.Transaction.findByEntityId(createdLogDao.id)
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   it('Should update Transaction', async () => {
@@ -158,7 +163,10 @@ describe('Model: Transaction', () => {
       const {
         data,
         metadata: { totalRecords, currentPage, totalPages },
-      } = await Models.Transaction.findWithPagination({ daoAddress: null, pluginAddress: null }, {})
+      } = await Models.Transaction.findWithPagination({
+        extraParams: {},
+        paginationParams: {},
+      })
 
       expect(data).to.have.lengthOf(2)
       expect(totalRecords).to.eq(2)
@@ -170,10 +178,10 @@ describe('Model: Transaction', () => {
       const {
         data,
         metadata: { totalRecords, currentPage, totalPages },
-      } = await Models.Transaction.findWithPagination(
-        { daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc8', pluginAddress: null },
-        {},
-      )
+      } = await Models.Transaction.findWithPagination({
+        extraParams: { daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc8' },
+        paginationParams: {},
+      })
 
       expect(data).to.have.lengthOf(2)
       expect(totalRecords).to.eq(2)
@@ -186,10 +194,10 @@ describe('Model: Transaction', () => {
       const {
         data,
         metadata: { totalRecords, currentPage, totalPages },
-      } = await Models.Transaction.findWithPagination(
-        { daoAddress: '0x0000000000000000000000000000000000000000', pluginAddress: null },
-        {},
-      )
+      } = await Models.Transaction.findWithPagination({
+        extraParams: { daoAddress: '0x0000000000000000000000000000000000000000' },
+        paginationParams: {},
+      })
 
       expect(spyUtils.calledOnce).to.be.true
       expect(data.length).to.eq(0)

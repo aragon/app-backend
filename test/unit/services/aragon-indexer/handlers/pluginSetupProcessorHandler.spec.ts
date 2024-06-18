@@ -42,13 +42,18 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
 
-      expect(findTxSpy.calledWith(logInfo.transactionHash, IEventLogPluginType.InstallationApplied)).to.be.true
+      expect(
+        findTxSpy.calledWith({
+          transactionHash: logInfo.transactionHash,
+          event: IEventLogPluginType.InstallationApplied,
+        }),
+      ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
-      const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
-        logInfo.transactionHash,
-        IEventLogPluginType.InstallationApplied,
-      )
+      const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog({
+        transactionHash: logInfo.transactionHash,
+        event: IEventLogPluginType.InstallationApplied,
+      })
       expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
       expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
       expect(daoMetadataDB.network).to.eq(logInfo.network)
@@ -132,13 +137,18 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
 
-      expect(findTxSpy.calledWith(logInfo.transactionHash, IEventLogPluginType.InstallationPrepared)).to.be.true
+      expect(
+        findTxSpy.calledWith({
+          transactionHash: logInfo.transactionHash,
+          event: IEventLogPluginType.InstallationPrepared,
+        }),
+      ).to.be.true
       expect(loggerStub.calledWith('New InstallationPrepared' as any)).to.be.true
 
-      const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
-        logInfo.transactionHash,
-        IEventLogPluginType.InstallationPrepared,
-      )
+      const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog({
+        transactionHash: logInfo.transactionHash,
+        event: IEventLogPluginType.InstallationPrepared,
+      })
       expect(stubToken.calledOnce).to.be.true
       expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
       expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
@@ -201,13 +211,18 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
 
-      expect(findTxSpy.calledWith(logInfo.transactionHash, IEventLogPluginType.UninstallationApplied)).to.be.true
+      expect(
+        findTxSpy.calledWith({
+          transactionHash: logInfo.transactionHash,
+          event: IEventLogPluginType.UninstallationApplied,
+        }),
+      ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
-      const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
-        logInfo.transactionHash,
-        IEventLogPluginType.UninstallationApplied,
-      )
+      const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog({
+        transactionHash: logInfo.transactionHash,
+        event: IEventLogPluginType.UninstallationApplied,
+      })
       expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
       expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
       expect(daoMetadataDB.network).to.eq(logInfo.network)
@@ -281,13 +296,18 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, logInfo)
 
-      expect(findTxSpy.calledWith(logInfo.transactionHash, IEventLogPluginType.UninstallationPrepared)).to.be.true
+      expect(
+        findTxSpy.calledWith({
+          transactionHash: logInfo.transactionHash,
+          event: IEventLogPluginType.UninstallationPrepared,
+        }),
+      ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
-      const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
-        logInfo.transactionHash,
-        IEventLogPluginType.UninstallationPrepared,
-      )
+      const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog({
+        transactionHash: logInfo.transactionHash,
+        event: IEventLogPluginType.UninstallationPrepared,
+      })
       expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
       expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
       expect(daoMetadataDB.network).to.eq(logInfo.network)
@@ -349,13 +369,18 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
 
-      expect(findTxSpy.calledWith(logInfo.transactionHash, IEventLogPluginType.UpdateApplied)).to.be.true
+      expect(
+        findTxSpy.calledWith({
+          transactionHash: logInfo.transactionHash,
+          event: IEventLogPluginType.UpdateApplied,
+        }),
+      ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
-      const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
-        logInfo.transactionHash,
-        IEventLogPluginType.UpdateApplied,
-      )
+      const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog({
+        transactionHash: logInfo.transactionHash,
+        event: IEventLogPluginType.UpdateApplied,
+      })
       expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
       expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
       expect(daoMetadataDB.network).to.eq(logInfo.network)
@@ -432,13 +457,18 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, logInfo)
 
-      expect(findTxSpy.calledWith(logInfo.transactionHash, IEventLogPluginType.UpdatePrepared)).to.be.true
+      expect(
+        findTxSpy.calledWith({
+          transactionHash: logInfo.transactionHash,
+          event: IEventLogPluginType.UpdatePrepared,
+        }),
+      ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
-      const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog(
-        logInfo.transactionHash,
-        IEventLogPluginType.UpdatePrepared,
-      )
+      const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog({
+        transactionHash: logInfo.transactionHash,
+        event: IEventLogPluginType.UpdatePrepared,
+      })
       expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
       expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
       expect(daoMetadataDB.network).to.eq(logInfo.network)
