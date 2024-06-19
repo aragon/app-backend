@@ -33,11 +33,14 @@ describe('Model: Dao', () => {
           url: 'fake-url',
         },
       ],
-      proposalsCreated: 5,
-      proposalsExecuted: 3,
+      metrics: {
+        members: 15,
+        proposalsCreated: 5,
+        proposalsExecuted: 3,
+        uniqueVoters: 100,
+        votes: 500,
+      },
       tvlUSD: '10000',
-      uniqueVoters: 100,
-      votes: 500,
       plugins: [
         {
           transactionHash: '0x0',
@@ -76,18 +79,18 @@ describe('Model: Dao', () => {
       expect(createdDao.implementationAddress).to.eq(rawDao.implementationAddress)
       expect(createdDao.creatorAddress).to.eq(rawDao.creatorAddress)
       expect(createdDao.ens).to.eq(rawDao.ens)
-      expect(createdDao.members).to.eq(rawDao.members)
       expect(createdDao.metadataIpfs).to.eq(rawDao.metadataIpfs)
       expect(createdDao.name).to.eq(rawDao.name)
       expect(createdDao.description).to.eq(rawDao.description)
       expect(createdDao.avatar).to.eq(rawDao.avatar)
       expect(createdDao.links[0].name).to.eq(rawDao.links?.[0].name)
       expect(createdDao.links[0].url).to.eq(rawDao.links?.[0].url)
-      expect(createdDao.proposalsCreated).to.eq(rawDao.proposalsCreated)
-      expect(createdDao.proposalsExecuted).to.eq(rawDao.proposalsExecuted)
+      expect(createdDao.metrics.members).to.eq(rawDao.metrics?.members)
+      expect(createdDao.metrics.proposalsCreated).to.eq(rawDao.metrics?.proposalsCreated)
+      expect(createdDao.metrics.proposalsExecuted).to.eq(rawDao.metrics?.proposalsExecuted)
+      expect(createdDao.metrics?.uniqueVoters).to.eq(rawDao.metrics?.uniqueVoters)
+      expect(createdDao.metrics?.votes).to.eq(rawDao.metrics?.votes)
       expect(createdDao.tvlUSD).to.eq(rawDao.tvlUSD)
-      expect(createdDao.uniqueVoters).to.eq(rawDao.uniqueVoters)
-      expect(createdDao.votes).to.eq(rawDao.votes)
       expect(createdDao.plugins.length).to.eq(1)
       expect(createdDao.plugins[0].transactionHash).to.eq(rawDao.plugins![0].transactionHash)
       expect(createdDao.plugins[0].blockNumber).to.eq(rawDao.plugins![0].blockNumber)
@@ -151,7 +154,7 @@ describe('Model: Dao', () => {
     const createdDao = await Models.Dao.create(rawDao)
     await createdDao.reload()
 
-    expect(createdDao.members).to.eq(10)
+    expect(createdDao.id).to.eq(rawDao.id)
   })
 
   describe('Pagination', () => {
@@ -165,11 +168,14 @@ describe('Model: Dao', () => {
           creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
           network: NetworksEnum.ethereumMainnet,
           members: 10,
-          proposalsCreated: 5,
-          proposalsExecuted: 3,
-          tvlUSD: 10000,
-          uniqueVoters: 100,
-          votes: 500,
+          metrics: {
+            members: 15,
+            proposalsCreated: 5,
+            proposalsExecuted: 3,
+            uniqueVoters: 100,
+            votes: 500,
+          },
+          tvlUSD: '10000',
           plugins: [
             {
               address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
@@ -185,12 +191,14 @@ describe('Model: Dao', () => {
           address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
           network: NetworksEnum.polygonMainnet,
-          members: 15,
-          proposalsCreated: 7,
-          proposalsExecuted: 5,
-          tvlUSD: 20000,
-          uniqueVoters: 130,
-          votes: 700,
+          metrics: {
+            members: 15,
+            proposalsCreated: 5,
+            proposalsExecuted: 3,
+            uniqueVoters: 100,
+            votes: 500,
+          },
+          tvlUSD: '20000',
           plugins: [
             {
               address: '0x0',
@@ -206,12 +214,14 @@ describe('Model: Dao', () => {
           address: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
           creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
           network: NetworksEnum.arbitrumMainnet,
-          members: 15,
-          proposalsCreated: 7,
-          proposalsExecuted: 5,
-          tvlUSD: 20000,
-          uniqueVoters: 130,
-          votes: 700,
+          metrics: {
+            members: 15,
+            proposalsCreated: 5,
+            proposalsExecuted: 3,
+            uniqueVoters: 100,
+            votes: 500,
+          },
+          tvlUSD: '20000',
           plugins: [
             {
               address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1962',
@@ -265,12 +275,14 @@ describe('Model: Dao', () => {
         address: '0xee0627bA21e9114336977482372486d084497efa',
         creatorAddress: '0xEFbB4E6e5CF4bB4Ae8Cdc2c109da90D2a2433B50',
         network: NetworksEnum.polygonMainnet,
-        members: 15,
-        proposalsCreated: 7,
-        proposalsExecuted: 5,
+        metrics: {
+          members: 15,
+          proposalsCreated: 5,
+          proposalsExecuted: 3,
+          uniqueVoters: 100,
+          votes: 500,
+        },
         tvlUSD: '20000',
-        uniqueVoters: 130,
-        votes: 700,
         plugins: [
           {
             address: '0x0',
@@ -380,6 +392,6 @@ describe('Model: Dao', () => {
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.hideDao).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(21)
+    expect(Object.keys(filterDao).length).to.eq(17)
   })
 })

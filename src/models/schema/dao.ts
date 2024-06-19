@@ -24,6 +24,23 @@ class Link {
   public url!: string
 }
 
+class Metrics {
+  @prop({ type: () => Number, default: 0 })
+  public proposalsCreated!: number
+
+  @prop({ type: () => Number, default: 0 })
+  public proposalsExecuted!: number
+
+  @prop({ type: () => Number, default: 0 })
+  public uniqueVoters!: number
+
+  @prop({ type: () => Number, default: 0 })
+  public votes!: number
+
+  @prop({ type: () => Number, default: 0 })
+  public members!: number
+}
+
 class Plugin {
   @prop({ type: () => String, default: null })
   public transactionHash!: HexAddress
@@ -99,9 +116,6 @@ export default class Dao extends Model {
   @prop({ type: () => String, default: null })
   public ens?: ENS | null
 
-  @prop({ type: () => Number, default: 0 })
-  public members!: number
-
   @prop({ type: () => String, default: null })
   public metadataIpfs!: string
 
@@ -123,17 +137,8 @@ export default class Dao extends Model {
   @prop({ type: () => String, default: '0' })
   public tvlUSD!: string
 
-  @prop({ type: () => Number, default: 0 })
-  public proposalsCreated!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public proposalsExecuted!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public uniqueVoters!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public votes!: number
+  @prop({ type: () => Metrics })
+  public metrics?: Metrics
 
   @prop({ type: () => Boolean, default: false })
   public hideDao!: boolean
