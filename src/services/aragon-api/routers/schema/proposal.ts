@@ -15,7 +15,14 @@ const ProposalSchema = {
   ),
 
   getProposalById: Joi.object({
-    id: ValidationSchema.joiAddress.optional(),
+    id: Joi.string().required(),
+  }),
+
+  getProposalByTransactionHash: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    transactionHash: ValidationSchema.joiAddress.required(),
   }),
 }
 

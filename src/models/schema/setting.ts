@@ -103,6 +103,10 @@ export default class Setting extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
+  static async findByTransactionHash(fromTxHash: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return await this.findOne({ fromTxHash, network }, tOpts)
+  }
+
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
