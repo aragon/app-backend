@@ -114,7 +114,12 @@ export default class Member extends Model {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
       Object.entries(extraParams).filter(
-        ([key, value]) => value !== undefined && key !== 'network' && key !== 'daoAddress' && key !== 'pluginAddress',
+        ([key, value]) =>
+          value !== undefined &&
+          key !== 'network' &&
+          key !== 'daoAddress' &&
+          key !== 'pluginAddress' &&
+          key !== 'onlyActive',
       ),
     )
     const filter = {
@@ -124,7 +129,7 @@ export default class Member extends Model {
 
     // only filter active members in dao
     if (extraParams.onlyActive) {
-      filter['$or'] = [{ toBlockNumber: null }, { toBlockNumber: { $exists: false } }]
+      filter['$or'] = [{ 'daos.toBlockNumber': null }, { 'daos.toBlockNumber': { $exists: false } }]
     }
 
     if (extraParams.daoAddress) {

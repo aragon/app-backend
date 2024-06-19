@@ -19,7 +19,7 @@ describe('Router: Transaction', () => {
   describe('getWithPagination', async () => {
     it('Should get transaction with pagination - all params', async () => {
       const filterParams = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         category: ITransactionCategory.ERC20,
       }
@@ -52,7 +52,7 @@ describe('Router: Transaction', () => {
 
     it('Should get transaction with pagination - missing pagination params', async () => {
       const filterParams = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       }
       const paginationParams = {
         sort: 'createdAt',

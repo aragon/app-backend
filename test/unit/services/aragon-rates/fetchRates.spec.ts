@@ -55,7 +55,7 @@ describe('Rates: FetchRates', () => {
     const stubLogger = sandbox.stub(logger, 'verbose')
 
     const tokenDb = await Models.Token.create({
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       type: ITokenType.ERC20,
       address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       logo: 'fake-logo',

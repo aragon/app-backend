@@ -20,15 +20,15 @@ describe('Modules:CoinGeckoHelper', () => {
 
   describe('networkToCoinGecko', () => {
     it('should correctly map the network to its CoinGecko equivalent', () => {
-      expect(CoinGeckoHelper.networkToCoinGecko(NetworksEnum.mainnet)).to.equal('ethereum')
-      expect(CoinGeckoHelper.networkToCoinGecko(NetworksEnum.polygon)).to.equal('polygon-pos')
+      expect(CoinGeckoHelper.networkToCoinGecko(NetworksEnum.ethereumMainnet)).to.equal('ethereum')
+      expect(CoinGeckoHelper.networkToCoinGecko(NetworksEnum.polygonMainnet)).to.equal('polygon-pos')
     })
   })
 
   describe('coinToCoinGecko', () => {
     it('should correctly map the network to its corresponding coin on CoinGecko', () => {
-      expect(CoinGeckoHelper.coinToCoinGecko(NetworksEnum.mainnet)).to.equal('ethereum')
-      expect(CoinGeckoHelper.coinToCoinGecko(NetworksEnum.polygon)).to.equal('polygon-ecosystem-token')
+      expect(CoinGeckoHelper.coinToCoinGecko(NetworksEnum.ethereumMainnet)).to.equal('ethereum')
+      expect(CoinGeckoHelper.coinToCoinGecko(NetworksEnum.polygonMainnet)).to.equal('polygon-ecosystem-token')
     })
   })
 
@@ -59,7 +59,7 @@ describe('Modules:CoinGeckoHelper', () => {
 
   describe('getTokenPrice', () => {
     it('should return undefined if network is unsupported', async () => {
-      const price = await CoinGeckoHelper.getTokenPrice('0x...', NetworksEnum.sepolia)
+      const price = await CoinGeckoHelper.getTokenPrice('0x...', NetworksEnum.ethereumSepolia)
       expect(price).to.be.undefined
     })
 
@@ -69,7 +69,7 @@ describe('Modules:CoinGeckoHelper', () => {
       }
       sandbox.stub(CoinGeckoHelper, '_rpCall').resolves(response)
 
-      const price = await CoinGeckoHelper.getTokenPrice('0x...', NetworksEnum.mainnet)
+      const price = await CoinGeckoHelper.getTokenPrice('0x...', NetworksEnum.ethereumMainnet)
       expect(price).to.deep.equal({ usd: 100, usd24hChange: -0.5 })
     })
 
@@ -77,7 +77,7 @@ describe('Modules:CoinGeckoHelper', () => {
       const stubLogger = sandbox.stub(Logger, 'error')
       sandbox.stub(CoinGeckoHelper, '_rpCall').rejects(new Error('API Error'))
 
-      const price = await CoinGeckoHelper.getTokenPrice('0x...', NetworksEnum.mainnet)
+      const price = await CoinGeckoHelper.getTokenPrice('0x...', NetworksEnum.ethereumMainnet)
 
       expect(price).to.be.undefined
       expect(stubLogger.calledOnce).to.be.true
@@ -86,7 +86,7 @@ describe('Modules:CoinGeckoHelper', () => {
 
   describe('getCoinPrice', () => {
     it('should return undefined if network is unsupported', async () => {
-      const price = await CoinGeckoHelper.getCoinPrice(NetworksEnum.sepolia)
+      const price = await CoinGeckoHelper.getCoinPrice(NetworksEnum.ethereumSepolia)
       expect(price).to.be.undefined
     })
 
@@ -95,7 +95,7 @@ describe('Modules:CoinGeckoHelper', () => {
         ethereum: { usd: 2000, usd_24h_change: 5 },
       }
       sandbox.stub(CoinGeckoHelper, '_rpCall').resolves(response)
-      const price = await CoinGeckoHelper.getCoinPrice(NetworksEnum.mainnet)
+      const price = await CoinGeckoHelper.getCoinPrice(NetworksEnum.ethereumMainnet)
       expect(price).to.deep.equal({ usd: 2000, usd24hChange: 5 })
     })
 
@@ -103,7 +103,7 @@ describe('Modules:CoinGeckoHelper', () => {
       const stubLogger = sandbox.stub(Logger, 'error')
       sandbox.stub(CoinGeckoHelper, '_rpCall').rejects(new Error('API Error'))
 
-      const price = await CoinGeckoHelper.getCoinPrice(NetworksEnum.mainnet)
+      const price = await CoinGeckoHelper.getCoinPrice(NetworksEnum.ethereumMainnet)
 
       expect(price).to.be.undefined
       expect(stubLogger.calledOnce).to.be.true
@@ -118,7 +118,7 @@ describe('Modules:CoinGeckoHelper', () => {
         [address]: { usd: 100, usd_24h_change: -0.5 },
       })
 
-      const price = await CoinGeckoHelper.getCoinTokenPrice(address, NetworksEnum.mainnet)
+      const price = await CoinGeckoHelper.getCoinTokenPrice(address, NetworksEnum.ethereumMainnet)
 
       expect(stubCall.calledOnceWith(`/coins/${address}`)).to.be.true
 
@@ -133,11 +133,11 @@ describe('Modules:CoinGeckoHelper', () => {
         [address]: { usd: 100, usd_24h_change: -0.5 },
       })
 
-      const price = await CoinGeckoHelper.getCoinTokenPrice(address, NetworksEnum.mainnet)
+      const price = await CoinGeckoHelper.getCoinTokenPrice(address, NetworksEnum.ethereumMainnet)
 
       expect(
         stubCall.calledOnceWith(
-          `/coins/${CoinGeckoHelper.networkToCoinGecko(NetworksEnum.mainnet)}/contract/${address}`,
+          `/coins/${CoinGeckoHelper.networkToCoinGecko(NetworksEnum.ethereumMainnet)}/contract/${address}`,
         ),
       ).to.be.true
 
@@ -151,11 +151,11 @@ describe('Modules:CoinGeckoHelper', () => {
       const stubLogger = sandbox.stub(Logger, 'error')
       const stubCall = sandbox.stub(CoinGeckoHelper, '_rpCall').rejects(new Error('fake-error'))
 
-      const price = await CoinGeckoHelper.getCoinTokenPrice(address, NetworksEnum.mainnet)
+      const price = await CoinGeckoHelper.getCoinTokenPrice(address, NetworksEnum.ethereumMainnet)
 
       expect(
         stubCall.calledOnceWith(
-          `/coins/${CoinGeckoHelper.networkToCoinGecko(NetworksEnum.mainnet)}/contract/${address}`,
+          `/coins/${CoinGeckoHelper.networkToCoinGecko(NetworksEnum.ethereumMainnet)}/contract/${address}`,
         ),
       ).to.be.true
 
@@ -168,7 +168,7 @@ describe('Modules:CoinGeckoHelper', () => {
 
       const stubCall = sandbox.stub(CoinGeckoHelper, '_rpCall').rejects(new Error('fake-error'))
 
-      const price = await CoinGeckoHelper.getCoinTokenPrice(address, NetworksEnum.sepolia as any)
+      const price = await CoinGeckoHelper.getCoinTokenPrice(address, NetworksEnum.ethereumSepolia as any)
 
       expect(stubCall.notCalled).to.be.true
       expect(price).to.be.undefined

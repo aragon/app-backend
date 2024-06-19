@@ -19,7 +19,7 @@ describe('Indexer: DaoHandler', () => {
 
   describe('newURI', () => {
     it('uri updated', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
       const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
       const rawLogDaoRegistry = {
@@ -57,7 +57,7 @@ describe('Indexer: DaoHandler', () => {
     })
 
     it('uri updated - not existing dao', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
       const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
       const rawLogDaoRegistry = {
@@ -91,7 +91,7 @@ describe('Indexer: DaoHandler', () => {
     })
 
     it('uri updated - missing daoURI', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
       const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
       const rawLogDaoRegistry = {

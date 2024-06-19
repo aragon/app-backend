@@ -18,7 +18,7 @@ describe('Model: Plugin', () => {
     rawPlugin = {
       transactionHash,
       blockNumber: 3,
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       action: IPluginAction.install,
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
@@ -76,7 +76,7 @@ describe('Model: Plugin', () => {
   it('Should getEntityId', async () => {
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const action = IPluginAction.install
-    const network = NetworksEnum.mainnet
+    const network = NetworksEnum.ethereumMainnet
     const entityId = Models.Plugin.getEntityId({ transactionHash, action, network })
     expect(entityId).to.eq(`${transactionHash}-${action}-${network}`)
   })

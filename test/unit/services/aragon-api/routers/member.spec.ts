@@ -19,9 +19,10 @@ describe('Router: Member', () => {
   describe('getWithPagination', async () => {
     it('Should get member with pagination - all params', async () => {
       const filterParams = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        onlyActive: true,
       }
       const paginationParams = {
         pageSize: 10,
@@ -52,7 +53,7 @@ describe('Router: Member', () => {
 
     it('Should get member with pagination - missing pagination params', async () => {
       const filterParams = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       }
       const paginationParams = {
         sort: 'createdAt',
@@ -80,7 +81,7 @@ describe('Router: Member', () => {
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
         ...filterParams,
-        ...{ daoAddress: undefined, pluginAddress: undefined },
+        ...{ daoAddress: undefined, pluginAddress: undefined, onlyActive: undefined },
       })
     })
   })

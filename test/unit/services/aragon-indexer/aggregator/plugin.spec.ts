@@ -49,7 +49,7 @@ describe('Indexer:Aggregator:Plugin', () => {
       const document: any = {
         transactionHash: '0x0',
         blockNumber: 3,
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         action: IPluginAction.install,
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5333',
         implementationAddress: '0x123',
@@ -92,7 +92,7 @@ describe('Indexer:Aggregator:Plugin', () => {
       const document: any = {
         transactionHash: '0x0',
         blockNumber: 3,
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         action: IPluginAction.install,
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5333',
         implementationAddress: '0x123',

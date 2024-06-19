@@ -14,7 +14,7 @@ describe('Model: Setting', () => {
     rawSetting = {
       daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
       pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
-      network: NetworksEnum.polygon,
+      network: NetworksEnum.polygonMainnet,
       fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef8',
       toTxHash: '0x11ed65ce6ba3dbed7194ead9d3ffdfafdb921f39b1e55bd5139f0277ea219083',
       fromBlockNumber: 47758873,
@@ -61,7 +61,7 @@ describe('Model: Setting', () => {
 
   it('Should getEntityId', async () => {
     const fromTxHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const network = NetworksEnum.mainnet
+    const network = NetworksEnum.ethereumMainnet
     const entityId = Models.Setting.getEntityId({ fromTxHash, network })
     expect(entityId).to.eq(`${fromTxHash}-${network}`)
   })
@@ -79,6 +79,15 @@ describe('Model: Setting', () => {
     const createdLogPluginSetupProcessor = await Models.Setting.create(rawSetting)
     const foundLogPluginSetupProcessor = await Models.Setting.findByEntityId(createdLogPluginSetupProcessor.id)
     expect(foundLogPluginSetupProcessor?.id).to.eq(createdLogPluginSetupProcessor.id)
+  })
+
+  it('Should findByTransactionHash', async () => {
+    const createdProposal = await Models.Setting.create(rawSetting)
+    const foundProposal = await Models.Setting.findByTransactionHash(
+      createdProposal.fromTxHash,
+      createdProposal.network,
+    )
+    expect(foundProposal?.id).to.eq(createdProposal.id)
   })
 
   it('Should update Setting', async () => {
@@ -105,7 +114,7 @@ describe('Model: Setting', () => {
         {
           daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
           pluginAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
-          network: NetworksEnum.polygon,
+          network: NetworksEnum.polygonMainnet,
           fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef8',
           fromBlockNumber: 47758873,
           settings: {
@@ -119,11 +128,9 @@ describe('Model: Setting', () => {
         {
           daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
           pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
-          network: NetworksEnum.polygon,
+          network: NetworksEnum.polygonMainnet,
           fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef9',
-          toTxHash: '0x11ed65ce6ba3dbed7194ead9d3ffdfafdb921f39b1e55bd5139f0277ea219084',
           fromBlockNumber: 47758873,
-          toBlockNumber: 48097896,
           settings: {
             minApprovals: 1,
             onlyListed: true,
@@ -150,13 +157,33 @@ describe('Model: Setting', () => {
       expect(pageSize).to.eq(10)
     })
 
+    it('Should find Pagination with onlyActive', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Setting.findWithPagination({
+        extraParams: {
+          onlyActive: true,
+          network: NetworksEnum.polygonMainnet,
+          pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
+        },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(1)
+      expect(totalRecords).to.eq(1)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
     it('Should find Pagination with pluginAddress', async () => {
       const {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Setting.findWithPagination({
         extraParams: {
-          network: NetworksEnum.polygon,
+          network: NetworksEnum.polygonMainnet,
           pluginAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
         },
         paginationParams: {},
@@ -196,6 +223,6 @@ describe('Model: Setting', () => {
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(9)
+    expect(Object.keys(filterDao).length).to.eq(10)
   })
 })

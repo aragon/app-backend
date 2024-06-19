@@ -14,7 +14,7 @@ describe('Model: Asset', () => {
     sandbox = sinon.createSandbox()
 
     rawAsset = {
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
       amount: '32423423',
@@ -43,7 +43,7 @@ describe('Model: Asset', () => {
   it('Should getEntityId', async () => {
     const daoAddress = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const tokenAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
-    const network = NetworksEnum.mainnet
+    const network = NetworksEnum.ethereumMainnet
     const entityId = Models.Asset.getEntityId({ daoAddress, tokenAddress, network })
     expect(entityId).to.eq(`${daoAddress}-${tokenAddress}-${network}`)
   })
@@ -98,19 +98,19 @@ describe('Model: Asset', () => {
     beforeEach(async () => {
       const fakeAsset = [
         {
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
           tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           amount: '2423423',
         },
         {
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc3',
           tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc4',
           amount: '3223423',
         },
         {
-          network: NetworksEnum.polygon,
+          network: NetworksEnum.polygonMainnet,
           daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc3',
           tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc4',
           amount: '3223423',

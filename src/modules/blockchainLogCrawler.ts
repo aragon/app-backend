@@ -83,13 +83,13 @@ class BlockchainLogCrawler {
   calculateBatchSize(network: NetworksEnum): number {
     const secondsInMonth = 30 * 24 * 3600
     switch (network) {
-      case NetworksEnum.mainnet:
-      case NetworksEnum.arbitrum: // TODO: check
-      case NetworksEnum.base: // TODO: check
+      case NetworksEnum.ethereumMainnet:
+      case NetworksEnum.arbitrumMainnet: // TODO: check
+      case NetworksEnum.baseMainnet: // TODO: check
         return Math.floor(secondsInMonth / 14) // Average block time ~14 seconds
-      case NetworksEnum.polygon:
+      case NetworksEnum.polygonMainnet:
         return Math.floor(secondsInMonth / 2) // Average block time ~2 seconds
-      case NetworksEnum.sepolia:
+      case NetworksEnum.ethereumSepolia:
         return Math.floor(secondsInMonth / 12) // Average block time ~12 seconds
       default:
         throw new Error(`Unsupported network: ${network}`)
@@ -99,7 +99,7 @@ class BlockchainLogCrawler {
   async getBlockNumber(blockNumber: string | number | undefined): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
-        return await BottleneckModule.getNodeLimiter(NetworksEnum.mainnet)!.schedule(async () =>
+        return await BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
           this.provider.getBlockNumber(),
         )
       } catch (error) {
@@ -158,7 +158,7 @@ class BlockchainLogCrawler {
 
         while (true) {
           try {
-            const logs = await BottleneckModule.getNodeLimiter(NetworksEnum.mainnet)!.schedule(async () =>
+            const logs = await BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
               this.provider.getLogs({
                 address: this.filter.address,
                 topics: [topics],

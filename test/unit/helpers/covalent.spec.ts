@@ -46,7 +46,7 @@ describe('Helpers: Covalent', () => {
     it('should getToken', async () => {
       const expectedToken = {
         address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         logo: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         name: 'Wrapped Ether',
         symbol: 'WETH',
@@ -63,7 +63,7 @@ describe('Helpers: Covalent', () => {
       const loggerStub = sandbox.stub(logger, 'error')
 
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-      const token = (await CovalentHelper.getToken(address, NetworksEnum.mainnet)) as Partial<IToken>
+      const token = (await CovalentHelper.getToken(address, NetworksEnum.ethereumMainnet)) as Partial<IToken>
       expect(loggerStub.notCalled).to.be.true
       expect(rpcCallStub.calledOnce).to.be.true
 
@@ -75,7 +75,7 @@ describe('Helpers: Covalent', () => {
     it('should getToken with zeroAddress', async () => {
       const expectedToken = {
         address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         logo: 'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
         name: 'Ether',
         symbol: 'ETH',
@@ -92,7 +92,7 @@ describe('Helpers: Covalent', () => {
       const loggerStub = sandbox.stub(logger, 'error')
 
       const address = '0x0000000000000000000000000000000000000000'
-      const token = (await CovalentHelper.getToken(address, NetworksEnum.mainnet)) as Partial<IToken>
+      const token = (await CovalentHelper.getToken(address, NetworksEnum.ethereumMainnet)) as Partial<IToken>
       expect(loggerStub.notCalled).to.be.true
       expect(rpcCallStub.calledOnce).to.be.true
 
@@ -109,7 +109,7 @@ describe('Helpers: Covalent', () => {
 
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const result = (await CovalentHelper.getToken(address, network)) as Partial<IToken>
 
@@ -181,7 +181,7 @@ describe('Helpers: Covalent', () => {
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const tokenBalanceType = await CovalentHelper.getTokenBalance(
         address,
-        NetworksEnum.mainnet,
+        NetworksEnum.ethereumMainnet,
         config.DEFAULT_CURRENCY,
       )
 
@@ -200,7 +200,7 @@ describe('Helpers: Covalent', () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
       const address = '0x0000000000000000000000000000000000000000'
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const result = await CovalentHelper.getTokenBalance(address, network, 'USD')
 
       expect(result).to.be.false
@@ -212,7 +212,7 @@ describe('Helpers: Covalent', () => {
   describe('networkFromCovalent', () => {
     it('should return the correct network enum for a valid Covalent network string', () => {
       const covalentNetwork = 'eth-mainnet'
-      const expectedNetwork = NetworksEnum.mainnet
+      const expectedNetwork = NetworksEnum.ethereumMainnet
       const result = CovalentHelper.networkFromCovalent(covalentNetwork)
       expect(result).to.equal(expectedNetwork)
     })

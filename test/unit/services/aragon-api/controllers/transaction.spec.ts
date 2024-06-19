@@ -16,7 +16,7 @@ describe('Controller: Transaction', () => {
     rawTransaction = {
       transactionHash: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       blockNumber: 1,
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       type: ITransactionType.deposit,
       category: ITransactionCategory.Internal,
       fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',

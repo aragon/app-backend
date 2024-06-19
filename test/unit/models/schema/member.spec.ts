@@ -22,7 +22,7 @@ describe('Model: Member', () => {
       daos: [
         {
           daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
           fromBlockNumber: 1,
           toBlockNumber: 2,
@@ -31,6 +31,7 @@ describe('Model: Member', () => {
           delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           votingPower: '100',
+          pluginSubdomain: 'token-voting',
         },
       ],
     }
@@ -95,7 +96,7 @@ describe('Model: Member', () => {
     beforeEach(async () => {
       const rawDao = {
         daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
         fromBlockNumber: 1,
         toBlockNumber: 2,
@@ -117,7 +118,7 @@ describe('Model: Member', () => {
         },
         {
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
-          daos: [rawDao],
+          daos: [{ ...rawDao, ...{ toBlockNumber: null, toTxHash: null } }],
         },
       ]
 
@@ -135,6 +136,22 @@ describe('Model: Member', () => {
 
       expect(data.length).to.eq(3)
       expect(totalRecords).to.eq(3)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
+    it('should find with pagination with onlyActive', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Member.findWithPagination({
+        extraParams: { onlyActive: true, daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409' },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(1)
+      expect(totalRecords).to.eq(1)
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)

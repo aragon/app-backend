@@ -13,7 +13,7 @@ describe('Model: ConfigIndexer', () => {
     sandbox = sinon.createSandbox()
 
     rawConfigIndexer = {
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       service: 'test-service',
       lastSync: 0,
     }

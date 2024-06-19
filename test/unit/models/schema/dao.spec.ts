@@ -14,7 +14,7 @@ describe('Model: Dao', () => {
     sandbox = sinon.createSandbox()
 
     rawDao = {
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       transactionHash: '0x0',
       blockNumber: 0,
       blockTimestamp: 2141242,
@@ -104,7 +104,7 @@ describe('Model: Dao', () => {
 
   it('Should getEntityId', async () => {
     const address = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const network = NetworksEnum.mainnet
+    const network = NetworksEnum.ethereumMainnet
     const entityId = Models.Dao.getEntityId({
       network,
       address,
@@ -127,14 +127,23 @@ describe('Model: Dao', () => {
     expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
+  it('Should findByAddress', async () => {
+    const createdLogDao = await Models.Dao.create(rawDao)
+    const foundLogDao = await Models.Dao.findByAddress(createdLogDao.address, createdLogDao.network)
+    expect(foundLogDao?.address).to.eq(createdLogDao.address)
+  })
+
   it('Should update DAO', async () => {
     const createdDao = await Models.Dao.create(rawDao)
     expect(createdDao.creatorAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5409')
 
     await createdDao.update({
+      network: NetworksEnum.baseMainnet,
       creatorAddress: '0x558c9997f8d382f02dfce79e275af637d8bb19e6',
     })
 
+    expect(createdDao.network).to.eq(NetworksEnum.baseMainnet)
+    expect(createdDao.id).to.eq('baseMainnet-0x17366cae2b9c6c3055e9e3c78936a69006be5409')
     expect(createdDao.creatorAddress).to.eq('0x558c9997f8d382f02dfce79e275af637d8bb19e6')
   })
 
@@ -154,7 +163,7 @@ describe('Model: Dao', () => {
           description: 'fake-description',
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           members: 10,
           proposalsCreated: 5,
           proposalsExecuted: 3,
@@ -175,7 +184,7 @@ describe('Model: Dao', () => {
           description: 'fake-description',
           address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
-          network: NetworksEnum.polygon,
+          network: NetworksEnum.polygonMainnet,
           members: 15,
           proposalsCreated: 7,
           proposalsExecuted: 5,
@@ -196,7 +205,7 @@ describe('Model: Dao', () => {
           description: 'fake-description',
           address: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
           creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
-          network: NetworksEnum.arbitrum,
+          network: NetworksEnum.arbitrumMainnet,
           members: 15,
           proposalsCreated: 7,
           proposalsExecuted: 5,
@@ -238,7 +247,7 @@ describe('Model: Dao', () => {
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Dao.findWithPagination({
         extraParams: {
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           pluginAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
         },
         paginationParams: {},
@@ -255,7 +264,7 @@ describe('Model: Dao', () => {
       await Models.Dao.create({
         address: '0xee0627bA21e9114336977482372486d084497efa',
         creatorAddress: '0xEFbB4E6e5CF4bB4Ae8Cdc2c109da90D2a2433B50',
-        network: NetworksEnum.polygon,
+        network: NetworksEnum.polygonMainnet,
         members: 15,
         proposalsCreated: 7,
         proposalsExecuted: 5,

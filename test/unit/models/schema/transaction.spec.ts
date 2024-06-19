@@ -17,7 +17,7 @@ describe('Model: Transaction', () => {
     rawTransaction = {
       transactionHash: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       blockNumber: 1,
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       type: ITransactionType.deposit,
       category: ITransactionCategory.Internal,
       fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',
@@ -70,7 +70,7 @@ describe('Model: Transaction', () => {
   it('Should getEntityId', async () => {
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const category = ITransactionCategory.ERC20
-    const network = NetworksEnum.mainnet
+    const network = NetworksEnum.ethereumMainnet
     const entityId = Models.Transaction.getEntityId({ transactionHash, category, network })
     expect(entityId).to.eq(`${transactionHash}-${category}-${network}`)
   })
@@ -115,7 +115,7 @@ describe('Model: Transaction', () => {
         {
           transactionHash: '0xb02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           blockNumber: 1,
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           type: ITransactionType.deposit,
           category: ITransactionCategory.Internal,
           fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',
@@ -136,7 +136,7 @@ describe('Model: Transaction', () => {
         {
           transactionHash: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           blockNumber: 1,
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           type: ITransactionType.deposit,
           category: ITransactionCategory.Internal,
           fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',
@@ -207,6 +207,23 @@ describe('Model: Transaction', () => {
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)
+    })
+
+    it('Should not found documents', async () => {
+      const opts = {
+        page: 7,
+        pageSize: 2,
+      }
+
+      const result = await Models.Transaction.findWithPagination({
+        extraParams: {},
+        paginationParams: opts,
+      })
+
+      expect(result.data.length).to.eq(0)
+      expect(result.metadata.totalRecords).to.eq(0)
+      expect(result.metadata.page).to.eq(1)
+      expect(result.metadata.totalPages).to.eq(1)
     })
   })
 })

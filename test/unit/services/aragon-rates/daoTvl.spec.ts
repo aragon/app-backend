@@ -21,7 +21,7 @@ describe('Rates: DaoTvl', () => {
     it('should start and update DaoTvl', async () => {
       const daos = [
         {
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           transactionHash: '0x0',
           blockNumber: 0,
           address: '0x59447788F9dCf2df550F257F3692a07f05b922D7',
@@ -34,7 +34,7 @@ describe('Rates: DaoTvl', () => {
       ]
       const tokens = [
         {
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           type: ITokenType.ERC20,
           address: '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',
           implementationAddress: '0x5D4Aa78B08Bc7C530e21bf7447988b1Be7991322',
@@ -47,7 +47,7 @@ describe('Rates: DaoTvl', () => {
           priceUsd: '93.06064',
         },
         {
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           type: ITokenType.native,
           address: '0x0000000000000000000000000000000000000000',
           implementationAddress: null,
@@ -62,13 +62,13 @@ describe('Rates: DaoTvl', () => {
       ]
       const assets = [
         {
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           daoAddress: '0x59447788F9dCf2df550F257F3692a07f05b922D7',
           tokenAddress: '0x0000000000000000000000000000000000000000',
           amount: '10000000000002319',
         },
         {
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           daoAddress: '0x59447788F9dCf2df550F257F3692a07f05b922D7',
           tokenAddress: '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',
           amount: '120000000000000000000',

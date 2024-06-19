@@ -89,7 +89,7 @@ class BlockchainTransferCrawler {
   async getBlockNumber(blockNumber: string | number | undefined): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
-        return await BottleneckModule.getNodeTransferLimiter(NetworksEnum.mainnet)!.schedule(async () =>
+        return await BottleneckModule.getNodeTransferLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
           this.provider.getBlockNumber(),
         )
       } catch (error) {

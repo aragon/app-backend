@@ -17,7 +17,7 @@ describe('Model: Proposal', () => {
     rawProposalMultisig = {
       transactionHash: '0xf7150dd71a976384fd3d3ef755fbf7487ffb3e8cc67024b53be578e6173f7618',
       blockNumber: 16726919,
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       pluginAddress: '0x563Ebb4972bb6fABb1128c5895A31B6FAC2f6e14',
       proposalId: 0,
       creatorAddress: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
@@ -45,7 +45,7 @@ describe('Model: Proposal', () => {
     rawProposalTokenVoting = {
       transactionHash: '0x90a26411d62d1ba9f7b82e3697e94ff1ae9b5cce89e3f594ebe57b897245d39e',
       blockNumber: 16733645,
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       pluginAddress: '0xB85380977eC3435aeBc13e29b01AF990393bdED9',
       proposalId: 0,
       creatorAddress: '0xc1d60f584879f024299DA0F19Cdb47B931E35b53',
@@ -202,6 +202,15 @@ describe('Model: Proposal', () => {
     expect(entityId).to.eq(`${transactionHash}-${pluginAddress}-${proposalId}`)
   })
 
+  it('Should findByTransactionHash', async () => {
+    const createdProposal = await Models.Proposal.create(rawProposalMultisig)
+    const foundProposal = await Models.Proposal.findByTransactionHash(
+      createdProposal.transactionHash,
+      createdProposal.network,
+    )
+    expect(foundProposal?.id).to.eq(createdProposal.id)
+  })
+
   it('Should findExistingLog', async () => {
     const createdProposal = await Models.Proposal.create(rawProposalMultisig)
     const foundProposal = await Models.Proposal.findExistingLog({
@@ -241,7 +250,7 @@ describe('Model: Proposal', () => {
         {
           transactionHash: '0xf7150dd71a976384fd3d3ef755fbf7487ffb3e8cc67024b53be578e6173f7618',
           blockNumber: 16726919,
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           pluginAddress: '0x563Ebb4972bb6fABb1128c5895A31B6FAC2f6e14',
           proposalId: 0,
           creatorAddress: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
@@ -268,7 +277,7 @@ describe('Model: Proposal', () => {
         {
           transactionHash: '0x90a26411d62d1ba9f7b82e3697e94ff1ae9b5cce89e3f594ebe57b897245d39e',
           blockNumber: 16733645,
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           pluginAddress: '0xB85380977eC3435aeBc13e29b01AF990393bdED9',
           proposalId: 0,
           creatorAddress: '0xc1d60f584879f024299DA0F19Cdb47B931E35b53',
@@ -352,7 +361,7 @@ describe('Model: Proposal', () => {
       expect(pageSize).to.eq(10)
     })
 
-    it('should return the metadata atleast if no result found', async () => {
+    it('should return the metadata at least if no result found', async () => {
       const {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
@@ -395,6 +404,6 @@ describe('Model: Proposal', () => {
     expect(filterProposal.__v).to.be.undefined
     expect(filterProposal.createdAt).to.be.undefined
     expect(filterProposal.updatedAt).to.be.undefined
-    expect(Object.keys(filterProposal).length).to.eq(16)
+    expect(Object.keys(filterProposal).length).to.eq(17)
   })
 })

@@ -51,7 +51,7 @@ export const AggregatorTransactions = {
     ]
 
     switch (network) {
-      case NetworksEnum.arbitrum:
+      case NetworksEnum.arbitrumMainnet:
         return category.filter(cat => cat !== ITransactionCategory.Internal)
       default:
         return category

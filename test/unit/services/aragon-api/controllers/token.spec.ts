@@ -6,23 +6,138 @@ import { ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
 import CovalentHelper from '@helpers/covalent'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
+import Token from '@models/schema/token'
 
 describe('Controller: Token', () => {
   let sandbox: SinonSandbox
+  let rawToken: Partial<Token>
 
-  beforeEach(() => {
+  beforeEach(async () => {
     sandbox = sinon.createSandbox()
+
+    rawToken = {
+      network: NetworksEnum.ethereumMainnet,
+      type: ITokenType.ERC20,
+      address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+      logo: 'fake-logo',
+      name: 'ethereum',
+      symbol: 'WETH',
+      decimals: 18,
+      holders: 10,
+      totalSupply: '100',
+      priceChangeOnDayUsd: '1',
+      priceUsd: '1',
+      lastUpdatedAt: dayjs.utc().toDate() as any,
+    }
+    await Models.Token.create(rawToken)
   })
 
   afterEach(() => {
     sandbox?.restore()
   })
 
-  describe('getTokenByAddressAndNetwork', async () => {
-    it('getTokenByAddressAndNetwork new token', async () => {
+  describe('getTokensWithPagination', () => {
+    it('should get proposals with pagination - all params', async () => {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {
+        network: rawToken.network,
+        type: rawToken.type,
+      }
+
+      const spyReq = sandbox.spy(Models.Token, 'findWithPagination')
+
+      const response = await TokenController.getTokensWithPagination(paginationParams, filterParams)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: filterParams,
+          paginationParams: {
+            search: '',
+            endDate: '',
+            startDate: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].network).to.eq(rawToken.network)
+      expect(response.data[0].address).to.eq(rawToken.address)
+      expect(response.data[0].symbol).to.eq(rawToken.symbol)
+      expect(response.data[0].decimals).to.eq(rawToken.decimals)
+      expect(response.data[0].logo).to.eq(rawToken.logo)
+      expect(response.data[0].name).to.eq(rawToken.name)
+      expect(response.data[0].id).to.eq(rawToken.id)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get proposals no params', async () => {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+
+      const spyReq = sandbox.spy(Models.Token, 'findWithPagination')
+
+      const response = await TokenController.getTokensWithPagination(paginationParams, filterParams)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: filterParams,
+          paginationParams: {
+            search: '',
+            endDate: '',
+            startDate: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].network).to.eq(rawToken.network)
+      expect(response.data[0].address).to.eq(rawToken.address)
+      expect(response.data[0].symbol).to.eq(rawToken.symbol)
+      expect(response.data[0].decimals).to.eq(rawToken.decimals)
+      expect(response.data[0].logo).to.eq(rawToken.logo)
+      expect(response.data[0].name).to.eq(rawToken.name)
+      expect(response.data[0].id).to.eq(rawToken.id)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+  })
+
+  describe('getTokenByAddress', async () => {
+    it('getTokenByAddress new token', async () => {
       const fakeRes = {
         address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         logo: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         name: 'Wrapped Ether',
         symbol: 'WETH',
@@ -37,18 +152,18 @@ describe('Controller: Token', () => {
 
       const stubHelper = sandbox.stub(CovalentHelper, 'getToken').resolves(fakeRes as any)
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-      const token = await TokenController.getTokenByAddressAndNetwork({
+      const token = await TokenController.getTokenByAddress({
         address,
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       })
 
       expect(token.address).to.eq(address)
       expect(stubHelper.calledOnce).to.be.true
-      expect(stubHelper.calledWith(address, NetworksEnum.mainnet)).to.be.true
+      expect(stubHelper.calledWith(address, NetworksEnum.ethereumMainnet)).to.be.true
 
-      const dbToken = await Models.Token.findByTokenAddressAndNetwork(address, NetworksEnum.mainnet)
+      const dbToken = await Models.Token.findByTokenAddressAndNetwork(address, NetworksEnum.ethereumMainnet)
       expect(dbToken.address).to.eq(address)
-      expect(dbToken.network).to.eq(NetworksEnum.mainnet)
+      expect(dbToken.network).to.eq(NetworksEnum.ethereumMainnet)
       expect(dbToken.logo).to.eq(fakeRes.logo)
       expect(dbToken.name).to.eq(fakeRes.name)
       expect(dbToken.type).to.eq(fakeRes.type)
@@ -63,10 +178,10 @@ describe('Controller: Token', () => {
       )
     })
 
-    it('getTokenByAddressAndNetwork existing token', async () => {
+    it('getTokenByAddress existing token', async () => {
       const rawToken = {
         address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         logo: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         name: 'Wrapped Ether',
         symbol: 'WETH',
@@ -83,14 +198,14 @@ describe('Controller: Token', () => {
 
       const stubHelper = sandbox.stub(CovalentHelper, 'getToken')
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-      const dbToken = await TokenController.getTokenByAddressAndNetwork({
+      const dbToken = await TokenController.getTokenByAddress({
         address,
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       })
 
       expect(stubHelper.notCalled).to.be.true
       expect(dbToken.address).to.eq(address)
-      expect(dbToken.network).to.eq(NetworksEnum.mainnet)
+      expect(dbToken.network).to.eq(NetworksEnum.ethereumMainnet)
       expect(dbToken.logo).to.eq(rawToken.logo)
       expect(dbToken.name).to.eq(rawToken.name)
       expect(dbToken.symbol).to.eq(rawToken.symbol)
@@ -104,13 +219,13 @@ describe('Controller: Token', () => {
       )
     })
 
-    it('getTokenByAddressAndNetwork not found', async () => {
+    it('getTokenByAddress not found', async () => {
       const stubHelper = sandbox.stub(CovalentHelper, 'getToken').resolves(undefined)
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       await expect(
-        TokenController.getTokenByAddressAndNetwork({
+        TokenController.getTokenByAddress({
           address,
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
         }),
       ).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
       expect(stubHelper.calledOnce).to.be.true

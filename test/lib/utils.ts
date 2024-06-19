@@ -9,27 +9,27 @@ export const UnitTestUtils = {
     })
 
     const fakeProvider = {
-      mainnet: {
+      ethereumMainnet: {
         getBlockNumber,
         getLogs: sandbox.stub().resolves([{ transactionHash: '0x123', blockNumber: 1 }]),
         destroy: sandbox.stub().resolves(),
       },
-      sepolia: {
+      ethereumSepolia: {
         getBlockNumber,
         getLogs: sandbox.stub().resolves([{ transactionHash: '0x456', blockNumber: 2 }]),
         destroy: sandbox.stub().resolves(),
       },
-      polygon: {
+      polygonMainnet: {
         getBlockNumber,
         getLogs: sandbox.stub().resolves([{ transactionHash: '0x789', blockNumber: 3 }]),
         destroy: sandbox.stub().resolves(),
       },
-      arbitrum: {
+      arbitrumMainnet: {
         getBlockNumber,
         getLogs: sandbox.stub().resolves([{ transactionHash: '0xabc', blockNumber: 4 }]),
         destroy: sandbox.stub().resolves(),
       },
-      base: {
+      baseMainnet: {
         getBlockNumber,
         getLogs: sandbox.stub().resolves([{ transactionHash: '0xdef', blockNumber: 5 }]),
         destroy: sandbox.stub().resolves(),

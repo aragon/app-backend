@@ -23,20 +23,20 @@ const CoinGeckoHelper = {
     },
   }),
 
-  unsupportedNetworks: [NetworksEnum.sepolia],
+  unsupportedNetworks: [NetworksEnum.ethereumSepolia],
 
   networksMap: {
-    mainnet: 'ethereum',
-    polygon: 'polygon-pos',
-    base: 'base',
-    arbitrum: 'arbitrum-nova',
+    ethereumMainnet: 'ethereum',
+    polygonMainnet: 'polygon-pos',
+    baseMainnet: 'base',
+    arbitrumMainnet: 'arbitrum-nova',
   },
 
   coinsMap: {
-    polygon: 'polygon-ecosystem-token',
-    mainnet: 'ethereum',
-    base: 'base',
-    arbitrum: 'arbitrum',
+    polygonMainnet: 'polygon-ecosystem-token',
+    ethereumMainnet: 'ethereum',
+    baseMainnet: 'base',
+    arbitrumMainnet: 'arbitrum',
   },
 
   networkToCoinGecko: (network: INetworks) => {
@@ -50,7 +50,7 @@ const CoinGeckoHelper = {
   _rpCall: async <T>(path: string): Promise<T> => {
     try {
       const response = await retryRequest(async () =>
-        BottleneckModule.getCoinGeckoLimiter(NetworksEnum.mainnet)!.schedule(async () =>
+        BottleneckModule.getCoinGeckoLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
           CoinGeckoHelper.axiosInstance.get(`${config.COINGECKO.URI}${path}`),
         ),
       )
