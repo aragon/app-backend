@@ -22,7 +22,7 @@ const ProposalSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
-    transactionHash: ValidationSchema.joiAddress.required(),
+    transactionHash: ValidationSchema.joiTransactionHash.required(),
   }),
 }
 

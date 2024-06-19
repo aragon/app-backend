@@ -165,6 +165,10 @@ export default class Dao extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
+  static async findByAddress(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return await this.findOne({ address, network }, tOpts)
+  }
+
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},

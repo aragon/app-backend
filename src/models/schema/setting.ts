@@ -115,10 +115,16 @@ export default class Setting extends Model {
     paginationParams?: IPaginationParams
   }) {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([key, value]) => value !== undefined))
+    const dynamicFilter = Object.fromEntries(
+      Object.entries(extraParams).filter(([key, value]) => value !== undefined && value !== 'onlyActive'),
+    )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['pluginAddress', 'daoAddress', 'network']),
       ...dynamicFilter,
+    }
+
+    if (extraParams.onlyActive) {
+      filter.toBlockNumber = null
     }
 
     const currentPage = request.skip / request.limit + 1

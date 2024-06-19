@@ -9,6 +9,7 @@ const SettingRouter = {
   getWithPagination: async function (ctx: RouterContext) {
     const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'amountUsd' })
     const extraParams: ISettingExtraParams = {
+      onlyActive: ctx.query.onlyActive ? Boolean(ctx.query.onlyActive) : undefined,
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,

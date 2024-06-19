@@ -65,7 +65,7 @@ export default class LogMember extends Model {
   public pluginAddress!: HexAddress
 
   static async create(rawData: Partial<LogMember>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.event, 'event is required')
       assert(!!rawData.address, 'address is required')

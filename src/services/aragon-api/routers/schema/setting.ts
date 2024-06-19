@@ -5,6 +5,7 @@ import { NetworksEnum } from '@types'
 const SettingSchema = {
   getWithPagination: Joi.object(
     Object.assign(ValidationSchema.generateJoiPagination, {
+      onlyActive: Joi.boolean().optional(),
       daoAddress: ValidationSchema.joiAddress.optional(),
       pluginAddress: ValidationSchema.joiAddress.optional(),
       network: Joi.string()
@@ -21,7 +22,7 @@ const SettingSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
-    fromTxHash: ValidationSchema.joiAddress.required(),
+    fromTxHash: ValidationSchema.joiTransactionHash.required(),
   }),
 }
 
