@@ -104,8 +104,8 @@ export default class Asset extends Model {
         {
           $lookup: {
             from: 'token',
-            localField: 'tokenAddress',
-            foreignField: 'address',
+            localField: 'address',
+            foreignField: 'tokenAddress',
             as: 'tokenDetails',
           },
         },
@@ -116,23 +116,28 @@ export default class Asset extends Model {
           },
         },
         {
+          $addFields: {
+            'token.address': {
+              $ifNull: ['$tokenDetails.address', '$tokenAddress'],
+            },
+            'token.symbol': '$tokenDetails.symbol',
+            'token.name': '$tokenDetails.name',
+            'token.type': '$tokenDetails.type',
+            'token.logo': '$tokenDetails.logo',
+            'token.decimals': '$tokenDetails.decimals',
+            'token.priceChangeOnDayUsd': '$tokenDetails.priceChangeOnDayUsd',
+            'token.priceUsd': '$tokenDetails.priceUsd',
+          },
+        },
+        {
           $project: {
             _id: 0,
-            entityId: '$entityId',
+            id: '$id',
             network: 1,
             daoAddress: 1,
             tokenAddress: 1,
             amount: 1,
-            token: {
-              address: '$tokenDetails.address',
-              symbol: '$tokenDetails.symbol',
-              name: '$tokenDetails.name',
-              type: '$tokenDetails.type',
-              logo: '$tokenDetails.logo',
-              decimals: '$tokenDetails.decimals',
-              priceChangeOnDayUsd: '$tokenDetails.priceChangeOnDayUsd',
-              priceUsd: '$tokenDetails.priceUsd',
-            },
+            token: 1,
           },
         },
         {
@@ -140,7 +145,7 @@ export default class Asset extends Model {
             amountUsd: {
               $cond: {
                 if: {
-                  $and: ['$token.priceUsd', { $gt: ['$token.decimals', null] }],
+                  $and: [{ $gt: ['$token.priceUsd', 0] }, { $gt: ['$token.decimals', 0] }],
                 },
                 then: {
                   $multiply: [

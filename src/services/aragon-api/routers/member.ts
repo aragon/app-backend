@@ -24,7 +24,7 @@ const MemberRouter = {
 
   getMemberById: async function (ctx: RouterContext) {
     const params = {
-      id: ctx.params.id, // address
+      id: ctx.params.id || ctx.params.address,
     }
 
     const formattedValues = await ValidationSchema.validateParams(MemberSchema.getMemberById, params)
@@ -50,11 +50,21 @@ const MemberRouter = {
      * @api {get} /:id Get Member by id
      * @apiName Members
      * @apiGroup Members
-     * @apiDescription Get Member
+     * @apiDescription Get Member by id
      *
      * @apiSampleRequest /:id
      */
     router.get('/:id', MemberRouter.getMemberById)
+
+    /**
+     * @api {get} /:address Get Member by address
+     * @apiName Members
+     * @apiGroup Members
+     * @apiDescription Get Member by address
+     *
+     * @apiSampleRequest /:address
+     */
+    router.get('/:address', MemberRouter.getMemberById)
 
     return router
   },

@@ -137,24 +137,21 @@ export const AggregatorProposal = {
         },
       },
       {
-        $unwind: '$pluginSettings.history',
-      },
-      {
         $addFields: {
           validSettings: {
             $cond: {
               if: {
                 $and: [
-                  { $lte: ['$pluginSettings.history.fromBlockNumber', '$blockNumber'] },
+                  { $lte: ['$pluginSettings.fromBlockNumber', '$blockNumber'] },
                   {
                     $or: [
-                      { $gt: ['$pluginSettings.history.toBlockNumber', '$blockNumber'] },
-                      { $eq: ['$pluginSettings.history.toBlockNumber', null] },
+                      { $gt: ['$pluginSettings.toBlockNumber', '$blockNumber'] },
+                      { $eq: ['$pluginSettings.toBlockNumber', null] },
                     ],
                   },
                 ],
               },
-              then: '$pluginSettings.history',
+              then: '$pluginSettings',
               else: null,
             },
           },
@@ -186,8 +183,8 @@ export const AggregatorProposal = {
       {
         $project: {
           _id: 0,
+          id: 1,
           blockNumber: 1,
-          entityId: 1,
           startDate: 1,
           endDate: 1,
           executed: {

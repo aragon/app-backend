@@ -25,12 +25,26 @@ const ProposalRouter = {
 
   getProposalById: async function (ctx: RouterContext) {
     const params = {
-      id: ctx.params.id, // address
+      id: ctx.params.id,
     }
 
     const formattedValues = await ValidationSchema.validateParams(ProposalSchema.getProposalById, params)
 
     ctx.body = await ProposalController.getProposalById(formattedValues.id)
+  },
+
+  getProposalByTransactionHash: async function (ctx: RouterContext) {
+    const params = {
+      network: ctx.params.network,
+      transactionHash: ctx.params.transactionHash,
+    }
+
+    const formattedValues = await ValidationSchema.validateParams(ProposalSchema.getProposalByTransactionHash, params)
+
+    ctx.body = await ProposalController.getProposalByTransactionHash(
+      formattedValues.transactionHash,
+      formattedValues.network,
+    )
   },
 
   router() {
@@ -48,14 +62,24 @@ const ProposalRouter = {
     router.get('/', ProposalRouter.getWithPagination)
 
     /**
-     * @api {get} /:id Get Proposal by id
+     * @api {get} /:id Get Proposal by Id
      * @apiName Proposals
      * @apiGroup Proposals
-     * @apiDescription Get Proposal
+     * @apiDescription Get Proposal by Id
      *
      * @apiSampleRequest /:id
      */
     router.get('/:id', ProposalRouter.getProposalById)
+
+    /**
+     * @api {get} /:network/:transactionHash Get Proposal by transactionHash
+     * @apiName Proposals
+     * @apiGroup Proposals
+     * @apiDescription Get Proposal by transactionHash
+     *
+     * @apiSampleRequest /:network/:transactionHash
+     */
+    router.get('/:network/:transactionHash', ProposalRouter.getProposalByTransactionHash)
 
     return router
   },

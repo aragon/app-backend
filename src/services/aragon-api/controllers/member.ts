@@ -16,7 +16,6 @@ const MemberController = {
     return await Models.Member.findWithPagination({ extraParams, paginationParams })
   },
 
-  // TODO: change
   getMemberById: async (id: string): Promise<IMembersResponse> => {
     const member = await Models.Member.findByEntityId(id)
     assertExposable(member, ErrorKeyEnum.notFound)

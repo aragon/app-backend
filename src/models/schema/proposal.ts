@@ -165,8 +165,17 @@ export default class Proposal extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
-  static async findByProposalId(proposalId: number, pluginAddress: string, network: NetworksEnum, tOpts?: SaveOptions) {
+  static async findByProposalId(
+    proposalId: number,
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    tOpts?: SaveOptions,
+  ) {
     return await this.findOne({ proposalId, pluginAddress, network }, tOpts)
+  }
+
+  static async findByTransactionHash(transactionHash: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return await this.findOne({ transactionHash, network }, tOpts)
   }
 
   static async findWithPagination({

@@ -12,6 +12,17 @@ const SettingSchema = {
         .optional(),
     }),
   ),
+
+  getSettingById: Joi.object({
+    id: Joi.string().required(),
+  }),
+
+  getSettingByTransactionHash: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    fromTxHash: ValidationSchema.joiAddress.required(),
+  }),
 }
 
 export default SettingSchema
