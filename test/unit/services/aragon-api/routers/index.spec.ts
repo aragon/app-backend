@@ -9,11 +9,11 @@ import TokenRouter from '@services/aragon-api/routers/token'
 import utils from '@helpers/utils'
 import Koa from 'koa'
 import supertest from 'supertest'
-import AssetRouter from "@api/routers/asset";
-import MemberRouter from "@api/routers/member";
-import ProposalRouter from "@api/routers/proposal";
-import SettingRouter from "@api/routers/setting";
-import TransactionRouter from "@api/routers/transaction";
+import AssetRouter from '@api/routers/asset'
+import MemberRouter from '@api/routers/member'
+import ProposalRouter from '@api/routers/proposal'
+import SettingRouter from '@api/routers/setting'
+import TransactionRouter from '@api/routers/transaction'
 
 describe('Router: MainRouter', () => {
   let sandbox: SinonSandbox
