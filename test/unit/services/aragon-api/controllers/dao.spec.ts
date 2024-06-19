@@ -34,11 +34,14 @@ describe('Controller: Dao', () => {
           url: 'fake-url',
         },
       ],
-      proposalsCreated: 5,
-      proposalsExecuted: 3,
+      metrics: {
+        members: 15,
+        proposalsCreated: 5,
+        proposalsExecuted: 3,
+        uniqueVoters: 100,
+        votes: 500,
+      },
       tvlUSD: '10000',
-      uniqueVoters: 100,
-      votes: 500,
       plugins: [
         {
           transactionHash: '0x0',
