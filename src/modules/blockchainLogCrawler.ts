@@ -2,12 +2,11 @@ import logger from '@logger'
 import { type Filter, type Log, type WebSocketProvider } from 'ethers'
 import { ConfigState } from '@state/configState'
 import { type IEnumIndexerService, NetworksEnum } from '@types'
-import Utils from '@helpers/utils'
 import BottleneckModule from '@modules/bottleneck'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import config from '@config'
-import utils from "@helpers/utils";
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' })
 
@@ -142,7 +141,7 @@ class BlockchainLogCrawler {
       const toBlock = Math.min(currentBlock + this.batchSize - 1, latestBlock)
 
       // Handle topics: use chunks if there are topics, or pass empty for all logs
-      const topicChunks = Utils.chunkArray(this.filter.topics, 4)
+      const topicChunks = utils.chunkArray(this.filter.topics, 4)
 
       for (const topics of topicChunks) {
         logger.silly(
@@ -193,7 +192,7 @@ class BlockchainLogCrawler {
       this.batchSize = Math.max(1, Math.floor(this.batchSize / 2))
       logger.warn('Reducing batch size due to error', llo({ newBatchSize: this.batchSize }))
     } else if (this.isRateLimited(error)) {
-      await Utils.wait(1000)
+      await utils.wait(1000)
     } else {
       this.shutdown = true
       this.onError(error)
