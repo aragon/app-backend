@@ -116,15 +116,16 @@ export default class Setting extends Model {
   }) {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(([key, value]) => value !== undefined && value !== 'onlyActive'),
+      Object.entries(extraParams).filter(([key, value]) => value !== undefined && key !== 'onlyActive'),
     )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['pluginAddress', 'daoAddress', 'network']),
       ...dynamicFilter,
     }
 
+    // only filter active setting in dao
     if (extraParams.onlyActive) {
-      filter.toBlockNumber = null
+      filter['$or'] = [{ toBlockNumber: null }, { toBlockNumber: { $exists: false } }]
     }
 
     const currentPage = request.skip / request.limit + 1

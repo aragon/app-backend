@@ -23,6 +23,7 @@ export interface IMemberExtraParams {
   daoAddress?: HexAddress
   network?: NetworksEnum
   pluginAddress?: HexAddress
+  onlyActive?: boolean
 }
 
 export interface ITransactionExtraParams {

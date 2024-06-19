@@ -5,6 +5,7 @@ import { NetworksEnum } from '@types'
 const MemberSchema = {
   getWithPagination: Joi.object(
     Object.assign(ValidationSchema.generateJoiPagination, {
+      onlyActive: Joi.boolean().optional(),
       network: Joi.string()
         .valid(...Object.values(NetworksEnum))
         .optional(),
