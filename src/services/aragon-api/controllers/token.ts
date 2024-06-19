@@ -1,12 +1,29 @@
 import { Models } from '@dbModels'
-import { ErrorKeyEnum, type HexAddress, type NetworksEnum } from '@types'
-import { type IToken } from '@src/types/token'
+import {
+  ErrorKeyEnum,
+  type HexAddress,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type ITokenExtraParams,
+  type ITokenResponse,
+  type NetworksEnum,
+} from '@types'
 import CovalentHelper from '@helpers/covalent'
 import { assertExposable } from '@errors'
 import dayjs from '@helpers/dayjs'
+import type Token from '@models/schema/token'
 
 const TokenController = {
-  getTokenByAddressAndNetwork: async (params: { address: HexAddress; network: NetworksEnum }): Promise<IToken> => {
+  getTokensWithPagination: async (
+    paginationParams: IPaginationParams = {},
+    extraParams: ITokenExtraParams = {},
+  ): Promise<IPaginatedResult<ITokenResponse>> => {
+    const result = await Models.Token.findWithPagination({ extraParams, paginationParams })
+    result.data = result.data.map((token: Token) => token.filterKeys())
+    return result
+  },
+
+  getTokenByAddress: async (params: { address: HexAddress; network: NetworksEnum }): Promise<ITokenResponse> => {
     let token = await Models.Token.findByTokenAddressAndNetwork(params.address, params.network)
 
     if (!token) {
