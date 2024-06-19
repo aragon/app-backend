@@ -32,6 +32,17 @@ const DaoRouter = {
     ctx.body = await DaoController.getDaoById(formattedValues.id)
   },
 
+  getDaoByAddress: async function (ctx: RouterContext) {
+    const params = {
+      network: ctx.params.network,
+      address: ctx.params.address,
+    }
+
+    const formattedValues = await ValidationSchema.validateParams(DaoSchema.getDaoByAddress, params)
+
+    ctx.body = await DaoController.getDaoByAddress(formattedValues.address, formattedValues.network)
+  },
+
   router() {
     const router = new Router()
 
@@ -47,14 +58,24 @@ const DaoRouter = {
     router.get('/', DaoRouter.getWithPagination)
 
     /**
-     * @api {get} /:permalink Get Dao by permalink
+     * @api {get} /:id Get Dao by id
      * @apiName Daos
      * @apiGroup Daos
-     * @apiDescription Get Dao
+     * @apiDescription Get Dao by id
      *
-     * @apiSampleRequest /:permalink
+     * @apiSampleRequest /:id
      */
     router.get('/:id', DaoRouter.getDaoById)
+
+    /**
+     * @api {get} /:network/:address Get Dao by address
+     * @apiName Daos
+     * @apiGroup Daos
+     * @apiDescription Get Dao by address
+     *
+     * @apiSampleRequest /:network/:address
+     */
+    router.get('/:network/:address', DaoRouter.getDaoByAddress)
 
     return router
   },

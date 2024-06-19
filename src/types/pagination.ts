@@ -35,6 +35,7 @@ export interface ISettingExtraParams {
   daoAddress?: HexAddress
   pluginAddress?: HexAddress
   network?: NetworksEnum
+  onlyActive?: boolean
 }
 
 export interface IPaginationParams {

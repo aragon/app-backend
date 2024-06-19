@@ -36,6 +36,13 @@ const DaoSchema = {
         }
       }, 'Dao Id validation'),
   }),
+
+  getDaoByAddress: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    address: ValidationSchema.joiAddress.required(),
+  }),
 }
 
 export default DaoSchema

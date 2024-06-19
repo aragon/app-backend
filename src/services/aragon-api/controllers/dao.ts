@@ -1,10 +1,12 @@
 import { Models } from '@dbModels'
 import {
   ErrorKeyEnum,
+  type HexAddress,
   type IDaoExtraParams,
   type IDaoResponse,
   type IPaginatedResult,
   type IPaginationParams,
+  type NetworksEnum,
 } from '@types'
 import type Dao from '@models/schema/dao'
 import { assertExposable } from '@errors'
@@ -21,6 +23,13 @@ const DaoController = {
 
   getDaoById: async (id: string): Promise<IDaoResponse> => {
     const dao = await Models.Dao.findByEntityId(id)
+    assertExposable(dao, ErrorKeyEnum.notFound)
+
+    return dao.filterKeys()
+  },
+
+  getDaoByAddress: async (address: HexAddress, network: NetworksEnum): Promise<IDaoResponse> => {
+    const dao = await Models.Dao.findByAddress(address, network)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
     return dao.filterKeys()

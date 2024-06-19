@@ -19,6 +19,11 @@ const ValidationSchema = {
     .messages({
       'string.invalid': '{{#label}} is not a valid address',
     }),
+  joiTransactionHash: Joi.string()
+    .pattern(/^0x[a-fA-F0-9]{64}$/, { name: 'valid transaction hash' }) // Validate format
+    .messages({
+      'string.pattern.name': '{{#label}} must be a valid transaction hash',
+    }),
 
   generateJoiPagination: {
     search: Joi.string()
