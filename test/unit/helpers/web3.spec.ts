@@ -1008,6 +1008,33 @@ describe('Helpers:Web3', () => {
       expect(stubLoggerError.calledOnce).to.be.true
       expect(stubLoggerError.calledWith('Error subdomainExists' as any)).to.be.true
     })
+
+    it('should return false if not supported', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: () => {
+            return {}
+          },
+          namehash: () => {
+            return '0xb9b3537ea1117f65799f21b36bbc6357724953d5bf9cca09f0757b7ac3e81f37'
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+        '@logger': Logger,
+      })
+
+      const ensName = 'aavegotchi.dao.eth'
+      const result = await MockedWeb3Helper.subdomainExists(ensName, NetworksEnum.arbitrum)
+
+      expect(result).to.be.false
+      expect(stubConfigState.getConfigItem.notCalled).to.be.true
+    })
   })
 
   describe('getTransaction', () => {

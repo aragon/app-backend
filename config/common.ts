@@ -1,5 +1,5 @@
 import utils from '@helpers/utils'
-import { type IConfig, NetworksEnum } from '@types'
+import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum } from '@types'
 
 const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
@@ -12,6 +12,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     SUPPORTED_NETWORKS: utils.configParser(sourceConfig, 'array', 'SUPPORTED_NETWORKS', Object.values(NetworksEnum)),
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
     ENS_DOMAIN: utils.configParser(sourceConfig, 'string', 'ENS_DOMAIN', 'dao.eth'),
+    SUPPORTED_ENS_NETWORKS: utils.configParser(
+      sourceConfig,
+      'array',
+      'SUPPORTED_ENS_NETWORKS',
+      Object.values(SupportedEnsNetworksEnum),
+    ),
 
     NODE_CONFIG: {
       MAX_RECONNECT_ATTEMPTS: utils.configParser(sourceConfig, 'number', 'NODE_CONFIG_MAX_RECONNECT_ATTEMPTS', 10),
