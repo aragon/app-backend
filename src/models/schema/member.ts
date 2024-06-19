@@ -25,6 +25,9 @@ class MemberDao {
   @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
 
+  @prop({ type: () => String, default: null })
+  public pluginSubdomain!: string
+
   @prop({ type: () => Number })
   public fromBlockNumber!: number
 

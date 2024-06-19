@@ -109,17 +109,38 @@ export const AggregatorMembers = {
         },
       },
       {
-        $addFields: {
-          daoAddress: {
-            $arrayElemAt: ['$pluginInfo.daoAddress', 0],
-          },
+        $lookup: {
+          from: 'logPluginRepo',
+          let: { pluginSetupRepo: { $arrayElemAt: ['$pluginInfo.pluginSetupRepo', 0] } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$pluginRepo', '$$pluginSetupRepo'],
+                },
+              },
+            },
+            {
+              $project: {
+                subdomain: 1,
+              },
+            },
+          ],
+          as: 'pluginRepoInfo',
         },
       },
-
+      {
+        $addFields: {
+          daoAddress: { $arrayElemAt: ['$pluginInfo.daoAddress', 0] },
+          pluginSubdomain: { $arrayElemAt: ['$pluginRepoInfo.subdomain', 0] },
+        },
+      },
       {
         $project: {
           _id: 0,
           memberAddress: '$_id.memberAddress',
+          pluginAddress: '$_id.pluginAddress',
+          pluginSubdomain: 1,
           daos: {
             $map: {
               input: '$history',
@@ -179,6 +200,7 @@ export const AggregatorMembers = {
                       ],
                     },
                     network: '$_id.network',
+                    pluginSubdomain: '$pluginSubdomain',
                   },
                   {
                     $cond: [
@@ -192,6 +214,7 @@ export const AggregatorMembers = {
                         votingPower: '$$entry.newVotingPower',
                         delegateFromAddress: '$$entry.fromDelegate',
                         delegateToAddress: '$$entry.toDelegate',
+                        pluginSubdomain: '$pluginSubdomain',
                       },
                       null,
                     ],

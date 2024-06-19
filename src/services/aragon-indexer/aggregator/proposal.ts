@@ -181,6 +181,34 @@ export const AggregatorProposal = {
         },
       },
       {
+        $lookup: {
+          from: 'logPluginRepo',
+          let: { pluginSetupRepo: '$pluginInfo.pluginSetupRepo' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$pluginRepo', '$$pluginSetupRepo'],
+                },
+              },
+            },
+            {
+              $project: {
+                subdomain: 1,
+              },
+            },
+          ],
+          as: 'pluginRepoInfo',
+        },
+      },
+      {
+        $addFields: {
+          pluginSubdomain: {
+            $arrayElemAt: ['$pluginRepoInfo.subdomain', 0],
+          },
+        },
+      },
+      {
         $project: {
           _id: 0,
           id: 1,
@@ -193,6 +221,7 @@ export const AggregatorProposal = {
             blockNumber: 1,
           },
           pluginAddress: 1,
+          pluginSubdomain: 1,
           transactionHash: 1,
           network: 1,
           metadataUri: 1,
