@@ -100,6 +100,9 @@ export default class Proposal extends Model {
   @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
 
+  @prop({ type: () => String, default: null })
+  public pluginSubdomain!: string
+
   @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
 

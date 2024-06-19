@@ -76,6 +76,9 @@ export default class Setting extends Model {
   @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
 
+  @prop({ type: () => String, default: null })
+  public pluginSubdomain!: string
+
   @prop({ type: () => Settings })
   public settings?: Settings
 

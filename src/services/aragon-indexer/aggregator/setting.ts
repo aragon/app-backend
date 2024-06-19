@@ -91,10 +91,39 @@ export const AggregatorSetting = {
         },
       },
       {
+        $lookup: {
+          from: 'logPluginRepo',
+          let: { pluginSetupRepo: { $arrayElemAt: ['$pluginInfo.pluginSetupRepo', 0] } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$pluginRepo', '$$pluginSetupRepo'],
+                },
+              },
+            },
+            {
+              $project: {
+                subdomain: 1,
+              },
+            },
+          ],
+          as: 'pluginRepoInfo',
+        },
+      },
+      {
+        $addFields: {
+          pluginSubdomain: {
+            $arrayElemAt: ['$pluginRepoInfo.subdomain', 0],
+          },
+        },
+      },
+      {
         $project: {
           _id: 0,
           daoAddress: { $arrayElemAt: ['$pluginInfo.daoAddress', 0] },
           pluginAddress: '$_id.pluginAddress',
+          pluginSubdomain: 1,
           network: '$_id.network',
           fromTxHash: '$events.transactionHash',
           toTxHash: '$nextTransactionHash',
