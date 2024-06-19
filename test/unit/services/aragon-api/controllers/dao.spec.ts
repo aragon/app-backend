@@ -15,7 +15,7 @@ describe('Controller: Dao', () => {
     sandbox = sinon.createSandbox()
 
     rawDao = {
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       transactionHash: '0x0',
       blockNumber: 0,
       blockTimestamp: 2141242,
@@ -99,7 +99,7 @@ describe('Controller: Dao', () => {
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].id).to.eq('mainnet-0x17366cae2b9c6c3055e9e3c78936a69006be5409')
+      expect(response.data[0].id).to.eq(`${rawDao.network}-${rawDao.address}`)
       expect(response.data[0].network).to.eq(rawDao.network)
       expect(response.data[0].transactionHash).to.eq(rawDao.transactionHash)
       expect(response.data[0].blockNumber).to.eq(rawDao.blockNumber)
@@ -143,7 +143,7 @@ describe('Controller: Dao', () => {
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].id).to.eq('mainnet-0x17366cae2b9c6c3055e9e3c78936a69006be5409')
+      expect(response.data[0].id).to.eq(`${rawDao.network}-${rawDao.address}`)
       expect(response.data[0].network).to.eq(rawDao.network)
       expect(response.data[0].transactionHash).to.eq(rawDao.transactionHash)
       expect(response.data[0].blockNumber).to.eq(rawDao.blockNumber)
@@ -185,7 +185,7 @@ describe('Controller: Dao', () => {
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].id).to.eq('mainnet-0x17366cae2b9c6c3055e9e3c78936a69006be5409')
+      expect(response.data[0].id).to.eq(`${rawDao.network}-${rawDao.address}`)
       expect(response.data[0].network).to.eq(rawDao.network)
       expect(response.data[0].transactionHash).to.eq(rawDao.transactionHash)
       expect(response.data[0].blockNumber).to.eq(rawDao.blockNumber)

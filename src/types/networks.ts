@@ -10,16 +10,15 @@ export interface ISupportedNetwork {
 }
 
 export enum SupportedEnsNetworksEnum {
-  mainnet = 'mainnet',
-  polygon = 'polygon',
+  ethereumMainnet = 'ethereumMainnet',
 }
 
 export enum NetworksEnum {
-  mainnet = 'mainnet',
-  sepolia = 'sepolia',
-  polygon = 'polygon',
-  base = 'base',
-  arbitrum = 'arbitrum',
+  ethereumMainnet = 'ethereumMainnet',
+  ethereumSepolia = 'ethereumSepolia',
+  polygonMainnet = 'polygonMainnet',
+  baseMainnet = 'baseMainnet',
+  arbitrumMainnet = 'arbitrumMainnet',
 }
 
 export enum StatusNetworkEnum {
@@ -28,7 +27,7 @@ export enum StatusNetworkEnum {
   offline = 'offline',
 }
 
-export const TestNetworks = [NetworksEnum.sepolia]
+export const TestNetworks = [NetworksEnum.ethereumSepolia]
 
 export interface IBlock {
   provider: WebSocketProvider

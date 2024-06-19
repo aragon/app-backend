@@ -32,7 +32,7 @@ describe('Helper: TokenDetector', () => {
   it('should detect native token', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress')
 
-    const result = await TokenDetector.detectTokenType(ZeroAddress, NetworksEnum.mainnet)
+    const result = await TokenDetector.detectTokenType(ZeroAddress, NetworksEnum.ethereumMainnet)
     expect(result?.type).to.equal(ITokenType.native)
     expect(getImplementationAddressStub.notCalled).to.be.true
   })
@@ -48,10 +48,10 @@ describe('Helper: TokenDetector', () => {
       }),
     } as any)
 
-    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result?.type).to.equal(ITokenType.ERC20)
     expect(getImplementationAddressStub.calledOnce).to.be.true
-    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.mainnet)).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
   })
 
   it('should detect ERC20 Governance token', async () => {
@@ -64,10 +64,10 @@ describe('Helper: TokenDetector', () => {
       }),
     } as any)
 
-    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result?.type).to.equal(ITokenType.GovernanceERC20)
     expect(getImplementationAddressStub.calledOnce).to.be.true
-    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.mainnet)).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
   })
 
   it('should detect ERC721 token', async () => {
@@ -78,7 +78,7 @@ describe('Helper: TokenDetector', () => {
       }),
     } as any)
 
-    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result?.type).to.equal(ITokenType.ERC721)
   })
 
@@ -90,7 +90,7 @@ describe('Helper: TokenDetector', () => {
       }),
     } as any)
 
-    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result?.type).to.equal(ITokenType.ERC1155)
   })
 
@@ -102,7 +102,7 @@ describe('Helper: TokenDetector', () => {
       }),
     } as any)
 
-    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result?.type).to.equal(ITokenType.ERC777)
   })
 
@@ -114,7 +114,7 @@ describe('Helper: TokenDetector', () => {
       }),
     } as any)
 
-    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result?.type).to.equal(ITokenType.unknown)
   })
 
@@ -129,10 +129,10 @@ describe('Helper: TokenDetector', () => {
       }),
     } as any)
 
-    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result?.type).to.equal(ITokenType.unknown)
     expect(getImplementationAddressStub.calledOnce).to.be.true
-    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.mainnet)).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
   })
 
   it('should handle an error when fetching bytecode', async () => {
@@ -143,7 +143,7 @@ describe('Helper: TokenDetector', () => {
       }),
     } as any)
 
-    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.mainnet)
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
 
     expect(result?.implementationAddress).to.be.null
     expect(result?.proxy).to.be.false

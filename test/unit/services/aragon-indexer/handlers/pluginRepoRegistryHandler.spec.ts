@@ -20,7 +20,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
   describe('pluginRepoRegistered', () => {
     it('should pluginRepoRegistered', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -63,7 +63,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
 
     it('pluginRepoRegistered throw error', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',

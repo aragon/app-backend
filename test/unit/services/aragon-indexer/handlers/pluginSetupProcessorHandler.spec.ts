@@ -21,7 +21,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
   describe('installationApplied', () => {
     it('should installationApplied', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -66,7 +66,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
     it('InstallationApplied throw error', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -92,7 +92,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
   describe('installationPrepared', () => {
     it('should installationPrepared', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -165,7 +165,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
     it('installationPrepared throw error', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -191,7 +191,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
   describe('uninstallationApplied', () => {
     it('should uninstallationApplied', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -234,7 +234,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
     it('uninstallationApplied throw error', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -260,7 +260,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
   describe('uninstallationPrepared', () => {
     it('should uninstallationPrepared', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -322,7 +322,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
     it('uninstallationPrepared throw error', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -348,7 +348,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
   describe('updateApplied', () => {
     it('should updateApplied', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -393,7 +393,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
     it('updateApplied throw error', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -419,7 +419,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
   describe('updatePrepared', () => {
     it('should updatePrepared', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -483,7 +483,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
     it('updatePrepared throw error', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',

@@ -19,7 +19,7 @@ describe('Router: Asset', () => {
   describe('getWithPagination', async () => {
     it('Should get asset with pagination - all params', async () => {
       const filterParams = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
       const paginationParams = {
@@ -51,7 +51,7 @@ describe('Router: Asset', () => {
 
     it('Should get asset with pagination - missing pagination params', async () => {
       const filterParams = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       }
       const paginationParams = {
         sort: 'createdAt',

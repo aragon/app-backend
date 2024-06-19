@@ -51,7 +51,7 @@ describe('Indexer:Aggregator:Assets', () => {
     it('should call onDocument and create asset', async () => {
       const document: Partial<Dao> = {
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       }
       const fakeEthBalance = '1000000000000000000'
       const fakeTokenBalances: IAlchemyTokenBalance[] = [
@@ -102,20 +102,20 @@ describe('Indexer:Aggregator:Assets', () => {
     it('should call onDocument and update asset', async () => {
       const document: Partial<Dao> = {
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       }
       const fakeEthBalance = '5000000000000000000'
       const fakeTokenBalances: IAlchemyTokenBalance[] = [{ contractAddress: '0xTokenAddress1', tokenBalance: '550000' }]
 
       const assetNativeDb = await Models.Asset.create({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         daoAddress: document.address,
         tokenAddress: ZeroAddress,
         amount: '1000000000000000000',
       })
 
       const assetTokenDb = await Models.Asset.create({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         daoAddress: document.address,
         tokenAddress: fakeTokenBalances[0].contractAddress,
         amount: '150000',
@@ -156,7 +156,7 @@ describe('Indexer:Aggregator:Assets', () => {
     it('should call onDocument and fail', async () => {
       const document: Partial<Dao> = {
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       }
 
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').rejects(new Error('Error'))

@@ -19,7 +19,7 @@ describe('Indexer: MemberHandler', () => {
     let rawLogPluginSetupProcessor = {
       transactionHash,
       blockNumber: 3,
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       event: IEventLogPluginType.InstallationApplied,
       daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       preparedSetupId: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
@@ -61,7 +61,7 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: plugin.pluginAddress,
@@ -106,7 +106,7 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: plugin.pluginAddress,
@@ -134,7 +134,7 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: plugin.pluginAddress,
@@ -162,7 +162,7 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: plugin.pluginAddress,
@@ -204,7 +204,7 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: plugin.pluginAddress,
@@ -231,7 +231,7 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: plugin.pluginAddress,
@@ -267,7 +267,7 @@ describe('Indexer: MemberHandler', () => {
       }
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: plugin.tokenAddress,
@@ -318,7 +318,7 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: plugin.tokenAddress,
@@ -354,7 +354,7 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: plugin.tokenAddress,
@@ -393,7 +393,7 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: plugin.tokenAddress,

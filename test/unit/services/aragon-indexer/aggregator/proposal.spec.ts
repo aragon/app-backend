@@ -49,7 +49,7 @@ describe('Indexer:Aggregator:Proposal', () => {
       const document = {
         transactionHash: '0x90a26411d62d1ba9f7b82e3697e94ff1ae9b5cce89e3f594ebe57b897245d39e',
         blockNumber: 16733645,
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         pluginAddress: '0xB85380977eC3435aeBc13e29b01AF990393bdED9',
         proposalId: 0,
         creatorAddress: '0xc1d60f584879f024299DA0F19Cdb47B931E35b53',
@@ -129,7 +129,7 @@ describe('Indexer:Aggregator:Proposal', () => {
       const document = {
         transactionHash: '0x90a26411d62d1ba9f7b82e3697e94ff1ae9b5cce89e3f594ebe57b897245d39e',
         blockNumber: 16733645,
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         pluginAddress: '0xB85380977eC3435aeBc13e29b01AF990393bdED9',
         proposalId: 0,
         creatorAddress: '0xc1d60f584879f024299DA0F19Cdb47B931E35b53',
@@ -211,6 +211,6 @@ describe('Indexer:Aggregator:Proposal', () => {
 
   it('should use default date when none is provided', () => {
     const pipeline = AggregatorProposal.query()
-    expect(pipeline.length).to.equal(12)
+    expect(pipeline.length).to.equal(13)
   })
 })

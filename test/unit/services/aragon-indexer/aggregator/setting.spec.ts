@@ -5,6 +5,7 @@ import { AggregatorSetting } from '@services/aragon-indexer/aggregator/setting'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import Logger from '@logger'
+import { NetworksEnum } from '@types'
 
 describe('Indexer:Aggregator:Setting', () => {
   let sandbox: SinonSandbox
@@ -47,7 +48,7 @@ describe('Indexer:Aggregator:Setting', () => {
     const document = {
       daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
       pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
-      network: 'polygon',
+      network: NetworksEnum.polygonMainnet,
       fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef8',
       toTxHash: '0x11ed65ce6ba3dbed7194ead9d3ffdfafdb921f39b1e55bd5139f0277ea219083',
       fromBlockNumber: 47758873,
@@ -95,7 +96,7 @@ describe('Indexer:Aggregator:Setting', () => {
     const rawDoc: any = {
       daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
       pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
-      network: 'polygon',
+      network: NetworksEnum.polygonMainnet,
       fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef8',
       toTxHash: '0x11ed65ce6ba3dbed7194ead9d3ffdfafdb921f39b1e55bd5139f0277ea219083',
       fromBlockNumber: 47758873,
@@ -125,6 +126,6 @@ describe('Indexer:Aggregator:Setting', () => {
 
   it('should query', () => {
     const pipeline = AggregatorSetting.query()
-    expect(pipeline.length).to.eq(6)
+    expect(pipeline.length).to.eq(8)
   })
 })

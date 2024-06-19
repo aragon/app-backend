@@ -19,7 +19,7 @@ describe('Router: Proposal', () => {
   describe('getWithPagination', async () => {
     it('Should get proposal with pagination - all params', async () => {
       const filterParams = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         creatorAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
@@ -53,7 +53,7 @@ describe('Router: Proposal', () => {
 
     it('Should get proposal with pagination - missing pagination params', async () => {
       const filterParams = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       }
       const paginationParams = {
         sort: 'createdAt',

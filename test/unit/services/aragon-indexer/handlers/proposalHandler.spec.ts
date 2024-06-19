@@ -22,7 +22,7 @@ describe('Indexer: ProposalHandler', () => {
   describe('proposalCreated', () => {
     it('should proposalCreated', async () => {
       const metadataUri = 'fake-uri'
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
 
       const info: ILogInfo = {
         transactionHash: '0x123',
@@ -62,7 +62,7 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('proposalCreated throw error', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x456',
@@ -89,7 +89,7 @@ describe('Indexer: ProposalHandler', () => {
 
   describe('approved', () => {
     it('should approved', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const rawProposal = {
         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
         blockNumber: 3,
@@ -144,7 +144,7 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('approved error proposal not found', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const rawProposal = {
         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
         blockNumber: 3,
@@ -191,7 +191,7 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('proposalCreated throw error', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
@@ -218,7 +218,7 @@ describe('Indexer: ProposalHandler', () => {
 
   describe('voteCast', () => {
     it('should voteCast', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const rawProposal = {
         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
         blockNumber: 3,
@@ -271,7 +271,7 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('voteCast error proposal not found', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const rawProposal = {
         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
         blockNumber: 3,
@@ -314,7 +314,7 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('voteCast throw error', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
@@ -341,7 +341,7 @@ describe('Indexer: ProposalHandler', () => {
 
   describe('proposalExecuted', () => {
     it('should proposalExecuted', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const rawProposal = {
         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
         blockNumber: 3,
@@ -388,7 +388,7 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('proposalExecuted error proposal not found', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
@@ -415,7 +415,7 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('proposalExecuted throw error', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
@@ -442,7 +442,7 @@ describe('Indexer: ProposalHandler', () => {
 
   describe('proposalMetadata', () => {
     it('should proposalMetadata', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const rawProposal = {
         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
         blockNumber: 3,
@@ -490,7 +490,7 @@ describe('Indexer: ProposalHandler', () => {
       })
       expect(proposalMetadataDB.transactionHash).to.eq(proposalDb.transactionHash)
       expect(proposalMetadataDB.blockNumber).to.eq(proposalDb.blockNumber)
-      expect(proposalMetadataDB.network).to.eq(NetworksEnum.mainnet)
+      expect(proposalMetadataDB.network).to.eq(NetworksEnum.ethereumMainnet)
       expect(proposalMetadataDB.fetchedMetadata).to.eq(true)
       expect(proposalMetadataDB.pluginAddress).to.eq(proposalDb.pluginAddress)
       expect(proposalMetadataDB.fetchedMetadata).to.eq(true)
@@ -498,7 +498,7 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('proposalMetadata throw error', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',

@@ -229,7 +229,7 @@ export default class Dao extends Model {
             if (!_.isEqual(parsedObj[key], value)) {
               this[key] = value
 
-              if (key === 'address') {
+              if (key === 'address' || key === 'network') {
                 this['id'] = `${this.network}-${this.address}`
               }
             }

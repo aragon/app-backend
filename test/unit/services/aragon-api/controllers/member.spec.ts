@@ -19,7 +19,7 @@ describe('Controller: Member', () => {
       daos: [
         {
           daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-          network: NetworksEnum.mainnet,
+          network: NetworksEnum.ethereumMainnet,
           pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
           fromBlockNumber: 1,
           toBlockNumber: 2,
@@ -28,6 +28,7 @@ describe('Controller: Member', () => {
           delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           votingPower: '100',
+          pluginSubdomain: NetworksEnum.ethereumMainnet,
         },
       ],
     }

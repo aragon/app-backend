@@ -11,7 +11,7 @@ describe('Indexer:Aggregator:Member', () => {
   let sandbox: SinonSandbox
 
   const rawDaoDoc = {
-    network: NetworksEnum.mainnet,
+    network: NetworksEnum.ethereumMainnet,
     pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
     fromBlockNumber: 1,
     toBlockNumber: 2,
@@ -73,7 +73,7 @@ describe('Indexer:Aggregator:Member', () => {
     expect(member.address).to.equal(document.address)
     expect(member.ens).to.be.null
     expect(member.daos.length).to.eq(1)
-    expect(member.daos[0].network).to.eq(NetworksEnum.mainnet)
+    expect(member.daos[0].network).to.eq(NetworksEnum.ethereumMainnet)
     expect(member.daos[0].pluginAddress).to.eq(document.daos[0].pluginAddress)
     expect(member.daos[0].fromBlockNumber).to.eq(document.daos[0].fromBlockNumber)
     expect(member.daos[0].toBlockNumber).to.eq(document.daos[0].toBlockNumber)

@@ -20,7 +20,7 @@ describe('Indexer: PluginSettingHandler', () => {
   describe('votingSettingsUpdated', () => {
     it('should votingSettingsUpdated', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -56,7 +56,7 @@ describe('Indexer: PluginSettingHandler', () => {
 
     it('votingSettingsUpdated throw error', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -82,7 +82,7 @@ describe('Indexer: PluginSettingHandler', () => {
   describe('multisigSettingsUpdated', () => {
     it('should multisigSettingsUpdated', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -112,7 +112,7 @@ describe('Indexer: PluginSettingHandler', () => {
 
     it('multisigSettingsUpdated throw error', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',

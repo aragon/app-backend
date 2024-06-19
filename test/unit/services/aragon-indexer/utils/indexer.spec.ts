@@ -23,7 +23,7 @@ describe('Model/Utils: indexer', () => {
       const existingToken = { id: 'token123', symbol: 'TKN' }
       sandbox.stub(Models.Token, 'findExistingLog').resolves(existingToken)
 
-      const result = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.mainnet)
+      const result = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.ethereumMainnet)
 
       expect(result).to.equal(existingToken)
     })
@@ -41,7 +41,7 @@ describe('Model/Utils: indexer', () => {
         totalSupply: '2000',
       })
 
-      const token = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.mainnet)
+      const token = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.ethereumMainnet)
 
       expect(stubFind.calledOnce).to.be.true
       expect(stubDetectTokenType.calledOnce).to.be.true
@@ -53,7 +53,7 @@ describe('Model/Utils: indexer', () => {
       expect(token!.decimals).to.eq(18)
       expect(token!.symbol).to.eq('TKN')
       expect(token!.totalSupply).to.eq('2000')
-      expect(token!.network).to.eq(NetworksEnum.mainnet)
+      expect(token!.network).to.eq(NetworksEnum.ethereumMainnet)
     })
 
     it('should detect token type unknown', async () => {
@@ -69,7 +69,7 @@ describe('Model/Utils: indexer', () => {
         totalSupply: '2000',
       })
 
-      const token = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.mainnet)
+      const token = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.ethereumMainnet)
 
       expect(stubFind.calledOnce).to.be.true
       expect(stubDetectTokenType.calledOnce).to.be.true
@@ -79,7 +79,7 @@ describe('Model/Utils: indexer', () => {
 
     it('token not found', async () => {
       const stubFind = sandbox.stub(Models.Token, 'findExistingLog').resolves(true)
-      const token = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.mainnet)
+      const token = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.ethereumMainnet)
 
       expect(token).to.be.true
       expect(stubFind.calledOnce).to.be.true

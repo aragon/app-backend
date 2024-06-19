@@ -3,8 +3,8 @@ import {
   HexAddress,
   type IPaginatedResult,
   type IPaginationParams,
-  type IProposalExtraParams,
   type IToken,
+  type ITokenExtraParams,
   type ITokenIdParams,
   type ITokenResponse,
   ITokenType,
@@ -111,7 +111,7 @@ export default class Token extends Model {
     extraParams = {},
     paginationParams = {},
   }: {
-    extraParams?: IProposalExtraParams
+    extraParams?: ITokenExtraParams
     paginationParams?: IPaginationParams
   }): Promise<IPaginatedResult<ITokenResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)

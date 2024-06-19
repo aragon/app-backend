@@ -21,11 +21,11 @@ export interface IConfig {
   PROXY: string | null
   ENS_DOMAIN: string
   ARAGON_SUPPORTED_BLOCK: {
-    MAINNET: number
-    SEPOLIA: number
-    POLYGON: number
-    BASE: number
-    ARBITRUM: number
+    ETHEREUM_MAINNET: number
+    ETHEREUM_SEPOLIA: number
+    POLYGON_MAINNET: number
+    BASE_MAINNET: number
+    ARBITRUM_MAINNET: number
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: INetworks[]
@@ -87,11 +87,11 @@ export interface IConfig {
   }
 
   BLOCKCHAIN_NODES: {
-    MAINNET: string | null
-    SEPOLIA: string | null
-    POLYGON: string | null
-    BASE: string | null
-    ARBITRUM: string | null
+    ETHEREUM_MAINNET: string | null
+    ETHEREUM_SEPOLIA: string | null
+    POLYGON_MAINNET: string | null
+    BASE_MAINNET: string | null
+    ARBITRUM_MAINNET: string | null
   }
 
   SERVICES: {

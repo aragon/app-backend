@@ -25,11 +25,16 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     ARAGON_SUPPORTED_BLOCK: {
-      MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_MAINNET', 16721863),
-      SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_SEPOLIA', 4421517),
-      POLYGON: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_POLYGON', 40830344),
-      BASE: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_BASE', 2094740),
-      ARBITRUM: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ARBITRUM', 145462209),
+      ETHEREUM_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ETHEREUM_MAINNET', 16721863),
+      ETHEREUM_SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ETHEREUM_SEPOLIA', 4421517),
+      POLYGON_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_POLYGON_MAINNET', 40830344),
+      BASE_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_BASE_MAINNET', 2094740),
+      ARBITRUM_MAINNET: utils.configParser(
+        sourceConfig,
+        'number',
+        'ARAGON_SUPPORTED_BLOCK_ARBITRUM_MAINNET',
+        145462209,
+      ),
     },
 
     BOTTLENECK: {
@@ -107,11 +112,11 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     BLOCKCHAIN_NODES: {
-      MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_MAINNET', null),
-      SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_SEPOLIA', null),
-      POLYGON: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_POLYGON', null),
-      BASE: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE', null),
-      ARBITRUM: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM', null),
+      ETHEREUM_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ETHEREUM_MAINNET', null),
+      ETHEREUM_SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ETHEREUM_SEPOLIA', null),
+      POLYGON_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_POLYGON_MAINNET', null),
+      BASE_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE_MAINNET', null),
+      ARBITRUM_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM_MAINNET', null),
     },
 
     SERVICES: {

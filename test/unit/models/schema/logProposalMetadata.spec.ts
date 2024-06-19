@@ -19,7 +19,7 @@ describe('Model: LogProposalMetadata', () => {
     rawLogProposalMetadata = {
       transactionHash,
       blockNumber: 3,
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       fetchedMetadata: true,
       pluginAddress,
       proposalId,

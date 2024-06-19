@@ -2,7 +2,7 @@ import { IPluginAction, IPluginSubdomain, NetworksEnum } from '@types'
 
 export const DaoList = [
   {
-    network: NetworksEnum.mainnet,
+    network: NetworksEnum.ethereumMainnet,
     transactionHash: '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9c',
     blockNumber: 1677529415,
     address: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
@@ -39,7 +39,7 @@ export const DaoList = [
     createdAt: '2023-02-27T20:23:35.000Z',
   },
   {
-    network: NetworksEnum.mainnet,
+    network: NetworksEnum.ethereumMainnet,
     transactionHash: '0xf982eeb27979afda22ba06613e52bf0e164a56a9d8d949b19878830097987303',
     blockNumber: 1677697751,
     address: '0x8DA012d74Aa21dCb0121610dfE5cadC0f0C3c198',
@@ -86,7 +86,7 @@ export const DaoList = [
     createdAt: '2023-03-01T19:09:11.000Z',
   },
   {
-    network: NetworksEnum.mainnet,
+    network: NetworksEnum.ethereumMainnet,
     transactionHash: '0x8c325e119c9728b60094a13cdc76a06a3821364259596dc968b60c31010e4988',
     blockNumber: 1677589847,
     address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
@@ -123,7 +123,7 @@ export const DaoList = [
     createdAt: '2023-02-28T13:10:47.000Z',
   },
   {
-    network: NetworksEnum.mainnet,
+    network: NetworksEnum.ethereumMainnet,
     transactionHash: '0xb9ae60e2bd728c035fe1e597c6660a0c063854d24b38392cd9f02cae19b9ddf4',
     blockNumber: 1677529415,
     address: '0x71a9924745E1D28E90811ee3D8f3193686026333',
@@ -156,7 +156,7 @@ export const DaoList = [
     createdAt: '2023-02-28T22:38:59.000Z',
   },
   {
-    network: NetworksEnum.mainnet,
+    network: NetworksEnum.ethereumMainnet,
     transactionHash: '0xd90d7bdefc6a0207a8e3c7009fd0515ddd7ed98bbe0b3d0b71cf89c2b9c52795',
     blockNumber: 1683530039,
     address: '0x87D17aB888d5140F2b911a081ED209d06e7a890E',

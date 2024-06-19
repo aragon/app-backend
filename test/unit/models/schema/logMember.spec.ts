@@ -17,7 +17,7 @@ describe('Model: LogMember', () => {
       event: IEventLogMember.MembersAdded,
       transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
       blockNumber: 3,
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       pluginAddress: '0x123',
     }
@@ -49,7 +49,7 @@ describe('Model: LogMember', () => {
       address: rawLogMember.address,
       network: rawLogMember.network,
     } as any)
-    expect(entityId).to.eq(`${transactionHash}-${eventName}-${rawLogMember.address}-mainnet`)
+    expect(entityId).to.eq(`${transactionHash}-${eventName}-${rawLogMember.address}-${NetworksEnum.ethereumMainnet}`)
   })
 
   it('Should findExistingLog', async () => {

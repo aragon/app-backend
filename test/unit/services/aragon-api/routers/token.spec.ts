@@ -1,10 +1,10 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import TokenRouter from '@services/aragon-api/routers/token'
-import TokenController from '@services/aragon-api/controllers/token'
-import { NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
+import TokenController from '@api/controllers/token'
+import TokenRouter from '@api/routers/token'
 
 describe('Router: Token', () => {
   let sandbox: SinonSandbox
@@ -17,19 +17,87 @@ describe('Router: Token', () => {
     sandbox?.restore()
   })
 
-  it('Should get token', async () => {
+  describe('getWithPagination', async () => {
+    it('Should get token with pagination - all params', async () => {
+      const filterParams = {
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.ERC721,
+      }
+      const paginationParams = {
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const stubCtrl = sandbox.stub(TokenController, 'getTokensWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: { ...filterParams, ...paginationParams },
+      }
+
+      await TokenRouter.getWithPagination(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+
+      const missingParams = {
+        endDate: undefined,
+        startDate: undefined,
+        search: undefined,
+      }
+      expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
+      expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
+    })
+
+    it('Should get token with pagination - missing pagination params', async () => {
+      const filterParams = {
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const paginationParams = {
+        sort: 'createdAt',
+      }
+
+      const stubCtrl = sandbox.stub(TokenController, 'getTokensWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: { ...filterParams, ...paginationParams },
+      }
+
+      await TokenRouter.getWithPagination(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+
+      const missingParams = {
+        endDate: undefined,
+        startDate: undefined,
+        search: undefined,
+        order: 'desc',
+        page: 1,
+        pageSize: 10,
+      }
+      expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        ...filterParams,
+        ...{ type: undefined },
+      })
+    })
+  })
+
+  it('Should getTokenByAddress', async () => {
     const params = {
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
     }
 
-    const stubCtrl = sandbox.stub(TokenController, 'getTokenByAddressAndNetwork').returns(true as any)
+    const stubCtrl = sandbox.stub(TokenController, 'getTokenByAddress').returns(true as any)
 
     const ctx: any = {
-      query: params,
+      params,
     }
 
-    await TokenRouter.getToken(ctx)
+    await TokenRouter.getTokenByAddress(ctx)
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true

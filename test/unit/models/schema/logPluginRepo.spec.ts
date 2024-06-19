@@ -15,7 +15,7 @@ describe('Model: LogPluginRepo', () => {
     rawLogPluginRepo = {
       transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
       blockNumber: 3,
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       subdomain: 'fake-ens.eth',
       pluginRepo: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
     }

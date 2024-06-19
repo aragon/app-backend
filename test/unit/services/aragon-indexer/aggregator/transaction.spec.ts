@@ -52,10 +52,10 @@ describe('Indexer:Aggregator:Transactions', () => {
   })
 
   it('should getCategories', async () => {
-    const result = AggregatorTransactions.getCategories(NetworksEnum.mainnet)
+    const result = AggregatorTransactions.getCategories(NetworksEnum.ethereumMainnet)
     expect(result.length).to.eq(5)
 
-    const result2 = AggregatorTransactions.getCategories(NetworksEnum.arbitrum)
+    const result2 = AggregatorTransactions.getCategories(NetworksEnum.arbitrumMainnet)
     expect(result2.length).to.eq(4)
   })
 
@@ -63,7 +63,7 @@ describe('Indexer:Aggregator:Transactions', () => {
     it('should call onDocument and create deposit and withdraw transactions', async () => {
       const daoRegistry: Partial<LogDaoRegistry> = {
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       }
 
       const txLog: any = {
@@ -99,7 +99,7 @@ describe('Indexer:Aggregator:Transactions', () => {
     it('should call onDocument and fails', async () => {
       const daoRegistry: Partial<LogDaoRegistry> = {
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       }
 
       const txLog: any = {
@@ -135,7 +135,7 @@ describe('Indexer:Aggregator:Transactions', () => {
 
     tests.forEach((tx: any) => {
       it(`should saveTransaction for ${tx.category}`, async () => {
-        const daoRegistry = { id: 'daoRegistryId', address: tx.to, network: NetworksEnum.mainnet }
+        const daoRegistry = { id: 'daoRegistryId', address: tx.to, network: NetworksEnum.ethereumMainnet }
         const expectedTransaction = {
           transactionHash: tx.hash,
           blockNumber: parseInt(tx.blockNum, 16),
@@ -165,7 +165,7 @@ describe('Indexer:Aggregator:Transactions', () => {
     })
 
     it('skip existing transaction', async () => {
-      const daoRegistry = { id: 'daoRegistryId', address: '0x01', network: NetworksEnum.mainnet }
+      const daoRegistry = { id: 'daoRegistryId', address: '0x01', network: NetworksEnum.ethereumMainnet }
       const tx = {
         transactionHash: '0x0',
       }
@@ -183,7 +183,7 @@ describe('Indexer:Aggregator:Transactions', () => {
     })
 
     it(`error saveTransaction`, async () => {
-      const daoRegistry = { id: 'daoRegistryId', address: '0x01', network: NetworksEnum.mainnet }
+      const daoRegistry = { id: 'daoRegistryId', address: '0x01', network: NetworksEnum.ethereumMainnet }
       const tx = {
         transactionHash: '0x0',
       }
