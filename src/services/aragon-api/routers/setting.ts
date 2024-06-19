@@ -5,7 +5,7 @@ import SettingSchema from '@api/routers/schema/setting'
 import SettingController from '@api/controllers/setting'
 import { type HexAddress, type ISettingExtraParams, type NetworksEnum } from '@types'
 
-const AssetRouter = {
+const SettingRouter = {
   getWithPagination: async function (ctx: RouterContext) {
     const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'amountUsd' })
     const extraParams: ISettingExtraParams = {
@@ -26,18 +26,18 @@ const AssetRouter = {
     const router = new Router()
 
     /**
-     * @api {get} / Get Assets
-     * @apiName Assets
-     * @apiGroup Assets
-     * @apiDescription Get Assets
+     * @api {get} / Get Settings
+     * @apiName Settings
+     * @apiGroup Settings
+     * @apiDescription Get Settings
      *
      * @apiSampleRequest /
      *
      */
-    router.get('/', AssetRouter.getWithPagination)
+    router.get('/', SettingRouter.getWithPagination)
 
     return router
   },
 }
 
-export default AssetRouter
+export default SettingRouter
