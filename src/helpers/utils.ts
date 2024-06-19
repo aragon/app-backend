@@ -1,4 +1,4 @@
-import type {HexAddress, INetworks, IPermission} from '@types'
+import type { HexAddress, INetworks, IPermission } from '@types'
 import { assert } from '@errors'
 import async from 'async'
 import dayjs from '@helpers/dayjs'
@@ -16,7 +16,7 @@ const Utils = {
     arbitrumMainnet: 'ARBITRUM_MAINNET',
   },
 
-  networkToAragon: (network: INetworks) => (Utils.aragonNetworkMap[network]),
+  networkToAragon: (network: INetworks) => Utils.aragonNetworkMap[network],
 
   chunkArray: (array: any[], size: number) => {
     if (!array || array.length === 0) {

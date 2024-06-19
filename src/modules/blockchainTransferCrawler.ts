@@ -7,13 +7,12 @@ import {
   type IEnumIndexerService,
   NetworksEnum,
 } from '@types'
-import Utils from '@helpers/utils'
 import BottleneckModule from '@modules/bottleneck'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import config from '@config'
 import DbTx from '@modules/dbTx'
-import utils from "@helpers/utils";
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainTransferCrawler' })
 
@@ -179,7 +178,7 @@ class BlockchainTransferCrawler {
       this.batchSize = Math.max(1, Math.floor(this.batchSize / 2))
       logger.warn('Reducing batch size due to error', llo({ newBatchSize: this.batchSize }))
     } else if (this.isRateLimited(error)) {
-      await Utils.wait(2000)
+      await utils.wait(2000)
     } else {
       this.shutdown = true
       this.onError(error)

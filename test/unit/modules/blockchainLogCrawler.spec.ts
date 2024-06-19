@@ -7,7 +7,7 @@ import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import { Models } from '@dbModels'
-import config from "@config";
+import config from '@config'
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
@@ -393,10 +393,12 @@ describe('Module: blockchainLogCrawler', () => {
       const providerStub = {}
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
 
-      const mockLogService = 'testService';
-      const mockNetwork = NetworksEnum.ethereumMainnet;
-      const mockLastSync = 123456;
-      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({ lastSync: mockLastSync });
+      const mockLogService = 'testService'
+      const mockNetwork = NetworksEnum.ethereumMainnet
+      const mockLastSync = 123456
+      const findExistingLogStub = sandbox
+        .stub(Models.ConfigIndexer, 'findExistingLog')
+        .resolves({ lastSync: mockLastSync })
 
       const crawler = new BlockchainLogCrawler({
         network: mockNetwork,
@@ -408,17 +410,17 @@ describe('Module: blockchainLogCrawler', () => {
         logService: mockLogService as any,
       })
 
-      const result = await crawler.getServiceStartBlock();
-      expect(findExistingLogStub.calledOnceWith({ network: mockNetwork, service: mockLogService })).to.be.true;
-      expect(result).to.equal(mockLastSync);
-    });
+      const result = await crawler.getServiceStartBlock()
+      expect(findExistingLogStub.calledOnceWith({ network: mockNetwork, service: mockLogService })).to.be.true
+      expect(result).to.equal(mockLastSync)
+    })
 
     it('should getServiceStartBlock from config', async () => {
       const providerStub = {}
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
 
-      const mockLogService = 'testService';
-      const mockNetwork = NetworksEnum.ethereumMainnet;
+      const mockLogService = 'testService'
+      const mockNetwork = NetworksEnum.ethereumMainnet
 
       const crawler = new BlockchainLogCrawler({
         network: mockNetwork,
@@ -430,9 +432,8 @@ describe('Module: blockchainLogCrawler', () => {
         logService: mockLogService as any,
       })
 
-      const result = await crawler.getServiceStartBlock();
-      expect(result).to.equal(config.ARAGON_SUPPORTED_BLOCK.ETHEREUM_MAINNET);
-    });
+      const result = await crawler.getServiceStartBlock()
+      expect(result).to.equal(config.ARAGON_SUPPORTED_BLOCK.ETHEREUM_MAINNET)
+    })
   })
-
 })
