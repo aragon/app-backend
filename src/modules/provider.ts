@@ -11,7 +11,7 @@ const ProviderModule = {
   configState: ConfigState.getInstance(),
   networksMap: {
     ETHEREUM_MAINNET: 'ethereumMainnet',
-    ETHEREUM_SEPOLIA: 'ethereumsepolia',
+    ETHEREUM_SEPOLIA: 'ethereumSepolia',
     POLYGON_MAINNET: 'polygonMainnet',
     BASE_MAINNET: 'baseMainnet',
     ARBITRUM_MAINNET: 'arbitrumMainnet',

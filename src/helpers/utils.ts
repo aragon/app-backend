@@ -1,4 +1,4 @@
-import type { HexAddress, IPermission } from '@types'
+import type {HexAddress, INetworks, IPermission} from '@types'
 import { assert } from '@errors'
 import async from 'async'
 import dayjs from '@helpers/dayjs'
@@ -7,6 +7,16 @@ const Utils = {
   noop: (): number => 0,
   wait: async (time: number) => await new Promise(resolve => setTimeout(resolve, time)),
   zeroAddress: '0x0000000000000000000000000000000000000000' as HexAddress,
+
+  aragonNetworkMap: {
+    ethereumMainnet: 'ETHEREUM_MAINNET',
+    ethereumSepolia: 'ETHEREUM_SEPOLIA',
+    polygonMainnet: 'POLYGON_MAINNET',
+    baseMainnet: 'BASE_MAINNET',
+    arbitrumMainnet: 'ARBITRUM_MAINNET',
+  },
+
+  networkToAragon: (network: INetworks) => (Utils.aragonNetworkMap[network]),
 
   chunkArray: (array: any[], size: number) => {
     if (!array || array.length === 0) {

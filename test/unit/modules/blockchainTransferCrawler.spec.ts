@@ -7,6 +7,7 @@ import Utils from '@helpers/utils'
 import Logger from '@logger'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
+import config from "@config";
 
 describe('Modules:BlockchainTransferCrawler', () => {
   let sandbox: sinon.SinonSandbox
@@ -403,6 +404,47 @@ describe('Modules:BlockchainTransferCrawler', () => {
       expect(onErrorStub.calledOnce).to.be.true
       expect(crawler['crawlResult'].nbError).to.equal(1)
     })
+  })
+
+  describe('getServiceStartBlock', () => {
+    it('should getServiceStartBlock', async () => {
+      const providerStub = {}
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+
+      const mockLogService = 'testService';
+      const mockNetwork = NetworksEnum.ethereumMainnet;
+      const mockLastSync = 123456;
+      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({ lastSync: mockLastSync });
+
+      const crawler = new BlockchainTransferCrawler({
+        network: mockNetwork,
+        filter: {},
+        onTx: async () => {},
+        logService: mockLogService as any,
+      });
+
+      const result = await crawler.getServiceStartBlock();
+      expect(findExistingLogStub.calledOnceWith({ network: mockNetwork, service: mockLogService })).to.be.true;
+      expect(result).to.equal(mockLastSync);
+    });
+
+    it('should getServiceStartBlock from config', async () => {
+      const providerStub = {}
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+
+      const mockLogService = 'testService';
+      const mockNetwork = NetworksEnum.ethereumMainnet;
+
+      const crawler = new BlockchainTransferCrawler({
+        network: mockNetwork,
+        filter: {},
+        onTx: async () => {},
+        logService: mockLogService as any,
+      });
+
+      const result = await crawler.getServiceStartBlock();
+      expect(result).to.equal(config.ARAGON_SUPPORTED_BLOCK.ETHEREUM_MAINNET);
+    });
   })
 
   it('defaultOnError', async () => {
