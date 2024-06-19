@@ -1,5 +1,11 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import type { ITransactionCategory } from '@src/types/alchemy'
+import { type ITokenType } from '@src/types/token'
+
+export interface ITokenExtraParams {
+  network?: NetworksEnum
+  type?: ITokenType
+}
 
 export interface IProposalExtraParams {
   network?: NetworksEnum

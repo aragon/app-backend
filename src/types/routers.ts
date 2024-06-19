@@ -1,4 +1,5 @@
 import { type ENS, type HexAddress, type INetworks, type NetworksEnum } from './networks'
+import { type ITokenType } from '@src/types/token'
 
 export interface IStatusResponse {
   status: string
@@ -163,4 +164,21 @@ export interface ITransactionResponse {
     priceChangeOnDayUsd: string
     priceUsd: string
   }
+}
+
+export interface ITokenResponse {
+  id: HexAddress
+  network: NetworksEnum
+  type: ITokenType
+  address: HexAddress
+  implementationAddress: HexAddress
+  logo: string
+  name: string
+  symbol: string
+  decimals: number
+  holders: number
+  totalSupply: string
+  priceChangeOnDayUsd: string
+  priceUsd: string
+  lastUpdatedAt: string
 }

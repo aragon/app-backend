@@ -1,8 +1,18 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type IToken, type ITokenIdParams, ITokenType, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type IProposalExtraParams,
+  type IToken,
+  type ITokenIdParams,
+  type ITokenResponse,
+  ITokenType,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { utcDateProp } from '@models/utils/models'
+import ModelUtils, { utcDateProp } from '@models/utils/models'
 import { assert } from '@errors'
 
 const customName = 'Token'
@@ -95,6 +105,40 @@ export default class Token extends Model {
 
   static async findByTokenAddressAndNetwork(address: HexAddress, network: NetworksEnum) {
     return await this.findOne({ address, network })
+  }
+
+  static async findWithPagination({
+    extraParams = {},
+    paginationParams = {},
+  }: {
+    extraParams?: IProposalExtraParams
+    paginationParams?: IPaginationParams
+  }): Promise<IPaginatedResult<ITokenResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([_, v]) => v !== undefined))
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, ['network', 'address', 'implementationAddress', 'name', 'symbol']),
+      ...dynamicFilter,
+    }
+
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data: data as any,
+    }
   }
 
   async update(params: Partial<Token>, tOpts?: SaveOptions) {
