@@ -9,6 +9,11 @@ export interface ISupportedNetwork {
   networkName: NetworksEnum
 }
 
+export enum SupportedEnsNetworksEnum {
+  mainnet = 'mainnet',
+  polygon = 'polygon',
+}
+
 export enum NetworksEnum {
   mainnet = 'mainnet',
   sepolia = 'sepolia',

@@ -479,6 +479,10 @@ const Web3Helper = {
   },
 
   async subdomainExists(ensName: string, network: NetworksEnum): Promise<boolean> {
+    if (!config.SUPPORTED_ENS_NETWORKS.includes(network as any)) {
+      return false
+    }
+
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {

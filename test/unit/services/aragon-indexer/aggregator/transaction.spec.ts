@@ -51,6 +51,14 @@ describe('Indexer:Aggregator:Transactions', () => {
     })
   })
 
+  it('should getCategories', async () => {
+    const result = AggregatorTransactions.getCategories(NetworksEnum.mainnet)
+    expect(result.length).to.eq(5)
+
+    const result2 = AggregatorTransactions.getCategories(NetworksEnum.arbitrum)
+    expect(result2.length).to.eq(4)
+  })
+
   describe('onDocument', async () => {
     it('should call onDocument and create deposit and withdraw transactions', async () => {
       const daoRegistry: Partial<LogDaoRegistry> = {

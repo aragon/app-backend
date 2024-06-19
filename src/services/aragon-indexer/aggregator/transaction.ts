@@ -1,4 +1,10 @@
-import { type IAlchemyTransferResponse, IEnumIndexerService, ITransactionCategory, ITransactionType } from '@types'
+import {
+  type IAlchemyTransferResponse,
+  IEnumIndexerService,
+  ITransactionCategory,
+  ITransactionType,
+  NetworksEnum,
+} from '@types'
 import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -35,20 +41,31 @@ export const AggregatorTransactions = {
     logger.verbose('End AggregatorTransactions', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
   },
 
+  getCategories: (network: NetworksEnum) => {
+    const category = [
+      ITransactionCategory.ERC20,
+      ITransactionCategory.ERC721,
+      ITransactionCategory.ERC1155,
+      ITransactionCategory.Internal,
+      ITransactionCategory.External,
+    ]
+
+    switch (network) {
+      case NetworksEnum.arbitrum:
+        return category.filter(cat => cat !== ITransactionCategory.Internal)
+      default:
+        return category
+    }
+  },
   onDocument: async (daoRegistry: LogDaoRegistry) => {
+    const category = AggregatorTransactions.getCategories(daoRegistry.network)
     // txs to daoAddress
     const depositTxCrawler = new BlockchainTransferCrawler({
       network: daoRegistry.network,
       filter: {
         // fromBlock: aggregatorDb?.lastBlockNumber,
         toAddress: daoRegistry.address,
-        category: [
-          ITransactionCategory.ERC20,
-          ITransactionCategory.ERC721,
-          ITransactionCategory.ERC1155,
-          ITransactionCategory.Internal,
-          ITransactionCategory.External,
-        ],
+        category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) =>
         AggregatorTransactions.saveTransaction(txLog, ITransactionType.deposit, daoRegistry),
@@ -66,13 +83,7 @@ export const AggregatorTransactions = {
       filter: {
         // fromBlock: aggregatorDb?.lastBlockNumber,
         fromAddress: daoRegistry.address,
-        category: [
-          ITransactionCategory.ERC20,
-          ITransactionCategory.ERC721,
-          ITransactionCategory.ERC1155,
-          ITransactionCategory.Internal,
-          ITransactionCategory.External,
-        ],
+        category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) =>
         AggregatorTransactions.saveTransaction(txLog, ITransactionType.withdraw, daoRegistry),
