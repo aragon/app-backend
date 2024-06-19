@@ -120,7 +120,9 @@ export default class Member extends Model {
     }
 
     // only filter active members in dao
-    filter['$or'] = [{ toBlockNumber: null }, { toBlockNumber: { $exists: false } }]
+    if (extraParams.onlyActive) {
+      filter['$or'] = [{ toBlockNumber: null }, { toBlockNumber: { $exists: false } }]
+    }
 
     if (extraParams.daoAddress) {
       filter['daos.daoAddress'] = extraParams.daoAddress
