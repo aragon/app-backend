@@ -36,10 +36,10 @@ export const AggregatorDao = {
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
 
-      document.proposalsCreated = Math.floor(document.proposalsCreated!)
-      document.proposalsExecuted = Math.floor(document.proposalsExecuted!)
-      document.uniqueVoters = Math.floor(document.uniqueVoters!)
-      document.votes = Math.floor(document.votes!)
+      document.proposalsCreated = Math.floor(document.proposalsCreated)
+      document.proposalsExecuted = Math.floor(document.proposalsExecuted)
+      document.uniqueVoters = Math.floor(document.uniqueVoters)
+      document.votes = Math.floor(document.votes)
       const isValid = await Web3Helper.subdomainExists(document.subdomain, document.network!)
       document.ens = isValid ? Web3Helper.parseSubdomainToEns(document.subdomain) : null
 
