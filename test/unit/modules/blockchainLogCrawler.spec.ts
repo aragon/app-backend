@@ -7,6 +7,7 @@ import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import { Models } from '@dbModels'
+import config from "@config";
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
@@ -14,7 +15,6 @@ describe('Module: blockchainLogCrawler', () => {
   let logError: any
   let logVerbose: any
   let logWarn: any
-  let logInfo: any
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
@@ -24,7 +24,6 @@ describe('Module: blockchainLogCrawler', () => {
     }
     logVerbose = sandbox.stub(logger, 'verbose')
     logWarn = sandbox.stub(logger, 'warn')
-    logInfo = sandbox.stub(logger, 'info')
     logError = sandbox.stub(logger, 'error')
   })
 
@@ -388,4 +387,52 @@ describe('Module: blockchainLogCrawler', () => {
       expect(spyModelCreate.notCalled).to.be.true
     })
   })
+
+  describe('getServiceStartBlock', () => {
+    it('should getServiceStartBlock', async () => {
+      const providerStub = {}
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+
+      const mockLogService = 'testService';
+      const mockNetwork = NetworksEnum.ethereumMainnet;
+      const mockLastSync = 123456;
+      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({ lastSync: mockLastSync });
+
+      const crawler = new BlockchainLogCrawler({
+        network: mockNetwork,
+        filter: {},
+        batchSize: 5,
+        onLog: async () => {},
+        onError: () => {},
+        stopOnError: true,
+        logService: mockLogService as any,
+      })
+
+      const result = await crawler.getServiceStartBlock();
+      expect(findExistingLogStub.calledOnceWith({ network: mockNetwork, service: mockLogService })).to.be.true;
+      expect(result).to.equal(mockLastSync);
+    });
+
+    it('should getServiceStartBlock from config', async () => {
+      const providerStub = {}
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+
+      const mockLogService = 'testService';
+      const mockNetwork = NetworksEnum.ethereumMainnet;
+
+      const crawler = new BlockchainLogCrawler({
+        network: mockNetwork,
+        filter: {},
+        batchSize: 5,
+        onLog: async () => {},
+        onError: () => {},
+        stopOnError: true,
+        logService: mockLogService as any,
+      })
+
+      const result = await crawler.getServiceStartBlock();
+      expect(result).to.equal(config.ARAGON_SUPPORTED_BLOCK.ETHEREUM_MAINNET);
+    });
+  })
+
 })

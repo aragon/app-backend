@@ -7,6 +7,7 @@ import BottleneckModule from '@modules/bottleneck'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import config from '@config'
+import utils from "@helpers/utils";
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' })
 
@@ -240,7 +241,7 @@ class BlockchainLogCrawler {
     })
     return existingConfig
       ? existingConfig.lastSync
-      : config.ARAGON_SUPPORTED_BLOCK[this.crawlResult.network.toUpperCase()]
+      : config.ARAGON_SUPPORTED_BLOCK[utils.networkToAragon(this.crawlResult.network)]
   }
 
   async onSaveProgress(blockNumber: number) {

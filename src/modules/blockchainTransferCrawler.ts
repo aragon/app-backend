@@ -13,6 +13,7 @@ import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import config from '@config'
 import DbTx from '@modules/dbTx'
+import utils from "@helpers/utils";
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainTransferCrawler' })
 
@@ -229,7 +230,7 @@ class BlockchainTransferCrawler {
     })
     return existingConfig
       ? existingConfig.lastSync
-      : config.ARAGON_SUPPORTED_BLOCK[this.crawlResult.network.toUpperCase()]
+      : config.ARAGON_SUPPORTED_BLOCK[utils.networkToAragon(this.crawlResult.network)]
   }
 
   async onSaveProgress(blockNumber: number) {
