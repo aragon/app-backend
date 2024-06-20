@@ -32,6 +32,8 @@ const CovalentHelper = {
     [NetworksEnum.baseMainnet]: 'base-mainnet',
     [NetworksEnum.arbitrumMainnet]: 'arbitrum-mainnet',
     [NetworksEnum.ethereumSepolia]: 'eth-sepolia',
+    [NetworksEnum.zksyncSepolia]: 'zksync-sepolia-testnet',
+    // [NetworksEnum.zksyncMainnet]: 'zksync-mainnet',
   },
 
   nativeTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as HexAddress,

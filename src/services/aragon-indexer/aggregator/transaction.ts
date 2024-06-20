@@ -134,7 +134,7 @@ export const AggregatorTransactions = {
         if (tx.rawContract?.address) {
           const token = await UtilsIndexer.saveAndGetToken(tx.rawContract?.address, daoRegistry.network)
           // TODO: get historical price of the tx
-          if (token) {
+          if (token?.address) {
             rawTx.token = {
               address: token.address,
               symbol: token.symbol,
@@ -150,7 +150,6 @@ export const AggregatorTransactions = {
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('New Transaction', llo({ logId: logDb?.id }))
-        return logDb
       })
     } catch (error) {
       logger.error('Error Transaction', llo({ error, logId: daoRegistry.id }))

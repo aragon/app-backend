@@ -44,6 +44,9 @@ describe('Module: provider', () => {
 
     const result5 = provider.parseNetwork('ARBITRUM_MAINNET')
     expect(result5).to.equal(NetworksEnum.arbitrumMainnet)
+
+    const result6 = provider.parseNetwork('ZKSYNC_SEPOLIA')
+    expect(result6).to.equal(NetworksEnum.zksyncSepolia)
   })
 
   describe('connectToNetwork', async () => {
@@ -143,7 +146,7 @@ describe('Module: provider', () => {
       await Provider.connectToAllNetworks()
 
       expect(stubConneect.callCount).to.eq(0)
-      expect(stubLoggerError.callCount).to.eq(5)
+      expect(stubLoggerError.callCount).to.eq(6)
     })
   })
 
@@ -225,6 +228,7 @@ describe('Module: provider', () => {
         POLYGON_MAINNET: null,
         BASE_MAINNET: null,
         ARBITRUM_MAINNET: null,
+        ZKSYNC_SEPOLIA: null,
       }
 
       const backupConfig = config.BLOCKCHAIN_NODES

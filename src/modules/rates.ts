@@ -14,7 +14,13 @@ export const RateModule = {
     logo: string
     lastUpdatedAt: Date
   }> => {
-    return await RateModule.fetchRateWithCoinGecko(tokenAddress, network)
+    const rate = await RateModule.fetchRateWithCovalent(tokenAddress, network)
+
+    if (rate.priceUsd === '0') {
+      return await RateModule.fetchRateWithCoinGecko(tokenAddress, network)
+    } else {
+      return rate
+    }
   },
 
   fetchRateWithCovalent: async (
