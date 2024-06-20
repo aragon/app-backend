@@ -28,22 +28,22 @@ const IndexerService: IService = {
 
     // order is important
     const logTasks = [
-      // [async () => LogDaoRegistry.start()],
-      // [async () => LogDao.start()],
-      // [async () => LogPluginRepoRegistry.start()],
-      // [async () => LogPluginSetting.start()],
-      // [async () => LogPluginSetupProcessor.start()],
-      // [async () => LogProposal.start()],
-      // [async () => LogMember.start()],
+      [async () => LogDaoRegistry.start()],
+      [async () => LogDao.start()],
+      [async () => LogPluginRepoRegistry.start()],
+      [async () => LogPluginSetting.start()],
+      [async () => LogPluginSetupProcessor.start()],
+      [async () => LogProposal.start()],
+      [async () => LogMember.start()],
     ]
 
     // order is important
     const aggregatorTasks = [
-      // [async () => AggregatorPlugin.start()],
-      // [async () => AggregatorSetting.start()],
-      // [async () => AggregatorMembers.start()],
-      // [async () => AggregatorProposal.start()],
-      // [async () => AggregatorDao.start()],
+      [async () => AggregatorPlugin.start()],
+      [async () => AggregatorSetting.start()],
+      [async () => AggregatorMembers.start()],
+      [async () => AggregatorProposal.start()],
+      [async () => AggregatorDao.start()],
       [async () => AggregatorAssets.start()],
       [async () => AggregatorTransactions.start()],
     ]
