@@ -35,6 +35,11 @@ export const UnitTestUtils = {
         getLogs: sandbox.stub().resolves([{ transactionHash: '0xdef', blockNumber: 5 }]),
         destroy: sandbox.stub().resolves(),
       },
+      [NetworksEnum.zksyncSepolia]: {
+        getBlockNumber,
+        getLogs: sandbox.stub().resolves([{ transactionHash: '0xdec', blockNumber: 6 }]),
+        destroy: sandbox.stub().resolves(),
+      },
     }
 
     return fakeProvider

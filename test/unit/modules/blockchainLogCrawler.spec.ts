@@ -310,12 +310,13 @@ describe('Module: blockchainLogCrawler', () => {
       })
     })
 
-    it('should calculate the correct batch size for mainnet, arbitrum, and base networks', () => {
+    it('should calculate the correct batch size for mainnet, arbitrum, zksync and base networks', () => {
       const secondsInMonth = 30 * 24 * 3600
       const expectedBatchSize = Math.floor(secondsInMonth / 14) // Average block time ~14 seconds
       expect(crawler.calculateBatchSize(NetworksEnum.ethereumMainnet)).to.equal(expectedBatchSize)
       expect(crawler.calculateBatchSize(NetworksEnum.arbitrumMainnet)).to.equal(expectedBatchSize)
       expect(crawler.calculateBatchSize(NetworksEnum.baseMainnet)).to.equal(expectedBatchSize)
+      expect(crawler.calculateBatchSize(NetworksEnum.zksyncSepolia)).to.equal(expectedBatchSize)
     })
 
     it('should calculate the correct batch size for polygon network', () => {
