@@ -27,17 +27,17 @@ export const AggregatorProposal = {
     logger.verbose('End AggregatorProposal', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
   },
 
-  async onDocument(document: Proposal) {
-    const existingLog = await Models.Proposal.findExistingLog(
-      document.transactionHash,
-      document.pluginAddress,
-      document.proposalId,
-    )
+  async onDocument(document: Partial<Proposal>) {
+    const existingLog = await Models.Proposal.findExistingLog({
+      transactionHash: document.transactionHash!,
+      pluginAddress: document.pluginAddress!,
+      proposalId: document.proposalId!,
+    })
 
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
       if (!existingLog) {
-        logDb = await Models.Proposal.create(document, { session })
+        logDb = await Models.Proposal.create(document, { session } as any)
       } else {
         logDb = await existingLog.update(document, { session })
       }
@@ -137,24 +137,21 @@ export const AggregatorProposal = {
         },
       },
       {
-        $unwind: '$pluginSettings.history',
-      },
-      {
         $addFields: {
           validSettings: {
             $cond: {
               if: {
                 $and: [
-                  { $lte: ['$pluginSettings.history.fromBlockNumber', '$blockNumber'] },
+                  { $lte: ['$pluginSettings.fromBlockNumber', '$blockNumber'] },
                   {
                     $or: [
-                      { $gt: ['$pluginSettings.history.toBlockNumber', '$blockNumber'] },
-                      { $eq: ['$pluginSettings.history.toBlockNumber', null] },
+                      { $gt: ['$pluginSettings.toBlockNumber', '$blockNumber'] },
+                      { $eq: ['$pluginSettings.toBlockNumber', null] },
                     ],
                   },
                 ],
               },
-              then: '$pluginSettings.history',
+              then: '$pluginSettings',
               else: null,
             },
           },
@@ -184,10 +181,38 @@ export const AggregatorProposal = {
         },
       },
       {
+        $lookup: {
+          from: 'logPluginRepo',
+          let: { pluginSetupRepo: '$pluginInfo.pluginSetupRepo' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$pluginRepo', '$$pluginSetupRepo'],
+                },
+              },
+            },
+            {
+              $project: {
+                subdomain: 1,
+              },
+            },
+          ],
+          as: 'pluginRepoInfo',
+        },
+      },
+      {
+        $addFields: {
+          pluginSubdomain: {
+            $arrayElemAt: ['$pluginRepoInfo.subdomain', 0],
+          },
+        },
+      },
+      {
         $project: {
           _id: 0,
+          id: 1,
           blockNumber: 1,
-          entityId: 1,
           startDate: 1,
           endDate: 1,
           executed: {
@@ -196,6 +221,7 @@ export const AggregatorProposal = {
             blockNumber: 1,
           },
           pluginAddress: 1,
+          pluginSubdomain: 1,
           transactionHash: 1,
           network: 1,
           metadataUri: 1,

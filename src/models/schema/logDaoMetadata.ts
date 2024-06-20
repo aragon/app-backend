@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, NetworksEnum } from '@types'
+import { HexAddress, type ILogDaoMetadataIdParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -16,6 +16,7 @@ class Link {
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'logDaoMetadata',
     toJSON: { virtuals: true },
@@ -30,7 +31,7 @@ class Link {
 })
 export default class LogDaoMetadata extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
@@ -72,27 +73,27 @@ export default class LogDaoMetadata extends Model {
   public links?: Link[]
 
   static async create(rawData: Partial<LogDaoMetadata>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.daoAddress, 'daoAddress is required')
-      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.daoAddress!)
+      rawData.id = this.getEntityId({ transactionHash: rawData?.transactionHash!, daoAddress: rawData?.daoAddress! })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(transactionHash: HexAddress, daoAddress: HexAddress) {
-    const entityId = `${transactionHash}-${daoAddress}`
+  static getEntityId(params: ILogDaoMetadataIdParams) {
+    const entityId = `${params.transactionHash}-${params.daoAddress}`
     return entityId
   }
 
-  static async findExistingLog(transactionHash: HexAddress, daoAddress: HexAddress, tOpts?: SaveOptions) {
-    const entityId = this.getEntityId(transactionHash, daoAddress)
+  static async findExistingLog(params: ILogDaoMetadataIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
   async update(params: Partial<LogDaoMetadata>, tOpts?: SaveOptions) {

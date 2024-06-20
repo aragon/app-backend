@@ -5,6 +5,7 @@ import { ITokenType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
+import utils from '@helpers/utils'
 
 describe('Model: Token', () => {
   let sandbox: SinonSandbox
@@ -14,7 +15,7 @@ describe('Model: Token', () => {
     sandbox = sinon.createSandbox()
 
     rawToken = {
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       type: ITokenType.ERC20,
       address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       logo: 'fake-logo',
@@ -53,21 +54,24 @@ describe('Model: Token', () => {
 
   it('Should getEntityId', async () => {
     const address = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const network = NetworksEnum.mainnet
-    const entityId = await Models.Token.getEntityId(address, network)
+    const network = NetworksEnum.ethereumMainnet
+    const entityId = Models.Token.getEntityId({ address, network })
     expect(entityId).to.eq(`${address}-${network}`)
   })
 
   it('Should findExistingLog', async () => {
     const createdLogDao = await Models.Token.create(rawToken)
-    const foundLogDao = await Models.Token.findExistingLog(createdLogDao.address, createdLogDao.network)
-    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+    const foundLogDao = await Models.Token.findExistingLog({
+      address: createdLogDao.address,
+      network: createdLogDao.network,
+    })
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   it('Should findByEntityId', async () => {
     const createdLogDao = await Models.Token.create(rawToken)
-    const foundLogDao = await Models.Token.findByEntityId(createdLogDao.entityId)
-    expect(foundLogDao?.entityId).to.eq(createdLogDao.entityId)
+    const foundLogDao = await Models.Token.findByEntityId(createdLogDao.id)
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   it('Should update Token', async () => {
@@ -96,6 +100,95 @@ describe('Model: Token', () => {
     expect(token?.address).to.eq(createdToken.address)
   })
 
+  describe('Pagination', () => {
+    beforeEach(async () => {
+      const fakeTokens = [
+        {
+          network: NetworksEnum.ethereumMainnet,
+          type: ITokenType.ERC20,
+          address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+          logo: 'fake-logo',
+          name: 'ethereum',
+          symbol: 'WETH',
+          decimals: 18,
+          holders: 10,
+          totalSupply: '100',
+          priceChangeOnDayUsd: '1',
+          priceUsd: '1',
+          lastUpdatedAt: dayjs.utc().toDate() as any,
+        },
+        {
+          network: NetworksEnum.ethereumMainnet,
+          type: ITokenType.native,
+          address: utils.zeroAddress,
+          logo: 'fake-logo',
+          name: 'ethereum',
+          symbol: 'ETH',
+          decimals: 18,
+          holders: 10,
+          totalSupply: '0',
+          priceChangeOnDayUsd: '1',
+          priceUsd: '1',
+          lastUpdatedAt: dayjs.utc().toDate() as any,
+        },
+      ]
+
+      await Promise.all(fakeTokens.map(w => Models.Token.create(w)))
+    })
+
+    it('Should find Pagination', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Token.findWithPagination({
+        extraParams: {},
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(2)
+      expect(totalRecords).to.eq(2)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
+    it('Should find Pagination with type', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Token.findWithPagination({
+        extraParams: {
+          network: NetworksEnum.ethereumMainnet,
+          type: ITokenType.native,
+        },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(1)
+      expect(totalRecords).to.eq(1)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
+    it('Should not found documents', async () => {
+      const opts = {
+        page: 7,
+        pageSize: 2,
+      }
+
+      const result = await Models.Token.findWithPagination({
+        extraParams: {},
+        paginationParams: opts,
+      })
+
+      expect(result.data.length).to.eq(0)
+      expect(result.metadata.totalRecords).to.eq(0)
+      expect(result.metadata.page).to.eq(1)
+      expect(result.metadata.totalPages).to.eq(1)
+    })
+  })
+
   it('Should reload', async () => {
     const createdToken = await Models.Token.create(rawToken)
     await createdToken.reload()
@@ -107,7 +200,7 @@ describe('Model: Token', () => {
     const createdToken = await Models.Token.create(rawToken)
     const filterToken = createdToken.filterKeys()
 
-    expect(filterToken.id).to.be.undefined
+    expect(filterToken.id).to.exist
     expect(filterToken._id).to.be.undefined
     expect(filterToken.__v).to.be.undefined
     expect(filterToken.createdAt).to.be.undefined

@@ -1,4 +1,4 @@
-import { ErrorKeyEnum } from '@types'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { throwExposable } from '@helpers/errors'
 import Joi from 'joi'
 import { getAddress } from 'ethers'
@@ -8,7 +8,6 @@ const ValidationSchema = {
   joiUuid: Joi.string().regex(/^[0-9a-fA-F]{24}$/),
   joiEmail: Joi.string().regex(/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}$/),
   joiAddress: Joi.string()
-    .required()
     .custom((value, helpers) => {
       try {
         return getAddress(value)
@@ -18,6 +17,29 @@ const ValidationSchema = {
     }, 'Address Validation')
     .messages({
       'string.invalid': '{{#label}} is not a valid address',
+    }),
+  joiDaoId: Joi.string().custom((value, helpers) => {
+    try {
+      const regex = new RegExp(`(${Object.values(NetworksEnum).join('|')})-(0x[0-9a-fA-F]{40})`)
+      const match = value.match(regex)
+
+      if (!match || match.length !== 3) {
+        return value
+      }
+
+      const [, network, address] = match
+      const checksumAddress = getAddress(address)
+
+      const formattedValue = `${network}-${checksumAddress}`
+      return formattedValue
+    } catch (error) {
+      return value
+    }
+  }, 'Dao Id validation'),
+  joiTransactionHash: Joi.string()
+    .pattern(/^0x[a-fA-F0-9]{64}$/, { name: 'valid transaction hash' }) // Validate format
+    .messages({
+      'string.pattern.name': '{{#label}} must be a valid transaction hash',
     }),
 
   generateJoiPagination: {

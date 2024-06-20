@@ -26,9 +26,9 @@ describe('Indexer: DaoRegistryHandler', () => {
 
   describe('daoRegistered', () => {
     it('should process dao registered', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -49,11 +49,18 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
 
-      expect(findTxHashSpy.calledOnce).to.be.true
-      expect(findTxHashSpy.calledWith(logInfo.transactionHash, fakeEvent.args.dao)).to.be.true
+      expect(
+        findTxHashSpy.calledOnceWith({
+          transactionHash: logInfo.transactionHash,
+          address: fakeEvent.args.dao,
+        }),
+      ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
-      const savedDaoLog = await Models.LogDaoRegistry.findExistingLog(logInfo.transactionHash, fakeEvent.args.dao)
+      const savedDaoLog = await Models.LogDaoRegistry.findExistingLog({
+        transactionHash: logInfo.transactionHash,
+        address: fakeEvent.args.dao,
+      })
       expect(!!savedDaoLog).to.be.true
 
       expect(savedDaoLog.network).to.eq(network)
@@ -70,7 +77,7 @@ describe('Indexer: DaoRegistryHandler', () => {
 
     it('should not process existing dao registered', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -91,13 +98,18 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
 
-      expect(findTxHashStub.calledOnceWith(logInfo.transactionHash, fakeEvent.args.dao)).to.be.true
+      expect(
+        findTxHashStub.calledOnceWith({
+          transactionHash: logInfo.transactionHash,
+          address: fakeEvent.args.dao,
+        }),
+      ).to.be.true
       expect(createStub.notCalled).to.be.true
     })
 
     it('daoRegistered throw error', async () => {
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -128,7 +140,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const _memberAddedStub = sandbox.stub(DaoRegistryHandler, '_memberAdded')
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -159,7 +171,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const memberAddedStub = sandbox.stub(DaoRegistryHandler, '_memberAdded')
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -193,7 +205,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const installationPreparedStub = sandbox.stub(PluginSetupProcessorHandler, 'installationPrepared')
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -239,7 +251,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const installationPreparedStub = sandbox.stub(PluginSetupProcessorHandler, 'installationPrepared')
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -278,7 +290,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -333,7 +345,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -388,7 +400,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -419,7 +431,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const stubFind = sandbox.stub(Web3Helper, 'findLogsByName').returns([{ parsed: 'test', txLog: 'test2' }] as any)
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -434,7 +446,7 @@ describe('Indexer: DaoRegistryHandler', () => {
 
     it('should call metadataSet', async () => {
       const transactionHash = '0x0'
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const txReceipt = {
         transactionHash: '0x123',
         address: '0x123',
@@ -448,7 +460,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const stubFind = sandbox.stub(Web3Helper, 'findLogsByName').returns([])
 
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',

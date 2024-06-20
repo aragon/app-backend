@@ -64,7 +64,7 @@ describe('Helpers:ProxyContractHelper', () => {
 
       const result = await MockedProxyContractHelper._fallBackImplementationViaViewCall(
         '0xProxyAddress',
-        NetworksEnum.mainnet,
+        NetworksEnum.ethereumMainnet,
       )
       expect(result).to.eq('0x0000000000000000000000000000000000000001')
     })
@@ -96,7 +96,7 @@ describe('Helpers:ProxyContractHelper', () => {
 
       const result = await MockedProxyContractHelper._fallBackImplementationViaViewCall(
         '0xProxyAddress',
-        NetworksEnum.mainnet,
+        NetworksEnum.ethereumMainnet,
       )
       expect(result).to.eq('0x0000000000000000000000000000000000000002')
     })
@@ -128,7 +128,7 @@ describe('Helpers:ProxyContractHelper', () => {
 
       const result = await MockedProxyContractHelper._fallBackImplementationViaViewCall(
         '0xProxyAddress',
-        NetworksEnum.mainnet,
+        NetworksEnum.ethereumMainnet,
       )
       expect(result).to.be.null
     })
@@ -151,7 +151,7 @@ describe('Helpers:ProxyContractHelper', () => {
       }
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
 
-      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
+      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.equal(getAddress(`0x${hexAddress}`))
     })
 
@@ -174,7 +174,7 @@ describe('Helpers:ProxyContractHelper', () => {
       }
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
 
-      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
+      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.equal(getAddress(`0x${hexAddress}`))
     })
 
@@ -192,7 +192,7 @@ describe('Helpers:ProxyContractHelper', () => {
       }
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
 
-      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
+      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.equal(getAddress(`0x${implementationAddress}`))
     })
 
@@ -208,7 +208,7 @@ describe('Helpers:ProxyContractHelper', () => {
       }
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
 
-      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
+      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.equal('0x123456')
     })
 
@@ -224,7 +224,7 @@ describe('Helpers:ProxyContractHelper', () => {
       }
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
 
-      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.mainnet)
+      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.be.null
     })
   })

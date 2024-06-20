@@ -21,9 +21,7 @@ const ProxyContractHelper = {
     const minimalProxyPatternLength = minimalProxyPattern.length
 
     if (byteCode.startsWith(minimalProxyPattern)) {
-      return ethers.getAddress(
-        '0x' + byteCode.slice(minimalProxyPatternLength, minimalProxyPatternLength + 40),
-      ) as HexAddress
+      return ethers.getAddress('0x' + byteCode.slice(minimalProxyPatternLength, minimalProxyPatternLength + 40))
     }
     return null
   },
@@ -61,7 +59,7 @@ const ProxyContractHelper = {
           provider.getStorage(address, slot),
         )
         const addressFromStorage = getAddress('0x' + storageValue.slice(-40))
-        return addressFromStorage === ZeroAddress ? null : (addressFromStorage as HexAddress)
+        return addressFromStorage === ZeroAddress ? null : addressFromStorage
       } catch (error) {
         return null
       }

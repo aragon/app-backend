@@ -95,6 +95,7 @@ describe('Module: DbTx', () => {
 
   it('logs a warning if unable to rollback transaction', async () => {
     const sessionStub = {
+      commitTransaction: sandbox.stub(),
       startTransaction: sandbox.stub(),
       abortTransaction: sandbox.stub().rejects(new Error('Mock abort transaction error')), // Simulate error on abort
       endSession: sandbox.stub(),

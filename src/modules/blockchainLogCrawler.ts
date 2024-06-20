@@ -2,11 +2,11 @@ import logger from '@logger'
 import { type Filter, type Log, type WebSocketProvider } from 'ethers'
 import { ConfigState } from '@state/configState'
 import { type IEnumIndexerService, NetworksEnum } from '@types'
-import Utils from '@helpers/utils'
 import BottleneckModule from '@modules/bottleneck'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import config from '@config'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' })
 
@@ -83,13 +83,13 @@ class BlockchainLogCrawler {
   calculateBatchSize(network: NetworksEnum): number {
     const secondsInMonth = 30 * 24 * 3600
     switch (network) {
-      case NetworksEnum.mainnet:
-      case NetworksEnum.arbitrum: // TODO: check
-      case NetworksEnum.base: // TODO: check
+      case NetworksEnum.ethereumMainnet:
+      case NetworksEnum.arbitrumMainnet: // TODO: check
+      case NetworksEnum.baseMainnet: // TODO: check
         return Math.floor(secondsInMonth / 14) // Average block time ~14 seconds
-      case NetworksEnum.polygon:
+      case NetworksEnum.polygonMainnet:
         return Math.floor(secondsInMonth / 2) // Average block time ~2 seconds
-      case NetworksEnum.sepolia:
+      case NetworksEnum.ethereumSepolia:
         return Math.floor(secondsInMonth / 12) // Average block time ~12 seconds
       default:
         throw new Error(`Unsupported network: ${network}`)
@@ -99,7 +99,7 @@ class BlockchainLogCrawler {
   async getBlockNumber(blockNumber: string | number | undefined): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
-        return await BottleneckModule.getNodeLimiter(NetworksEnum.mainnet)!.schedule(async () =>
+        return await BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
           this.provider.getBlockNumber(),
         )
       } catch (error) {
@@ -141,7 +141,7 @@ class BlockchainLogCrawler {
       const toBlock = Math.min(currentBlock + this.batchSize - 1, latestBlock)
 
       // Handle topics: use chunks if there are topics, or pass empty for all logs
-      const topicChunks = Utils.chunkArray(this.filter.topics, 4)
+      const topicChunks = utils.chunkArray(this.filter.topics, 4)
 
       for (const topics of topicChunks) {
         logger.silly(
@@ -158,7 +158,7 @@ class BlockchainLogCrawler {
 
         while (true) {
           try {
-            const logs = await BottleneckModule.getNodeLimiter(NetworksEnum.mainnet)!.schedule(async () =>
+            const logs = await BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
               this.provider.getLogs({
                 address: this.filter.address,
                 topics: [topics],
@@ -192,7 +192,7 @@ class BlockchainLogCrawler {
       this.batchSize = Math.max(1, Math.floor(this.batchSize / 2))
       logger.warn('Reducing batch size due to error', llo({ newBatchSize: this.batchSize }))
     } else if (this.isRateLimited(error)) {
-      await Utils.wait(1000)
+      await utils.wait(1000)
     } else {
       this.shutdown = true
       this.onError(error)
@@ -234,14 +234,20 @@ class BlockchainLogCrawler {
   }
 
   async getServiceStartBlock() {
-    const existingConfig = await Models.ConfigIndexer.findExistingLog(this.crawlResult.network, this.logService)
+    const existingConfig = await Models.ConfigIndexer.findExistingLog({
+      network: this.crawlResult.network,
+      service: this.logService!,
+    })
     return existingConfig
       ? existingConfig.lastSync
-      : config.ARAGON_SUPPORTED_BLOCK[this.crawlResult.network.toUpperCase()]
+      : config.ARAGON_SUPPORTED_BLOCK[utils.networkToAragon(this.crawlResult.network)]
   }
 
   async onSaveProgress(blockNumber: number) {
-    const existingConfig = await Models.ConfigIndexer.findExistingLog(this.crawlResult.network, this.logService)
+    const existingConfig = await Models.ConfigIndexer.findExistingLog({
+      network: this.crawlResult.network,
+      service: this.logService!,
+    })
 
     await DbTx.executeTxFn(async ({ session }) => {
       if (existingConfig) {
@@ -250,10 +256,10 @@ class BlockchainLogCrawler {
         await Models.ConfigIndexer.create(
           {
             network: this.crawlResult.network,
-            service: this.logService,
+            service: this.logService!,
             lastSync: blockNumber,
           },
-          { session },
+          { session } as any,
         )
       }
 

@@ -229,7 +229,7 @@ describe('Helpers:Web3', () => {
       supportsInterfaceStub.onSecondCall().resolves(true)
       supportsInterfaceStub.onThirdCall().resolves(false)
 
-      const result = await Web3Helper.supportsERC721('0xTokenAddress', NetworksEnum.mainnet)
+      const result = await Web3Helper.supportsERC721('0xTokenAddress', NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.true
       expect(supportsInterfaceStub.callCount).to.equal(3)
@@ -238,21 +238,21 @@ describe('Helpers:Web3', () => {
         supportsInterfaceStub.firstCall.calledWith(
           '0xTokenAddress',
           Web3Helper.ERC165_INTERFACE_ID,
-          NetworksEnum.mainnet,
+          NetworksEnum.ethereumMainnet,
         ),
       ).to.be.true
       expect(
         supportsInterfaceStub.secondCall.calledWith(
           '0xTokenAddress',
           Web3Helper.ERC721_INTERFACE_ID,
-          NetworksEnum.mainnet,
+          NetworksEnum.ethereumMainnet,
         ),
       ).to.be.true
       expect(
         supportsInterfaceStub.thirdCall.calledWith(
           '0xTokenAddress',
           Web3Helper.INTERFACE_ID_INVALID,
-          NetworksEnum.mainnet,
+          NetworksEnum.ethereumMainnet,
         ),
       ).to.be.true
     })
@@ -265,7 +265,7 @@ describe('Helpers:Web3', () => {
       supportsInterfaceStub.onSecondCall().resolves(true)
       supportsInterfaceStub.onThirdCall().resolves(false)
 
-      const result = await Web3Helper.supportsERC1155('0xTokenAddress', NetworksEnum.mainnet)
+      const result = await Web3Helper.supportsERC1155('0xTokenAddress', NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.true
       expect(supportsInterfaceStub.callCount).to.equal(3)
@@ -273,21 +273,21 @@ describe('Helpers:Web3', () => {
         supportsInterfaceStub.firstCall.calledWith(
           '0xTokenAddress',
           Web3Helper.ERC165_INTERFACE_ID,
-          NetworksEnum.mainnet,
+          NetworksEnum.ethereumMainnet,
         ),
       ).to.be.true
       expect(
         supportsInterfaceStub.secondCall.calledWith(
           '0xTokenAddress',
           Web3Helper.ERC1155_INTERFACE_ID,
-          NetworksEnum.mainnet,
+          NetworksEnum.ethereumMainnet,
         ),
       ).to.be.true
       expect(
         supportsInterfaceStub.thirdCall.calledWith(
           '0xTokenAddress',
           Web3Helper.INTERFACE_ID_INVALID,
-          NetworksEnum.mainnet,
+          NetworksEnum.ethereumMainnet,
         ),
       ).to.be.true
     })
@@ -310,7 +310,11 @@ describe('Helpers:Web3', () => {
         },
       })
 
-      const result = await MockedWeb3Helper.supportsInterface('0xTokenAddress', '0xInterfaceId', NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.supportsInterface(
+        '0xTokenAddress',
+        '0xInterfaceId',
+        NetworksEnum.ethereumMainnet,
+      )
 
       expect(result).to.be.true
     })
@@ -331,7 +335,11 @@ describe('Helpers:Web3', () => {
         },
       })
 
-      const result = await MockedWeb3Helper.supportsInterface('0xTokenAddress', '0xInterfaceId', NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.supportsInterface(
+        '0xTokenAddress',
+        '0xInterfaceId',
+        NetworksEnum.ethereumMainnet,
+      )
 
       expect(result).to.be.false
     })
@@ -600,7 +608,7 @@ describe('Helpers:Web3', () => {
       args: true,
     }
 
-    const network = NetworksEnum.mainnet
+    const network = NetworksEnum.ethereumMainnet
 
     const result = Web3Helper.parseInfoLog(txLog, fakeEvent.name, network)
 
@@ -691,7 +699,7 @@ describe('Helpers:Web3', () => {
   describe('getBalance', () => {
     it('should return the balance of an address', async () => {
       const fakeAddress = '0x1234567890123456789012345678901234567890'
-      const fakeNetwork = NetworksEnum.mainnet
+      const fakeNetwork = NetworksEnum.ethereumMainnet
       const fakeResponse = '0x1bc16d674ec80000' // 2 ETH in wei
 
       const providerStub = {
@@ -707,7 +715,7 @@ describe('Helpers:Web3', () => {
 
     it('should return "0" on error', async () => {
       const fakeAddress = '0x1234567890123456789012345678901234567890'
-      const fakeNetwork = NetworksEnum.mainnet
+      const fakeNetwork = NetworksEnum.ethereumMainnet
       const providerStub = {
         send: sandbox.stub().rejects(new Error('RPC error')),
       }
@@ -722,7 +730,7 @@ describe('Helpers:Web3', () => {
   describe('getTokenBalances', () => {
     it('should return token balances of an address', async () => {
       const fakeAddress = '0x1234567890123456789012345678901234567890'
-      const fakeNetwork = NetworksEnum.mainnet
+      const fakeNetwork = NetworksEnum.ethereumMainnet
       const fakeResponse = {
         tokenBalances: [
           { contractAddress: '0xTokenAddress1', tokenBalance: '0x10' }, // 16
@@ -744,7 +752,7 @@ describe('Helpers:Web3', () => {
 
     it('should return an empty array on error', async () => {
       const fakeAddress = '0x1234567890123456789012345678901234567890'
-      const fakeNetwork = NetworksEnum.mainnet
+      const fakeNetwork = NetworksEnum.ethereumMainnet
       const providerStub = {
         send: sandbox.stub().rejects(new Error('RPC error')),
       }
@@ -869,7 +877,7 @@ describe('Helpers:Web3', () => {
         getBlock: stubGetBlock,
       })
 
-      const timestamp = await Web3Helper.getBlockTimestamp(blockNumber, NetworksEnum.mainnet)
+      const timestamp = await Web3Helper.getBlockTimestamp(blockNumber, NetworksEnum.ethereumMainnet)
 
       expect(timestamp).to.equal(expectedTimestamp)
       expect(stubGetBlock.calledOnceWith(blockNumber)).to.be.true
@@ -885,7 +893,7 @@ describe('Helpers:Web3', () => {
         getBlock: stubGetBlock,
       })
 
-      const timestamp = await Web3Helper.getBlockTimestamp(blockNumber, NetworksEnum.mainnet)
+      const timestamp = await Web3Helper.getBlockTimestamp(blockNumber, NetworksEnum.ethereumMainnet)
 
       expect(timestamp).to.equal(0)
       expect(stubLogger.calledOnce).to.be.true
@@ -901,11 +909,11 @@ describe('Helpers:Web3', () => {
       })
 
       const name = 'aavegotchi.dao.eth'
-      const address = await Web3Helper.getAddressFromEns(name, NetworksEnum.mainnet)
+      const address = await Web3Helper.getAddressFromEns(name, NetworksEnum.ethereumMainnet)
 
       expect(address).to.eq('0x000001')
       expect(stubInstance.calledOnce).to.be.true
-      expect(stubInstance.calledWith(NetworksEnum.mainnet)).to.be.true
+      expect(stubInstance.calledWith(NetworksEnum.ethereumMainnet)).to.be.true
       expect(resolveName.calledOnce).to.be.true
     })
 
@@ -914,7 +922,7 @@ describe('Helpers:Web3', () => {
       const stubLogger = sandbox.stub(Logger, 'error')
 
       const name = 'aavegotchi.dao.eth'
-      const address = await Web3Helper.getAddressFromEns(name, NetworksEnum.mainnet)
+      const address = await Web3Helper.getAddressFromEns(name, NetworksEnum.ethereumMainnet)
 
       expect(address).to.eq(null)
       expect(stubLogger.calledOnce).to.be.true
@@ -930,11 +938,11 @@ describe('Helpers:Web3', () => {
       })
 
       const address = '0xF1cf9aFc900Ce3426A235212e164587A6274736A'
-      const ensName = await Web3Helper.getEnsFromAddress(address, NetworksEnum.mainnet)
+      const ensName = await Web3Helper.getEnsFromAddress(address, NetworksEnum.ethereumMainnet)
 
       expect(ensName).to.eq('aavegotchi.dao.eth')
       expect(stubInstance.calledOnce).to.be.true
-      expect(stubInstance.calledWith(NetworksEnum.mainnet)).to.be.true
+      expect(stubInstance.calledWith(NetworksEnum.ethereumMainnet)).to.be.true
       expect(lookupAddress.calledOnce).to.be.true
     })
 
@@ -943,7 +951,7 @@ describe('Helpers:Web3', () => {
       const stubLogger = sandbox.stub(Logger, 'error')
 
       const address = '0xF1cf9aFc900Ce3426A235212e164587A6274736A'
-      const ensName = await Web3Helper.getEnsFromAddress(address, NetworksEnum.mainnet)
+      const ensName = await Web3Helper.getEnsFromAddress(address, NetworksEnum.ethereumMainnet)
 
       expect(ensName).to.eq(null)
       expect(stubLogger.calledOnce).to.be.true
@@ -972,7 +980,7 @@ describe('Helpers:Web3', () => {
       })
 
       const ensName = 'aavegotchi.dao.eth'
-      const result = await MockedWeb3Helper.subdomainExists(ensName, NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.subdomainExists(ensName, NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.true
       expect(stubRecordExistsStub.calledOnce).to.be.true
@@ -1002,11 +1010,38 @@ describe('Helpers:Web3', () => {
       })
 
       const ensName = 'aavegotchi.dao.eth'
-      const result = await MockedWeb3Helper.subdomainExists(ensName, NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.subdomainExists(ensName, NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.false
       expect(stubLoggerError.calledOnce).to.be.true
       expect(stubLoggerError.calledWith('Error subdomainExists' as any)).to.be.true
+    })
+
+    it('should return false if not supported', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: () => {
+            return {}
+          },
+          namehash: () => {
+            return '0xb9b3537ea1117f65799f21b36bbc6357724953d5bf9cca09f0757b7ac3e81f37'
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+        '@logger': Logger,
+      })
+
+      const ensName = 'aavegotchi.dao.eth'
+      const result = await MockedWeb3Helper.subdomainExists(ensName, NetworksEnum.arbitrumMainnet)
+
+      expect(result).to.be.false
+      expect(stubConfigState.getConfigItem.notCalled).to.be.true
     })
   })
 
@@ -1018,7 +1053,7 @@ describe('Helpers:Web3', () => {
         getTransaction: getTransactionStub,
       })
 
-      const result = await Web3Helper.getTransaction(txHash, NetworksEnum.mainnet)
+      const result = await Web3Helper.getTransaction(txHash, NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.true
     })
@@ -1031,7 +1066,7 @@ describe('Helpers:Web3', () => {
         getTransaction: getTransactionStub,
       })
 
-      const result = await Web3Helper.getTransaction(txHash, NetworksEnum.mainnet)
+      const result = await Web3Helper.getTransaction(txHash, NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.null
       expect(getTransactionStub.calledOnce).to.be.true
@@ -1047,7 +1082,7 @@ describe('Helpers:Web3', () => {
         getTransactionReceipt: getTransactionReceiptStubStub,
       })
 
-      const result = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.mainnet)
+      const result = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.true
       expect(getTransactionReceiptStubStub.calledOnceWith(txHash)).to.be.true
@@ -1061,7 +1096,7 @@ describe('Helpers:Web3', () => {
         getTransactionReceipt: getTransactionReceiptStub,
       })
 
-      const result = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.mainnet)
+      const result = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.null
       expect(getTransactionReceiptStub.calledOnce).to.be.true
@@ -1090,7 +1125,7 @@ describe('Helpers:Web3', () => {
         },
       })
 
-      const result = await MockedWeb3Helper.getTokenInfo('0xTokenAddress', NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.getTokenInfo('0xTokenAddress', NetworksEnum.ethereumMainnet)
 
       expect(result).to.deep.equal({
         address: '0xTokenAddress',
@@ -1127,7 +1162,7 @@ describe('Helpers:Web3', () => {
         },
       })
 
-      const result = await MockedWeb3Helper.getTokenInfo('0xTokenAddress', NetworksEnum.mainnet)
+      const result = await MockedWeb3Helper.getTokenInfo('0xTokenAddress', NetworksEnum.ethereumMainnet)
 
       expect(result).to.deep.equal({
         address: '0xTokenAddress',
@@ -1150,7 +1185,7 @@ describe('Helpers:Web3', () => {
         txLog: { transactionHash: '0x0' },
         eventName: 'test',
         abi: '',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       }
       const result: any = await Web3Helper.getDataFromTxReceipt(params as any)
 
@@ -1168,7 +1203,7 @@ describe('Helpers:Web3', () => {
         txLog: { transactionHash: '0x0' },
         eventName: 'test',
         abi: '',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       }
       const result: any = await Web3Helper.getDataFromTxReceipt(params as any)
 
@@ -1187,7 +1222,7 @@ describe('Helpers:Web3', () => {
         txLog: { transactionHash: '0x0' },
         eventName: 'test',
         abi: '',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       }
       const result: any = await Web3Helper.getDataFromTxReceipt(params as any)
 

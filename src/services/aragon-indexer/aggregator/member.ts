@@ -2,6 +2,7 @@ import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
+import type Member from '@models/schema/member'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMembers' })
 
@@ -25,13 +26,13 @@ export const AggregatorMembers = {
     logger.verbose('End AggregatorMembers', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt }))
   },
 
-  async onDocument(document: any) {
-    const existingLog = await Models.Member.findExistingLog(document.address)
+  async onDocument(document: Partial<Member>) {
+    const existingLog = await Models.Member.findExistingLog({ address: document.address! })
     // TODO: find user ens
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
       if (!existingLog) {
-        logDb = await Models.Member.create(document, { session })
+        logDb = await Models.Member.create(document, { session } as any)
       } else {
         logDb = await existingLog.update(document, { session })
       }
@@ -108,17 +109,38 @@ export const AggregatorMembers = {
         },
       },
       {
-        $addFields: {
-          daoAddress: {
-            $arrayElemAt: ['$pluginInfo.daoAddress', 0],
-          },
+        $lookup: {
+          from: 'logPluginRepo',
+          let: { pluginSetupRepo: { $arrayElemAt: ['$pluginInfo.pluginSetupRepo', 0] } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$pluginRepo', '$$pluginSetupRepo'],
+                },
+              },
+            },
+            {
+              $project: {
+                subdomain: 1,
+              },
+            },
+          ],
+          as: 'pluginRepoInfo',
         },
       },
-
+      {
+        $addFields: {
+          daoAddress: { $arrayElemAt: ['$pluginInfo.daoAddress', 0] },
+          pluginSubdomain: { $arrayElemAt: ['$pluginRepoInfo.subdomain', 0] },
+        },
+      },
       {
         $project: {
           _id: 0,
           memberAddress: '$_id.memberAddress',
+          pluginAddress: '$_id.pluginAddress',
+          pluginSubdomain: 1,
           daos: {
             $map: {
               input: '$history',
@@ -178,6 +200,7 @@ export const AggregatorMembers = {
                       ],
                     },
                     network: '$_id.network',
+                    pluginSubdomain: '$pluginSubdomain',
                   },
                   {
                     $cond: [
@@ -191,6 +214,7 @@ export const AggregatorMembers = {
                         votingPower: '$$entry.newVotingPower',
                         delegateFromAddress: '$$entry.fromDelegate',
                         delegateToAddress: '$$entry.toDelegate',
+                        pluginSubdomain: '$pluginSubdomain',
                       },
                       null,
                     ],

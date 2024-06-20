@@ -18,7 +18,7 @@ describe('Model: Plugin', () => {
     rawPlugin = {
       transactionHash,
       blockNumber: 3,
-      network: NetworksEnum.mainnet,
+      network: NetworksEnum.ethereumMainnet,
       action: IPluginAction.install,
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
@@ -38,12 +38,14 @@ describe('Model: Plugin', () => {
 
   describe('Create Plugin', async () => {
     it('Should create Plugin', async () => {
-      const entityId = Models.Plugin.getEntityId(rawPlugin.transactionHash, rawPlugin.action)
-      rawPlugin.entityId = entityId
+      rawPlugin.id = Models.Plugin.getEntityId({
+        network: rawPlugin.network!,
+        transactionHash: rawPlugin.transactionHash!,
+        action: rawPlugin.action!,
+      })
       const createdLogDao = await Models.Plugin.create(rawPlugin)
 
-      expect(createdLogDao.id).to.exist
-      expect(createdLogDao.entityId).to.eq(rawPlugin.entityId)
+      expect(createdLogDao.id).to.eq(rawPlugin.id)
       expect(createdLogDao.transactionHash).to.eq(rawPlugin.transactionHash)
       expect(createdLogDao.blockNumber).to.eq(rawPlugin.blockNumber)
       expect(createdLogDao.network).to.eq(rawPlugin.network)
@@ -74,25 +76,25 @@ describe('Model: Plugin', () => {
   it('Should getEntityId', async () => {
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const action = IPluginAction.install
-    const network = NetworksEnum.mainnet
-    const entityId = Models.Plugin.getEntityId(transactionHash, action, network)
+    const network = NetworksEnum.ethereumMainnet
+    const entityId = Models.Plugin.getEntityId({ transactionHash, action, network })
     expect(entityId).to.eq(`${transactionHash}-${action}-${network}`)
   })
 
   it('Should findExistingLog', async () => {
     const createdLogPluginSetupProcessor = await Models.Plugin.create(rawPlugin)
-    const foundLogPluginSetupProcessor = await Models.Plugin.findExistingLog(
-      createdLogPluginSetupProcessor.transactionHash,
-      createdLogPluginSetupProcessor.action,
-      createdLogPluginSetupProcessor.network,
-    )
-    expect(foundLogPluginSetupProcessor?.entityId).to.eq(createdLogPluginSetupProcessor.entityId)
+    const foundLogPluginSetupProcessor = await Models.Plugin.findExistingLog({
+      transactionHash: createdLogPluginSetupProcessor.transactionHash,
+      action: createdLogPluginSetupProcessor.action,
+      network: createdLogPluginSetupProcessor.network,
+    })
+    expect(foundLogPluginSetupProcessor?.id).to.eq(createdLogPluginSetupProcessor.id)
   })
 
   it('Should findByEntityId', async () => {
     const createdLogPluginSetupProcessor = await Models.Plugin.create(rawPlugin)
-    const foundLogPluginSetupProcessor = await Models.Plugin.findByEntityId(createdLogPluginSetupProcessor.entityId)
-    expect(foundLogPluginSetupProcessor?.entityId).to.eq(createdLogPluginSetupProcessor.entityId)
+    const foundLogPluginSetupProcessor = await Models.Plugin.findByEntityId(createdLogPluginSetupProcessor.id)
+    expect(foundLogPluginSetupProcessor?.id).to.eq(createdLogPluginSetupProcessor.id)
   })
 
   it('Should reload', async () => {
@@ -106,7 +108,7 @@ describe('Model: Plugin', () => {
     const createdPlugin = await Models.Plugin.create(rawPlugin)
     const filterDao = createdPlugin.filterKeys()
 
-    expect(filterDao.id).to.be.undefined
+    expect(filterDao.id).to.exist
     expect(filterDao._id).to.be.undefined
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined

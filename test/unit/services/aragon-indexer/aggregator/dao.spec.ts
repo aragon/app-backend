@@ -57,34 +57,35 @@ describe('Indexer:Aggregator:Dao', () => {
 
       expect(stubLogger.calledWith('New Aggregate Dao' as any)).to.be.true
 
-      const dao = await Models.Dao.findExistingLog(document.address, document.network)
+      const dao = await Models.Dao.findExistingLog({
+        address: document.address,
+        network: document.network,
+      })
 
       expect(stubSubdomain.calledOnce).to.be.true
       expect(stubBlock.calledOnceWith(document.blockNumber, document.network)).to.be.true
 
       expect(dao.id).to.exist
-      expect(dao.entityId).to.exist
       expect(dao.network).to.equal(document.network)
       expect(dao.transactionHash).to.equal(document.transactionHash)
       expect(dao.blockNumber).to.equal(document.blockNumber)
       expect(dao.blockTimestamp).to.equal(100)
-      expect(dao.permalink).to.eq(`${document.network}-${document.ens || document.address}`)
       expect(dao.address).to.equal(document.address)
       expect(dao.implementationAddress).to.equal(document.implementationAddress)
       expect(dao.creatorAddress).to.eq(document.creatorAddress)
       expect(dao.ens).to.eq(document.ens)
-      expect(dao.members).to.eq(document.members)
       expect(dao.metadataIpfs).to.eq(document.metadataIpfs)
       expect(dao.name).to.eq(document.name)
       expect(dao.description).to.eq(document.description)
       expect(dao.avatar).to.eq(document.avatar)
       expect(dao.links[0].name).to.eq(document.links?.[0].name)
       expect(dao.links[0].url).to.eq(document.links?.[0].url)
-      expect(dao.proposalsCreated).to.eq(document.proposalsCreated)
-      expect(dao.proposalsExecuted).to.eq(document.proposalsExecuted)
+      expect(dao.metrics.members).to.eq(document.metrics.members)
+      expect(dao.metrics.proposalsCreated).to.eq(document.metrics.proposalsCreated)
+      expect(dao.metrics.proposalsExecuted).to.eq(document.metrics.proposalsExecuted)
+      expect(dao.metrics.uniqueVoters).to.eq(document.metrics.uniqueVoters)
+      expect(dao.metrics.votes).to.eq(document.metrics.votes)
       expect(dao.tvlUSD).to.eq(document.tvlUSD)
-      expect(dao.uniqueVoters).to.eq(document.uniqueVoters)
-      expect(dao.votes).to.eq(document.votes)
       expect(dao.plugins.length).to.eq(1)
       expect(dao.plugins[0].transactionHash).to.eq(document.plugins![0].transactionHash)
       expect(dao.plugins[0].blockNumber).to.eq(document.plugins![0].blockNumber)
@@ -100,7 +101,7 @@ describe('Indexer:Aggregator:Dao', () => {
     it('should call onDocument update', async () => {
       const document = { ...DaoList[1] }
 
-      await Models.Dao.create(document)
+      await Models.Dao.create(document as any)
 
       const stubLogger = sandbox.stub(Logger, 'verbose')
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(100)
@@ -110,29 +111,30 @@ describe('Indexer:Aggregator:Dao', () => {
 
       expect(stubLogger.calledWith('Update Aggregate Dao' as any)).to.be.true
 
-      const dao = await Models.Dao.findExistingLog(document.address, document.network)
+      const dao = await Models.Dao.findExistingLog({
+        address: document.address,
+        network: document.network,
+      })
       expect(dao.id).to.exist
-      expect(dao.entityId).to.exist
       expect(dao.network).to.equal(document.network)
       expect(dao.transactionHash).to.equal(document.transactionHash)
       expect(dao.blockNumber).to.equal(document.blockNumber)
-      expect(dao.permalink).to.eq(`${document.network}-${document.ens || document.address}`)
       expect(dao.address).to.equal(document.address)
       expect(dao.implementationAddress).to.equal(document.implementationAddress)
       expect(dao.creatorAddress).to.eq(document.creatorAddress)
       expect(dao.ens).to.eq(document.ens)
-      expect(dao.members).to.eq(document.members)
       expect(dao.metadataIpfs).to.eq(document.metadataIpfs)
       expect(dao.name).to.eq(document.name)
       expect(dao.description).to.eq(document.description)
       expect(dao.avatar).to.eq(document.avatar)
       expect(dao.links[0].name).to.eq(document.links?.[0].name)
       expect(dao.links[0].url).to.eq(document.links?.[0].url)
-      expect(dao.proposalsCreated).to.eq(document.proposalsCreated)
-      expect(dao.proposalsExecuted).to.eq(document.proposalsExecuted)
+      expect(dao.metrics.members).to.eq(document.metrics.members)
+      expect(dao.metrics.proposalsCreated).to.eq(document.metrics.proposalsCreated)
+      expect(dao.metrics.proposalsExecuted).to.eq(document.metrics.proposalsExecuted)
+      expect(dao.metrics.uniqueVoters).to.eq(document.metrics.uniqueVoters)
+      expect(dao.metrics.votes).to.eq(document.metrics.votes)
       expect(dao.tvlUSD).to.eq(document.tvlUSD)
-      expect(dao.uniqueVoters).to.eq(document.uniqueVoters)
-      expect(dao.votes).to.eq(document.votes)
       expect(dao.plugins.length).to.eq(1)
       expect(dao.plugins[0].transactionHash).to.eq(document.plugins![0].transactionHash)
       expect(dao.plugins[0].blockNumber).to.eq(document.plugins![0].blockNumber)

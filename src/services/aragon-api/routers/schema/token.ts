@@ -1,9 +1,19 @@
 import Joi from 'joi'
-import { NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum } from '@types'
 import ValidationSchema from '@helpers/validationSchema'
 
 const TokenSchema = {
-  getToken: Joi.object({
+  getExtraParams: Joi.object({
+    onlyActive: Joi.boolean().optional(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .optional(),
+    type: Joi.string()
+      .valid(...Object.values(ITokenType))
+      .optional(),
+  }),
+
+  getTokenByAddress: Joi.object({
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),

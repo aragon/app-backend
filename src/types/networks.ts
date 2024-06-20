@@ -1,5 +1,5 @@
 import { type WebSocketProvider } from 'ethers'
-export type HexAddress = `0x${string}`
+export type HexAddress = `0x${string}` | string
 export type ENS = `${string}.eth`
 
 export type INetworks = keyof typeof NetworksEnum
@@ -9,12 +9,16 @@ export interface ISupportedNetwork {
   networkName: NetworksEnum
 }
 
+export enum SupportedEnsNetworksEnum {
+  ethereumMainnet = 'ethereumMainnet',
+}
+
 export enum NetworksEnum {
-  mainnet = 'mainnet',
-  sepolia = 'sepolia',
-  polygon = 'polygon',
-  base = 'base',
-  arbitrum = 'arbitrum',
+  ethereumMainnet = 'ethereumMainnet',
+  ethereumSepolia = 'ethereumSepolia',
+  polygonMainnet = 'polygonMainnet',
+  baseMainnet = 'baseMainnet',
+  arbitrumMainnet = 'arbitrumMainnet',
 }
 
 export enum StatusNetworkEnum {
@@ -23,7 +27,7 @@ export enum StatusNetworkEnum {
   offline = 'offline',
 }
 
-export const TestNetworks = [NetworksEnum.sepolia]
+export const TestNetworks = [NetworksEnum.ethereumSepolia]
 
 export interface IBlock {
   provider: WebSocketProvider

@@ -1,14 +1,25 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type IToken, ITokenType, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type IToken,
+  type ITokenExtraParams,
+  type ITokenIdParams,
+  type ITokenResponse,
+  ITokenType,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { utcDateProp } from '@models/utils/models'
+import ModelUtils, { utcDateProp } from '@models/utils/models'
 import { assert } from '@errors'
 
 const customName = 'Token'
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'token',
     toJSON: { virtuals: true },
@@ -23,7 +34,7 @@ const customName = 'Token'
 })
 export default class Token extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -65,27 +76,27 @@ export default class Token extends Model {
   public lastUpdatedAt!: number
 
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
       assert(!!rawData.network, 'network is required')
-      rawData.entityId = this.getEntityId(rawData?.address!, rawData?.network!)
+      rawData.id = this.getEntityId({ address: rawData?.address!, network: rawData?.network! })
     }
     const data = new this(rawData)
     return data.save(tOpts)
   }
 
-  static getEntityId(address: HexAddress, network: NetworksEnum) {
-    const entityId = `${address}-${network}`
+  static getEntityId(params: ITokenIdParams) {
+    const entityId = `${params.address}-${params.network}`
     return entityId
   }
 
-  static async findExistingLog(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    const entityId = this.getEntityId(address, network)
+  static async findExistingLog(params: ITokenIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
   static async findByTokenAddress(address: HexAddress) {
@@ -94,6 +105,40 @@ export default class Token extends Model {
 
   static async findByTokenAddressAndNetwork(address: HexAddress, network: NetworksEnum) {
     return await this.findOne({ address, network })
+  }
+
+  static async findWithPagination({
+    extraParams = {},
+    paginationParams = {},
+  }: {
+    extraParams?: ITokenExtraParams
+    paginationParams?: IPaginationParams
+  }): Promise<IPaginatedResult<ITokenResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([_, v]) => v !== undefined))
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, ['network', 'address', 'implementationAddress', 'name', 'symbol']),
+      ...dynamicFilter,
+    }
+
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data: data as any,
+    }
   }
 
   async update(params: Partial<Token>, tOpts?: SaveOptions) {
@@ -118,7 +163,7 @@ export default class Token extends Model {
 
   filterKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
+    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
     return filtered as IToken
   }
 }

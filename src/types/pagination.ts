@@ -1,7 +1,54 @@
+import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+import type { ITransactionCategory } from '@src/types/alchemy'
+import { type ITokenType } from '@src/types/token'
+
+export interface ITokenExtraParams {
+  network?: NetworksEnum
+  type?: ITokenType
+}
+
+export interface IProposalExtraParams {
+  network?: NetworksEnum
+  daoAddress?: HexAddress
+  pluginAddress?: HexAddress
+  creatorAddress?: HexAddress
+}
+
+export interface IAssetExtraParams {
+  network?: NetworksEnum
+  daoAddress?: HexAddress
+}
+
+export interface IDaoExtraParams {
+  address?: HexAddress | undefined
+  network?: NetworksEnum | undefined
+  pluginAddress?: HexAddress | undefined
+}
+
+export interface IMemberExtraParams {
+  daoAddress?: HexAddress
+  network?: NetworksEnum
+  pluginAddress?: HexAddress
+  onlyActive?: boolean
+}
+
+export interface ITransactionExtraParams {
+  category?: ITransactionCategory
+  network?: NetworksEnum
+  daoAddress?: HexAddress
+}
+
+export interface ISettingExtraParams {
+  daoAddress?: HexAddress
+  pluginAddress?: HexAddress
+  network?: NetworksEnum
+  onlyActive?: boolean
+}
+
 export interface IPaginationParams {
   search?: string
-  startDate?: string
-  endDate?: string
+  startDate?: Date | string | number
+  endDate?: Date | string | number
   pageSize?: number
   page?: number
   order?: string // the property to order by
@@ -9,7 +56,8 @@ export interface IPaginationParams {
 }
 
 export interface IPaginationMetadata {
-  currentPage: number
+  page: number
+  pageSize: number
   totalPages: number
   totalRecords: number
 }

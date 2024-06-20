@@ -1,8 +1,8 @@
 import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { type IAPlugin } from '@src/types/plugin'
 import DbTx from '@modules/dbTx'
+import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorPlugin' })
 
@@ -26,13 +26,17 @@ export const AggregatorPlugin = {
     logger.verbose('End AggregatorPlugin', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt }))
   },
 
-  async onDocument(document: IAPlugin) {
-    const existingLog = await Models.Plugin.findExistingLog(document.transactionHash, document.action, document.network)
+  async onDocument(document: Partial<Plugin>) {
+    const existingLog = await Models.Plugin.findExistingLog({
+      transactionHash: document.transactionHash!,
+      action: document.action!,
+      network: document.network!,
+    })
 
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
       if (!existingLog) {
-        logDb = await Models.Plugin.create(document, { session })
+        logDb = await Models.Plugin.create(document as any, { session } as any)
       } else {
         logDb = await existingLog.update(document, { session })
       }

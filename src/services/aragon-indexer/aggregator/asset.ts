@@ -48,14 +48,18 @@ export const AggregatorAssets = {
           daoAddress: document.address,
           tokenAddress: ZeroAddress, // ETH native token
         }
-        const existingEthAssetDb = await Models.Asset.findExistingLog(document.address, ZeroAddress, document.network)
+        const existingEthAssetDb = await Models.Asset.findExistingLog({
+          daoAddress: document.address,
+          tokenAddress: ZeroAddress,
+          network: document.network,
+        })
 
         await DbTx.executeTxFn(async ({ session }) => {
           let logDb: any
           if (existingEthAssetDb) {
             logDb = await existingEthAssetDb.update(ethAssetData, { session })
           } else {
-            logDb = await Models.Asset.create(ethAssetData, { session })
+            logDb = await Models.Asset.create(ethAssetData, { session } as any)
           }
           await session.commitTransaction()
           await session.endSession()
@@ -70,11 +74,11 @@ export const AggregatorAssets = {
         tokenBalances
           .filter(token => Number(token.tokenBalance) > 0)
           .map(async (token: IAlchemyTokenBalance) => {
-            const existingAssetDb = await Models.Asset.findExistingLog(
-              document.address,
-              token.contractAddress,
-              document.network,
-            )
+            const existingAssetDb = await Models.Asset.findExistingLog({
+              daoAddress: document.address,
+              tokenAddress: token.contractAddress,
+              network: document.network,
+            })
 
             const rawData: Partial<Asset> = {
               amount: token.tokenBalance,
@@ -88,7 +92,7 @@ export const AggregatorAssets = {
               if (existingAssetDb) {
                 logDb = await existingAssetDb.update(rawData, { session })
               } else {
-                logDb = await Models.Asset.create(rawData, { session })
+                logDb = await Models.Asset.create(rawData, { session } as any)
               }
 
               await session.commitTransaction()

@@ -1,5 +1,13 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type IMembersResponse, type IPaginatedResult, type IPaginationParams, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  type IMemberExtraParams,
+  type IMemberIdParams,
+  type IMembersResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -16,6 +24,9 @@ class MemberDao {
 
   @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public pluginSubdomain!: string
 
   @prop({ type: () => Number })
   public fromBlockNumber!: number
@@ -41,6 +52,7 @@ class MemberDao {
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'member',
     toJSON: { virtuals: true },
@@ -56,7 +68,7 @@ class MemberDao {
 })
 export default class Member extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, required: true })
   public address!: HexAddress
@@ -68,41 +80,68 @@ export default class Member extends Model {
   public daos?: MemberDao[]
 
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
-      rawData.entityId = this.getEntityId(rawData?.address!)
+      rawData.id = this.getEntityId({
+        address: rawData?.address!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(address: HexAddress) {
-    const entityId = `${address}`
+  static getEntityId(params: IMemberIdParams) {
+    const entityId = `${params.address}`
     return entityId
   }
 
-  static async findExistingLog(address: HexAddress, tOpts?: SaveOptions) {
-    const entityId = this.getEntityId(address)
+  static async findExistingLog(params: IMemberIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
-  static async findWithPagination(
-    { daoAddress, pluginAddress },
-    paginationParams: IPaginationParams = {},
-  ): Promise<IPaginatedResult<IMembersResponse>> {
+  static async findWithPagination({
+    extraParams = {},
+    paginationParams = {},
+  }: {
+    extraParams?: IMemberExtraParams
+    paginationParams?: IPaginationParams
+  }): Promise<IPaginatedResult<IMembersResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const filter = ModelUtils.createFilter(paginationParams, ['address', 'ens'])
-
-    if (daoAddress) {
-      filter['daos.daoAddress'] = daoAddress
+    const dynamicFilter = Object.fromEntries(
+      Object.entries(extraParams).filter(
+        ([key, value]) =>
+          value !== undefined &&
+          key !== 'network' &&
+          key !== 'daoAddress' &&
+          key !== 'pluginAddress' &&
+          key !== 'onlyActive',
+      ),
+    )
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, ['address', 'ens']),
+      ...dynamicFilter,
     }
 
-    if (pluginAddress) {
-      filter['daos.pluginAddress'] = pluginAddress
+    // only filter active members in dao
+    if (extraParams.onlyActive) {
+      filter['$or'] = [{ 'daos.toBlockNumber': null }, { 'daos.toBlockNumber': { $exists: false } }]
+    }
+
+    if (extraParams.daoAddress) {
+      filter['daos.daoAddress'] = extraParams.daoAddress
+    }
+
+    if (extraParams.pluginAddress) {
+      filter['daos.pluginAddress'] = extraParams.pluginAddress
+    }
+
+    if (extraParams.network) {
+      filter['daos.network'] = extraParams.network
     }
 
     const currentPage = request.skip / request.limit + 1
@@ -136,12 +175,13 @@ export default class Member extends Model {
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages) {
-      return ModelUtils.paginateEmptyResponse()
+      return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
     return {
       metadata: {
-        currentPage,
+        page: currentPage,
+        pageSize: request.limit,
         totalPages,
         totalRecords,
       },
@@ -167,5 +207,18 @@ export default class Member extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
+  }
+
+  filterMemberKeys() {
+    const obj = this.toObject()
+    const filtered = _.omit(obj, '_id', '__v', 'daos', 'createdAt', 'updatedAt')
+    return filtered
+  }
+
+  filterKeys() {
+    const obj = this.toObject()
+    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
+    filtered.daos = _.omit(filtered.daos, '_id', '__v')
+    return filtered
   }
 }

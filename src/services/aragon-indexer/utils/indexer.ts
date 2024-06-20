@@ -10,7 +10,7 @@ const llo = logger.logMeta.bind(null, { service: 'models:utils:indexer' })
 
 export const UtilsIndexer = {
   saveAndGetToken: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<null | Token> => {
-    const existingToken = await Models.Token.findExistingLog(tokenAddress, network)
+    const existingToken = await Models.Token.findExistingLog({ address: tokenAddress, network })
 
     if (existingToken) {
       return existingToken
@@ -27,7 +27,7 @@ export const UtilsIndexer = {
         const rawToken = {
           address: tokenAddress,
           type: tokenTypeInfo?.type,
-          implementationAddress: tokenTypeInfo?.implementationAddress,
+          implementationAddress: tokenTypeInfo?.implementationAddress!,
           network,
           name: tokenInfo.name,
           decimals: tokenInfo.decimals,
@@ -35,7 +35,7 @@ export const UtilsIndexer = {
           totalSupply: tokenInfo.totalSupply,
           // ...rate,
         }
-        const logDb = await Models.Token.create(rawToken, { session })
+        const logDb = await Models.Token.create(rawToken, { session } as any)
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('New Token', llo({ logId: logDb.id }))

@@ -4,6 +4,8 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   ITransactionCategory,
+  type ITransactionExtraParams,
+  type ITransactionIdParams,
   type ITransactionResponse,
   ITransactionType,
   NetworksEnum,
@@ -26,6 +28,7 @@ class ERC1155Metadata {
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'transaction',
     toJSON: { virtuals: true },
@@ -43,7 +46,7 @@ class ERC1155Metadata {
 })
 export default class Transaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
@@ -88,49 +91,53 @@ export default class Transaction extends Model {
   public proposalId!: string
 
   static async create(rawData: Partial<Transaction>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.category, 'category is required')
       assert(!!rawData.network, 'network is required')
-      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.category!, rawData?.network!)
+      rawData.id = this.getEntityId({
+        transactionHash: rawData?.transactionHash!,
+        category: rawData?.category!,
+        network: rawData?.network!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(transactionHash: HexAddress, category: ITransactionCategory, network: NetworksEnum) {
-    const entityId = `${transactionHash}-${category}-${network}`
+  static getEntityId(params: ITransactionIdParams) {
+    const entityId = `${params.transactionHash}-${params.category}-${params.network}`
     return entityId
   }
 
-  static async findExistingLog(
-    transactionHash: HexAddress,
-    category: ITransactionCategory,
-    network: NetworksEnum,
-    tOpts?: SaveOptions,
-  ) {
-    const entityId = this.getEntityId(transactionHash, category, network)
+  static async findExistingLog(params: ITransactionIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
-  static async findWithPagination(
-    { daoAddress },
-    paginationParams: IPaginationParams = {},
-  ): Promise<IPaginatedResult<ITransactionResponse>> {
+  static async findWithPagination({
+    extraParams = {},
+    paginationParams = {},
+  }: {
+    extraParams?: ITransactionExtraParams
+    paginationParams?: IPaginationParams
+  }): Promise<IPaginatedResult<ITransactionResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const filter = ModelUtils.createFilter(paginationParams, [
-      'transactionHash',
-      'fromAddress',
-      'toAddress',
-      'tokenAddress',
-    ])
 
-    if (daoAddress) {
-      filter.daoAddress = daoAddress
+    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([key, value]) => value !== undefined))
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, [
+        'transactionHash',
+        'fromAddress',
+        'toAddress',
+        'tokenAddress',
+        'daoAddress',
+      ]),
+      ...dynamicFilter,
     }
 
     const currentPage = request.skip / request.limit + 1
@@ -198,12 +205,13 @@ export default class Transaction extends Model {
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages) {
-      return ModelUtils.paginateEmptyResponse()
+      return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
     return {
       metadata: {
-        currentPage,
+        page: currentPage,
+        pageSize: request.limit,
         totalPages,
         totalRecords,
       },

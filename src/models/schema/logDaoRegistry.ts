@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, NetworksEnum } from '@types'
+import { HexAddress, type ILogDaoRegistryIdParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -19,6 +19,7 @@ export class URIUpdate {
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'logDaoRegistry',
     toJSON: { virtuals: true },
@@ -33,7 +34,7 @@ export class URIUpdate {
 })
 export default class LogDaoRegistry extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
@@ -60,31 +61,31 @@ export default class LogDaoRegistry extends Model {
   public uriUpdates?: URIUpdate[]
 
   static async create(rawData: Partial<LogDaoRegistry>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.address, 'address is required')
-      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.address!)
+      rawData.id = this.getEntityId({ transactionHash: rawData?.transactionHash!, address: rawData?.address! })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(transactionHash: HexAddress, address: HexAddress) {
-    const entityId = `${transactionHash}-${address}`
+  static getEntityId(params: ILogDaoRegistryIdParams) {
+    const entityId = `${params.transactionHash}-${params.address}`
     return entityId
   }
 
-  static findByAddress(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    return this.findOne({ address, network }, tOpts)
-  }
-
-  static async findExistingLog(transactionHash: HexAddress, address: HexAddress, tOpts?: SaveOptions) {
-    const entityId = this.getEntityId(transactionHash, address)
+  static async findExistingLog(params: ILogDaoRegistryIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
+  }
+
+  static findByAddress(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return this.findOne({ address, network }, tOpts)
   }
 
   async update(params: Partial<LogDaoRegistry>, tOpts?: SaveOptions) {

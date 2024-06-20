@@ -4,7 +4,7 @@ export const ProposalList = [
   {
     transactionHash: '0xf7150dd71a976384fd3d3ef755fbf7487ffb3e8cc67024b53be578e6173f7618',
     blockNumber: 16726919,
-    network: NetworksEnum.mainnet,
+    network: NetworksEnum.ethereumMainnet,
     pluginAddress: '0x563Ebb4972bb6fABb1128c5895A31B6FAC2f6e14',
     proposalId: 0,
     creatorAddress: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
@@ -31,7 +31,7 @@ export const ProposalList = [
   {
     transactionHash: '0x90a26411d62d1ba9f7b82e3697e94ff1ae9b5cce89e3f594ebe57b897245d39e',
     blockNumber: 16733645,
-    network: 'mainnet',
+    network: NetworksEnum.ethereumMainnet,
     pluginAddress: '0xB85380977eC3435aeBc13e29b01AF990393bdED9',
     proposalId: 0,
     creatorAddress: '0xc1d60f584879f024299DA0F19Cdb47B931E35b53',

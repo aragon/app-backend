@@ -9,6 +9,11 @@ import TokenRouter from '@services/aragon-api/routers/token'
 import utils from '@helpers/utils'
 import Koa from 'koa'
 import supertest from 'supertest'
+import AssetRouter from '@api/routers/asset'
+import MemberRouter from '@api/routers/member'
+import ProposalRouter from '@api/routers/proposal'
+import SettingRouter from '@api/routers/setting'
+import TransactionRouter from '@api/routers/transaction'
 
 describe('Router: MainRouter', () => {
   let sandbox: SinonSandbox
@@ -31,8 +36,13 @@ describe('Router: MainRouter', () => {
       })
     }
 
+    stubRouter(AssetRouter, 'assets')
     stubRouter(DaoRouter, 'daos')
+    stubRouter(MemberRouter, 'members')
+    stubRouter(ProposalRouter, 'proposals')
+    stubRouter(SettingRouter, 'settings')
     stubRouter(TokenRouter, 'tokens')
+    stubRouter(TransactionRouter, 'transactions')
     stubRouter(StatusRouter, 'status')
 
     await utils.wait(1000)
@@ -40,15 +50,20 @@ describe('Router: MainRouter', () => {
     const mainRouter = MainRouter.router()
     expect(mainRouter instanceof Router).to.be.true
 
-    expect(use.callCount).to.be.eq(3)
+    expect(use.callCount).to.be.eq(8)
     expect(use.calledWith(`statusRoutes`, `statusAllowedMethod`)).to.be.true
 
     function expectRouter(name: string) {
       expect(use.calledWith(`/${name}`, `${name}Routes`, `${name}AllowedMethod`)).to.be.true
     }
 
+    expectRouter('assets')
     expectRouter('daos')
+    expectRouter('members')
+    expectRouter('proposals')
+    expectRouter('settings')
     expectRouter('tokens')
+    expectRouter('transactions')
   })
 
   it('Should setup main router with all child routers', async () => {
