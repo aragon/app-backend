@@ -146,7 +146,7 @@ describe('Module: provider', () => {
       await Provider.connectToAllNetworks()
 
       expect(stubConneect.callCount).to.eq(0)
-      expect(stubLoggerError.callCount).to.eq(5)
+      expect(stubLoggerError.callCount).to.eq(6)
     })
   })
 

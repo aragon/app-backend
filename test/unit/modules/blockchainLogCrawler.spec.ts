@@ -81,7 +81,7 @@ describe('Module: blockchainLogCrawler', () => {
 
     expect(onLogStub.calledTwice).to.be.true
     expect(onLogStub.calledTwice).to.be.true
-    expect(stubSaveProgress.calledThrice).to.be.true
+    expect(stubSaveProgress.callCount).to.equal(5)
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
