@@ -209,6 +209,12 @@ export default class Member extends Model {
     return await this.model(customName).findById(this._id, tOpts)
   }
 
+  filterMemberKeys() {
+    const obj = this.toObject()
+    const filtered = _.omit(obj, '_id', '__v', 'daos', 'createdAt', 'updatedAt')
+    return filtered
+  }
+
   filterKeys() {
     const obj = this.toObject()
     const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')

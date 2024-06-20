@@ -1,19 +1,21 @@
 import Joi from 'joi'
-import ValidationSchema from '@helpers/validationSchema'
 import { ITransactionCategory, NetworksEnum } from '@types'
+import ValidationSchema from '@helpers/validationSchema'
 
 const TransactionSchema = {
-  getWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiPagination, {
-      daoAddress: ValidationSchema.joiAddress.optional(),
-      network: Joi.string()
-        .valid(...Object.values(NetworksEnum))
-        .optional(),
-      category: Joi.string()
-        .valid(...Object.values(ITransactionCategory))
-        .optional(),
-    }),
-  ),
+  getExtraParams: Joi.object({
+    daoAddress: ValidationSchema.joiAddress.optional(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .optional(),
+    category: Joi.string()
+      .valid(...Object.values(ITransactionCategory))
+      .optional(),
+  }),
+
+  getDaoById: Joi.object({
+    id: ValidationSchema.joiDaoId.optional(),
+  }),
 }
 
 export default TransactionSchema

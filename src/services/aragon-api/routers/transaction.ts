@@ -4,6 +4,7 @@ import ModelUtils from '@models/utils/models'
 import TransactionSchema from '@api/routers/schema/transaction'
 import TransactionController from '@api/controllers/transaction'
 import { type HexAddress, type ITransactionCategory, type ITransactionExtraParams, type NetworksEnum } from '@types'
+import PaginationSchema from '@api/routers/schema/pagination'
 
 const TransactionRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -13,13 +14,19 @@ const TransactionRouter = {
       daoAddress: ctx.query.daoAddress as HexAddress,
       category: ctx.query.category as ITransactionCategory,
     }
+    const daoId = ctx.query.daoId as string
 
-    await ValidationSchema.validateParams(TransactionSchema.getWithPagination, {
-      ...paginationParams,
-      ...extraParams,
-    })
+    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
+      ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
+      ValidationSchema.validateParams(TransactionSchema.getExtraParams, extraParams),
+      ValidationSchema.validateParams(TransactionSchema.getDaoById, { id: daoId }),
+    ])
 
-    ctx.body = await TransactionController.getTransactionsWithPagination(paginationParams, extraParams)
+    ctx.body = await TransactionController.getTransactionsWithPagination(
+      formattedPaginationParams,
+      formattedExtraParams,
+      formattedDaoId.id,
+    )
   },
 
   router() {

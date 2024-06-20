@@ -122,5 +122,80 @@ describe('Controller: Asset', () => {
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
     })
+
+    it('should get proposals with pagination - daoId', async () => {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+      const daoId = `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`
+
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
+        address: rawAsset.daos?.[0].daoAddress,
+        network: rawAsset.daos?.[0].network,
+      })
+      const spyReq = sandbox.spy(Models.Asset, 'findWithPagination')
+
+      const response = await AssetController.getAssetsWithPagination(paginationParams, filterParams, daoId)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: {
+            daoAddress: rawAsset.daos?.[0].daoAddress,
+            network: rawAsset.daos?.[0].network,
+          },
+          paginationParams: {
+            search: '',
+            endDate: '',
+            startDate: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].network).to.eq(rawAsset.network)
+      expect(response.data[0].daoAddress).to.eq(rawAsset.daoAddress)
+      expect(response.data[0].tokenAddress).to.eq(rawAsset.tokenAddress)
+      expect(response.data[0].amount).to.eq(rawAsset.amount)
+      expect(response.data[0].token).to.exist
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get proposals with pagination - daoId not found', async () => {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+      const daoId = `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`
+
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      const spyReq = sandbox.spy(Models.Asset, 'findWithPagination')
+
+      const response = await AssetController.getAssetsWithPagination(paginationParams, filterParams, daoId)
+
+      expect(spyReq.notCalled).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(0)
+    })
   })
 })

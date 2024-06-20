@@ -226,4 +226,16 @@ describe('Model: Member', () => {
     expect(filterDao.updatedAt).to.be.undefined
     expect(Object.keys(filterDao).length).to.eq(4)
   })
+
+  it('Should filterKeys', async () => {
+    const createdDao = await Models.Member.create(rawMember)
+    const filterDao = createdDao.filterKeys()
+
+    expect(filterDao.id).to.exist
+    expect(filterDao._id).to.be.undefined
+    expect(filterDao.__v).to.be.undefined
+    expect(filterDao.createdAt).to.be.undefined
+    expect(filterDao.updatedAt).to.be.undefined
+    expect(Object.keys(filterDao).length).to.eq(4)
+  })
 })

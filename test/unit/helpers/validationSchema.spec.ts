@@ -5,6 +5,7 @@ import ValidationSchema from '@helpers/validationSchema'
 import Joi from 'joi'
 import { ErrorKeyEnum, NetworksEnum } from '@types'
 import DaoSchema from '@api/routers/schema/dao'
+import PaginationSchema from '@api/routers/schema/pagination'
 
 describe('Helpers:ValidationSchema', () => {
   let sandbox: SinonSandbox
@@ -58,7 +59,7 @@ describe('Helpers:ValidationSchema', () => {
     })
 
     it('generateJoiPagination', async () => {
-      const result = await DaoSchema.getWithPagination.validateAsync({
+      const result = await PaginationSchema.getPagination.validateAsync({
         search: '0xb794F5eA0ba39494cE839613fffBA74279579268',
       })
 
@@ -70,7 +71,7 @@ describe('Helpers:ValidationSchema', () => {
     })
 
     it('generateJoiPagination wrong address', async () => {
-      const result = await DaoSchema.getWithPagination.validateAsync({
+      const result = await PaginationSchema.getPagination.validateAsync({
         search: 'not_a_valid_address',
         page: 1,
         pageSize: 12,
@@ -95,9 +96,7 @@ describe('Helpers:ValidationSchema', () => {
       const startDate = '2023-01-01'
       const endDate = '2023-01-02'
 
-      const schema = DaoSchema.getWithPagination
-
-      const result = await schema.validateAsync({ startDate, endDate })
+      const result = await PaginationSchema.getPagination.validateAsync({ startDate, endDate })
 
       expect(result.startDate).to.deep.equal(new Date(startDate))
       expect(result.endDate).to.deep.equal(new Date(endDate))
