@@ -206,8 +206,8 @@ describe('Module: provider', () => {
       config.BLOCKCHAIN_NODES = networks
 
       const fakeProviders = {
-        ethereumMainnet: { destroy: sandbox.stub().resolves() },
-        ethereumSepolia: { destroy: sandbox.stub().resolves() },
+        [NetworksEnum.ethereumMainnet]: { destroy: sandbox.stub().resolves() },
+        [NetworksEnum.ethereumSepolia]: { destroy: sandbox.stub().resolves() },
       }
 
       const getConfigStub = sandbox

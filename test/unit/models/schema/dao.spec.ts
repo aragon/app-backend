@@ -146,7 +146,7 @@ describe('Model: Dao', () => {
     })
 
     expect(createdDao.network).to.eq(NetworksEnum.baseMainnet)
-    expect(createdDao.id).to.eq('baseMainnet-0x17366cae2b9c6c3055e9e3c78936a69006be5409')
+    expect(createdDao.id).to.eq(`${NetworksEnum.baseMainnet}-${rawDao.address}`)
     expect(createdDao.creatorAddress).to.eq('0x558c9997f8d382f02dfce79e275af637d8bb19e6')
   })
 
