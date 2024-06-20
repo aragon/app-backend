@@ -4,6 +4,7 @@ import ModelUtils from '@models/utils/models'
 import ProposalSchema from '@api/routers/schema/proposal'
 import ProposalController from '@api/controllers/proposal'
 import { type HexAddress, type IProposalExtraParams, type NetworksEnum } from '@types'
+import PaginationSchema from '@api/routers/schema/pagination'
 
 const ProposalRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -14,13 +15,19 @@ const ProposalRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       creatorAddress: ctx.query.creatorAddress as HexAddress,
     }
+    const daoId = ctx.query.daoId as string
 
-    await ValidationSchema.validateParams(ProposalSchema.getWithPagination, {
-      ...paginationParams,
-      ...extraParams,
-    })
+    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
+      ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
+      ValidationSchema.validateParams(ProposalSchema.getExtraParams, extraParams),
+      ValidationSchema.validateParams(ProposalSchema.getDaoById, { id: daoId }),
+    ])
 
-    ctx.body = await ProposalController.getProposalsWithPagination(paginationParams, extraParams)
+    ctx.body = await ProposalController.getProposalsWithPagination(
+      formattedPaginationParams,
+      formattedExtraParams,
+      formattedDaoId.id,
+    )
   },
 
   getProposalById: async function (ctx: RouterContext) {

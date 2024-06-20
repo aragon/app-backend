@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import MemberController from '@services/aragon-api/controllers/member'
-import { NetworksEnum } from '@types'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Member from '@models/schema/member'
 
@@ -28,7 +28,7 @@ describe('Controller: Member', () => {
           delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           votingPower: '100',
-          pluginSubdomain: NetworksEnum.ethereumMainnet,
+          pluginSubdomain: 'token-voting',
         },
       ],
     }
@@ -131,6 +131,115 @@ describe('Controller: Member', () => {
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get members with pagination - daoId', async () => {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+      const daoId = `${rawMember.daos?.[0].network}-${rawMember.daos?.[0].daoAddress}`
+
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
+        address: rawMember.daos?.[0].daoAddress,
+        network: rawMember.daos?.[0].network,
+      })
+      const spyReq = sandbox.spy(Models.Member, 'findWithPagination')
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, daoId)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: {
+            daoAddress: rawMember.daos?.[0].daoAddress,
+            network: rawMember.daos?.[0].network,
+          },
+          paginationParams: {
+            search: '',
+            endDate: '',
+            startDate: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].address).to.eq(rawMember.address)
+      expect(response.data[0].ens).to.eq(null)
+      expect(response.data[0].fromBlockNumber).to.eq(rawMember.daos?.[0].fromBlockNumber)
+      expect(response.data[0].toBlockNumber).to.eq(rawMember.daos?.[0].toBlockNumber)
+      expect(response.data[0].votingPower).to.eq(rawMember.daos?.[0].votingPower)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get members with pagination - daoId not found', async () => {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+      const daoId = `${rawMember.daos?.[0].network}-${rawMember.daos?.[0].daoAddress}`
+
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      const spyReq = sandbox.spy(Models.Member, 'findWithPagination')
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, daoId)
+
+      expect(spyReq.notCalled).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(0)
+    })
+  })
+
+  describe('getMemberById', () => {
+    it('should getMemberById', async () => {
+      const memberDb = await Models.Member.create({
+        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
+        ens: undefined,
+        daos: [
+          {
+            daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+            network: NetworksEnum.ethereumMainnet,
+            pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
+            fromBlockNumber: 1,
+            toBlockNumber: 2,
+            fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+            toTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+            delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+            delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+            votingPower: '100',
+            pluginSubdomain: 'token-voting',
+          },
+        ],
+      })
+
+      const member = await MemberController.getMemberById(memberDb.id)
+      expect(member.id).to.eq(memberDb.id)
+      expect((member as any).daos).not.to.exist
+    })
+
+    it('should fail to getMemberById', async () => {
+      sandbox.stub(Models.Member, 'findByEntityId').resolves(null)
+      const memberId = 'test-member'
+      await expect(MemberController.getMemberById(memberId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
     })
   })
 })

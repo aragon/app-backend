@@ -4,6 +4,7 @@ import ValidationSchema from '@helpers/validationSchema'
 import TokenSchema from '@services/aragon-api/routers/schema/token'
 import ModelUtils from '@models/utils/models'
 import { type ITokenExtraParams, type ITokenType, type NetworksEnum } from '@types'
+import PaginationSchema from '@api/routers/schema/pagination'
 
 const TokenRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -13,12 +14,12 @@ const TokenRouter = {
       type: ctx.query.type as ITokenType,
     }
 
-    await ValidationSchema.validateParams(TokenSchema.getWithPagination, {
-      ...paginationParams,
-      ...extraParams,
-    })
+    const [formattedPaginationParams, formattedExtraParams] = await Promise.all([
+      ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
+      ValidationSchema.validateParams(TokenSchema.getExtraParams, extraParams),
+    ])
 
-    ctx.body = await TokenController.getTokensWithPagination(paginationParams, extraParams)
+    ctx.body = await TokenController.getTokensWithPagination(formattedPaginationParams, formattedExtraParams)
   },
 
   getTokenByAddress: async function (ctx: RouterContext) {
@@ -27,7 +28,7 @@ const TokenRouter = {
       address: ctx.params.address,
     }
 
-    const formattedParams = await ValidationSchema.validateParams(TokenSchema.getToken, params)
+    const formattedParams = await ValidationSchema.validateParams(TokenSchema.getTokenByAddress, params)
 
     ctx.body = await TokenController.getTokenByAddress(formattedParams)
   },

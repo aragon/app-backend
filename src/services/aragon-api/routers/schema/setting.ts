@@ -3,16 +3,18 @@ import ValidationSchema from '@helpers/validationSchema'
 import { NetworksEnum } from '@types'
 
 const SettingSchema = {
-  getWithPagination: Joi.object(
-    Object.assign(ValidationSchema.generateJoiPagination, {
-      onlyActive: Joi.boolean().optional(),
-      daoAddress: ValidationSchema.joiAddress.optional(),
-      pluginAddress: ValidationSchema.joiAddress.optional(),
-      network: Joi.string()
-        .valid(...Object.values(NetworksEnum))
-        .optional(),
-    }),
-  ),
+  getExtraParams: Joi.object({
+    onlyActive: Joi.boolean().optional(),
+    daoAddress: ValidationSchema.joiAddress.optional(),
+    pluginAddress: ValidationSchema.joiAddress.optional(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .optional(),
+  }),
+
+  getDaoById: Joi.object({
+    id: ValidationSchema.joiDaoId.optional(),
+  }),
 
   getSettingById: Joi.object({
     id: Joi.string().required(),

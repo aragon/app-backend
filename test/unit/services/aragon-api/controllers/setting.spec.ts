@@ -1,14 +1,15 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import SettingController from '@services/aragon-api/controllers/setting'
-import { NetworksEnum } from '@types'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
+import SettingController from '@api/controllers/setting'
 import Setting from '@models/schema/setting'
 
 describe('Controller: Setting', () => {
   let sandbox: SinonSandbox
   let rawSetting: Partial<Setting>
+  let settingDb: Setting
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -32,7 +33,7 @@ describe('Controller: Setting', () => {
         onlyListed: true,
       },
     }
-    await Models.Setting.create(rawSetting)
+    settingDb = await Models.Setting.create(rawSetting)
   })
 
   afterEach(() => {
@@ -127,6 +128,111 @@ describe('Controller: Setting', () => {
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get settings with pagination - daoId', async () => {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+      const daoId = `${rawSetting.network}-${rawSetting.daoAddress}`
+
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
+        address: rawSetting.daoAddress,
+        network: rawSetting.network,
+      })
+      const spyReq = sandbox.spy(Models.Setting, 'findWithPagination')
+
+      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams, daoId)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: {
+            daoAddress: rawSetting.daoAddress,
+            network: rawSetting.network,
+          },
+          paginationParams: {
+            search: '',
+            endDate: '',
+            startDate: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].daoAddress).to.eq(rawSetting.daoAddress)
+      expect(response.data[0].pluginAddress).to.eq(rawSetting.pluginAddress)
+      expect(response.data[0].network).to.eq(rawSetting.network)
+      expect(response.data[0].settings.votingMode).to.eq(rawSetting.settings?.votingMode)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get settings with pagination - daoId not found', async () => {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+      const daoId = `${rawSetting.network}-${rawSetting.daoAddress}`
+
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      const spyReq = sandbox.spy(Models.Setting, 'findWithPagination')
+
+      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams, daoId)
+
+      expect(spyReq.notCalled).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(0)
+    })
+  })
+
+  describe('getSettingById', () => {
+    it('should getSettingById', async () => {
+      const setting = await SettingController.getSettingById(settingDb.id)
+      expect(setting.id).to.eq(settingDb.id)
+    })
+
+    it('should fail to getSettingById', async () => {
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
+      const settingId = 'test-member'
+      await expect(SettingController.getSettingById(settingId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+  })
+
+  describe('getSettingByTransactionHash', () => {
+    it('should get by TransactionHash', async () => {
+      const setting = await SettingController.getSettingByTransactionHash(
+        settingDb.fromTxHash as any,
+        settingDb.network,
+      )
+      expect(setting.id).to.eq(settingDb.id)
+    })
+
+    it('should fail to get by TransactionHash', async () => {
+      sandbox.stub(Models.Proposal, 'findByTransactionHash').resolves(null)
+      const transactionHash = '0x02324' as any
+      await expect(
+        SettingController.getSettingByTransactionHash(transactionHash, settingDb.network),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
     })
   })
 })

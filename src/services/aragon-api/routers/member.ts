@@ -4,6 +4,7 @@ import ModelUtils from '@models/utils/models'
 import MemberSchema from '@api/routers/schema/member'
 import MemberController from '@api/controllers/member'
 import { type HexAddress, type IMemberExtraParams, type NetworksEnum } from '@types'
+import PaginationSchema from '@api/routers/schema/pagination'
 
 const MemberRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -14,13 +15,19 @@ const MemberRouter = {
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
     }
+    const daoId = ctx.query.daoId as string
 
-    await ValidationSchema.validateParams(MemberSchema.getWithPagination, {
-      ...paginationParams,
-      ...extraParams,
-    })
+    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
+      ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
+      ValidationSchema.validateParams(MemberSchema.getExtraParams, extraParams),
+      ValidationSchema.validateParams(MemberSchema.getDaoById, { id: daoId }),
+    ])
 
-    ctx.body = await MemberController.getMembersWithPagination(paginationParams, extraParams)
+    ctx.body = await MemberController.getMembersWithPagination(
+      formattedPaginationParams,
+      formattedExtraParams,
+      formattedDaoId.id,
+    )
   },
 
   getMemberById: async function (ctx: RouterContext) {

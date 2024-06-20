@@ -4,6 +4,7 @@ import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import DaoSchema from '@services/aragon-api/routers/schema/dao'
 import { type HexAddress, type IDaoExtraParams, type NetworksEnum } from '@types'
+import PaginationSchema from '@api/routers/schema/pagination'
 
 const DaoRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -14,12 +15,12 @@ const DaoRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
     }
 
-    await ValidationSchema.validateParams(DaoSchema.getWithPagination, {
-      ...paginationParams,
-      ...extraParams,
-    })
+    const [formattedPaginationParams, formattedExtraParams] = await Promise.all([
+      ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
+      ValidationSchema.validateParams(DaoSchema.getExtraParams, extraParams),
+    ])
 
-    ctx.body = await DaoController.getDaosWithPagination(paginationParams, extraParams)
+    ctx.body = await DaoController.getDaosWithPagination(formattedPaginationParams, formattedExtraParams)
   },
 
   getDaoById: async function (ctx: RouterContext) {
