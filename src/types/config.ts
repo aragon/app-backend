@@ -1,4 +1,4 @@
-import { type INetworks, type SupportedEnsNetworksEnum } from './networks'
+import { type NetworksEnum, type SupportedEnsNetworksEnum } from './networks'
 
 export enum IEnumEnvironment {
   production = 'production',
@@ -28,7 +28,7 @@ export interface IConfig {
     ARBITRUM_MAINNET: number
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
-  SUPPORTED_NETWORKS: INetworks[]
+  SUPPORTED_NETWORKS: NetworksEnum[]
   DEFAULT_CURRENCY: string
   NODE_CONFIG: {
     MAX_RECONNECT_ATTEMPTS: number

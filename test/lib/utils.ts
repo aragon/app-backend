@@ -1,4 +1,5 @@
 import { SinonSandbox } from 'sinon'
+import { NetworksEnum } from '@types'
 
 export const UnitTestUtils = {
   getFakeProviders: (sandbox: SinonSandbox) => {
@@ -9,27 +10,27 @@ export const UnitTestUtils = {
     })
 
     const fakeProvider = {
-      ethereumMainnet: {
+      [NetworksEnum.ethereumMainnet]: {
         getBlockNumber,
         getLogs: sandbox.stub().resolves([{ transactionHash: '0x123', blockNumber: 1 }]),
         destroy: sandbox.stub().resolves(),
       },
-      ethereumSepolia: {
+      [NetworksEnum.ethereumSepolia]: {
         getBlockNumber,
         getLogs: sandbox.stub().resolves([{ transactionHash: '0x456', blockNumber: 2 }]),
         destroy: sandbox.stub().resolves(),
       },
-      polygonMainnet: {
+      [NetworksEnum.polygonMainnet]: {
         getBlockNumber,
         getLogs: sandbox.stub().resolves([{ transactionHash: '0x789', blockNumber: 3 }]),
         destroy: sandbox.stub().resolves(),
       },
-      arbitrumMainnet: {
+      [NetworksEnum.arbitrumMainnet]: {
         getBlockNumber,
         getLogs: sandbox.stub().resolves([{ transactionHash: '0xabc', blockNumber: 4 }]),
         destroy: sandbox.stub().resolves(),
       },
-      baseMainnet: {
+      [NetworksEnum.baseMainnet]: {
         getBlockNumber,
         getLogs: sandbox.stub().resolves([{ transactionHash: '0xdef', blockNumber: 5 }]),
         destroy: sandbox.stub().resolves(),
