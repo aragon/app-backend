@@ -56,7 +56,7 @@ describe('Router: Member', () => {
     it('Should get member with pagination - daoId', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
-        daoId: 'ethereumMainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         onlyActive: true,
       }
       const paginationParams = {

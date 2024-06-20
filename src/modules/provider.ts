@@ -10,11 +10,11 @@ const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 const ProviderModule = {
   configState: ConfigState.getInstance(),
   networksMap: {
-    ETHEREUM_MAINNET: 'ethereumMainnet',
-    ETHEREUM_SEPOLIA: 'ethereumSepolia',
-    POLYGON_MAINNET: 'polygonMainnet',
-    BASE_MAINNET: 'baseMainnet',
-    ARBITRUM_MAINNET: 'arbitrumMainnet',
+    ETHEREUM_MAINNET: NetworksEnum.ethereumMainnet,
+    ETHEREUM_SEPOLIA: NetworksEnum.ethereumSepolia,
+    POLYGON_MAINNET: NetworksEnum.polygonMainnet,
+    BASE_MAINNET: NetworksEnum.baseMainnet,
+    ARBITRUM_MAINNET: NetworksEnum.arbitrumMainnet,
   },
 
   parseNetwork: (network: string) => {
