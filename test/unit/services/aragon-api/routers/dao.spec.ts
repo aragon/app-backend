@@ -81,4 +81,41 @@ describe('Router: Dao', () => {
       expect(stubCtrl.args[0][1]).to.deep.eq({ ...filterParams, ...{ address: undefined, pluginAddress: undefined } })
     })
   })
+
+  it('Should getDaoById', async () => {
+    const params = {
+      id: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    }
+
+    const stubCtrl = sandbox.stub(DaoController, 'getDaoById').returns(true as any)
+
+    const ctx: any = {
+      params,
+    }
+
+    await DaoRouter.getDaoById(ctx)
+
+    expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+    expect(stubCtrl.calledWith(params.id)).to.be.true
+  })
+
+  it('Should getDaoByAddress', async () => {
+    const params = {
+      network: NetworksEnum.ethereumMainnet,
+      address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    }
+
+    const stubCtrl = sandbox.stub(DaoController, 'getDaoByAddress').returns(true as any)
+
+    const ctx: any = {
+      params,
+    }
+
+    await DaoRouter.getDaoByAddress(ctx)
+
+    expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+    expect(stubCtrl.calledWith(params.address, params.network)).to.be.true
+  })
 })

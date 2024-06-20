@@ -199,21 +199,33 @@ describe('Controller: Dao', () => {
   })
 
   describe('getDaoById', () => {
-    it('should get by id', async () => {
-      const stub = sandbox.stub(Models.Dao, 'findByEntityId').resolves({
-        ...DaoList[0],
-        filterKeys: () => DaoList[0],
-      })
-      const daoId = 'test-dao'
-      const dao = await DaoController.getDaoById(daoId)
-      expect(stub.calledOnce).to.be.true
-      expect(dao).to.deep.eq(DaoList[0])
+    it('should getDaoById', async () => {
+      const memberDb = await Models.Dao.create(DaoList[0])
+
+      const member = await DaoController.getDaoById(memberDb.id)
+      expect(member.id).to.eq(memberDb.id)
     })
 
-    it('should fail to get by id', async () => {
+    it('should fail to getDaoById', async () => {
       sandbox.stub(Models.Dao, 'findByEntityId').resolves(null)
-      const daoId = 'test-dao'
+      const daoId = 'test-member'
       await expect(DaoController.getDaoById(daoId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+  })
+
+  describe('getDaoByAddress', () => {
+    it('should getDaoByAddress', async () => {
+      const memberDb = await Models.Dao.create(DaoList[0])
+
+      const member = await DaoController.getDaoByAddress(memberDb.address, memberDb.network)
+      expect(member.id).to.eq(memberDb.id)
+    })
+
+    it('should fail to getDaoByAddress', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+      const address = 'test-member'
+      const network = NetworksEnum.baseMainnet
+      await expect(DaoController.getDaoByAddress(address, network)).to.be.rejectedWith(ErrorKeyEnum.notFound)
     })
   })
 })
