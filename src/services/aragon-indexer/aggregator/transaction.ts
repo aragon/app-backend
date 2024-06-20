@@ -150,7 +150,6 @@ export const AggregatorTransactions = {
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('New Transaction', llo({ logId: logDb?.id }))
-        return logDb
       })
     } catch (error) {
       logger.error('Error Transaction', llo({ error, logId: daoRegistry.id }))
