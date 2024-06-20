@@ -20,11 +20,11 @@ const SettingSchema = {
     id: Joi.string().required(),
   }),
 
-  getSettingByTransactionHash: Joi.object({
-    network: Joi.string()
+  getSettingByDaoAddress: Joi.object({
+    daoAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.required()
       .valid(...Object.values(NetworksEnum))
-      .required(),
-    fromTxHash: ValidationSchema.joiTransactionHash.required(),
+      .optional(),
   }),
 }
 

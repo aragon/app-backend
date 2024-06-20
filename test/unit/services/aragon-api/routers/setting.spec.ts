@@ -124,40 +124,40 @@ describe('Router: Setting', () => {
     })
   })
 
-  it('Should getSettingById', async () => {
+  it('Should getActiveSettingByDaoId', async () => {
     const params = {
-      id: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+      daoId: `${NetworksEnum.baseMainnet}-0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`,
     }
 
-    const stubCtrl = sandbox.stub(SettingController, 'getSettingById').returns(true as any)
+    const stubCtrl = sandbox.stub(SettingController, 'getActiveSettingByDaoId').returns(true as any)
 
     const ctx: any = {
       params,
     }
 
-    await SettingRouter.getSettingById(ctx)
+    await SettingRouter.getActiveSettingByDaoId(ctx)
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
-    expect(stubCtrl.calledWith(params.id)).to.be.true
+    expect(stubCtrl.calledWith(params.daoId)).to.be.true
   })
 
-  it('Should getSettingByTransactionHash', async () => {
+  it('Should getActiveSettingByDaoAddress', async () => {
     const params = {
       network: NetworksEnum.baseMainnet,
-      transactionHash: '0xdcff8f4477f3b39529de62394883707a2468d46bff3eb5e99335f5c49ec41f81',
+      daoAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
     }
 
-    const stubCtrl = sandbox.stub(SettingController, 'getSettingByTransactionHash').returns(true as any)
+    const stubCtrl = sandbox.stub(SettingController, 'getActiveSettingByDaoAddress').returns(true as any)
 
     const ctx: any = {
       params,
     }
 
-    await SettingRouter.getSettingByTransactionHash(ctx)
+    await SettingRouter.getActiveSettingByDaoAddress(ctx)
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
-    expect(stubCtrl.calledWith(params.transactionHash, params.network)).to.be.true
+    expect(stubCtrl.calledWith(params.daoAddress, params.network)).to.be.true
   })
 })
