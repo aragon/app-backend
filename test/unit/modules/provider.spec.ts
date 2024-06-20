@@ -8,6 +8,7 @@ import Logger from '@logger'
 import config from '@config'
 import logger from '@logger'
 import utils from '@helpers/utils'
+import provider from '@modules/provider'
 
 describe('Module: provider', () => {
   let sandbox: SinonSandbox
@@ -19,6 +20,30 @@ describe('Module: provider', () => {
   afterEach(async () => {
     await Provider.closeAllNetworks()
     sandbox?.restore()
+  })
+
+  it('networksMap', () => {
+    expect(provider.networksMap.ETHEREUM_MAINNET).to.equal(NetworksEnum.ethereumMainnet)
+    expect(provider.networksMap.ETHEREUM_SEPOLIA).to.equal(NetworksEnum.ethereumSepolia)
+    expect(provider.networksMap.POLYGON_MAINNET).to.equal(NetworksEnum.polygonMainnet)
+    expect(provider.networksMap.BASE_MAINNET).to.equal(NetworksEnum.baseMainnet)
+  })
+
+  it('should correctly parse ETHEREUM_MAINNET to NetworksEnum.ethereumMainnet', () => {
+    const result = provider.parseNetwork('ETHEREUM_MAINNET')
+    expect(result).to.equal(NetworksEnum.ethereumMainnet)
+
+    const result2 = provider.parseNetwork('ETHEREUM_SEPOLIA')
+    expect(result2).to.equal(NetworksEnum.ethereumSepolia)
+
+    const result3 = provider.parseNetwork('POLYGON_MAINNET')
+    expect(result3).to.equal(NetworksEnum.polygonMainnet)
+
+    const result4 = provider.parseNetwork('BASE_MAINNET')
+    expect(result4).to.equal(NetworksEnum.baseMainnet)
+
+    const result5 = provider.parseNetwork('ARBITRUM_MAINNET')
+    expect(result5).to.equal(NetworksEnum.arbitrumMainnet)
   })
 
   describe('connectToNetwork', async () => {
