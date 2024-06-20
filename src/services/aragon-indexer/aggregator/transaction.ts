@@ -14,6 +14,7 @@ import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import type Transaction from '@models/schema/transaction'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import Utils from '@helpers/utils'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorTransactions' })
 
@@ -108,10 +109,13 @@ export const AggregatorTransactions = {
         return
       }
 
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), daoRegistry.network)
+
       const transactionDb = await DbTx.executeTxFn(async ({ session }) => {
         const rawTx: Partial<Transaction> = {
           transactionHash: tx.hash,
-          blockNumber: tx.blockNum,
+          blockNumber: Number(tx.blockNum),
+          blockTimestamp,
           network: daoRegistry.network,
           type,
           daoAddress: daoRegistry.address,
