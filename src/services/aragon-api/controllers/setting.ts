@@ -33,18 +33,18 @@ const SettingController = {
     return result
   },
 
-  getSettingById: async (id: string): Promise<IProposalsResponse> => {
-    const proposal = await Models.Setting.findByEntityId(id)
-    assertExposable(proposal, ErrorKeyEnum.notFound)
+  getActiveSettingByDaoId: async (daoId: HexAddress): Promise<IProposalsResponse> => {
+    const daoDb = await Models.Dao.findByEntityId(daoId)
+    assertExposable(daoDb, ErrorKeyEnum.notFound)
 
-    return proposal.filterKeys()
+    return SettingController.getActiveSettingByDaoAddress(daoDb.address, daoDb.network)
   },
 
-  getSettingByTransactionHash: async (fromTxHash: HexAddress, network: NetworksEnum): Promise<IProposalsResponse> => {
-    const proposal = await Models.Setting.findByTransactionHash(fromTxHash, network)
-    assertExposable(proposal, ErrorKeyEnum.notFound)
+  getActiveSettingByDaoAddress: async (daoAddress: HexAddress, network: NetworksEnum): Promise<IProposalsResponse> => {
+    const setting = await Models.Setting.findActiveByDaoAddress(daoAddress, network)
+    assertExposable(setting, ErrorKeyEnum.notFound)
 
-    return proposal.filterKeys()
+    return setting.filterKeys()
   },
 }
 

@@ -30,25 +30,25 @@ const SettingRouter = {
     )
   },
 
-  getSettingById: async function (ctx: RouterContext) {
+  getActiveSettingByDaoId: async function (ctx: RouterContext) {
     const params = {
-      id: ctx.params.id,
+      id: ctx.params.daoId,
     }
 
-    const formattedValues = await ValidationSchema.validateParams(SettingSchema.getSettingById, params)
+    const formattedValues = await ValidationSchema.validateParams(SettingSchema.getDaoById, params)
 
-    ctx.body = await SettingController.getSettingById(formattedValues.id)
+    ctx.body = await SettingController.getActiveSettingByDaoId(formattedValues.id)
   },
 
-  getSettingByTransactionHash: async function (ctx: RouterContext) {
+  getActiveSettingByDaoAddress: async function (ctx: RouterContext) {
     const params = {
-      network: ctx.params.network,
-      fromTxHash: ctx.params.transactionHash,
+      network: ctx.params.network as NetworksEnum,
+      daoAddress: ctx.params.daoAddress,
     }
 
-    const formattedValues = await ValidationSchema.validateParams(SettingSchema.getSettingByTransactionHash, params)
+    const formattedValues = await ValidationSchema.validateParams(SettingSchema.getSettingByDaoAddress, params)
 
-    ctx.body = await SettingController.getSettingByTransactionHash(formattedValues.fromTxHash, formattedValues.network)
+    ctx.body = await SettingController.getActiveSettingByDaoAddress(formattedValues.daoAddress, formattedValues.network)
   },
 
   router() {
@@ -66,24 +66,24 @@ const SettingRouter = {
     router.get('/', SettingRouter.getWithPagination)
 
     /**
-     * @api {get} /:id Get Settings by id
-     * @apiName Settings
-     * @apiGroup Settings
-     * @apiDescription Get Setting by id
-     *
-     * @apiSampleRequest /:id
-     */
-    router.get('/:id', SettingRouter.getSettingById)
-
-    /**
-     * @api {get} /:network/:transactionHash Get Setting by transactionHash
+     * @api {get} /active/:network/:daoAddress Get Active Setting by daoAddress
      * @apiName Members
      * @apiGroup Members
-     * @apiDescription Get Setting by transactionHash
+     * @apiDescription Get Active Setting by daoAddress
      *
-     * @apiSampleRequest /:network/:transactionHash
+     * @apiSampleRequest /active/:network/:daoAddress
      */
-    router.get('/:network/:transactionHash', SettingRouter.getSettingByTransactionHash)
+    router.get('/active/:network/:daoAddress', SettingRouter.getActiveSettingByDaoAddress)
+
+    /**
+     * @api {get} /active/:daoId Get Active Setting by daoId
+     * @apiName Members
+     * @apiGroup Members
+     * @apiDescription Get Active Setting by daoId
+     *
+     * @apiSampleRequest /active/:daoId
+     */
+    router.get('/active/:daoId', SettingRouter.getActiveSettingByDaoId)
 
     return router
   },
