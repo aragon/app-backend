@@ -3,6 +3,7 @@ import {
   HexAddress,
   type IPaginatedResult,
   type IPaginationParams,
+  ITokenType,
   ITransactionCategory,
   type ITransactionExtraParams,
   type ITransactionIdParams,
@@ -24,6 +25,26 @@ class ERC1155Metadata {
 
   @prop({ type: () => String, default: null })
   public value!: string
+}
+
+class Token {
+  @prop({ type: () => String, enum: ITokenType, required: true })
+  public type!: ITokenType
+
+  @prop({ type: () => String, required: true })
+  public address!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public logo!: string
+
+  @prop({ type: () => String, default: null })
+  public name!: string
+
+  @prop({ type: () => String, default: null, uppercase: true })
+  public symbol!: string
+
+  @prop({ type: () => Number, default: 18 })
+  public decimals!: number
 }
 
 @modelOptions({
@@ -92,6 +113,9 @@ export default class Transaction extends Model {
 
   @prop({ type: () => String, default: null })
   public proposalId!: string
+
+  @prop({ type: () => Token, default: null })
+  public token?: Token
 
   static async create(rawData: Partial<Transaction>, tOpts?: SaveOptions) {
     if (!rawData.id) {
