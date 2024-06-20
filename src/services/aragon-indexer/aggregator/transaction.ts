@@ -13,7 +13,6 @@ import { UtilsIndexer } from '@indexer/utils/indexer'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import type Transaction from '@models/schema/transaction'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
-import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorTransactions' })
@@ -111,7 +110,7 @@ export const AggregatorTransactions = {
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), daoRegistry.network)
 
-      const transactionDb = await DbTx.executeTxFn(async ({ session }) => {
+      await DbTx.executeTxFn(async ({ session }) => {
         const rawTx: Partial<Transaction> = {
           transactionHash: tx.hash,
           blockNumber: Number(tx.blockNum),
@@ -132,18 +131,27 @@ export const AggregatorTransactions = {
           category: tx.category,
         }
 
+        if (tx.rawContract?.address) {
+          const token = await UtilsIndexer.saveAndGetToken(tx.rawContract?.address, daoRegistry.network)
+          // TODO: get historical price of the tx
+          if (token) {
+            rawTx.token = {
+              address: token.address,
+              symbol: token.symbol,
+              name: token.name,
+              type: token.type,
+              logo: token.logo,
+              decimals: token.decimals,
+            }
+          }
+        }
+
         const logDb = await Models.Transaction.create(rawTx, { session } as any)
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('New Transaction', llo({ logId: logDb?.id }))
         return logDb
       })
-
-      if (transactionDb.tokenAddress) {
-        Utils.setImmediateAsync(async () =>
-          UtilsIndexer.saveAndGetToken(transactionDb.tokenAddress, transactionDb.network),
-        )
-      }
     } catch (error) {
       logger.error('Error Transaction', llo({ error, logId: daoRegistry.id }))
     }
