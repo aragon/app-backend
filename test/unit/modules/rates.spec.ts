@@ -18,8 +18,20 @@ describe('Modules:RateModule', () => {
   })
 
   describe('fetchRate', () => {
+    it('should fetchRate with Covalent', async () => {
+      const expectedPrice = { priceUsd: '1', priceChangeOnDayUsd: 0.1, logo: 'fake-logo' }
+      const getCoinPriceStub = sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves(expectedPrice as any)
+
+      const result = await RateModule.fetchRate(ZeroAddress as any, NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal(expectedPrice)
+      expect(getCoinPriceStub.calledOnce).to.be.true
+      expect(getCoinPriceStub.calledWithExactly(ZeroAddress as HexAddress, NetworksEnum.ethereumMainnet)).to.be.true
+    })
+
     it('should fetchRate', async () => {
-      const expectedPrice = { priceUsd: 1, priceChangeOnDayUsd: 0.1, logo: 'fake-logo' }
+      const expectedPrice = { priceUsd: '1', priceChangeOnDayUsd: 0.1, logo: 'fake-logo' }
+      sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({ priceUsd: '0' } as any)
       const getCoinPriceStub = sandbox.stub(RateModule, 'fetchRateWithCoinGecko').resolves(expectedPrice as any)
 
       const result = await RateModule.fetchRate(ZeroAddress as any, NetworksEnum.ethereumMainnet)
@@ -63,7 +75,7 @@ describe('Modules:RateModule', () => {
 
   describe('fetchRateWithCovalent', () => {
     it('should fetchRateWithCovalent', async () => {
-      const expectedPrice = { priceUsd: 1, priceChangeOnDayUsd: 0.1, logo: 'fake-logo' }
+      const expectedPrice = { priceUsd: '1', priceChangeOnDayUsd: '0.1', logo: 'fake-logo' }
       const getCoinPriceStub = sandbox.stub(CovalentHelper, 'getToken').resolves(expectedPrice as any)
 
       const result = await RateModule.fetchRateWithCovalent(ZeroAddress as any, NetworksEnum.ethereumMainnet)
