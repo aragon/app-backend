@@ -133,6 +133,19 @@ export const PluginRepoRegistry = {
       inputs: [
         {
           indexed: false,
+          internalType: 'address',
+          name: 'pluginRepo',
+          type: 'address',
+        },
+      ],
+      name: 'PluginRepoRegistered',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
           internalType: 'string',
           name: 'subdomain',
           type: 'string',

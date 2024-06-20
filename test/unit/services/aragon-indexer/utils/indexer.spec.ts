@@ -6,6 +6,7 @@ import { Models } from '@dbModels'
 import { ITokenType, NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
+import { RateModule } from '@modules/rates'
 
 describe('Model/Utils: indexer', () => {
   let sandbox: SinonSandbox
@@ -29,6 +30,10 @@ describe('Model/Utils: indexer', () => {
     })
 
     it('should detect token type and create new token if not found', async () => {
+      const stubRate = sandbox.stub(RateModule, 'fetchRate').resolves({
+        priceUsd: '1',
+        priceChangeOnDayUsd: '0.1',
+      } as any)
       const stubFind = sandbox.stub(Models.Token, 'findExistingLog').resolves(null)
       const stubDetectTokenType = sandbox
         .stub(TokenDetector, 'detectTokenType')
@@ -43,6 +48,7 @@ describe('Model/Utils: indexer', () => {
 
       const token = await UtilsIndexer.saveAndGetToken('0x123', NetworksEnum.ethereumMainnet)
 
+      expect(stubRate.calledOnceWith('0x123', NetworksEnum.ethereumMainnet)).to.be.true
       expect(stubFind.calledOnce).to.be.true
       expect(stubDetectTokenType.calledOnce).to.be.true
       expect(stubGetToken.calledOnce).to.be.true
@@ -54,6 +60,8 @@ describe('Model/Utils: indexer', () => {
       expect(token!.symbol).to.eq('TKN')
       expect(token!.totalSupply).to.eq('2000')
       expect(token!.network).to.eq(NetworksEnum.ethereumMainnet)
+      expect(token!.priceUsd).to.eq('1')
+      expect(token!.priceChangeOnDayUsd).to.eq('0.1')
     })
 
     it('should detect token type unknown', async () => {
