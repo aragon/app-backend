@@ -15,6 +15,7 @@ const ProviderModule = {
     POLYGON_MAINNET: NetworksEnum.polygonMainnet,
     BASE_MAINNET: NetworksEnum.baseMainnet,
     ARBITRUM_MAINNET: NetworksEnum.arbitrumMainnet,
+    ZKSYNC_SEPOLIA: NetworksEnum.zksyncSepolia,
   },
 
   parseNetwork: (network: string) => {

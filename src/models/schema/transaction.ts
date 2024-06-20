@@ -15,7 +15,6 @@ import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
-import utils from '@helpers/utils'
 
 const customName = 'Transaction'
 
@@ -168,66 +167,7 @@ export default class Transaction extends Model {
     }
 
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([
-      this.aggregate([
-        { $match: filter },
-        {
-          $lookup: {
-            from: 'token',
-            let: {
-              tokenAddr: { $ifNull: ['$tokenAddress', utils.zeroAddress] },
-              net: '$network',
-            },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [{ $eq: ['$address', '$$tokenAddr'] }, { $eq: ['$network', '$$net'] }],
-                  },
-                },
-              },
-            ],
-            as: 'tokenDetails',
-          },
-        },
-        {
-          $unwind: {
-            path: '$tokenDetails',
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            entityId: 1,
-            transactionHash: 1,
-            blockNumber: 1,
-            network: 1,
-            type: 1,
-            category: 1,
-            fromAddress: 1,
-            toAddress: 1,
-            value: 1,
-            tokenAddress: 1,
-            daoAddress: 1,
-            token: {
-              address: '$tokenDetails.address',
-              symbol: '$tokenDetails.symbol',
-              name: '$tokenDetails.name',
-              type: '$tokenDetails.type',
-              logo: '$tokenDetails.logo',
-              decimals: '$tokenDetails.decimals',
-              priceChangeOnDayUsd: '$tokenDetails.priceChangeOnDayUsd',
-              priceUsd: '$tokenDetails.priceUsd',
-            },
-          },
-        },
-        { $sort: request.sort },
-        { $skip: request.skip },
-        { $limit: request.limit },
-      ]),
-      this.countDocuments(filter),
-    ])
+    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
 
@@ -242,7 +182,7 @@ export default class Transaction extends Model {
         totalPages,
         totalRecords,
       },
-      data,
+      data: data as any,
     }
   }
 
@@ -264,5 +204,12 @@ export default class Transaction extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
+  }
+
+  filterKeys() {
+    const obj = this.toObject()
+    const filtered = _.omit(obj, '_id', '__v', 'hideDao', 'createdAt', 'updatedAt')
+    filtered.token = _.omit(filtered, '_id', '__v')
+    return filtered
   }
 }

@@ -26,6 +26,7 @@ export interface IConfig {
     POLYGON_MAINNET: number
     BASE_MAINNET: number
     ARBITRUM_MAINNET: number
+    ZKSYNC_SEPOLIA: number
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
@@ -92,6 +93,7 @@ export interface IConfig {
     POLYGON_MAINNET: string | null
     BASE_MAINNET: string | null
     ARBITRUM_MAINNET: string | null
+    ZKSYNC_SEPOLIA: string | null
   }
 
   SERVICES: {
