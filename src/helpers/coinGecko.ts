@@ -1,10 +1,4 @@
-import {
-  type HexAddress,
-  type INetworks,
-  type ITokenCoinGeckoResponse,
-  type ITokenPriceCoinGecko,
-  NetworksEnum,
-} from '@types'
+import { type HexAddress, type ITokenCoinGeckoResponse, type ITokenPriceCoinGecko, NetworksEnum } from '@types'
 import config from '@config'
 import axios from 'axios'
 import logger from '@logger'
@@ -26,24 +20,25 @@ const CoinGeckoHelper = {
   unsupportedNetworks: [NetworksEnum.ethereumSepolia],
 
   networksMap: {
-    ethereumMainnet: 'ethereum',
-    polygonMainnet: 'polygon-pos',
-    baseMainnet: 'base',
-    arbitrumMainnet: 'arbitrum-nova',
+    [NetworksEnum.ethereumMainnet]: 'ethereum',
+    [NetworksEnum.polygonMainnet]: 'polygon-pos',
+    [NetworksEnum.baseMainnet]: 'base',
+    [NetworksEnum.arbitrumMainnet]: 'arbitrum-nova',
   },
 
   coinsMap: {
-    polygonMainnet: 'polygon-ecosystem-token',
-    ethereumMainnet: 'ethereum',
-    baseMainnet: 'base',
-    arbitrumMainnet: 'arbitrum',
+    [NetworksEnum.polygonMainnet]: 'polygon-ecosystem-token',
+    [NetworksEnum.ethereumMainnet]: 'ethereum',
+    [NetworksEnum.baseMainnet]: 'base',
+    [NetworksEnum.arbitrumMainnet]: 'arbitrum',
+    [NetworksEnum.ethereumSepolia]: 'ethereum',
   },
 
-  networkToCoinGecko: (network: INetworks) => {
+  networkToCoinGecko: (network: NetworksEnum) => {
     return CoinGeckoHelper.networksMap[network]
   },
 
-  coinToCoinGecko: (network: INetworks) => {
+  coinToCoinGecko: (network: NetworksEnum) => {
     return CoinGeckoHelper.coinsMap[network]
   },
 

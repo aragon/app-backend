@@ -1,4 +1,4 @@
-import { type ENS, type HexAddress, type INetworks, type NetworksEnum } from './networks'
+import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 import { type ITokenType } from '@src/types/token'
 
 export interface IStatusResponse {
@@ -6,7 +6,7 @@ export interface IStatusResponse {
   appName: string
   nodeVersion: string
   environment: string
-  supportedNetworks: INetworks[]
+  supportedNetworks: NetworksEnum[]
   appVersionPackage: string
   time: string
 }
