@@ -205,33 +205,69 @@ describe('Controller: Setting', () => {
     })
   })
 
-  describe('getSettingById', () => {
-    it('should getSettingById', async () => {
-      const setting = await SettingController.getSettingById(settingDb.id)
-      expect(setting.id).to.eq(settingDb.id)
+  describe('getActiveSettingByDaoId', () => {
+    it('should getActiveSettingByDaoAddress', async () => {
+      const newSettingDb = await Models.Setting.create({
+        daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
+        pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
+        network: NetworksEnum.polygonMainnet,
+        fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef0',
+        fromBlockNumber: 47758873,
+        settings: {
+          votingMode: 1,
+          supportThreshold: 500000,
+          minParticipation: 150000,
+          minDuration: 86400,
+          minProposerVotingPower: '5e+18',
+
+          minApprovals: 1,
+          onlyListed: true,
+        },
+      })
+
+      sandbox
+        .stub(Models.Dao, 'findByEntityId')
+        .resolves({ network: newSettingDb.network, address: newSettingDb.daoAddress })
+      const setting = await SettingController.getActiveSettingByDaoId(settingDb.id)
+      expect(setting.id).to.eq(newSettingDb.id)
     })
 
-    it('should fail to getSettingById', async () => {
-      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
-      const settingId = 'test-member'
-      await expect(SettingController.getSettingById(settingId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    it('should fail to getActiveSettingByDaoAddress', async () => {
+      sandbox.stub(Models.Setting, 'findActiveByDaoAddress').resolves(null)
+      await expect(
+        SettingController.getActiveSettingByDaoAddress(settingDb.daoAddress, settingDb.network),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
     })
   })
 
-  describe('getSettingByTransactionHash', () => {
-    it('should get by TransactionHash', async () => {
-      const setting = await SettingController.getSettingByTransactionHash(
-        settingDb.fromTxHash as any,
-        settingDb.network,
-      )
-      expect(setting.id).to.eq(settingDb.id)
+  describe('getActiveSettingByDaoAddress', () => {
+    it('should getActiveSettingByDaoAddress', async () => {
+      const newSettingDb = await Models.Setting.create({
+        daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
+        pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
+        network: NetworksEnum.polygonMainnet,
+        fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef0',
+        fromBlockNumber: 47758873,
+        settings: {
+          votingMode: 1,
+          supportThreshold: 500000,
+          minParticipation: 150000,
+          minDuration: 86400,
+          minProposerVotingPower: '5e+18',
+
+          minApprovals: 1,
+          onlyListed: true,
+        },
+      })
+
+      const setting = await SettingController.getActiveSettingByDaoAddress(settingDb.daoAddress, settingDb.network)
+      expect(setting.id).to.eq(newSettingDb.id)
     })
 
-    it('should fail to get by TransactionHash', async () => {
-      sandbox.stub(Models.Proposal, 'findByTransactionHash').resolves(null)
-      const transactionHash = '0x02324' as any
+    it('should fail to getActiveSettingByDaoAddress', async () => {
+      sandbox.stub(Models.Setting, 'findActiveByDaoAddress').resolves(null)
       await expect(
-        SettingController.getSettingByTransactionHash(transactionHash, settingDb.network),
+        SettingController.getActiveSettingByDaoAddress(settingDb.daoAddress, settingDb.network),
       ).to.be.rejectedWith(ErrorKeyEnum.notFound)
     })
   })

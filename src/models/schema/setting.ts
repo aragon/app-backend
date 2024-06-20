@@ -106,6 +106,12 @@ export default class Setting extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
+  static async findActiveByDaoAddress(daoAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    const toBlockNumber = null
+    const toTxHash = null
+    return await this.findOne({ daoAddress, network, toBlockNumber, toTxHash }, tOpts)
+  }
+
   static async findByTransactionHash(fromTxHash: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
     return await this.findOne({ fromTxHash, network }, tOpts)
   }
