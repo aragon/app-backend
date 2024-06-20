@@ -16,11 +16,13 @@ export const RateModule = {
   }> => {
     const rate = await RateModule.fetchRateWithCovalent(tokenAddress, network)
 
-    if (rate.priceUsd === '0') {
-      return await RateModule.fetchRateWithCoinGecko(tokenAddress, network)
-    } else {
-      return rate
-    }
+    // Note: its disabled because we need paid plan to have decent rate limit
+    // if (rate.priceUsd === '0') {
+    //   return await RateModule.fetchRateWithCoinGecko(tokenAddress, network)
+    // } else {
+    //   return rate
+    // }
+    return rate
   },
 
   fetchRateWithCovalent: async (
