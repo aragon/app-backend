@@ -36,6 +36,10 @@ export interface IMongoModel {
   ConfigIndexer: typeof ConfigIndexer
 }
 
+export enum IEventLogPluginMembership {
+  MembershipContractAnnounced = 'MembershipContractAnnounced',
+}
+
 export enum IEventLogPluginType {
   InstallationPrepared = 'InstallationPrepared',
   InstallationApplied = 'InstallationApplied',
