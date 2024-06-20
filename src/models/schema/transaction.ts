@@ -54,6 +54,9 @@ export default class Transaction extends Model {
   @prop({ type: () => Number, required: true })
   public blockNumber!: number
 
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
+
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
