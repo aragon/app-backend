@@ -82,10 +82,11 @@ const ModelUtils = {
     }
   },
 
-  paginateEmptyResponse(): IPaginatedResult<any> {
+  paginateEmptyResponse(pageSize: number): IPaginatedResult<any> {
     return {
       metadata: {
-        currentPage: 1,
+        page: 1,
+        pageSize,
         totalRecords: 0,
         totalPages: 1,
       },

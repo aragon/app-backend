@@ -1,5 +1,5 @@
 import utils from '@helpers/utils'
-import { type IConfig, NetworksEnum } from '@types'
+import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum } from '@types'
 
 const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
@@ -12,6 +12,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     SUPPORTED_NETWORKS: utils.configParser(sourceConfig, 'array', 'SUPPORTED_NETWORKS', Object.values(NetworksEnum)),
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
     ENS_DOMAIN: utils.configParser(sourceConfig, 'string', 'ENS_DOMAIN', 'dao.eth'),
+    SUPPORTED_ENS_NETWORKS: utils.configParser(
+      sourceConfig,
+      'array',
+      'SUPPORTED_ENS_NETWORKS',
+      Object.values(SupportedEnsNetworksEnum),
+    ),
 
     NODE_CONFIG: {
       MAX_RECONNECT_ATTEMPTS: utils.configParser(sourceConfig, 'number', 'NODE_CONFIG_MAX_RECONNECT_ATTEMPTS', 10),
@@ -19,11 +25,16 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     ARAGON_SUPPORTED_BLOCK: {
-      MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_MAINNET', 16721863),
-      SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_SEPOLIA', 4421517),
-      POLYGON: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_POLYGON', 40830344),
-      BASE: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_BASE', 2094740),
-      ARBITRUM: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ARBITRUM', 145462209),
+      ETHEREUM_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ETHEREUM_MAINNET', 16721863),
+      ETHEREUM_SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ETHEREUM_SEPOLIA', 4421517),
+      POLYGON_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_POLYGON_MAINNET', 40830344),
+      BASE_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_BASE_MAINNET', 2094740),
+      ARBITRUM_MAINNET: utils.configParser(
+        sourceConfig,
+        'number',
+        'ARAGON_SUPPORTED_BLOCK_ARBITRUM_MAINNET',
+        145462209,
+      ),
     },
 
     BOTTLENECK: {
@@ -101,11 +112,11 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     BLOCKCHAIN_NODES: {
-      MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_MAINNET', null),
-      SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_SEPOLIA', null),
-      POLYGON: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_POLYGON', null),
-      BASE: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE', null),
-      ARBITRUM: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM', null),
+      ETHEREUM_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ETHEREUM_MAINNET', null),
+      ETHEREUM_SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ETHEREUM_SEPOLIA', null),
+      POLYGON_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_POLYGON_MAINNET', null),
+      BASE_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE_MAINNET', null),
+      ARBITRUM_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM_MAINNET', null),
     },
 
     SERVICES: {

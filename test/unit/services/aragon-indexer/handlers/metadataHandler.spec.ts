@@ -29,7 +29,7 @@ describe('Indexer: MetadataHandler', () => {
         args: { metadata: 'fake-metadata' },
       }
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -38,7 +38,7 @@ describe('Indexer: MetadataHandler', () => {
 
       sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves({
         address: '0x123',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       } as any)
 
       const decodeHelper = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://fake-uri')
@@ -62,7 +62,7 @@ describe('Indexer: MetadataHandler', () => {
         args: { metadata: 'fake-metadata' },
       }
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -71,7 +71,7 @@ describe('Indexer: MetadataHandler', () => {
 
       sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves({
         address: '0x123',
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
       } as any)
 
       const decodeHelper = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://fake-uri')
@@ -91,7 +91,7 @@ describe('Indexer: MetadataHandler', () => {
         args: { metadata: 'fake-metadata' },
       }
       const logInfo = {
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -104,7 +104,12 @@ describe('Indexer: MetadataHandler', () => {
       await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubFindLog.calledWith(logInfo.transactionHash, logInfo.address)).to.be.true
+      expect(
+        stubFindLog.calledWith({
+          transactionHash: logInfo.transactionHash,
+          daoAddress: logInfo.address,
+        }),
+      ).to.be.true
     })
   })
 })

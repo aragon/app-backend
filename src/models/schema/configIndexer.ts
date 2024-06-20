@@ -1,13 +1,14 @@
 import { modelOptions, prop } from '@typegoose/typegoose'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { NetworksEnum } from '@types'
+import { type IConfigIndexerIdParams, NetworksEnum } from '@types'
 import { assert } from '@errors'
 
 const customName = 'ConfigIndexer'
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'configIndexer',
     toJSON: { virtuals: true },
@@ -19,7 +20,7 @@ const customName = 'ConfigIndexer'
 })
 export default class ConfigIndexer extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -31,27 +32,30 @@ export default class ConfigIndexer extends Model {
   public lastSync!: number
 
   static async create(rawData: Partial<ConfigIndexer>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.service, 'service is required')
-      rawData.entityId = this.getEntityId(rawData?.network!, rawData?.service!)
+      rawData.id = this.getEntityId({
+        network: rawData?.network!,
+        service: rawData?.service!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(network: NetworksEnum, service: string) {
-    const entityId = `${network}-${service}`
+  static getEntityId(params: IConfigIndexerIdParams) {
+    const entityId = `${params.network}-${params.service}`
     return entityId
   }
 
-  static async findExistingLog(network: NetworksEnum, service: string, tOpts?: SaveOptions) {
-    const entityId = this.getEntityId(network, service)
+  static async findExistingLog(params: IConfigIndexerIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
   async update(params: Partial<ConfigIndexer>, tOpts?: SaveOptions) {

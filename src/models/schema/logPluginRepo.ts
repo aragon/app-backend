@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, NetworksEnum } from '@types'
+import { HexAddress, type ILogPluginRepoIdParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -8,6 +8,7 @@ const customName = 'LogPluginRepo'
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'logPluginRepo',
     toJSON: { virtuals: true },
@@ -22,7 +23,7 @@ const customName = 'LogPluginRepo'
 })
 export default class LogPluginRepo extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
@@ -40,27 +41,27 @@ export default class LogPluginRepo extends Model {
   public pluginRepo!: HexAddress
 
   static async create(rawData: Partial<LogPluginRepo>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginRepo, 'pluginRepo is required')
-      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.pluginRepo!)
+      rawData.id = this.getEntityId({ transactionHash: rawData?.transactionHash!, pluginRepo: rawData?.pluginRepo! })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(transactionHash: HexAddress, pluginRepo: HexAddress) {
-    const entityId = `${transactionHash}-${pluginRepo}`
+  static getEntityId(params: ILogPluginRepoIdParams) {
+    const entityId = `${params.transactionHash}-${params.pluginRepo}`
     return entityId
   }
 
-  static async findExistingLog(transactionHash: HexAddress, pluginRepo: HexAddress, tOpts?: SaveOptions) {
-    const entityId = this.getEntityId(transactionHash, pluginRepo)
+  static async findExistingLog(params: ILogPluginRepoIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
   async update(params: Partial<LogPluginRepo>, tOpts?: SaveOptions) {

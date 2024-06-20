@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, IEventLogPluginType, NetworksEnum } from '@types'
+import { HexAddress, IEventLogPluginType, type ILogPluginSetupProcessorIdParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -25,6 +25,7 @@ class Permission {
 
 @modelOptions({
   schemaOptions: {
+    id: false,
     timestamps: true,
     collection: 'logPluginSetupProcessor',
     toJSON: { virtuals: true },
@@ -40,7 +41,7 @@ class Permission {
 })
 export default class LogPluginSetupProcessor extends Model {
   @prop({ type: () => String, required: true, unique: true })
-  public entityId!: string
+  public id!: string
 
   @prop({ type: () => String, enum: IEventLogPluginType, required: true })
   public event!: string
@@ -85,22 +86,22 @@ export default class LogPluginSetupProcessor extends Model {
   public tokenAddress!: HexAddress // voting token address
 
   static async create(rawData: Partial<LogPluginSetupProcessor>, tOpts?: SaveOptions) {
-    if (!rawData.entityId) {
+    if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.event, 'event is required')
-      rawData.entityId = this.getEntityId(rawData?.transactionHash!, rawData?.event as any)
+      rawData.id = this.getEntityId({ transactionHash: rawData?.transactionHash!, event: rawData?.event as any })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(transactionHash: HexAddress, event: IEventLogPluginType) {
-    const entityId = `${transactionHash}-${event}`
+  static getEntityId(params: ILogPluginSetupProcessorIdParams) {
+    const entityId = `${params.transactionHash}-${params.event}`
     return entityId
   }
 
-  static async findExistingLog(transactionHash: HexAddress, event: IEventLogPluginType, tOpts?: SaveOptions) {
-    const entityId = this.getEntityId(transactionHash, event)
+  static async findExistingLog(params: ILogPluginSetupProcessorIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
 
@@ -116,7 +117,7 @@ export default class LogPluginSetupProcessor extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ entityId }, tOpts)
+    return await this.findOne({ id: entityId }, tOpts)
   }
 
   async update(params: Partial<LogPluginSetupProcessor>, tOpts?: SaveOptions) {

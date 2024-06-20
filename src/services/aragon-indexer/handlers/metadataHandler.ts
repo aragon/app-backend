@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type HexAddress, type ILogInfo } from '@types'
+import { type ILogInfo } from '@types'
 import { Interface, type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -30,10 +30,12 @@ export const MetadataHandler = {
     try {
       const daoAddress = info.address
 
-      const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog(info.transactionHash, daoAddress)
-
+      const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog({
+        transactionHash: info.transactionHash,
+        daoAddress,
+      })
       if (!existingDaoMetadata) {
-        const isDaoExists = await Models.LogDaoRegistry.findByAddress(daoAddress as HexAddress, info.network)
+        const isDaoExists = await Models.LogDaoRegistry.findByAddress(daoAddress, info.network)
 
         if (isDaoExists) {
           const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)
@@ -43,18 +45,18 @@ export const MetadataHandler = {
           await DbTx.executeTxFn(async ({ session }) => {
             const logDaoMetadata = {
               network: info.network,
-              metadataUri,
+              metadataUri: metadataUri!,
               daoAddress,
               fetchedMetadata: !!ipfsMetadata,
               blockNumber: info.blockNumber,
               transactionHash: info.transactionHash,
-              name: ipfsMetadata?.name,
-              description: ipfsMetadata?.description,
-              avatar: ipfsMetadata?.avatar,
-              links: ipfsMetadata?.links,
+              name: ipfsMetadata?.name!,
+              description: ipfsMetadata?.description!,
+              avatar: ipfsMetadata?.avatar!,
+              links: ipfsMetadata?.links!,
             }
 
-            const logDb = await Models.LogDaoMetadata.create(logDaoMetadata, { session })
+            const logDb = await Models.LogDaoMetadata.create(logDaoMetadata, { session } as any)
 
             await session.commitTransaction()
             await session.endSession()

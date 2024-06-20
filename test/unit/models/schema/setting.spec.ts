@@ -12,26 +12,23 @@ describe('Model: Setting', () => {
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
     rawSetting = {
-      pluginAddress: '0x1C9776b903DbA78C597C0512c6291F618d20427f',
-      network: NetworksEnum.mainnet,
-      history: [
-        {
-          fromBlockNumber: 41326113,
-          toBlockNumber: 41847296,
-          fromTxHash: '0x2f0dd7d3799da5079efbf5623c062c846d3289ccc6011194f4c83c6b9a6535eb',
-          toTxHash: '0x2f0dd7d3799da5079efbf5623c062c846d3289ccc6011194f4c83c6b9a653500',
-          settings: {
-            votingMode: 1,
-            supportThreshold: 670000,
-            minParticipation: 50000,
-            minDuration: 86400,
-            minProposerVotingPower: '1e+23',
+      daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
+      pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
+      network: NetworksEnum.polygonMainnet,
+      fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef8',
+      toTxHash: '0x11ed65ce6ba3dbed7194ead9d3ffdfafdb921f39b1e55bd5139f0277ea219083',
+      fromBlockNumber: 47758873,
+      toBlockNumber: 48097896,
+      settings: {
+        votingMode: 1,
+        supportThreshold: 500000,
+        minParticipation: 150000,
+        minDuration: 86400,
+        minProposerVotingPower: '5e+18',
 
-            minApprovals: 1,
-            onlyListed: true,
-          },
-        },
-      ],
+        minApprovals: 1,
+        onlyListed: true,
+      },
     }
   })
 
@@ -41,38 +38,61 @@ describe('Model: Setting', () => {
 
   describe('Create Setting', async () => {
     it('Should create Setting', async () => {
-      const entityId = Models.Setting.getEntityId(rawSetting.pluginAddress, rawSetting.network)
-      rawSetting.entityId = entityId
+      rawSetting.id = Models.Setting.getEntityId({ fromTxHash: rawSetting.fromTxHash!, network: rawSetting.network! })
       const createdLogDao = await Models.Setting.create(rawSetting)
 
-      expect(createdLogDao.id).to.exist
-      expect(createdLogDao.entityId).to.eq(rawSetting.entityId)
+      expect(createdLogDao.id).to.eq(rawSetting.id)
       expect(createdLogDao.pluginAddress).to.eq(rawSetting.pluginAddress)
       expect(createdLogDao.network).to.eq(rawSetting.network)
 
-      expect(createdLogDao.history[0].fromTxHash).to.eq(rawSetting?.history?.[0]?.fromTxHash)
-      expect(createdLogDao.history[0].toTxHash).to.eq(rawSetting?.history?.[0]?.toTxHash)
-      expect(createdLogDao.history[0].fromBlockNumber).to.eq(rawSetting?.history?.[0]?.fromBlockNumber)
-      expect(createdLogDao.history[0].toBlockNumber).to.eq(rawSetting?.history?.[0]?.toBlockNumber)
-      expect(createdLogDao.history[0].settings.votingMode).to.eq(rawSetting?.history?.[0]?.settings?.votingMode)
-      expect(createdLogDao.history[0].settings.supportThreshold).to.eq(
-        rawSetting?.history?.[0]?.settings?.supportThreshold,
-      )
-      expect(createdLogDao.history[0].settings.minParticipation).to.eq(
-        rawSetting?.history?.[0]?.settings?.minParticipation,
-      )
-      expect(createdLogDao.history[0].settings.minDuration).to.eq(rawSetting?.history?.[0]?.settings?.minDuration)
-      expect(createdLogDao.history[0].settings.minProposerVotingPower).to.eq(
-        rawSetting?.history?.[0]?.settings?.minProposerVotingPower,
-      )
-      expect(createdLogDao.history[0].settings.minApprovals).to.eq(rawSetting?.history?.[0]?.settings?.minApprovals)
-      expect(createdLogDao.history[0].settings.onlyListed).to.eq(rawSetting?.history?.[0]?.settings?.onlyListed)
+      expect(createdLogDao.fromTxHash).to.eq(rawSetting?.fromTxHash)
+      expect(createdLogDao.toTxHash).to.eq(rawSetting?.toTxHash)
+      expect(createdLogDao.fromBlockNumber).to.eq(rawSetting?.fromBlockNumber)
+      expect(createdLogDao.toBlockNumber).to.eq(rawSetting?.toBlockNumber)
+      expect(createdLogDao.settings.votingMode).to.eq(rawSetting?.settings?.votingMode)
+      expect(createdLogDao.settings.supportThreshold).to.eq(rawSetting?.settings?.supportThreshold)
+      expect(createdLogDao.settings.minParticipation).to.eq(rawSetting?.settings?.minParticipation)
+      expect(createdLogDao.settings.minDuration).to.eq(rawSetting?.settings?.minDuration)
+      expect(createdLogDao.settings.minProposerVotingPower).to.eq(rawSetting?.settings?.minProposerVotingPower)
+      expect(createdLogDao.settings.minApprovals).to.eq(rawSetting?.settings?.minApprovals)
+      expect(createdLogDao.settings.onlyListed).to.eq(rawSetting?.settings?.onlyListed)
     })
+  })
+
+  it('Should getEntityId', async () => {
+    const fromTxHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+    const network = NetworksEnum.ethereumMainnet
+    const entityId = Models.Setting.getEntityId({ fromTxHash, network })
+    expect(entityId).to.eq(`${fromTxHash}-${network}`)
+  })
+
+  it('Should findExistingLog', async () => {
+    const createdLogPluginSetupProcessor = await Models.Setting.create(rawSetting)
+    const foundLogPluginSetupProcessor = await Models.Setting.findExistingLog({
+      fromTxHash: createdLogPluginSetupProcessor.fromTxHash,
+      network: createdLogPluginSetupProcessor.network,
+    })
+    expect(foundLogPluginSetupProcessor?.id).to.eq(createdLogPluginSetupProcessor.id)
+  })
+
+  it('Should findByEntityId', async () => {
+    const createdLogPluginSetupProcessor = await Models.Setting.create(rawSetting)
+    const foundLogPluginSetupProcessor = await Models.Setting.findByEntityId(createdLogPluginSetupProcessor.id)
+    expect(foundLogPluginSetupProcessor?.id).to.eq(createdLogPluginSetupProcessor.id)
+  })
+
+  it('Should findByTransactionHash', async () => {
+    const createdProposal = await Models.Setting.create(rawSetting)
+    const foundProposal = await Models.Setting.findByTransactionHash(
+      createdProposal.fromTxHash,
+      createdProposal.network,
+    )
+    expect(foundProposal?.id).to.eq(createdProposal.id)
   })
 
   it('Should update Setting', async () => {
     const createdLogDao = await Models.Setting.create(rawSetting)
-    expect(createdLogDao.plugin).to.eq(rawSetting.plugin)
+    expect(createdLogDao.pluginAddress).to.eq(rawSetting.pluginAddress)
 
     await createdLogDao.update({
       pluginAddress: '0x00',
@@ -81,62 +101,128 @@ describe('Model: Setting', () => {
     expect(createdLogDao.pluginAddress).to.eq('0x00')
   })
 
-  it('Should getEntityId', async () => {
-    const pluginAddress = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const network = NetworksEnum.mainnet
-    const entityId = Models.Setting.getEntityId(pluginAddress, network)
-    expect(entityId).to.eq(`${pluginAddress}-${network}`)
-  })
-
-  it('Should findExistingLog', async () => {
-    const createdLogPluginSetupProcessor = await Models.Setting.create(rawSetting)
-    const foundLogPluginSetupProcessor = await Models.Setting.findExistingLog(
-      createdLogPluginSetupProcessor.pluginAddress,
-      createdLogPluginSetupProcessor.network,
-    )
-    expect(foundLogPluginSetupProcessor?.entityId).to.eq(createdLogPluginSetupProcessor.entityId)
-  })
-
-  it('Should findByEntityId', async () => {
-    const createdLogPluginSetupProcessor = await Models.Setting.create(rawSetting)
-    const foundLogPluginSetupProcessor = await Models.Setting.findByEntityId(createdLogPluginSetupProcessor.entityId)
-    expect(foundLogPluginSetupProcessor?.entityId).to.eq(createdLogPluginSetupProcessor.entityId)
-  })
-
-  it('Should getSettingByPluginAddress', async () => {
-    rawSetting = {
-      pluginAddress: '0x1C9776b903DbA78C597C0512c6291F618d20427f',
-      network: NetworksEnum.mainnet,
-      history: [
-        {
-          fromBlockNumber: 41326113,
-          fromTxHash: '0x2f0dd7d3799da5079efbf5623c062c846d3289ccc6011194f4c83c6b9a6535eb',
-          toTxHash: '0x2f0dd7d3799da5079efbf5623c062c846d3289ccc6011194f4c83c6b9a653500',
-          settings: {
-            votingMode: 1,
-            supportThreshold: 670000,
-            minParticipation: 50000,
-            minDuration: 86400,
-            minProposerVotingPower: '1e+23',
-
-            minApprovals: 1,
-            onlyListed: true,
-          },
-        },
-      ],
-    }
-
-    const createdLogPluginSetupProcessor = await Models.Setting.create(rawSetting)
-    const foundLogPluginSetupProcessor = await Models.Setting.getSettingByPluginAddress(
-      createdLogPluginSetupProcessor.pluginAddress,
-    )
-    expect(foundLogPluginSetupProcessor?.transactionHash).to.eq(createdLogPluginSetupProcessor.history[0].fromTxHash)
-  })
-
   it('Should reload', async () => {
     const createdLogDao = await Models.Setting.create(rawSetting)
     await createdLogDao.reload()
 
     expect(createdLogDao.fromTxHash).to.eq(rawSetting.fromTxHash)
+  })
+
+  describe('Pagination', () => {
+    beforeEach(async () => {
+      const fakeSettings = [
+        {
+          daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
+          pluginAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
+          network: NetworksEnum.polygonMainnet,
+          fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef8',
+          fromBlockNumber: 47758873,
+          settings: {
+            votingMode: 1,
+            supportThreshold: 500000,
+            minParticipation: 150000,
+            minDuration: 86400,
+            minProposerVotingPower: '5e+18',
+          },
+        },
+        {
+          daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
+          pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
+          network: NetworksEnum.polygonMainnet,
+          fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef9',
+          fromBlockNumber: 47758873,
+          settings: {
+            minApprovals: 1,
+            onlyListed: true,
+          },
+        },
+      ]
+
+      await Promise.all(fakeSettings.map(w => Models.Setting.create(w)))
+    })
+
+    it('Should find Pagination', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Setting.findWithPagination({
+        extraParams: {},
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(2)
+      expect(totalRecords).to.eq(2)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
+    it('Should find Pagination with onlyActive', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Setting.findWithPagination({
+        extraParams: {
+          onlyActive: true,
+          network: NetworksEnum.polygonMainnet,
+          pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
+        },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(1)
+      expect(totalRecords).to.eq(1)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
+    it('Should find Pagination with pluginAddress', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Setting.findWithPagination({
+        extraParams: {
+          network: NetworksEnum.polygonMainnet,
+          pluginAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
+        },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(1)
+      expect(totalRecords).to.eq(1)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
+    it('Should not found documents', async () => {
+      const opts = {
+        page: 7,
+        pageSize: 2,
+      }
+
+      const result = await Models.Setting.findWithPagination({
+        extraParams: {},
+        paginationParams: opts,
+      })
+
+      expect(result.data.length).to.eq(0)
+      expect(result.metadata.totalRecords).to.eq(0)
+      expect(result.metadata.page).to.eq(1)
+      expect(result.metadata.totalPages).to.eq(1)
+    })
+  })
+
+  it('Should filterKeys', async () => {
+    const createdDao = await Models.Setting.create(rawSetting)
+    const filterDao = createdDao.filterKeys()
+
+    expect(filterDao.id).to.exist
+    expect(filterDao._id).to.be.undefined
+    expect(filterDao.__v).to.be.undefined
+    expect(filterDao.createdAt).to.be.undefined
+    expect(filterDao.updatedAt).to.be.undefined
+    expect(Object.keys(filterDao).length).to.eq(10)
   })
 })

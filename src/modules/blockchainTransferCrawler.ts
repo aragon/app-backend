@@ -7,12 +7,12 @@ import {
   type IEnumIndexerService,
   NetworksEnum,
 } from '@types'
-import Utils from '@helpers/utils'
 import BottleneckModule from '@modules/bottleneck'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import config from '@config'
 import DbTx from '@modules/dbTx'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainTransferCrawler' })
 
@@ -89,7 +89,7 @@ class BlockchainTransferCrawler {
   async getBlockNumber(blockNumber: string | number | undefined): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
-        return await BottleneckModule.getNodeTransferLimiter(NetworksEnum.mainnet)!.schedule(async () =>
+        return await BottleneckModule.getNodeTransferLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
           this.provider.getBlockNumber(),
         )
       } catch (error) {
@@ -178,7 +178,7 @@ class BlockchainTransferCrawler {
       this.batchSize = Math.max(1, Math.floor(this.batchSize / 2))
       logger.warn('Reducing batch size due to error', llo({ newBatchSize: this.batchSize }))
     } else if (this.isRateLimited(error)) {
-      await Utils.wait(2000)
+      await utils.wait(2000)
     } else {
       this.shutdown = true
       this.onError(error)
@@ -223,14 +223,20 @@ class BlockchainTransferCrawler {
   }
 
   async getServiceStartBlock() {
-    const existingConfig = await Models.ConfigIndexer.findExistingLog(this.crawlResult.network, this.logService)
+    const existingConfig = await Models.ConfigIndexer.findExistingLog({
+      network: this.crawlResult.network,
+      service: this.logService!,
+    })
     return existingConfig
       ? existingConfig.lastSync
-      : config.ARAGON_SUPPORTED_BLOCK[this.crawlResult.network.toUpperCase()]
+      : config.ARAGON_SUPPORTED_BLOCK[utils.networkToAragon(this.crawlResult.network)]
   }
 
   async onSaveProgress(blockNumber: number) {
-    const existingConfig = await Models.ConfigIndexer.findExistingLog(this.crawlResult.network, this.logService)
+    const existingConfig = await Models.ConfigIndexer.findExistingLog({
+      network: this.crawlResult.network,
+      service: this.logService!,
+    })
 
     await DbTx.executeTxFn(async ({ session }) => {
       if (existingConfig) {
@@ -239,10 +245,10 @@ class BlockchainTransferCrawler {
         await Models.ConfigIndexer.create(
           {
             network: this.crawlResult.network,
-            service: this.logService,
+            service: this.logService!,
             lastSync: blockNumber,
           },
-          { session },
+          { session } as any,
         )
       }
 

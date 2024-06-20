@@ -74,7 +74,7 @@ describe('Indexer: LogMember', () => {
 
   describe('processLog', () => {
     it('should process', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const txLog = {
         transactionHash: '0x123',
         address: '0x456',
@@ -110,7 +110,7 @@ describe('Indexer: LogMember', () => {
     })
 
     it('should not processLog unknown event', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const txLog: any = {
         transactionHash: '0x123',
         address: '0x456',
@@ -136,7 +136,7 @@ describe('Indexer: LogMember', () => {
     })
 
     it('should ignore not parsed event', async () => {
-      const network = NetworksEnum.mainnet
+      const network = NetworksEnum.ethereumMainnet
       const txLog: any = {
         transactionHash: '0x123',
         address: '0x456',
@@ -159,7 +159,7 @@ describe('Indexer: LogMember', () => {
     const error = new Error('Test error')
     const loggerStub = sandbox.stub(logger, 'error')
 
-    await LogMember.processError(error, NetworksEnum.mainnet)
+    await LogMember.processError(error, NetworksEnum.ethereumMainnet)
 
     expect(loggerStub.calledOnce).to.be.true
     expect(loggerStub.calledWith('Error LogMember' as any)).to.be.true

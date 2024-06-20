@@ -1,20 +1,35 @@
 import Router from '@koa/router'
 import StatusRouter from './status'
+import AssetRouter from './asset'
 import DaoRouter from './dao'
+import MemberRouter from './member'
+import ProposalRouter from './proposal'
+import SettingRouter from './setting'
 import TokenRouter from './token'
+import TransactionRouter from './transaction'
 
 const MainRouter = {
   router() {
+    const assetRouter = AssetRouter.router()
     const daoRouter = DaoRouter.router()
+    const memberRouter = MemberRouter.router()
+    const proposalRouter = ProposalRouter.router()
+    const settingRouter = SettingRouter.router()
     const statusRouter = StatusRouter.router()
     const tokenRouter = TokenRouter.router()
+    const transactionRouter = TransactionRouter.router()
 
     const mainRouter = new Router()
 
     mainRouter.use(statusRouter.routes(), statusRouter.allowedMethods())
 
+    mainRouter.use('/assets', assetRouter.routes(), assetRouter.allowedMethods())
     mainRouter.use('/daos', daoRouter.routes(), daoRouter.allowedMethods())
+    mainRouter.use('/members', memberRouter.routes(), memberRouter.allowedMethods())
+    mainRouter.use('/proposals', proposalRouter.routes(), proposalRouter.allowedMethods())
+    mainRouter.use('/settings', settingRouter.routes(), settingRouter.allowedMethods())
     mainRouter.use('/tokens', tokenRouter.routes(), tokenRouter.allowedMethods())
+    mainRouter.use('/transactions', transactionRouter.routes(), transactionRouter.allowedMethods())
 
     return mainRouter
   },

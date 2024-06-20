@@ -7,6 +7,7 @@ import Utils from '@helpers/utils'
 import Logger from '@logger'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
+import config from '@config'
 
 describe('Modules:BlockchainTransferCrawler', () => {
   let sandbox: sinon.SinonSandbox
@@ -34,11 +35,11 @@ describe('Modules:BlockchainTransferCrawler', () => {
       expect(
         () =>
           new BlockchainTransferCrawler({
-            network: NetworksEnum.mainnet,
+            network: NetworksEnum.ethereumMainnet,
             filter: {},
             onTx: async () => {},
           }),
-      ).to.throw('Provider not configured for network: mainnet')
+      ).to.throw(`Provider not configured for network: ${NetworksEnum.ethereumMainnet}`)
     })
 
     it('should initialize with default values', () => {
@@ -46,18 +47,18 @@ describe('Modules:BlockchainTransferCrawler', () => {
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
 
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: async () => {},
       })
 
-      expect(crawler['network']).to.equal(NetworksEnum.mainnet)
+      expect(crawler['network']).to.equal(NetworksEnum.ethereumMainnet)
       expect(crawler['filter']).to.deep.include({ fromBlock: 0, toBlock: 'latest' })
       expect(crawler['shutdown']).to.be.false
       expect(crawler['crawling']).to.be.false
       expect(crawler['isOnError']).to.be.false
       expect(crawler['crawlResult']).to.deep.include({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         lastSync: 0,
         nbSuccess: 0,
         nbError: 0,
@@ -73,7 +74,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       }
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: async () => {},
       })
@@ -88,7 +89,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       }
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: async () => {},
       })
@@ -101,7 +102,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const providerStub = {}
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: async () => {},
       })
@@ -129,7 +130,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const onTxStub = sandbox.stub().resolves()
 
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: onTxStub,
       })
@@ -158,7 +159,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
       const onTxStub = sandbox.stub().resolves()
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: onTxStub,
         logService: 'testService' as any,
@@ -180,7 +181,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
       const onTxStub = sandbox.stub().resolves()
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: onTxStub,
       })
@@ -212,7 +213,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
       const onTxStub = sandbox.stub().resolves()
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: { fromBlock: 0, toBlock: 10 },
         onTx: onTxStub,
       })
@@ -231,7 +232,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
 
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: { fromBlock: 0, toBlock: 0 },
         onTx: async () => {},
       })
@@ -256,7 +257,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
 
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: { fromBlock: 0, toBlock: 0 },
         onTx: async () => {},
         shutdown: true,
@@ -276,7 +277,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const providerStub = {}
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: async () => {},
       })
@@ -297,7 +298,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
       const onErrorStub = sandbox.stub()
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: { fromBlock: 90, toBlock: 110 },
         onTx: async () => {},
         onError: onErrorStub,
@@ -320,7 +321,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const providerStub = {}
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: async () => {},
       })
@@ -337,7 +338,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const providerStub = {}
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: async () => {},
       })
@@ -353,7 +354,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const providerStub = {}
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: async () => {},
         onError: onErrorStub,
@@ -373,7 +374,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
       const onTxStub = sandbox.stub().resolves()
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: onTxStub,
       })
@@ -391,7 +392,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const onTxStub = sandbox.stub().rejects(new Error('Transaction error'))
       const onErrorStub = sandbox.stub()
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: onTxStub,
         onError: onErrorStub,
@@ -402,6 +403,49 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
       expect(onErrorStub.calledOnce).to.be.true
       expect(crawler['crawlResult'].nbError).to.equal(1)
+    })
+  })
+
+  describe('getServiceStartBlock', () => {
+    it('should getServiceStartBlock', async () => {
+      const providerStub = {}
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+
+      const mockLogService = 'testService'
+      const mockNetwork = NetworksEnum.ethereumMainnet
+      const mockLastSync = 123456
+      const findExistingLogStub = sandbox
+        .stub(Models.ConfigIndexer, 'findExistingLog')
+        .resolves({ lastSync: mockLastSync })
+
+      const crawler = new BlockchainTransferCrawler({
+        network: mockNetwork,
+        filter: {},
+        onTx: async () => {},
+        logService: mockLogService as any,
+      })
+
+      const result = await crawler.getServiceStartBlock()
+      expect(findExistingLogStub.calledOnceWith({ network: mockNetwork, service: mockLogService })).to.be.true
+      expect(result).to.equal(mockLastSync)
+    })
+
+    it('should getServiceStartBlock from config', async () => {
+      const providerStub = {}
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+
+      const mockLogService = 'testService'
+      const mockNetwork = NetworksEnum.ethereumMainnet
+
+      const crawler = new BlockchainTransferCrawler({
+        network: mockNetwork,
+        filter: {},
+        onTx: async () => {},
+        logService: mockLogService as any,
+      })
+
+      const result = await crawler.getServiceStartBlock()
+      expect(result).to.equal(config.ARAGON_SUPPORTED_BLOCK.ETHEREUM_MAINNET)
     })
   })
 
@@ -416,7 +460,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const blockNumber = 10
 
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: async () => {},
         onError: () => {},
@@ -429,7 +473,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
       await crawler.onSaveProgress(blockNumber)
 
-      expect(spyModelFind.calledOnceWith(NetworksEnum.mainnet, 'testService')).to.be.true
+      expect(spyModelFind.calledOnceWith({ network: NetworksEnum.ethereumMainnet, service: 'testService' })).to.be.true
       expect(spyModelCreate.calledOnce).to.be.true
     })
 
@@ -438,7 +482,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const blockNumber = 10
 
       const crawler = new BlockchainTransferCrawler({
-        network: NetworksEnum.mainnet,
+        network: NetworksEnum.ethereumMainnet,
         filter: {},
         onTx: async () => {},
         onError: () => {},
@@ -452,7 +496,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
       await crawler.onSaveProgress(blockNumber)
 
-      expect(spyModelFind.calledOnceWith(NetworksEnum.mainnet, 'testService')).to.be.true
+      expect(spyModelFind.calledOnceWith({ network: NetworksEnum.ethereumMainnet, service: 'testService' })).to.be.true
       expect(fakeModel.update.calledOnce).to.be.true
       expect(spyModelCreate.notCalled).to.be.true
     })

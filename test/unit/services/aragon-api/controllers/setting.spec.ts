@@ -1,0 +1,238 @@
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import { expect } from 'chai'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
+import { Models } from '@dbModels'
+import SettingController from '@api/controllers/setting'
+import Setting from '@models/schema/setting'
+
+describe('Controller: Setting', () => {
+  let sandbox: SinonSandbox
+  let rawSetting: Partial<Setting>
+  let settingDb: Setting
+
+  beforeEach(async () => {
+    sandbox = sinon.createSandbox()
+
+    rawSetting = {
+      daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
+      pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
+      network: NetworksEnum.polygonMainnet,
+      fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef8',
+      toTxHash: '0x11ed65ce6ba3dbed7194ead9d3ffdfafdb921f39b1e55bd5139f0277ea219083',
+      fromBlockNumber: 47758873,
+      toBlockNumber: 48097896,
+      settings: {
+        votingMode: 1,
+        supportThreshold: 500000,
+        minParticipation: 150000,
+        minDuration: 86400,
+        minProposerVotingPower: '5e+18',
+
+        minApprovals: 1,
+        onlyListed: true,
+      },
+    }
+    settingDb = await Models.Setting.create(rawSetting)
+  })
+
+  afterEach(() => {
+    sandbox?.restore()
+  })
+
+  describe('getSettingsWithPagination', () => {
+    it('should get settings with pagination - all params', async () => {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {
+        network: rawSetting.daos?.[0].network,
+        daoAddress: rawSetting.daos?.[0].daoAddress,
+        pluginAddress: rawSetting.daos?.[0].pluginAddress,
+      }
+
+      const spyReq = sandbox.spy(Models.Setting, 'findWithPagination')
+
+      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: filterParams,
+          paginationParams: {
+            search: '',
+            endDate: '',
+            startDate: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].daoAddress).to.eq(rawSetting.daoAddress)
+      expect(response.data[0].pluginAddress).to.eq(rawSetting.pluginAddress)
+      expect(response.data[0].network).to.eq(rawSetting.network)
+      expect(response.data[0].settings.votingMode).to.eq(rawSetting.settings?.votingMode)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get settings no params', async () => {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+
+      const spyReq = sandbox.spy(Models.Setting, 'findWithPagination')
+
+      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: filterParams,
+          paginationParams: {
+            search: '',
+            endDate: '',
+            startDate: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].daoAddress).to.eq(rawSetting.daoAddress)
+      expect(response.data[0].pluginAddress).to.eq(rawSetting.pluginAddress)
+      expect(response.data[0].network).to.eq(rawSetting.network)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get settings with pagination - daoId', async () => {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+      const daoId = `${rawSetting.network}-${rawSetting.daoAddress}`
+
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
+        address: rawSetting.daoAddress,
+        network: rawSetting.network,
+      })
+      const spyReq = sandbox.spy(Models.Setting, 'findWithPagination')
+
+      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams, daoId)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: {
+            daoAddress: rawSetting.daoAddress,
+            network: rawSetting.network,
+          },
+          paginationParams: {
+            search: '',
+            endDate: '',
+            startDate: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].daoAddress).to.eq(rawSetting.daoAddress)
+      expect(response.data[0].pluginAddress).to.eq(rawSetting.pluginAddress)
+      expect(response.data[0].network).to.eq(rawSetting.network)
+      expect(response.data[0].settings.votingMode).to.eq(rawSetting.settings?.votingMode)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get settings with pagination - daoId not found', async () => {
+      const paginationParams = {
+        search: '',
+        endDate: '',
+        startDate: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+      const daoId = `${rawSetting.network}-${rawSetting.daoAddress}`
+
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      const spyReq = sandbox.spy(Models.Setting, 'findWithPagination')
+
+      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams, daoId)
+
+      expect(spyReq.notCalled).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(0)
+    })
+  })
+
+  describe('getSettingById', () => {
+    it('should getSettingById', async () => {
+      const setting = await SettingController.getSettingById(settingDb.id)
+      expect(setting.id).to.eq(settingDb.id)
+    })
+
+    it('should fail to getSettingById', async () => {
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
+      const settingId = 'test-member'
+      await expect(SettingController.getSettingById(settingId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+  })
+
+  describe('getSettingByTransactionHash', () => {
+    it('should get by TransactionHash', async () => {
+      const setting = await SettingController.getSettingByTransactionHash(
+        settingDb.fromTxHash as any,
+        settingDb.network,
+      )
+      expect(setting.id).to.eq(settingDb.id)
+    })
+
+    it('should fail to get by TransactionHash', async () => {
+      sandbox.stub(Models.Proposal, 'findByTransactionHash').resolves(null)
+      const transactionHash = '0x02324' as any
+      await expect(
+        SettingController.getSettingByTransactionHash(transactionHash, settingDb.network),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+  })
+})

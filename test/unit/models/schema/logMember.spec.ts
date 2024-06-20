@@ -1,7 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { IEventLogMember, NetworksEnum } from '@types'
-
 import LogMember from '@models/schema/logMember'
 import { afterEach, beforeEach } from 'mocha'
 import { expect } from 'chai'
@@ -14,15 +13,12 @@ describe('Model: LogMember', () => {
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
-
     rawLogMember = {
       event: IEventLogMember.MembersAdded,
-      transactionHash,
+      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
       blockNumber: 3,
-      network: NetworksEnum.mainnet,
-      address,
+      network: NetworksEnum.ethereumMainnet,
+      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       pluginAddress: '0x123',
     }
   })
@@ -33,43 +29,55 @@ describe('Model: LogMember', () => {
 
   describe('Create LogMember', async () => {
     it('Should create LogMember', async () => {
+      const entityId = Models.LogMember.getEntityId({
+        transactionHash: rawLogMember.transactionHash,
+        event: rawLogMember.event,
+        address: rawLogMember.address,
+        network: rawLogMember.network,
+      } as any)
       const member = await Models.LogMember.create(rawLogMember)
-      expect(member.entityId).to.exist
+      expect(member.id).to.eq(entityId)
     })
+  })
 
-    it('should update LogMember', async () => {
-      const member = await Models.LogMember.create(rawLogMember)
-      const updatedMember = await member.update({ event: IEventLogMember.MembersRemoved })
-      expect(updatedMember.event).to.eq(IEventLogMember.MembersRemoved)
-    })
+  it('Should getEntityId', async () => {
+    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+    const eventName = IEventLogMember.MembersAdded
+    const entityId = Models.LogMember.getEntityId({
+      transactionHash,
+      event: eventName,
+      address: rawLogMember.address,
+      network: rawLogMember.network,
+    } as any)
+    expect(entityId).to.eq(`${transactionHash}-${eventName}-${rawLogMember.address}-${NetworksEnum.ethereumMainnet}`)
+  })
 
-    it('Should getEntityId', async () => {
-      const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-      const eventName = IEventLogMember.MembersAdded
-      const entityId = await Models.LogMember.getEntityId(
-        transactionHash,
-        eventName,
-        rawLogMember.address,
-        NetworksEnum.mainnet,
-      )
-      expect(entityId).to.eq(`${transactionHash}-${eventName}-${rawLogMember.address}-mainnet`)
-    })
+  it('Should findExistingLog', async () => {
+    const createdMember = await Models.LogMember.create(rawLogMember)
+    const foundLogMember = await Models.LogMember.findExistingLog({
+      transactionHash: rawLogMember.transactionHash,
+      event: rawLogMember.event,
+      address: rawLogMember.address,
+      network: rawLogMember.network,
+    } as any)
+    expect(foundLogMember?.id).to.eq(createdMember.id)
+  })
 
-    it('Should findExistingLog', async () => {
-      const createdMember = await Models.LogMember.create(rawLogMember)
-      const foundLogMember = await Models.LogMember.findExistingLog(
-        createdMember.transactionHash,
-        createdMember.event,
-        createdMember.address,
-        createdMember.network,
-      )
-      expect(foundLogMember?.entityId).to.eq(createdMember.entityId)
-    })
+  it('Should findByEntityId', async () => {
+    const createdLogDao = await Models.Member.create(rawLogMember)
+    const foundLogDao = await Models.Member.findByEntityId(createdLogDao.id)
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
+  })
 
-    it('should reload LogMember', async () => {
-      const createdMember = await Models.LogMember.create(rawLogMember)
-      const foundLogMember = await createdMember.reload()
-      expect(foundLogMember?.entityId).to.eq(createdMember.entityId)
-    })
+  it('should update LogMember', async () => {
+    const member = await Models.LogMember.create(rawLogMember)
+    const updatedMember = await member.update({ event: IEventLogMember.MembersRemoved })
+    expect(updatedMember.event).to.eq(IEventLogMember.MembersRemoved)
+  })
+
+  it('should reload LogMember', async () => {
+    const createdMember = await Models.LogMember.create(rawLogMember)
+    const foundLogMember = await createdMember.reload()
+    expect(foundLogMember?.id).to.eq(createdMember.id)
   })
 })

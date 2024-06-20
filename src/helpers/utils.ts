@@ -1,13 +1,22 @@
-import type { HexAddress, IPermission } from '@types'
+import type { HexAddress, INetworks, IPermission } from '@types'
 import { assert } from '@errors'
 import async from 'async'
 import dayjs from '@helpers/dayjs'
-import type Dao from '@models/schema/dao'
 
 const Utils = {
   noop: (): number => 0,
   wait: async (time: number) => await new Promise(resolve => setTimeout(resolve, time)),
   zeroAddress: '0x0000000000000000000000000000000000000000' as HexAddress,
+
+  aragonNetworkMap: {
+    ethereumMainnet: 'ETHEREUM_MAINNET',
+    ethereumSepolia: 'ETHEREUM_SEPOLIA',
+    polygonMainnet: 'POLYGON_MAINNET',
+    baseMainnet: 'BASE_MAINNET',
+    arbitrumMainnet: 'ARBITRUM_MAINNET',
+  },
+
+  networkToAragon: (network: INetworks) => Utils.aragonNetworkMap[network],
 
   chunkArray: (array: any[], size: number) => {
     if (!array || array.length === 0) {
@@ -180,19 +189,6 @@ const Utils = {
     }
 
     return result
-  },
-
-  getDaoPermalink(dao: Partial<Dao>): string {
-    const path: any = {
-      network: dao.network,
-      address: dao.daoAddress,
-    }
-
-    if (dao.ens?.length! > 0) {
-      path.address = dao.ens
-    }
-
-    return `${path.network}-${path.address}`
   },
 
   parsePermissions(permissions: IPermission[]) {
