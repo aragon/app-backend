@@ -83,6 +83,7 @@ class BlockchainLogCrawler {
   calculateBatchSize(network: NetworksEnum): number {
     const secondsInMonth = 30 * 24 * 3600
     switch (network) {
+      case NetworksEnum.zksyncSepolia:
       case NetworksEnum.ethereumMainnet:
       case NetworksEnum.arbitrumMainnet: // TODO: check
       case NetworksEnum.baseMainnet: // TODO: check
