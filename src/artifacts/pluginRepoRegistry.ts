@@ -138,7 +138,7 @@ export const PluginRepoRegistry = {
           type: 'address',
         },
       ],
-      name: 'PluginRepoRegistered',
+      name: 'PluginRepoRegistered(address)',
       type: 'event',
     },
     {
