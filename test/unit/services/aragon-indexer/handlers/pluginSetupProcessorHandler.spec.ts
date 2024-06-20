@@ -7,6 +7,7 @@ import { beforeEach } from 'mocha'
 import { PluginSetupProcessorHandler } from '@services/aragon-indexer/handlers/pluginSetupProcessorHandler'
 import { Models } from '@dbModels'
 import { UtilsIndexer } from '@indexer/utils/indexer'
+import Web3Helper from '@helpers/web3'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -100,6 +101,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
       const fakeEvent = {
         args: {
+          // only for supported dao the token address is in helpers
           preparedSetupData: {
             helpers: ['0x27366cae2b9c6c3055e9e3c78936a69006be5400'],
             permissions: [
@@ -124,9 +126,16 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         },
       }
 
+      const tokenAddress = '0x27366cae2b9c6c3055e9e3c78936a69006be5400'
       const loggerStub = sandbox.stub(logger, 'verbose')
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
+      const logsStub = sandbox.stub(Web3Helper, 'findLogsByName').returns([
+        {
+          parsed: { args: [tokenAddress] },
+        },
+      ] as any)
       const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
-        address: '0x27366cae2b9c6c3055e9e3c78936a69006be5400',
+        address: tokenAddress,
         name: 'FakeToken',
         symbol: 'FTK',
         decimals: 18,
@@ -144,6 +153,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         }),
       ).to.be.true
       expect(loggerStub.calledWith('New InstallationPrepared' as any)).to.be.true
+      expect(receiptStub.calledWith(logInfo.transactionHash, logInfo.network)).to.be.true
+      expect(logsStub.calledOnce).to.be.true
 
       const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog({
         transactionHash: logInfo.transactionHash,
@@ -160,7 +171,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(daoMetadataDB.pluginAddress).to.eq(fakeEvent.args.plugin)
       expect(daoMetadataDB.release).to.eq(fakeEvent.args.versionTag.release)
       expect(daoMetadataDB.build).to.eq(fakeEvent.args.versionTag.release)
-      expect(daoMetadataDB.tokenAddress).to.eq('0x27366cae2b9c6c3055e9e3c78936a69006be5400')
+      expect(daoMetadataDB.tokenAddress).to.eq(tokenAddress)
     })
 
     it('installationPrepared throw error', async () => {
