@@ -1,4 +1,4 @@
-import type { HexAddress, INetworks, IPermission } from '@types'
+import { type HexAddress, type IPermission, NetworksEnum } from '@types'
 import { assert } from '@errors'
 import async from 'async'
 import dayjs from '@helpers/dayjs'
@@ -9,14 +9,14 @@ const Utils = {
   zeroAddress: '0x0000000000000000000000000000000000000000' as HexAddress,
 
   aragonNetworkMap: {
-    ethereumMainnet: 'ETHEREUM_MAINNET',
-    ethereumSepolia: 'ETHEREUM_SEPOLIA',
-    polygonMainnet: 'POLYGON_MAINNET',
-    baseMainnet: 'BASE_MAINNET',
-    arbitrumMainnet: 'ARBITRUM_MAINNET',
+    [NetworksEnum.ethereumMainnet]: 'ETHEREUM_MAINNET',
+    [NetworksEnum.ethereumSepolia]: 'ETHEREUM_SEPOLIA',
+    [NetworksEnum.polygonMainnet]: 'POLYGON_MAINNET',
+    [NetworksEnum.baseMainnet]: 'BASE_MAINNET',
+    [NetworksEnum.arbitrumMainnet]: 'ARBITRUM_MAINNET',
   },
 
-  networkToAragon: (network: INetworks) => Utils.aragonNetworkMap[network],
+  networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],
 
   chunkArray: (array: any[], size: number) => {
     if (!array || array.length === 0) {

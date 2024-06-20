@@ -54,7 +54,7 @@ describe('Router: Proposal', () => {
 
     it('Should get proposal with pagination - daoId', async () => {
       const filterParams = {
-        daoId: 'ethereumMainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
       const paginationParams = {
         pageSize: 10,

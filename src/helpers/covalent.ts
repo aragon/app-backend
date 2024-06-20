@@ -2,8 +2,7 @@ import {
   type HexAddress,
   type IToken,
   type ITokenCovalentResponse,
-  type INetworks,
-  type NetworksEnum,
+  NetworksEnum,
   type ITokenBalanceResponse,
   type TokensBalancesType,
   ITokenType,
@@ -28,22 +27,22 @@ const CovalentHelper = {
   }),
 
   networksMap: {
-    ethereumMainnet: 'eth-mainnet',
-    ethereumSepolia: 'eth-sepolia',
-    polygonMainnet: 'matic-mainnet',
-    baseMainnet: 'base-mainnet',
-    arbitrumMainnet: 'arbitrum-mainnet',
+    [NetworksEnum.polygonMainnet]: 'matic-mainnet',
+    [NetworksEnum.ethereumMainnet]: 'eth-mainnet',
+    [NetworksEnum.baseMainnet]: 'base-mainnet',
+    [NetworksEnum.arbitrumMainnet]: 'arbitrum-mainnet',
+    [NetworksEnum.ethereumSepolia]: 'eth-sepolia',
   },
 
   nativeTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as HexAddress,
 
-  networkToCovalent: (network: INetworks) => {
+  networkToCovalent: (network: NetworksEnum) => {
     return CovalentHelper.networksMap[network]
   },
 
   networkFromCovalent: (covalentNetwork: string) => {
     return Object.entries(CovalentHelper.networksMap).find(([, cov]) => cov === covalentNetwork)?.[0] as
-      | INetworks
+      | NetworksEnum
       | undefined
   },
 
@@ -111,7 +110,7 @@ const CovalentHelper = {
 
   getTokenBalance: async (
     address: HexAddress,
-    network: INetworks,
+    network: NetworksEnum,
     currency: string,
   ): Promise<TokensBalancesType | false> => {
     const networkId = CovalentHelper.networkToCovalent(network)

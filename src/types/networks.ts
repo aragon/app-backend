@@ -2,23 +2,21 @@ import { type WebSocketProvider } from 'ethers'
 export type HexAddress = `0x${string}` | string
 export type ENS = `${string}.eth`
 
-export type INetworks = keyof typeof NetworksEnum
-
 export interface ISupportedNetwork {
   provider: WebSocketProvider
   networkName: NetworksEnum
 }
 
 export enum SupportedEnsNetworksEnum {
-  ethereumMainnet = 'ethereumMainnet',
+  ethereumMainnet = 'ethereum-mainnet',
 }
 
 export enum NetworksEnum {
-  ethereumMainnet = 'ethereumMainnet',
-  ethereumSepolia = 'ethereumSepolia',
-  polygonMainnet = 'polygonMainnet',
-  baseMainnet = 'baseMainnet',
-  arbitrumMainnet = 'arbitrumMainnet',
+  ethereumMainnet = 'ethereum-mainnet',
+  ethereumSepolia = 'ethereum-sepolia',
+  polygonMainnet = 'polygon-mainnet',
+  baseMainnet = 'base-mainnet',
+  arbitrumMainnet = 'arbitrum-mainnet',
 }
 
 export enum StatusNetworkEnum {
