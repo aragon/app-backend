@@ -94,7 +94,7 @@ export default class LogProposal extends Model {
   @prop({ type: () => Number, required: true })
   public allowFailureMap!: number
 
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, default: null })
   public metadataUri!: string
 
   @prop({ type: () => [Action], default: [] })
