@@ -36,6 +36,8 @@ class Media {
 })
 @index({
   pluginAddress: 1,
+  proposalId: 1,
+  blockNumber: 1,
 })
 export default class LogProposalMetadata extends Model {
   @prop({ type: () => String, required: true, unique: true })

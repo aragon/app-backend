@@ -4,6 +4,7 @@ import {
   type IPaginationParams,
   type ISettingExtraParams,
   type ISettingIdParams,
+  ITokenType,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
@@ -12,6 +13,26 @@ import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
 const customName = 'Setting'
+
+class Token {
+  @prop({ type: () => String, enum: ITokenType, required: true })
+  public type!: ITokenType
+
+  @prop({ type: () => String, required: true })
+  public address!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public logo!: string
+
+  @prop({ type: () => String, default: null })
+  public name!: string
+
+  @prop({ type: () => String, default: null, uppercase: true })
+  public symbol!: string
+
+  @prop({ type: () => Number, default: 18 })
+  public decimals!: number
+}
 
 class Settings {
   @prop({ type: () => Number })
@@ -50,6 +71,8 @@ class Settings {
 })
 @index({
   pluginAddress: 1,
+  fromBlockNumber: 1,
+  toBlockNumber: 1
 })
 export default class Setting extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -81,6 +104,9 @@ export default class Setting extends Model {
 
   @prop({ type: () => Settings })
   public settings?: Settings
+
+  @prop({ type: () => Token })
+  public token?: Token
 
   static async create(rawData: Partial<Setting>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -181,6 +207,7 @@ export default class Setting extends Model {
     const obj = this.toObject()
     const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
     filtered.settings = _.omit(filtered.settings, 'id', '_id', '__v')
+    filtered.token = _.omit(filtered.settings, 'id', '_id', '__v')
     return filtered
   }
 }

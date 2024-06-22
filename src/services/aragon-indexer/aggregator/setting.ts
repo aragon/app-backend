@@ -122,6 +122,7 @@ export const AggregatorSetting = {
         $project: {
           _id: 0,
           daoAddress: { $arrayElemAt: ['$pluginInfo.daoAddress', 0] },
+          token: { $arrayElemAt: ['$pluginInfo.tokenAddress', 0] },
           pluginAddress: '$_id.pluginAddress',
           pluginSubdomain: 1,
           network: '$_id.network',
@@ -142,6 +143,39 @@ export const AggregatorSetting = {
                 minParticipation: '$events.minParticipation',
                 minDuration: '$events.minDuration',
                 minProposerVotingPower: { $toString: '$events.minProposerVotingPower' },
+              },
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'token',
+          localField: 'token',
+          foreignField: 'address',
+          as: 'token',
+        },
+      },
+      {
+        $addFields: {
+          token: {
+            $cond: {
+              if: { $eq: [{ $size: '$token' }, 0] },
+              then: null,
+              else: {
+                $let: {
+                  vars: {
+                    token: { $arrayElemAt: ['$token', 0] },
+                  },
+                  in: {
+                    type: '$$token.type',
+                    address: '$$token.address',
+                    logo: '$$token.logo',
+                    name: '$$token.name',
+                    decimals: '$$token.decimals',
+                    symbol: '$$token.symbol',
+                  },
+                },
               },
             },
           },

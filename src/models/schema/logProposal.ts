@@ -62,8 +62,6 @@ export class ProposalExecuted {
 })
 @index({
   pluginAddress: 1,
-})
-@index({
   creatorAddress: 1,
 })
 export default class LogProposal extends Model {
