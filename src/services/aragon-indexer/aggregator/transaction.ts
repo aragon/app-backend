@@ -29,8 +29,8 @@ export const AggregatorTransactions = {
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
       onDocument: async (daoRegistry: LogDaoRegistry) => AggregatorTransactions.onDocument(daoRegistry),
-      onError: (error: any) => {
-        logger.error('Error AggregatorTransactions', llo({ error }))
+      onError: (error: any, document: any) => {
+        logger.error('Error AggregatorTransactions', llo({ error, document }))
       },
       where: {
         network: NetworksEnum.baseMainnet,
