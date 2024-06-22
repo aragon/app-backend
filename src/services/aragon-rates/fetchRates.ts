@@ -14,8 +14,8 @@ export const FetchRates = {
     const crawler = new DBCrawler({
       model: Models.Token,
       onDocument: FetchRates.onDocument,
-      onError: (error: any) => {
-        logger.error('Error FetchRates', llo({ error }))
+      onError: (error: any, document: any) => {
+        logger.error('Error FetchRates', llo({ error, document }))
       },
       where: {
         // lastUpdatedAt: { $lte: dayjs.utc().subtract(6, 'hours').toDate() },

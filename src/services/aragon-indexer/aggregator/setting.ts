@@ -13,8 +13,8 @@ export const AggregatorSetting = {
     const crawler = new DBCrawler({
       model: Models.LogPluginSetting,
       onDocument: AggregatorSetting.onDocument,
-      onError: (error: any) => {
-        logger.error('Error AggregatorSetting', llo({ error }))
+      onError: (error: any, document: any) => {
+        logger.error('Error AggregatorSetting', llo({ error, document }))
       },
       useAggregate: true,
       aggregate: AggregatorSetting.query(),
