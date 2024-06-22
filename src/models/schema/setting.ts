@@ -72,7 +72,7 @@ class Settings {
 @index({
   pluginAddress: 1,
   fromBlockNumber: 1,
-  toBlockNumber: 1
+  toBlockNumber: 1,
 })
 export default class Setting extends Model {
   @prop({ type: () => String, required: true, unique: true })
