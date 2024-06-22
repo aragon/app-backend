@@ -496,9 +496,10 @@ const Web3Helper = {
 
       return recordExists
     } catch (error) {
-      logger.error(
+      logger.warn(
         'Error subdomainExists',
         llo({
+          error,
           ensName,
           network,
         }),
