@@ -991,8 +991,8 @@ describe('Helpers:Web3', () => {
         getConfigItem: sandbox.stub().returns({}),
       }
       const error = new Error('Contract call failed')
-      const stubRecordExistsStub = sandbox.stub().rejects(error) // Simulate error
-      const stubLoggerError = sandbox.stub(Logger, 'error') // Stub logger's error to verify it's called
+      const stubRecordExistsStub = sandbox.stub().rejects(error)
+      const stubLoggerWarn = sandbox.stub(Logger, 'warn')
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
@@ -1013,8 +1013,8 @@ describe('Helpers:Web3', () => {
       const result = await MockedWeb3Helper.subdomainExists(ensName, NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.false
-      expect(stubLoggerError.calledOnce).to.be.true
-      expect(stubLoggerError.calledWith('Error subdomainExists' as any)).to.be.true
+      expect(stubLoggerWarn.calledOnce).to.be.true
+      expect(stubLoggerWarn.calledWith('Error subdomainExists' as any)).to.be.true
     })
 
     it('should return false if not supported', async () => {
