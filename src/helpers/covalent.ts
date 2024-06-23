@@ -14,6 +14,8 @@ import logger from '@logger'
 import utils from '@helpers/utils'
 import { assert } from '@errors'
 import Web3Helper from '@helpers/web3'
+import { retryRequest } from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'covalent' })
 
@@ -50,7 +52,11 @@ const CovalentHelper = {
 
   _rpCall: async <T>(path: string): Promise<T> => {
     try {
-      const response = await CovalentHelper.axiosInstance.get(`${config.COVALENT.URI}${path}`)
+      const response: any = await retryRequest(async () =>
+        BottleneckModule.getCoinGeckoLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+          CovalentHelper.axiosInstance.get(`${config.COVALENT.URI}${path}`),
+        ),
+      )
       return response.data.data
     } catch (error) {
       logger.error('Error in Covalent RPC Call', llo({ path, error }))
