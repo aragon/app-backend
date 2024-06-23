@@ -13,8 +13,8 @@ export const AggregatorMembers = {
     const crawler = new DBCrawler({
       model: Models.LogMember,
       onDocument: AggregatorMembers.onDocument,
-      onError: (error: any) => {
-        logger.error('Error AggregatorMembers', llo({ error }))
+      onError: (error: any, document: any) => {
+        logger.error('Error AggregatorMembers', llo({ error, document }))
       },
       useAggregate: true,
       aggregate: AggregatorMembers.query(),

@@ -62,8 +62,6 @@ export class ProposalExecuted {
 })
 @index({
   pluginAddress: 1,
-})
-@index({
   creatorAddress: 1,
 })
 export default class LogProposal extends Model {
@@ -97,7 +95,7 @@ export default class LogProposal extends Model {
   @prop({ type: () => Number, required: true })
   public allowFailureMap!: number
 
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, default: null })
   public metadataUri!: string
 
   @prop({ type: () => [Action], default: [] })
