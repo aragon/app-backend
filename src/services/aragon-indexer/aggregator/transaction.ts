@@ -29,10 +29,12 @@ export const AggregatorTransactions = {
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
       onDocument: async (daoRegistry: LogDaoRegistry) => AggregatorTransactions.onDocument(daoRegistry),
-      onError: (error: any) => {
-        logger.error('Error AggregatorTransactions', llo({ error }))
+      onError: (error: any, document: any) => {
+        logger.error('Error AggregatorTransactions', llo({ error, document }))
       },
-      where: {},
+      where: {
+        network: NetworksEnum.baseMainnet,
+      },
       batchSize: 500,
       concurrency: 1,
     })
@@ -51,6 +53,8 @@ export const AggregatorTransactions = {
     ]
 
     switch (network) {
+      case NetworksEnum.baseMainnet:
+      case NetworksEnum.zksyncSepolia:
       case NetworksEnum.arbitrumMainnet:
         return category.filter(cat => cat !== ITransactionCategory.Internal)
       default:
@@ -70,7 +74,10 @@ export const AggregatorTransactions = {
       onTx: async (txLog: IAlchemyTransferResponse) =>
         AggregatorTransactions.saveTransaction(txLog, ITransactionType.deposit, daoRegistry),
       onError: async (error: any) => {
-        logger.error('Error deposit transfer', llo({ error, type: ITransactionType.withdraw, daoId: daoRegistry.id }))
+        logger.error(
+          'Error deposit transfer',
+          llo({ error, type: ITransactionType.withdraw, daoId: daoRegistry.id, network: daoRegistry.network }),
+        )
       },
       logService: IEnumIndexerService.depositTxs,
       stopOnError: true,
@@ -88,7 +95,10 @@ export const AggregatorTransactions = {
       onTx: async (txLog: IAlchemyTransferResponse) =>
         AggregatorTransactions.saveTransaction(txLog, ITransactionType.withdraw, daoRegistry),
       onError: async (error: any) => {
-        logger.error('Error withdraw transfer', llo({ error, type: ITransactionType.withdraw, daoId: daoRegistry.id }))
+        logger.error(
+          'Error withdraw transfer',
+          llo({ error, type: ITransactionType.withdraw, daoId: daoRegistry.id, network: daoRegistry.network }),
+        )
       },
       logService: IEnumIndexerService.withdrawTxs,
       stopOnError: true,

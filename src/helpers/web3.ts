@@ -56,7 +56,7 @@ const Web3Helper = {
       case Web3Helper.ERC20_transferFrom:
         return ['address', 'address', 'uint256']
       default:
-        logger.error('Unsupported function selector', { functionSelector })
+        logger.error('Unsupported function selector', llo({ functionSelector }))
         return null
     }
   },
@@ -69,7 +69,7 @@ const Web3Helper = {
       case Web3Helper.ERC721_safeTransferFromWithData:
         return ['address', 'address', 'uint256', 'bytes']
       default:
-        logger.error('Unsupported function selector', { functionSelector })
+        logger.error('Unsupported function selector', llo({ functionSelector }))
         return null
     }
   },
@@ -81,7 +81,7 @@ const Web3Helper = {
       case Web3Helper.ERC1155_safeBatchTransferFrom:
         return ['address', 'address', 'uint256[]', 'uint256[]', 'bytes']
       default:
-        logger.error('Unsupported function selector', { functionSelector })
+        logger.error('Unsupported function selector', llo({ functionSelector }))
         return null
     }
   },
@@ -496,9 +496,10 @@ const Web3Helper = {
 
       return recordExists
     } catch (error) {
-      logger.error(
+      logger.warn(
         'Error subdomainExists',
         llo({
+          error,
           ensName,
           network,
         }),
@@ -602,13 +603,13 @@ const Web3Helper = {
     const txReceipt = await Web3Helper.getTransactionReceipt(txLog.transactionHash, network)
 
     if (!txReceipt) {
-      logger.error('Failed to find txReceipt', { txHash: txLog.transactionHash, network })
+      logger.error('Failed to find txReceipt', llo({ txHash: txLog.transactionHash, network }))
       return
     }
     const events = Web3Helper.findLogsByName(txReceipt, eventName, abi)
 
     if (events.length === 0) {
-      logger.error('Failed to find event', { eventName, txHash: txLog.transactionHash, network })
+      logger.error('Failed to find event', llo({ eventName, txHash: txLog.transactionHash, network }))
       return
     }
 

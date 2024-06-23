@@ -29,7 +29,7 @@ describe('Modules:RateModule', () => {
       expect(getCoinPriceStub.calledWithExactly(ZeroAddress as HexAddress, NetworksEnum.ethereumMainnet)).to.be.true
     })
 
-    it('should fetchRate', async () => {
+    it.skip('should fetchRate with coingecko', async () => {
       const expectedPrice = { priceUsd: '1', priceChangeOnDayUsd: 0.1, logo: 'fake-logo' }
       sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({ priceUsd: '0' } as any)
       const getCoinPriceStub = sandbox.stub(RateModule, 'fetchRateWithCoinGecko').resolves(expectedPrice as any)

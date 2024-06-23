@@ -20,8 +20,8 @@ export const AggregatorAssets = {
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
       onDocument: AggregatorAssets.onDocument,
-      onError: (error: any) => {
-        logger.error('Error AggregatorAssets', llo({ error }))
+      onError: (error: any, document: any) => {
+        logger.error('Error AggregatorAssets', llo({ error, document }))
       },
       where: {
         network: { $in: NetworkHelper.supportedNetworks().map(network => network.networkName) },
