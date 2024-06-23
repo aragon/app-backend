@@ -124,9 +124,11 @@ describe('Helpers:ValidationSchema', () => {
         'invalid-network-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       )
       const resultValid = await ValidationSchema.joiDaoId.validateAsync('ethereum-mainnet-0x123')
-
       expect(resultInvalid).to.equal('invalid-network-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254')
       expect(resultValid).to.equal('ethereum-mainnet-0x123')
+
+      const notId = await ValidationSchema.joiDaoId.validateAsync('test')
+      expect(notId).to.equal('test')
     })
   })
 
