@@ -52,7 +52,11 @@ const CovalentHelper = {
 
   _rpCall: async <T>(path: string): Promise<T> => {
     try {
-      const response = await CovalentHelper.axiosInstance.get(`${config.COVALENT.URI}${path}`)
+      const response: any = await retryRequest(async () =>
+        BottleneckModule.getCoinGeckoLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+          CovalentHelper.axiosInstance.get(`${config.COVALENT.URI}${path}`),
+        ),
+      )
       return response.data.data
     } catch (error) {
       logger.error('Error in Covalent RPC Call', llo({ path, error }))
@@ -82,12 +86,7 @@ const CovalentHelper = {
     const path = `/pricing/historical_by_addresses_v2/${networkId}/${config.DEFAULT_CURRENCY}/${tokenContractAddress}/?from=${back2Days}`
 
     try {
-      const response: any = await retryRequest(async () =>
-        BottleneckModule.getCoinGeckoLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
-          CovalentHelper._rpCall<ITokenCovalentResponse[]>(path),
-        ),
-      )
-
+      const response = await CovalentHelper._rpCall<ITokenCovalentResponse[]>(path)
       assert(response.length > 0, 'Price data not complete')
 
       return CovalentHelper._parseToken(response[0], network)
@@ -126,12 +125,7 @@ const CovalentHelper = {
     const path = `/${networkId}/address/${address}/balances_v2/?quote-currency=${currency}`
 
     try {
-      const response: any = await retryRequest(async () =>
-        BottleneckModule.getCoinGeckoLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
-          CovalentHelper._rpCall<ITokenBalanceResponse>(path),
-        ),
-      )
-
+      const response = await CovalentHelper._rpCall<ITokenBalanceResponse>(path)
       return {
         updatedAt: response.updated_at,
         items: response.items.map(w => ({
