@@ -24,6 +24,8 @@ class BlockchainTransferCrawler {
   private readonly filter: IAlchemyTransferOptions
   private readonly stopOnError: boolean
   private readonly logService: IEnumIndexerService | null
+  private runCount: number
+  originalBatchSize: number = 0
   batchSize: number = 0
   crawling: boolean
   isOnError: boolean
@@ -66,6 +68,7 @@ class BlockchainTransferCrawler {
     this.shutdown = opts.shutdown ?? false
     this.crawling = false
     this.isOnError = false
+    this.runCount = 0
     this.logService = opts.logService ?? null
     this.crawlResult = {
       network: opts.network,
@@ -127,9 +130,11 @@ class BlockchainTransferCrawler {
     let currentBlock = await this.getBlockNumber(this.filter.fromBlock as any)
     const latestBlock = await this.getBlockNumber(this.filter.toBlock as any)
     this.batchSize = Math.max(0, latestBlock - currentBlock)
+    this.originalBatchSize = this.batchSize
 
     while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
-      const toBlock = Math.min(currentBlock + this.batchSize - 1, latestBlock)
+      this.runCount++
+      let toBlock = Math.min(currentBlock + this.batchSize - (this.runCount > 1 ? 1 : 0), latestBlock)
 
       logger.silly(
         'Querying logs for topic chunk',
@@ -142,23 +147,42 @@ class BlockchainTransferCrawler {
         }),
       )
 
-      try {
-        const response = await BottleneckModule.getNodeTransferLimiter(this.network)!.schedule(async () =>
-          this.provider.send('alchemy_getAssetTransfers', [
-            {
-              fromBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(currentBlock) : undefined,
-              toBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(toBlock) : undefined,
-              fromAddress: this.filter.fromAddress,
-              toAddress: this.filter.toAddress,
-              category: this.filter.category,
-            },
-          ]),
-        )
+      let success = false
+      while (!success) {
+        try {
+          const response = await BottleneckModule.getNodeTransferLimiter(this.network)!.schedule(async () =>
+            this.provider.send('alchemy_getAssetTransfers', [
+              {
+                fromBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(currentBlock) : undefined,
+                toBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(toBlock) : undefined,
+                fromAddress: this.filter.fromAddress,
+                toAddress: this.filter.toAddress,
+                category: this.filter.category,
+              },
+            ]),
+          )
 
-        await this.processTxs(response.transfers)
-      } catch (error) {
-        await this.handleErrors(error)
-        if (this.stopOnError && this.shutdown) break
+          await this.processTxs(response.transfers)
+          this.batchSize = this.originalBatchSize
+          success = true
+          break
+        } catch (error) {
+          if (this.isBatchSizeError(error)) {
+            if (this.batchSize > 1) {
+              this.batchSize = Math.max(1, Math.floor(this.batchSize / 2))
+              toBlock = Math.min(currentBlock + this.batchSize - (this.runCount > 1 ? 1 : 0), latestBlock)
+            } else {
+              logger.error('Batch size too small, stopping crawl', llo({ error }))
+              this.shutdown = true
+              this.onError(error)
+              break
+            }
+          } else {
+            await this.handleErrors(error)
+            if (this.stopOnError && this.shutdown) break
+          }
+        }
+        if (this.shutdown) break
       }
 
       if (this.logService) {
@@ -174,10 +198,7 @@ class BlockchainTransferCrawler {
   }
 
   async handleErrors(error: any) {
-    if (this.isBatchSizeError(error) && this.batchSize >= 1000) {
-      this.batchSize = Math.max(1, Math.floor(this.batchSize / 2))
-      logger.warn('Reducing batch size due to error', llo({ newBatchSize: this.batchSize }))
-    } else if (this.isRateLimited(error)) {
+    if (this.isRateLimited(error)) {
       await utils.wait(2000)
     } else {
       this.shutdown = true

@@ -114,18 +114,21 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
   describe('crawl', () => {
     it('should crawl transfers correctly', async () => {
+      const error = new Error('Log response size exceeded')
       sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
-      mockProvider.getBlockNumber.resolves(16721863 + 10)
+      mockProvider.getBlockNumber.resolves(300)
       mockProvider.send
-        .onFirstCall()
+        .onCall(0)
+        .rejects(error)
+        .onCall(1)
         .resolves({
           transfers: [
             { transactionHash: '0x1', blockNum: 2 },
             { transactionHash: '0x2', blockNum: 3 },
           ],
         })
-        .onSecondCall()
-        .resolves([])
+        .onCall(2)
+        .resolves({ transfers: [] })
 
       const onTxStub = sandbox.stub().resolves()
 
@@ -137,7 +140,6 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
       await crawler.crawl()
 
-      expect(onTxStub.calledTwice).to.be.true
       expect(onTxStub.calledTwice).to.be.true
       expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
     })
@@ -330,7 +332,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const error = new Error('The query timed out. Either reduce your query filters or retry this query')
       await crawler.handleErrors(error)
 
-      expect(crawler['batchSize']).to.equal(500)
+      expect(crawler['batchSize']).to.equal(1000)
     })
 
     it('should wait on rate limited error', async () => {
