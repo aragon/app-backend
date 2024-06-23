@@ -84,6 +84,7 @@ class Plugin {
 })
 @index({
   address: 1,
+  blockNumber: 1,
   name: 1,
   creatorAddress: 1,
   tvlUSD: 1,

@@ -14,8 +14,8 @@ export const AggregatorProposal = {
     const crawler = new DBCrawler({
       model: Models.LogProposal,
       onDocument: AggregatorProposal.onDocument,
-      onError: (error: any) => {
-        logger.error('Error AggregatorProposal', llo({ error }))
+      onError: (error: any, document: any) => {
+        logger.error('Error AggregatorProposal', llo({ error, document }))
       },
       useAggregate: true,
       aggregate: AggregatorProposal.query(),

@@ -58,6 +58,12 @@ describe('Indexer:Aggregator:Transactions', () => {
 
     const result2 = AggregatorTransactions.getCategories(NetworksEnum.arbitrumMainnet)
     expect(result2.length).to.eq(4)
+
+    const result3 = AggregatorTransactions.getCategories(NetworksEnum.baseMainnet)
+    expect(result3.length).to.eq(4)
+
+    const result4 = AggregatorTransactions.getCategories(NetworksEnum.zksyncSepolia)
+    expect(result4.length).to.eq(4)
   })
 
   describe('onDocument', async () => {

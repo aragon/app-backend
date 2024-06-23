@@ -18,31 +18,11 @@ const customName = 'LogMember'
     customName,
   },
 })
-/**
- * Compound index on multiple fields:
- * This index will optimize queries that filter or sort based on all four fields together.
- * It is particularly useful for complex queries that involve filtering by event, address,
- * tokenAddress, and pluginAddress in combination.
- */
 @index({
   event: 1,
   address: 1,
   tokenAddress: 1,
   pluginAddress: 1,
-})
-/**
- * Single-field index.
- * This index will optimize queries that filter or sort based on the field alone.
- * It is useful for queries that specifically target these fields.
- */
-@index({
-  pluginAddress: 1,
-})
-@index({
-  tokenAddress: 1,
-})
-@index({
-  address: 1,
 })
 export default class LogMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
