@@ -19,9 +19,11 @@ class BlockchainLogCrawler {
   private readonly filter: Filter
   private readonly stopOnError: boolean
   private readonly logService: IEnumIndexerService | null
+  private readonly originalBatchSize: number
   private batchSize: number
   private crawling: boolean
   private isOnError: boolean
+  private runCount: number
   private shutdown: boolean
   public readonly crawlResult: {
     network: NetworksEnum
@@ -53,12 +55,14 @@ class BlockchainLogCrawler {
     this.fromBlock = this.filter.fromBlock as any
     this.toBlock = this.filter.toBlock as any
     this.batchSize = opts.batchSize || this.calculateBatchSize(opts.network)
+    this.originalBatchSize = this.batchSize
     this.onLog = opts.onLog
     this.onError = opts.onError || BlockchainLogCrawler.defaultOnError
     this.stopOnError = opts.stopOnError ?? true
     this.shutdown = false
     this.crawling = false
     this.isOnError = false
+    this.runCount = 0
     this.logService = opts.logService ?? null
 
     this.crawlResult = {
@@ -139,7 +143,8 @@ class BlockchainLogCrawler {
     const latestBlock = await this.getBlockNumber(this.filter.toBlock as any)
 
     while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
-      const toBlock = Math.min(currentBlock + this.batchSize - 1, latestBlock)
+      this.runCount++
+      let toBlock = Math.min(currentBlock + this.batchSize - (this.runCount > 1 ? 1 : 0), latestBlock)
 
       // Handle topics: use chunks if there are topics, or pass empty for all logs
       const topicChunks = utils.chunkArray(this.filter.topics, 4)
@@ -157,7 +162,8 @@ class BlockchainLogCrawler {
           }),
         )
 
-        while (true) {
+        let success = false
+        while (!success) {
           try {
             const logs = await BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
               this.provider.getLogs({
@@ -168,12 +174,27 @@ class BlockchainLogCrawler {
               }),
             )
             await this.processLogs(logs)
+            this.batchSize = this.originalBatchSize
+            success = true
             break
-          } catch (error) {
-            await this.handleErrors(error)
-            if (this.stopOnError && this.shutdown) break
+          } catch (error: any) {
+            if (this.isBatchSizeError(error)) {
+              if (this.batchSize > 1) {
+                this.batchSize = Math.max(1, Math.floor(this.batchSize / 2))
+                toBlock = Math.min(currentBlock + this.batchSize - (this.runCount > 1 ? 1 : 0), latestBlock)
+              } else {
+                logger.error('Batch size too small, stopping crawl', llo({ error }))
+                this.shutdown = true
+                this.onError(error)
+                break
+              }
+            } else {
+              await this.handleErrors(error)
+              if (this.stopOnError && this.shutdown) break
+            }
           }
         }
+        if (this.shutdown) break
       }
 
       if (this.logService) {
@@ -189,10 +210,7 @@ class BlockchainLogCrawler {
   }
 
   async handleErrors(error: any) {
-    if (this.isBatchSizeError(error) && this.batchSize >= 1000) {
-      this.batchSize = Math.max(1, Math.floor(this.batchSize / 2))
-      logger.warn('Reducing batch size due to error', llo({ newBatchSize: this.batchSize }))
-    } else if (this.isRateLimited(error)) {
+    if (this.isRateLimited(error)) {
       await utils.wait(1000)
     } else {
       this.shutdown = true
