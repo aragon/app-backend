@@ -6,6 +6,8 @@ import logger from '@logger'
 import config from '@config'
 import { IToken, ITokenType, NetworksEnum } from '@types'
 import { TokenList } from '@test/mock/fakeCovalentTokens'
+import Logger from '@logger'
+import CoinGeckoHelper from '@helpers/coinGecko'
 
 describe('Helpers: Covalent', () => {
   let sandbox: SinonSandbox
@@ -31,14 +33,15 @@ describe('Helpers: Covalent', () => {
 
     it('Should handle errors in _rpCall', async () => {
       const expectedError = new Error('RPC Call Failed')
-      const rpcCallStub = sandbox.stub(CovalentHelper.axiosInstance, 'get').rejects(expectedError)
+      sandbox.stub(CovalentHelper.axiosInstance, 'get').rejects(expectedError)
 
-      const loggerStub = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'error')
 
       await expect(CovalentHelper._rpCall('/path')).to.be.rejectedWith(expectedError)
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(rpcCallStub.calledWith(`${config.COVALENT.URI}/path`)).to.be.true
-      expect(loggerStub.args[0][0]).to.eq('Error in Covalent RPC Call')
+
+      expect(stubLogger.calledTwice).to.be.true
+      expect(stubLogger.calledWith('Error in Retry Request' as any)).to.be.true
+      expect(stubLogger.calledWith('Error in Covalent RPC Call' as any)).to.be.true
     })
   })
 
