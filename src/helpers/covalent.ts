@@ -14,6 +14,8 @@ import logger from '@logger'
 import utils from '@helpers/utils'
 import { assert } from '@errors'
 import Web3Helper from '@helpers/web3'
+import { retryRequest } from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'covalent' })
 
@@ -80,7 +82,12 @@ const CovalentHelper = {
     const path = `/pricing/historical_by_addresses_v2/${networkId}/${config.DEFAULT_CURRENCY}/${tokenContractAddress}/?from=${back2Days}`
 
     try {
-      const response = await CovalentHelper._rpCall<ITokenCovalentResponse[]>(path)
+      const response: any = await retryRequest(async () =>
+        BottleneckModule.getCoinGeckoLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+          CovalentHelper._rpCall<ITokenCovalentResponse[]>(path),
+        ),
+      )
+
       assert(response.length > 0, 'Price data not complete')
 
       return CovalentHelper._parseToken(response[0], network)
@@ -119,7 +126,12 @@ const CovalentHelper = {
     const path = `/${networkId}/address/${address}/balances_v2/?quote-currency=${currency}`
 
     try {
-      const response = await CovalentHelper._rpCall<ITokenBalanceResponse>(path)
+      const response: any = await retryRequest(async () =>
+        BottleneckModule.getCoinGeckoLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+          CovalentHelper._rpCall<ITokenBalanceResponse>(path),
+        ),
+      )
+
       return {
         updatedAt: response.updated_at,
         items: response.items.map(w => ({
