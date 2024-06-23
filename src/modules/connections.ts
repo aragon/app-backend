@@ -45,7 +45,7 @@ const Connections = {
       })
       .catch((error: any) => {
         Connections.openedConnections.pop()
-        logger.warn('Unable to open connections', { error })
+        logger.warn('Unable to open connections', llo({ error }))
         throw error
       })
   },

@@ -19,6 +19,8 @@ const customName = 'LogPluginSetting'
   },
 })
 @index({
+  network: 1,
+  blockNumber: 1,
   pluginAddress: 1,
 })
 export default class LogPluginSetting extends Model {
