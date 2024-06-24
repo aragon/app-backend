@@ -211,13 +211,13 @@ export default class Member extends Model {
 
   filterMemberKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'daos', 'createdAt', 'updatedAt')
+    const filtered = _.omit(obj, '_id', 'id', '__v', 'daos', 'createdAt', 'updatedAt')
     return filtered
   }
 
   filterKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
+    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
     filtered.daos = _.omit(filtered.daos, '_id', '__v')
     return filtered
   }
