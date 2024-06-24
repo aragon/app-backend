@@ -31,6 +31,7 @@ const customName = 'Token'
 })
 @index({
   address: 1,
+  network: 1,
 })
 export default class Token extends Model {
   @prop({ type: () => String, required: true, unique: true })
