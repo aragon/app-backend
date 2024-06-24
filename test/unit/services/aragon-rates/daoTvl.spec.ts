@@ -90,7 +90,7 @@ describe('Rates: DaoTvl', () => {
       })
 
       expect(stubLogger.calledTwice).to.be.true
-      expect(daoDb.tvlUSD).to.eq('11204.20')
+      expect(daoDb.tvlUSD).to.eq(11204.2)
     })
   })
 
