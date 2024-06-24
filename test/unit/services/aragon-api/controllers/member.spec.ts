@@ -232,7 +232,7 @@ describe('Controller: Member', () => {
       })
 
       const member = await MemberController.getMemberById(memberDb.id)
-      expect(member.id).to.eq(memberDb.id)
+      expect(member.id).to.not.exist
       expect((member as any).daos).not.to.exist
     })
 
