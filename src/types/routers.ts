@@ -11,8 +11,27 @@ export interface IStatusResponse {
   time: string
 }
 
+export interface IDelegatesResponse {
+  transactionHash: HexAddress
+  blockNumber: number
+  tokenAddress: HexAddress
+  fromDelegate: HexAddress
+  toDelegate: HexAddress
+  pluginAddress: HexAddress
+  daoAddress: HexAddress
+  amount: HexAddress
+  token: {
+    type: ITokenType
+    address: HexAddress
+    logo: string
+    name: string
+    decimals: number
+    symbol: string
+  }
+}
+
 export interface IMembersResponse {
-  id: string
+  id?: string
   address: HexAddress
   ens: ENS | null
   fromBlockNumber?: number
