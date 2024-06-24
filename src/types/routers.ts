@@ -140,7 +140,7 @@ export interface IAssetResponse {
     priceChangeOnDayUsd: string
     priceUsd: string
   }
-  amountUsd: string
+  amountUsd: number
 }
 
 export interface ITransactionResponse {
