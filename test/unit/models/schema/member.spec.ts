@@ -219,23 +219,25 @@ describe('Model: Member', () => {
     const createdDao = await Models.Member.create(rawMember)
     const filterDao = createdDao.filterKeys()
 
-    expect(filterDao.id).to.exist
-    expect(filterDao._id).to.be.undefined
-    expect(filterDao.__v).to.be.undefined
-    expect(filterDao.createdAt).to.be.undefined
-    expect(filterDao.updatedAt).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(4)
-  })
-
-  it('Should filterKeys', async () => {
-    const createdDao = await Models.Member.create(rawMember)
-    const filterDao = createdDao.filterKeys()
-
+    expect(filterDao.daos).to.exist
     expect(filterDao.id).to.be.undefined
     expect(filterDao._id).to.be.undefined
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(4)
+    expect(Object.keys(filterDao).length).to.eq(3)
+  })
+
+  it('Should filterMemberKeys', async () => {
+    const createdDao = await Models.Member.create(rawMember)
+    const filterDao = createdDao.filterMemberKeys()
+
+    expect(filterDao.id).to.be.undefined
+    expect(filterDao._id).to.be.undefined
+    expect(filterDao.__v).to.be.undefined
+    expect(filterDao.daos).to.be.undefined
+    expect(filterDao.createdAt).to.be.undefined
+    expect(filterDao.updatedAt).to.be.undefined
+    expect(Object.keys(filterDao).length).to.eq(2)
   })
 })
