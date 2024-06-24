@@ -231,7 +231,7 @@ describe('Model: Member', () => {
     const createdDao = await Models.Member.create(rawMember)
     const filterDao = createdDao.filterKeys()
 
-    expect(filterDao.id).to.exist
+    expect(filterDao.id).to.be.undefined
     expect(filterDao._id).to.be.undefined
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
