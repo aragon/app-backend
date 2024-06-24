@@ -29,6 +29,8 @@ const customName = 'Asset'
 @index({
   daoAddress: 1,
   tokenAddress: 1,
+  network: 1,
+  amountUsd: -1,
 })
 export default class Asset extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -45,6 +47,9 @@ export default class Asset extends Model {
 
   @prop({ type: () => String, default: '0' })
   public amount!: string
+
+  @prop({ type: () => Number, default: '0' })
+  public amountUsd!: string
 
   static async create(rawData: Partial<Asset>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -104,8 +109,8 @@ export default class Asset extends Model {
         {
           $lookup: {
             from: 'token',
-            localField: 'address',
-            foreignField: 'tokenAddress',
+            localField: 'tokenAddress',
+            foreignField: 'address',
             as: 'tokenDetails',
           },
         },
@@ -117,42 +122,25 @@ export default class Asset extends Model {
         },
         {
           $addFields: {
-            'token.address': {
-              $ifNull: ['$tokenDetails.address', '$tokenAddress'],
+            token: {
+              address: { $ifNull: ['$tokenDetails.address', '$tokenAddress'] },
+              symbol: '$tokenDetails.symbol',
+              name: '$tokenDetails.name',
+              type: '$tokenDetails.type',
+              logo: '$tokenDetails.logo',
+              decimals: '$tokenDetails.decimals',
+              priceChangeOnDayUsd: '$tokenDetails.priceChangeOnDayUsd',
+              priceUsd: '$tokenDetails.priceUsd',
             },
-            'token.symbol': '$tokenDetails.symbol',
-            'token.name': '$tokenDetails.name',
-            'token.type': '$tokenDetails.type',
-            'token.logo': '$tokenDetails.logo',
-            'token.decimals': '$tokenDetails.decimals',
-            'token.priceChangeOnDayUsd': '$tokenDetails.priceChangeOnDayUsd',
-            'token.priceUsd': '$tokenDetails.priceUsd',
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            id: '$id',
-            network: 1,
-            daoAddress: 1,
-            tokenAddress: 1,
-            amount: 1,
-            token: 1,
-          },
-        },
-        {
-          $addFields: {
             amountUsd: {
               $cond: {
                 if: {
-                  $and: [{ $gt: ['$token.priceUsd', 0] }, { $gt: ['$token.decimals', 0] }],
+                  $and: [{ $gt: ['$tokenDetails.priceUsd', 0] }, { $gt: ['$tokenDetails.decimals', 0] }],
                 },
                 then: {
                   $multiply: [
-                    {
-                      $divide: [{ $toDecimal: '$amount' }, { $pow: [10, { $toDecimal: '$token.decimals' }] }],
-                    },
-                    { $toDecimal: '$token.priceUsd' },
+                    { $divide: [{ $toDecimal: '$amount' }, { $pow: [10, { $toDecimal: '$tokenDetails.decimals' }] }] },
+                    { $toDecimal: '$tokenDetails.priceUsd' },
                   ],
                 },
                 else: 0,
@@ -165,6 +153,7 @@ export default class Asset extends Model {
         { $limit: request.limit },
         {
           $project: {
+            _id: 0,
             network: 1,
             daoAddress: 1,
             tokenAddress: 1,
