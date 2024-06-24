@@ -48,8 +48,8 @@ export default class Asset extends Model {
   @prop({ type: () => String, default: '0' })
   public amount!: string
 
-  @prop({ type: () => Number, default: 0 })
-  public amountUsd!: number
+  @prop({ type: () => Number, default: '0' })
+  public amountUsd!: string
 
   static async create(rawData: Partial<Asset>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -148,6 +148,9 @@ export default class Asset extends Model {
             },
           },
         },
+        { $sort: request.sort },
+        { $skip: request.skip },
+        { $limit: request.limit },
         {
           $project: {
             _id: 0,
@@ -159,9 +162,6 @@ export default class Asset extends Model {
             amountUsd: { $toString: '$amountUsd' },
           },
         },
-        { $sort: request.sort },
-        { $skip: request.skip },
-        { $limit: request.limit },
       ]),
       this.countDocuments(filter),
     ])
