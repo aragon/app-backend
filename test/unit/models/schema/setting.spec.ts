@@ -236,6 +236,8 @@ describe('Model: Setting', () => {
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
+    expect(filterDao.token.address).to.exist
+    expect(filterDao.settings.votingMode).to.exist
     expect(Object.keys(filterDao).length).to.eq(11)
   })
 })
