@@ -64,6 +64,9 @@ export class ProposalExecuted {
   pluginAddress: 1,
   creatorAddress: 1,
 })
+@index({
+  creatorAddress: 1,
+})
 export default class LogProposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
