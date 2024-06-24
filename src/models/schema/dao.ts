@@ -135,8 +135,8 @@ export default class Dao extends Model {
   @prop({ type: () => [Plugin], default: [] })
   public plugins?: Plugin[]
 
-  @prop({ type: () => String, default: '0' })
-  public tvlUSD!: string
+  @prop({ type: () => Number, default: 0 })
+  public tvlUSD!: number
 
   @prop({ type: () => Metrics })
   public metrics?: Metrics
