@@ -23,15 +23,6 @@ const customName = 'Plugin'
   daoAddress: 1,
   tokenAddress: 1,
 })
-@index({
-  address: 1,
-})
-@index({
-  daoAddress: 1,
-})
-@index({
-  tokenAddress: 1,
-})
 export default class Plugin extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
