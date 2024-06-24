@@ -40,7 +40,7 @@ describe('Model: Dao', () => {
         uniqueVoters: 100,
         votes: 500,
       },
-      tvlUSD: '10000',
+      tvlUSD: 10000,
       plugins: [
         {
           transactionHash: '0x0',
@@ -175,7 +175,7 @@ describe('Model: Dao', () => {
             uniqueVoters: 100,
             votes: 500,
           },
-          tvlUSD: '10000',
+          tvlUSD: 10000,
           plugins: [
             {
               address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
@@ -198,7 +198,7 @@ describe('Model: Dao', () => {
             uniqueVoters: 100,
             votes: 500,
           },
-          tvlUSD: '20000',
+          tvlUSD: 20000,
           plugins: [
             {
               address: '0x0',
@@ -221,7 +221,7 @@ describe('Model: Dao', () => {
             uniqueVoters: 100,
             votes: 500,
           },
-          tvlUSD: '20000',
+          tvlUSD: 20000,
           plugins: [
             {
               address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1962',
@@ -282,7 +282,7 @@ describe('Model: Dao', () => {
           uniqueVoters: 100,
           votes: 500,
         },
-        tvlUSD: '20000',
+        tvlUSD: 20000,
         plugins: [
           {
             address: '0x0',

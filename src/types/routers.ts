@@ -47,7 +47,7 @@ export interface IDaoResponse {
     build: string
     subdomain: string
   }[]
-  tvlUSD: string
+  tvlUSD: number
   proposalsCreated: number
   proposalsExecuted: number
   uniqueVoters: number
