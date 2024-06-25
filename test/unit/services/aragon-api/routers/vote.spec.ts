@@ -20,7 +20,7 @@ describe('Router: Vote', () => {
     it('Should get vote with pagination - all params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
-        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        memberAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         tokenAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
@@ -55,7 +55,7 @@ describe('Router: Vote', () => {
 
     it('Should get vote with pagination - missing pagination params', async () => {
       const filterParams = {
-        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        memberAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
       const paginationParams = {
         sort: 'createdAt',

@@ -50,7 +50,7 @@ describe('Indexer:Aggregator:Vote', () => {
       transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd22d',
       daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3804',
       pluginAddress: '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D2F',
-      address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+      memberAddress: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
       proposalId: 3,
       voteOption: 2,
       votingPower: '4000000000000000000',
@@ -84,7 +84,7 @@ describe('Indexer:Aggregator:Vote', () => {
     expect(vote.transactionHash).to.eq(document.transactionHash)
     expect(vote.daoAddress).to.eq(document.daoAddress)
     expect(vote.pluginAddress).to.eq(document.pluginAddress)
-    expect(vote.address).to.eq(document.address)
+    expect(vote.memberAddress).to.eq(document.memberAddress)
     expect(vote.proposalId).to.eq(document.proposalId)
     expect(vote.voteOption).to.eq(document.voteOption)
     expect(vote.votingPower).to.eq(document.votingPower)
@@ -99,7 +99,7 @@ describe('Indexer:Aggregator:Vote', () => {
       transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd22d',
       daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3804',
       pluginAddress: '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D2F',
-      address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+      memberAddress: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
       proposalId: 3,
       voteOption: 2,
       votingPower: '4000000000000000000',

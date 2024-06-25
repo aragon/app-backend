@@ -13,7 +13,7 @@ export interface IVoteExtraParams {
   pluginAddress?: HexAddress
   tokenAddress?: HexAddress
   proposalId?: number
-  address?: HexAddress
+  memberAddress?: HexAddress
 }
 
 export interface IProposalExtraParams {

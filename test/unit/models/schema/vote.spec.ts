@@ -18,7 +18,7 @@ describe('Model: Vote', () => {
       network: NetworksEnum.ethereumSepolia,
       pluginAddress: '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D2F',
       proposalId: 3,
-      address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+      memberAddress: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
       voteOption: 2,
       votingPower: '4000000000000000000',
       transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd22d',
@@ -53,8 +53,8 @@ describe('Model: Vote', () => {
 
     it('should update Vote', async () => {
       const vote = await Models.Vote.create(rawVote)
-      const updatedVote = await vote.update({ address: '0x00' })
-      expect(updatedVote.address).to.eq('0x00')
+      const updatedVote = await vote.update({ memberAddress: '0x00' })
+      expect(updatedVote.memberAddress).to.eq('0x00')
     })
 
     it('Should getEntityId', async () => {
@@ -125,7 +125,7 @@ describe('Model: Vote', () => {
           network: NetworksEnum.ethereumSepolia,
           pluginAddress: '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D2F',
           proposalId: 3,
-          address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+          memberAddress: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
           transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd22d',
           blockNumber: 4879275,
           daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3804',
@@ -135,7 +135,7 @@ describe('Model: Vote', () => {
           network: NetworksEnum.ethereumSepolia,
           pluginAddress: '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D20',
           proposalId: 3,
-          address: '0x284803C34A3F049f787E2562e6F8C084bdBC3193',
+          memberAddress: '0x284803C34A3F049f787E2562e6F8C084bdBC3193',
           voteOption: 2,
           votingPower: '4000000000000000000',
           transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd221',
@@ -154,7 +154,7 @@ describe('Model: Vote', () => {
           network: NetworksEnum.ethereumSepolia,
           pluginAddress: '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D21',
           proposalId: 3,
-          address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+          memberAddress: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
           voteOption: 2,
           votingPower: '4000000000000000000',
           transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd22d',
@@ -261,7 +261,7 @@ describe('Model: Vote', () => {
     const createdLogDao = await Models.Vote.create(rawVote)
     await createdLogDao.reload()
 
-    expect(createdLogDao.address).to.eq(rawVote.address)
+    expect(createdLogDao.memberAddress).to.eq(rawVote.memberAddress)
   })
 
   it('Should filterKeys', async () => {
