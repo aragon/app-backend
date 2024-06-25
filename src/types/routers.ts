@@ -119,7 +119,7 @@ export interface IVoteResponse {
   pluginAddress: HexAddress
   daoAddress: HexAddress
   proposalId: number
-  address: HexAddress
+  memberAddress: HexAddress
   voteOption?: number
   votingPower?: string
   token: {

@@ -10,7 +10,7 @@ const VoteSchema = {
     daoAddress: ValidationSchema.joiAddress.optional(),
     pluginAddress: ValidationSchema.joiAddress.optional(),
     tokenAddress: ValidationSchema.joiAddress.optional(),
-    address: ValidationSchema.joiAddress.optional(),
+    memberAddress: ValidationSchema.joiAddress.optional(),
     proposalId: Joi.number().integer().min(0).optional(),
   }),
 }

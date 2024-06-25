@@ -72,7 +72,7 @@ export default class Vote extends Model {
   public pluginAddress!: HexAddress
 
   @prop({ type: () => String, required: true })
-  public address!: HexAddress
+  public memberAddress!: HexAddress
 
   @prop({ type: () => Number })
   public proposalId!: number
@@ -126,7 +126,9 @@ export default class Vote extends Model {
   }): Promise<IPaginatedResult<IVoteResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(([key, value]) => value !== undefined && key !== 'tokenAddress'),
+      Object.entries(extraParams).filter(
+        ([key, value]) => value !== undefined && key !== 'tokenAddress' && key !== 'memberAddress',
+      ),
     )
 
     const filter = {

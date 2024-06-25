@@ -14,7 +14,7 @@ const VoteRouter = {
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
-      address: ctx.query.address as HexAddress,
+      memberAddress: ctx.query.memberAddress as HexAddress,
       proposalId: ctx.query.proposalId ? Number(ctx.query.proposalId) : undefined,
     }
 

@@ -17,7 +17,7 @@ describe('Controller: Vote', () => {
       network: NetworksEnum.ethereumSepolia,
       pluginAddress: '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D2F',
       proposalId: 3,
-      address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+      memberAddress: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
       voteOption: 2,
       votingPower: '4000000000000000000',
       transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd22d',
@@ -58,7 +58,7 @@ describe('Controller: Vote', () => {
         daoAddress: rawVote.daoAddress,
         tokenAddress: rawVote.token?.address,
         proposalId: rawVote.proposalId,
-        address: rawVote.address,
+        memberAddress: rawVote.memberAddress,
       }
 
       const spyReq = sandbox.spy(Models.Vote, 'findWithPagination')
@@ -85,7 +85,7 @@ describe('Controller: Vote', () => {
       expect(response.data[0].network).to.eq(rawVote.network)
       expect(response.data[0].blockNumber).to.eq(rawVote.blockNumber)
       expect(response.data[0].transactionHash).to.eq(rawVote.transactionHash)
-      expect(response.data[0].address).to.eq(rawVote.address)
+      expect(response.data[0].memberAddress).to.eq(rawVote.memberAddress)
       expect(response.data[0].pluginAddress).to.eq(rawVote.pluginAddress)
       expect(response.data[0].daoAddress).to.eq(rawVote.daoAddress)
       expect(response.data[0].pluginAddress).to.eq(rawVote.pluginAddress)
@@ -136,7 +136,7 @@ describe('Controller: Vote', () => {
       expect(response.data[0].network).to.eq(rawVote.network)
       expect(response.data[0].blockNumber).to.eq(rawVote.blockNumber)
       expect(response.data[0].transactionHash).to.eq(rawVote.transactionHash)
-      expect(response.data[0].address).to.eq(rawVote.address)
+      expect(response.data[0].memberAddress).to.eq(rawVote.memberAddress)
       expect(response.data[0].pluginAddress).to.eq(rawVote.pluginAddress)
       expect(response.data[0].daoAddress).to.eq(rawVote.daoAddress)
       expect(response.data[0].pluginAddress).to.eq(rawVote.pluginAddress)

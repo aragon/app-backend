@@ -85,7 +85,7 @@ export const AggregatorVote = {
       {
         $project: {
           _id: 0,
-          address: '$voteEvents.memberAddress',
+          memberAddress: '$voteEvents.memberAddress',
           proposalId: 1,
           pluginAddress: 1,
           voteOption: '$voteEvents.voteOption',
