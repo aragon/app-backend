@@ -19,17 +19,9 @@ const customName = 'Plugin'
   },
 })
 @index({
+  network: 1,
   address: 1,
   daoAddress: 1,
-  tokenAddress: 1,
-})
-@index({
-  address: 1,
-})
-@index({
-  daoAddress: 1,
-})
-@index({
   tokenAddress: 1,
 })
 export default class Plugin extends Model {

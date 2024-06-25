@@ -16,6 +16,7 @@ import { AggregatorSetting } from '@services/aragon-indexer/aggregator/setting'
 import { AggregatorAssets } from '@services/aragon-indexer/aggregator/asset'
 import { AggregatorTransactions } from '@services/aragon-indexer/aggregator/transaction'
 import { AggregatorDao } from '@indexer/aggregator/dao'
+import { AggregatorDelegate } from '@indexer/aggregator/delegate'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -45,6 +46,7 @@ const IndexerService: IService = {
       [async () => AggregatorProposal.start()],
       [async () => AggregatorDao.start()],
       [async () => AggregatorAssets.start()],
+      [async () => AggregatorDelegate.start()],
       [async () => AggregatorTransactions.start()],
     ]
 

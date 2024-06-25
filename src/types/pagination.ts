@@ -32,6 +32,14 @@ export interface IMemberExtraParams {
   onlyActive?: boolean
 }
 
+export interface IDelegateExtraParams {
+  memberAddress?: HexAddress
+  daoAddress?: HexAddress
+  pluginAddress?: HexAddress
+  tokenAddress?: HexAddress
+  network?: NetworksEnum
+}
+
 export interface ITransactionExtraParams {
   category?: ITransactionCategory
   network?: NetworksEnum
