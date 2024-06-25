@@ -131,7 +131,7 @@ export default class Vote extends Model {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
       Object.entries(extraParams).filter(
-        ([key, value]) => value !== undefined && key !== 'tokenAddress' && key !== 'memberAddress',
+        ([key, value]) => value !== undefined && key !== 'tokenAddress',
       ),
     )
 
