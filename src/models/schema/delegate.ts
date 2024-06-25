@@ -1,14 +1,12 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
+  type IDelegateExtraParams,
+  type IDelegateIdParams,
+  type IDelegatesResponse,
   type IPaginatedResult,
   type IPaginationParams,
   ITokenType,
-  ITransactionCategory,
-  type ITransactionExtraParams,
-  type ITransactionIdParams,
-  type ITransactionResponse,
-  ITransactionType,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
@@ -16,15 +14,7 @@ import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
-const customName = 'Transaction'
-
-class ERC1155Metadata {
-  @prop({ type: () => String, default: null })
-  public tokenId!: string
-
-  @prop({ type: () => String, default: null })
-  public value!: string
-}
+const customName = 'Delegate'
 
 class Token {
   @prop({ type: () => String, enum: ITokenType, required: true })
@@ -50,7 +40,7 @@ class Token {
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'transaction',
+    collection: 'delegate',
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -59,84 +49,62 @@ class Token {
   },
 })
 @index({
-  fromAddress: 1,
-  toAddress: 1,
-  tokenAddress: 1,
-  daoAddress: 1,
+  network: 1,
+  address: 1,
 })
-export default class Transaction extends Model {
+export default class Delegate extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
-
-  @prop({ type: () => String, required: true })
-  public transactionHash!: HexAddress
-
-  @prop({ type: () => Number, required: true })
-  public blockNumber!: number
-
-  @prop({ type: () => Number })
-  public blockTimestamp!: number
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
-  @prop({ type: () => String, enum: ITransactionType, required: true })
-  public type!: ITransactionType
+  @prop({ type: () => Number })
+  public blockNumber!: number
 
-  @prop({ type: () => String, enum: ITransactionCategory, required: true })
-  public category!: ITransactionCategory
-
-  @prop({ type: () => String, required: true })
-  public fromAddress!: HexAddress
+  @prop({ type: () => String })
+  public transactionHash!: HexAddress
 
   @prop({ type: () => String, required: true })
-  public toAddress!: HexAddress
+  public fromDelegate!: HexAddress
 
-  @prop({ type: () => String, default: '0' })
-  public value!: string
+  @prop({ type: () => String, required: true })
+  public toDelegate!: HexAddress
 
-  @prop({ type: () => String, default: null })
+  @prop({ type: () => String, required: true })
   public tokenAddress!: HexAddress
 
-  @prop({ type: () => String, default: null })
+  @prop({ type: () => String, required: true })
+  public pluginAddress!: HexAddress
+
+  @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
 
-  @prop({ type: () => String, default: null })
-  public tokenId!: string
+  @prop({ type: () => String, default: '0' })
+  public amount!: string
 
-  @prop({ type: () => String, default: null })
-  public erc721TokenId!: string
-
-  @prop({ type: () => [ERC1155Metadata], default: [] })
-  public erc1155Metadata!: ERC1155Metadata[]
-
-  @prop({ type: () => String, default: null })
-  public proposalId!: string
-
-  @prop({ type: () => Token, default: null })
+  @prop({ type: () => Token })
   public token?: Token
 
-  static async create(rawData: Partial<Transaction>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Delegate>, tOpts?: SaveOptions) {
     if (!rawData.id) {
-      assert(!!rawData.transactionHash, 'transactionHash is required')
-      assert(!!rawData.category, 'category is required')
       assert(!!rawData.network, 'network is required')
+      assert(!!rawData.transactionHash, 'transactionHash is required')
       rawData.id = this.getEntityId({
-        transactionHash: rawData?.transactionHash!,
-        category: rawData?.category!,
         network: rawData?.network!,
+        transactionHash: rawData?.transactionHash!,
       })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(params: ITransactionIdParams) {
-    const entityId = `${params.transactionHash}-${params.category}-${params.network}`
+  static getEntityId(params: IDelegateIdParams) {
+    const entityId = `${params.network}-${params.transactionHash}`
     return entityId
   }
 
-  static async findExistingLog(params: ITransactionIdParams, tOpts?: SaveOptions) {
+  static async findExistingLog(params: IDelegateIdParams, tOpts?: SaveOptions) {
     const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
@@ -149,21 +117,28 @@ export default class Transaction extends Model {
     extraParams = {},
     paginationParams = {},
   }: {
-    extraParams?: ITransactionExtraParams
+    extraParams?: IDelegateExtraParams
     paginationParams?: IPaginationParams
-  }): Promise<IPaginatedResult<ITransactionResponse>> {
+  }): Promise<IPaginatedResult<IDelegatesResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-
-    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([key, value]) => value !== undefined))
+    const dynamicFilter = Object.fromEntries(
+      Object.entries(extraParams).filter(([key, value]) => value !== undefined && key !== 'memberAddress'),
+    )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, [
         'transactionHash',
-        'fromAddress',
-        'toAddress',
-        'tokenAddress',
         'daoAddress',
+        'pluginAddress',
+        'tokenAddress',
+        'network',
+        'fromDelegate',
+        'toDelegate',
       ]),
       ...dynamicFilter,
+    }
+
+    if (extraParams.memberAddress) {
+      filter['$or'] = [{ fromDelegate: extraParams.memberAddress }, { toDelegate: extraParams.memberAddress }]
     }
 
     const currentPage = request.skip / request.limit + 1
@@ -186,7 +161,7 @@ export default class Transaction extends Model {
     }
   }
 
-  async update(params: Partial<Transaction>, tOpts?: SaveOptions) {
+  async update(params: Partial<Delegate>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
@@ -208,7 +183,7 @@ export default class Transaction extends Model {
 
   filterKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'hideDao', 'createdAt', 'updatedAt')
+    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
     filtered.token = _.omit(filtered.token, '_id', '__v')
     return filtered
   }

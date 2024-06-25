@@ -67,6 +67,11 @@ export interface ILogProposalMetadataIdParams {
   proposalId: number
 }
 
+export interface IDelegateIdParams {
+  network: NetworksEnum
+  transactionHash: HexAddress
+}
+
 export interface IMemberIdParams {
   address: HexAddress
 }
