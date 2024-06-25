@@ -1,20 +1,20 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
-  type IDelegateExtraParams,
-  type IDelegateIdParams,
-  type IDelegatesResponse,
+  type IVoteExtraParams,
+  type IVoteIdParams,
+  type IVoteResponse,
   type IPaginatedResult,
   type IPaginationParams,
-  ITokenType,
   NetworksEnum,
+  ITokenType,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
-const customName = 'Delegate'
+const customName = 'Vote'
 
 class Token {
   @prop({ type: () => String, enum: ITokenType, required: true })
@@ -40,7 +40,7 @@ class Token {
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'delegate',
+    collection: 'vote',
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -52,64 +52,67 @@ class Token {
   network: 1,
   blockNumber: 1,
   daoAddress: 1,
-  tokenAddress: 1,
   pluginAddress: 1,
-  fromDelegate: 1,
-  toDelegate: 1,
+  memberAddress: 1,
+  'token.address': 1,
 })
-export default class Delegate extends Model {
+export default class Vote extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
+
+  @prop({ type: () => String, required: true })
+  public transactionHash!: HexAddress
+
+  @prop({ type: () => Number, required: true })
+  public blockNumber!: number
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
-  @prop({ type: () => Number })
-  public blockNumber!: number
-
-  @prop({ type: () => String })
-  public transactionHash!: HexAddress
-
   @prop({ type: () => String, required: true })
-  public fromDelegate!: HexAddress
-
-  @prop({ type: () => String, required: true })
-  public toDelegate!: HexAddress
-
-  @prop({ type: () => String, required: true })
-  public tokenAddress!: HexAddress
+  public daoAddress!: HexAddress
 
   @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
 
   @prop({ type: () => String, required: true })
-  public daoAddress!: HexAddress
+  public memberAddress!: HexAddress
 
-  @prop({ type: () => String, default: '0' })
-  public amount!: string
+  @prop({ type: () => Number })
+  public proposalId!: number
 
-  @prop({ type: () => Token })
+  @prop({ type: () => Token, default: null })
   public token?: Token
 
-  static async create(rawData: Partial<Delegate>, tOpts?: SaveOptions) {
+  @prop({ type: () => Number })
+  public voteOption?: number
+
+  @prop({ type: () => String, default: null })
+  public votingPower?: string
+
+  static async create(rawData: Partial<Vote>, tOpts?: SaveOptions) {
     if (!rawData.id) {
-      assert(!!rawData.network, 'network is required')
+      assert(!!rawData.network, 'pluginAddress is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
+      assert(!!rawData.pluginAddress, 'pluginAddress is required')
+      assert(!!rawData.proposalId || rawData.proposalId === 0, 'proposalId is required')
       rawData.id = this.getEntityId({
         network: rawData?.network!,
         transactionHash: rawData?.transactionHash!,
+        pluginAddress: rawData?.pluginAddress!,
+        proposalId: rawData?.proposalId!,
       })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(params: IDelegateIdParams) {
-    const entityId = `${params.network}-${params.transactionHash}`
+  static getEntityId(params: IVoteIdParams) {
+    const entityId = `${params.network}-${params.transactionHash}-${params.pluginAddress}-${params.proposalId}`
     return entityId
   }
 
-  static async findExistingLog(params: IDelegateIdParams, tOpts?: SaveOptions) {
+  static async findExistingLog(params: IVoteIdParams, tOpts?: SaveOptions) {
     const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
@@ -122,28 +125,21 @@ export default class Delegate extends Model {
     extraParams = {},
     paginationParams = {},
   }: {
-    extraParams?: IDelegateExtraParams
+    extraParams?: IVoteExtraParams
     paginationParams?: IPaginationParams
-  }): Promise<IPaginatedResult<IDelegatesResponse>> {
+  }): Promise<IPaginatedResult<IVoteResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(([key, value]) => value !== undefined && key !== 'memberAddress'),
+      Object.entries(extraParams).filter(([key, value]) => value !== undefined && key !== 'tokenAddress'),
     )
+
     const filter = {
-      ...ModelUtils.createFilter(paginationParams, [
-        'transactionHash',
-        'daoAddress',
-        'pluginAddress',
-        'tokenAddress',
-        'network',
-        'fromDelegate',
-        'toDelegate',
-      ]),
+      ...ModelUtils.createFilter(paginationParams, ['address', 'ens']),
       ...dynamicFilter,
     }
 
-    if (extraParams.memberAddress) {
-      filter['$or'] = [{ fromDelegate: extraParams.memberAddress }, { toDelegate: extraParams.memberAddress }]
+    if (extraParams.tokenAddress) {
+      filter['token.address'] = extraParams.tokenAddress
     }
 
     const currentPage = request.skip / request.limit + 1
@@ -166,7 +162,7 @@ export default class Delegate extends Model {
     }
   }
 
-  async update(params: Partial<Delegate>, tOpts?: SaveOptions) {
+  async update(params: Partial<Vote>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
@@ -189,7 +185,7 @@ export default class Delegate extends Model {
   filterKeys() {
     const obj = this.toObject()
     const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
-    filtered.token = _.omit(filtered.token, '_id', '__v')
+    filtered.token = _.omit(filtered.token, 'id', '_id', '__v')
     return filtered
   }
 }

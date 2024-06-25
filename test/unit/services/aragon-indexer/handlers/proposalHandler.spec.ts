@@ -53,12 +53,39 @@ describe('Indexer: ProposalHandler', () => {
       const stubProposalMetadata = sandbox.stub(ProposalHandler, 'proposalMetadata').resolves()
       const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(metadataUri)
       const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubFindPlugin = sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(true)
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
+      expect(stubFindPlugin.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(stubExtractMetadataUri.calledOnceWith(fakeEvent.args.metadata)).to.be.true
       expect(stubProposalMetadata.calledOnceWith(info)).to.be.true
+    })
+
+    it('Plugin not found', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        address: '0x456',
+        blockNumber: 1,
+        network,
+        eventName: 'proposalCreated',
+      }
+      const fakeEvent = {
+        args: {
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      }
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(false)
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      expect(stubLogger.calledOnceWith('Plugin not found' as any)).to.be.true
     })
 
     it('proposalCreated throw error', async () => {
@@ -80,6 +107,7 @@ describe('Indexer: ProposalHandler', () => {
 
       sandbox.stub(Web3Helper, 'extractMetadataUri').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(true)
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 

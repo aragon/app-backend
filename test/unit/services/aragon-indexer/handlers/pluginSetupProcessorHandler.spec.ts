@@ -40,9 +40,11 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
+      const stubFindDao = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
 
+      expect(stubFindDao.calledOnce).to.be.true
       expect(
         findTxSpy.calledWith({
           transactionHash: logInfo.transactionHash,
@@ -65,6 +67,30 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(daoMetadataDB.pluginAddress).to.eq(fakeEvent.args.plugin)
     })
 
+    it('dao not found error', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      }
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
+
+      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
+
+      expect(stubLogger.calledOnceWith('dao not found' as any)).to.be.true
+    })
+
     it('InstallationApplied throw error', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -83,6 +109,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
 
@@ -143,9 +170,11 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         type: ITokenType.GovernanceERC20,
       } as any)
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
+      const stubFindDao = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
 
+      expect(stubFindDao.calledOnce).to.be.true
       expect(
         findTxSpy.calledWith({
           transactionHash: logInfo.transactionHash,
@@ -174,6 +203,30 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(daoMetadataDB.tokenAddress).to.eq(tokenAddress)
     })
 
+    it('dao not found error', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      }
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
+
+      await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
+
+      expect(stubLogger.calledOnceWith('dao not found' as any)).to.be.true
+    })
+
     it('installationPrepared throw error', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -192,6 +245,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
 
@@ -219,9 +273,11 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
+      const stubFindDao = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
 
+      expect(stubFindDao.calledOnce).to.be.true
       expect(
         findTxSpy.calledWith({
           transactionHash: logInfo.transactionHash,
@@ -243,6 +299,30 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(daoMetadataDB.pluginAddress).to.eq(fakeEvent.args.plugin)
     })
 
+    it('dao not found error', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      }
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
+
+      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
+
+      expect(stubLogger.calledOnceWith('dao not found' as any)).to.be.true
+    })
+
     it('uninstallationApplied throw error', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -261,6 +341,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
 
@@ -304,9 +385,11 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
+      const stubFindDao = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, logInfo)
 
+      expect(stubFindDao.calledOnce).to.be.true
       expect(
         findTxSpy.calledWith({
           transactionHash: logInfo.transactionHash,
@@ -331,6 +414,30 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(daoMetadataDB.build).to.eq(fakeEvent.args.versionTag.release)
     })
 
+    it('dao not found error', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      }
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
+
+      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
+
+      expect(stubLogger.calledOnceWith('dao not found' as any)).to.be.true
+    })
+
     it('uninstallationPrepared throw error', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -349,6 +456,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, logInfo)
 
@@ -377,9 +485,11 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
+      const stubFindDao = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
 
+      expect(stubFindDao.calledOnce).to.be.true
       expect(
         findTxSpy.calledWith({
           transactionHash: logInfo.transactionHash,
@@ -402,6 +512,30 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(daoMetadataDB.pluginAddress).to.eq(fakeEvent.args.plugin)
     })
 
+    it('dao not found error', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      }
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
+
+      await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
+
+      expect(stubLogger.calledOnceWith('dao not found' as any)).to.be.true
+    })
+
     it('updateApplied throw error', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -420,6 +554,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
 
@@ -465,9 +600,11 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
+      const stubFindDao = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, logInfo)
 
+      expect(stubFindDao.calledOnce).to.be.true
       expect(
         findTxSpy.calledWith({
           transactionHash: logInfo.transactionHash,
@@ -492,6 +629,30 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(daoMetadataDB.build).to.eq(fakeEvent.args.versionTag.release)
     })
 
+    it('dao not found error', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      }
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
+
+      await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, logInfo)
+
+      expect(stubLogger.calledOnceWith('dao not found' as any)).to.be.true
+    })
+
     it('updatePrepared throw error', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -510,6 +671,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, logInfo)
 

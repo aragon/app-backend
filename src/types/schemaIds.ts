@@ -7,6 +7,13 @@ import {
   type NetworksEnum,
 } from '@src/types/index'
 
+export interface IVoteIdParams {
+  network: NetworksEnum
+  transactionHash: HexAddress
+  pluginAddress: HexAddress
+  proposalId: number
+}
+
 export interface IAssetIdParams {
   network: NetworksEnum
   daoAddress: HexAddress
