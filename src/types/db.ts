@@ -16,6 +16,7 @@ import type Transaction from '@models/schema/transaction'
 import type Proposal from '@models/schema/proposal'
 import type ConfigIndexer from '@models/schema/configIndexer'
 import type Delegate from '@models/schema/delegate'
+import type Vote from '@models/schema/vote'
 
 export interface IMongoModel {
   Dao: typeof Dao
@@ -36,6 +37,7 @@ export interface IMongoModel {
   Transaction: typeof Transaction
   ConfigIndexer: typeof ConfigIndexer
   Delegate: typeof Delegate
+  Vote: typeof Vote
 }
 
 export enum IEventLogPluginMembership {

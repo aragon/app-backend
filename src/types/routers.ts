@@ -20,7 +20,7 @@ export interface IDelegatesResponse {
   toDelegate: HexAddress
   pluginAddress: HexAddress
   daoAddress: HexAddress
-  amount: HexAddress
+  amount: string
   token: {
     type: ITokenType
     address: HexAddress
@@ -108,6 +108,27 @@ export interface ISettingResponse {
     minParticipation?: number
     minDuration?: number
     minProposerVotingPower?: string
+  }
+}
+
+export interface IVoteResponse {
+  id: string
+  transactionHash: string
+  blockNumber: number
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  daoAddress: HexAddress
+  proposalId: number
+  address: HexAddress
+  voteOption?: number
+  votingPower?: string
+  token: {
+    type: ITokenType
+    address: HexAddress
+    logo: string
+    name: string
+    decimals: number
+    symbol: string
   }
 }
 
