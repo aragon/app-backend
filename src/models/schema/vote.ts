@@ -49,8 +49,12 @@ class Token {
   },
 })
 @index({
-  address: 1,
-  'daos.pluginAddress': 1,
+  network: 1,
+  blockNumber: 1,
+  daoAddress: 1,
+  pluginAddress: 1,
+  memberAddress: 1,
+  'token.address': 1,
 })
 export default class Vote extends Model {
   @prop({ type: () => String, required: true, unique: true })

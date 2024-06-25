@@ -50,7 +50,12 @@ class Token {
 })
 @index({
   network: 1,
-  address: 1,
+  blockNumber: 1,
+  daoAddress: 1,
+  tokenAddress: 1,
+  pluginAddress: 1,
+  fromDelegate: 1,
+  toDelegate: 1,
 })
 export default class Delegate extends Model {
   @prop({ type: () => String, required: true, unique: true })
