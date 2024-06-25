@@ -36,8 +36,12 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
+      const stubFindPlugin = sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(true)
       const stubLogger = sandbox.stub(logger, 'verbose')
+
       await PluginSettingHandler.votingSettingsUpdated(fakeEvent as any, logInfo)
+
+      expect(stubFindPlugin.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
 
       const pluginSettingDB = await Models.LogPluginSetting.findExistingLog({
@@ -52,6 +56,30 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(pluginSettingDB.minParticipation).to.eq(Number(fakeEvent.args.minParticipation))
       expect(pluginSettingDB.minDuration).to.eq(Number(fakeEvent.args.minDuration))
       expect(pluginSettingDB.minProposerVotingPower).to.eq(Number(fakeEvent.args.minProposerVotingPower))
+    })
+
+    it('plugin not found', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      }
+
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(false)
+      const stubLogger = sandbox.stub(logger, 'warn')
+
+      await PluginSettingHandler.votingSettingsUpdated(fakeEvent as any, logInfo)
+
+      expect(stubLogger.calledOnceWith('Plugin not found' as any)).to.be.true
     })
 
     it('votingSettingsUpdated throw error', async () => {
@@ -70,6 +98,7 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(true)
       sandbox.stub(Models.LogPluginSetting, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
@@ -95,8 +124,12 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
+      const stubFindPlugin = sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(true)
       const stubLogger = sandbox.stub(logger, 'verbose')
+
       await PluginSettingHandler.multisigSettingsUpdated(fakeEvent as any, logInfo)
+
+      expect(stubFindPlugin.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
 
       const pluginSettingDB = await Models.LogPluginSetting.findExistingLog({
@@ -108,6 +141,30 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(pluginSettingDB.pluginAddress).to.eq(logInfo.address)
       expect(pluginSettingDB.onlyListed).to.eq(fakeEvent.args.onlyListed)
       expect(pluginSettingDB.minApprovals).to.eq(Number(fakeEvent.args.minApprovals))
+    })
+
+    it('plugin not found', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      }
+
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(false)
+      const stubLogger = sandbox.stub(logger, 'warn')
+
+      await PluginSettingHandler.multisigSettingsUpdated(fakeEvent as any, logInfo)
+
+      expect(stubLogger.calledOnceWith('Plugin not found' as any)).to.be.true
     })
 
     it('multisigSettingsUpdated throw error', async () => {
@@ -126,6 +183,7 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(true)
       sandbox.stub(Models.LogPluginSetting, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 

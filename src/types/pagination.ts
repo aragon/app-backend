@@ -7,6 +7,15 @@ export interface ITokenExtraParams {
   type?: ITokenType
 }
 
+export interface IVoteExtraParams {
+  network?: NetworksEnum
+  daoAddress?: HexAddress
+  pluginAddress?: HexAddress
+  tokenAddress?: HexAddress
+  proposalId?: number
+  memberAddress?: HexAddress
+}
+
 export interface IProposalExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
