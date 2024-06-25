@@ -12,6 +12,7 @@ export interface IStatusResponse {
 }
 
 export interface IDelegatesResponse {
+  network: NetworksEnum
   transactionHash: HexAddress
   blockNumber: number
   tokenAddress: HexAddress

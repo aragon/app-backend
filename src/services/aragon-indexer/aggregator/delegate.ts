@@ -16,9 +16,10 @@ export const AggregatorDelegate = {
       onError: (error: any, document: any) => {
         logger.error('Error AggregatorDelegate', llo({ error, document }))
       },
+      where: {},
       useAggregate: true,
       aggregate: AggregatorDelegate.query(),
-      batchSize: 1000,
+      batchSize: 500,
       concurrency: 1,
     })
 
