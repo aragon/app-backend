@@ -184,7 +184,7 @@ export default class Delegate extends Model {
   filterKeys() {
     const obj = this.toObject()
     const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
-    filtered.token = _.omit(filtered, '_id', '__v')
+    filtered.token = _.omit(filtered.token, '_id', '__v')
     return filtered
   }
 }

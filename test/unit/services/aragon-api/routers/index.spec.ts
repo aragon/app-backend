@@ -14,6 +14,7 @@ import MemberRouter from '@api/routers/member'
 import ProposalRouter from '@api/routers/proposal'
 import SettingRouter from '@api/routers/setting'
 import TransactionRouter from '@api/routers/transaction'
+import DelegateRouter from '@api/routers/delegate'
 
 describe('Router: MainRouter', () => {
   let sandbox: SinonSandbox
@@ -36,6 +37,7 @@ describe('Router: MainRouter', () => {
       })
     }
 
+    stubRouter(DelegateRouter, 'delegate')
     stubRouter(AssetRouter, 'assets')
     stubRouter(DaoRouter, 'daos')
     stubRouter(MemberRouter, 'members')
@@ -50,13 +52,14 @@ describe('Router: MainRouter', () => {
     const mainRouter = MainRouter.router()
     expect(mainRouter instanceof Router).to.be.true
 
-    expect(use.callCount).to.be.eq(8)
+    expect(use.callCount).to.be.eq(9)
     expect(use.calledWith(`statusRoutes`, `statusAllowedMethod`)).to.be.true
 
     function expectRouter(name: string) {
       expect(use.calledWith(`/${name}`, `${name}Routes`, `${name}AllowedMethod`)).to.be.true
     }
 
+    expectRouter('delegate')
     expectRouter('assets')
     expectRouter('daos')
     expectRouter('members')

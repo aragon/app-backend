@@ -45,8 +45,8 @@ const IndexerService: IService = {
       [async () => AggregatorMembers.start()],
       [async () => AggregatorProposal.start()],
       [async () => AggregatorDao.start()],
-      [async () => AggregatorDelegate.start()],
       [async () => AggregatorAssets.start()],
+      [async () => AggregatorDelegate.start()],
       [async () => AggregatorTransactions.start()],
     ]
 
