@@ -25,7 +25,7 @@ const FourByte = {
 
       return response.data
     } catch (error: any) {
-      logger.error('Error in CoinGecko RPC Call', llo({ path, error }))
+      logger.error('Error in 4Byte RPC Call', llo({ path, error }))
       throw error
     }
   },
