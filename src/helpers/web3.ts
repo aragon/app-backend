@@ -49,6 +49,10 @@ const Web3Helper = {
   ERC1155_safeTransferFrom: '0xf242432a',
   ERC1155_safeBatchTransferFrom: '0x2eb2c2d6',
 
+  needToSyncBlockTime(document: any) {
+    return !document?.blockTimestamp || document?.blockTimestamp === 0
+  },
+
   getERC20TransferABI(functionSelector: string): string[] | null {
     switch (functionSelector) {
       case Web3Helper.ERC20_transfer:

@@ -181,6 +181,12 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  it('needToSyncBlockTime', () => {
+    expect(Web3Helper.needToSyncBlockTime({})).to.be.true
+    expect(Web3Helper.needToSyncBlockTime({ blockTimestamp: 0 })).to.be.true
+    expect(Web3Helper.needToSyncBlockTime({ blockTimestamp: 1 })).to.be.false
+  })
+
   it('isERC1155TransferMethod', () => {
     const action = { data: Web3Helper.ERC1155_safeTransferFrom }
     sandbox.stub(Web3Helper, 'getMethodSignature').returns(Web3Helper.ERC1155_safeTransferFrom)
