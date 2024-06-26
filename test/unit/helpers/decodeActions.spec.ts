@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import DecodeActions from '@helpers/decodeActions'
 import { expect } from 'chai'
 
-describe.only('Helpers: DecodeActions', () => {
+describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
