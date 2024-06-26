@@ -69,7 +69,7 @@ export default class LogDaoMetadata extends Model {
   @prop({ type: () => String, default: null })
   public avatar!: string
 
-  @prop({ type: () => [Link], default: [] })
+  @prop({ type: () => [Link], _id: false, default: [] })
   public links?: Link[]
 
   static async create(rawData: Partial<LogDaoMetadata>, tOpts?: SaveOptions) {

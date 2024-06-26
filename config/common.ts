@@ -52,6 +52,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       COINGECKO_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COINGECKO_MIN_TIME', 2000),
       COVALENT_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COVALENT_MAX_CONCURRENT', 1),
       COVALENT_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COVALENT_MIN_TIME', 2000),
+      FOUR_BYTE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_FOUR_BYTE_MAX_CONCURRENT', 1),
+      FOUR_BYTE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_FOUR_BYTE_MIN_TIME', 2000),
     },
 
     MONGO_DB: {
@@ -83,6 +85,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     COINGECKO: {
       URI: utils.configParser(sourceConfig, 'string', 'COINGECKO_URI', 'https://api.coingecko.com/api/v3'),
       API_KEY: utils.configParser(sourceConfig, 'string', 'COINGECKO_API_KEY', null),
+    },
+
+    FOUR_BYTE: {
+      URI: utils.configParser(sourceConfig, 'string', 'FOUR_BYTE_URI', 'https://www.4byte.directory/api/v1'),
     },
 
     ETHERSCAN: {

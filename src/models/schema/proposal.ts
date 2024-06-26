@@ -8,7 +8,7 @@ import {
   type IProposalsResponse,
   NetworksEnum,
 } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
+import { Model, type SaveOptions, Schema } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
@@ -24,6 +24,18 @@ class Action {
 
   @prop({ type: () => String, default: null })
   public value!: string
+
+  @prop({ type: () => String, default: null })
+  public functionName!: string
+
+  @prop({ type: () => String, default: null })
+  public textSignature!: string
+
+  @prop({ type: () => [Schema.Types.Mixed], default: null })
+  public decoded!: (string | number | bigint | boolean | any);
+
+  @prop({ type: () => String, default: null })
+  public contractName!: string | null
 }
 
 class Media {
@@ -150,16 +162,16 @@ export default class Proposal extends Model {
   @prop({ type: () => Number, default: 0 })
   public allowFailureMap!: number
 
-  @prop({ type: () => ProposalExecuted })
+  @prop({ type: () => ProposalExecuted, _id: false })
   public executed!: ProposalExecuted
 
-  @prop({ type: () => Settings })
+  @prop({ type: () => Settings, _id: false })
   public settings!: Settings
 
-  @prop({ type: () => [Action], default: [] })
+  @prop({ type: () => [Action], _id: false, default: [] })
   public actions!: Action[]
 
-  @prop({ type: () => Media })
+  @prop({ type: () => Media, _id: false })
   public media!: Media
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {

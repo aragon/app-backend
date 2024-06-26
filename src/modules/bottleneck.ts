@@ -7,6 +7,7 @@ class BottleneckModule {
   static transferLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static coinGeckoLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static covalentLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static fourBytesLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
 
   static getNodeLimiter(network: NetworksEnum) {
     if (!this.nodeLimiters[network]) {
@@ -46,6 +47,16 @@ class BottleneckModule {
       })
     }
     return this.covalentLimiters[network]
+  }
+
+  static get4ByteLimiter(network: NetworksEnum) {
+    if (!this.fourBytesLimiters[network]) {
+      this.fourBytesLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.FOUR_BYTE_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.FOUR_BYTE_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.fourBytesLimiters[network]
   }
 }
 

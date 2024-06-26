@@ -98,13 +98,13 @@ export default class LogProposal extends Model {
   @prop({ type: () => String, default: null })
   public metadataUri!: string
 
-  @prop({ type: () => [Action], default: [] })
+  @prop({ type: () => [Action], _id: false, default: [] })
   public actions!: Action[]
 
-  @prop({ type: () => [Vote], default: [] })
+  @prop({ type: () => [Vote], _id: false, default: [] })
   public voteEvents!: Vote[]
 
-  @prop({ type: () => ProposalExecuted })
+  @prop({ type: () => ProposalExecuted, _id: false })
   public executed!: ProposalExecuted
 
   static async create(rawData: Partial<LogProposal>, tOpts?: SaveOptions) {
