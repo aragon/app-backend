@@ -138,7 +138,7 @@ export default class Dao extends Model {
   @prop({ type: () => Number, default: 0 })
   public tvlUSD!: number
 
-  @prop({ type: () => Metrics, _id: false, })
+  @prop({ type: () => Metrics, _id: false })
   public metrics?: Metrics
 
   @prop({ type: () => Boolean, default: false })

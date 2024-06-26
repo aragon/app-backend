@@ -32,7 +32,7 @@ class Action {
   public textSignature!: string
 
   @prop({ type: () => [Schema.Types.Mixed], default: null })
-  public decoded!: (string | number | bigint | boolean | any);
+  public decoded!: string | number | bigint | boolean | any
 
   @prop({ type: () => String, default: null })
   public contractName!: string | null
