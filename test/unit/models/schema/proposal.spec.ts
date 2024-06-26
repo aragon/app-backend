@@ -6,7 +6,7 @@ import Proposal from '@models/schema/proposal'
 import { Models } from '@dbModels'
 import { beforeEach } from 'mocha'
 
-describe.only('Model: Proposal', () => {
+describe('Model: Proposal', () => {
   let sandbox: SinonSandbox
   let rawProposalMultisig: Partial<Proposal>
   let rawProposalTokenVoting: Partial<Proposal>

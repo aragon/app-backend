@@ -44,6 +44,8 @@ export interface IConfig {
     COINGECKO_MIN_TIME: number
     COVALENT_MAX_CONCURRENT: number
     COVALENT_MIN_TIME: number
+    FOUR_BYTE_MAX_CONCURRENT: number
+    FOUR_BYTE_MIN_TIME: number
   }
   MONGO_DB: {
     NAME: string
@@ -72,6 +74,10 @@ export interface IConfig {
   COINGECKO: {
     URI: string
     API_KEY: string
+  }
+
+  FOUR_BYTE: {
+    URI: string
   }
 
   PINATA: {
