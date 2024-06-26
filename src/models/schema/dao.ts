@@ -129,16 +129,16 @@ export default class Dao extends Model {
   @prop({ type: () => String, default: null })
   public avatar!: string
 
-  @prop({ type: () => [Link], default: [] })
+  @prop({ type: () => [Link], _id: false, default: [] })
   public links?: Link[]
 
-  @prop({ type: () => [Plugin], default: [] })
+  @prop({ type: () => [Plugin], _id: false, default: [] })
   public plugins?: Plugin[]
 
   @prop({ type: () => Number, default: 0 })
   public tvlUSD!: number
 
-  @prop({ type: () => Metrics })
+  @prop({ type: () => Metrics, _id: false, })
   public metrics?: Metrics
 
   @prop({ type: () => Boolean, default: false })

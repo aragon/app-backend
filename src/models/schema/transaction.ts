@@ -107,13 +107,13 @@ export default class Transaction extends Model {
   @prop({ type: () => String, default: null })
   public erc721TokenId!: string
 
-  @prop({ type: () => [ERC1155Metadata], default: [] })
+  @prop({ type: () => [ERC1155Metadata], _id: false, default: [] })
   public erc1155Metadata!: ERC1155Metadata[]
 
   @prop({ type: () => String, default: null })
   public proposalId!: string
 
-  @prop({ type: () => Token, default: null })
+  @prop({ type: () => Token, _id: false, default: null })
   public token?: Token
 
   static async create(rawData: Partial<Transaction>, tOpts?: SaveOptions) {

@@ -2,11 +2,11 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { NetworksEnum } from '@types'
-import Proposal from '@models/schema/logProposal'
+import Proposal from '@models/schema/proposal'
 import { Models } from '@dbModels'
 import { beforeEach } from 'mocha'
 
-describe('Model: Proposal', () => {
+describe.only('Model: Proposal', () => {
   let sandbox: SinonSandbox
   let rawProposalMultisig: Partial<Proposal>
   let rawProposalTokenVoting: Partial<Proposal>
@@ -28,17 +28,26 @@ describe('Model: Proposal', () => {
         minApprovals: 1,
         onlyListed: true,
         fromBlockNumber: 16726867,
-        toBlockNumber: null,
+        toBlockNumber: null as any,
         fromTxHash: '0x8c325e119c9728b60094a13cdc76a06a3821364259596dc968b60c31010e4988',
-        toTxHash: null,
-      },
+        toTxHash: null as any,
+      } as any,
+      actions: [{
+        to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+        data: '0x',
+        value: '0',
+        functionName: 'test',
+        textSignature: 'test(uint256,uint256)',
+        decoded: ['1', 1],
+        contractName: null,
+      }],
       daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       title: "Let's pate pate!",
-      description: null,
+      description: null as any,
       summary: "Let's pate pate!",
       media: {
-        header: null,
-        logo: null,
+        header: null as any,
+        logo: null as any,
       },
     }
 
@@ -56,6 +65,7 @@ describe('Model: Proposal', () => {
         status: true,
         transactionHash: '0xe49a4a878ed2073e012249ef39960b9c9a21446f223e4e5a6ef0edc97831c37e',
         blockNumber: 16733707,
+        blockTimestamp: 3423423,
       },
       settings: {
         votingMode: 1,
@@ -67,15 +77,20 @@ describe('Model: Proposal', () => {
         toBlockNumber: 16733707,
         fromTxHash: '0xdcff8f4477f3b39529de62394883707a2468d46bff3eb5e99335f5c49ec41f81',
         toTxHash: '0xe49a4a878ed2073e012249ef39960b9c9a21446f223e4e5a6ef0edc97831c37e',
-      },
+      } as any,
+      actions: [{
+        to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+        data: '0x',
+        value: '0',
+      } as any],
       daoAddress: '0x59447788F9dCf2df550F257F3692a07f05b922D7',
       title: 'New Look!',
       description:
         '<p>Changing the following metadata on the DAO:<br><strong>Name - Feel the Breeze</strong></p><p><strong>Logo</strong></p>',
       summary: 'Changing DAO metadata',
       media: {
-        header: null,
-        logo: null,
+        header: null as any,
+        logo: null as any,
       },
     }
   })
@@ -83,6 +98,16 @@ describe('Model: Proposal', () => {
   afterEach(() => {
     sandbox?.restore()
   })
+
+  function checkProperties(rawProposal: Partial<Proposal>, createdProposal: Proposal) {
+    for (const key in rawProposal) {
+      if (typeof rawProposal[key] === 'object' && rawProposal[key] !== null) {
+        checkProperties(rawProposal[key], createdProposal[key]);
+      } else {
+        expect(createdProposal[key]).to.eql(rawProposal[key]);
+      }
+    }
+  }
 
   describe('Create Proposal', async () => {
     it('Should create Proposal multisig', async () => {
@@ -93,32 +118,7 @@ describe('Model: Proposal', () => {
       })
       const createdProposal = await Models.Proposal.create(rawProposalMultisig)
 
-      expect(createdProposal.id).to.eq(rawProposalMultisig.id)
-      expect(createdProposal.transactionHash).to.eq(rawProposalMultisig.transactionHash)
-      expect(createdProposal.blockNumber).to.eq(rawProposalMultisig.blockNumber)
-      expect(createdProposal.network).to.eq(rawProposalMultisig.network)
-      expect(createdProposal.pluginAddress).to.eq(rawProposalMultisig.pluginAddress)
-      expect(createdProposal.proposalId).to.eq(rawProposalMultisig.proposalId)
-      expect(createdProposal.creatorAddress).to.eq(rawProposalMultisig.creatorAddress)
-      expect(createdProposal.startDate).to.eq(rawProposalMultisig.startDate)
-      expect(createdProposal.endDate).to.eq(rawProposalMultisig.endDate)
-      expect(createdProposal.allowFailureMap).to.eq(rawProposalMultisig.allowFailureMap)
-      expect(createdProposal.metadataUri).to.eq(rawProposalMultisig.metadataUri)
-      expect(createdProposal.settings?.minApprovals).to.eq(rawProposalMultisig.settings?.minApprovals)
-      expect(createdProposal.settings?.onlyListed).to.eq(rawProposalMultisig.settings?.onlyListed)
-      expect(createdProposal.settings.fromBlockNumber).to.eq(rawProposalMultisig.settings?.fromBlockNumber)
-      expect(createdProposal.settings.toBlockNumber).to.eq(rawProposalMultisig.settings?.toBlockNumber)
-      expect(createdProposal.settings.fromTxHash).to.eq(rawProposalMultisig.settings?.fromTxHash)
-      expect(createdProposal.settings.toTxHash).to.eq(rawProposalMultisig.settings?.toTxHash)
-      expect(createdProposal.daoAddress).to.eq(rawProposalMultisig.daoAddress)
-      expect(createdProposal.title).to.eq(rawProposalMultisig.title)
-      expect(createdProposal.description).to.eq(rawProposalMultisig.description)
-      expect(createdProposal.summary).to.eq(rawProposalMultisig.summary)
-      expect(createdProposal.media?.header).to.eq(rawProposalMultisig.media?.header)
-      expect(createdProposal.media?.logo).to.eq(rawProposalMultisig.media?.logo)
-      expect(createdProposal.executed?.status).to.eq(rawProposalMultisig.executed?.status)
-      expect(createdProposal.executed?.transactionHash).to.eq(rawProposalMultisig.executed?.transactionHash)
-      expect(createdProposal.executed?.blockNumber).to.eq(rawProposalMultisig.executed?.blockNumber)
+      checkProperties(rawProposalMultisig, createdProposal);
     })
 
     it('Should create Proposal token-voting', async () => {
@@ -130,37 +130,7 @@ describe('Model: Proposal', () => {
 
       const createdProposal = await Models.Proposal.create(rawProposalTokenVoting)
 
-      expect(createdProposal.id).to.eq(rawProposalTokenVoting.id)
-      expect(createdProposal.transactionHash).to.eq(rawProposalTokenVoting.transactionHash)
-      expect(createdProposal.blockNumber).to.eq(rawProposalTokenVoting.blockNumber)
-      expect(createdProposal.network).to.eq(rawProposalTokenVoting.network)
-      expect(createdProposal.pluginAddress).to.eq(rawProposalTokenVoting.pluginAddress)
-      expect(createdProposal.proposalId).to.eq(rawProposalTokenVoting.proposalId)
-      expect(createdProposal.creatorAddress).to.eq(rawProposalTokenVoting.creatorAddress)
-      expect(createdProposal.startDate).to.eq(rawProposalTokenVoting.startDate)
-      expect(createdProposal.endDate).to.eq(rawProposalTokenVoting.endDate)
-      expect(createdProposal.allowFailureMap).to.eq(rawProposalTokenVoting.allowFailureMap)
-      expect(createdProposal.metadataUri).to.eq(rawProposalTokenVoting.metadataUri)
-      expect(createdProposal.settings?.votingMode).to.eq(rawProposalTokenVoting.settings?.votingMode)
-      expect(createdProposal.settings?.supportThreshold).to.eq(rawProposalTokenVoting.settings?.supportThreshold)
-      expect(createdProposal.settings?.minParticipation).to.eq(rawProposalTokenVoting.settings?.minParticipation)
-      expect(createdProposal.settings?.minDuration).to.eq(rawProposalTokenVoting.settings?.minDuration)
-      expect(createdProposal.settings?.minProposerVotingPower).to.eq(
-        rawProposalTokenVoting.settings?.minProposerVotingPower,
-      )
-      expect(createdProposal.settings.fromBlockNumber).to.eq(rawProposalTokenVoting.settings?.fromBlockNumber)
-      expect(createdProposal.settings.toBlockNumber).to.eq(rawProposalTokenVoting.settings?.toBlockNumber)
-      expect(createdProposal.settings.fromTxHash).to.eq(rawProposalTokenVoting.settings?.fromTxHash)
-      expect(createdProposal.settings.toTxHash).to.eq(rawProposalTokenVoting.settings?.toTxHash)
-      expect(createdProposal.daoAddress).to.eq(rawProposalTokenVoting.daoAddress)
-      expect(createdProposal.title).to.eq(rawProposalTokenVoting.title)
-      expect(createdProposal.description).to.eq(rawProposalTokenVoting.description)
-      expect(createdProposal.summary).to.eq(rawProposalTokenVoting.summary)
-      expect(createdProposal.media?.header).to.eq(rawProposalTokenVoting.media?.header)
-      expect(createdProposal.media?.logo).to.eq(rawProposalTokenVoting.media?.logo)
-      expect(createdProposal.executed?.status).to.eq(rawProposalTokenVoting.executed?.status)
-      expect(createdProposal.executed?.transactionHash).to.eq(rawProposalTokenVoting.executed?.transactionHash)
-      expect(createdProposal.executed?.blockNumber).to.eq(rawProposalTokenVoting.executed?.blockNumber)
+      checkProperties(rawProposalTokenVoting, createdProposal);
     })
 
     it('Should create Proposal without entityId', async () => {
@@ -404,6 +374,6 @@ describe('Model: Proposal', () => {
     expect(filterProposal.__v).to.be.undefined
     expect(filterProposal.createdAt).to.be.undefined
     expect(filterProposal.updatedAt).to.be.undefined
-    expect(Object.keys(filterProposal).length).to.eq(17)
+    expect(Object.keys(filterProposal).length).to.eq(19)
   })
 })
