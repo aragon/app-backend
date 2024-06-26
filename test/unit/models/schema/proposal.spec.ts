@@ -32,15 +32,17 @@ describe('Model: Proposal', () => {
         fromTxHash: '0x8c325e119c9728b60094a13cdc76a06a3821364259596dc968b60c31010e4988',
         toTxHash: null as any,
       } as any,
-      actions: [{
-        to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
-        data: '0x',
-        value: '0',
-        functionName: 'test',
-        textSignature: 'test(uint256,uint256)',
-        decoded: ['1', 1],
-        contractName: null,
-      }],
+      actions: [
+        {
+          to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+          data: '0x',
+          value: '0',
+          functionName: 'test',
+          textSignature: 'test(uint256,uint256)',
+          decoded: ['1', 1],
+          contractName: null,
+        },
+      ],
       daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       title: "Let's pate pate!",
       description: null as any,
@@ -78,11 +80,13 @@ describe('Model: Proposal', () => {
         fromTxHash: '0xdcff8f4477f3b39529de62394883707a2468d46bff3eb5e99335f5c49ec41f81',
         toTxHash: '0xe49a4a878ed2073e012249ef39960b9c9a21446f223e4e5a6ef0edc97831c37e',
       } as any,
-      actions: [{
-        to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
-        data: '0x',
-        value: '0',
-      } as any],
+      actions: [
+        {
+          to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+          data: '0x',
+          value: '0',
+        } as any,
+      ],
       daoAddress: '0x59447788F9dCf2df550F257F3692a07f05b922D7',
       title: 'New Look!',
       description:
@@ -102,9 +106,9 @@ describe('Model: Proposal', () => {
   function checkProperties(rawProposal: Partial<Proposal>, createdProposal: Proposal) {
     for (const key in rawProposal) {
       if (typeof rawProposal[key] === 'object' && rawProposal[key] !== null) {
-        checkProperties(rawProposal[key], createdProposal[key]);
+        checkProperties(rawProposal[key], createdProposal[key])
       } else {
-        expect(createdProposal[key]).to.eql(rawProposal[key]);
+        expect(createdProposal[key]).to.eql(rawProposal[key])
       }
     }
   }
@@ -118,7 +122,7 @@ describe('Model: Proposal', () => {
       })
       const createdProposal = await Models.Proposal.create(rawProposalMultisig)
 
-      checkProperties(rawProposalMultisig, createdProposal);
+      checkProperties(rawProposalMultisig, createdProposal)
     })
 
     it('Should create Proposal token-voting', async () => {
@@ -130,7 +134,7 @@ describe('Model: Proposal', () => {
 
       const createdProposal = await Models.Proposal.create(rawProposalTokenVoting)
 
-      checkProperties(rawProposalTokenVoting, createdProposal);
+      checkProperties(rawProposalTokenVoting, createdProposal)
     })
 
     it('Should create Proposal without entityId', async () => {
