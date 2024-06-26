@@ -15,6 +15,17 @@ import ModelUtils from '@models/utils/models'
 
 const customName = 'Proposal'
 
+class Action {
+  @prop({ type: () => String, default: null })
+  public to!: string
+
+  @prop({ type: () => String, default: null })
+  public data!: string
+
+  @prop({ type: () => String, default: null })
+  public value!: string
+}
+
 class Media {
   @prop({ type: () => String, default: null })
   public header!: string
@@ -67,6 +78,9 @@ export class ProposalExecuted {
 
   @prop({ type: () => Number })
   public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
 }
 
 @modelOptions({
@@ -93,6 +107,9 @@ export default class Proposal extends Model {
 
   @prop({ type: () => Number, required: true })
   public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -130,11 +147,17 @@ export default class Proposal extends Model {
   @prop({ type: () => String, default: null })
   public summary!: string
 
+  @prop({ type: () => Number, default: 0 })
+  public allowFailureMap!: number
+
   @prop({ type: () => ProposalExecuted })
   public executed!: ProposalExecuted
 
   @prop({ type: () => Settings })
   public settings!: Settings
+
+  @prop({ type: () => [Action], default: [] })
+  public actions!: Action[]
 
   @prop({ type: () => Media })
   public media!: Media
