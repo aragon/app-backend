@@ -7,3 +7,10 @@ export interface ILogInfo {
   address: HexAddress
   eventName: string
 }
+
+export interface IDecodedData {
+  contractName?: string
+  functionName: any
+  decoded: any
+  textSignature: string
+}

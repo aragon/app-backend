@@ -40,8 +40,8 @@ export const AggregatorDao = {
       document.proposalsExecuted = Math.floor(document.proposalsExecuted)
       document.uniqueVoters = Math.floor(document.uniqueVoters)
       document.votes = Math.floor(document.votes)
-      const isValid = await Web3Helper.subdomainExists(document.subdomain, document.network!)
-      document.ens = isValid ? Web3Helper.parseSubdomainToEns(document.subdomain) : null
+      const isValid = await Web3Helper.subdomainExists(document.subdomain!, document.network!)
+      document.ens = isValid ? Web3Helper.parseSubdomainToEns(document.subdomain!) : null
 
       if (!document.blockTimestamp || document.blockTimestamp === 0) {
         document.blockTimestamp = await Web3Helper.getBlockTimestamp(document.blockNumber!, document.network!)
