@@ -90,14 +90,7 @@ export const MemberHandler = {
   delegateChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
 
-    const existingLog = await Models.LogMember.findExistingLog({
-      transactionHash: info.transactionHash,
-      event: parsedEvent.name,
-      address: parsedEvent.args.toDelegate,
-      network: info.network,
-    })
-
-    if (!existingLog && txReceipt) {
+    if (txReceipt) {
       const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(info.address, info.network)
 
       if (!relatedPlugin) {
@@ -115,34 +108,44 @@ export const MemberHandler = {
         delegationVotesChangedLogs.map(async (delegationVoteLog: any) => {
           const memberAddress = Web3Helper.formatAddress(delegationVoteLog.txLog.topics[1])
 
-          await DbTx.executeTxFn(async ({ session }) => {
-            const rawDaoMember = {
-              transactionHash: info.transactionHash,
-              blockNumber: info.blockNumber,
-              network: info.network,
-              address: memberAddress,
-              event: parsedEvent.name,
-              tokenAddress: info.address,
-              fromDelegate: parsedEvent.args.fromDelegate,
-              toDelegate: parsedEvent.args.toDelegate,
-              delegatingMember: parsedEvent.args.delegator,
-              previousVotingPower: delegationVoteLog?.parsed!.args.previousBalance.toString(),
-              newVotingPower: delegationVoteLog?.parsed!.args.newBalance.toString(),
-              pluginAddress: relatedPlugin.pluginAddress,
-            }
-
-            const daoMember = await Models.LogMember.create(rawDaoMember, { session } as any)
-            await session.commitTransaction()
-            await session.endSession()
-
-            logger.verbose(
-              'New LogMembers Delegation Changed',
-              llo({
-                ...info,
-                logId: daoMember.id,
-              }),
-            )
+          const existingLog = await Models.LogMember.findExistingLog({
+            transactionHash: info.transactionHash,
+            event: parsedEvent.name,
+            address: memberAddress,
+            network: info.network,
+            pluginAddress: relatedPlugin.pluginAddress,
           })
+
+          if (!existingLog) {
+            await DbTx.executeTxFn(async ({ session }) => {
+              const rawDaoMember = {
+                transactionHash: info.transactionHash,
+                blockNumber: info.blockNumber,
+                network: info.network,
+                address: memberAddress,
+                event: parsedEvent.name,
+                tokenAddress: info.address,
+                fromDelegate: parsedEvent.args.fromDelegate,
+                toDelegate: parsedEvent.args.toDelegate,
+                delegatingMember: parsedEvent.args.delegator,
+                previousVotingPower: delegationVoteLog?.parsed!.args.previousBalance.toString(),
+                newVotingPower: delegationVoteLog?.parsed!.args.newBalance.toString(),
+                pluginAddress: relatedPlugin.pluginAddress,
+              }
+
+              const daoMember = await Models.LogMember.create(rawDaoMember, { session } as any)
+              await session.commitTransaction()
+              await session.endSession()
+
+              logger.verbose(
+                'New LogMembers Delegation Changed',
+                llo({
+                  ...info,
+                  logId: daoMember.id,
+                }),
+              )
+            })
+          }
         }),
       )
     }

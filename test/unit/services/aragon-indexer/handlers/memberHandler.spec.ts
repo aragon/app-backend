@@ -258,7 +258,7 @@ describe('Indexer: MemberHandler', () => {
         },
       } as any
 
-      const deletageVotChangedLog = {
+      const delegateVotChangedLog = {
         name: IEventLogMember.DelegateVotesChanged,
         args: {
           previousBalance: '0x123',
@@ -280,7 +280,7 @@ describe('Indexer: MemberHandler', () => {
 
       sandbox.stub(Web3, 'findLogsByName').returns([
         {
-          parsed: deletageVotChangedLog,
+          parsed: delegateVotChangedLog,
           txLog: { topics: ['', '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859'] },
         },
       ] as any)
@@ -308,6 +308,20 @@ describe('Indexer: MemberHandler', () => {
         logs: [],
       } as any)
 
+      const delegateVotChangedLog = {
+        name: IEventLogMember.DelegateVotesChanged,
+        args: {
+          previousBalance: '0x123',
+          newBalance: '0x456',
+        },
+      }
+      sandbox.stub(Web3, 'findLogsByName').returns([
+        {
+          parsed: delegateVotChangedLog,
+          txLog: { topics: ['', '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859'] },
+        },
+      ] as any)
+
       const fakeLog = {
         name: IEventLogMember.DelegateChanged,
         args: {
@@ -326,15 +340,17 @@ describe('Indexer: MemberHandler', () => {
       }
 
       const findPluginByTokenAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress')
+      const findModelCreate = sandbox.spy(Models.LogMember, 'create')
 
       await MemberHandler.delegateChanged(fakeLog, logInfo)
 
+      expect(findModelCreate.notCalled).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
-      expect(findPluginByTokenAddressSpy.notCalled).to.be.true
+      expect(findPluginByTokenAddressSpy.calledOnce).to.be.true
     })
 
     it('should return if the plugin is not found', async () => {
-      const verboseStub = sandbox.stub(logger, 'warn')
+      const stubLogger = sandbox.stub(logger, 'warn')
       const findExistingLogStub = sandbox.stub(Models.LogMember, 'findExistingLog').resolves(false)
       const findPluginByTokenAddressStub = sandbox
         .stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress')
@@ -365,10 +381,10 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.delegateChanged(fakeLog, logInfo)
 
-      expect(verboseStub.callCount).to.be.eq(1)
-      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(findExistingLogStub.notCalled).to.be.true
       expect(findPluginByTokenAddressStub.calledOnce).to.be.true
       expect(findLogsByNameSpy.notCalled).to.be.true
+      expect(stubLogger.calledOnceWith('Plugin not found' as any)).to.be.true
     })
   })
 })
