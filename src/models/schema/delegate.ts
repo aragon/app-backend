@@ -88,7 +88,7 @@ export default class Delegate extends Model {
   @prop({ type: () => String, default: '0' })
   public amount!: string
 
-  @prop({ type: () => Token })
+  @prop({ type: () => Token, _id: false })
   public token?: Token
 
   static async create(rawData: Partial<Delegate>, tOpts?: SaveOptions) {

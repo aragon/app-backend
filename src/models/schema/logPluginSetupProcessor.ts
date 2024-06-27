@@ -81,7 +81,7 @@ export default class LogPluginSetupProcessor extends Model {
   @prop({ type: () => String, default: null })
   public build!: string
 
-  @prop({ type: () => [Permission], default: [] })
+  @prop({ type: () => [Permission], _id: false, default: [] })
   public permissions!: Permission[]
 
   @prop({ type: () => String, default: null })

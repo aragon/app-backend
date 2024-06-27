@@ -102,10 +102,10 @@ export default class Setting extends Model {
   @prop({ type: () => String, default: null })
   public pluginSubdomain!: string
 
-  @prop({ type: () => Settings })
+  @prop({ type: () => Settings, _id: false })
   public settings?: Settings
 
-  @prop({ type: () => Token })
+  @prop({ type: () => Token, _id: false })
   public token?: Token
 
   static async create(rawData: Partial<Setting>, tOpts?: SaveOptions) {
