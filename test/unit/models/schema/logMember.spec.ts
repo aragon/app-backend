@@ -34,6 +34,7 @@ describe('Model: LogMember', () => {
         event: rawLogMember.event,
         address: rawLogMember.address,
         network: rawLogMember.network,
+        pluginAddress: rawLogMember.pluginAddress,
       } as any)
       const member = await Models.LogMember.create(rawLogMember)
       expect(member.id).to.eq(entityId)
@@ -48,8 +49,11 @@ describe('Model: LogMember', () => {
       event: eventName,
       address: rawLogMember.address,
       network: rawLogMember.network,
+      pluginAddress: rawLogMember.pluginAddress,
     } as any)
-    expect(entityId).to.eq(`${transactionHash}-${eventName}-${rawLogMember.address}-${NetworksEnum.ethereumMainnet}`)
+    expect(entityId).to.eq(
+      `${rawLogMember.network}-${rawLogMember.transactionHash}-${eventName}-${rawLogMember.pluginAddress}-${rawLogMember.address}`,
+    )
   })
 
   it('Should findExistingLog', async () => {
@@ -59,6 +63,7 @@ describe('Model: LogMember', () => {
       event: rawLogMember.event,
       address: rawLogMember.address,
       network: rawLogMember.network,
+      pluginAddress: rawLogMember.pluginAddress,
     } as any)
     expect(foundLogMember?.id).to.eq(createdMember.id)
   })
