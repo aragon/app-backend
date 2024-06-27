@@ -22,6 +22,7 @@ describe('Model: Dao', () => {
       implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       ens: 'dao.eth',
+      subdomain: 'dao',
       members: 10,
       metadataIpfs: 'metadataIpfs',
       name: 'fake-name',
@@ -79,6 +80,7 @@ describe('Model: Dao', () => {
       expect(createdDao.implementationAddress).to.eq(rawDao.implementationAddress)
       expect(createdDao.creatorAddress).to.eq(rawDao.creatorAddress)
       expect(createdDao.ens).to.eq(rawDao.ens)
+      expect(createdDao.subdomain).to.eq(rawDao.subdomain)
       expect(createdDao.metadataIpfs).to.eq(rawDao.metadataIpfs)
       expect(createdDao.name).to.eq(rawDao.name)
       expect(createdDao.description).to.eq(rawDao.description)
@@ -392,6 +394,6 @@ describe('Model: Dao', () => {
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.hideDao).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(17)
+    expect(Object.keys(filterDao).length).to.eq(18)
   })
 })

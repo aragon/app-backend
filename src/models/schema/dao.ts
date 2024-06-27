@@ -118,6 +118,9 @@ export default class Dao extends Model {
   public ens?: ENS | null
 
   @prop({ type: () => String, default: null })
+  public subdomain!: string
+
+  @prop({ type: () => String, default: null })
   public metadataIpfs!: string
 
   @prop({ type: () => String, default: null })

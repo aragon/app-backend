@@ -11,6 +11,7 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import FourByte from '@helpers/4byte'
 import Web3Helper from '@helpers/web3'
 import type Proposal from '@models/schema/proposal'
+import { type IDecodedData } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -18,13 +19,6 @@ interface Signature {
   method: string
   sig: string
   fragment: FunctionFragment
-}
-
-interface IDecodedData {
-  contractName?: string
-  functionName: any
-  decoded: any
-  textSignature: string
 }
 
 class DecodeActions {
