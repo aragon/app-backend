@@ -45,6 +45,7 @@ export interface ILogMemberIdParams {
   transactionHash: HexAddress
   event: IEventLogMember
   address: HexAddress
+  pluginAddress: HexAddress
 }
 
 export interface ILogPluginRepoIdParams {
