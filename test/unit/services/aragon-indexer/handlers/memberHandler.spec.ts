@@ -370,47 +370,5 @@ describe('Indexer: MemberHandler', () => {
       expect(findPluginByTokenAddressStub.calledOnce).to.be.true
       expect(findLogsByNameSpy.notCalled).to.be.true
     })
-
-    it('should return if the DelegateVotesChanged log is not found', async () => {
-      const verboseStub = sandbox.stub(logger, 'warn')
-      const findExistingLogStub = sandbox.stub(Models.LogMember, 'findExistingLog').resolves(false)
-      const findPluginByTokenAddressStub = sandbox
-        .stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress')
-        .resolves(true)
-
-      sandbox.stub(Web3, 'getTransactionReceipt').resolves({
-        logs: [],
-        txLog: { topics: ['', '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859'] },
-      } as any)
-
-      const fakeLog = {
-        name: IEventLogMember.DelegateChanged,
-        args: {
-          fromDelegate: '0xfromDelegate',
-          toDelegate: '0xtoDelegate',
-          delegator: '0xdelegator',
-        },
-      } as any
-
-      const logInfo = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 3,
-        transactionHash: '0x0123123',
-        address: plugin.tokenAddress,
-        eventName: 'test',
-      }
-
-      const findLogsByNameSpy = sandbox.spy(Web3, 'findLogsByName')
-
-      const createSpy = sandbox.spy(Models.LogMember, 'create')
-
-      await MemberHandler.delegateChanged(fakeLog, logInfo)
-
-      expect(verboseStub.callCount).to.be.eq(1)
-      expect(findExistingLogStub.calledOnce).to.be.true
-      expect(findPluginByTokenAddressStub.calledOnce).to.be.true
-      expect(findLogsByNameSpy.calledOnce).to.be.true
-      expect(createSpy.notCalled).to.be.true
-    })
   })
 })

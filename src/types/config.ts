@@ -113,12 +113,14 @@ export interface IConfig {
       CORS: string[]
     }
     ARAGON_INDEXER: {
+      NAME: string
       TOKEN_INTERVAL: number
       TOKEN_FETCH_BATCH_SIZE: number
       DAO_INTERVAL: number
       DAO_FETCH_BATCH_SIZE: number
     }
     ARAGON_RATES: {
+      NAME: string
       RATES_INTERVAL: number
     }
   }
