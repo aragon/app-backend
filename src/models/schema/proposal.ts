@@ -1,4 +1,4 @@
-import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import {
   HexAddress,
   type IPaginatedResult,
@@ -105,6 +105,7 @@ export class ProposalExecuted {
   },
   options: {
     customName,
+    allowMixed: Severity.ALLOW,
   },
 })
 @index({
