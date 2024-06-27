@@ -139,6 +139,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
 
       ARAGON_INDEXER: {
+        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_INDEXER_NAME', 'ARAGON-INDEXER'),
         DAO_INTERVAL: utils.configParser(
           sourceConfig,
           'number',
@@ -166,6 +167,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
 
       ARAGON_RATES: {
+        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_RATES_NAME', 'ARAGON-RATES'),
         RATES_INTERVAL: utils.configParser(
           sourceConfig,
           'number',
