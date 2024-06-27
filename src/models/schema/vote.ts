@@ -81,7 +81,7 @@ export default class Vote extends Model {
   @prop({ type: () => Number })
   public proposalId!: number
 
-  @prop({ type: () => Token, default: null })
+  @prop({ type: () => Token, _id: false, default: null })
   public token?: Token
 
   @prop({ type: () => Number })

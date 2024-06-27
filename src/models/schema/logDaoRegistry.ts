@@ -57,7 +57,7 @@ export default class LogDaoRegistry extends Model {
   @prop({ type: () => String, default: null })
   public subdomain!: string
 
-  @prop({ type: () => [URIUpdate], default: [] })
+  @prop({ type: () => [URIUpdate], _id: false, default: [] })
   public uriUpdates?: URIUpdate[]
 
   static async create(rawData: Partial<LogDaoRegistry>, tOpts?: SaveOptions) {

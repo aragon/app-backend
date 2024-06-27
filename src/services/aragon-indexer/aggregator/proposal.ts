@@ -3,8 +3,16 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Proposal from '@models/schema/proposal'
+import Web3Helper from '@helpers/web3'
+import DecodeActions from '@helpers/decodeActions'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorProposal' })
+
+interface ILogAction {
+  to: string
+  value: string
+  data: string
+}
 
 // must run after AggregatorSetting
 export const AggregatorProposal = {
@@ -34,6 +42,19 @@ export const AggregatorProposal = {
       proposalId: document.proposalId!,
     })
 
+    if (Web3Helper.needToSyncBlockTime(document)) {
+      document.blockTimestamp = await Web3Helper.getBlockTimestamp(document.blockNumber!, document.network!)
+    }
+
+    if (document.executed && Web3Helper.needToSyncBlockTime(document.executed)) {
+      document.executed.blockTimestamp = await Web3Helper.getBlockTimestamp(
+        document.executed.blockNumber,
+        document.network!,
+      )
+    }
+
+    document.actions = await AggregatorProposal.parseActions(document.actions, document)
+
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
       if (!existingLog) {
@@ -45,6 +66,34 @@ export const AggregatorProposal = {
       await session.endSession()
       logger.verbose(existingLog ? 'Update Aggregate Proposal' : 'New Aggregate Proposal', llo({ logId: logDb?.id }))
     })
+  },
+
+  async parseActions(logActions: ILogAction[] | any, document: Partial<Proposal>) {
+    if (!(logActions?.length > 0)) {
+      return []
+    }
+
+    const decodeActions = new DecodeActions()
+
+    const actions = await Promise.all(
+      logActions.map(async (action: any) => {
+        let decodeData: any
+
+        if (action.data?.length >= 10) {
+          decodeData = await decodeActions.decodeData(action.data)
+        } else {
+          decodeData = decodeActions.decodeTransfer(action, document)
+        }
+
+        if (decodeData) {
+          return { ...action, ...decodeData }
+        }
+
+        return action
+      }),
+    )
+
+    return actions
   },
 
   query() {
@@ -62,6 +111,26 @@ export const AggregatorProposal = {
           },
           startDate: 1,
           endDate: 1,
+          actions: {
+            $map: {
+              input: '$actions',
+              as: 'action',
+              in: {
+                $mergeObjects: [
+                  {
+                    $arrayToObject: {
+                      $filter: {
+                        input: { $objectToArray: '$$action' },
+                        as: 'kv',
+                        cond: { $ne: ['$$kv.k', '_id'] },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+          allowFailureMap: 1,
           transactionHash: 1,
           blockNumber: 1,
           network: 1,
@@ -215,6 +284,8 @@ export const AggregatorProposal = {
           blockNumber: 1,
           startDate: 1,
           endDate: 1,
+          actions: 1,
+          allowFailureMap: 1,
           executed: {
             status: 1,
             transactionHash: 1,

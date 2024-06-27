@@ -76,7 +76,7 @@ export default class Member extends Model {
   @prop({ type: () => String, default: null })
   public ens!: HexAddress
 
-  @prop({ type: () => [MemberDao], default: [] })
+  @prop({ type: () => [MemberDao], _id: false, default: [] })
   public daos?: MemberDao[]
 
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
