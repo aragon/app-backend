@@ -50,6 +50,7 @@ export interface IDaoResponse {
   implementationAddress: HexAddress
   creatorAddress: HexAddress
   ens: ENS | null
+  subdomain: ENS | null
   members: number
   metadataIpfs: string | null
   name: string
@@ -159,6 +160,15 @@ export interface IProposalsResponse {
     toBlockNumber: number | null
     minApprovals: number
     onlyListed: boolean
+  }
+  actions: {
+    to: string
+    value: string
+    data: string
+    functionName: string
+    textSignature: string
+    decoded: any[]
+    contractName: string
   }
   media: {
     header: string | null
