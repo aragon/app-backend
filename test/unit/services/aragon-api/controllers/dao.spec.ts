@@ -23,6 +23,7 @@ describe('Controller: Dao', () => {
       implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       ens: 'dao.eth',
+      subdomain: 'dao',
       members: 10,
       metadataIpfs: 'metadataIpfs',
       name: 'fake-name',
