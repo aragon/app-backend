@@ -76,6 +76,71 @@ describe('Helpers: DecodeActions', () => {
     })
   })
 
+  describe('decodeTransfer', () => {
+    it('Should decodeTransfer', async () => {
+      const decodeActions = new DecodeActions()
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 10n,
+        data: '0x',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const result = await decodeActions.decodeTransfer(action, document as any)
+
+      expect(result?.functionName).to.eq('NativeTransfer')
+      expect(result?.textSignature).to.eq('nativeTransfer(address,address,uint256)')
+      expect(result?.decoded[0]).to.eq(document.daoAddress)
+      expect(result?.decoded[1]).to.eq(action.to)
+      expect(result?.decoded[2]).to.eq(action.value)
+      expect(result?.contractName).to.be.undefined
+    })
+
+    it('Should not decodeData if not native', async () => {
+      const decodeActions = new DecodeActions()
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const result = await decodeActions.decodeTransfer(action, document as any)
+
+      expect(result).to.be.null
+    })
+
+    it('Should fail decodeData', async () => {
+      const decodeActions = new DecodeActions()
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0',
+        data: '0x00e10f10000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
+      }
+
+      const spyDecodeAbi = sandbox.spy(decodeActions, '_decodeWithAbi')
+      const spyDecodeFallback = sandbox.spy(decodeActions, '_decodeFallback')
+
+      const result = await decodeActions.decodeData(action.data)
+      expect(result?.decoded).to.be.undefined
+      expect(spyDecodeAbi.calledOnce).to.be.true
+      expect(spyDecodeFallback.calledOnce).to.be.true
+    })
+  })
+
   describe('_decodeWithAbi', () => {
     it('should decode data using the provided ABI', () => {
       const decodeActions = new DecodeActions()

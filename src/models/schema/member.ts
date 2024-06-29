@@ -15,12 +15,21 @@ import ModelUtils from '@models/utils/models'
 
 const customName = 'Member'
 
-class MemberDao {
+export class DaoHistory {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
-  @prop({ type: () => String, required: true })
-  public daoAddress!: HexAddress
+  @prop({ type: () => Number })
+  public fromBlockNumber!: number
+
+  @prop({ type: () => Number })
+  public toBlockNumber!: number
+
+  @prop({ type: () => String })
+  public fromTxHash!: HexAddress
+
+  @prop({ type: () => String })
+  public toTxHash!: HexAddress
 
   @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
@@ -28,17 +37,11 @@ class MemberDao {
   @prop({ type: () => String, default: null })
   public pluginSubdomain!: string
 
-  @prop({ type: () => Number })
-  public fromBlockNumber!: number
+  @prop({ type: () => String, default: null })
+  public tokenAddress!: HexAddress
 
-  @prop({ type: () => String })
-  public fromTxHash!: HexAddress
-
-  @prop({ type: () => Number })
-  public toBlockNumber!: number
-
-  @prop({ type: () => String })
-  public toTxHash!: HexAddress
+  @prop({ type: () => String, required: true })
+  public daoAddress!: HexAddress
 
   @prop({ type: () => String })
   public votingPower!: string
@@ -64,7 +67,7 @@ class MemberDao {
 })
 @index({
   address: 1,
-  'daos.pluginAddress': 1,
+  'history.pluginAddress': 1,
 })
 export default class Member extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -76,8 +79,8 @@ export default class Member extends Model {
   @prop({ type: () => String, default: null })
   public ens!: HexAddress
 
-  @prop({ type: () => [MemberDao], _id: false, default: [] })
-  public daos?: MemberDao[]
+  @prop({ type: () => [DaoHistory], _id: false, default: [] })
+  public history?: DaoHistory[]
 
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -119,6 +122,7 @@ export default class Member extends Model {
           key !== 'network' &&
           key !== 'daoAddress' &&
           key !== 'pluginAddress' &&
+          key !== 'tokenAddress' &&
           key !== 'onlyActive',
       ),
     )
@@ -129,48 +133,27 @@ export default class Member extends Model {
 
     // only filter active members in dao
     if (extraParams.onlyActive) {
-      filter['$or'] = [{ 'daos.toBlockNumber': null }, { 'daos.toBlockNumber': { $exists: false } }]
+      filter['$or'] = [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }]
     }
 
     if (extraParams.daoAddress) {
-      filter['daos.daoAddress'] = extraParams.daoAddress
+      filter['history.daoAddress'] = extraParams.daoAddress
     }
 
     if (extraParams.pluginAddress) {
-      filter['daos.pluginAddress'] = extraParams.pluginAddress
+      filter['history.pluginAddress'] = extraParams.pluginAddress
+    }
+
+    if (extraParams.tokenAddress) {
+      filter['history.tokenAddress'] = extraParams.tokenAddress
     }
 
     if (extraParams.network) {
-      filter['daos.network'] = extraParams.network
+      filter['history.network'] = extraParams.network
     }
 
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([
-      this.aggregate([
-        { $unwind: '$daos' },
-        { $match: filter },
-        { $skip: request.skip },
-        { $limit: request.limit },
-        {
-          $project: {
-            _id: 0,
-            address: 1,
-            ens: 1,
-            fromBlockNumber: '$daos.fromBlockNumber',
-            toBlockNumber: '$daos.toBlockNumber',
-            votingPower: {
-              $cond: {
-                if: { $gt: [{ $type: '$daos.votingPower' }, 'missing'] },
-                then: '$daos.votingPower',
-                else: '$$REMOVE',
-              },
-            },
-          },
-        },
-        { $sort: request.sort },
-      ]),
-      this.countDocuments(filter),
-    ])
+    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
 
@@ -185,7 +168,7 @@ export default class Member extends Model {
         totalPages,
         totalRecords,
       },
-      data,
+      data: data as any,
     }
   }
 
@@ -209,16 +192,16 @@ export default class Member extends Model {
     return await this.model(customName).findById(this._id, tOpts)
   }
 
-  filterMemberKeys() {
+  filterMemberOnlyKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', 'id', '__v', 'daos', 'createdAt', 'updatedAt')
+    const filtered = _.omit(obj, '_id', 'id', '__v', 'history', 'createdAt', 'updatedAt')
     return filtered
   }
 
   filterKeys() {
     const obj = this.toObject()
     const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
-    filtered.daos = _.omit(filtered.daos, '_id', '__v')
+    filtered.history = filtered.history.map((h: any) => _.omit(h, '_id', '__v'))
     return filtered
   }
 }

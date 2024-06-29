@@ -98,7 +98,7 @@ export default class Asset extends Model {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([_, v]) => v !== undefined))
     const filter = {
-      ...ModelUtils.createFilter(paginationParams, ['tokenAddress']),
+      ...ModelUtils.createFilter(paginationParams, ['network', 'daoAddress', 'tokenAddress']),
       ...dynamicFilter,
     }
 
