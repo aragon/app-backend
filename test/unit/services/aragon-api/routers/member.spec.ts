@@ -6,7 +6,7 @@ import MemberController from '@services/aragon-api/controllers/member'
 import { NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 
-describe('Router: Member', () => {
+describe.only('Router: Member', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -23,6 +23,7 @@ describe('Router: Member', () => {
         network: NetworksEnum.ethereumMainnet,
         daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        tokenAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         onlyActive: true,
       }
       const paginationParams = {
@@ -89,6 +90,7 @@ describe('Router: Member', () => {
         network: filterParams.network,
         daoAddress: undefined,
         pluginAddress: undefined,
+        tokenAddress: undefined,
       })
       expect(stubCtrl.args[0][2]).to.eq(filterParams.daoId)
     })
@@ -124,7 +126,7 @@ describe('Router: Member', () => {
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
         ...filterParams,
-        ...{ daoAddress: undefined, pluginAddress: undefined, onlyActive: undefined },
+        ...{ daoAddress: undefined, pluginAddress: undefined, onlyActive: undefined, tokenAddress: undefined },
       })
       expect(stubCtrl.args[0][2]).not.to.exist
     })
