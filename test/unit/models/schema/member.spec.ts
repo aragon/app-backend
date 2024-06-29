@@ -14,15 +14,15 @@ describe('Model: Member', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-    const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
 
     rawMember = {
-      address,
+      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       ens: undefined,
-      daos: [
+      history: [
         {
-          daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           network: NetworksEnum.ethereumMainnet,
+          daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+          tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
           fromBlockNumber: 1,
           toBlockNumber: 2,
@@ -46,29 +46,27 @@ describe('Model: Member', () => {
       const entityId = Models.Member.getEntityId({ address: rawMember.address! })
       const member = await Models.Member.create(rawMember)
       expect(member.id).to.eq(entityId)
+      expect(member.address).to.eq(rawMember.address)
+      expect(member.ens).to.be.null
+      expect(member.history.length).to.eq(1)
+      expect(member.history[0].daoAddress).to.eq(rawMember?.history?.[0].daoAddress)
+      expect(member.history[0].tokenAddress).to.eq(rawMember?.history?.[0].tokenAddress)
+      expect(member.history[0].pluginAddress).to.eq(rawMember?.history?.[0].pluginAddress)
+      expect(member.history[0].network).to.eq(rawMember?.history?.[0].network)
+      expect(member.history[0].fromTxHash).to.eq(rawMember?.history?.[0].fromTxHash)
+      expect(member.history[0].fromBlockNumber).to.eq(rawMember?.history?.[0].fromBlockNumber)
+      expect(member.history[0].toBlockNumber).to.eq(rawMember?.history?.[0].toBlockNumber)
+      expect(member.history[0].toTxHash).to.eq(rawMember?.history?.[0].toTxHash)
+      expect(member.history[0].delegateToAddress).to.eq(rawMember?.history?.[0].delegateFromAddress)
+      expect(member.history[0].delegateFromAddress).to.eq(rawMember?.history?.[0].delegateToAddress)
+      expect(member.history[0].votingPower).to.eq(rawMember?.history?.[0].votingPower)
+      expect(member.history[0].pluginSubdomain).to.eq(rawMember?.history?.[0].pluginSubdomain)
     })
 
     it('should update Member', async () => {
       const member = await Models.Member.create(rawMember)
       const updatedMember = await member.update({ address: '0x00' })
       expect(updatedMember.address).to.eq('0x00')
-    })
-
-    it('Should getEntityId', async () => {
-      const entityId = Models.Member.getEntityId({ address: rawMember.address! })
-      expect(entityId).to.eq(`${rawMember.address}`)
-    })
-
-    it('Should findExistingLog', async () => {
-      const createdMember = await Models.Member.create(rawMember)
-      const foundMember = await Models.Member.findExistingLog({ address: rawMember.address! })
-      expect(foundMember?.id).to.eq(createdMember.id)
-    })
-
-    it('should reload Member', async () => {
-      const createdMember = await Models.Member.create(rawMember)
-      const foundMember = await createdMember.reload()
-      expect(foundMember?.id).to.eq(createdMember.id)
     })
   })
 
@@ -95,8 +93,9 @@ describe('Model: Member', () => {
   describe('Pagination', () => {
     beforeEach(async () => {
       const rawDao = {
-        daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+        tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
         fromBlockNumber: 1,
         toBlockNumber: 2,
@@ -105,20 +104,21 @@ describe('Model: Member', () => {
         delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         votingPower: '100',
+        pluginSubdomain: 'token-voting',
       }
 
       const members = [
         {
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5408',
-          daos: [rawDao],
+          history: [rawDao],
         },
         {
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5407',
-          daos: [rawDao],
+          history: [rawDao],
         },
         {
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
-          daos: [{ ...rawDao, ...{ toBlockNumber: null, toTxHash: null } }],
+          history: [{ ...rawDao, ...{ toBlockNumber: null, toTxHash: null } }],
         },
       ]
 
@@ -219,23 +219,24 @@ describe('Model: Member', () => {
     const createdDao = await Models.Member.create(rawMember)
     const filterDao = createdDao.filterKeys()
 
-    expect(filterDao.daos).to.exist
+    expect(filterDao.history).to.exist
     expect(filterDao.id).to.be.undefined
     expect(filterDao._id).to.be.undefined
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(Object.keys(filterDao).length).to.eq(3)
+    expect(Object.keys(filterDao.history[0]).length).to.eq(12)
   })
 
-  it('Should filterMemberKeys', async () => {
+  it('Should filterMemberOnlyKeys', async () => {
     const createdDao = await Models.Member.create(rawMember)
-    const filterDao = createdDao.filterMemberKeys()
+    const filterDao = createdDao.filterMemberOnlyKeys()
 
     expect(filterDao.id).to.be.undefined
     expect(filterDao._id).to.be.undefined
     expect(filterDao.__v).to.be.undefined
-    expect(filterDao.daos).to.be.undefined
+    expect(filterDao.history).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(Object.keys(filterDao).length).to.eq(2)

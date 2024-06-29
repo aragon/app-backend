@@ -8,6 +8,7 @@ import {
 } from '@types'
 import { assertExposable } from '@errors'
 import ModelUtils from '@models/utils/models'
+import type Member from '@models/schema/member'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -24,7 +25,9 @@ const MemberController = {
       extraParams.network = daoDb.network
     }
 
-    return await Models.Member.findWithPagination({ extraParams, paginationParams })
+    const result = await Models.Member.findWithPagination({ extraParams, paginationParams })
+    result.data = result.data.map((m: Member) => m.filterMemberOnlyKeys())
+    return result
   },
 
   getMemberById: async (id: string): Promise<IMembersResponse> => {

@@ -10,6 +10,7 @@ const MemberSchema = {
       .optional(),
     daoAddress: ValidationSchema.joiAddress.optional(),
     pluginAddress: ValidationSchema.joiAddress.optional(),
+    tokenAddress: ValidationSchema.joiAddress.optional(),
   }),
 
   getDaoById: Joi.object({
