@@ -6,7 +6,7 @@ import MemberController from '@services/aragon-api/controllers/member'
 import { NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 
-describe.only('Router: Member', () => {
+describe('Router: Member', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

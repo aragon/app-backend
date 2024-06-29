@@ -6,7 +6,7 @@ import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Member from '@models/schema/member'
 
-describe.only('Controller: Member', () => {
+describe('Controller: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
 
