@@ -34,7 +34,7 @@ const MemberController = {
     const member = await Models.Member.findByEntityId(id)
     assertExposable(member, ErrorKeyEnum.notFound)
 
-    return member.filterMemberKeys()
+    return member.filterMemberOnlyKeys()
   },
 }
 

@@ -60,6 +60,7 @@ export const AggregatorDao = {
 
   query() {
     return [
+      { $limit: 100 },
       {
         $lookup: {
           from: 'plugin',
@@ -112,16 +113,16 @@ export const AggregatorDao = {
           from: 'member',
           let: { pluginAddresses: '$plugins.address' },
           pipeline: [
-            { $unwind: '$daos' },
+            { $unwind: '$history' },
             {
               $match: {
                 $expr: {
                   $and: [
-                    { $in: ['$daos.pluginAddress', '$$pluginAddresses'] },
+                    { $in: ['$history.pluginAddress', '$$pluginAddresses'] },
                     {
                       $or: [
-                        { $eq: ['$daos.toBlockNumber', null] },
-                        { $not: { $ifNull: ['$daos.toBlockNumber', false] } },
+                        { $eq: ['$history.toBlockNumber', null] },
+                        { $not: { $ifNull: ['$history.toBlockNumber', false] } },
                       ],
                     },
                   ],
@@ -133,21 +134,23 @@ export const AggregatorDao = {
         },
       },
       {
+        // debug members
+        // $addFields: {
+        // members: '$members',
+        //          members: {
+        //            $map: {
+        //              input: '$members',
+        //              as: 'member',
+        //              in: '$$member.address',
+        //            },
+        //          },
+        //         },
+      },
+      {
         $addFields: {
-          members: { $size: '$members' },
+          totalMembers: { $size: '$members' },
         },
       },
-      // {
-      //   $addFields: {
-      //     members: {
-      //       $map: {
-      //         input: '$members',
-      //         as: 'member',
-      //         in: '$$member.address',
-      //       },
-      //     },
-      //   },
-      // },
       {
         $lookup: {
           from: 'logProposal',
@@ -207,6 +210,7 @@ export const AggregatorDao = {
       },
       {
         $project: {
+          totalMembers: 1,
           members: 1,
           transactionHash: 1,
           network: 1,
@@ -285,6 +289,7 @@ export const AggregatorDao = {
                   proposalsExecuted: { $ifNull: ['$proposalsExecuted', 0] },
                   uniqueVoters: '$totalUniqueVoters',
                   votes: { $ifNull: ['$votes', 0] },
+                  members: { $ifNull: ['$totalMembers', 0] },
                 },
                 latestBlockNumber: '$latestBlockNumber',
                 latestTxHash: '$latestTxHash',
