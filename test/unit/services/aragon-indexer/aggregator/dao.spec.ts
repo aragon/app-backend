@@ -151,6 +151,6 @@ describe('Indexer:Aggregator:Dao', () => {
 
   it('should query', () => {
     const pipeline = AggregatorDao.query()
-    expect(pipeline.length).to.eq(17)
+    expect(pipeline.length).to.eq(19)
   })
 })

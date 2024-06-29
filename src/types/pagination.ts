@@ -38,6 +38,7 @@ export interface IMemberExtraParams {
   daoAddress?: HexAddress
   network?: NetworksEnum
   pluginAddress?: HexAddress
+  tokenAddress?: HexAddress
   onlyActive?: boolean
 }
 

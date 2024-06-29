@@ -191,7 +191,6 @@ export default class Dao extends Model {
     )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, [
-        'id',
         'address',
         'implementationAddress',
         'creatorAddress',
