@@ -59,6 +59,7 @@ export const AggregatorTransactions = {
       case NetworksEnum.baseMainnet:
       case NetworksEnum.zksyncSepolia:
       case NetworksEnum.arbitrumMainnet:
+      case NetworksEnum.zksyncMainnet:
         return category.filter(cat => cat !== ITransactionCategory.Internal)
       default:
         return category
