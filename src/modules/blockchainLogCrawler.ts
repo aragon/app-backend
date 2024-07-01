@@ -85,12 +85,14 @@ class BlockchainLogCrawler {
   }
 
   calculateBatchSize(network: NetworksEnum): number {
+    // TODO: check the block size for each network
     const secondsInMonth = 30 * 24 * 3600
     switch (network) {
+      case NetworksEnum.zksyncMainnet:
       case NetworksEnum.zksyncSepolia:
       case NetworksEnum.ethereumMainnet:
-      case NetworksEnum.arbitrumMainnet: // TODO: check
-      case NetworksEnum.baseMainnet: // TODO: check
+      case NetworksEnum.arbitrumMainnet:
+      case NetworksEnum.baseMainnet:
         return Math.floor(secondsInMonth / 14) // Average block time ~14 seconds
       case NetworksEnum.polygonMainnet:
         return Math.floor(secondsInMonth / 2) // Average block time ~2 seconds

@@ -32,11 +32,10 @@ export interface IDelegatesResponse {
 }
 
 export interface IMembersResponse {
-  id?: string
   address: HexAddress
   ens: ENS | null
-  fromBlockNumber?: number
   votingPower?: string
+  fromBlockNumber?: number
   toBlockNumber?: number
 }
 

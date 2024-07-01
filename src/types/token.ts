@@ -1,5 +1,13 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
+export interface ITokenRate {
+  priceUsd: string
+  priceChangeOnDayUsd: string
+  logo: string
+  lastUpdatedAt: Date
+  skipFetchRate?: boolean
+}
+
 export interface IToken {
   address: HexAddress
   network: NetworksEnum
