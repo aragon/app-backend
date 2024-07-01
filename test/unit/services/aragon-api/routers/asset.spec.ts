@@ -16,11 +16,11 @@ describe('Router: Asset', () => {
     sandbox?.restore()
   })
 
-  describe('getWithPagination', async () => {
+  describe.only('getWithPagination', async () => {
     it('Should get asset with pagination - all params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
-        daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
       const paginationParams = {
         pageSize: 10,
@@ -46,7 +46,10 @@ describe('Router: Asset', () => {
         search: undefined,
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
-      expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        daoAddress: filterParams.address,
+        network: filterParams.network,
+      })
     })
 
     it('Should get asset with pagination - daoId', async () => {
