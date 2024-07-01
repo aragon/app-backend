@@ -16,7 +16,7 @@ describe('Router: Asset', () => {
     sandbox?.restore()
   })
 
-  describe.only('getWithPagination', async () => {
+  describe('getWithPagination', async () => {
     it('Should get asset with pagination - all params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
