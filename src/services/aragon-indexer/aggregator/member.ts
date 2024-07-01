@@ -3,6 +3,8 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
+import { NetworkHelper } from '@helpers/network'
+import { type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMembers' })
 
@@ -10,6 +12,7 @@ export const AggregatorMembers = {
   start: async () => {
     logger.verbose('Start AggregatorMembers', llo({}))
 
+    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
       model: Models.LogMember,
       onDocument: AggregatorMembers.onDocument,
@@ -18,8 +21,8 @@ export const AggregatorMembers = {
       },
       useAggregate: true,
       aggregate: AggregatorMembers.query(
-        AggregatorMembers.queryVotingPowerMembers(),
-        AggregatorMembers.queryMultisigMembers(),
+        AggregatorMembers.queryVotingPowerMembers(supportedNetworks),
+        AggregatorMembers.queryMultisigMembers(supportedNetworks),
       ),
       batchSize: 1000,
       concurrency: 1,
@@ -89,10 +92,11 @@ export const AggregatorMembers = {
     ]
   },
 
-  queryVotingPowerMembers() {
+  queryVotingPowerMembers(networks: NetworksEnum[]) {
     return [
       {
         $match: {
+          network: { $in: networks },
           event: { $in: ['MembersAdded', 'MembersRemoved'] },
         },
       },
@@ -248,10 +252,11 @@ export const AggregatorMembers = {
     ]
   },
 
-  queryMultisigMembers() {
+  queryMultisigMembers(networks: NetworksEnum[]) {
     return [
       {
         $match: {
+          network: { $in: networks },
           event: { $in: ['MembersAdded', 'MembersRemoved'] },
         },
       },

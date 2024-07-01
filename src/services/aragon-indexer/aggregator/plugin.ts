@@ -3,6 +3,8 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Plugin from '@models/schema/plugin'
+import { NetworkHelper } from '@helpers/network'
+import { type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorPlugin' })
 
@@ -10,6 +12,7 @@ export const AggregatorPlugin = {
   start: async () => {
     logger.verbose('Start AggregatorPlugin', llo({}))
 
+    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
       model: Models.LogPluginSetupProcessor,
       onDocument: AggregatorPlugin.onDocument,
@@ -17,7 +20,7 @@ export const AggregatorPlugin = {
         logger.error('Error AggregatorPlugin', llo({ error, document }))
       },
       useAggregate: true,
-      aggregate: AggregatorPlugin.query(),
+      aggregate: AggregatorPlugin.query(supportedNetworks),
       batchSize: 1000,
       concurrency: 1,
     })
@@ -46,10 +49,11 @@ export const AggregatorPlugin = {
     })
   },
 
-  query() {
+  query(networks: NetworksEnum[]) {
     return [
       {
         $match: {
+          network: { $in: networks },
           $or: [
             { event: 'InstallationPrepared' },
             { event: 'InstallationApplied' },

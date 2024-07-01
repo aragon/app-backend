@@ -3,6 +3,8 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Setting from '@models/schema/setting'
+import { NetworkHelper } from '@helpers/network'
+import { type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorSetting' })
 
@@ -10,6 +12,7 @@ export const AggregatorSetting = {
   start: async () => {
     logger.verbose('Start AggregatorSetting', llo({}))
 
+    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
       model: Models.LogPluginSetting,
       onDocument: AggregatorSetting.onDocument,
@@ -17,7 +20,7 @@ export const AggregatorSetting = {
         logger.error('Error AggregatorSetting', llo({ error, document }))
       },
       useAggregate: true,
-      aggregate: AggregatorSetting.query(),
+      aggregate: AggregatorSetting.query(supportedNetworks),
       batchSize: 1000,
       concurrency: 1,
     })
@@ -45,8 +48,13 @@ export const AggregatorSetting = {
     })
   },
 
-  query() {
+  query(networks: NetworksEnum[]) {
     return [
+      {
+        $match: {
+          network: { $in: networks },
+        },
+      },
       {
         $sort: { blockNumber: 1 },
       },
