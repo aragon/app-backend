@@ -15,6 +15,7 @@ const Utils = {
     [NetworksEnum.baseMainnet]: 'BASE_MAINNET',
     [NetworksEnum.arbitrumMainnet]: 'ARBITRUM_MAINNET',
     [NetworksEnum.zksyncSepolia]: 'ZKSYNC_SEPOLIA',
+    [NetworksEnum.zksyncMainnet]: 'ZKSYNC_MAINNET',
   },
 
   networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],

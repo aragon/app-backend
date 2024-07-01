@@ -29,7 +29,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ETHEREUM_SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ETHEREUM_SEPOLIA', 4415294),
       POLYGON_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_POLYGON_MAINNET', 40830344),
       BASE_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_BASE_MAINNET', 2094724),
-      ZKSYNC_SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ZKSYNC_SEPOLIA', 2441204), // zkSync ERA
+      ZKSYNC_SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ZKSYNC_SEPOLIA', 2441204),
+      ZKSYNC_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ZKSYNC_MAINNET', 37460765), // zkSync ERA
       ARBITRUM_MAINNET: utils.configParser(
         sourceConfig,
         'number',
@@ -51,9 +52,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       COINGECKO_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COINGECKO_MAX_CONCURRENT', 1),
       COINGECKO_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COINGECKO_MIN_TIME', 2000),
       COVALENT_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COVALENT_MAX_CONCURRENT', 1),
-      COVALENT_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COVALENT_MIN_TIME', 2000),
+      COVALENT_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COVALENT_MIN_TIME', 20),
       FOUR_BYTE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_FOUR_BYTE_MAX_CONCURRENT', 1),
-      FOUR_BYTE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_FOUR_BYTE_MIN_TIME', 2000),
+      FOUR_BYTE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_FOUR_BYTE_MIN_TIME', 20),
     },
 
     MONGO_DB: {
@@ -127,6 +128,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       BASE_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE_MAINNET', null),
       ARBITRUM_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM_MAINNET', null),
       ZKSYNC_SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ZKSYNC_SEPOLIA', null),
+      ZKSYNC_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ZKSYNC_MAINNET', null),
     },
 
     SERVICES: {

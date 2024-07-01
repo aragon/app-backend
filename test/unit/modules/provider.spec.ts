@@ -27,6 +27,8 @@ describe('Module: provider', () => {
     expect(provider.networksMap.ETHEREUM_SEPOLIA).to.equal(NetworksEnum.ethereumSepolia)
     expect(provider.networksMap.POLYGON_MAINNET).to.equal(NetworksEnum.polygonMainnet)
     expect(provider.networksMap.BASE_MAINNET).to.equal(NetworksEnum.baseMainnet)
+    expect(provider.networksMap.ZKSYNC_SEPOLIA).to.equal(NetworksEnum.zksyncSepolia)
+    expect(provider.networksMap.ZKSYNC_MAINNET).to.equal(NetworksEnum.zksyncMainnet)
   })
 
   it('should correctly parse ETHEREUM_MAINNET to NetworksEnum.ethereumMainnet', () => {
@@ -47,6 +49,9 @@ describe('Module: provider', () => {
 
     const result6 = provider.parseNetwork('ZKSYNC_SEPOLIA')
     expect(result6).to.equal(NetworksEnum.zksyncSepolia)
+
+    const result7 = provider.parseNetwork('ZKSYNC_MAINNET')
+    expect(result7).to.equal(NetworksEnum.zksyncMainnet)
   })
 
   describe('connectToNetwork', async () => {
@@ -146,7 +151,7 @@ describe('Module: provider', () => {
       await Provider.connectToAllNetworks()
 
       expect(stubConneect.callCount).to.eq(0)
-      expect(stubLoggerError.callCount).to.eq(6)
+      expect(stubLoggerError.callCount).to.eq(7)
     })
   })
 
@@ -229,6 +234,7 @@ describe('Module: provider', () => {
         BASE_MAINNET: null,
         ARBITRUM_MAINNET: null,
         ZKSYNC_SEPOLIA: null,
+        ZKSYNC_MAINNET: null,
       }
 
       const backupConfig = config.BLOCKCHAIN_NODES
