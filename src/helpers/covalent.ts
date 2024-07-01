@@ -35,8 +35,10 @@ const CovalentHelper = {
     [NetworksEnum.arbitrumMainnet]: 'arbitrum-mainnet',
     [NetworksEnum.ethereumSepolia]: 'eth-sepolia',
     [NetworksEnum.zksyncSepolia]: 'zksync-sepolia-testnet',
-    // [NetworksEnum.zksyncMainnet]: 'zksync-mainnet',
+    [NetworksEnum.zksyncMainnet]: 'zksync-mainnet',
   },
+
+  skipTestNetworks: [NetworksEnum.zksyncSepolia, NetworksEnum.ethereumSepolia],
 
   nativeTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as HexAddress,
 
@@ -53,13 +55,15 @@ const CovalentHelper = {
   _rpCall: async <T>(path: string): Promise<T> => {
     try {
       const response: any = await retryRequest(async () =>
-        BottleneckModule.getCoinGeckoLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+        BottleneckModule.getCovalentLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
           CovalentHelper.axiosInstance.get(`${config.COVALENT.URI}${path}`),
         ),
       )
       return response.data.data
-    } catch (error) {
-      logger.error('Error in Covalent RPC Call', llo({ path, error }))
+    } catch (error: any) {
+      if (!error?.response?.data?.error_message?.includes('not found')) {
+        logger.error('Error in Covalent RPC Call', llo({ path, error }))
+      }
       throw error
     }
   },
@@ -67,9 +71,9 @@ const CovalentHelper = {
   getTokenType: (token: ITokenCovalentResponse): ITokenType => {
     let type = ITokenType.native
 
-    if (token.supports_erc['erc20']) {
+    if (token.supports_erc[0] === 'erc20') {
       type = ITokenType.ERC20
-    } else if (token.supports_erc['erc721']) {
+    } else if (token.supports_erc[0] === 'erc721') {
       type = ITokenType.ERC721
     }
 
@@ -77,6 +81,10 @@ const CovalentHelper = {
   },
 
   getToken: async (tokenContractAddress: string, network: NetworksEnum): Promise<Partial<IToken> | false> => {
+    if (CovalentHelper.skipTestNetworks.includes(network)) {
+      return false
+    }
+
     if (tokenContractAddress === utils.zeroAddress) {
       tokenContractAddress = CovalentHelper.nativeTokenAddress
     }
@@ -90,15 +98,16 @@ const CovalentHelper = {
       assert(response.length > 0, 'Price data not complete')
 
       return CovalentHelper._parseToken(response[0], network)
-    } catch (error) {
-      logger.error('Error fetching token', llo({ error, network, tokenContractAddress }))
+    } catch (_) {
       return false
     }
   },
 
   _parseToken: (token: ITokenCovalentResponse, network: NetworksEnum): Partial<any> => {
-    const mostRecentPrice = token.prices?.[0]?.price ?? 0
-    const dayBeforePrice = token.prices?.[1]?.price ?? mostRecentPrice
+    const validPrices = token.prices?.filter(price => price.price !== null)
+
+    const mostRecentPrice = validPrices?.[0]?.price ?? 0
+    const dayBeforePrice = validPrices?.[1]?.price ?? mostRecentPrice
     const priceChangeOnDayUsd = mostRecentPrice - dayBeforePrice
     const type = CovalentHelper.getTokenType(token)
 
@@ -138,8 +147,7 @@ const CovalentHelper = {
           logoUrl: w.logo_url,
         })),
       }
-    } catch (error) {
-      logger.error('Error fetching token balance', llo({ error, network, address }))
+    } catch (_) {
       return false
     }
   },

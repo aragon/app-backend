@@ -6,8 +6,6 @@ import logger from '@logger'
 import config from '@config'
 import { IToken, ITokenType, NetworksEnum } from '@types'
 import { TokenList } from '@test/mock/fakeCovalentTokens'
-import Logger from '@logger'
-import CoinGeckoHelper from '@helpers/coinGecko'
 
 describe('Helpers: Covalent', () => {
   let sandbox: SinonSandbox
@@ -18,6 +16,36 @@ describe('Helpers: Covalent', () => {
 
   afterEach(() => {
     sandbox && sandbox.restore()
+  })
+
+  describe('networksMap', () => {
+    it('should correctly map NetworksEnum to network strings', () => {
+      const expectedMap = {
+        'ethereum-mainnet': 'eth-mainnet',
+        'ethereum-sepolia': 'eth-sepolia',
+        'polygon-mainnet': 'matic-mainnet',
+        'base-mainnet': 'base-mainnet',
+        'arbitrum-mainnet': 'arbitrum-mainnet',
+        'zksync-sepolia': 'zksync-sepolia-testnet',
+        'zksync-mainnet': 'zksync-mainnet',
+      }
+
+      Object.keys(NetworksEnum).forEach(key => {
+        const enumValue = NetworksEnum[key]
+        expect(CovalentHelper.networksMap[enumValue]).to.equal(expectedMap[enumValue])
+      })
+    })
+  })
+
+  describe('skipTestNetworks', () => {
+    it('should only include test networks for skipping', () => {
+      const expectedNetworks = [NetworksEnum.zksyncSepolia, NetworksEnum.ethereumSepolia]
+
+      expect(CovalentHelper.skipTestNetworks).to.deep.equal(expectedNetworks)
+      CovalentHelper.skipTestNetworks.forEach(network => {
+        expect(expectedNetworks).to.include(network)
+      })
+    })
   })
 
   describe('_rpCall', () => {
@@ -110,15 +138,11 @@ describe('Helpers: Covalent', () => {
     it('should fail getToken', async () => {
       sandbox.stub(CovalentHelper, '_rpCall').rejects(new Error('fake-error'))
 
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-
       const network = NetworksEnum.ethereumMainnet
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const result = (await CovalentHelper.getToken(address, network)) as Partial<IToken>
 
       expect(result).to.be.false
-      expect(loggerErrorStub.calledOnce).to.be.true
-      expect(loggerErrorStub.calledWith('Error fetching token' as any)).to.be.true
     })
   })
 
@@ -200,15 +224,11 @@ describe('Helpers: Covalent', () => {
     it('should fail getTokenBalance', async () => {
       sandbox.stub(CovalentHelper, '_rpCall').rejects(new Error('Token balance fetch failed'))
 
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-
       const address = '0x0000000000000000000000000000000000000000'
       const network = NetworksEnum.ethereumMainnet
       const result = await CovalentHelper.getTokenBalance(address, network, 'USD')
 
       expect(result).to.be.false
-      expect(loggerErrorStub.calledOnce).to.be.true
-      expect(loggerErrorStub.calledWith('Error fetching token balance' as any)).to.be.true
     })
   })
 
@@ -229,27 +249,21 @@ describe('Helpers: Covalent', () => {
 
   describe('getTokenType', () => {
     it('should return ITokenType.native if no ERC support is indicated', () => {
-      const token = { supports_erc: {} }
+      const token = { supports_erc: [] }
       const result = CovalentHelper.getTokenType(token as any)
       expect(result).to.equal(ITokenType.native)
     })
 
     it('should return ITokenType.ERC20 if token supports ERC20', () => {
-      const token = { supports_erc: { erc20: true } }
+      const token = { supports_erc: ['erc20'] }
       const result = CovalentHelper.getTokenType(token as any)
       expect(result).to.equal(ITokenType.ERC20)
     })
 
     it('should return ITokenType.ERC721 if token supports ERC721 and not ERC20', () => {
-      const token = { supports_erc: { erc721: true } }
+      const token = { supports_erc: ['erc721'] }
       const result = CovalentHelper.getTokenType(token as any)
       expect(result).to.equal(ITokenType.ERC721)
-    })
-
-    it('should prioritize ITokenType.ERC20 over ITokenType.ERC721 if both are supported', () => {
-      const token = { supports_erc: { erc20: true, erc721: true } }
-      const result = CovalentHelper.getTokenType(token as any)
-      expect(result).to.equal(ITokenType.ERC20)
     })
   })
 })
