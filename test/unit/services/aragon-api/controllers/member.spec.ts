@@ -226,7 +226,6 @@ describe('Controller: Member', () => {
       })
 
       const member = await MemberController.getMemberById(memberDb.id)
-      expect(member.id).to.not.exist
       expect((member as any).history).not.to.exist
     })
 

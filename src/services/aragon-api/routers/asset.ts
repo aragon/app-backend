@@ -11,7 +11,7 @@ const AssetRouter = {
     const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'amountUsd' })
     const extraParams: IAssetExtraParams = {
       network: ctx.query.network as NetworksEnum,
-      daoAddress: ctx.query.daoAddress as HexAddress,
+      daoAddress: ctx.query.address as HexAddress,
     }
     const daoId = ctx.query.daoId as string
 
