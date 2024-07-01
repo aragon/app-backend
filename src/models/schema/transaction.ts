@@ -116,6 +116,9 @@ export default class Transaction extends Model {
   @prop({ type: () => Token, _id: false, default: null })
   public token?: Token
 
+  @prop({ type: () => String, default: '0' })
+  public amountUsd!: string
+
   static async create(rawData: Partial<Transaction>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')

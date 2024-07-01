@@ -218,6 +218,12 @@ const Utils = {
   getEpochDayjs(): dayjs.Dayjs {
     return dayjs.unix(0) // Using dayjs.unix(0) to set to Unix Epoch time
   },
+
+  calculateDaysDifference(transactionTimestamp: number): number {
+    const currentTimestamp = new Date().getTime()
+    const timeDifferenceMs = currentTimestamp - transactionTimestamp
+    return timeDifferenceMs / (1000 * 60 * 60 * 24)
+  },
 }
 
 export default Utils
