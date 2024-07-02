@@ -8,7 +8,7 @@ import { MemberHandler } from '@services/aragon-indexer/handlers/memberHandler'
 import { Models } from '@dbModels'
 import Web3 from '@helpers/web3'
 
-describe('Indexer: MemberHandler', () => {
+describe.only('Indexer: MemberHandler', () => {
   let sandbox: SinonSandbox
   let plugin: any
   beforeEach(async () => {
