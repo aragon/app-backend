@@ -52,7 +52,7 @@ export const AggregatorSetting = {
     return [
       {
         $match: {
-          network: { $in: networks },
+          ...(networks?.length > 0 && { network: { $in: networks } }),
         },
       },
       {

@@ -1,5 +1,5 @@
 import logger from '@logger'
-import {type HexAddress, IEventLogMember, type ILogInfo, type NetworksEnum} from '@types'
+import { type HexAddress, IEventLogMember, type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'

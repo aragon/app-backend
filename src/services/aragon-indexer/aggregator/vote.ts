@@ -54,7 +54,7 @@ export const AggregatorVote = {
     return [
       {
         $match: {
-          network: { $in: networks },
+          ...(networks?.length > 0 && { network: { $in: networks } }),
           'voteEvents.0': { $exists: true },
         },
       },
