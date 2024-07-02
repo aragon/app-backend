@@ -1,4 +1,3 @@
-import './environment'
 import { type IConfig } from '@types'
 import { getConfigObject } from './common'
 

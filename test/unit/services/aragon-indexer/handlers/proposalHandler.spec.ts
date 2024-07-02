@@ -171,7 +171,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(newProposal.voteEvents[0].memberAddress).to.eq(fakeEvent.args.approver)
     })
 
-    it('approved error proposal not found', async () => {
+    it('approved warn proposal not found', async () => {
       const network = NetworksEnum.ethereumMainnet
       const rawProposal = {
         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
@@ -209,7 +209,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       sandbox.stub(Models.LogProposal, 'findByProposalId').resolves(null)
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'warn')
 
       const result = await ProposalHandler.approved(fakeEvent as any, info)
 
@@ -333,7 +333,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       sandbox.stub(Models.LogProposal, 'findByProposalId').resolves(null)
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'warn')
 
       const result = await ProposalHandler.voteCast(fakeEvent as any, info)
 

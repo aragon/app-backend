@@ -5,7 +5,7 @@ import dayjs from '@helpers/dayjs'
 import CovalentHelper from '@helpers/covalent'
 
 export const RateModule = {
-  fetchRate: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<ITokenRate> => {
+  fetchRate: async (tokenAddress: HexAddress, network: NetworksEnum, pastDays?: number): Promise<ITokenRate> => {
     const rate = await RateModule.fetchRateWithCovalent(tokenAddress, network)
 
     // Note: its disabled because we need paid plan to have decent rate limit
@@ -17,7 +17,11 @@ export const RateModule = {
     return rate
   },
 
-  fetchRateWithCovalent: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<ITokenRate> => {
+  fetchRateWithCovalent: async (
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    pastDays?: number,
+  ): Promise<ITokenRate> => {
     const tokenPrice: any = {
       priceUsd: '0',
       priceChangeOnDayUsd: '0',
@@ -25,7 +29,7 @@ export const RateModule = {
       lastUpdatedAt: null,
     }
 
-    const token = await CovalentHelper.getToken(tokenAddress, network)
+    const token = await CovalentHelper.getToken(tokenAddress, network, pastDays)
 
     if (token) {
       tokenPrice.priceUsd = token.priceUsd?.toString() ?? '0'

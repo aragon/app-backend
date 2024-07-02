@@ -4,6 +4,8 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
+import { type NetworksEnum } from '@types'
+import { NetworkHelper } from '@helpers/network'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorDao' })
 
@@ -11,6 +13,7 @@ export const AggregatorDao = {
   start: async () => {
     logger.verbose('Start AggregatorDao', llo({}))
 
+    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
       onDocument: AggregatorDao.onDocument,
@@ -18,7 +21,7 @@ export const AggregatorDao = {
         logger.error('Error AggregatorDao', llo({ error, document }))
       },
       useAggregate: true,
-      aggregate: AggregatorDao.query(),
+      aggregate: AggregatorDao.query(supportedNetworks),
       batchSize: 1000,
       concurrency: 1,
     })
@@ -58,9 +61,13 @@ export const AggregatorDao = {
     })
   },
 
-  query() {
+  query(networks: NetworksEnum[]) {
     return [
-      { $limit: 100 },
+      {
+        $match: {
+          ...(networks?.length > 0 && { network: { $in: networks } }),
+        },
+      },
       {
         $lookup: {
           from: 'plugin',
@@ -132,19 +139,6 @@ export const AggregatorDao = {
           ],
           as: 'members',
         },
-      },
-      {
-        // debug members
-        // $addFields: {
-        // members: '$members',
-        //          members: {
-        //            $map: {
-        //              input: '$members',
-        //              as: 'member',
-        //              in: '$$member.address',
-        //            },
-        //          },
-        //         },
       },
       {
         $addFields: {

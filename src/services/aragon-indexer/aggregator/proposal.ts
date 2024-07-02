@@ -5,6 +5,8 @@ import DbTx from '@modules/dbTx'
 import type Proposal from '@models/schema/proposal'
 import Web3Helper from '@helpers/web3'
 import DecodeActions from '@helpers/decodeActions'
+import { NetworkHelper } from '@helpers/network'
+import { type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorProposal' })
 
@@ -19,6 +21,7 @@ export const AggregatorProposal = {
   start: async () => {
     logger.verbose('Start AggregatorProposal', llo({}))
 
+    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
       model: Models.LogProposal,
       onDocument: AggregatorProposal.onDocument,
@@ -26,7 +29,7 @@ export const AggregatorProposal = {
         logger.error('Error AggregatorProposal', llo({ error, document }))
       },
       useAggregate: true,
-      aggregate: AggregatorProposal.query(),
+      aggregate: AggregatorProposal.query(supportedNetworks),
       batchSize: 1000,
       concurrency: 1,
     })
@@ -96,8 +99,13 @@ export const AggregatorProposal = {
     return actions
   },
 
-  query() {
+  query(networks: NetworksEnum[]) {
     return [
+      {
+        $match: {
+          ...(networks?.length > 0 && { network: { $in: networks } }),
+        },
+      },
       {
         $project: {
           _id: 0,
