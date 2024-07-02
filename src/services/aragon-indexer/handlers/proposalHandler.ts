@@ -73,7 +73,7 @@ export const ProposalHandler = {
       const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, info.address, info.network)
 
       if (!proposal) {
-        logger.error('proposal not found', llo({ ...info, parsedEvent }))
+        logger.warn('proposal not found', llo({ ...info, parsedEvent }))
         return
       }
 
@@ -105,7 +105,7 @@ export const ProposalHandler = {
       const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, info.address, info.network)
 
       if (!proposal) {
-        logger.error('proposal not found', llo({ ...info, parsedEvent }))
+        logger.warn('proposal not found', llo({ ...info, parsedEvent }))
         return
       }
 

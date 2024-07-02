@@ -3,6 +3,7 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Delegate from '@models/schema/delegate'
+import { NetworkHelper } from '@helpers/network'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorDelegate' })
 
@@ -16,7 +17,9 @@ export const AggregatorDelegate = {
       onError: (error: any, document: any) => {
         logger.error('Error AggregatorDelegate', llo({ error, document }))
       },
-      where: {},
+      where: {
+        network: { $in: NetworkHelper.supportedNetworks().map(network => network.networkName) },
+      },
       useAggregate: true,
       aggregate: AggregatorDelegate.query(),
       batchSize: 500,

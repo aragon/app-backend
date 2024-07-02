@@ -1,7 +1,7 @@
-import * as dotenv from 'dotenv'
+import { loadConfig } from '../config/environment'
 
 import Runner from '@modules/runner'
 import InitialData from '@src/../initialData/index'
-dotenv.config({ path: '../.env.aragon-api' })
+loadConfig('../.env.aragon-api')
 
 Runner([{ app: InitialData }])
