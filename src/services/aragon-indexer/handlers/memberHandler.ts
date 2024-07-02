@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type HexAddress, IEventLogMember, type ILogInfo } from '@types'
+import {type HexAddress, IEventLogMember, type ILogInfo, type NetworksEnum} from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -20,10 +20,11 @@ export const MemberHandler = {
     await Promise.all(
       parsedEvent.args.members.map(async (member: HexAddress) => {
         const existingLog = await Models.LogMember.findExistingLog({
+          network: info.network,
           transactionHash: info.transactionHash,
           event: parsedEvent.name,
           address: member,
-          network: info.network,
+          pluginAddress: info.address,
         })
 
         if (!existingLog) {
@@ -59,10 +60,11 @@ export const MemberHandler = {
     await Promise.all(
       parsedEvent.args.members.map(async (member: HexAddress) => {
         const existingLog = await Models.LogMember.findExistingLog({
+          network: info.network,
           transactionHash: info.transactionHash,
           event: parsedEvent.name,
           address: member,
-          network: info.network,
+          pluginAddress: info.address,
         })
 
         if (!existingLog) {

@@ -136,7 +136,7 @@ describe('Indexer:Aggregator:Plugin', () => {
   })
 
   it('should use default date when none is provided', () => {
-    const pipeline = AggregatorPlugin.query()
+    const pipeline = AggregatorPlugin.query([])
     expect(pipeline.length).to.equal(11)
   })
 })

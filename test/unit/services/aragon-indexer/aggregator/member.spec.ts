@@ -107,10 +107,10 @@ describe('Indexer:Aggregator:Member', () => {
     const pipeline = AggregatorMembers.query([], [])
     expect(pipeline.length).to.eq(8)
 
-    const pipeline2 = AggregatorMembers.queryVotingPowerMembers()
+    const pipeline2 = AggregatorMembers.queryVotingPowerMembers([])
     expect(pipeline2.length).to.eq(13)
 
-    const pipeline3 = AggregatorMembers.queryMultisigMembers()
+    const pipeline3 = AggregatorMembers.queryMultisigMembers([])
     expect(pipeline3.length).to.eq(13)
   })
 })
