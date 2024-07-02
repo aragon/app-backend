@@ -38,6 +38,7 @@ export const AggregatorMembers = {
 
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
+
       if (!existingLog) {
         logDb = await Models.Member.create(document, { session } as any)
       } else {
@@ -364,4 +365,5 @@ export const AggregatorMembers = {
       },
     ]
   },
+
 }
