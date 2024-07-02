@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import {
   ErrorKeyEnum,
+  type IActiveMemberExtraParams,
   type IMemberExtraParams,
   type IMembersResponse,
   type IPaginatedResult,
@@ -8,7 +9,6 @@ import {
 } from '@types'
 import { assertExposable } from '@errors'
 import ModelUtils from '@models/utils/models'
-import type Member from '@models/schema/member'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -26,7 +26,6 @@ const MemberController = {
     }
 
     const result = await Models.Member.findWithPagination({ extraParams, paginationParams })
-    result.data = result.data.map((m: Member) => m.filterMemberOnlyKeys())
     return result
   },
 
@@ -34,7 +33,15 @@ const MemberController = {
     const member = await Models.Member.findByEntityId(id)
     assertExposable(member, ErrorKeyEnum.notFound)
 
-    return member.filterMemberOnlyKeys()
+    return member.filterKeys()
+  },
+
+  getActiveMembersByPluginAddress: async (
+    paginationParams: IPaginationParams = {},
+    extraParams: IActiveMemberExtraParams = {},
+  ): Promise<IMembersResponse> => {
+    const result = await Models.Member.findActiveWithPagination({ extraParams, paginationParams })
+    return result
   },
 }
 

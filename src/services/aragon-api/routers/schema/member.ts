@@ -20,6 +20,13 @@ const MemberSchema = {
   getMemberById: Joi.object({
     id: ValidationSchema.joiAddress.optional(),
   }),
+
+  getActiveMembersByPluginAddress: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    pluginAddress: ValidationSchema.joiAddress.required(),
+  }),
 }
 
 export default MemberSchema

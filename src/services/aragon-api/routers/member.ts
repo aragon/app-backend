@@ -41,6 +41,21 @@ const MemberRouter = {
     ctx.body = await MemberController.getMemberById(formattedValues.id)
   },
 
+  getActiveMembersByPluginAddress: async function (ctx: RouterContext) {
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'fromBlockNumber' })
+    const extraParams: IMemberExtraParams = {
+      network: ctx.params.network as NetworksEnum,
+      pluginAddress: ctx.params.pluginAddress,
+    }
+
+    const [formattedPaginationParams, formattedExtraParams] = await Promise.all([
+      ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
+      ValidationSchema.validateParams(MemberSchema.getActiveMembersByPluginAddress, extraParams),
+    ])
+
+    ctx.body = await MemberController.getActiveMembersByPluginAddress(formattedPaginationParams, formattedExtraParams)
+  },
+
   router() {
     const router = new Router()
 
@@ -74,6 +89,16 @@ const MemberRouter = {
      * @apiSampleRequest /:address
      */
     router.get('/:address', MemberRouter.getMemberById)
+
+    /**
+     * @api {get} /active/:network:pluginAddress Get Active Member by plugin address
+     * @apiName Members
+     * @apiGroup Members
+     * @apiDescription Get Active Member by address
+     *
+     * @apiSampleRequest /active/:network/:pluginAddress
+     */
+    router.get('/active/:network/:pluginAddress', MemberRouter.getActiveMembersByPluginAddress)
 
     return router
   },
