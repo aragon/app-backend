@@ -38,7 +38,6 @@ const IndexerService: IService = {
     //   [async () => LogMember.start()], // after logPluginSetupProcessor
     // ]
 
-
     // order is important
     const logFastTasks = [
       [async () => LogPluginRepoRegistry.start(), async () => LogDaoRegistry.start()],
