@@ -105,10 +105,10 @@ describe('Indexer:Aggregator:Member', () => {
 
   it('should use query', () => {
     const pipeline = AggregatorMembers.query([], [])
-    expect(pipeline.length).to.eq(8)
+    expect(pipeline.length).to.eq(6)
 
     const pipeline2 = AggregatorMembers.queryVotingPowerMembers([])
-    expect(pipeline2.length).to.eq(13)
+    expect(pipeline2.length).to.eq(12)
 
     const pipeline3 = AggregatorMembers.queryMultisigMembers([])
     expect(pipeline3.length).to.eq(13)
