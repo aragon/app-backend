@@ -28,21 +28,22 @@ const IndexerService: IService = {
   start: async function () {
     logger.info('IndexerService service sync start', llo({}))
 
+    // const logTasks = [
+    //   [async () => LogPluginRepoRegistry.start()],
+    //   [async () => LogDaoRegistry.start()],
+    //   [async () => LogPluginSetupProcessor.start()],
+    //   [async () => LogDao.start()], // after logDaoRegistry
+    //   [async () => LogPluginSetting.start()], // after logPluginSetupProcessor
+    //   [async () => LogProposal.start()], // after logPluginSetupProcessor
+    //   [async () => LogMember.start()], // after logPluginSetupProcessor
+    // ]
+
+
     // order is important
     const logFastTasks = [
       [async () => LogPluginRepoRegistry.start(), async () => LogDaoRegistry.start()],
       [async () => LogPluginSetupProcessor.start(), async () => LogDao.start()], // after logDaoRegistry
       [async () => LogProposal.start(), async () => LogPluginSetting.start()], // after logPluginSetupProcessor
-      [async () => LogMember.start()], // after logPluginSetupProcessor
-    ]
-
-    const logTasks = [
-      [async () => LogPluginRepoRegistry.start()],
-      [async () => LogDaoRegistry.start()],
-      [async () => LogPluginSetupProcessor.start()],
-      [async () => LogDao.start()], // after logDaoRegistry
-      [async () => LogPluginSetting.start()], // after logPluginSetupProcessor
-      [async () => LogProposal.start(),], // after logPluginSetupProcessor
       [async () => LogMember.start()], // after logPluginSetupProcessor
     ]
 
