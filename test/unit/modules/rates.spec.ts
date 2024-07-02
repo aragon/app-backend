@@ -85,7 +85,7 @@ describe('Modules:RateModule', () => {
       expect(result.logo).to.equal('fake-logo')
       expect(result.lastUpdatedAt).to.exist
       expect(getCoinPriceStub.calledOnce).to.be.true
-      expect(getCoinPriceStub.calledWithExactly(ZeroAddress, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(getCoinPriceStub.calledWithExactly(ZeroAddress, NetworksEnum.ethereumMainnet, undefined)).to.be.true
     })
   })
 })
