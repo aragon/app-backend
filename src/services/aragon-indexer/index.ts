@@ -29,14 +29,21 @@ const IndexerService: IService = {
     logger.info('IndexerService service sync start', llo({}))
 
     // order is important
+    const logFastTasks = [
+      [async () => LogPluginRepoRegistry.start(), async () => LogDaoRegistry.start()],
+      [async () => LogPluginSetupProcessor.start(), async () => LogDao.start()], // after logDaoRegistry
+      [async () => LogProposal.start(), async () => LogPluginSetting.start()], // after logPluginSetupProcessor
+      [async () => LogMember.start()], // after logPluginSetupProcessor
+    ]
+
     const logTasks = [
-      [async () => LogDaoRegistry.start()],
-      [async () => LogDao.start()],
       [async () => LogPluginRepoRegistry.start()],
-      [async () => LogPluginSetting.start()],
+      [async () => LogDaoRegistry.start()],
       [async () => LogPluginSetupProcessor.start()],
-      [async () => LogProposal.start()],
-      [async () => LogMember.start()],
+      [async () => LogDao.start()], // after logDaoRegistry
+      [async () => LogPluginSetting.start()], // after logPluginSetupProcessor
+      [async () => LogProposal.start(),], // after logPluginSetupProcessor
+      [async () => LogMember.start()], // after logPluginSetupProcessor
     ]
 
     // order is important
@@ -53,7 +60,7 @@ const IndexerService: IService = {
     ]
 
     const taskOptions = {
-      fn: () => [...logTasks, ...aggregatorTasks],
+      fn: () => [...logFastTasks, ...aggregatorTasks],
       interval: config.SERVICES.ARAGON_INDEXER.DAO_INTERVAL,
       onError: (error: any) => {
         logger.error('IndexerService task error', llo({ error }))
