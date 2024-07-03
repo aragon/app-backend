@@ -36,7 +36,7 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
-      const stubFindPlugin = sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(true)
+      const stubFindPlugin = sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(true)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       await PluginSettingHandler.votingSettingsUpdated(fakeEvent as any, logInfo)
@@ -74,7 +74,7 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(false)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(false)
       const stubLogger = sandbox.stub(logger, 'warn')
 
       await PluginSettingHandler.votingSettingsUpdated(fakeEvent as any, logInfo)
@@ -98,7 +98,7 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(true)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(true)
       sandbox.stub(Models.LogPluginSetting, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
@@ -124,7 +124,7 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
-      const stubFindPlugin = sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(true)
+      const stubFindPlugin = sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(true)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       await PluginSettingHandler.multisigSettingsUpdated(fakeEvent as any, logInfo)
@@ -159,7 +159,7 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(false)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(false)
       const stubLogger = sandbox.stub(logger, 'warn')
 
       await PluginSettingHandler.multisigSettingsUpdated(fakeEvent as any, logInfo)
@@ -183,7 +183,7 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(true)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(true)
       sandbox.stub(Models.LogPluginSetting, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
