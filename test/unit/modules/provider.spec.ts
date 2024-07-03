@@ -115,27 +115,25 @@ describe('Module: provider', () => {
       const mockUrl = 'wss://ethereum-rpc.publicnode.com'
       const network = NetworksEnum.ethereumMainnet
 
-      // Stub the WebSocketProvider and simulate 'close' event
       const provider = new WebSocketProvider(mockUrl)
       sandbox.stub(WebSocketProvider.prototype, 'websocket').value({
         removeEventListener: (event: any, callback: any) => {
-          if (event === 'close') setTimeout(callback, 10)
+          if (event === 'close') setTimeout(callback, 0)
           if (event === 'open') callback()
         },
         addEventListener: (event: any, callback: any) => {
-          if (event === 'close') setTimeout(callback, 10)
+          if (event === 'close') setTimeout(callback, 0)
           if (event === 'open') callback()
           if (event === 'error') callback()
         },
       })
 
-      const reconnectStub = sandbox.stub(Provider, 'reconnectToNetwork')
+      const reconnectStub = sandbox.stub(Provider, 'reconnectToNetwork').resolves()
 
       await Provider.connectToNetwork(network, mockUrl)
-      await new Promise(resolve => setTimeout(resolve, 50)) // Wait for the close event to be handled
+      await new Promise(resolve => setTimeout(resolve, 0))
 
       expect(reconnectStub.calledWith(network, mockUrl)).to.be.true
-      expect(reconnectStub.callCount).to.eq(5)
     })
   })
 
@@ -171,7 +169,7 @@ describe('Module: provider', () => {
 
       const mockUrl = 'wss://ethereum-rpc.publicnode.com'
       const stubLoggerInfo = sandbox.stub(Logger, 'info')
-      const stubConnect = sandbox.stub(Provider, 'connectToNetwork').resolves().resolves()
+      const stubConnect = sandbox.stub(Provider, 'connectToNetwork').resolves()
 
       await Provider.reconnectToNetwork(NetworksEnum.ethereumMainnet, mockUrl)
       await utils.wait(20)

@@ -53,7 +53,7 @@ describe('Indexer: ProposalHandler', () => {
       const stubProposalMetadata = sandbox.stub(ProposalHandler, 'proposalMetadata').resolves()
       const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(metadataUri)
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubFindPlugin = sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(true)
+      const stubFindPlugin = sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(true)
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -107,7 +107,7 @@ describe('Indexer: ProposalHandler', () => {
 
       sandbox.stub(Web3Helper, 'extractMetadataUri').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(true)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(true)
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 

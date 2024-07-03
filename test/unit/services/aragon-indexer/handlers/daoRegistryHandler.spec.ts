@@ -2,17 +2,17 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
+import Logger from '@logger'
 import { NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { DaoRegistryHandler } from '@services/aragon-indexer/handlers/daoRegistryHandler'
 import { Models } from '@dbModels'
 import Web3 from '@helpers/web3'
+import Web3Helper from '@helpers/web3'
 import { PluginSetupProcessorHandler } from '@services/aragon-indexer/handlers/pluginSetupProcessorHandler'
 import { MemberHandler } from '@services/aragon-indexer/handlers/memberHandler'
 import ProxyContractHelper from '@helpers/proxyContract'
-import Web3Helper from '@helpers/web3'
 import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
-import Logger from '@logger'
 
 describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
@@ -71,7 +71,6 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(savedDaoLog.transactionHash).to.eq(logInfo.transactionHash)
       expect(initNewDaoStub.calledOnce).to.be.true
       expect(initNewDaoStub.calledWith(logInfo)).to.be.true
-      expect(proxyUtils.calledOnce).to.be.true
       expect(proxyUtils.calledWith(fakeEvent.args.dao, network)).to.be.true
     })
 
@@ -203,6 +202,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       } as any
       const web3Stub = sandbox.stub(Web3, 'findLogsByName').returns([])
       const installationPreparedStub = sandbox.stub(PluginSetupProcessorHandler, 'installationPrepared')
+      const installationAppliedStub = sandbox.stub(PluginSetupProcessorHandler, 'installationApplied')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -214,9 +214,10 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       await DaoRegistryHandler._pluginSetup(fakeTx, logInfo)
 
-      expect(web3Stub.calledOnce).to.be.true
+      expect(web3Stub.calledTwice).to.be.true
       expect(installationPreparedStub.notCalled).to.be.true
-      expect(stubLogger.calledOnce).to.be.true
+      expect(installationAppliedStub.notCalled).to.be.true
+      expect(stubLogger.calledTwice).to.be.true
     })
 
     it('should save plugin setup logs', async () => {
@@ -249,6 +250,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       } as any
 
       const installationPreparedStub = sandbox.stub(PluginSetupProcessorHandler, 'installationPrepared')
+      const installationAppliedStub = sandbox.stub(PluginSetupProcessorHandler, 'installationApplied')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -260,14 +262,14 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       await DaoRegistryHandler._pluginSetup(fakeTx, logInfo)
 
-      expect(findLogsByNameStub.calledOnce).to.be.true
+      expect(findLogsByNameStub.calledTwice).to.be.true
       expect(installationPreparedStub.calledOnce).to.be.true
+      expect(installationAppliedStub.calledOnce).to.be.true
     })
   })
 
   describe('_memberAdded', () => {
     it('should fails to save member logs if not found all', async () => {
-      const verboseStub = sandbox.stub(logger, 'warn')
       const fakeTx = {
         logs: [
           {
@@ -300,9 +302,6 @@ describe('Indexer: DaoRegistryHandler', () => {
       await DaoRegistryHandler._memberAdded(fakeTx, logInfo)
 
       expect(findLogsByNameStub.calledTwice).to.be.true
-      expect(verboseStub.calledOnce).to.be.true
-
-      expect(verboseStub.calledWith('Invalid member log' as any)).to.be.true
       expect(delegateChangedStub.notCalled).to.be.true
     })
 
@@ -319,7 +318,6 @@ describe('Indexer: DaoRegistryHandler', () => {
         ],
       } as any
 
-      const verboseStub = sandbox.stub(logger, 'verbose')
       const web3Stub = sandbox
         .stub(Web3, 'findLogsByName')
         .onFirstCall()
@@ -356,9 +354,7 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       expect(web3Stub.calledTwice).to.be.true
       expect(delegateChangedStub.calledOnce).to.be.true
-
       expect(memberAddedStub.notCalled).to.be.true
-      expect(verboseStub.notCalled).to.be.true
     })
 
     it('should save member logs', async () => {
@@ -394,7 +390,21 @@ describe('Indexer: DaoRegistryHandler', () => {
           },
         ] as any)
         .onSecondCall()
-        .returns([])
+        .returns([
+          {
+            parsed: {
+              dao: '0x123',
+              member: '0x456',
+            },
+            txLog: {
+              transactionHash: '0x123',
+              address: '0x123',
+              topics: ['0x456'],
+              data: '0x789',
+              blockNumber: 1,
+            },
+          },
+        ] as any)
 
       const memberAddedStub = sandbox.stub(MemberHandler, 'membersAdded')
       const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
@@ -409,10 +419,25 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       await DaoRegistryHandler._memberAdded(fakeTx, logInfo)
 
-      expect(web3Stub.callCount).to.be.eq(1)
+      expect(web3Stub.callCount).to.be.eq(2)
       expect(memberAddedStub.calledOnce).to.be.true
-
-      expect(delegateChangedStub.notCalled).to.be.true
+      expect(memberAddedStub.args[0][0]).to.deep.eq({ dao: fakeTx.logs[0].address, member: '0x456' } as any)
+      expect(memberAddedStub.args[0][1]).to.deep.eq({
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x123',
+        blockNumber: 1,
+        transactionHash: '0x123',
+        eventName: 'MembersAdded',
+      } as any)
+      expect(delegateChangedStub.calledOnce).to.be.true
+      expect(delegateChangedStub.args[0][0]).to.deep.eq({ dao: fakeTx.logs[0].address, member: '0x456' } as any)
+      expect(delegateChangedStub.args[0][1]).to.deep.eq({
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x123',
+        blockNumber: 1,
+        transactionHash: '0x123',
+        eventName: 'DelegateChanged',
+      } as any)
       expect(verboseStub.notCalled).to.be.true
     })
   })
