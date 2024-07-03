@@ -289,7 +289,26 @@ describe('Model: Member', () => {
   })
 
   it('should findActiveMember', async () => {
-    const dbMember = await Models.Member.create(rawMember)
+    const dbMember = await Models.Member.create({
+      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      ens: undefined,
+      history: [
+        {
+          network: NetworksEnum.ethereumMainnet,
+          daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+          tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+          pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
+          fromBlockNumber: 1,
+          toBlockNumber: undefined as any,
+          fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+          toTxHash: undefined as any,
+          delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+          delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+          votingPower: '100',
+          pluginSubdomain: 'token-voting',
+        },
+      ],
+    })
     const member = await Models.Member.findActiveMember(dbMember.address!, {})
     expect(member.address).to.eq(dbMember.address)
   })
