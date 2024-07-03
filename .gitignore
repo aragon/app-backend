@@ -3,3 +3,6 @@
 /sandbox
 /.nyc_output/
 /coverage/
+.env.*
+.idea
+.DS_Store
