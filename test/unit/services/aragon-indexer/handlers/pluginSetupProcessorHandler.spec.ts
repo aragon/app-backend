@@ -318,7 +318,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const stubLogger = sandbox.stub(logger, 'warn')
       sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
 
-      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
+      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('dao not found' as any)).to.be.true
     })
@@ -433,7 +433,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const stubLogger = sandbox.stub(logger, 'warn')
       sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
 
-      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
+      await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('dao not found' as any)).to.be.true
     })

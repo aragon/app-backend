@@ -18,13 +18,14 @@ export const MemberHandler = {
     }
 
     await Promise.all(
-      parsedEvent.args.members.map(async (member: HexAddress) => {
+      parsedEvent.args.members.map(async (member: HexAddress, index: number) => {
         const existingLog = await Models.LogMember.findExistingLog({
           network: info.network,
           transactionHash: info.transactionHash,
           event: parsedEvent.name,
           address: member,
           pluginAddress: info.address,
+          txIndex: index,
         })
 
         if (!existingLog) {
@@ -58,13 +59,14 @@ export const MemberHandler = {
     }
 
     await Promise.all(
-      parsedEvent.args.members.map(async (member: HexAddress) => {
+      parsedEvent.args.members.map(async (member: HexAddress, index: number) => {
         const existingLog = await Models.LogMember.findExistingLog({
           network: info.network,
           transactionHash: info.transactionHash,
           event: parsedEvent.name,
           address: member,
           pluginAddress: info.address,
+          txIndex: index,
         })
 
         if (!existingLog) {
@@ -107,7 +109,7 @@ export const MemberHandler = {
       )
 
       await Promise.all(
-        delegationVotesChangedLogs.map(async (delegationVoteLog: any) => {
+        delegationVotesChangedLogs.map(async (delegationVoteLog: any, index: number) => {
           const memberAddress = Web3Helper.formatAddress(delegationVoteLog.txLog.topics[1])
 
           const existingLog = await Models.LogMember.findExistingLog({
@@ -116,6 +118,7 @@ export const MemberHandler = {
             address: memberAddress,
             network: info.network,
             pluginAddress: relatedPlugin.pluginAddress,
+            txIndex: index,
           })
 
           if (!existingLog) {
@@ -133,6 +136,7 @@ export const MemberHandler = {
                 previousVotingPower: delegationVoteLog?.parsed!.args.previousBalance.toString(),
                 newVotingPower: delegationVoteLog?.parsed!.args.newBalance.toString(),
                 pluginAddress: relatedPlugin.pluginAddress,
+                txIndex: index,
               }
 
               const daoMember = await Models.LogMember.create(rawDaoMember, { session } as any)

@@ -21,11 +21,17 @@ const MemberSchema = {
     id: ValidationSchema.joiAddress.optional(),
   }),
 
-  getActiveMembersByPluginAddress: Joi.object({
+  getMemberByAddress: Joi.object({
+    address: ValidationSchema.joiAddress.required(),
+  }),
+
+  getActiveMembersWithPagination: Joi.object({
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
-      .required(),
-    pluginAddress: ValidationSchema.joiAddress.required(),
+      .optional(),
+    daoAddress: ValidationSchema.joiAddress.optional(),
+    pluginAddress: ValidationSchema.joiAddress.optional(),
+    tokenAddress: ValidationSchema.joiAddress.optional(),
   }),
 }
 

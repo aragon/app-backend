@@ -230,7 +230,7 @@ describe('Helpers:ProxyContractHelper', () => {
     })
 
     it('should fail implementation address', async () => {
-      const stubLogger = sandbox.stub(Logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'warn')
       const getStorageStub = sandbox.stub().rejects(new Error('Error getting storage'))
 
       const providerStub = {

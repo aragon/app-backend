@@ -31,19 +31,39 @@ const MemberController = {
     return result
   },
 
-  getMemberById: async (id: string): Promise<IMembersResponse> => {
-    const member = await Models.Member.findByEntityId(id)
+  getActiveMembersWithPagination: async (
+    paginationParams: IPaginationParams = {},
+    extraParams: IActiveMemberExtraParams = {},
+    daoId?: string,
+  ): Promise<IPaginatedResult<IMembersResponse>> => {
+    if (daoId) {
+      const daoDb = await Models.Dao.findByEntityId(daoId)
+      if (!daoDb) {
+        return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
+      }
+      extraParams.daoAddress = daoDb.address
+      extraParams.network = daoDb.network
+    }
+
+    const result = await Models.Member.findActiveWithPagination({ extraParams, paginationParams })
+    return result
+  },
+
+  getMemberById: async (address: string): Promise<IMembersResponse> => {
+    const member = await Models.Member.findByEntityId(address)
     assertExposable(member, ErrorKeyEnum.notFound)
 
     return member.filterKeys()
   },
 
-  getActiveMembersByPluginAddress: async (
-    paginationParams: IPaginationParams = {},
+  getActiveMemberByAddress: async (
+    address: string,
     extraParams: IActiveMemberExtraParams = {},
   ): Promise<IMembersResponse> => {
-    const result = await Models.Member.findActiveWithPagination({ extraParams, paginationParams })
-    return result
+    const member = await Models.Member.findActiveMember(address, extraParams)
+    assertExposable(member, ErrorKeyEnum.notFound)
+
+    return member
   },
 }
 

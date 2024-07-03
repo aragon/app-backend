@@ -53,6 +53,7 @@ describe('Rates: FetchRates', () => {
     const fakeRate = { priceUsd: 1, priceChangeOnDayUsd: 1 }
     const stubFetchRates = sandbox.stub(RateModule, 'fetchRate').resolves(fakeRate as any)
     const stubLogger = sandbox.stub(logger, 'verbose')
+    sandbox.stub(FetchRates, 'skipFetchToken').returns(true)
 
     const tokenDb = await Models.Token.create({
       network: NetworksEnum.ethereumMainnet,
@@ -72,6 +73,12 @@ describe('Rates: FetchRates', () => {
 
     expect(stubFetchRates.calledOnceWith(tokenDb.address, tokenDb.network)).to.be.true
     expect(stubLogger.calledOnceWith('Token rate updated' as any)).to.be.true
+
+    const updatedToken = await Models.Token.findByTokenAddressAndNetwork(tokenDb.address, tokenDb.network)
+    expect(updatedToken.priceUsd).to.be.equal('1')
+    expect(updatedToken.priceChangeOnDayUsd).to.be.equal('1')
+    expect(updatedToken.lastUpdatedAt).to.exist
+    expect(updatedToken.skipFetchRate).to.be.true
   })
 
   describe('skipFetchToken', () => {
