@@ -9,7 +9,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:PluginSettingH
 export const PluginSettingHandler = {
   votingSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const pluginAddress = info.address
-    const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(pluginAddress, info.network)
+    const relatedPlugin = await Models.LogPluginSetupProcessor.findByPluginAddress(pluginAddress, info.network)
 
     if (!relatedPlugin) {
       logger.warn('Plugin not found', llo(info))
@@ -49,7 +49,7 @@ export const PluginSettingHandler = {
 
   multisigSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const pluginAddress = info.address
-    const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(pluginAddress, info.network)
+    const relatedPlugin = await Models.LogPluginSetupProcessor.findByPluginAddress(pluginAddress, info.network)
 
     if (!relatedPlugin) {
       logger.warn('Plugin not found', llo(info))

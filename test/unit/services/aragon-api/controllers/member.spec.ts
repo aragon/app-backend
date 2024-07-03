@@ -226,7 +226,7 @@ describe('Controller: Member', () => {
       })
 
       const member = await MemberController.getMemberById(memberDb.id)
-      expect((member as any).history).not.to.exist
+      expect((member as any).history.length).to.eq(1)
     })
 
     it('should fail to getMemberById', async () => {
