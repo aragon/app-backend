@@ -14,6 +14,9 @@ import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import type Transaction from '@models/schema/transaction'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import Web3Helper from '@helpers/web3'
+import { NetworkHelper } from '@helpers/network'
+import { RateModule } from '@modules/rates'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorTransactions' })
 
@@ -33,7 +36,7 @@ export const AggregatorTransactions = {
         logger.error('Error AggregatorTransactions', llo({ error, document }))
       },
       where: {
-        network: NetworksEnum.baseMainnet,
+        network: { $in: NetworkHelper.supportedNetworks().map(w => w.networkName) },
       },
       batchSize: 500,
       concurrency: 1,
@@ -56,6 +59,7 @@ export const AggregatorTransactions = {
       case NetworksEnum.baseMainnet:
       case NetworksEnum.zksyncSepolia:
       case NetworksEnum.arbitrumMainnet:
+      case NetworksEnum.zksyncMainnet:
         return category.filter(cat => cat !== ITransactionCategory.Internal)
       default:
         return category
@@ -124,7 +128,7 @@ export const AggregatorTransactions = {
         const rawTx: Partial<Transaction> = {
           transactionHash: tx.hash,
           blockNumber: Number(tx.blockNum),
-          blockTimestamp,
+          blockTimestamp: blockTimestamp * 1000,
           network: daoRegistry.network,
           type,
           daoAddress: daoRegistry.address,
@@ -143,8 +147,14 @@ export const AggregatorTransactions = {
 
         if (tx.rawContract?.address) {
           const token = await UtilsIndexer.saveAndGetToken(tx.rawContract?.address, daoRegistry.network)
+
           // TODO: get historical price of the tx
           if (token?.address) {
+            // historical price
+            const daysDifference = utils.calculateDaysDifference(rawTx.blockTimestamp)
+            const rate = await RateModule.fetchRate(token.address, daoRegistry.network, daysDifference)
+            rawTx.amountUsd = rate ? (Number(rawTx.value) * Number(rate.priceUsd)).toString() : '0'
+
             rawTx.token = {
               address: token.address,
               symbol: token.symbol,

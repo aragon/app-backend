@@ -43,18 +43,20 @@ const ProviderModule = {
       try {
         const provider: WebSocketProvider | any = new WebSocketProvider(nodeUrl)
 
-        provider.websocket.on('open', async () => {
+        const handleOpen = async () => {
           logger.info(`WebSocket connected successfully to ${network}`)
           ProviderModule.configState.setConfigItem(network, provider)
+          provider.websocket.removeEventListener('open', handleOpen) // Ensure the listener is removed after successful connection
           resolve(provider)
-        })
+        }
 
-        provider.websocket.on('close', () => {
+        const handleClose = () => {
           logger.error(`WebSocket connection closed unexpectedly for ${network}. Attempting to reconnect...`)
+          provider.websocket.removeEventListener('close', handleClose) // Ensure the listener is removed after the connection is closed
           ProviderModule.reconnectToNetwork(network, nodeUrl)
-        })
+        }
 
-        provider.websocket.on('error', (error: any) => {
+        const handleError = (error: any) => {
           logger.error(
             'WebSocket error',
             llo({
@@ -62,8 +64,13 @@ const ProviderModule = {
               error,
             }),
           )
+          provider.websocket.removeEventListener('error', handleError) // Ensure the listener is removed after an error occurs
           reject(error)
-        })
+        }
+
+        provider.websocket.addEventListener('open', handleOpen)
+        provider.websocket.addEventListener('close', handleClose)
+        provider.websocket.addEventListener('error', handleError)
       } catch (error) {
         logger.error('Failed to create WebSocketProvider', llo({ network, error }))
         reject(error)

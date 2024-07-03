@@ -91,7 +91,7 @@ const ProxyContractHelper = {
 
       return implementationAddress
     } catch (error) {
-      logger.error('Failed to fetch implementation address:', llo({ error }))
+      logger.warn('Failed to fetch implementation address', llo({ error }))
       return null
     }
   },

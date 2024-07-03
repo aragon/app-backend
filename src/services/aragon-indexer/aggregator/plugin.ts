@@ -3,6 +3,9 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Plugin from '@models/schema/plugin'
+import { NetworkHelper } from '@helpers/network'
+import { type NetworksEnum } from '@types'
+import ProxyContractHelper from '@helpers/proxyContract'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorPlugin' })
 
@@ -10,6 +13,7 @@ export const AggregatorPlugin = {
   start: async () => {
     logger.verbose('Start AggregatorPlugin', llo({}))
 
+    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
       model: Models.LogPluginSetupProcessor,
       onDocument: AggregatorPlugin.onDocument,
@@ -17,7 +21,7 @@ export const AggregatorPlugin = {
         logger.error('Error AggregatorPlugin', llo({ error, document }))
       },
       useAggregate: true,
-      aggregate: AggregatorPlugin.query(),
+      aggregate: AggregatorPlugin.query(supportedNetworks),
       batchSize: 1000,
       concurrency: 1,
     })
@@ -36,6 +40,13 @@ export const AggregatorPlugin = {
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
       if (!existingLog) {
+        const implementationAddress = await ProxyContractHelper.getImplementationAddress(
+          document.address!,
+          document.network!,
+        )
+        if (implementationAddress) {
+          document.implementationAddress = implementationAddress
+        }
         logDb = await Models.Plugin.create(document as any, { session } as any)
       } else {
         logDb = await existingLog.update(document, { session })
@@ -46,10 +57,11 @@ export const AggregatorPlugin = {
     })
   },
 
-  query() {
+  query(networks: NetworksEnum[]) {
     return [
       {
         $match: {
+          ...(networks?.length > 0 && { network: { $in: networks } }),
           $or: [
             { event: 'InstallationPrepared' },
             { event: 'InstallationApplied' },

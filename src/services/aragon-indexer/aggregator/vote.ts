@@ -3,6 +3,8 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Vote from '@models/schema/vote'
+import { NetworkHelper } from '@helpers/network'
+import { type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorVote' })
 
@@ -10,15 +12,15 @@ export const AggregatorVote = {
   start: async () => {
     logger.verbose('Start AggregatorVote', llo({}))
 
+    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
       model: Models.LogProposal,
       onDocument: AggregatorVote.onDocument,
       onError: (error: any, document: any) => {
         logger.error('Error AggregatorVote', llo({ error, document }))
       },
-      where: {},
       useAggregate: true,
-      aggregate: AggregatorVote.query(),
+      aggregate: AggregatorVote.query(supportedNetworks),
       batchSize: 500,
       concurrency: 1,
     })
@@ -48,9 +50,14 @@ export const AggregatorVote = {
     })
   },
 
-  query() {
+  query(networks: NetworksEnum[]) {
     return [
-      { $match: { 'voteEvents.0': { $exists: true } } },
+      {
+        $match: {
+          ...(networks?.length > 0 && { network: { $in: networks } }),
+          'voteEvents.0': { $exists: true },
+        },
+      },
       { $unwind: '$voteEvents' },
       {
         $lookup: {

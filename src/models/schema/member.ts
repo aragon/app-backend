@@ -1,6 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
+  type IActiveMemberExtraParams,
   type IMemberExtraParams,
   type IMemberIdParams,
   type IMembersResponse,
@@ -170,6 +171,144 @@ export default class Member extends Model {
       },
       data: data as any,
     }
+  }
+
+  static async findActiveWithPagination({
+    extraParams = {},
+    paginationParams = {},
+  }: {
+    extraParams?: IActiveMemberExtraParams
+    paginationParams?: IPaginationParams
+  }): Promise<IPaginatedResult<IMembersResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, ['address', 'ens']),
+    }
+
+    if (extraParams.pluginAddress) {
+      filter['history.pluginAddress'] = extraParams.pluginAddress
+    }
+
+    if (extraParams.daoAddress) {
+      filter['history.daoAddress'] = extraParams.daoAddress
+    }
+
+    if (extraParams.network) {
+      filter['history.network'] = extraParams.network
+    }
+
+    if (extraParams.tokenAddress) {
+      filter['history.tokenAddress'] = extraParams.tokenAddress
+    }
+
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate([
+        { $match: filter },
+        {
+          $unwind: '$history',
+        },
+        {
+          $match: {
+            $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            address: '$address',
+            ens: '$ens',
+            network: '$history.network',
+            fromBlockNumber: '$history.fromBlockNumber',
+            fromTxHash: '$history.fromTxHash',
+            pluginAddress: '$history.pluginAddress',
+            pluginSubdomain: '$history.pluginSubdomain',
+            tokenAddress: '$history.tokenAddress',
+            daoAddress: '$history.daoAddress',
+            votingPower: '$history.votingPower',
+            // delegateFromAddress: '$history.delegateFromAddress',
+            // delegateToAddress: '$history.delegateToAddress',
+          },
+        },
+        { $sort: request.sort },
+        { $skip: request.skip },
+        { $limit: request.limit },
+      ]),
+      this.countDocuments({
+        ...filter,
+        $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+      }),
+    ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data: data as any,
+    }
+  }
+
+  static async findActiveMember(
+    address: HexAddress,
+    extraParams: IActiveMemberExtraParams = {},
+  ): Promise<IMembersResponse> {
+    const filter = {
+      address,
+    }
+
+    if (extraParams.pluginAddress) {
+      filter['history.pluginAddress'] = extraParams.pluginAddress
+    }
+
+    if (extraParams.daoAddress) {
+      filter['history.daoAddress'] = extraParams.daoAddress
+    }
+
+    if (extraParams.network) {
+      filter['history.network'] = extraParams.network
+    }
+
+    const member = await this.aggregate([
+      { $match: filter },
+      {
+        $unwind: '$history',
+      },
+      {
+        $match: {
+          $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: '$address',
+          ens: '$ens',
+          network: '$history.network',
+          fromBlockNumber: '$history.fromBlockNumber',
+          // toBlockNumber: '$history.toBlockNumber',
+          fromTxHash: '$history.fromTxHash',
+          // toTxHash: '$history.toTxHash',
+          pluginAddress: '$history.pluginAddress',
+          pluginSubdomain: '$history.pluginSubdomain',
+          tokenAddress: '$history.tokenAddress',
+          daoAddress: '$history.daoAddress',
+          votingPower: '$history.votingPower',
+          // delegateFromAddress: '$history.delegateFromAddress',
+          // delegateToAddress: '$history.delegateToAddress',
+        },
+      },
+    ])
+    return member?.[0] as IMembersResponse
   }
 
   async update(params: Partial<Member>, tOpts?: SaveOptions) {

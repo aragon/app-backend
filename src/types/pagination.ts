@@ -42,6 +42,13 @@ export interface IMemberExtraParams {
   onlyActive?: boolean
 }
 
+export interface IActiveMemberExtraParams {
+  daoAddress?: HexAddress
+  pluginAddress?: HexAddress
+  tokenAddress?: HexAddress
+  network?: NetworksEnum
+}
+
 export interface IDelegateExtraParams {
   memberAddress?: HexAddress
   daoAddress?: HexAddress

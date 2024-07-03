@@ -46,6 +46,7 @@ export interface ILogMemberIdParams {
   event: IEventLogMember
   address: HexAddress
   pluginAddress: HexAddress
+  txIndex: number
 }
 
 export interface ILogPluginRepoIdParams {

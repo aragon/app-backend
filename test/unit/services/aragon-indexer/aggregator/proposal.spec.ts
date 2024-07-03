@@ -316,7 +316,7 @@ describe('Indexer:Aggregator:Proposal', () => {
   })
 
   it('should use default date when none is provided', () => {
-    const pipeline = AggregatorProposal.query()
-    expect(pipeline.length).to.equal(13)
+    const pipeline = AggregatorProposal.query([])
+    expect(pipeline.length).to.equal(14)
   })
 })

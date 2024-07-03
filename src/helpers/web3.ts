@@ -395,10 +395,7 @@ const Web3Helper = {
       const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
       const block = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber))
-
-      // TODO: timestamp is returned in seconds
-      // parse to milliseconds
-      return block?.timestamp || 0
+      return block?.timestamp ?? 0
     } catch (error) {
       logger.error('Error getBlockTimestamp', llo({ blockNumber, network, error }))
       return 0
