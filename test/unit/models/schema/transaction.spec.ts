@@ -267,6 +267,6 @@ describe('Model: Transaction', () => {
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.token._id).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(16)
+    expect(Object.keys(filterDao).length).to.eq(17)
   })
 })

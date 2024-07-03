@@ -118,9 +118,14 @@ describe('Module: provider', () => {
       // Stub the WebSocketProvider and simulate 'close' event
       const provider = new WebSocketProvider(mockUrl)
       sandbox.stub(WebSocketProvider.prototype, 'websocket').value({
-        on: (event: any, callback: any) => {
-          if (event === 'close') setTimeout(callback, 10) // Simulate close event
-          if (event === 'open') callback() // Simulate open event
+        removeEventListener: (event: any, callback: any) => {
+          if (event === 'close') setTimeout(callback, 10)
+          if (event === 'open') callback()
+        },
+        addEventListener: (event: any, callback: any) => {
+          if (event === 'close') setTimeout(callback, 10)
+          if (event === 'open') callback()
+          if (event === 'error') callback()
         },
       })
 
@@ -129,7 +134,8 @@ describe('Module: provider', () => {
       await Provider.connectToNetwork(network, mockUrl)
       await new Promise(resolve => setTimeout(resolve, 50)) // Wait for the close event to be handled
 
-      expect(reconnectStub.calledOnceWith(network, mockUrl)).to.be.true
+      expect(reconnectStub.calledWith(network, mockUrl)).to.be.true
+      expect(reconnectStub.callCount).to.eq(5)
     })
   })
 

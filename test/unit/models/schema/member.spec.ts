@@ -8,7 +8,7 @@ import { expect } from 'chai'
 import { Models } from '@dbModels'
 import ModelUtils from '@models/utils/models'
 
-describe('Model: Member', () => {
+describe.only('Model: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
 
@@ -195,6 +195,95 @@ describe('Model: Member', () => {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Member.findWithPagination({
+        extraParams: { pluginAddress: '0x0000000000000000000000000000000000000000' },
+        paginationParams: {},
+      })
+
+      expect(spyUtils.calledOnce).to.be.true
+      expect(data.length).to.eq(0)
+      expect(totalRecords).to.eq(0)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+  })
+
+  describe('findActiveWithPagination', () => {
+    beforeEach(async () => {
+      const rawDao = {
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+        tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+        pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
+        fromBlockNumber: 1,
+        toBlockNumber: null,
+        fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+        toTxHash: null,
+        delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+        delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+        votingPower: '100',
+        pluginSubdomain: 'token-voting',
+      }
+
+      const members = [
+        {
+          address: '0x17366cae2b9c6c3055e9e3c78936a69006be5408',
+          history: [rawDao],
+        },
+        {
+          address: '0x17366cae2b9c6c3055e9e3c78936a69006be5407',
+          history: [rawDao],
+        },
+        {
+          address: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
+          history: [{ ...rawDao, ...{ toBlockNumber: null, toTxHash: null } }],
+        },
+      ]
+
+      await Promise.all(members.map(member => Models.Member.create(member)))
+    })
+
+    it('should find with pagination', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Member.findActiveWithPagination({
+        extraParams: {},
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(3)
+      expect(totalRecords).to.eq(3)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
+    it('should find with pagination with pluginAddress', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Member.findActiveWithPagination({
+        extraParams: {
+          pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
+          network: NetworksEnum.ethereumMainnet,
+        },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(3)
+      expect(totalRecords).to.eq(3)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
+    it('should find with pagination empty result', async () => {
+      const spyUtils = sandbox.spy(ModelUtils, 'paginateEmptyResponse')
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Member.findActiveWithPagination({
         extraParams: { pluginAddress: '0x0000000000000000000000000000000000000000' },
         paginationParams: {},
       })
