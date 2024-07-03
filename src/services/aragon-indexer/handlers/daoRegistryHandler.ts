@@ -99,23 +99,26 @@ export const DaoRegistryHandler = {
   },
 
   _pluginSetup: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
-    const pluginSetupLogs = Web3Helper.findLogsByName(
-      txReceipt,
-      IEventLogPluginType.InstallationPrepared,
-      PluginSetupProcessor.abi,
-    )
+    await Promise.all(
+      [IEventLogPluginType.InstallationPrepared, IEventLogPluginType.InstallationApplied].map(
+        async installationType => {
+          const pluginSetupLogs = Web3Helper.findLogsByName(txReceipt, installationType, PluginSetupProcessor.abi)
 
-    if (pluginSetupLogs.length === 0) {
-      logger.warn('PluginSetupProcessor not found', llo(info))
-      return
-    }
+          if (pluginSetupLogs.length === 0) {
+            logger.warn('PluginSetupProcessor not found', llo(info))
+            return
+          }
 
-    const infoPluginSetup = Web3Helper.parseInfoLog(
-      pluginSetupLogs[0].txLog,
-      IEventLogPluginType.InstallationPrepared,
-      info.network,
+          const infoPluginSetup = Web3Helper.parseInfoLog(pluginSetupLogs[0].txLog, installationType, info.network)
+
+          if (installationType === IEventLogPluginType.InstallationPrepared) {
+            await PluginSetupProcessorHandler.installationPrepared(pluginSetupLogs[0].parsed!, infoPluginSetup)
+          } else if (installationType === IEventLogPluginType.InstallationApplied) {
+            await PluginSetupProcessorHandler.installationApplied(pluginSetupLogs[0].parsed!, infoPluginSetup)
+          }
+        },
+      ),
     )
-    await PluginSetupProcessorHandler.installationPrepared(pluginSetupLogs[0].parsed!, infoPluginSetup)
   },
 
   _memberAdded: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
