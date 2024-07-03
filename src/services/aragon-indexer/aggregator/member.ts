@@ -4,7 +4,8 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
 import { NetworkHelper } from '@helpers/network'
-import { type NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMembers' })
 
@@ -34,7 +35,7 @@ export const AggregatorMembers = {
 
   onDocument: async function (document: Partial<Member>) {
     const existingLog = await Models.Member.findExistingLog({ address: document.address! })
-    // TODO: find user ens
+    document = await AggregatorMembers._getMemberData(document)
 
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
@@ -346,5 +347,129 @@ export const AggregatorMembers = {
         },
       },
     ]
+  },
+
+  async _getMemberData(member: Partial<Member>) {
+    /**
+     * Trying to get the ENS from the Ethereum network.
+     */
+    const userEns = await Web3Helper.getEnsFromAddress(member.address!, NetworksEnum.ethereumMainnet)
+
+    for (const activity of member.history!) {
+      if (activity.toBlockNumber === null && activity.tokenAddress) {
+        const balance = await Web3Helper.getERC20Balance(member.address!, activity.tokenAddress, activity.network)
+        activity.tokenBalance = balance.toString()
+
+        activity.delegateCount = await Models.Delegate.countDocuments({
+          toDelegate: member.address,
+          tokenAddress: activity.tokenAddress,
+        })
+      }
+    }
+
+    const memberActivityDates = await AggregatorMembers._getMemberActivityDates(member.address!)
+
+    member.ens = userEns!
+    member.firstActivity = memberActivityDates?.firstActivity
+    member.lastActivity = memberActivityDates?.lastActivity
+
+    return member
+  },
+
+  async _getMemberActivityDates(address: string) {
+    const aggregationPipeline = [
+      {
+        $facet: {
+          votes: [
+            {
+              $match: {
+                memberAddress: address,
+              },
+            },
+            {
+              $group: {
+                _id: { memberAddress: '$memberAddress', network: '$network' },
+                firstActivity: { $min: '$blockNumber' },
+                lastActivity: { $max: '$blockNumber' },
+              },
+            },
+            {
+              $project: {
+                address: '$_id.memberAddress',
+                network: '$_id.network',
+                firstActivity: 1,
+                lastActivity: 1,
+              },
+            },
+          ],
+          proposals: [
+            {
+              $match: {
+                creatorAddress: address,
+              },
+            },
+            {
+              $group: {
+                _id: { creatorAddress: '$creatorAddress', network: '$network' },
+                firstActivity: { $min: '$blockNumber' },
+                lastActivity: { $max: '$blockNumber' },
+              },
+            },
+            {
+              $project: {
+                address: '$_id.creatorAddress',
+                network: '$_id.network',
+                firstActivity: 1,
+                lastActivity: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $project: {
+          activities: {
+            $concatArrays: ['$votes', '$proposals'],
+          },
+        },
+      },
+      {
+        $unwind: '$activities',
+      },
+      {
+        $group: {
+          _id: { address: '$activities.address', network: '$activities.network' },
+          firstActivity: { $min: '$activities.firstActivity' },
+          lastActivity: { $max: '$activities.lastActivity' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: '$_id.address',
+          network: '$_id.network',
+          firstActivity: 1,
+          lastActivity: 1,
+        },
+      },
+    ]
+
+    const activityResults = await Models.Vote.aggregate(aggregationPipeline)
+    let firstActivityTimestamp = 0
+    let lastActivityTimestamp = 0
+
+    if (activityResults.length > 0) {
+      const firstActivityBlock = activityResults[0].firstActivity
+      const lastActivityBlock = activityResults[0].lastActivity
+      const network = activityResults[0].network
+
+      firstActivityTimestamp = await Web3Helper.getBlockTimestamp(firstActivityBlock, network)
+      lastActivityTimestamp = await Web3Helper.getBlockTimestamp(lastActivityBlock, network)
+    }
+
+    return {
+      firstActivity: firstActivityTimestamp,
+      lastActivity: lastActivityTimestamp,
+    }
   },
 }
