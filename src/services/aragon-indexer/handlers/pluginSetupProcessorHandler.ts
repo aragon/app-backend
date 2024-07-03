@@ -70,7 +70,7 @@ export const PluginSetupProcessorHandler = {
           const rawPluginLog = {
             event: IEventLogPluginType.InstallationPrepared,
             network: info.network,
-            permissions: Utils.parsePermissions(parsedEvent.args.preparedSetupData.permissions),
+            permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
             sender: parsedEvent.args.sender,
             daoAddress,
             preparedSetupId: parsedEvent.args.preparedSetupId,
@@ -254,7 +254,7 @@ export const PluginSetupProcessorHandler = {
           const pluginLog = {
             event: IEventLogPluginType.UpdatePrepared,
             network: info.network,
-            permissions: Utils.parsePermissions(parsedEvent.args.preparedSetupData.permissions),
+            permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
             sender: parsedEvent.args.sender,
             daoAddress,
             preparedSetupId: parsedEvent.args.preparedSetupId,
