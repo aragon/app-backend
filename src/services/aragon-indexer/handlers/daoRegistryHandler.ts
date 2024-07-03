@@ -123,32 +123,24 @@ export const DaoRegistryHandler = {
 
   _memberAdded: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
     const memberAddedLogs = Web3Helper.findLogsByName(txReceipt, IEventLogMember.MembersAdded, Multisig.abi)
-
-    if (memberAddedLogs.length === 0) {
-      const delegationChangedLogs = Web3Helper.findLogsByName(
-        txReceipt,
-        IEventLogMember.DelegateChanged,
-        GovernanceERC20.abi,
+    if (memberAddedLogs.length > 0) {
+      const infoPluginSetup = Web3Helper.parseInfoLog(
+        memberAddedLogs[0].txLog,
+        IEventLogMember.MembersAdded,
+        info.network,
       )
+      await MemberHandler.membersAdded(memberAddedLogs[0].parsed!, infoPluginSetup)
+    }
 
-      if (delegationChangedLogs.length === 0) {
-        logger.warn('Invalid member log', llo(info))
-        return
-      }
 
+    const delegationChangedLogs = Web3Helper.findLogsByName(txReceipt, IEventLogMember.DelegateChanged, GovernanceERC20.abi)
+    if (delegationChangedLogs.length > 0) {
       const infoPluginSetup = Web3Helper.parseInfoLog(
         delegationChangedLogs[0].txLog,
         IEventLogMember.DelegateChanged,
         info.network,
       )
-      return await MemberHandler.delegateChanged(delegationChangedLogs[0].parsed!, infoPluginSetup)
-    } else {
-      const infoPluginSetup = Web3Helper.parseInfoLog(
-        memberAddedLogs[0].txLog,
-        IEventLogMember.DelegateChanged,
-        info.network,
-      )
-      await MemberHandler.membersAdded(memberAddedLogs[0].parsed!, infoPluginSetup)
+      await MemberHandler.delegateChanged(delegationChangedLogs[0].parsed!, infoPluginSetup)
     }
   },
 }
