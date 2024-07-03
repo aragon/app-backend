@@ -132,8 +132,11 @@ export const DaoRegistryHandler = {
       await MemberHandler.membersAdded(memberAddedLogs[0].parsed!, infoPluginSetup)
     }
 
-
-    const delegationChangedLogs = Web3Helper.findLogsByName(txReceipt, IEventLogMember.DelegateChanged, GovernanceERC20.abi)
+    const delegationChangedLogs = Web3Helper.findLogsByName(
+      txReceipt,
+      IEventLogMember.DelegateChanged,
+      GovernanceERC20.abi,
+    )
     if (delegationChangedLogs.length > 0) {
       const infoPluginSetup = Web3Helper.parseInfoLog(
         delegationChangedLogs[0].txLog,
