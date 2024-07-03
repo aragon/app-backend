@@ -1,14 +1,13 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { NetworksEnum } from '@types'
-
 import Member from '@models/schema/member'
 import { afterEach, beforeEach } from 'mocha'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
 import ModelUtils from '@models/utils/models'
 
-describe.only('Model: Member', () => {
+describe('Model: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
 
@@ -41,33 +40,25 @@ describe.only('Model: Member', () => {
     sandbox?.restore()
   })
 
-  describe('Create Member', async () => {
-    it('Should create Member', async () => {
-      const entityId = Models.Member.getEntityId({ address: rawMember.address! })
-      const member = await Models.Member.create(rawMember)
-      expect(member.id).to.eq(entityId)
-      expect(member.address).to.eq(rawMember.address)
-      expect(member.ens).to.be.null
-      expect(member.history.length).to.eq(1)
-      expect(member.history[0].daoAddress).to.eq(rawMember?.history?.[0].daoAddress)
-      expect(member.history[0].tokenAddress).to.eq(rawMember?.history?.[0].tokenAddress)
-      expect(member.history[0].pluginAddress).to.eq(rawMember?.history?.[0].pluginAddress)
-      expect(member.history[0].network).to.eq(rawMember?.history?.[0].network)
-      expect(member.history[0].fromTxHash).to.eq(rawMember?.history?.[0].fromTxHash)
-      expect(member.history[0].fromBlockNumber).to.eq(rawMember?.history?.[0].fromBlockNumber)
-      expect(member.history[0].toBlockNumber).to.eq(rawMember?.history?.[0].toBlockNumber)
-      expect(member.history[0].toTxHash).to.eq(rawMember?.history?.[0].toTxHash)
-      expect(member.history[0].delegateToAddress).to.eq(rawMember?.history?.[0].delegateFromAddress)
-      expect(member.history[0].delegateFromAddress).to.eq(rawMember?.history?.[0].delegateToAddress)
-      expect(member.history[0].votingPower).to.eq(rawMember?.history?.[0].votingPower)
-      expect(member.history[0].pluginSubdomain).to.eq(rawMember?.history?.[0].pluginSubdomain)
-    })
-
-    it('should update Member', async () => {
-      const member = await Models.Member.create(rawMember)
-      const updatedMember = await member.update({ address: '0x00' })
-      expect(updatedMember.address).to.eq('0x00')
-    })
+  it('Should create Member', async () => {
+    const entityId = Models.Member.getEntityId({ address: rawMember.address! })
+    const member = await Models.Member.create(rawMember)
+    expect(member.id).to.eq(entityId)
+    expect(member.address).to.eq(rawMember.address)
+    expect(member.ens).to.be.null
+    expect(member.history.length).to.eq(1)
+    expect(member.history[0].daoAddress).to.eq(rawMember?.history?.[0].daoAddress)
+    expect(member.history[0].tokenAddress).to.eq(rawMember?.history?.[0].tokenAddress)
+    expect(member.history[0].pluginAddress).to.eq(rawMember?.history?.[0].pluginAddress)
+    expect(member.history[0].network).to.eq(rawMember?.history?.[0].network)
+    expect(member.history[0].fromTxHash).to.eq(rawMember?.history?.[0].fromTxHash)
+    expect(member.history[0].fromBlockNumber).to.eq(rawMember?.history?.[0].fromBlockNumber)
+    expect(member.history[0].toBlockNumber).to.eq(rawMember?.history?.[0].toBlockNumber)
+    expect(member.history[0].toTxHash).to.eq(rawMember?.history?.[0].toTxHash)
+    expect(member.history[0].delegateToAddress).to.eq(rawMember?.history?.[0].delegateFromAddress)
+    expect(member.history[0].delegateFromAddress).to.eq(rawMember?.history?.[0].delegateToAddress)
+    expect(member.history[0].votingPower).to.eq(rawMember?.history?.[0].votingPower)
+    expect(member.history[0].pluginSubdomain).to.eq(rawMember?.history?.[0].pluginSubdomain)
   })
 
   it('Should getEntityId', async () => {
@@ -295,6 +286,18 @@ describe.only('Model: Member', () => {
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)
     })
+  })
+
+  it('should findActiveMember', async () => {
+    const dbMember = await Models.Member.create(rawMember)
+    const member = await Models.Member.findActiveMember(dbMember.address!, {})
+    expect(member.address).to.eq(dbMember.address)
+  })
+
+  it('should update Member', async () => {
+    const member = await Models.Member.create(rawMember)
+    const updatedMember = await member.update({ address: '0x00' })
+    expect(updatedMember.address).to.eq('0x00')
   })
 
   it('Should reload', async () => {
