@@ -117,7 +117,7 @@ export const AggregatorMembers = {
           let: { pluginAddress: '$events.pluginAddress' },
           pipeline: [
             { $match: { $expr: { $in: ['$address', '$$pluginAddress'] } } },
-            { $project: { subdomain: 1, daoAddress: 1, pluginAddress: "$address" } },
+            { $project: { subdomain: 1, daoAddress: 1, pluginAddress: '$address' } },
             { $limit: 1 },
           ],
           as: 'pluginDetails',
@@ -347,5 +347,4 @@ export const AggregatorMembers = {
       },
     ]
   },
-
 }

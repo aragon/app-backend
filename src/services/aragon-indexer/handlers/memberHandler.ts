@@ -18,13 +18,14 @@ export const MemberHandler = {
     }
 
     await Promise.all(
-      parsedEvent.args.members.map(async (member: HexAddress) => {
+      parsedEvent.args.members.map(async (member: HexAddress, index: number) => {
         const existingLog = await Models.LogMember.findExistingLog({
           network: info.network,
           transactionHash: info.transactionHash,
           event: parsedEvent.name,
           address: member,
           pluginAddress: info.address,
+          txIndex: index,
         })
 
         if (!existingLog) {
@@ -58,13 +59,14 @@ export const MemberHandler = {
     }
 
     await Promise.all(
-      parsedEvent.args.members.map(async (member: HexAddress) => {
+      parsedEvent.args.members.map(async (member: HexAddress, index: number) => {
         const existingLog = await Models.LogMember.findExistingLog({
           network: info.network,
           transactionHash: info.transactionHash,
           event: parsedEvent.name,
           address: member,
           pluginAddress: info.address,
+          txIndex: index,
         })
 
         if (!existingLog) {
