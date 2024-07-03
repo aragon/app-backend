@@ -172,7 +172,7 @@ export const PluginSetupProcessorHandler = {
           const pluginLog = {
             event: IEventLogPluginType.UninstallationPrepared,
             network: info.network,
-            permissions: Utils.parsePermissions(parsedEvent.args.preparedSetupData.permissions),
+            permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
             sender: parsedEvent.args.sender,
             daoAddress,
             preparedSetupId: parsedEvent.args.preparedSetupId,
