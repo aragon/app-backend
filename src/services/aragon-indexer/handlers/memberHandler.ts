@@ -93,7 +93,7 @@ export const MemberHandler = {
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
 
     if (txReceipt) {
-      const relatedPlugin = await Models.LogPluginSetupProcessor.findByPluginAddress(info.address, info.network)
+      const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(info.address, info.network)
 
       if (!relatedPlugin) {
         logger.warn('Plugin not found', llo(info))
