@@ -8,7 +8,7 @@ import { expect } from 'chai'
 import { Models } from '@dbModels'
 import ModelUtils from '@models/utils/models'
 
-describe.only('Model: Member', () => {
+describe('Model: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
 
@@ -32,6 +32,8 @@ describe.only('Model: Member', () => {
           delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           votingPower: '100',
           pluginSubdomain: 'token-voting',
+          tokenBalance: '100',
+          delegateCount: 0,
         },
       ],
     }
@@ -315,7 +317,7 @@ describe.only('Model: Member', () => {
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(Object.keys(filterDao).length).to.eq(3)
-    expect(Object.keys(filterDao.history[0]).length).to.eq(12)
+    expect(Object.keys(filterDao.history[0]).length).to.eq(14)
   })
 
   it('Should filterMemberOnlyKeys', async () => {

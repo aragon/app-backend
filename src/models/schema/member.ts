@@ -52,6 +52,12 @@ export class DaoHistory {
 
   @prop({ type: () => String })
   public delegateToAddress!: HexAddress
+
+  @prop({ type: () => String })
+  public tokenBalance!: string
+
+  @prop({ type: () => Number })
+  public delegateCount!: number
 }
 
 @modelOptions({
@@ -82,6 +88,12 @@ export default class Member extends Model {
 
   @prop({ type: () => [DaoHistory], _id: false, default: [] })
   public history?: DaoHistory[]
+
+  @prop({ type: () => Number })
+  public lastActivity!: number
+
+  @prop({ type: () => Number })
+  public firstActivity!: number
 
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
     if (!rawData.id) {
