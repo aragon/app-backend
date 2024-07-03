@@ -113,36 +113,18 @@ export const AggregatorMembers = {
       },
       {
         $lookup: {
-          from: 'logPluginRepo',
+          from: 'plugin',
           let: { pluginAddress: '$events.pluginAddress' },
           pipeline: [
-            { $match: { $expr: { $in: ['$pluginRepo', '$$pluginAddress'] } } },
-            { $project: { pluginRepo: 1, subdomain: 1 } },
+            { $match: { $expr: { $in: ['$address', '$$pluginAddress'] } } },
+            { $project: { subdomain: 1, daoAddress: 1, pluginAddress: "$address" } },
             { $limit: 1 },
           ],
           as: 'pluginDetails',
         },
       },
       { $unwind: '$pluginDetails' },
-      {
-        $lookup: {
-          from: 'logPluginSetupProcessor',
-          let: { pluginAddress: '$pluginDetails.pluginRepo' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [{ $eq: ['$event', 'InstallationPrepared'] }, { $eq: ['$pluginAddress', '$$pluginAddress'] }],
-                },
-              },
-            },
-            { $project: { daoAddress: 1 } },
-            { $limit: 1 },
-          ],
-          as: 'setupDetails',
-        },
-      },
-      { $unwind: '$setupDetails' },
+
       {
         $addFields: {
           history: {
@@ -167,10 +149,10 @@ export const AggregatorMembers = {
                     else: null,
                   },
                 },
-                pluginAddress: '$pluginDetails.pluginRepo',
+                pluginAddress: '$pluginDetails.pluginAddress',
                 pluginSubdomain: '$pluginDetails.subdomain',
                 tokenAddress: { $arrayElemAt: ['$events.tokenAddress', '$$idx'] },
-                daoAddress: '$setupDetails.daoAddress',
+                daoAddress: '$pluginDetails.daoAddress',
                 votingPower: { $arrayElemAt: ['$events.newVotingPower', '$$idx'] },
                 delegateFromAddress: { $arrayElemAt: ['$events.fromDelegate', '$$idx'] },
                 delegateToAddress: { $arrayElemAt: ['$events.toDelegate', '$$idx'] },

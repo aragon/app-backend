@@ -28,6 +28,9 @@ export default class LogMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
+  @prop({ type: () => Number, default: 0 })
+  public txIndex!: number
+
   @prop({ type: () => String, enum: IEventLogMember, required: true })
   public event!: IEventLogMember
 
@@ -77,6 +80,7 @@ export default class LogMember extends Model {
         address: rawData?.address!,
         network: rawData?.network!,
         pluginAddress: rawData?.pluginAddress!,
+        txIndex: rawData?.txIndex ?? 0,
       })
     }
     const data = new this(rawData)
@@ -84,7 +88,7 @@ export default class LogMember extends Model {
   }
 
   static getEntityId(params: ILogMemberIdParams) {
-    return `${params.network}-${params.transactionHash}-${params.event}-${params.pluginAddress}-${params.address}`
+    return `${params.network}-${params.transactionHash}-${params.event}-${params.pluginAddress}-${params.address}-${params.txIndex}`
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
