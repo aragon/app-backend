@@ -3,6 +3,8 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
+import { NetworkHelper } from '@helpers/network'
+import { type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMembers' })
 
@@ -10,6 +12,7 @@ export const AggregatorMembers = {
   start: async () => {
     logger.verbose('Start AggregatorMembers', llo({}))
 
+    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
       model: Models.LogMember,
       onDocument: AggregatorMembers.onDocument,
@@ -18,8 +21,8 @@ export const AggregatorMembers = {
       },
       useAggregate: true,
       aggregate: AggregatorMembers.query(
-        AggregatorMembers.queryVotingPowerMembers(),
-        AggregatorMembers.queryMultisigMembers(),
+        AggregatorMembers.queryVotingPowerMembers(supportedNetworks),
+        AggregatorMembers.queryMultisigMembers(supportedNetworks),
       ),
       batchSize: 1000,
       concurrency: 1,
@@ -35,6 +38,7 @@ export const AggregatorMembers = {
 
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
+
       if (!existingLog) {
         logDb = await Models.Member.create(document, { session } as any)
       } else {
@@ -50,28 +54,29 @@ export const AggregatorMembers = {
     return [
       {
         $facet: {
-          votingPowerMembers,
-          multisigMembers,
+          votingPowerMembers: [...votingPowerMembers],
+          multisigMembers: [...multisigMembers],
         },
       },
       {
         $project: {
-          combined: { $concatArrays: ['$votingPowerMembers', '$multisigMembers'] },
+          allMembers: { $concatArrays: ['$votingPowerMembers', '$multisigMembers'] },
         },
       },
-      { $unwind: '$combined' },
-      { $replaceRoot: { newRoot: '$combined' } },
-      { $sort: { 'history.fromBlockNumber': -1 } },
+      { $unwind: '$allMembers' },
+      { $replaceRoot: { newRoot: '$allMembers' } },
       {
         $group: {
           _id: '$address',
           history: { $push: '$history' },
+          ens: { $first: '$ens' },
         },
       },
       {
         $project: {
           _id: 0,
           address: '$_id',
+          ens: 1,
           history: {
             $reduce: {
               input: '$history',
@@ -81,126 +86,76 @@ export const AggregatorMembers = {
           },
         },
       },
-      {
-        $addFields: {
-          history: { $arrayElemAt: ['$history', 0] },
-        },
-      },
     ]
   },
 
-  queryVotingPowerMembers() {
+  queryVotingPowerMembers(networks: NetworksEnum[]) {
     return [
       {
         $match: {
-          event: { $in: ['MembersAdded', 'MembersRemoved'] },
+          ...(networks?.length > 0 && { network: { $in: networks } }),
+          event: 'DelegateChanged',
         },
       },
-      {
-        $sort: { blockNumber: 1, transactionHash: 1 },
-      },
+      { $sort: { blockNumber: 1, transactionHash: 1 } },
       {
         $group: {
-          _id: {
-            address: '$address',
-            pluginAddress: '$pluginAddress',
-            network: '$network',
-          },
+          _id: { address: '$address' },
           events: { $push: '$$ROOT' },
-        },
-      },
-      {
-        $lookup: {
-          from: 'logPluginSetupProcessor',
-          localField: '_id.pluginAddress',
-          foreignField: 'pluginAddress',
-          pipeline: [
-            { $match: { event: 'InstallationPrepared' } },
-            { $project: { daoAddress: 1, pluginAddress: 1, pluginSetupRepo: 1 } },
-          ],
-          as: 'pluginInfo',
-        },
-      },
-      {
-        $lookup: {
-          from: 'logPluginRepo',
-          localField: 'pluginInfo.pluginSetupRepo',
-          foreignField: 'pluginRepo',
-          pipeline: [{ $project: { subdomain: 1 } }],
-          as: 'pluginRepoInfo',
         },
       },
       {
         $project: {
           _id: 0,
           address: '$_id.address',
-          pluginAddress: '$_id.pluginAddress',
-          network: '$_id.network',
           events: 1,
-          daoAddress: { $arrayElemAt: ['$pluginInfo.daoAddress', 0] },
-          pluginSubdomain: { $arrayElemAt: ['$pluginRepoInfo.subdomain', 0] },
         },
       },
       {
+        $lookup: {
+          from: 'plugin',
+          let: { pluginAddress: '$events.pluginAddress' },
+          pipeline: [
+            { $match: { $expr: { $in: ['$address', '$$pluginAddress'] } } },
+            { $project: { subdomain: 1, daoAddress: 1, pluginAddress: '$address' } },
+            { $limit: 1 },
+          ],
+          as: 'pluginDetails',
+        },
+      },
+      { $unwind: '$pluginDetails' },
+
+      {
         $addFields: {
           history: {
-            $reduce: {
-              input: '$events',
-              initialValue: { isAdded: false, entries: [] },
+            $map: {
+              input: { $range: [0, { $size: '$events' }] },
+              as: 'idx',
               in: {
-                $cond: {
-                  if: { $eq: ['$$this.event', 'MembersAdded'] },
-                  then: {
-                    isAdded: true,
-                    entries: {
-                      $concatArrays: [
-                        '$$value.entries',
-                        [
-                          {
-                            network: '$network',
-                            fromBlockNumber: '$$this.blockNumber',
-                            fromTxHash: '$$this.transactionHash',
-                            toBlockNumber: null,
-                            toTxHash: null,
-                            pluginAddress: '$$this.pluginAddress',
-                            daoAddress: '$daoAddress',
-                            pluginSubdomain: '$pluginSubdomain',
-                          },
-                        ],
-                      ],
-                    },
-                  },
-                  else: {
-                    isAdded: false,
-                    entries: {
-                      $map: {
-                        input: '$$value.entries',
-                        as: 'entry',
-                        in: {
-                          $cond: {
-                            if: {
-                              $and: [
-                                { $eq: ['$$entry.pluginAddress', '$$this.pluginAddress'] },
-                                { $eq: ['$$entry.toBlockNumber', null] },
-                              ],
-                            },
-                            then: {
-                              network: '$$entry.network',
-                              fromBlockNumber: '$$entry.fromBlockNumber',
-                              fromTxHash: '$$entry.fromTxHash',
-                              toBlockNumber: '$$this.blockNumber',
-                              toTxHash: '$$this.transactionHash',
-                              pluginAddress: '$$entry.pluginAddress',
-                              daoAddress: '$$entry.daoAddress',
-                              pluginSubdomain: '$$entry.pluginSubdomain',
-                            },
-                            else: '$$entry',
-                          },
-                        },
-                      },
-                    },
+                network: { $arrayElemAt: ['$events.network', '$$idx'] },
+                fromBlockNumber: { $arrayElemAt: ['$events.blockNumber', '$$idx'] },
+                fromTxHash: { $arrayElemAt: ['$events.transactionHash', '$$idx'] },
+                toBlockNumber: {
+                  $cond: {
+                    if: { $lt: ['$$idx', { $subtract: [{ $size: '$events' }, 1] }] },
+                    then: { $arrayElemAt: ['$events.blockNumber', { $add: ['$$idx', 1] }] },
+                    else: null,
                   },
                 },
+                toTxHash: {
+                  $cond: {
+                    if: { $lt: ['$$idx', { $subtract: [{ $size: '$events' }, 1] }] },
+                    then: { $arrayElemAt: ['$events.transactionHash', { $add: ['$$idx', 1] }] },
+                    else: null,
+                  },
+                },
+                pluginAddress: '$pluginDetails.pluginAddress',
+                pluginSubdomain: '$pluginDetails.subdomain',
+                tokenAddress: { $arrayElemAt: ['$events.tokenAddress', '$$idx'] },
+                daoAddress: '$pluginDetails.daoAddress',
+                votingPower: { $arrayElemAt: ['$events.newVotingPower', '$$idx'] },
+                delegateFromAddress: { $arrayElemAt: ['$events.fromDelegate', '$$idx'] },
+                delegateToAddress: { $arrayElemAt: ['$events.toDelegate', '$$idx'] },
               },
             },
           },
@@ -209,7 +164,7 @@ export const AggregatorMembers = {
       {
         $group: {
           _id: '$address',
-          history: { $push: '$history.entries' },
+          history: { $push: '$history' },
         },
       },
       {
@@ -221,21 +176,6 @@ export const AggregatorMembers = {
               in: { $concatArrays: ['$$value', '$$this'] },
             },
           },
-        },
-      },
-      {
-        $unwind: '$history',
-      },
-      {
-        $sort: {
-          'history.toTxHash': -1, // Sort by toTxHash, with non-null values coming first
-          'history.fromBlockNumber': 1, // Then sort by fromBlockNumber
-        },
-      },
-      {
-        $group: {
-          _id: '$_id',
-          history: { $push: '$history' },
         },
       },
       {
@@ -248,10 +188,11 @@ export const AggregatorMembers = {
     ]
   },
 
-  queryMultisigMembers() {
+  queryMultisigMembers(networks: NetworksEnum[]) {
     return [
       {
         $match: {
+          ...(networks?.length > 0 && { network: { $in: networks } }),
           event: { $in: ['MembersAdded', 'MembersRemoved'] },
         },
       },

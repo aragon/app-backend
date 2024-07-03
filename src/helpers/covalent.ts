@@ -80,7 +80,11 @@ const CovalentHelper = {
     return type
   },
 
-  getToken: async (tokenContractAddress: string, network: NetworksEnum): Promise<Partial<IToken> | false> => {
+  getToken: async (
+    tokenContractAddress: string,
+    network: NetworksEnum,
+    pastDays: number = 2,
+  ): Promise<Partial<IToken> | false> => {
     if (CovalentHelper.skipTestNetworks.includes(network)) {
       return false
     }
@@ -90,7 +94,7 @@ const CovalentHelper = {
     }
 
     const networkId = CovalentHelper.networkToCovalent(network)
-    const back2Days = dayjs().subtract(2, 'day').format('YYYY-MM-DD')
+    const back2Days = dayjs().subtract(pastDays, 'day').format('YYYY-MM-DD')
     const path = `/pricing/historical_by_addresses_v2/${networkId}/${config.DEFAULT_CURRENCY}/${tokenContractAddress}/?from=${back2Days}`
 
     try {

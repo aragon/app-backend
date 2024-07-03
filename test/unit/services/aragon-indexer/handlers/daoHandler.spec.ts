@@ -82,7 +82,7 @@ describe('Indexer: DaoHandler', () => {
         eventName: 'test',
       }
 
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'warn')
       sandbox.stub(Models.LogDaoRegistry, 'findByAddress').returns(undefined)
 
       await DaoHandler.newURI(event as any, infoLog)

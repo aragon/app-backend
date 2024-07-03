@@ -126,7 +126,7 @@ describe('Indexer:Aggregator:Vote', () => {
   })
 
   it('should query', () => {
-    const pipeline = AggregatorVote.query()
+    const pipeline = AggregatorVote.query([])
     expect(pipeline.length).to.eq(7)
   })
 })

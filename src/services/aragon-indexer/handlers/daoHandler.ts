@@ -16,7 +16,7 @@ export const DaoHandler = {
     const existingDao = await Models.LogDaoRegistry.findByAddress(info.address as any, info.network)
 
     if (!existingDao) {
-      logger.error('dao not found', llo({ ...info, parsedEvent }))
+      logger.warn('dao not found', llo({ ...info, parsedEvent }))
       return
     }
 

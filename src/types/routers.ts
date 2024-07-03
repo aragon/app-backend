@@ -1,5 +1,6 @@
 import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 import { type ITokenType } from '@src/types/token'
+import { type IPluginSubdomain } from '@src/types/plugin'
 
 export interface IStatusResponse {
   status: string
@@ -32,11 +33,16 @@ export interface IDelegatesResponse {
 }
 
 export interface IMembersResponse {
+  network: NetworksEnum
+  fromBlockNumber?: number
+  fromTxHash?: HexAddress
   address: HexAddress
   ens: ENS | null
+  pluginSubdomain: IPluginSubdomain
+  pluginAddress: HexAddress
+  tokenAddress: HexAddress
+  daoAddress: HexAddress
   votingPower?: string
-  fromBlockNumber?: number
-  toBlockNumber?: number
 }
 
 export interface IDaoResponse {

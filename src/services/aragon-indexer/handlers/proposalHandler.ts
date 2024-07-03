@@ -13,7 +13,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:ProposalHandle
 export const ProposalHandler = {
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const pluginAddress = info.address
-    const relatedPlugin = await Models.LogPluginSetupProcessor.findPluginByTokenAddress(pluginAddress, info.network)
+    const relatedPlugin = await Models.LogPluginSetupProcessor.findByPluginAddress(pluginAddress, info.network)
 
     if (!relatedPlugin) {
       logger.warn('Plugin not found', llo(info))
@@ -73,7 +73,7 @@ export const ProposalHandler = {
       const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, info.address, info.network)
 
       if (!proposal) {
-        logger.error('proposal not found', llo({ ...info, parsedEvent }))
+        logger.warn('proposal not found', llo({ ...info, parsedEvent }))
         return
       }
 
@@ -105,7 +105,7 @@ export const ProposalHandler = {
       const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, info.address, info.network)
 
       if (!proposal) {
-        logger.error('proposal not found', llo({ ...info, parsedEvent }))
+        logger.warn('proposal not found', llo({ ...info, parsedEvent }))
         return
       }
 

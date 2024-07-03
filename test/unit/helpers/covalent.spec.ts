@@ -6,6 +6,7 @@ import logger from '@logger'
 import config from '@config'
 import { IToken, ITokenType, NetworksEnum } from '@types'
 import { TokenList } from '@test/mock/fakeCovalentTokens'
+import dayjs from '@helpers/dayjs'
 
 describe('Helpers: Covalent', () => {
   let sandbox: SinonSandbox
@@ -75,32 +76,36 @@ describe('Helpers: Covalent', () => {
 
   describe('getToken', () => {
     it('should getToken', async () => {
-      const expectedToken = {
-        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        network: NetworksEnum.ethereumMainnet,
-        logo: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
-        name: 'Wrapped Ether',
-        symbol: 'WETH',
-        decimals: 18,
-        priceUsd: '4086.604',
-        holders: 0,
-        totalSupply: '0',
-        priceChangeOnDayUsd: 22.262699999999768,
-        lastUpdatedAt: '2024-03-12T00:28:29.991Z',
-      }
-      const mockResponse = TokenList
-
-      const rpcCallStub = sandbox.stub(CovalentHelper, '_rpCall').resolves(mockResponse as any)
-      const loggerStub = sandbox.stub(logger, 'error')
+      const fakeResponse = TokenList[0]
+      const rpcCallStub = sandbox.stub(CovalentHelper, '_rpCall').resolves([fakeResponse] as any)
 
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-      const token = (await CovalentHelper.getToken(address, NetworksEnum.ethereumMainnet)) as Partial<IToken>
-      expect(loggerStub.notCalled).to.be.true
+      const network = NetworksEnum.ethereumMainnet
+      const pastDays = 4
+      const token = (await CovalentHelper.getToken(address, network, pastDays)) as Partial<IToken>
       expect(rpcCallStub.calledOnce).to.be.true
+      expect(token.address).to.equal(address)
+      expect(token.name).to.equal(fakeResponse.contract_name)
+      expect(token.symbol).to.equal(fakeResponse.contract_ticker_symbol)
+      expect(token.decimals).to.equal(fakeResponse.contract_decimals)
+      expect(token.logo).to.equal(fakeResponse.logo_url)
 
-      expect(rpcCallStub.args[0][0].startsWith(`/pricing/historical_by_addresses_v2/eth-mainnet/USD/${address}/?from=`))
-        .to.be.true
-      expect(token.address).to.equal(expectedToken.address)
+      const networkId = CovalentHelper.networkToCovalent(network)
+      const back2Days = dayjs().subtract(pastDays, 'day').format('YYYY-MM-DD')
+      const path = `/pricing/historical_by_addresses_v2/${networkId}/${config.DEFAULT_CURRENCY}/${address}/?from=${back2Days}`
+      expect(rpcCallStub.args[0][0]).to.equal(path)
+    })
+
+    it('should getToken - unsupported network', async () => {
+      const fakeResponse = TokenList[0]
+      const rpcCallStub = sandbox.stub(CovalentHelper, '_rpCall').resolves([fakeResponse] as any)
+
+      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.zksyncSepolia
+      const pastDays = 4
+
+      const token = (await CovalentHelper.getToken(address, network, pastDays)) as Partial<IToken>
+      expect(token).to.be.false
     })
 
     it('should getToken with zeroAddress', async () => {

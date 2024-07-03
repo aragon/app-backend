@@ -20,6 +20,7 @@ describe('Model: LogMember', () => {
       network: NetworksEnum.ethereumMainnet,
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       pluginAddress: '0x123',
+      txIndex: 0,
     }
   })
 
@@ -35,6 +36,7 @@ describe('Model: LogMember', () => {
         address: rawLogMember.address,
         network: rawLogMember.network,
         pluginAddress: rawLogMember.pluginAddress,
+        txIndex: rawLogMember.txIndex,
       } as any)
       const member = await Models.LogMember.create(rawLogMember)
       expect(member.id).to.eq(entityId)
@@ -50,9 +52,10 @@ describe('Model: LogMember', () => {
       address: rawLogMember.address,
       network: rawLogMember.network,
       pluginAddress: rawLogMember.pluginAddress,
+      txIndex: rawLogMember.txIndex,
     } as any)
     expect(entityId).to.eq(
-      `${rawLogMember.network}-${rawLogMember.transactionHash}-${eventName}-${rawLogMember.pluginAddress}-${rawLogMember.address}`,
+      `${rawLogMember.network}-${rawLogMember.transactionHash}-${eventName}-${rawLogMember.pluginAddress}-${rawLogMember.address}-${rawLogMember.txIndex}`,
     )
   })
 
@@ -64,6 +67,7 @@ describe('Model: LogMember', () => {
       address: rawLogMember.address,
       network: rawLogMember.network,
       pluginAddress: rawLogMember.pluginAddress,
+      txIndex: rawLogMember.txIndex,
     } as any)
     expect(foundLogMember?.id).to.eq(createdMember.id)
   })
