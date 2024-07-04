@@ -16,6 +16,20 @@ import ModelUtils from '@models/utils/models'
 
 const customName = 'Member'
 
+export class Metrics {
+  @prop({ type: () => String })
+  public tokenBalance!: string
+
+  @prop({ type: () => Number })
+  public delegateCount!: number
+
+  @prop({ type: () => Number })
+  public voteCount!: number
+
+  @prop({ type: () => Number })
+  public proposalCount!: number
+}
+
 export class DaoHistory {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -53,11 +67,8 @@ export class DaoHistory {
   @prop({ type: () => String })
   public delegateToAddress!: HexAddress
 
-  @prop({ type: () => String })
-  public tokenBalance!: string
-
-  @prop({ type: () => Number })
-  public delegateCount!: number
+  @prop({ type: () => Metrics, _id: false, default: null })
+  public metrics!: Metrics
 }
 
 @modelOptions({
