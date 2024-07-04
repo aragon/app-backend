@@ -140,13 +140,13 @@ export interface IVoteResponse {
 
 export interface IProposalsResponse {
   id: string
-  transactionHash: string
+  transactionHash: HexAddress
   blockNumber: number
   network: NetworksEnum
-  pluginAddress: string
-  daoAddress: string
+  pluginAddress: HexAddress
+  daoAddress: HexAddress
   proposalId: number
-  creatorAddress: string
+  creatorAddress: HexAddress
   startDate: number
   endDate: number
   metadataUri: string
@@ -159,17 +159,22 @@ export interface IProposalsResponse {
     blockNumber: number
   }
   settings: {
-    fromTxHash: string
-    toTxHash: string | null
+    fromTxHash: HexAddress
+    toTxHash: HexAddress
     fromBlockNumber: number
     toBlockNumber: number | null
-    minApprovals: number
-    onlyListed: boolean
+    minApprovals?: number
+    onlyListed?: boolean
+    votingMode?: number
+    supportThreshold?: number
+    minParticipation?: number
+    minDuration?: number
+    minProposerVotingPower?: string
   }
   actions: {
-    to: string
+    to: HexAddress
     value: string
-    data: string
+    data: HexAddress
     functionName: string
     textSignature: string
     decoded: any[]
