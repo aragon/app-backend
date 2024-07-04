@@ -4,3 +4,4 @@
 /sandbox
 /.nyc_output/
 /coverage/
+.env*
