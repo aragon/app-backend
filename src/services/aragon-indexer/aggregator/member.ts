@@ -3,6 +3,7 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
+import { type Metrics } from '@models/schema/member'
 import { NetworkHelper } from '@helpers/network'
 import { NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
@@ -355,15 +356,28 @@ export const AggregatorMembers = {
      */
     const userEns = await Web3Helper.getEnsFromAddress(member.address!, NetworksEnum.ethereumMainnet)
 
+    const metrics: Metrics = {
+      tokenBalance: '0',
+      delegateCount: 0,
+      proposalCount: 0,
+      voteCount: 0,
+    }
+
     for (const activity of member.history!) {
       if (activity.toBlockNumber === null && activity.tokenAddress) {
         const balance = await Web3Helper.getERC20Balance(member.address!, activity.tokenAddress, activity.network)
-        activity.tokenBalance = balance.toString()
+        metrics.tokenBalance = balance.toString()
 
-        activity.delegateCount = await Models.Delegate.countDocuments({
+        metrics.delegateCount = await Models.Delegate.countDocuments({
           toDelegate: member.address,
           tokenAddress: activity.tokenAddress,
         })
+
+        const proposalMetrics = await AggregatorMembers._getUserProposalMetrics(member.address!, activity.pluginAddress)
+        metrics.proposalCount = proposalMetrics[0].proposalsCreated
+        metrics.voteCount = proposalMetrics[0].votesMade
+
+        activity.metrics = metrics
       }
     }
 
@@ -471,5 +485,50 @@ export const AggregatorMembers = {
       firstActivity: firstActivityTimestamp,
       lastActivity: lastActivityTimestamp,
     }
+  },
+
+  async _getUserProposalMetrics(userAddress: string, pluginAddress: string) {
+    const query = [
+      {
+        $match: {
+          pluginAddress,
+        },
+      },
+      {
+        $facet: {
+          proposalsCreated: [
+            {
+              $match: {
+                creatorAddress: userAddress,
+              },
+            },
+            {
+              $count: 'count',
+            },
+          ],
+          votesMade: [
+            {
+              $unwind: '$voteEvents',
+            },
+            {
+              $match: {
+                'voteEvents.memberAddress': userAddress,
+              },
+            },
+            {
+              $count: 'count',
+            },
+          ],
+        },
+      },
+      {
+        $project: {
+          proposalsCreated: { $ifNull: [{ $arrayElemAt: ['$proposalsCreated.count', 0] }, 0] },
+          votesMade: { $ifNull: [{ $arrayElemAt: ['$votesMade.count', 0] }, 0] },
+        },
+      },
+    ]
+
+    return Models.LogProposal.aggregate(query)
   },
 }
