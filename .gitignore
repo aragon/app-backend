@@ -4,3 +4,5 @@
 /sandbox
 /.nyc_output/
 /coverage/
+.env*
+.DS_Store
