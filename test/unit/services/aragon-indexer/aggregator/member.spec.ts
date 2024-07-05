@@ -131,6 +131,7 @@ describe('Indexer:Aggregator:Member', () => {
       }
 
       const web3Stub = sandbox.stub(Web3Helper, 'getEnsFromAddress').resolves('user-ens')
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123)
       const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves('100')
       const delegateCountStub = sandbox.stub(Models.Delegate, 'countDocuments').resolves(1)
       const activityDateStub = sandbox.stub(AggregatorMembers, '_getMemberActivityDates').resolves({
@@ -154,6 +155,8 @@ describe('Indexer:Aggregator:Member', () => {
 
       expect(activityDateStub.calledOnce).to.be.true
       expect(activityDateStub.calledWith(rawMember.address)).to.be.true
+
+      expect(getBlockTimestampStub.calledOnce).to.be.true
 
       expect(member.ens).to.eq('user-ens')
     })

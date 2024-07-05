@@ -372,13 +372,17 @@ export const AggregatorMembers = {
           toDelegate: member.address,
           tokenAddress: activity.tokenAddress,
         })
-
-        const proposalMetrics = await AggregatorMembers._getUserProposalMetrics(member.address!, activity.pluginAddress)
-        metrics.proposalCount = proposalMetrics[0].proposalsCreated
-        metrics.voteCount = proposalMetrics[0].votesMade
-
-        activity.metrics = metrics
       }
+
+      if (!activity.fromBlockTimestamp) {
+        activity.fromBlockTimestamp = await Web3Helper.getBlockTimestamp(activity.fromBlockNumber, activity.network)
+      }
+
+      const proposalMetrics = await AggregatorMembers._getUserProposalMetrics(member.address!, activity.pluginAddress)
+      metrics.proposalCount = proposalMetrics[0].proposalsCreated
+      metrics.voteCount = proposalMetrics[0].votesMade
+
+      activity.metrics = metrics
     }
 
     const memberActivityDates = await AggregatorMembers._getMemberActivityDates(member.address!)

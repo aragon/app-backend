@@ -69,6 +69,9 @@ export class DaoHistory {
 
   @prop({ type: () => Metrics, _id: false, default: null })
   public metrics!: Metrics
+
+  @prop({ type: () => Number, default: 0 })
+  public fromBlockTimestamp!: number
 }
 
 @modelOptions({
