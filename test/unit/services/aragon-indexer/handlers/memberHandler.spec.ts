@@ -253,7 +253,7 @@ describe('Indexer: MemberHandler', () => {
         name: IEventLogMember.DelegateChanged,
         args: {
           fromDelegate: '0xfromDelegate',
-          toDelegate: '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859',
+          toDelegate: '0x092d25f5AFAdbfc6acf879Dc901acfD4b97DA499',
           delegator: '0xdelegator',
         },
       } as any
@@ -281,7 +281,7 @@ describe('Indexer: MemberHandler', () => {
       sandbox.stub(Web3, 'findLogsByName').returns([
         {
           parsed: delegateVotChangedLog,
-          txLog: { topics: ['', '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859'] },
+          txLog: { topics: ['', '0x000000000000000000000000092d25f5afadbfc6acf879dc901acfd4b97da499'] },
         },
       ] as any)
 
@@ -298,7 +298,7 @@ describe('Indexer: MemberHandler', () => {
       const logMember = await Models.LogMember.findOne({ transactionHash: logInfo.transactionHash })
 
       expect(logMember).to.be.not.null
-      expect(logMember.address).to.be.eq('0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859')
+      expect(logMember.address).to.be.eq('0x092d25f5AFAdbfc6acf879Dc901acfD4b97DA499')
     })
 
     it('should return if the tx is already processed', async () => {

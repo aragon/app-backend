@@ -31,6 +31,13 @@ describe('Model: Member', () => {
           delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           votingPower: '100',
           pluginSubdomain: 'token-voting',
+          metrics: {
+            tokenBalance: '100',
+            delegateCount: 0,
+            voteCount: 0,
+            proposalCount: 0,
+          },
+          fromBlockTimestamp: 0,
         },
       ],
     }
@@ -337,7 +344,7 @@ describe('Model: Member', () => {
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(Object.keys(filterDao).length).to.eq(3)
-    expect(Object.keys(filterDao.history[0]).length).to.eq(12)
+    expect(Object.keys(filterDao.history[0]).length).to.eq(14)
   })
 
   it('Should filterMemberOnlyKeys', async () => {
