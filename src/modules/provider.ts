@@ -42,8 +42,7 @@ const ProviderModule = {
     return new Promise((resolve, reject) => {
       try {
         const provider: IWebSocketProvider = new WebSocketProvider(nodeUrl)
-        ProviderModule.attachEventListeners(provider, network, nodeUrl, resolve, reject)
-        resolve(provider)
+        ProviderModule.attachEventListeners(provider, network, nodeUrl, resolve, reject) // it resolve inside
       } catch (error) {
         logger.error('Failed to create WebSocketProvider', llo({ network, error }))
         reject(error)
