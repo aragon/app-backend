@@ -42,7 +42,7 @@ const ProviderModule = {
     return new Promise((resolve, reject) => {
       try {
         const provider: IWebSocketProvider = new WebSocketProvider(nodeUrl)
-        ProviderModule.attachEventListeners(provider, network, nodeUrl, resolve, reject)
+        ProviderModule.attachEventListeners(provider, network, nodeUrl, resolve, reject) // it resolve inside
       } catch (error) {
         logger.error('Failed to create WebSocketProvider', llo({ network, error }))
         reject(error)
@@ -92,8 +92,7 @@ const ProviderModule = {
       setTimeout(async () => {
         try {
           logger.info(`Reconnecting to ${network}... Attempt ${attempt + 1}`)
-          const provider = await ProviderModule.connectToNetwork(network, nodeUrl)
-          ProviderModule.attachEventListeners(provider, network, nodeUrl)
+          await ProviderModule.connectToNetwork(network, nodeUrl)
           resolve()
         } catch (error) {
           logger.error(`Reconnection attempt ${attempt + 1} failed for ${network}`, llo({ error }))
