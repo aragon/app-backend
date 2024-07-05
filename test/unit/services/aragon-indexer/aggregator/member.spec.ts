@@ -6,6 +6,7 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { NetworksEnum } from '@types'
 import Logger from '@logger'
+import Web3Helper from '@helpers/web3'
 
 describe('Indexer:Aggregator:Member', () => {
   let sandbox: SinonSandbox
@@ -22,6 +23,7 @@ describe('Indexer:Aggregator:Member', () => {
     delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
     delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
     votingPower: '100',
+    tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
   }
 
   beforeEach(async () => {
@@ -65,11 +67,11 @@ describe('Indexer:Aggregator:Member', () => {
     }
 
     const stubLogger = sandbox.stub(Logger, 'verbose')
-
+    const getMemberDataStub = sandbox.stub(AggregatorMembers, '_getMemberData').resolves(document as any)
     await AggregatorMembers.onDocument(document as any)
 
     expect(stubLogger.calledOnce).to.be.true
-
+    expect(getMemberDataStub.calledOnce).to.be.true
     const member = await Models.Member.findExistingLog({ address: document.address })
     expect(member.address).to.equal(document.address)
     expect(member.ens).to.be.null
@@ -93,6 +95,7 @@ describe('Indexer:Aggregator:Member', () => {
     }
     const dbDoc = await Models.Member.create(rawDoc)
     const loggerSpy = sandbox.stub(Logger, 'verbose')
+    sandbox.stub(AggregatorMembers, '_getMemberData').resolves(rawDoc as any)
 
     rawDoc.history[0].delegateFromAddress = '0x011'
     await AggregatorMembers.onDocument(rawDoc as any)
@@ -112,5 +115,75 @@ describe('Indexer:Aggregator:Member', () => {
 
     const pipeline3 = AggregatorMembers.queryMultisigMembers([])
     expect(pipeline3.length).to.eq(13)
+  })
+
+  describe('_getMemberData', () => {
+    it('should get member related data', async () => {
+      const rawMember = {
+        address: '0x123',
+        ens: null,
+        history: [
+          {
+            ...rawDaoDoc,
+            toBlockNumber: null,
+          },
+        ],
+      }
+
+      const web3Stub = sandbox.stub(Web3Helper, 'getEnsFromAddress').resolves('user-ens')
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123)
+      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves('100')
+      const delegateCountStub = sandbox.stub(Models.Delegate, 'countDocuments').resolves(1)
+      const activityDateStub = sandbox.stub(AggregatorMembers, '_getMemberActivityDates').resolves({
+        firstActivity: 12313,
+        lastActivity: 123123,
+      })
+
+      const member = await AggregatorMembers._getMemberData(rawMember as any)
+
+      expect(web3Stub.calledOnce).to.be.true
+      expect(getERC20BalanceStub.calledOnce).to.be.true
+      expect(getERC20BalanceStub.calledWith(rawMember.address, rawDaoDoc.tokenAddress, rawDaoDoc.network)).to.be.true
+
+      expect(delegateCountStub.calledOnce).to.be.true
+      expect(
+        delegateCountStub.calledWith({
+          toDelegate: rawMember.address,
+          tokenAddress: rawDaoDoc.tokenAddress,
+        }),
+      ).to.be.true
+
+      expect(activityDateStub.calledOnce).to.be.true
+      expect(activityDateStub.calledWith(rawMember.address)).to.be.true
+
+      expect(getBlockTimestampStub.calledOnce).to.be.true
+
+      expect(member.ens).to.eq('user-ens')
+    })
+
+    it('should get the member activity dates', async () => {
+      const memberAddress = '0x123'
+      const expectedFirstActivity = 12313
+      const expectedLastActivity = 123123
+
+      const voteAggregationStub = sandbox.stub(Models.Vote, 'aggregate').resolves([
+        {
+          memberAddress,
+          firstActivity: expectedFirstActivity,
+          lastActivity: expectedLastActivity,
+        },
+      ])
+
+      const currentTime = Date.now()
+
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(currentTime)
+
+      const { firstActivity, lastActivity } = await AggregatorMembers._getMemberActivityDates(memberAddress)
+
+      expect(getBlockTimestampStub.calledTwice).to.be.true
+      expect(voteAggregationStub.calledOnce).to.be.true
+      expect(firstActivity).to.eq(currentTime)
+      expect(lastActivity).to.eq(currentTime)
+    })
   })
 })

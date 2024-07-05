@@ -211,7 +211,18 @@ export default class Transaction extends Model {
 
   filterKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'hideDao', 'createdAt', 'updatedAt')
+    const filtered = _.omit(
+      obj,
+      '_id',
+      '__v',
+      'hideDao',
+      'createdAt',
+      'updatedAt',
+      'daoAddress',
+      'tokenAddress',
+      'createdAt',
+      'updatedAt',
+    )
     filtered.token = _.omit(filtered.token, '_id', '__v')
     return filtered
   }

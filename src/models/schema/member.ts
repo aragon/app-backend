@@ -16,6 +16,20 @@ import ModelUtils from '@models/utils/models'
 
 const customName = 'Member'
 
+export class Metrics {
+  @prop({ type: () => String })
+  public tokenBalance!: string
+
+  @prop({ type: () => Number })
+  public delegateCount!: number
+
+  @prop({ type: () => Number })
+  public voteCount!: number
+
+  @prop({ type: () => Number })
+  public proposalCount!: number
+}
+
 export class DaoHistory {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -52,6 +66,12 @@ export class DaoHistory {
 
   @prop({ type: () => String })
   public delegateToAddress!: HexAddress
+
+  @prop({ type: () => Metrics, _id: false, default: null })
+  public metrics!: Metrics
+
+  @prop({ type: () => Number, default: 0 })
+  public fromBlockTimestamp!: number
 }
 
 @modelOptions({
@@ -82,6 +102,12 @@ export default class Member extends Model {
 
   @prop({ type: () => [DaoHistory], _id: false, default: [] })
   public history?: DaoHistory[]
+
+  @prop({ type: () => Number })
+  public lastActivity!: number
+
+  @prop({ type: () => Number })
+  public firstActivity!: number
 
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
     if (!rawData.id) {
