@@ -81,22 +81,28 @@ const ProviderModule = {
     provider.websocket.addEventListener('error', handleError)
   },
 
-  async reconnectToNetwork(network: NetworksEnum, nodeUrl: string, attempt = 0) {
+  async reconnectToNetwork(network: NetworksEnum, nodeUrl: string, attempt = 0): Promise<void> {
     if (attempt >= config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS) {
       logger.error(`Max reconnect attempts reached for ${network}`)
       return
+      // throw new Error(`Max reconnect attempts reached for ${network}`);
     }
     const delay = config.NODE_CONFIG.RECONNECT_INTERVAL * Math.pow(2, attempt)
-    setTimeout(async () => {
-      try {
-        logger.info(`Reconnecting to ${network}... Attempt ${attempt + 1}`)
-        const provider = await ProviderModule.connectToNetwork(network, nodeUrl)
-        ProviderModule.attachEventListeners(provider, network, nodeUrl)
-      } catch (error) {
-        logger.error(`Reconnection attempt ${attempt + 1} failed for ${network}`, llo({ error }))
-        ProviderModule.reconnectToNetwork(network, nodeUrl, attempt + 1)
-      }
-    }, delay)
+    return new Promise((resolve, reject) => {
+      setTimeout(async () => {
+        try {
+          logger.info(`Reconnecting to ${network}... Attempt ${attempt + 1}`)
+          const provider = await ProviderModule.connectToNetwork(network, nodeUrl)
+          ProviderModule.attachEventListeners(provider, network, nodeUrl)
+          resolve()
+        } catch (error) {
+          logger.error(`Reconnection attempt ${attempt + 1} failed for ${network}`, llo({ error }))
+          await ProviderModule.reconnectToNetwork(network, nodeUrl, attempt + 1)
+            .then(resolve)
+            .catch(reject)
+        }
+      }, delay)
+    })
   },
 
   async closeAllNetworks() {
