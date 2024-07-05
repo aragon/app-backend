@@ -137,7 +137,9 @@ describe('Module: provider', () => {
 
       const mockUrl = 'wss://ethereum-rpc.publicnode.com'
       const stubLoggerInfo = sandbox.stub(Logger, 'info')
-      const stubConnect = sandbox.stub(ProviderModule, 'connectToNetwork').resolves()
+      const stubConnect = sandbox.stub(ProviderModule, 'connectToNetwork').resolves({
+        websocket: { addEventListener: sandbox.stub() },
+      })
 
       await ProviderModule.reconnectToNetwork(NetworksEnum.ethereumMainnet, mockUrl)
       await utils.wait(20)
@@ -165,21 +167,23 @@ describe('Module: provider', () => {
         .onFirstCall()
         .rejects(new Error('Error'))
         .onSecondCall()
-        .resolves()
+        .resolves({
+          websocket: { addEventListener: sandbox.stub() },
+        })
 
       await ProviderModule.reconnectToNetwork(NetworksEnum.ethereumMainnet, mockUrl)
       await utils.wait(100)
 
-      expect(stubLoggerInfo.callCount).to.eq(5)
-      expect(stubConnect.callCount).to.eq(5)
-      expect(stubLoggerError.callCount).to.eq(5)
+      expect(stubLoggerInfo.callCount).to.eq(2)
+      expect(stubConnect.callCount).to.eq(2)
+      expect(stubLoggerError.callCount).to.eq(1)
 
       config.NODE_CONFIG.RECONNECT_INTERVAL = oldConfig
     })
 
     it('should stop attempting to reconnect after reaching max attempts', async () => {
       const oldConfig = config.NODE_CONFIG.RECONNECT_INTERVAL
-      config.NODE_CONFIG.RECONNECT_INTERVAL = 0
+      config.NODE_CONFIG.RECONNECT_INTERVAL = 5
 
       sandbox.stub(WebSocketProvider.prototype, 'constructor' as any).callsFake(function () {
         return new MockWebSocket()
@@ -187,6 +191,7 @@ describe('Module: provider', () => {
 
       const mockUrl = 'wss://ethereum-rpc.publicnode.com'
       const stubLoggerError = sandbox.stub(Logger, 'error')
+      const stubConnect = sandbox.stub(ProviderModule, 'connectToNetwork').rejects(new Error('Error'))
 
       const result = await ProviderModule.reconnectToNetwork(NetworksEnum.ethereumMainnet, mockUrl, 10)
 
