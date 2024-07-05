@@ -81,7 +81,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const stubLogger = sandbox.stub(logger, 'warn')
-      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(false)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(false)
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 

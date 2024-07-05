@@ -136,6 +136,7 @@ export const AggregatorDao = {
                 },
               },
             },
+            { $project: { address: 1 } },
           ],
           as: 'members',
         },

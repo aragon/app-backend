@@ -4,5 +4,6 @@
 /sandbox
 /.nyc_output/
 /coverage/
-.env*
+.env.*
+.idea
 .DS_Store
