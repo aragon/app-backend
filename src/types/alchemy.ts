@@ -1,4 +1,7 @@
 import { type HexAddress } from '@src/types/networks'
+import { type WebSocketProvider } from 'ethers'
+
+export type IWebSocketProvider = WebSocketProvider | any
 
 export interface IAlchemyTokenBalance {
   contractAddress: HexAddress
