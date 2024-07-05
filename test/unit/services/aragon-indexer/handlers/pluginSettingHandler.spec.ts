@@ -74,7 +74,7 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(false)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(false)
       const stubLogger = sandbox.stub(logger, 'warn')
 
       await PluginSettingHandler.votingSettingsUpdated(fakeEvent as any, logInfo)
@@ -159,7 +159,7 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress').resolves(false)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(false)
       const stubLogger = sandbox.stub(logger, 'warn')
 
       await PluginSettingHandler.multisigSettingsUpdated(fakeEvent as any, logInfo)

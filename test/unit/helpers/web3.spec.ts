@@ -1219,6 +1219,31 @@ describe('Helpers:Web3', () => {
       expect(stubTransactionReceipt.calledOnceWith(params.txLog.transactionHash, params.network)).to.be.true
     })
 
+    it('should get the getERC20Balance', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { balanceOf: sandbox.stub().resolves('1000') }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getERC20Balance(
+        '0xTokenAddress',
+        '0xUserAddress',
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.be.eq('1000')
+    })
+
     it('should getDataFromTxReceipt - Failed to find event', async () => {
       const stubTransactionReceipt = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
       const stubFindLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns([] as any)

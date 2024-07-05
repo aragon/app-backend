@@ -618,6 +618,13 @@ const Web3Helper = {
 
     return { txReceipt, events }
   },
+
+  async getERC20Balance(tokenAddress: string, address: string, network: NetworksEnum) {
+    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+    const contract = new Contract(tokenAddress, ERC20.abi, provider)
+
+    return BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.balanceOf(address))
+  },
 }
 
 export default Web3Helper
