@@ -72,6 +72,10 @@ export const AggregatorSetting = {
           from: 'logPluginSetupProcessor',
           localField: '_id.pluginAddress',
           foreignField: 'pluginAddress',
+          pipeline: [
+            { $match: { event: 'InstallationPrepared' } },
+            { $project: { daoAddress: 1, pluginAddress: 1, pluginSetupRepo: 1, subdomain: 1, tokenAddress: 1 } },
+          ],
           as: 'pluginInfo',
         },
       },
