@@ -211,7 +211,9 @@ export const AggregatorDao = {
           network: 1,
           address: '$_id',
           implementationAddress: 1,
-          subdomain: '$subdomain',
+          subdomain: {
+            $cond: { if: { $eq: ['$subdomain', ''] }, then: null, else: '$subdomain' },
+          },
           creatorAddress: 1,
           plugins: {
             $map: {
