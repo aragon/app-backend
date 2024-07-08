@@ -8,7 +8,7 @@ import VoteSchema from '@api/routers/schema/vote'
 
 const VoteRouter = {
   getWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockNumber' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultOrder: 'blockNumber' })
     const extraParams: IVoteExtraParams = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,

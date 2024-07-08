@@ -22,6 +22,7 @@ import { AggregatorTransactions } from '@services/aragon-indexer/aggregator/tran
 import { AggregatorDao } from '@services/aragon-indexer/aggregator/dao'
 import { AggregatorProposal } from '@indexer/aggregator/proposal'
 import { AggregatorDelegate } from '@indexer/aggregator/delegate'
+import { AggregatorVote } from '@indexer/aggregator/vote'
 
 describe('Indexer: index', () => {
   let sandbox: SinonSandbox
@@ -51,14 +52,15 @@ describe('Indexer: index', () => {
       sandbox.stub(LogProposal, 'start').resolves(),
       sandbox.stub(LogPluginSetting, 'start').resolves(),
       sandbox.stub(LogMember, 'start').resolves(),
-      sandbox.stub(AggregatorMembers, 'start').resolves(),
       sandbox.stub(AggregatorPlugin, 'start').resolves(),
       sandbox.stub(AggregatorSetting, 'start').resolves(),
-      sandbox.stub(AggregatorAssets, 'start').resolves(),
-      sandbox.stub(AggregatorTransactions, 'start').resolves(),
+      sandbox.stub(AggregatorMembers, 'start').resolves(),
       sandbox.stub(AggregatorProposal, 'start').resolves(),
-      sandbox.stub(AggregatorDelegate, 'start').resolves(),
       sandbox.stub(AggregatorDao, 'start').resolves(),
+      sandbox.stub(AggregatorAssets, 'start').resolves(),
+      sandbox.stub(AggregatorDelegate, 'start').resolves(),
+      sandbox.stub(AggregatorVote, 'start').resolves(),
+      sandbox.stub(AggregatorTransactions, 'start').resolves(),
     ]
 
     await IndexerService.start()

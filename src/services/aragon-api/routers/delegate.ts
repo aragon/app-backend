@@ -8,7 +8,7 @@ import DelegateSchema from '@api/routers/schema/delegate'
 
 const DelegateRouter = {
   getWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockNumber' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultOrder: 'blockNumber' })
     const extraParams: IDelegateExtraParams = {
       memberAddress: ctx.query.memberAddress as HexAddress,
       network: ctx.query.network as NetworksEnum,
