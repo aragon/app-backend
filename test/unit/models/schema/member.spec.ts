@@ -183,7 +183,7 @@ describe('Model: Member', () => {
         extraParams: { onlyActive: true, daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401' },
         paginationParams: {
           order: 'history.fromBlockNumber',
-          sort: 'asc',
+          sort: 'desc',
         },
       })
 

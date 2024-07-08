@@ -72,8 +72,10 @@ export interface ISettingExtraParams {
 
 export interface IPaginationParams {
   search?: string
-  startDate?: Date | string | number
-  endDate?: Date | string | number
+  startDateProp?: string
+  endDateProp?: string
+  startDate?: number // in our system date is always seconds
+  endDate?: number // in our system date is always seconds
   pageSize?: number
   page?: number
   order?: 'asc' | 'desc' | string // asc or desc

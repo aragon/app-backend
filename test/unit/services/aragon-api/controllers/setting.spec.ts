@@ -44,8 +44,6 @@ describe('Controller: Setting', () => {
     it('should get settings with pagination - all params', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -68,8 +66,6 @@ describe('Controller: Setting', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -91,8 +87,6 @@ describe('Controller: Setting', () => {
     it('should get settings no params', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -111,8 +105,6 @@ describe('Controller: Setting', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -133,8 +125,6 @@ describe('Controller: Setting', () => {
     it('should get settings with pagination - daoId', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -161,8 +151,6 @@ describe('Controller: Setting', () => {
           },
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -184,8 +172,6 @@ describe('Controller: Setting', () => {
     it('should get settings with pagination - daoId not found', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',

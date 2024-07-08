@@ -2,6 +2,7 @@ import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { throwExposable } from '@helpers/errors'
 import Joi from 'joi'
 import { getAddress } from 'ethers'
+import dayjs from '@helpers/dayjs'
 
 const ValidationSchema = {
   Joi,
@@ -57,10 +58,32 @@ const ValidationSchema = {
     page: Joi.number().integer().greater(-1).optional().default(1),
     order: Joi.string().valid('asc', 'desc').optional().default('asc'),
     sort: Joi.string().optional().default('createdAt'),
-    startDate: Joi.date().optional(),
-    endDate: Joi.date()
-      .min(Joi.ref('startDate', { adjust: value => new Date(value) }))
-      .optional(),
+    startDateProp: Joi.string().optional(),
+    endDateProp: Joi.string().optional(),
+    startDate: Joi.alternatives()
+      .try(Joi.number(), Joi.date())
+      .optional()
+      .custom((value, helpers) => {
+        const timestampInSeconds = typeof value === 'number' ? value : dayjs.utc(value).unix()
+        if (isNaN(timestampInSeconds)) {
+          return helpers.error('any.invalid')
+        }
+        return timestampInSeconds
+      }, 'startDate convert to seconds'),
+    endDate: Joi.alternatives()
+      .try(Joi.number(), Joi.date())
+      .optional()
+      .custom((value, helpers) => {
+        const startDate = helpers.state.ancestors[0].startDate
+        const endDate = typeof value === 'number' ? value : dayjs.utc(value).unix()
+        if (isNaN(endDate)) {
+          return helpers.error('any.invalid')
+        }
+        if (startDate && endDate < startDate) {
+          return helpers.error('any.invalid', { message: 'endDate must be greater than or equal to startDate' })
+        }
+        return endDate
+      }, 'endDate convert to seconds'),
   },
 
   async validateParams(schema: Joi.Schema, params: any) {

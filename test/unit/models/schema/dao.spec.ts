@@ -17,7 +17,7 @@ describe('Model: Dao', () => {
       network: NetworksEnum.ethereumMainnet,
       transactionHash: '0x0',
       blockNumber: 0,
-      blockTimestamp: 2141242,
+      blockTimestamp: 1219577223,
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
@@ -163,6 +163,7 @@ describe('Model: Dao', () => {
     beforeEach(async () => {
       const fakeDaos = [
         {
+          blockTimestamp: 1919577224,
           avatar: 'fake-avatar',
           name: 'fake-name',
           description: 'fake-description',
@@ -187,6 +188,7 @@ describe('Model: Dao', () => {
           txHash: '0x0',
         },
         {
+          blockTimestamp: 1819577224,
           avatar: 'fake-avatar',
           name: 'fake-name',
           description: 'fake-description',
@@ -210,6 +212,7 @@ describe('Model: Dao', () => {
           txHash: '0x0',
         },
         {
+          blockTimestamp: 1719577224,
           avatar: 'fake-avatar',
           name: 'fake-name',
           description: 'fake-description',
@@ -274,6 +277,7 @@ describe('Model: Dao', () => {
 
     it('Should find Pagination with from to date', async () => {
       await Models.Dao.create({
+        blockTimestamp: 1719577230,
         address: '0xee0627bA21e9114336977482372486d084497efa',
         creatorAddress: '0xEFbB4E6e5CF4bB4Ae8Cdc2c109da90D2a2433B50',
         network: NetworksEnum.polygonMainnet,
@@ -292,28 +296,32 @@ describe('Model: Dao', () => {
         ],
         hideDao: false,
         txHash: '0x0',
-        createdAt: dayjs().utc().subtract(5, 'day').toDate(),
       } as any)
 
       const result = await Models.Dao.findWithPagination({
         extraParams: {},
         paginationParams: {
-          startDate: dayjs().utc().subtract(4, 'day').toDate(),
+          startDateProp: 'blockTimestamp',
+          endDateProp: 'blockTimestamp',
+          startDate: 1719577230,
+          endDate: 1719577230,
         },
       } as any)
 
-      expect(result.data.length).to.eq(3)
-      expect(result.metadata.totalRecords).to.eq(3)
+      expect(result.data.length).to.eq(1)
+      expect(result.metadata.totalRecords).to.eq(1)
       expect(result.metadata.page).to.eq(1)
       expect(result.metadata.totalPages).to.eq(1)
 
       const result2 = await Models.Dao.findWithPagination({
         extraParams: {},
         paginationParams: {
-          startDate: dayjs().utc().subtract(6, 'day').toDate(),
-          endDate: dayjs().utc().add(6, 'day').toDate(),
+          startDateProp: 'blockTimestamp',
+          endDateProp: 'blockTimestamp',
+          startDate: 719577230,
+          endDate: 9719577230,
         },
-      })
+      } as any)
 
       expect(result2.data.length).to.eq(4)
       expect(result2.metadata.totalRecords).to.eq(4)
@@ -323,14 +331,28 @@ describe('Model: Dao', () => {
       const result3 = await Models.Dao.findWithPagination({
         extraParams: {},
         paginationParams: {
-          startDate: new Date().setDate(new Date().getDate() - 4).toString(),
+          startDateProp: 'blockTimestamp',
+          startDate: 719577230,
         },
-      })
+      } as any)
 
       expect(result3.data.length).to.eq(4)
       expect(result3.metadata.totalRecords).to.eq(4)
       expect(result3.metadata.page).to.eq(1)
       expect(result3.metadata.totalPages).to.eq(1)
+
+      const result4 = await Models.Dao.findWithPagination({
+        extraParams: {},
+        paginationParams: {
+          endDateProp: 'blockTimestamp',
+          endDate: 9719577230,
+        },
+      } as any)
+
+      expect(result4.data.length).to.eq(4)
+      expect(result4.metadata.totalRecords).to.eq(4)
+      expect(result4.metadata.page).to.eq(1)
+      expect(result4.metadata.totalPages).to.eq(1)
     })
 
     it('Should find Pagination with pageSize', async () => {

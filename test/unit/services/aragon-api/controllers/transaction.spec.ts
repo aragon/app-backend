@@ -53,8 +53,6 @@ describe('Controller: Transaction', () => {
     it('should get transactions with pagination - all params', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -77,8 +75,6 @@ describe('Controller: Transaction', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -101,8 +97,6 @@ describe('Controller: Transaction', () => {
     it('should get transactions no params', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -121,8 +115,6 @@ describe('Controller: Transaction', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -144,8 +136,6 @@ describe('Controller: Transaction', () => {
     it('should get transactions with pagination - daoId', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -172,8 +162,6 @@ describe('Controller: Transaction', () => {
           },
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -195,8 +183,6 @@ describe('Controller: Transaction', () => {
     it('should get transactions with pagination - daoId not found', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
