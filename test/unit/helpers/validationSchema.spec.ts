@@ -5,6 +5,7 @@ import ValidationSchema from '@helpers/validationSchema'
 import Joi from 'joi'
 import { ErrorKeyEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
+import dayjs from '@helpers/dayjs'
 
 describe('Helpers:ValidationSchema', () => {
   let sandbox: SinonSandbox
@@ -97,8 +98,18 @@ describe('Helpers:ValidationSchema', () => {
 
       const result = await PaginationSchema.getPagination.validateAsync({ startDate, endDate })
 
-      expect(result.startDate).to.deep.equal(new Date(startDate))
-      expect(result.endDate).to.deep.equal(new Date(endDate))
+      expect(result.startDate).to.deep.equal(dayjs.utc(startDate).unix())
+      expect(result.endDate).to.deep.equal(dayjs.utc(endDate).unix())
+    })
+
+    it('should allow endDate to be after startDate in number', async () => {
+      const startDate = 1719577224
+      const endDate = 1719577230
+
+      const result = await PaginationSchema.getPagination.validateAsync({ startDate, endDate })
+
+      expect(result.startDate).to.deep.equal(startDate)
+      expect(result.endDate).to.deep.equal(endDate)
     })
 
     it('joiAddress should handle invalid mainnet address', async () => {

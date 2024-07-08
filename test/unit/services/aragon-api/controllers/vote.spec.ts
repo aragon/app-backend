@@ -44,8 +44,6 @@ describe('Controller: Vote', () => {
     it('should get vote with pagination - all params', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -71,8 +69,6 @@ describe('Controller: Vote', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -102,8 +98,6 @@ describe('Controller: Vote', () => {
     it('should get vote no params', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -122,8 +116,6 @@ describe('Controller: Vote', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',

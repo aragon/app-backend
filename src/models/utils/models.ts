@@ -35,7 +35,10 @@ const ModelUtils = {
     return paginationAndSorting
   },
 
-  createFilter({ search, startDate, endDate }: IPaginationParams = {}, searchBy: string[] = []) {
+  createFilter(
+    { search, startDateProp = 'startDate', endDateProp = 'endDate', startDate, endDate }: IPaginationParams = {},
+    searchBy: string[] = [],
+  ) {
     const filter: any = {}
 
     // Search functionality using regex
@@ -46,13 +49,16 @@ const ModelUtils = {
     }
 
     // Date range filtering with dayjs and UTC
-    if (startDate) {
-      filter.createdAt = filter.createdAt || {}
-      filter.createdAt.$gte = dayjs.utc(startDate).startOf('day').toDate()
-    }
-    if (endDate) {
-      filter.createdAt = filter.createdAt || {}
-      filter.createdAt.$lte = dayjs.utc(endDate).endOf('day').toDate()
+    if (startDate || endDate) {
+      if (startDate) {
+        filter[startDateProp] = filter[startDateProp] || {}
+        filter[startDateProp]['$gte'] = Number(startDate) // startDate in seconds
+      }
+
+      if (endDate) {
+        filter[endDateProp] = filter[endDateProp] || {}
+        filter[endDateProp]['$lte'] = Number(endDate) // endDate in seconds
+      }
     }
 
     return filter
@@ -60,9 +66,19 @@ const ModelUtils = {
 
   parsePaginationParams(
     ctx: RouterContext,
-    defaultParams: { defaultOrder?: 'asc' | 'desc'; defaultSort?: string } = {},
+    defaultParams: {
+      startDateProp?: string
+      endDateProp?: string
+      defaultOrder?: 'asc' | 'desc'
+      defaultSort?: string
+    } = {},
   ): IPaginationParams {
-    const { defaultOrder = 'desc', defaultSort = 'createdAt' } = defaultParams
+    const {
+      defaultOrder = 'desc',
+      defaultSort = 'startDate',
+      startDateProp = 'startDate',
+      endDateProp = 'endDate',
+    } = defaultParams
 
     let searchAddress = ctx.query.search as string
     if (searchAddress?.startsWith('0x')) {
@@ -73,8 +89,8 @@ const ModelUtils = {
 
     return {
       search: searchAddress,
-      startDate: ctx.query.startDate as string,
-      endDate: ctx.query.endDate as string,
+      [startDateProp]: ctx.query.startDate ? Number(ctx.query.startDate) : undefined,
+      [endDateProp]: ctx.query.endDate ? Number(ctx.query.endDate) : undefined,
       pageSize: Number(ctx.query.pageSize ?? 10),
       page: Number(ctx.query.page ?? 1),
       sort: (ctx.query.sort as string) ?? defaultSort,

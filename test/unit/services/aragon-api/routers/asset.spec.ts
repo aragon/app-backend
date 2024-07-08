@@ -26,7 +26,7 @@ describe('Router: Asset', () => {
         pageSize: 10,
         page: 1,
         order: 'asc',
-        sort: 'createdAt',
+        sort: 'network',
       }
 
       const stubCtrl = sandbox.stub(AssetController, 'getAssetsWithPagination').returns(true as any)

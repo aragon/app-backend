@@ -69,8 +69,6 @@ describe('Controller: Dao', () => {
     it('get daos with pagination - by network and address', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -92,8 +90,6 @@ describe('Controller: Dao', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -115,8 +111,6 @@ describe('Controller: Dao', () => {
     it('get daos with pagination - by pluginAddress', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -136,8 +130,6 @@ describe('Controller: Dao', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -159,8 +151,6 @@ describe('Controller: Dao', () => {
     it('get daos with pagination - no params', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -178,8 +168,6 @@ describe('Controller: Dao', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',

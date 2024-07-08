@@ -128,7 +128,7 @@ export const AggregatorTransactions = {
         const rawTx: Partial<Transaction> = {
           transactionHash: tx.hash,
           blockNumber: Number(tx.blockNum),
-          blockTimestamp: blockTimestamp * 1000,
+          blockTimestamp,
           network: daoRegistry.network,
           type,
           daoAddress: daoRegistry.address,
