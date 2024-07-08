@@ -65,7 +65,7 @@ describe('Indexer: MemberHandler', () => {
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: plugin.pluginAddress,
-        eventName: 'test',
+        eventName: 'MembersAdded',
       }
 
       const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
@@ -81,12 +81,18 @@ describe('Indexer: MemberHandler', () => {
       expect(logMember).to.be.not.null
       expect(logMember.length).to.be.eq(2)
 
+      expect(logMember[1].id).to.be.eq(
+        `${logInfo.network}-${logInfo.transactionHash}-${logInfo.eventName}-${logInfo.address}-0xmember2-1`,
+      )
       expect(logMember[1].address).to.be.eq('0xmember2')
       expect(logMember[1].event).to.be.eq(fakeLog.name)
       expect(logMember[1].pluginAddress).to.be.eq(plugin.pluginAddress)
       expect(logMember[1].network).to.be.eq(logInfo.network)
       expect(logMember[1].transactionHash).to.be.eq(logInfo.transactionHash)
 
+      expect(logMember[0].id).to.be.eq(
+        `${logInfo.network}-${logInfo.transactionHash}-${logInfo.eventName}-${logInfo.address}-0xmember1-0`,
+      )
       expect(logMember[0].address).to.be.eq('0xmember1')
       expect(logMember[0].event).to.be.eq(fakeLog.name)
       expect(logMember[0].pluginAddress).to.be.eq(plugin.pluginAddress)

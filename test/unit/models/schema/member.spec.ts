@@ -92,15 +92,41 @@ describe('Model: Member', () => {
     beforeEach(async () => {
       const rawDao = {
         network: NetworksEnum.ethereumMainnet,
-        daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
+        daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
+        tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5402',
+        pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5403',
+        fromBlockNumber: 1000,
+        toBlockNumber: 2000,
+        fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1964',
+        toTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1965',
+        delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5406',
+        delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5407',
+        votingPower: '100',
+        pluginSubdomain: 'token-voting',
+      }
+
+      const rawDao2 = {
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
+        tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5402',
+        pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5403',
+        fromBlockNumber: 2000,
+        fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1900',
+        delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be0000',
+        delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be0000',
+        votingPower: '100',
+        pluginSubdomain: 'token-voting',
+      }
+
+      const rawDao3 = {
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5411',
+        tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5422',
+        pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5433',
         fromBlockNumber: 1,
-        toBlockNumber: 2,
-        fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-        toTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-        delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+        fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1944',
+        delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5466',
+        delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5477',
         votingPower: '100',
         pluginSubdomain: 'token-voting',
       }
@@ -108,7 +134,7 @@ describe('Model: Member', () => {
       const members = [
         {
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5408',
-          history: [rawDao],
+          history: [rawDao, rawDao2, rawDao3],
         },
         {
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5407',
@@ -116,7 +142,7 @@ describe('Model: Member', () => {
         },
         {
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
-          history: [{ ...rawDao, ...{ toBlockNumber: null, toTxHash: null } }],
+          history: [rawDao2, rawDao3],
         },
       ]
 
@@ -144,15 +170,27 @@ describe('Model: Member', () => {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Member.findWithPagination({
-        extraParams: { onlyActive: true, daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409' },
+        extraParams: { onlyActive: true, daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401' },
         paginationParams: {},
       })
 
-      expect(data.length).to.eq(1)
-      expect(totalRecords).to.eq(1)
+      expect(data.length).to.eq(2)
+      expect(totalRecords).to.eq(2)
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)
+      expect(data[0].address).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5408')
+      expect(data[0].history.length).to.eq(1)
+      expect(data[0].history[0].toBlockNumber).to.be.undefined
+      expect(data[0].history[0].toTxHash).to.be.undefined
+      expect(data[0].history[0].tokenAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5402')
+      expect(data[0].history[0].daoAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5401')
+      expect(data[1].address).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5404')
+      expect(data[1].history.length).to.eq(1)
+      expect(data[1].history[0].toBlockNumber).to.be.undefined
+      expect(data[1].history[0].toTxHash).to.be.undefined
+      expect(data[1].history[0].tokenAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5402')
+      expect(data[1].history[0].daoAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5401')
     })
 
     it('should find with pagination with daoAddress', async () => {
@@ -160,15 +198,20 @@ describe('Model: Member', () => {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Member.findWithPagination({
-        extraParams: { daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409' },
+        extraParams: { daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5411' },
         paginationParams: {},
       })
 
-      expect(data.length).to.eq(3)
-      expect(totalRecords).to.eq(3)
+      expect(data.length).to.eq(2)
+      expect(totalRecords).to.eq(2)
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)
+
+      expect(data[0].history.length).to.eq(1)
+      expect(data[0].history[0].daoAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5411')
+      expect(data[1].history.length).to.eq(1)
+      expect(data[1].history[0].daoAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5411')
     })
 
     it('should find with pagination with pluginAddress', async () => {
@@ -176,11 +219,18 @@ describe('Model: Member', () => {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Member.findWithPagination({
-        extraParams: { pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409' },
-        paginationParams: {},
+        extraParams: { pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5403' },
+        paginationParams: {
+          order: 'address',
+          sort: 'desc',
+        },
       })
 
       expect(data.length).to.eq(3)
+      expect(data[0].history[0].pluginAddress).to.eq('0x12366cae2b9c6c3055e9e3c78936a69006be5403')
+      expect(data[1].history[0].pluginAddress).to.eq('0x12366cae2b9c6c3055e9e3c78936a69006be5403')
+      expect(data[2].history[0].pluginAddress).to.eq('0x12366cae2b9c6c3055e9e3c78936a69006be5403')
+
       expect(totalRecords).to.eq(3)
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
@@ -302,21 +352,25 @@ describe('Model: Member', () => {
       history: [
         {
           network: NetworksEnum.ethereumMainnet,
-          daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-          tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-          pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
+          daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
+          tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
+          pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5402',
           fromBlockNumber: 1,
           toBlockNumber: undefined as any,
           fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
           toTxHash: undefined as any,
-          delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-          delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+          delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5403',
+          delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
           votingPower: '100',
           pluginSubdomain: 'token-voting',
         },
-      ],
+      ] as any,
     })
-    const member = await Models.Member.findActiveMember(dbMember.address!, {})
+    const member = await Models.Member.findActiveMember(dbMember.address!, {
+      network: NetworksEnum.ethereumMainnet,
+      daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
+      pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5402',
+    })
     expect(member.address).to.eq(dbMember.address)
   })
 

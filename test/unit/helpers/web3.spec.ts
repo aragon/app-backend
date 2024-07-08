@@ -954,7 +954,7 @@ describe('Helpers:Web3', () => {
 
     it('should fail to get address from ens', async () => {
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').rejects(new Error('fake-error'))
-      const stubLogger = sandbox.stub(Logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'warn')
 
       const address = '0xF1cf9aFc900Ce3426A235212e164587A6274736A'
       const ensName = await Web3Helper.getEnsFromAddress(address, NetworksEnum.ethereumMainnet)
@@ -1182,6 +1182,56 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('getERC20Balance', () => {
+    it('should return the ERC20 balance of an address', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { balanceOf: sandbox.stub().resolves('1000') }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const fakeTokenAddress = '0xTokenAddress'
+      const fakeAddress = '0x1234567890123456789012345678901234567890'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const balance = await MockedWeb3Helper.getERC20Balance(fakeTokenAddress, fakeAddress, fakeNetwork)
+      expect(balance).to.equal('1000')
+    })
+
+    it('should return "0" on error ERC20', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { balanceOf: sandbox.stub().rejects(new Error('fake-error')) }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const fakeTokenAddress = '0xTokenAddress'
+      const fakeAddress = '0x1234567890123456789012345678901234567890'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const balance = await MockedWeb3Helper.getERC20Balance(fakeTokenAddress, fakeAddress, fakeNetwork)
+      expect(balance).to.equal('0')
+    })
+  })
+
   describe('getDataFromTxReceipt', () => {
     it('should getDataFromTxReceipt', async () => {
       const stubTransactionReceipt = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
@@ -1217,31 +1267,6 @@ describe('Helpers:Web3', () => {
       expect(stubLogger.calledWith('Failed to find txReceipt' as any)).to.be.true
       expect(result).to.be.undefined
       expect(stubTransactionReceipt.calledOnceWith(params.txLog.transactionHash, params.network)).to.be.true
-    })
-
-    it('should get the getERC20Balance', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return { balanceOf: sandbox.stub().resolves('1000') }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getERC20Balance(
-        '0xTokenAddress',
-        '0xUserAddress',
-        NetworksEnum.ethereumMainnet,
-      )
-
-      expect(result).to.be.eq('1000')
     })
 
     it('should getDataFromTxReceipt - Failed to find event', async () => {

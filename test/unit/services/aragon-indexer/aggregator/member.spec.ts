@@ -162,17 +162,17 @@ describe('Indexer:Aggregator:Member', () => {
     })
 
     it('should get the member activity dates', async () => {
+      const network = NetworksEnum.ethereumSepolia
       const memberAddress = '0x123'
       const expectedFirstActivity = 12313
       const expectedLastActivity = 123123
 
-      const voteAggregationStub = sandbox.stub(Models.Vote, 'aggregate').resolves([
-        {
-          memberAddress,
-          firstActivity: expectedFirstActivity,
-          lastActivity: expectedLastActivity,
-        },
-      ])
+      const voteAggregationStub = sandbox.stub(Models.Vote, 'findMemberActivity').resolves({
+        network,
+        memberAddress,
+        firstActivity: expectedFirstActivity,
+        lastActivity: expectedLastActivity,
+      })
 
       const currentTime = Date.now()
 
@@ -181,6 +181,8 @@ describe('Indexer:Aggregator:Member', () => {
       const { firstActivity, lastActivity } = await AggregatorMembers._getMemberActivityDates(memberAddress)
 
       expect(getBlockTimestampStub.calledTwice).to.be.true
+      expect(getBlockTimestampStub.calledWith(expectedFirstActivity, network)).to.be.true
+      expect(getBlockTimestampStub.calledWith(expectedLastActivity, network)).to.be.true
       expect(voteAggregationStub.calledOnce).to.be.true
       expect(firstActivity).to.eq(currentTime)
       expect(lastActivity).to.eq(currentTime)

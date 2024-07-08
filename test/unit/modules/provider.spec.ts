@@ -102,6 +102,16 @@ describe('Module: provider', () => {
 
       config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS = backupConfig
     })
+
+    it('should handle WebSocket error', async () => {
+      const stubError = sandbox.stub(Logger, 'error' as any)
+      sandbox.stub(WebSocketProvider.prototype, 'constructor' as any).throws(new Error('Error'))
+      await expect(ProviderModule.connectToNetwork(NetworksEnum.ethereumSepolia, 'fake-url')).to.be.rejectedWith(
+        Error,
+        'fake-url',
+      )
+      expect(stubError.calledOnce).to.be.true
+    })
   })
 
   describe('connectToAllNetworks', () => {
@@ -191,7 +201,7 @@ describe('Module: provider', () => {
 
       const mockUrl = 'wss://ethereum-rpc.publicnode.com'
       const stubLoggerError = sandbox.stub(Logger, 'error')
-      const stubConnect = sandbox.stub(ProviderModule, 'connectToNetwork').rejects(new Error('Error'))
+      sandbox.stub(ProviderModule, 'connectToNetwork').rejects(new Error('Error'))
 
       const result = await ProviderModule.reconnectToNetwork(NetworksEnum.ethereumMainnet, mockUrl, 10)
 

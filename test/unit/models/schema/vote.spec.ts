@@ -118,6 +118,35 @@ describe('Model: Vote', () => {
     expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
+  it('Should getMemberProposalMetrics', async () => {
+    const vote = await Models.Vote.create(rawVote)
+    await Models.Vote.create({
+      network: NetworksEnum.ethereumSepolia,
+      pluginAddress: vote.pluginAddress,
+      proposalId: vote.proposalId + 1,
+      memberAddress: vote.memberAddress,
+      voteOption: 1,
+      votingPower: '4000000000000000000',
+      transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd00c',
+      blockNumber: 5879275,
+      daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3804',
+      token: {
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        type: ITokenType.GovernanceERC20,
+        logo: 'https://logos.covalenthq.com/tokens/11155111/0x3949f15155d4b85d0159ab79cbf38dc51c41dd9f.png',
+        name: 'T5673',
+        decimals: 18,
+        symbol: 'T5673',
+      },
+    })
+    const metrics = await Models.Vote.findMemberActivity(vote.memberAddress)
+
+    expect(metrics.firstActivity).to.eq(4879275)
+    expect(metrics.lastActivity).to.eq(5879275)
+    expect(metrics.address).to.eq(vote.memberAddress)
+    expect(metrics.network).to.eq(vote.network)
+  })
+
   describe('Pagination', () => {
     beforeEach(async () => {
       const votes = [

@@ -114,77 +114,83 @@ export const AggregatorMembers = {
         },
       },
       {
+        $unwind: '$events',
+      },
+      {
         $lookup: {
           from: 'plugin',
-          let: { pluginAddress: '$events.pluginAddress' },
+          let: { pluginAddress: '$events.pluginAddress', eventNetwork: '$events.network' },
           pipeline: [
-            { $match: { $expr: { $in: ['$address', '$$pluginAddress'] } } },
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ['$address', '$$pluginAddress'] }, { $eq: ['$network', '$$eventNetwork'] }],
+                },
+              },
+            },
             { $project: { subdomain: 1, daoAddress: 1, pluginAddress: '$address' } },
-            { $limit: 1 },
           ],
           as: 'pluginDetails',
         },
       },
-      { $unwind: '$pluginDetails' },
-
       {
-        $addFields: {
-          history: {
-            $map: {
-              input: { $range: [0, { $size: '$events' }] },
-              as: 'idx',
-              in: {
-                network: { $arrayElemAt: ['$events.network', '$$idx'] },
-                fromBlockNumber: { $arrayElemAt: ['$events.blockNumber', '$$idx'] },
-                fromTxHash: { $arrayElemAt: ['$events.transactionHash', '$$idx'] },
-                toBlockNumber: {
-                  $cond: {
-                    if: { $lt: ['$$idx', { $subtract: [{ $size: '$events' }, 1] }] },
-                    then: { $arrayElemAt: ['$events.blockNumber', { $add: ['$$idx', 1] }] },
-                    else: null,
-                  },
-                },
-                toTxHash: {
-                  $cond: {
-                    if: { $lt: ['$$idx', { $subtract: [{ $size: '$events' }, 1] }] },
-                    then: { $arrayElemAt: ['$events.transactionHash', { $add: ['$$idx', 1] }] },
-                    else: null,
-                  },
-                },
-                pluginAddress: '$pluginDetails.pluginAddress',
-                pluginSubdomain: '$pluginDetails.subdomain',
-                tokenAddress: { $arrayElemAt: ['$events.tokenAddress', '$$idx'] },
-                daoAddress: '$pluginDetails.daoAddress',
-                votingPower: { $arrayElemAt: ['$events.newVotingPower', '$$idx'] },
-                delegateFromAddress: { $arrayElemAt: ['$events.fromDelegate', '$$idx'] },
-                delegateToAddress: { $arrayElemAt: ['$events.toDelegate', '$$idx'] },
-              },
-            },
-          },
+        $unwind: {
+          path: '$pluginDetails',
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
         $group: {
           _id: '$address',
-          history: { $push: '$history' },
-        },
-      },
-      {
-        $addFields: {
-          history: {
-            $reduce: {
-              input: '$history',
-              initialValue: [],
-              in: { $concatArrays: ['$$value', '$$this'] },
+          events: {
+            $push: {
+              $mergeObjects: ['$events', { $ifNull: ['$pluginDetails', {}] }],
             },
           },
         },
       },
       {
         $project: {
-          _id: 0,
           address: '$_id',
-          history: 1,
+          history: {
+            $map: {
+              input: '$events',
+              as: 'event',
+              in: {
+                network: '$$event.network',
+                fromBlockNumber: '$$event.blockNumber',
+                fromTxHash: '$$event.transactionHash',
+                toBlockNumber: {
+                  $cond: {
+                    if: { $lt: [{ $indexOfArray: ['$events', '$$event'] }, { $subtract: [{ $size: '$events' }, 1] }] },
+                    then: {
+                      $arrayElemAt: ['$events.blockNumber', { $add: [{ $indexOfArray: ['$events', '$$event'] }, 1] }],
+                    },
+                    else: null,
+                  },
+                },
+                toTxHash: {
+                  $cond: {
+                    if: { $lt: [{ $indexOfArray: ['$events', '$$event'] }, { $subtract: [{ $size: '$events' }, 1] }] },
+                    then: {
+                      $arrayElemAt: [
+                        '$events.transactionHash',
+                        { $add: [{ $indexOfArray: ['$events', '$$event'] }, 1] },
+                      ],
+                    },
+                    else: null,
+                  },
+                },
+                pluginAddress: '$$event.pluginAddress',
+                pluginSubdomain: '$$event.subdomain',
+                tokenAddress: '$$event.tokenAddress',
+                daoAddress: '$$event.daoAddress',
+                votingPower: '$$event.newVotingPower',
+                delegateFromAddress: '$$event.fromDelegate',
+                delegateToAddress: '$$event.toDelegate',
+              },
+            },
+          },
         },
       },
     ]
@@ -378,9 +384,9 @@ export const AggregatorMembers = {
         activity.fromBlockTimestamp = await Web3Helper.getBlockTimestamp(activity.fromBlockNumber, activity.network)
       }
 
-      const proposalMetrics = await AggregatorMembers._getUserProposalMetrics(member.address!, activity.pluginAddress)
-      metrics.proposalCount = proposalMetrics[0].proposalsCreated
-      metrics.voteCount = proposalMetrics[0].votesMade
+      const proposalMetrics = await Models.LogProposal.getMemberProposalMetrics(member.address!, activity.pluginAddress)
+      metrics.proposalCount = proposalMetrics.proposalCount
+      metrics.voteCount = proposalMetrics.voteCount
 
       activity.metrics = metrics
     }
@@ -395,144 +401,21 @@ export const AggregatorMembers = {
   },
 
   async _getMemberActivityDates(address: string) {
-    const aggregationPipeline = [
-      {
-        $facet: {
-          votes: [
-            {
-              $match: {
-                memberAddress: address,
-              },
-            },
-            {
-              $group: {
-                _id: { memberAddress: '$memberAddress', network: '$network' },
-                firstActivity: { $min: '$blockNumber' },
-                lastActivity: { $max: '$blockNumber' },
-              },
-            },
-            {
-              $project: {
-                address: '$_id.memberAddress',
-                network: '$_id.network',
-                firstActivity: 1,
-                lastActivity: 1,
-              },
-            },
-          ],
-          proposals: [
-            {
-              $match: {
-                creatorAddress: address,
-              },
-            },
-            {
-              $group: {
-                _id: { creatorAddress: '$creatorAddress', network: '$network' },
-                firstActivity: { $min: '$blockNumber' },
-                lastActivity: { $max: '$blockNumber' },
-              },
-            },
-            {
-              $project: {
-                address: '$_id.creatorAddress',
-                network: '$_id.network',
-                firstActivity: 1,
-                lastActivity: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $project: {
-          activities: {
-            $concatArrays: ['$votes', '$proposals'],
-          },
-        },
-      },
-      {
-        $unwind: '$activities',
-      },
-      {
-        $group: {
-          _id: { address: '$activities.address', network: '$activities.network' },
-          firstActivity: { $min: '$activities.firstActivity' },
-          lastActivity: { $max: '$activities.lastActivity' },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          address: '$_id.address',
-          network: '$_id.network',
-          firstActivity: 1,
-          lastActivity: 1,
-        },
-      },
-    ]
-
-    const activityResults = await Models.Vote.aggregate(aggregationPipeline)
+    const activityResults = await Models.Vote.findMemberActivity(address)
     let firstActivityTimestamp = 0
     let lastActivityTimestamp = 0
 
-    if (activityResults.length > 0) {
-      const firstActivityBlock = activityResults[0].firstActivity
-      const lastActivityBlock = activityResults[0].lastActivity
-      const network = activityResults[0].network
+    if (activityResults) {
+      const firstActivityBlock = activityResults.firstActivity
+      const lastActivityBlock = activityResults.lastActivity
 
-      firstActivityTimestamp = await Web3Helper.getBlockTimestamp(firstActivityBlock, network)
-      lastActivityTimestamp = await Web3Helper.getBlockTimestamp(lastActivityBlock, network)
+      firstActivityTimestamp = await Web3Helper.getBlockTimestamp(firstActivityBlock, activityResults.network)
+      lastActivityTimestamp = await Web3Helper.getBlockTimestamp(lastActivityBlock, activityResults.network)
     }
 
     return {
       firstActivity: firstActivityTimestamp,
       lastActivity: lastActivityTimestamp,
     }
-  },
-
-  async _getUserProposalMetrics(userAddress: string, pluginAddress: string) {
-    const query = [
-      {
-        $match: {
-          pluginAddress,
-        },
-      },
-      {
-        $facet: {
-          proposalsCreated: [
-            {
-              $match: {
-                creatorAddress: userAddress,
-              },
-            },
-            {
-              $count: 'count',
-            },
-          ],
-          votesMade: [
-            {
-              $unwind: '$voteEvents',
-            },
-            {
-              $match: {
-                'voteEvents.memberAddress': userAddress,
-              },
-            },
-            {
-              $count: 'count',
-            },
-          ],
-        },
-      },
-      {
-        $project: {
-          proposalsCreated: { $ifNull: [{ $arrayElemAt: ['$proposalsCreated.count', 0] }, 0] },
-          votesMade: { $ifNull: [{ $arrayElemAt: ['$votesMade.count', 0] }, 0] },
-        },
-      },
-    ]
-
-    return Models.LogProposal.aggregate(query)
   },
 }
