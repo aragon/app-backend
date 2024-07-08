@@ -77,8 +77,8 @@ const ModelUtils = {
       endDate: ctx.query.endDate as string,
       pageSize: Number(ctx.query.pageSize ?? 10),
       page: Number(ctx.query.page ?? 1),
-      order: (ctx.query.order as 'asc' | 'desc') ?? defaultOrder,
       sort: (ctx.query.sort as string) ?? defaultSort,
+      order: (ctx.query.order as 'asc' | 'desc') ?? defaultOrder,
     }
   },
 
