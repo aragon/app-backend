@@ -36,6 +36,8 @@ class Media {
 })
 @index({
   pluginAddress: 1,
+  proposalId: 1,
+  blockNumber: 1,
 })
 export default class LogProposalMetadata extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -71,10 +73,10 @@ export default class LogProposalMetadata extends Model {
   @prop({ type: () => String, default: null })
   public description!: string
 
-  @prop({ type: () => [Resource], default: [] })
+  @prop({ type: () => [Resource], _id: false, default: [] })
   public resources?: Resource[]
 
-  @prop({ type: () => Media, default: null })
+  @prop({ type: () => Media, _id: false, default: null })
   public media!: Media
 
   static async create(rawData: Partial<LogProposalMetadata>, tOpts?: SaveOptions) {

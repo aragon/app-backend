@@ -1,4 +1,4 @@
-import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import {
   HexAddress,
   type IPaginatedResult,
@@ -8,12 +8,35 @@ import {
   type IProposalsResponse,
   NetworksEnum,
 } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
+import { Model, type SaveOptions, Schema } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
 const customName = 'Proposal'
+
+class Action {
+  @prop({ type: () => String, default: null })
+  public to!: string
+
+  @prop({ type: () => String, default: null })
+  public data!: string
+
+  @prop({ type: () => String, default: null })
+  public value!: string
+
+  @prop({ type: () => String, default: null })
+  public functionName!: string
+
+  @prop({ type: () => String, default: null })
+  public textSignature!: string
+
+  @prop({ type: () => [Schema.Types.Mixed], default: null })
+  public decoded!: string | number | bigint | boolean | any
+
+  @prop({ type: () => String, default: null })
+  public contractName!: string | null
+}
 
 class Media {
   @prop({ type: () => String, default: null })
@@ -67,6 +90,9 @@ export class ProposalExecuted {
 
   @prop({ type: () => Number })
   public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
 }
 
 @modelOptions({
@@ -79,6 +105,7 @@ export class ProposalExecuted {
   },
   options: {
     customName,
+    allowMixed: Severity.ALLOW,
   },
 })
 @index({
@@ -93,6 +120,9 @@ export default class Proposal extends Model {
 
   @prop({ type: () => Number, required: true })
   public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -130,13 +160,19 @@ export default class Proposal extends Model {
   @prop({ type: () => String, default: null })
   public summary!: string
 
-  @prop({ type: () => ProposalExecuted })
+  @prop({ type: () => Number, default: 0 })
+  public allowFailureMap!: number
+
+  @prop({ type: () => ProposalExecuted, _id: false })
   public executed!: ProposalExecuted
 
-  @prop({ type: () => Settings })
+  @prop({ type: () => Settings, _id: false })
   public settings!: Settings
 
-  @prop({ type: () => Media })
+  @prop({ type: () => [Action], _id: false, default: [] })
+  public actions!: Action[]
+
+  @prop({ type: () => Media, _id: false })
   public media!: Media
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {

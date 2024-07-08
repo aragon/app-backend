@@ -6,6 +6,7 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { IPluginAction, NetworksEnum } from '@types'
 import Logger from '@logger'
+import ProxyContractHelper from '@helpers/proxyContract'
 
 describe('Indexer:Aggregator:Plugin', () => {
   let sandbox: SinonSandbox
@@ -52,7 +53,6 @@ describe('Indexer:Aggregator:Plugin', () => {
         network: NetworksEnum.ethereumMainnet,
         action: IPluginAction.install,
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5333',
-        implementationAddress: '0x123',
         daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         tokenAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
         pluginSetupRepoAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1968',
@@ -63,6 +63,9 @@ describe('Indexer:Aggregator:Plugin', () => {
       }
 
       const stubLogger = sandbox.stub(Logger, 'verbose')
+      const getImplementationAddressStub = sandbox
+        .stub(ProxyContractHelper, 'getImplementationAddress')
+        .resolves('0x123')
 
       await AggregatorPlugin.onDocument(document as any)
 
@@ -78,7 +81,7 @@ describe('Indexer:Aggregator:Plugin', () => {
       expect(member.network).to.equal(document.network)
       expect(member.action).to.equal(document.action)
       expect(member.address).to.equal(document.address)
-      expect(member.implementationAddress).to.equal(document.implementationAddress)
+      expect(member.implementationAddress).to.equal('0x123')
       expect(member.daoAddress).to.equal(document.daoAddress)
       expect(member.tokenAddress).to.equal(document.tokenAddress)
       expect(member.pluginSetupRepoAddress).to.equal(document.pluginSetupRepoAddress)
@@ -136,7 +139,7 @@ describe('Indexer:Aggregator:Plugin', () => {
   })
 
   it('should use default date when none is provided', () => {
-    const pipeline = AggregatorPlugin.query()
+    const pipeline = AggregatorPlugin.query([])
     expect(pipeline.length).to.equal(11)
   })
 })

@@ -49,6 +49,10 @@ const Web3Helper = {
   ERC1155_safeTransferFrom: '0xf242432a',
   ERC1155_safeBatchTransferFrom: '0x2eb2c2d6',
 
+  needToSyncBlockTime(document: any) {
+    return !document?.blockTimestamp || document?.blockTimestamp === 0
+  },
+
   getERC20TransferABI(functionSelector: string): string[] | null {
     switch (functionSelector) {
       case Web3Helper.ERC20_transfer:
@@ -56,7 +60,7 @@ const Web3Helper = {
       case Web3Helper.ERC20_transferFrom:
         return ['address', 'address', 'uint256']
       default:
-        logger.error('Unsupported function selector', { functionSelector })
+        logger.error('Unsupported function selector', llo({ functionSelector }))
         return null
     }
   },
@@ -69,7 +73,7 @@ const Web3Helper = {
       case Web3Helper.ERC721_safeTransferFromWithData:
         return ['address', 'address', 'uint256', 'bytes']
       default:
-        logger.error('Unsupported function selector', { functionSelector })
+        logger.error('Unsupported function selector', llo({ functionSelector }))
         return null
     }
   },
@@ -81,7 +85,7 @@ const Web3Helper = {
       case Web3Helper.ERC1155_safeBatchTransferFrom:
         return ['address', 'address', 'uint256[]', 'uint256[]', 'bytes']
       default:
-        logger.error('Unsupported function selector', { functionSelector })
+        logger.error('Unsupported function selector', llo({ functionSelector }))
         return null
     }
   },
@@ -391,8 +395,7 @@ const Web3Helper = {
       const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
       const block = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber))
-
-      return block?.timestamp || 0
+      return block?.timestamp ?? 0
     } catch (error) {
       logger.error('Error getBlockTimestamp', llo({ blockNumber, network, error }))
       return 0
@@ -463,7 +466,7 @@ const Web3Helper = {
     try {
       return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.lookupAddress(address))
     } catch (error) {
-      logger.error(
+      logger.warn(
         'Error looking up address',
         llo({
           address,
@@ -496,9 +499,10 @@ const Web3Helper = {
 
       return recordExists
     } catch (error) {
-      logger.error(
+      logger.warn(
         'Error subdomainExists',
         llo({
+          error,
           ensName,
           network,
         }),
@@ -602,17 +606,27 @@ const Web3Helper = {
     const txReceipt = await Web3Helper.getTransactionReceipt(txLog.transactionHash, network)
 
     if (!txReceipt) {
-      logger.error('Failed to find txReceipt', { txHash: txLog.transactionHash, network })
+      logger.error('Failed to find txReceipt', llo({ txHash: txLog.transactionHash, network }))
       return
     }
     const events = Web3Helper.findLogsByName(txReceipt, eventName, abi)
 
     if (events.length === 0) {
-      logger.error('Failed to find event', { eventName, txHash: txLog.transactionHash, network })
+      logger.error('Failed to find event', llo({ eventName, txHash: txLog.transactionHash, network }))
       return
     }
 
     return { txReceipt, events }
+  },
+
+  async getERC20Balance(tokenAddress: string, address: string, network: NetworksEnum) {
+    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+    const contract = new Contract(tokenAddress, ERC20.abi, provider)
+    try {
+      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.balanceOf(address))
+    } catch (error) {
+      return '0'
+    }
   },
 }
 

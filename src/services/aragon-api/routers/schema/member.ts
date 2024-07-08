@@ -10,6 +10,7 @@ const MemberSchema = {
       .optional(),
     daoAddress: ValidationSchema.joiAddress.optional(),
     pluginAddress: ValidationSchema.joiAddress.optional(),
+    tokenAddress: ValidationSchema.joiAddress.optional(),
   }),
 
   getDaoById: Joi.object({
@@ -18,6 +19,19 @@ const MemberSchema = {
 
   getMemberById: Joi.object({
     id: ValidationSchema.joiAddress.optional(),
+  }),
+
+  getMemberByAddress: Joi.object({
+    address: ValidationSchema.joiAddress.required(),
+  }),
+
+  getActiveMembersExtraParams: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .optional(),
+    daoAddress: ValidationSchema.joiAddress.optional(),
+    pluginAddress: ValidationSchema.joiAddress.optional(),
+    tokenAddress: ValidationSchema.joiAddress.optional(),
   }),
 }
 

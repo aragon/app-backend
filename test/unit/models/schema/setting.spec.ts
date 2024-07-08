@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum } from '@types'
 import Setting from '@models/schema/setting'
 import { Models } from '@dbModels'
 
@@ -28,6 +28,14 @@ describe('Model: Setting', () => {
 
         minApprovals: 1,
         onlyListed: true,
+      },
+      token: {
+        address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+        symbol: 'Test',
+        name: 'Test Token',
+        type: ITokenType.GovernanceERC20,
+        logo: 'fake-logo',
+        decimals: 18,
       },
     }
   })
@@ -56,6 +64,11 @@ describe('Model: Setting', () => {
       expect(createdLogDao.settings.minProposerVotingPower).to.eq(rawSetting?.settings?.minProposerVotingPower)
       expect(createdLogDao.settings.minApprovals).to.eq(rawSetting?.settings?.minApprovals)
       expect(createdLogDao.settings.onlyListed).to.eq(rawSetting?.settings?.onlyListed)
+      expect(createdLogDao.token.name).to.eq(rawSetting?.token?.name)
+      expect(createdLogDao.token.symbol).to.eq(rawSetting?.token?.symbol.toUpperCase())
+      expect(createdLogDao.token.decimals).to.eq(rawSetting?.token?.decimals)
+      expect(createdLogDao.token.type).to.eq(rawSetting?.token?.type)
+      expect(createdLogDao.token.logo).to.eq(rawSetting?.token?.logo)
     })
   })
 
@@ -223,6 +236,8 @@ describe('Model: Setting', () => {
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(10)
+    expect(filterDao.token.address).to.exist
+    expect(filterDao.settings.votingMode).to.exist
+    expect(Object.keys(filterDao).length).to.eq(11)
   })
 })

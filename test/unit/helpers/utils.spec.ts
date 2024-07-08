@@ -2,9 +2,10 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Utils from '@helpers/utils'
+import utils from '@helpers/utils'
 import logger from '@logger'
 import dayjs from '@helpers/dayjs'
-import utils from '@helpers/utils'
+import { NetworksEnum } from '@types'
 
 describe('Helpers:Utils', () => {
   let sandbox: SinonSandbox
@@ -19,6 +20,23 @@ describe('Helpers:Utils', () => {
 
   it('Should noop', () => {
     expect(Utils.noop()).to.eq(0)
+  })
+
+  it('aragonNetworkMap', () => {
+    const expectedMap = {
+      'ethereum-mainnet': 'ETHEREUM_MAINNET',
+      'ethereum-sepolia': 'ETHEREUM_SEPOLIA',
+      'polygon-mainnet': 'POLYGON_MAINNET',
+      'base-mainnet': 'BASE_MAINNET',
+      'arbitrum-mainnet': 'ARBITRUM_MAINNET',
+      'zksync-sepolia': 'ZKSYNC_SEPOLIA',
+      'zksync-mainnet': 'ZKSYNC_MAINNET',
+    }
+
+    Object.keys(NetworksEnum).forEach(key => {
+      const enumValue = NetworksEnum[key]
+      expect(Utils.aragonNetworkMap[enumValue]).to.equal(expectedMap[enumValue], `Mismatch for ${enumValue}`)
+    })
   })
 
   it('Should lowercaseFirstLetter', () => {

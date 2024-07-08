@@ -7,6 +7,15 @@ export interface ITokenExtraParams {
   type?: ITokenType
 }
 
+export interface IVoteExtraParams {
+  network?: NetworksEnum
+  daoAddress?: HexAddress
+  pluginAddress?: HexAddress
+  tokenAddress?: HexAddress
+  proposalId?: number
+  memberAddress?: HexAddress
+}
+
 export interface IProposalExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
@@ -29,7 +38,23 @@ export interface IMemberExtraParams {
   daoAddress?: HexAddress
   network?: NetworksEnum
   pluginAddress?: HexAddress
+  tokenAddress?: HexAddress
   onlyActive?: boolean
+}
+
+export interface IActiveMemberExtraParams {
+  daoAddress?: HexAddress
+  pluginAddress?: HexAddress
+  tokenAddress?: HexAddress
+  network?: NetworksEnum
+}
+
+export interface IDelegateExtraParams {
+  memberAddress?: HexAddress
+  daoAddress?: HexAddress
+  pluginAddress?: HexAddress
+  tokenAddress?: HexAddress
+  network?: NetworksEnum
 }
 
 export interface ITransactionExtraParams {

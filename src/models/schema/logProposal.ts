@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type ILogProposalIdParams, NetworksEnum } from '@types'
+import { HexAddress, type ILogProposalIdParams, type IMemberProposalMetrics, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -62,6 +62,7 @@ export class ProposalExecuted {
 })
 @index({
   pluginAddress: 1,
+  creatorAddress: 1,
 })
 export default class LogProposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -94,23 +95,23 @@ export default class LogProposal extends Model {
   @prop({ type: () => Number, required: true })
   public allowFailureMap!: number
 
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, default: null })
   public metadataUri!: string
 
-  @prop({ type: () => [Action], default: [] })
+  @prop({ type: () => [Action], _id: false, default: [] })
   public actions!: Action[]
 
-  @prop({ type: () => [Vote], default: [] })
+  @prop({ type: () => [Vote], _id: false, default: [] })
   public voteEvents!: Vote[]
 
-  @prop({ type: () => ProposalExecuted })
+  @prop({ type: () => ProposalExecuted, _id: false })
   public executed!: ProposalExecuted
 
   static async create(rawData: Partial<LogProposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
-      assert(!!(rawData?.proposalId! >= 0), 'proposalId is required')
+      assert(rawData?.proposalId! >= 0, 'proposalId is required')
       rawData.id = this.getEntityId({
         transactionHash: rawData?.transactionHash!,
         pluginAddress: rawData?.pluginAddress!,
@@ -129,6 +130,50 @@ export default class LogProposal extends Model {
   static async findExistingLog(params: ILogProposalIdParams, tOpts?: SaveOptions) {
     const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
+  }
+
+  static async getMemberProposalMetrics(memberAddress: HexAddress, pluginAddress: HexAddress) {
+    const metrics = await this.aggregate([
+      {
+        $match: {
+          pluginAddress,
+        },
+      },
+      {
+        $facet: {
+          proposalCount: [
+            {
+              $match: {
+                creatorAddress: memberAddress,
+              },
+            },
+            {
+              $count: 'count',
+            },
+          ],
+          voteCount: [
+            {
+              $unwind: '$voteEvents',
+            },
+            {
+              $match: {
+                'voteEvents.memberAddress': memberAddress,
+              },
+            },
+            {
+              $count: 'count',
+            },
+          ],
+        },
+      },
+      {
+        $project: {
+          proposalCount: { $ifNull: [{ $arrayElemAt: ['$proposalCount.count', 0] }, 0] },
+          voteCount: { $ifNull: [{ $arrayElemAt: ['$voteCount.count', 0] }, 0] },
+        },
+      },
+    ])
+    return metrics?.[0] as IMemberProposalMetrics
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {

@@ -11,7 +11,7 @@ const TransactionRouter = {
     const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockNumber' })
     const extraParams: ITransactionExtraParams = {
       network: ctx.query.network as NetworksEnum,
-      daoAddress: ctx.query.daoAddress as HexAddress,
+      daoAddress: ctx.query.address as HexAddress,
       category: ctx.query.category as ITransactionCategory,
     }
     const daoId = ctx.query.daoId as string

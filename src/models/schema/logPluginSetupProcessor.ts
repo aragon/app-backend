@@ -38,6 +38,8 @@ class Permission {
 @index({
   daoAddress: 1,
   pluginAddress: 1,
+  network: 1,
+  tokenAddress: 1,
 })
 export default class LogPluginSetupProcessor extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -79,7 +81,7 @@ export default class LogPluginSetupProcessor extends Model {
   @prop({ type: () => String, default: null })
   public build!: string
 
-  @prop({ type: () => [Permission], default: [] })
+  @prop({ type: () => [Permission], _id: false, default: [] })
   public permissions!: Permission[]
 
   @prop({ type: () => String, default: null })

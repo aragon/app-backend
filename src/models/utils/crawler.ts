@@ -148,7 +148,15 @@ class DBCrawler {
 
       const response = this.model.aggregate(aggregateWithSkipLimit)
 
-      return await response.exec()
+      const documents = await response.exec()
+
+      if (skip === 0) {
+        this.nbTotal = documents.length
+      } else {
+        this.nbTotal += documents.length
+      }
+
+      return documents
     } else {
       let response = this.model.find(where).select(select).populate(populate).limit(limit).skip(skip)
 
@@ -193,11 +201,7 @@ class DBCrawler {
     this.crawling = true
     const where = this.where || {}
 
-    if (this.useAggregate) {
-      const data: any = [...this.aggregate, { $count: 'count' }]
-      const result = await this.model.aggregate(data)
-      this.nbTotal = result && result.length > 0 ? result[0].count || 0 : 0
-    } else {
+    if (!this.useAggregate) {
       this.nbTotal = await this.model.countDocuments(where)
     }
 

@@ -181,6 +181,12 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  it('needToSyncBlockTime', () => {
+    expect(Web3Helper.needToSyncBlockTime({})).to.be.true
+    expect(Web3Helper.needToSyncBlockTime({ blockTimestamp: 0 })).to.be.true
+    expect(Web3Helper.needToSyncBlockTime({ blockTimestamp: 1 })).to.be.false
+  })
+
   it('isERC1155TransferMethod', () => {
     const action = { data: Web3Helper.ERC1155_safeTransferFrom }
     sandbox.stub(Web3Helper, 'getMethodSignature').returns(Web3Helper.ERC1155_safeTransferFrom)
@@ -948,7 +954,7 @@ describe('Helpers:Web3', () => {
 
     it('should fail to get address from ens', async () => {
       sandbox.stub(ConfigState.getInstance(), 'getConfigItem').rejects(new Error('fake-error'))
-      const stubLogger = sandbox.stub(Logger, 'error')
+      const stubLogger = sandbox.stub(Logger, 'warn')
 
       const address = '0xF1cf9aFc900Ce3426A235212e164587A6274736A'
       const ensName = await Web3Helper.getEnsFromAddress(address, NetworksEnum.ethereumMainnet)
@@ -991,8 +997,8 @@ describe('Helpers:Web3', () => {
         getConfigItem: sandbox.stub().returns({}),
       }
       const error = new Error('Contract call failed')
-      const stubRecordExistsStub = sandbox.stub().rejects(error) // Simulate error
-      const stubLoggerError = sandbox.stub(Logger, 'error') // Stub logger's error to verify it's called
+      const stubRecordExistsStub = sandbox.stub().rejects(error)
+      const stubLoggerWarn = sandbox.stub(Logger, 'warn')
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
@@ -1013,8 +1019,8 @@ describe('Helpers:Web3', () => {
       const result = await MockedWeb3Helper.subdomainExists(ensName, NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.false
-      expect(stubLoggerError.calledOnce).to.be.true
-      expect(stubLoggerError.calledWith('Error subdomainExists' as any)).to.be.true
+      expect(stubLoggerWarn.calledOnce).to.be.true
+      expect(stubLoggerWarn.calledWith('Error subdomainExists' as any)).to.be.true
     })
 
     it('should return false if not supported', async () => {
@@ -1173,6 +1179,56 @@ describe('Helpers:Web3', () => {
       expect(stubDecimals.calledOnce).to.be.true
       expect(stubTotalSupply.calledOnce).to.be.true
       expect(stubLogger.callCount).to.eq(4)
+    })
+  })
+
+  describe('getERC20Balance', () => {
+    it('should return the ERC20 balance of an address', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { balanceOf: sandbox.stub().resolves('1000') }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const fakeTokenAddress = '0xTokenAddress'
+      const fakeAddress = '0x1234567890123456789012345678901234567890'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const balance = await MockedWeb3Helper.getERC20Balance(fakeTokenAddress, fakeAddress, fakeNetwork)
+      expect(balance).to.equal('1000')
+    })
+
+    it('should return "0" on error ERC20', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { balanceOf: sandbox.stub().rejects(new Error('fake-error')) }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const fakeTokenAddress = '0xTokenAddress'
+      const fakeAddress = '0x1234567890123456789012345678901234567890'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const balance = await MockedWeb3Helper.getERC20Balance(fakeTokenAddress, fakeAddress, fakeNetwork)
+      expect(balance).to.equal('0')
     })
   })
 

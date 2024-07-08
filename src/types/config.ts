@@ -26,6 +26,8 @@ export interface IConfig {
     POLYGON_MAINNET: number
     BASE_MAINNET: number
     ARBITRUM_MAINNET: number
+    ZKSYNC_SEPOLIA: number
+    ZKSYNC_MAINNET: number
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
@@ -41,6 +43,10 @@ export interface IConfig {
     NODE_TRANSFER_MIN_TIME: number
     COINGECKO_MAX_CONCURRENT: number
     COINGECKO_MIN_TIME: number
+    COVALENT_MAX_CONCURRENT: number
+    COVALENT_MIN_TIME: number
+    FOUR_BYTE_MAX_CONCURRENT: number
+    FOUR_BYTE_MIN_TIME: number
   }
   MONGO_DB: {
     NAME: string
@@ -71,6 +77,10 @@ export interface IConfig {
     API_KEY: string
   }
 
+  FOUR_BYTE: {
+    URI: string
+  }
+
   PINATA: {
     JWT: string
     GATEWAY_URI: string
@@ -92,6 +102,8 @@ export interface IConfig {
     POLYGON_MAINNET: string | null
     BASE_MAINNET: string | null
     ARBITRUM_MAINNET: string | null
+    ZKSYNC_SEPOLIA: string | null
+    ZKSYNC_MAINNET: string | null
   }
 
   SERVICES: {
@@ -103,12 +115,14 @@ export interface IConfig {
       CORS: string[]
     }
     ARAGON_INDEXER: {
+      NAME: string
       TOKEN_INTERVAL: number
       TOKEN_FETCH_BATCH_SIZE: number
       DAO_INTERVAL: number
       DAO_FETCH_BATCH_SIZE: number
     }
     ARAGON_RATES: {
+      NAME: string
       RATES_INTERVAL: number
     }
   }

@@ -4,6 +4,8 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
+import { type NetworksEnum } from '@types'
+import { NetworkHelper } from '@helpers/network'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorDao' })
 
@@ -11,6 +13,7 @@ export const AggregatorDao = {
   start: async () => {
     logger.verbose('Start AggregatorDao', llo({}))
 
+    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
       onDocument: AggregatorDao.onDocument,
@@ -18,7 +21,7 @@ export const AggregatorDao = {
         logger.error('Error AggregatorDao', llo({ error, document }))
       },
       useAggregate: true,
-      aggregate: AggregatorDao.query(),
+      aggregate: AggregatorDao.query(supportedNetworks),
       batchSize: 1000,
       concurrency: 1,
     })
@@ -40,10 +43,10 @@ export const AggregatorDao = {
       document.proposalsExecuted = Math.floor(document.proposalsExecuted)
       document.uniqueVoters = Math.floor(document.uniqueVoters)
       document.votes = Math.floor(document.votes)
-      const isValid = await Web3Helper.subdomainExists(document.subdomain, document.network!)
-      document.ens = isValid ? Web3Helper.parseSubdomainToEns(document.subdomain) : null
+      const isValid = await Web3Helper.subdomainExists(document.subdomain!, document.network!)
+      document.ens = isValid ? Web3Helper.parseSubdomainToEns(document.subdomain!) : null
 
-      if (!document.blockTimestamp || document.blockTimestamp === 0) {
+      if (Web3Helper.needToSyncBlockTime(document)) {
         document.blockTimestamp = await Web3Helper.getBlockTimestamp(document.blockNumber!, document.network!)
       }
 
@@ -58,8 +61,13 @@ export const AggregatorDao = {
     })
   },
 
-  query() {
+  query(networks: NetworksEnum[]) {
     return [
+      {
+        $match: {
+          ...(networks?.length > 0 && { network: { $in: networks } }),
+        },
+      },
       {
         $lookup: {
           from: 'plugin',
@@ -112,42 +120,32 @@ export const AggregatorDao = {
           from: 'member',
           let: { pluginAddresses: '$plugins.address' },
           pipeline: [
-            { $unwind: '$daos' },
+            { $unwind: '$history' },
             {
               $match: {
                 $expr: {
                   $and: [
-                    { $in: ['$daos.pluginAddress', '$$pluginAddresses'] },
+                    { $in: ['$history.pluginAddress', '$$pluginAddresses'] },
                     {
                       $or: [
-                        { $eq: ['$daos.toBlockNumber', null] },
-                        { $not: { $ifNull: ['$daos.toBlockNumber', false] } },
+                        { $eq: ['$history.toBlockNumber', null] },
+                        { $not: { $ifNull: ['$history.toBlockNumber', false] } },
                       ],
                     },
                   ],
                 },
               },
             },
+            { $project: { address: 1 } },
           ],
           as: 'members',
         },
       },
       {
         $addFields: {
-          members: { $size: '$members' },
+          totalMembers: { $size: '$members' },
         },
       },
-      // {
-      //   $addFields: {
-      //     members: {
-      //       $map: {
-      //         input: '$members',
-      //         as: 'member',
-      //         in: '$$member.address',
-      //       },
-      //     },
-      //   },
-      // },
       {
         $lookup: {
           from: 'logProposal',
@@ -207,12 +205,15 @@ export const AggregatorDao = {
       },
       {
         $project: {
+          totalMembers: 1,
           members: 1,
           transactionHash: 1,
           network: 1,
           address: '$_id',
           implementationAddress: 1,
-          subdomain: '$subdomain',
+          subdomain: {
+            $cond: { if: { $eq: ['$subdomain', ''] }, then: null, else: '$subdomain' },
+          },
           creatorAddress: 1,
           plugins: {
             $map: {
@@ -285,6 +286,7 @@ export const AggregatorDao = {
                   proposalsExecuted: { $ifNull: ['$proposalsExecuted', 0] },
                   uniqueVoters: '$totalUniqueVoters',
                   votes: { $ifNull: ['$votes', 0] },
+                  members: { $ifNull: ['$totalMembers', 0] },
                 },
                 latestBlockNumber: '$latestBlockNumber',
                 latestTxHash: '$latestTxHash',

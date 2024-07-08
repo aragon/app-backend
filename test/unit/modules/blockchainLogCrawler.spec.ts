@@ -81,7 +81,7 @@ describe('Module: blockchainLogCrawler', () => {
 
     expect(onLogStub.calledTwice).to.be.true
     expect(onLogStub.calledTwice).to.be.true
-    expect(stubSaveProgress.calledThrice).to.be.true
+    expect(stubSaveProgress.callCount).to.equal(5)
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
@@ -150,25 +150,34 @@ describe('Module: blockchainLogCrawler', () => {
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
-  it('should reduce batch size and retry on batch size error', async () => {
+  it('should reduce batch size and retry on batch size error, restore batch size on next batch', async () => {
     sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
     const error = new Error('Log response size exceeded')
     error.message = 'Log response size exceeded'
-    mockProvider.getBlockNumber.onFirstCall().resolves(100).onSecondCall().resolves(100)
-    mockProvider.getLogs.onFirstCall().rejects(error).onSecondCall().resolves([])
+    mockProvider.getBlockNumber.onFirstCall().resolves(300).onSecondCall().resolves(300)
+    mockProvider.getLogs
+      .onCall(0)
+      .rejects(error)
+      .onCall(1)
+      .resolves([1])
+      .onCall(2)
+      .resolves([1])
+      .onCall(3)
+      .resolves([1])
     const onLogStub = sandbox.stub().resolves()
     const onErrorStub = sandbox.stub()
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.ethereumMainnet,
       filter: {},
-      batchSize: 2000,
+      batchSize: 100,
       onLog: onLogStub,
       onError: onErrorStub,
     })
 
     await crawler.crawl()
 
-    expect(logWarn.calledWith('Reducing batch size due to error')).to.be.true
+    expect(onErrorStub.callCount).to.eq(1)
+    expect(onLogStub.callCount).to.eq(3)
   })
 
   it('should reduce batch size and retry on batch size error with default error', async () => {
@@ -189,7 +198,6 @@ describe('Module: blockchainLogCrawler', () => {
 
     await crawler.crawl()
 
-    expect(logWarn.calledWith('Reducing batch size due to error')).to.be.true
     expect(logError.calledWith('Error in BlockchainLogCrawler')).to.be.true
     expect(onErrorSpy.calledOnce).to.be.true
   })
@@ -310,12 +318,13 @@ describe('Module: blockchainLogCrawler', () => {
       })
     })
 
-    it('should calculate the correct batch size for mainnet, arbitrum, and base networks', () => {
+    it('should calculate the correct batch size for mainnet, arbitrum, zksync and base networks', () => {
       const secondsInMonth = 30 * 24 * 3600
       const expectedBatchSize = Math.floor(secondsInMonth / 14) // Average block time ~14 seconds
       expect(crawler.calculateBatchSize(NetworksEnum.ethereumMainnet)).to.equal(expectedBatchSize)
       expect(crawler.calculateBatchSize(NetworksEnum.arbitrumMainnet)).to.equal(expectedBatchSize)
       expect(crawler.calculateBatchSize(NetworksEnum.baseMainnet)).to.equal(expectedBatchSize)
+      expect(crawler.calculateBatchSize(NetworksEnum.zksyncSepolia)).to.equal(expectedBatchSize)
     })
 
     it('should calculate the correct batch size for polygon network', () => {

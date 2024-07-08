@@ -31,6 +31,7 @@ const customName = 'Token'
 })
 @index({
   address: 1,
+  network: 1,
 })
 export default class Token extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -50,6 +51,9 @@ export default class Token extends Model {
 
   @prop({ type: () => String, default: null })
   public logo!: string
+
+  @prop({ type: () => Boolean, default: false })
+  public skipFetchRate!: boolean
 
   @prop({ type: () => String, default: null })
   public name!: string
@@ -73,7 +77,7 @@ export default class Token extends Model {
   public priceUsd!: string
 
   @utcDateProp({ default: null })
-  public lastUpdatedAt!: number
+  public lastUpdatedAt!: Date
 
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -163,7 +167,7 @@ export default class Token extends Model {
 
   filterKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
+    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'skipFetchRate', 'updatedAt')
     return filtered as IToken
   }
 }

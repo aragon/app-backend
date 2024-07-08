@@ -19,6 +19,7 @@ const customName = 'Plugin'
   },
 })
 @index({
+  network: 1,
   address: 1,
   daoAddress: 1,
   tokenAddress: 1,

@@ -6,6 +6,8 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { NetworksEnum } from '@types'
 import Logger from '@logger'
+import DecodeActions from '@helpers/decodeActions'
+import Web3Helper from '@helpers/web3'
 
 describe('Indexer:Aggregator:Proposal', () => {
   let sandbox: SinonSandbox
@@ -74,6 +76,7 @@ describe('Indexer:Aggregator:Proposal', () => {
         },
         daoAddress: '0x59447788F9dCf2df550F257F3692a07f05b922D7',
         title: 'New Look!',
+        actions: [],
         description:
           '<p>Changing the following metadata on the DAO:<br><strong>Name - Feel the Breeze</strong></p><p><strong>Logo</strong></p>',
         summary: 'Changing DAO metadata',
@@ -83,7 +86,20 @@ describe('Indexer:Aggregator:Proposal', () => {
         },
       }
 
+      const parsedActions = [
+        {
+          to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+          data: '0x',
+          value: '0',
+          functionName: 'test',
+          textSignature: 'test(uint256,uint256)',
+          decoded: ['1', 1],
+          contractName: null,
+        },
+      ]
       const stubLogger = sandbox.stub(Logger, 'verbose')
+      const stubGetBlockTime = sandbox.stub(Web3Helper, 'getBlockTimestamp')
+      const stubParseActions = sandbox.stub(AggregatorProposal, 'parseActions').resolves(parsedActions)
 
       await AggregatorProposal.onDocument(document as any)
 
@@ -94,6 +110,9 @@ describe('Indexer:Aggregator:Proposal', () => {
         pluginAddress: document.pluginAddress,
         proposalId: document.proposalId,
       })
+
+      expect(stubGetBlockTime.calledTwice).to.be.true
+      expect(stubParseActions.calledOnce).to.be.true
 
       expect(member.id).to.exist
       expect(member.transactionHash).to.eq(document.transactionHash)
@@ -114,6 +133,14 @@ describe('Indexer:Aggregator:Proposal', () => {
       expect(member.settings.toBlockNumber).to.eq(document.settings?.toBlockNumber)
       expect(member.settings.fromTxHash).to.eq(document.settings?.fromTxHash)
       expect(member.settings.toTxHash).to.eq(document.settings?.toTxHash)
+      expect(member.actions[0].to).to.eq(parsedActions[0].to)
+      expect(member.actions[0].data).to.eq(parsedActions[0].data)
+      expect(member.actions[0].value).to.eq(parsedActions[0].value)
+      expect(member.actions[0].functionName).to.eq(parsedActions[0].functionName)
+      expect(member.actions[0].textSignature).to.eq(parsedActions[0].textSignature)
+      expect(member.actions[0].contractName).to.eq(parsedActions[0].contractName)
+      expect(member.actions[0].decoded[0]).to.eq(parsedActions[0].decoded[0])
+      expect(member.actions[0].decoded[1]).to.eq(parsedActions[0].decoded[1])
       expect(member.daoAddress).to.eq(document.daoAddress)
       expect(member.title).to.eq(document.title)
       expect(member.description).to.eq(document.description)
@@ -153,6 +180,7 @@ describe('Indexer:Aggregator:Proposal', () => {
           toTxHash: '0xe49a4a878ed2073e012249ef39960b9c9a21446f223e4e5a6ef0edc97831c37e',
         },
         daoAddress: '0x59447788F9dCf2df550F257F3692a07f05b922D7',
+        actions: [],
         title: 'New Look!',
         description:
           '<p>Changing the following metadata on the DAO:<br><strong>Name - Feel the Breeze</strong></p><p><strong>Logo</strong></p>',
@@ -166,6 +194,7 @@ describe('Indexer:Aggregator:Proposal', () => {
       await Models.Proposal.create(document)
 
       const stubLogger = sandbox.stub(Logger, 'verbose')
+      const stubGetBlockTime = sandbox.stub(Web3Helper, 'getBlockTimestamp')
 
       document.title = 'test title'
       await AggregatorProposal.onDocument(document as any)
@@ -178,6 +207,7 @@ describe('Indexer:Aggregator:Proposal', () => {
         proposalId: document.proposalId,
       })
 
+      expect(stubGetBlockTime.calledTwice).to.be.true
       expect(member.id).to.exist
       expect(member.transactionHash).to.eq(document.transactionHash)
       expect(member.blockNumber).to.eq(document.blockNumber)
@@ -209,8 +239,84 @@ describe('Indexer:Aggregator:Proposal', () => {
     })
   })
 
+  describe('parseActions', () => {
+    it('should parse actions correctly', async () => {
+      const document = { daoAddress: '0x0dao', to: '0x', value: '0' }
+      const logActions = [
+        {
+          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          value: '0',
+          data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
+        },
+      ]
+
+      const actions = await AggregatorProposal.parseActions(logActions, document)
+
+      expect(actions).to.deep.equal([
+        {
+          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          value: '0',
+          data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
+          functionName: 'mint',
+          textSignature: 'mint(address,uint256)',
+          decoded: ['0x284803C34A3F049f787E2562e6F8C084bdBC3197', 1000000000000000000n],
+          contractName: 'IERC20MintableUpgradeable',
+        },
+      ])
+    })
+
+    it('should return empty array if no actions are provided', async () => {
+      const logActions: any[] = []
+      const document = { daoAddress: '0x0dao', to: '0x', value: '0' }
+      const actions = await AggregatorProposal.parseActions(logActions, document)
+      expect(actions).to.deep.equal([])
+    })
+
+    it('should handle actions native transfer', async () => {
+      const logActions = [
+        {
+          to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+          value: '424000000000000',
+          data: '0x',
+        },
+      ]
+
+      const document = { daoAddress: '0x0dao', to: '0x', value: '0' }
+      const actions = await AggregatorProposal.parseActions(logActions, document)
+
+      expect(actions).to.deep.equal([
+        {
+          to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+          value: '424000000000000',
+          data: '0x',
+          functionName: 'NativeTransfer',
+          textSignature: 'nativeTransfer(address,address,uint256)',
+          decoded: ['0x0dao', '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31', '424000000000000'],
+        },
+      ])
+    })
+
+    it('should return action unchanged if decoding fails', async () => {
+      const document = { daoAddress: '0x0dao', to: '0x', value: '0' }
+      const logActions = [
+        {
+          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          value: '0',
+          data: '0x00e10f10000000000000000000000000',
+        },
+      ]
+
+      const decodeActions = new DecodeActions()
+      sandbox.stub(decodeActions, 'decodeData').resolves(null)
+
+      const actions = await AggregatorProposal.parseActions(logActions, document)
+
+      expect(actions).to.deep.equal(logActions)
+    })
+  })
+
   it('should use default date when none is provided', () => {
-    const pipeline = AggregatorProposal.query()
-    expect(pipeline.length).to.equal(13)
+    const pipeline = AggregatorProposal.query([])
+    expect(pipeline.length).to.equal(14)
   })
 })

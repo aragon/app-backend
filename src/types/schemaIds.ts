@@ -7,6 +7,13 @@ import {
   type NetworksEnum,
 } from '@src/types/index'
 
+export interface IVoteIdParams {
+  network: NetworksEnum
+  transactionHash: HexAddress
+  pluginAddress: HexAddress
+  proposalId: number
+}
+
 export interface IAssetIdParams {
   network: NetworksEnum
   daoAddress: HexAddress
@@ -38,6 +45,8 @@ export interface ILogMemberIdParams {
   transactionHash: HexAddress
   event: IEventLogMember
   address: HexAddress
+  pluginAddress: HexAddress
+  txIndex: number
 }
 
 export interface ILogPluginRepoIdParams {
@@ -65,6 +74,11 @@ export interface ILogProposalMetadataIdParams {
   transactionHash: HexAddress
   pluginAddress: HexAddress
   proposalId: number
+}
+
+export interface IDelegateIdParams {
+  network: NetworksEnum
+  transactionHash: HexAddress
 }
 
 export interface IMemberIdParams {

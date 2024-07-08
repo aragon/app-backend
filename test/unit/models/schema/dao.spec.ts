@@ -22,6 +22,7 @@ describe('Model: Dao', () => {
       implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       ens: 'dao.eth',
+      subdomain: 'dao',
       members: 10,
       metadataIpfs: 'metadataIpfs',
       name: 'fake-name',
@@ -40,7 +41,7 @@ describe('Model: Dao', () => {
         uniqueVoters: 100,
         votes: 500,
       },
-      tvlUSD: '10000',
+      tvlUSD: 10000,
       plugins: [
         {
           transactionHash: '0x0',
@@ -79,6 +80,7 @@ describe('Model: Dao', () => {
       expect(createdDao.implementationAddress).to.eq(rawDao.implementationAddress)
       expect(createdDao.creatorAddress).to.eq(rawDao.creatorAddress)
       expect(createdDao.ens).to.eq(rawDao.ens)
+      expect(createdDao.subdomain).to.eq(rawDao.subdomain)
       expect(createdDao.metadataIpfs).to.eq(rawDao.metadataIpfs)
       expect(createdDao.name).to.eq(rawDao.name)
       expect(createdDao.description).to.eq(rawDao.description)
@@ -175,7 +177,7 @@ describe('Model: Dao', () => {
             uniqueVoters: 100,
             votes: 500,
           },
-          tvlUSD: '10000',
+          tvlUSD: 10000,
           plugins: [
             {
               address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
@@ -198,7 +200,7 @@ describe('Model: Dao', () => {
             uniqueVoters: 100,
             votes: 500,
           },
-          tvlUSD: '20000',
+          tvlUSD: 20000,
           plugins: [
             {
               address: '0x0',
@@ -221,7 +223,7 @@ describe('Model: Dao', () => {
             uniqueVoters: 100,
             votes: 500,
           },
-          tvlUSD: '20000',
+          tvlUSD: 20000,
           plugins: [
             {
               address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1962',
@@ -282,7 +284,7 @@ describe('Model: Dao', () => {
           uniqueVoters: 100,
           votes: 500,
         },
-        tvlUSD: '20000',
+        tvlUSD: 20000,
         plugins: [
           {
             address: '0x0',
@@ -392,6 +394,6 @@ describe('Model: Dao', () => {
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.hideDao).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(17)
+    expect(Object.keys(filterDao).length).to.eq(18)
   })
 })

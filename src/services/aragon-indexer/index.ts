@@ -16,6 +16,8 @@ import { AggregatorSetting } from '@services/aragon-indexer/aggregator/setting'
 import { AggregatorAssets } from '@services/aragon-indexer/aggregator/asset'
 import { AggregatorTransactions } from '@services/aragon-indexer/aggregator/transaction'
 import { AggregatorDao } from '@indexer/aggregator/dao'
+import { AggregatorDelegate } from '@indexer/aggregator/delegate'
+import { AggregatorVote } from '@indexer/aggregator/vote'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -26,30 +28,39 @@ const IndexerService: IService = {
   start: async function () {
     logger.info('IndexerService service sync start', llo({}))
 
+    // const logTasks = [
+    //   [async () => LogPluginRepoRegistry.start()],
+    //   [async () => LogDaoRegistry.start()],
+    //   [async () => LogPluginSetupProcessor.start()],
+    //   [async () => LogDao.start()], // after logDaoRegistry
+    //   [async () => LogPluginSetting.start()], // after logPluginSetupProcessor
+    //   [async () => LogProposal.start()], // after logPluginSetupProcessor
+    //   [async () => LogMember.start()], // after logPluginSetupProcessor
+    // ]
+
     // order is important
-    const logTasks = [
-      [async () => LogDaoRegistry.start()],
-      [async () => LogDao.start()],
-      [async () => LogPluginRepoRegistry.start()],
-      [async () => LogPluginSetting.start()],
-      [async () => LogPluginSetupProcessor.start()],
-      [async () => LogProposal.start()],
-      [async () => LogMember.start()],
+    const logFastTasks = [
+      [async () => LogPluginRepoRegistry.start(), async () => LogDaoRegistry.start()],
+      [async () => LogPluginSetupProcessor.start(), async () => LogDao.start()], // after logDaoRegistry
+      [async () => LogProposal.start(), async () => LogPluginSetting.start()], // after logPluginSetupProcessor
+      [async () => LogMember.start()], // after logPluginSetupProcessor
     ]
 
     // order is important
     const aggregatorTasks = [
       [async () => AggregatorPlugin.start()],
       [async () => AggregatorSetting.start()],
-      [async () => AggregatorMembers.start()],
+      [async () => AggregatorMembers.start()], // run after plugin
       [async () => AggregatorProposal.start()],
       [async () => AggregatorDao.start()],
       [async () => AggregatorAssets.start()],
+      [async () => AggregatorDelegate.start()],
+      [async () => AggregatorVote.start()],
       [async () => AggregatorTransactions.start()],
     ]
 
     const taskOptions = {
-      fn: () => [...logTasks, ...aggregatorTasks],
+      fn: () => [...logFastTasks, ...aggregatorTasks],
       interval: config.SERVICES.ARAGON_INDEXER.DAO_INTERVAL,
       onError: (error: any) => {
         logger.error('IndexerService task error', llo({ error }))

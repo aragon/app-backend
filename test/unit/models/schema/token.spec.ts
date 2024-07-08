@@ -49,6 +49,7 @@ describe('Model: Token', () => {
     expect(createdToken.totalSupply).to.eq(rawToken.totalSupply)
     expect(createdToken.priceChangeOnDayUsd).to.eq(rawToken.priceChangeOnDayUsd)
     expect(createdToken.priceUsd).to.eq(rawToken.priceUsd)
+    expect(createdToken.skipFetchRate).to.eq(false)
     expect(createdToken.lastUpdatedAt.toString()).to.eq(rawToken?.lastUpdatedAt!.toString())
   })
 
