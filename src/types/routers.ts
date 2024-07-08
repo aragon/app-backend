@@ -74,10 +74,13 @@ export interface IDaoResponse {
     subdomain: string
   }[]
   tvlUSD: number
-  proposalsCreated: number
-  proposalsExecuted: number
-  uniqueVoters: number
-  votes: number
+  metrics: {
+    proposalsCreated: number
+    proposalsExecuted: number
+    uniqueVoters: number
+    votes: number
+    members: number
+  }
   hideDao: boolean
 }
 
