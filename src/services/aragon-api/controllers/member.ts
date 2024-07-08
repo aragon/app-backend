@@ -9,7 +9,6 @@ import {
 } from '@types'
 import { assertExposable } from '@errors'
 import ModelUtils from '@models/utils/models'
-import type Member from '@models/schema/member'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -27,8 +26,14 @@ const MemberController = {
     }
 
     const result = await Models.Member.findWithPagination({ extraParams, paginationParams })
-    result.data = result.data.map((m: Member) => m.filterKeys())
     return result
+  },
+
+  getMemberByAddress: async (address: string, extraParams: IMemberExtraParams = {}): Promise<IMembersResponse> => {
+    const member = await Models.Member.findMemberByAddress(address, extraParams)
+    assertExposable(member, ErrorKeyEnum.notFound)
+
+    return member
   },
 
   getActiveMembersWithPagination: async (
@@ -47,13 +52,6 @@ const MemberController = {
 
     const result = await Models.Member.findActiveWithPagination({ extraParams, paginationParams })
     return result
-  },
-
-  getMemberById: async (address: string): Promise<IMembersResponse> => {
-    const member = await Models.Member.findByEntityId(address)
-    assertExposable(member, ErrorKeyEnum.notFound)
-
-    return member.filterKeys()
   },
 
   getActiveMemberByAddress: async (

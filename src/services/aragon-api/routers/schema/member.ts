@@ -25,7 +25,7 @@ const MemberSchema = {
     address: ValidationSchema.joiAddress.required(),
   }),
 
-  getActiveMembersWithPagination: Joi.object({
+  getActiveMembersExtraParams: Joi.object({
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .optional(),

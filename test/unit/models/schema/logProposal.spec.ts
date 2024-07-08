@@ -186,6 +186,26 @@ describe('Model: LogProposal', () => {
     expect(LogProposal?.daoAddress).to.eq(rawLogProposal.daoAddress)
   })
 
+  it('Should getMemberProposalMetrics', async () => {
+    const memberAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5400'
+    rawLogProposal.voteEvents = [
+      {
+        transactionHash: '0x0',
+        blockNumber: 123123,
+        proposalId: 0,
+        memberAddress,
+        voteOption: 1,
+        votingPower: '313',
+      },
+    ]
+    await Models.LogProposal.create(rawLogProposal)
+    const pluginAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
+    const metrics = await Models.LogProposal.getMemberProposalMetrics(memberAddress, pluginAddress)
+
+    expect(metrics.proposalCount).to.eq(1)
+    expect(metrics.voteCount).to.eq(1)
+  })
+
   it('Should reload', async () => {
     const createdLogProposal = await Models.LogProposal.create(rawLogProposal)
     await createdLogProposal.reload()

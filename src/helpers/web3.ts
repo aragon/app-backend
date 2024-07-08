@@ -466,7 +466,7 @@ const Web3Helper = {
     try {
       return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.lookupAddress(address))
     } catch (error) {
-      logger.error(
+      logger.warn(
         'Error looking up address',
         llo({
           address,
@@ -622,8 +622,11 @@ const Web3Helper = {
   async getERC20Balance(tokenAddress: string, address: string, network: NetworksEnum) {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
     const contract = new Contract(tokenAddress, ERC20.abi, provider)
-
-    return BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.balanceOf(address))
+    try {
+      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.balanceOf(address))
+    } catch (error) {
+      return '0'
+    }
   },
 }
 
