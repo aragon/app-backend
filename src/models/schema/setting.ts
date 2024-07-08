@@ -207,7 +207,7 @@ export default class Setting extends Model {
     const obj = this.toObject()
     const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
     filtered.settings = _.omit(filtered.settings, 'id', '_id', '__v')
-    filtered.token = filtered.token ? _.omit(filtered.token, 'id', '_id', '__v') : null
+    filtered.token = filtered.token ? _.omit(filtered.token, 'id', '_id', '__v') : undefined
     return filtered
   }
 }

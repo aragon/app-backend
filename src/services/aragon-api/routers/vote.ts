@@ -11,19 +11,25 @@ const VoteRouter = {
     const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockNumber' })
     const extraParams: IVoteExtraParams = {
       network: ctx.query.network as NetworksEnum,
+      memberAddress: ctx.query.address as HexAddress,
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
-      memberAddress: ctx.query.memberAddress as HexAddress,
       proposalId: ctx.query.proposalId ? Number(ctx.query.proposalId) : undefined,
     }
+    const ens = ctx.query.ens as string
 
-    const [formattedPaginationParams, formattedExtraParams] = await Promise.all([
+    const [formattedPaginationParams, formattedExtraParams, formattedEns] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(VoteSchema.getExtraParams, extraParams),
+      ValidationSchema.validateParams(VoteSchema.getMemberEns, { ens }),
     ])
 
-    ctx.body = await VoteController.getVoteWithPagination(formattedPaginationParams, formattedExtraParams)
+    ctx.body = await VoteController.getVoteWithPagination(
+      formattedPaginationParams,
+      formattedExtraParams,
+      formattedEns.ens,
+    )
   },
 
   router() {

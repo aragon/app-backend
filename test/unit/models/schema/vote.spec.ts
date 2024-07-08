@@ -22,6 +22,7 @@ describe('Model: Vote', () => {
       voteOption: 2,
       votingPower: '4000000000000000000',
       transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd22d',
+      blockTimestamp: 1219577223,
       blockNumber: 4879275,
       daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3804',
       token: {
@@ -49,6 +50,21 @@ describe('Model: Vote', () => {
       })
       const vote = await Models.Vote.create(rawVote)
       expect(vote.id).to.eq(entityId)
+      expect(vote.token.decimals).to.eq(rawVote.token?.decimals)
+      expect(vote.token.logo).to.eq(rawVote.token?.logo)
+      expect(vote.token.type).to.eq(rawVote.token?.type)
+      expect(vote.token.name).to.eq(rawVote.token?.name)
+      expect(vote.token.symbol).to.eq(rawVote.token?.symbol)
+      expect(vote.token.address).to.eq(rawVote.token?.address)
+      expect(vote.transactionHash).to.eq(rawVote.transactionHash)
+      expect(vote.blockNumber).to.eq(rawVote.blockNumber)
+      expect(vote.blockTimestamp).to.eq(rawVote.blockTimestamp)
+      expect(vote.voteOption).to.eq(rawVote.voteOption)
+      expect(vote.votingPower).to.eq(rawVote.votingPower)
+      expect(vote.daoAddress).to.eq(rawVote.daoAddress)
+      expect(vote.pluginAddress).to.eq(rawVote.pluginAddress)
+      expect(vote.memberAddress).to.eq(rawVote.memberAddress)
+      expect(vote.proposalId).to.eq(rawVote.proposalId)
     })
 
     it('should update Vote', async () => {
@@ -128,6 +144,7 @@ describe('Model: Vote', () => {
       voteOption: 1,
       votingPower: '4000000000000000000',
       transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd00c',
+      blockTimestamp: 1219577223,
       blockNumber: 5879275,
       daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3804',
       token: {
@@ -156,6 +173,7 @@ describe('Model: Vote', () => {
           proposalId: 3,
           memberAddress: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
           transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd22d',
+          blockTimestamp: 1219577223,
           blockNumber: 4879275,
           daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3804',
           token: null,
@@ -168,6 +186,7 @@ describe('Model: Vote', () => {
           voteOption: 2,
           votingPower: '4000000000000000000',
           transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd221',
+          blockTimestamp: 1219577223,
           blockNumber: 4879275,
           daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3800',
           token: {
@@ -187,6 +206,7 @@ describe('Model: Vote', () => {
           voteOption: 2,
           votingPower: '4000000000000000000',
           transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd22d',
+          blockTimestamp: 1219577223,
           blockNumber: 4879275,
           daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3801',
           token: {
@@ -305,6 +325,12 @@ describe('Model: Vote', () => {
     expect(filterDao.token.id).to.be.undefined
     expect(filterDao.token._id).to.be.undefined
     expect(filterDao.token.address).to.exist
-    expect(Object.keys(filterDao).length).to.eq(10)
+    expect(Object.keys(filterDao).length).to.eq(11)
+  })
+
+  it('Should filterKeys without token', async () => {
+    const createdWithoutToken = await Models.Vote.create({ ...rawVote, ...{ token: undefined } })
+    const withoutToken = createdWithoutToken.filterKeys()
+    expect(withoutToken.token).to.be.undefined
   })
 })

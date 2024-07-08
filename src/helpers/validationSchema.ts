@@ -42,7 +42,17 @@ const ValidationSchema = {
     .messages({
       'string.pattern.name': '{{#label}} must be a valid transaction hash',
     }),
-
+  joiEns: Joi.string()
+    .custom((value, helpers) => {
+      const ensRegex = /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.eth$/
+      if (!ensRegex.test(value)) {
+        return helpers.error('string.invalid', { value })
+      }
+      return value
+    }, 'ENS Validation')
+    .messages({
+      'string.invalid': '{{#label}} is not a valid ENS',
+    }),
   generateJoiPagination: {
     search: Joi.string()
       .allow('')

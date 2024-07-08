@@ -67,6 +67,9 @@ export default class Vote extends Model {
   @prop({ type: () => Number, required: true })
   public blockNumber!: number
 
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
+
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
@@ -266,7 +269,7 @@ export default class Vote extends Model {
   filterKeys() {
     const obj = this.toObject()
     const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
-    filtered.token = _.omit(filtered.token, 'id', '_id', '__v')
+    filtered.token = filtered.token ? _.omit(filtered.token, 'id', '_id', '__v') : undefined
     return filtered
   }
 }

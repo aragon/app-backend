@@ -61,6 +61,9 @@ export interface ITransactionExtraParams {
   category?: ITransactionCategory
   network?: NetworksEnum
   daoAddress?: HexAddress
+  tokenAddress?: HexAddress
+  fromAddress?: HexAddress
+  toAddress?: HexAddress
 }
 
 export interface ISettingExtraParams {

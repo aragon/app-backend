@@ -58,6 +58,21 @@ describe('Helpers:ValidationSchema', () => {
       )
     })
 
+    it('joiEns', async () => {
+      const ens = 'test.eth'
+      const res = await ValidationSchema.joiEns.validateAsync(ens)
+      expect(res).to.eq(ens)
+
+      const ens2 = 'test.dao.eth'
+      const res2 = await ValidationSchema.joiEns.validateAsync(ens2)
+      expect(res2).to.eq(ens2)
+
+      await expect(ValidationSchema.joiEns.validateAsync('test')).to.be.rejectedWith(
+        Error,
+        '"value" is not a valid ENS',
+      )
+    })
+
     it('generateJoiPagination', async () => {
       const result = await PaginationSchema.getPagination.validateAsync({
         search: '0xb794F5eA0ba39494cE839613fffBA74279579268',
