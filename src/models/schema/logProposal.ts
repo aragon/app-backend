@@ -111,7 +111,7 @@ export default class LogProposal extends Model {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
-      assert((rawData?.proposalId! >= 0), 'proposalId is required')
+      assert(rawData?.proposalId! >= 0, 'proposalId is required')
       rawData.id = this.getEntityId({
         transactionHash: rawData?.transactionHash!,
         pluginAddress: rawData?.pluginAddress!,
