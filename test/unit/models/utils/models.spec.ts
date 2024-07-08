@@ -19,7 +19,7 @@ describe('Model/Utils: models', () => {
 
   describe('paginateAndSort', () => {
     it('should apply default pagination and sorting if no parameters are provided', () => {
-      const result = ModelUtils.paginateAndSort({})
+      const result = ModelUtils.paginateAndSort()
       expect(result).to.deep.equal({
         limit: 10,
         skip: 0,
@@ -28,7 +28,7 @@ describe('Model/Utils: models', () => {
     })
 
     it('should correctly calculate pagination and apply sorting based on input', () => {
-      const params = { pageSize: 20, page: 2, sort: 'date', order: 'asc' }
+      const params = { pageSize: 20, page: 2, sort: 'asc', order: 'date' }
       const result = ModelUtils.paginateAndSort(params)
       expect(result).to.deep.equal({
         limit: 20,

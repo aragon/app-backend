@@ -1,7 +1,6 @@
 import { Models } from '@dbModels'
 import {
   ErrorKeyEnum,
-  type IActiveMemberExtraParams,
   type IMemberExtraParams,
   type IMembersResponse,
   type IPaginatedResult,
@@ -31,34 +30,6 @@ const MemberController = {
 
   getMemberByAddress: async (address: string, extraParams: IMemberExtraParams = {}): Promise<IMembersResponse> => {
     const member = await Models.Member.findMemberByAddress(address, extraParams)
-    assertExposable(member, ErrorKeyEnum.notFound)
-
-    return member
-  },
-
-  getActiveMembersWithPagination: async (
-    paginationParams: IPaginationParams = {},
-    extraParams: IActiveMemberExtraParams = {},
-    daoId?: string,
-  ): Promise<IPaginatedResult<IMembersResponse>> => {
-    if (daoId) {
-      const daoDb = await Models.Dao.findByEntityId(daoId)
-      if (!daoDb) {
-        return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
-      }
-      extraParams.daoAddress = daoDb.address
-      extraParams.network = daoDb.network
-    }
-
-    const result = await Models.Member.findActiveWithPagination({ extraParams, paginationParams })
-    return result
-  },
-
-  getActiveMemberByAddress: async (
-    address: string,
-    extraParams: IActiveMemberExtraParams = {},
-  ): Promise<IMembersResponse> => {
-    const member = await Models.Member.findActiveMember(address, extraParams)
     assertExposable(member, ErrorKeyEnum.notFound)
 
     return member

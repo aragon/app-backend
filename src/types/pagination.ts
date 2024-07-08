@@ -42,13 +42,6 @@ export interface IMemberExtraParams {
   onlyActive?: boolean
 }
 
-export interface IActiveMemberExtraParams {
-  daoAddress?: HexAddress
-  pluginAddress?: HexAddress
-  tokenAddress?: HexAddress
-  network?: NetworksEnum
-}
-
 export interface IDelegateExtraParams {
   memberAddress?: HexAddress
   daoAddress?: HexAddress
@@ -77,7 +70,7 @@ export interface IPaginationParams {
   pageSize?: number
   page?: number
   order?: string // the property to order by
-  sort?: string // asc or desc
+  sort?: 'asc' | 'desc' | string // asc or desc
 }
 
 export interface IPaginationMetadata {

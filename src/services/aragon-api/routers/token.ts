@@ -8,7 +8,7 @@ import PaginationSchema from '@api/routers/schema/pagination'
 
 const TokenRouter = {
   getWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'name' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultOrder: 'name' })
     const extraParams: ITokenExtraParams = {
       network: ctx.query.network as NetworksEnum,
       type: ctx.query.type as ITokenType,

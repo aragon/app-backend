@@ -8,7 +8,7 @@ import PaginationSchema from '@api/routers/schema/pagination'
 
 const ProposalRouter = {
   getWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'proposalId' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultOrder: 'proposalId' })
     const extraParams: IProposalExtraParams = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,

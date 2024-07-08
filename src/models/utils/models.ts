@@ -22,7 +22,7 @@ export function utcDateProp(options = {}) {
 }
 
 const ModelUtils = {
-  paginateAndSort({ pageSize = 10, page = 1, sort = 'createdAt', order = 'desc' }: IPaginationParams = {}) {
+  paginateAndSort({ pageSize = 10, page = 1, sort = 'desc', order = 'createdAt' }: IPaginationParams = {}) {
     const paginationAndSorting: any = {}
 
     // Pagination
@@ -30,7 +30,7 @@ const ModelUtils = {
     paginationAndSorting.skip = (page - 1) * paginationAndSorting.limit
 
     // Sorting
-    paginationAndSorting.sort = { [sort]: order === 'desc' ? -1 : 1 }
+    paginationAndSorting.sort = { [order]: sort === 'desc' ? -1 : 1 }
 
     return paginationAndSorting
   },
@@ -60,9 +60,9 @@ const ModelUtils = {
 
   parsePaginationParams(
     ctx: RouterContext,
-    defaultParams: { defaultOrder?: 'asc' | 'desc'; defaultSort?: string } = {},
+    defaultParams: { defaultOrder?: string | 'desc'; defaultSort?: 'asc' | 'desc' } = {},
   ): IPaginationParams {
-    const { defaultOrder = 'desc', defaultSort = 'createdAt' } = defaultParams
+    const { defaultOrder = 'createdAt', defaultSort = 'desc' } = defaultParams
 
     let searchAddress = ctx.query.search as string
     if (searchAddress?.startsWith('0x')) {
@@ -77,8 +77,8 @@ const ModelUtils = {
       endDate: ctx.query.endDate as string,
       pageSize: Number(ctx.query.pageSize ?? 10),
       page: Number(ctx.query.page ?? 1),
-      order: (ctx.query.order as 'asc' | 'desc') ?? defaultOrder,
-      sort: (ctx.query.sort as string) ?? defaultSort,
+      order: (ctx.query.order as string) ?? defaultSort,
+      sort: (ctx.query.sort as 'asc' | 'desc') ?? defaultOrder,
     }
   },
 

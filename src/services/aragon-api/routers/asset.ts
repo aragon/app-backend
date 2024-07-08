@@ -8,7 +8,7 @@ import PaginationSchema from '@api/routers/schema/pagination'
 
 const AssetRouter = {
   getWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'amountUsd' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultOrder: 'amountUsd' })
     const extraParams: IAssetExtraParams = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.address as HexAddress,
