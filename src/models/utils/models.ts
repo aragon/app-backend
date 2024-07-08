@@ -67,18 +67,12 @@ const ModelUtils = {
   parsePaginationParams(
     ctx: RouterContext,
     defaultParams: {
-      startDateProp?: string
-      endDateProp?: string
       defaultOrder?: 'asc' | 'desc'
       defaultSort?: string
     } = {},
   ): IPaginationParams {
-    const {
-      defaultOrder = 'desc',
-      defaultSort = 'startDate',
-      startDateProp = 'startDate',
-      endDateProp = 'endDate',
-    } = defaultParams
+    const { defaultOrder = 'desc', defaultSort = 'startDate' } = defaultParams
+    const { startDateProp, endDateProp } = ctx.query as any
 
     let searchAddress = ctx.query.search as string
     if (searchAddress?.startsWith('0x')) {
@@ -89,8 +83,10 @@ const ModelUtils = {
 
     return {
       search: searchAddress,
-      [startDateProp]: ctx.query.startDate ? Number(ctx.query.startDate) : undefined,
-      [endDateProp]: ctx.query.endDate ? Number(ctx.query.endDate) : undefined,
+      startDateProp: startDateProp,
+      endDateProp: endDateProp,
+      startDate: ctx.query.startDate ? Number(ctx.query.startDate) : undefined,
+      endDate: ctx.query.endDate ? Number(ctx.query.endDate) : undefined,
       pageSize: Number(ctx.query.pageSize ?? 10),
       page: Number(ctx.query.page ?? 1),
       sort: (ctx.query.sort as string) ?? defaultSort,

@@ -43,6 +43,8 @@ describe('Router: Delegate', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,
@@ -72,6 +74,8 @@ describe('Router: Delegate', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,

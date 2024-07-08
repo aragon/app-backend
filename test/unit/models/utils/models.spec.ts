@@ -88,6 +88,8 @@ describe('Model/Utils: models', () => {
 
       expect(result).to.deep.equal({
         search: undefined,
+        startDateProp: undefined,
+        endDateProp: undefined,
         startDate: undefined,
         endDate: undefined,
         pageSize: 15,
