@@ -5,6 +5,7 @@ import DbTx from '@modules/dbTx'
 import type Vote from '@models/schema/vote'
 import { NetworkHelper } from '@helpers/network'
 import { type NetworksEnum } from '@types'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorVote' })
 
@@ -39,6 +40,11 @@ export const AggregatorVote = {
 
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
+
+      if (Web3Helper.needToSyncBlockTime(existingLog)) {
+        document.blockTimestamp = await Web3Helper.getBlockTimestamp(document.blockNumber!, document.network!)
+      }
+
       if (!existingLog) {
         logDb = await Models.Vote.create(document, { session } as any)
       } else {

@@ -141,5 +141,71 @@ describe('Controller: Delegate', () => {
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
     })
+
+    it('should get delegate with pagination - daoId', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+      const daoId = `${rawDelegate.network}-${rawDelegate.daoAddress}`
+
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
+        address: rawDelegate.daoAddress,
+        network: rawDelegate.network,
+      })
+      const spyReq = sandbox.spy(Models.Delegate, 'findWithPagination')
+
+      const response = await DelegateController.getDelegateWithPagination(paginationParams, filterParams, daoId)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: {
+            daoAddress: rawDelegate.daoAddress,
+            network: rawDelegate.network,
+          },
+          paginationParams: {
+            search: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].network).to.eq(rawDelegate.network)
+      expect(response.data[0].daoAddress).to.eq(rawDelegate.daoAddress)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get delegate with pagination - daoId not found', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+      const daoId = `${rawDelegate.network}-${rawDelegate.daoAddress}`
+
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      const spyReq = sandbox.spy(Models.Delegate, 'findWithPagination')
+
+      const response = await DelegateController.getDelegateWithPagination(paginationParams, filterParams, daoId)
+
+      expect(spyReq.notCalled).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(0)
+    })
   })
 })

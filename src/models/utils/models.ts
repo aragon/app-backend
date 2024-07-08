@@ -83,8 +83,8 @@ const ModelUtils = {
 
     return {
       search: searchAddress,
-      startDateProp: startDateProp,
-      endDateProp: endDateProp,
+      startDateProp,
+      endDateProp,
       startDate: ctx.query.startDate ? Number(ctx.query.startDate) : undefined,
       endDate: ctx.query.endDate ? Number(ctx.query.endDate) : undefined,
       pageSize: Number(ctx.query.pageSize ?? 10),

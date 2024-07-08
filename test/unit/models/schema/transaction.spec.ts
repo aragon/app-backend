@@ -221,6 +221,22 @@ describe('Model: Transaction', () => {
       expect(pageSize).to.eq(10)
     })
 
+    it('should paginate with tokenAddress', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Transaction.findWithPagination({
+        extraParams: { tokenAddress: rawTransaction.tokenAddress },
+        paginationParams: {},
+      })
+
+      expect(data).to.have.lengthOf(2)
+      expect(totalRecords).to.eq(2)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
     it('should find with pagination empty result', async () => {
       const spyUtils = sandbox.spy(ModelUtils, 'paginateEmptyResponse')
       const {
@@ -270,5 +286,11 @@ describe('Model: Transaction', () => {
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.token._id).to.be.undefined
     expect(Object.keys(filterDao).length).to.eq(15)
+  })
+
+  it('Should filterKeys without token', async () => {
+    const createdWithoutToken = await Models.Transaction.create({ ...rawTransaction, ...{ token: undefined } })
+    const withoutToken = createdWithoutToken.filterKeys()
+    expect(withoutToken.token).to.be.undefined
   })
 })

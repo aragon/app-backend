@@ -1,5 +1,6 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
+  type ENS,
   HexAddress,
   type IActiveMemberExtraParams,
   type IMemberExtraParams,
@@ -132,6 +133,10 @@ export default class Member extends Model {
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ id: entityId }, tOpts)
+  }
+
+  static async findByEns(ens: ENS) {
+    return await this.findOne({ ens })
   }
 
   static async findWithPagination({

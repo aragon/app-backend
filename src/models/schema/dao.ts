@@ -196,6 +196,7 @@ export default class Dao extends Model {
         'creatorAddress',
         'ens',
         'name',
+        'subdomain',
         'transactionHash',
       ]),
       ...dynamicFilter,
