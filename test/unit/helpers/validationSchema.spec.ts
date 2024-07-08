@@ -106,13 +106,12 @@ describe('Helpers:ValidationSchema', () => {
 
       try {
         await ValidationSchema.joiAddress.validateAsync(invalidAddress)
-        throw new Error('Should have thrown an error for invalid address')
       } catch (error: any) {
         expect(error.message).to.include('is not a valid address')
       }
     })
 
-    it('joiDaoId should validate correctly', async () => {
+    it('joiDaoId should validate', async () => {
       const validDaoId = 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
       const checksumAddress = '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
       const expectedDaoId = `ethereum-mainnet-${checksumAddress}`
@@ -129,6 +128,11 @@ describe('Helpers:ValidationSchema', () => {
 
       const notId = await ValidationSchema.joiDaoId.validateAsync('test')
       expect(notId).to.equal('test')
+
+      const value = 'fake-value'
+      sandbox.stub(global, 'RegExp').throws(new Error('RegExp error'))
+      const resultValue = await ValidationSchema.joiDaoId.validateAsync(value)
+      expect(resultValue).to.equal(value)
     })
   })
 

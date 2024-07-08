@@ -7,49 +7,7 @@ import { type HexAddress, type IActiveMemberExtraParams, type IMemberExtraParams
 import PaginationSchema from '@api/routers/schema/pagination'
 
 const MemberRouter = {
-  getActiveMembersWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'fromBlockNumber' })
-    const extraParams: IActiveMemberExtraParams = {
-      network: ctx.query.network as NetworksEnum,
-      daoAddress: ctx.query.daoAddress as HexAddress,
-      pluginAddress: ctx.query.pluginAddress as HexAddress,
-      tokenAddress: ctx.query.tokenAddress as HexAddress,
-    }
-    const daoId = ctx.query.daoId as string
-
-    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
-      ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
-      ValidationSchema.validateParams(MemberSchema.getActiveMembersWithPagination, extraParams),
-      ValidationSchema.validateParams(MemberSchema.getDaoById, { id: daoId }),
-    ])
-
-    ctx.body = await MemberController.getActiveMembersWithPagination(
-      formattedPaginationParams,
-      formattedExtraParams,
-      formattedDaoId.id,
-    )
-  },
-
-  getActiveMemberByAddress: async function (ctx: RouterContext) {
-    const params = {
-      address: ctx.params.address,
-    }
-
-    const extraParams: IActiveMemberExtraParams = {
-      network: ctx.query.network as NetworksEnum,
-      daoAddress: ctx.query.daoAddress as HexAddress,
-      pluginAddress: ctx.query.pluginAddress as HexAddress,
-    }
-
-    const [formattedParams, formattedExtraParams] = await Promise.all([
-      ValidationSchema.validateParams(MemberSchema.getMemberByAddress, params),
-      ValidationSchema.validateParams(MemberSchema.getActiveMembersWithPagination, extraParams),
-    ])
-
-    ctx.body = await MemberController.getActiveMemberByAddress(formattedParams.address, formattedExtraParams)
-  },
-
-  getHistoryMembersWithPagination: async function (ctx: RouterContext) {
+  getMembersWithPagination: async function (ctx: RouterContext) {
     const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'fromBlockNumber' })
     const extraParams: IMemberExtraParams = {
       onlyActive: ctx.query.onlyActive ? Boolean(ctx.query.onlyActive) : undefined,
@@ -73,18 +31,90 @@ const MemberRouter = {
     )
   },
 
-  getHistoryMemberByAddress: async function (ctx: RouterContext) {
+  getMemberByAddress: async function (ctx: RouterContext) {
+    const params = {
+      address: ctx.params.address,
+    }
+    const extraParams: IMemberExtraParams = {
+      onlyActive: ctx.query.onlyActive ? Boolean(ctx.query.onlyActive) : undefined,
+      network: ctx.query.network as NetworksEnum,
+      daoAddress: ctx.query.daoAddress as HexAddress,
+      pluginAddress: ctx.query.pluginAddress as HexAddress,
+      tokenAddress: ctx.query.tokenAddress as HexAddress,
+    }
+
+    const [formattedParams, formattedExtraParams] = await Promise.all([
+      ValidationSchema.validateParams(MemberSchema.getMemberByAddress, params),
+      ValidationSchema.validateParams(MemberSchema.getExtraParams, extraParams),
+    ])
+
+    ctx.body = await MemberController.getMemberByAddress(formattedParams.address, formattedExtraParams)
+  },
+
+  getActiveMembersWithPagination: async function (ctx: RouterContext) {
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'fromBlockNumber' })
+    const extraParams: IActiveMemberExtraParams = {
+      network: ctx.query.network as NetworksEnum,
+      daoAddress: ctx.query.daoAddress as HexAddress,
+      pluginAddress: ctx.query.pluginAddress as HexAddress,
+      tokenAddress: ctx.query.tokenAddress as HexAddress,
+    }
+    const daoId = ctx.query.daoId as string
+
+    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
+      ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
+      ValidationSchema.validateParams(MemberSchema.getActiveMembersExtraParams, extraParams),
+      ValidationSchema.validateParams(MemberSchema.getDaoById, { id: daoId }),
+    ])
+
+    ctx.body = await MemberController.getActiveMembersWithPagination(
+      formattedPaginationParams,
+      formattedExtraParams,
+      formattedDaoId.id,
+    )
+  },
+
+  getActiveMemberByAddress: async function (ctx: RouterContext) {
     const params = {
       address: ctx.params.address,
     }
 
-    const formattedValues = await ValidationSchema.validateParams(MemberSchema.getMemberByAddress, params)
+    const extraParams: IActiveMemberExtraParams = {
+      network: ctx.query.network as NetworksEnum,
+      daoAddress: ctx.query.daoAddress as HexAddress,
+      pluginAddress: ctx.query.pluginAddress as HexAddress,
+    }
 
-    ctx.body = await MemberController.getMemberById(formattedValues.address)
+    const [formattedParams, formattedExtraParams] = await Promise.all([
+      ValidationSchema.validateParams(MemberSchema.getMemberByAddress, params),
+      ValidationSchema.validateParams(MemberSchema.getActiveMembersExtraParams, extraParams),
+    ])
+
+    ctx.body = await MemberController.getActiveMemberByAddress(formattedParams.address, formattedExtraParams)
   },
 
   router() {
     const router = new Router()
+
+    /**
+     * @api {get} /history/ Get Members
+     * @apiName Members
+     * @apiGroup Members
+     * @apiDescription Get Members
+     *
+     * @apiSampleRequest /history
+     */
+    router.get('/history', MemberRouter.getMembersWithPagination)
+
+    /**
+     * @api {get} /:address Get Member by address
+     * @apiName Members
+     * @apiGroup Members
+     * @apiDescription Get Member by address
+     *
+     * @apiSampleRequest /member/history/:address
+     */
+    router.get('/history/:address', MemberRouter.getMemberByAddress)
 
     /**
      * @api {get} / Get Members
@@ -98,16 +128,6 @@ const MemberRouter = {
     router.get('/', MemberRouter.getActiveMembersWithPagination)
 
     /**
-     * @api {get} /history/ Get History Members
-     * @apiName Members
-     * @apiGroup Members
-     * @apiDescription Get History Members
-     *
-     * @apiSampleRequest /history
-     */
-    router.get('/history', MemberRouter.getHistoryMembersWithPagination)
-
-    /**
      * @api {get} /:address Get Member by address
      * @apiName Members
      * @apiGroup Members
@@ -116,16 +136,6 @@ const MemberRouter = {
      * @apiSampleRequest /:address
      */
     router.get('/:address', MemberRouter.getActiveMemberByAddress)
-
-    /**
-     * @api {get} /:address Get History Member by address
-     * @apiName Members
-     * @apiGroup Members
-     * @apiDescription Get History Member by address
-     *
-     * @apiSampleRequest /member/:address/history
-     */
-    router.get('/history/:address', MemberRouter.getHistoryMemberByAddress)
 
     return router
   },

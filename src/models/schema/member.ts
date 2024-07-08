@@ -104,10 +104,10 @@ export default class Member extends Model {
   public history?: DaoHistory[]
 
   @prop({ type: () => Number })
-  public lastActivity!: number
+  public lastActivity?: number
 
   @prop({ type: () => Number })
-  public firstActivity!: number
+  public firstActivity?: number
 
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -158,29 +158,50 @@ export default class Member extends Model {
       ...dynamicFilter,
     }
 
-    // only filter active members in dao
-    if (extraParams.onlyActive) {
-      filter['$or'] = [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }]
-    }
-
-    if (extraParams.daoAddress) {
-      filter['history.daoAddress'] = extraParams.daoAddress
-    }
-
-    if (extraParams.pluginAddress) {
-      filter['history.pluginAddress'] = extraParams.pluginAddress
-    }
-
-    if (extraParams.tokenAddress) {
-      filter['history.tokenAddress'] = extraParams.tokenAddress
-    }
-
-    if (extraParams.network) {
-      filter['history.network'] = extraParams.network
+    const historyFilter = {
+      ...(extraParams.tokenAddress && { 'history.tokenAddress': extraParams.tokenAddress }),
+      ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
+      ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
+      ...(extraParams.network && { 'history.network': extraParams.network }),
+      ...(extraParams.onlyActive && {
+        $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+      }),
     }
 
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate([
+        { $match: filter },
+        { $unwind: '$history' },
+        { $match: historyFilter },
+        {
+          $group: {
+            _id: '$_id',
+            address: { $first: '$address' },
+            ens: { $first: '$ens' },
+            history: { $push: '$history' },
+          },
+        },
+        { $sort: request.sort },
+        { $skip: request.skip },
+        { $limit: request.limit },
+        {
+          $project: {
+            _id: 0,
+            address: 1,
+            ens: 1,
+            history: 1,
+          },
+        },
+      ]),
+      this.aggregate([
+        { $match: filter },
+        { $unwind: '$history' },
+        { $match: historyFilter },
+        { $group: { _id: '$_id' } },
+        { $count: 'totalRecords' },
+      ]).then(results => (results[0] ? results[0].totalRecords : 0)),
+    ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
 
@@ -197,6 +218,50 @@ export default class Member extends Model {
       },
       data: data as any,
     }
+  }
+
+  static async findMemberByAddress(
+    address: HexAddress,
+    extraParams: IMemberExtraParams = {},
+  ): Promise<IMembersResponse> {
+    const filter = {
+      address,
+    }
+
+    const member = await this.aggregate([
+      { $match: filter },
+      {
+        $unwind: '$history',
+      },
+      {
+        $match: {
+          ...(extraParams.tokenAddress && { 'history.tokenAddress': extraParams.tokenAddress }),
+          ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
+          ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
+          ...(extraParams.network && { 'history.network': extraParams.network }),
+          ...(extraParams.onlyActive && {
+            $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+          }),
+        },
+      },
+      {
+        $group: {
+          _id: '$_id',
+          address: { $first: '$address' },
+          ens: { $first: '$ens' },
+          history: { $push: '$history' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: 1,
+          ens: 1,
+          history: 1,
+        },
+      },
+    ])
+    return member?.[0] as IMembersResponse
   }
 
   static async findActiveWithPagination({
@@ -220,12 +285,12 @@ export default class Member extends Model {
       filter['history.daoAddress'] = extraParams.daoAddress
     }
 
-    if (extraParams.network) {
-      filter['history.network'] = extraParams.network
-    }
-
     if (extraParams.tokenAddress) {
       filter['history.tokenAddress'] = extraParams.tokenAddress
+    }
+
+    if (extraParams.network) {
+      filter['history.network'] = extraParams.network
     }
 
     const currentPage = request.skip / request.limit + 1
@@ -237,6 +302,7 @@ export default class Member extends Model {
         },
         {
           $match: {
+            ...(extraParams.network && { 'history.network': extraParams.network }),
             $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
           },
         },
@@ -311,6 +377,7 @@ export default class Member extends Model {
       },
       {
         $match: {
+          ...(extraParams.network && { 'history.network': extraParams.network }),
           $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
         },
       },

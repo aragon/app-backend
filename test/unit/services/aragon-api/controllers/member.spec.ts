@@ -229,7 +229,7 @@ describe('Controller: Member', () => {
             votingPower: '100',
             pluginSubdomain: 'token-voting',
           },
-        ],
+        ] as any,
       })
 
       const paginationParams = {
@@ -296,7 +296,7 @@ describe('Controller: Member', () => {
             votingPower: '100',
             pluginSubdomain: 'token-voting',
           },
-        ],
+        ] as any,
       })
 
       const paginationParams = {
@@ -358,7 +358,7 @@ describe('Controller: Member', () => {
             votingPower: '100',
             pluginSubdomain: 'token-voting',
           },
-        ],
+        ] as any,
       })
 
       const paginationParams = {
@@ -433,8 +433,8 @@ describe('Controller: Member', () => {
     })
   })
 
-  describe('getMemberById', () => {
-    it('should getMemberById', async () => {
+  describe('getMemberByAddress', () => {
+    it('should getMemberByAddress', async () => {
       const memberDb = await Models.Member.create({
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
         ens: undefined,
@@ -453,17 +453,17 @@ describe('Controller: Member', () => {
             votingPower: '100',
             pluginSubdomain: 'token-voting',
           },
-        ],
+        ] as any,
       })
 
-      const member = await MemberController.getMemberById(memberDb.id)
+      const member = await MemberController.getMemberByAddress(memberDb.address)
       expect((member as any).history.length).to.eq(1)
     })
 
-    it('should fail to getMemberById', async () => {
-      sandbox.stub(Models.Member, 'findByEntityId').resolves(null)
-      const memberId = 'test-member'
-      await expect(MemberController.getMemberById(memberId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    it('should fail to getMemberByAddress', async () => {
+      sandbox.stub(Models.Member, 'findMemberByAddress').resolves(null)
+      const memberId = 'fake-address'
+      await expect(MemberController.getMemberByAddress(memberId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
     })
   })
 
@@ -487,7 +487,7 @@ describe('Controller: Member', () => {
             votingPower: '100',
             pluginSubdomain: 'token-voting',
           },
-        ],
+        ] as any,
       })
 
       const member = await MemberController.getActiveMemberByAddress(memberDb.address)

@@ -8,6 +8,7 @@ import {
   type IPaginationParams,
   NetworksEnum,
   ITokenType,
+  type IMemberVoteMetrics,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -119,6 +120,86 @@ export default class Vote extends Model {
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ id: entityId }, tOpts)
+  }
+
+  static async findMemberActivity(memberAddress: HexAddress) {
+    const metrics = await this.aggregate([
+      {
+        $facet: {
+          votes: [
+            {
+              $match: {
+                memberAddress,
+              },
+            },
+            {
+              $group: {
+                _id: { memberAddress: '$memberAddress', network: '$network' },
+                firstActivity: { $min: '$blockNumber' },
+                lastActivity: { $max: '$blockNumber' },
+              },
+            },
+            {
+              $project: {
+                address: '$_id.memberAddress',
+                network: '$_id.network',
+                firstActivity: 1,
+                lastActivity: 1,
+              },
+            },
+          ],
+          proposals: [
+            {
+              $match: {
+                creatorAddress: memberAddress,
+              },
+            },
+            {
+              $group: {
+                _id: { creatorAddress: '$creatorAddress', network: '$network' },
+                firstActivity: { $min: '$blockNumber' },
+                lastActivity: { $max: '$blockNumber' },
+              },
+            },
+            {
+              $project: {
+                address: '$_id.creatorAddress',
+                network: '$_id.network',
+                firstActivity: 1,
+                lastActivity: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $project: {
+          activities: {
+            $concatArrays: ['$votes', '$proposals'],
+          },
+        },
+      },
+      {
+        $unwind: '$activities',
+      },
+      {
+        $group: {
+          _id: { address: '$activities.address', network: '$activities.network' },
+          firstActivity: { $min: '$activities.firstActivity' },
+          lastActivity: { $max: '$activities.lastActivity' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: '$_id.address',
+          network: '$_id.network',
+          firstActivity: 1,
+          lastActivity: 1,
+        },
+      },
+    ])
+    return metrics?.[0] as IMemberVoteMetrics
   }
 
   static async findWithPagination({
