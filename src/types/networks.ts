@@ -17,6 +17,8 @@ export enum NetworksEnum {
   polygonMainnet = 'polygon-mainnet',
   baseMainnet = 'base-mainnet',
   arbitrumMainnet = 'arbitrum-mainnet',
+  zksyncSepolia = 'zksync-sepolia',
+  zksyncMainnet = 'zksync-mainnet',
 }
 
 export enum StatusNetworkEnum {

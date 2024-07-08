@@ -28,6 +28,9 @@ export default class LogMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
+  @prop({ type: () => Number, default: 0 })
+  public txIndex!: number
+
   @prop({ type: () => String, enum: IEventLogMember, required: true })
   public event!: IEventLogMember
 
@@ -68,6 +71,7 @@ export default class LogMember extends Model {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.event, 'event is required')
+      assert(!!rawData.pluginAddress, 'pluginAddress is required')
       assert(!!rawData.address, 'address is required')
       assert(!!rawData.network, 'network is required')
       rawData.id = this.getEntityId({
@@ -75,6 +79,8 @@ export default class LogMember extends Model {
         event: rawData?.event!,
         address: rawData?.address!,
         network: rawData?.network!,
+        pluginAddress: rawData?.pluginAddress!,
+        txIndex: rawData?.txIndex ?? 0,
       })
     }
     const data = new this(rawData)
@@ -82,7 +88,7 @@ export default class LogMember extends Model {
   }
 
   static getEntityId(params: ILogMemberIdParams) {
-    return `${params.transactionHash}-${params.event}-${params.address}-${params.network}`
+    return `${params.network}-${params.transactionHash}-${params.event}-${params.pluginAddress}-${params.address}-${params.txIndex}`
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {

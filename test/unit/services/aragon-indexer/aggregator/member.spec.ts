@@ -6,6 +6,7 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { NetworksEnum } from '@types'
 import Logger from '@logger'
+import Web3Helper from '@helpers/web3'
 
 describe('Indexer:Aggregator:Member', () => {
   let sandbox: SinonSandbox
@@ -13,6 +14,7 @@ describe('Indexer:Aggregator:Member', () => {
   const rawDaoDoc = {
     network: NetworksEnum.ethereumMainnet,
     pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+    pluginSubdomain: 'token-voting',
     fromBlockNumber: 1,
     toBlockNumber: 2,
     daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
@@ -21,6 +23,7 @@ describe('Indexer:Aggregator:Member', () => {
     delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
     delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
     votingPower: '100',
+    tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
   }
 
   beforeEach(async () => {
@@ -60,49 +63,129 @@ describe('Indexer:Aggregator:Member', () => {
   it('should call onDocument', async () => {
     const document = {
       address: '0x123',
-      daos: [rawDaoDoc],
+      history: [rawDaoDoc],
     }
 
     const stubLogger = sandbox.stub(Logger, 'verbose')
-
+    const getMemberDataStub = sandbox.stub(AggregatorMembers, '_getMemberData').resolves(document as any)
     await AggregatorMembers.onDocument(document as any)
 
     expect(stubLogger.calledOnce).to.be.true
-
+    expect(getMemberDataStub.calledOnce).to.be.true
     const member = await Models.Member.findExistingLog({ address: document.address })
     expect(member.address).to.equal(document.address)
     expect(member.ens).to.be.null
-    expect(member.daos.length).to.eq(1)
-    expect(member.daos[0].network).to.eq(NetworksEnum.ethereumMainnet)
-    expect(member.daos[0].pluginAddress).to.eq(document.daos[0].pluginAddress)
-    expect(member.daos[0].fromBlockNumber).to.eq(document.daos[0].fromBlockNumber)
-    expect(member.daos[0].toBlockNumber).to.eq(document.daos[0].toBlockNumber)
-    expect(member.daos[0].fromTxHash).to.eq(document.daos[0].fromTxHash)
-    expect(member.daos[0].toTxHash).to.eq(document.daos[0].toTxHash)
-    expect(member.daos[0].delegateFromAddress).to.eq(document.daos[0].delegateFromAddress)
-    expect(member.daos[0].delegateToAddress).to.eq(document.daos[0].delegateToAddress)
-    expect(member.daos[0].votingPower).to.eq(document.daos[0].votingPower)
+    expect(member.history.length).to.eq(1)
+    expect(member.history[0].network).to.eq(NetworksEnum.ethereumMainnet)
+    expect(member.history[0].pluginAddress).to.eq(document.history[0].pluginAddress)
+    expect(member.history[0].pluginSubdomain).to.eq(document.history[0].pluginSubdomain)
+    expect(member.history[0].fromBlockNumber).to.eq(document.history[0].fromBlockNumber)
+    expect(member.history[0].toBlockNumber).to.eq(document.history[0].toBlockNumber)
+    expect(member.history[0].fromTxHash).to.eq(document.history[0].fromTxHash)
+    expect(member.history[0].toTxHash).to.eq(document.history[0].toTxHash)
+    expect(member.history[0].delegateFromAddress).to.eq(document.history[0].delegateFromAddress)
+    expect(member.history[0].delegateToAddress).to.eq(document.history[0].delegateToAddress)
+    expect(member.history[0].votingPower).to.eq(document.history[0].votingPower)
   })
 
   it('should update an existing aggregate member log', async () => {
     const rawDoc = {
       address: '0x12345',
-      daos: [rawDaoDoc],
+      history: [rawDaoDoc],
     }
     const dbDoc = await Models.Member.create(rawDoc)
     const loggerSpy = sandbox.stub(Logger, 'verbose')
+    sandbox.stub(AggregatorMembers, '_getMemberData').resolves(rawDoc as any)
 
-    rawDoc.daos[0].delegateFromAddress = '0x011'
+    rawDoc.history[0].delegateFromAddress = '0x011'
     await AggregatorMembers.onDocument(rawDoc as any)
 
     const updatedDoc = await dbDoc.reload()
 
-    expect(updatedDoc.daos[0].delegateFromAddress).to.equal('0x011')
+    expect(updatedDoc.history[0].delegateFromAddress).to.equal('0x011')
     expect(loggerSpy.calledOnceWith('Update Aggregate Member' as any)).to.be.true
   })
 
-  it('should use default date when none is provided', () => {
-    const pipeline = AggregatorMembers.query()
-    expect(pipeline[0]['$match']?.event.$in.length).to.eq(3)
+  it('should use query', () => {
+    const pipeline = AggregatorMembers.query([], [])
+    expect(pipeline.length).to.eq(6)
+
+    const pipeline2 = AggregatorMembers.queryVotingPowerMembers([])
+    expect(pipeline2.length).to.eq(9)
+
+    const pipeline3 = AggregatorMembers.queryMultisigMembers([])
+    expect(pipeline3.length).to.eq(13)
+  })
+
+  describe('_getMemberData', () => {
+    it('should get member related data', async () => {
+      const rawMember = {
+        address: '0x123',
+        ens: null,
+        history: [
+          {
+            ...rawDaoDoc,
+            toBlockNumber: null,
+          },
+        ],
+      }
+
+      const web3Stub = sandbox.stub(Web3Helper, 'getEnsFromAddress').resolves('user-ens')
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123)
+      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves('100')
+      const delegateCountStub = sandbox.stub(Models.Delegate, 'countDocuments').resolves(1)
+      const activityDateStub = sandbox.stub(AggregatorMembers, '_getMemberActivityDates').resolves({
+        firstActivity: 12313,
+        lastActivity: 123123,
+      })
+
+      const member = await AggregatorMembers._getMemberData(rawMember as any)
+
+      expect(web3Stub.calledOnce).to.be.true
+      expect(getERC20BalanceStub.calledOnce).to.be.true
+      expect(getERC20BalanceStub.calledWith(rawMember.address, rawDaoDoc.tokenAddress, rawDaoDoc.network)).to.be.true
+
+      expect(delegateCountStub.calledOnce).to.be.true
+      expect(
+        delegateCountStub.calledWith({
+          toDelegate: rawMember.address,
+          tokenAddress: rawDaoDoc.tokenAddress,
+        }),
+      ).to.be.true
+
+      expect(activityDateStub.calledOnce).to.be.true
+      expect(activityDateStub.calledWith(rawMember.address)).to.be.true
+
+      expect(getBlockTimestampStub.calledOnce).to.be.true
+
+      expect(member.ens).to.eq('user-ens')
+    })
+
+    it('should get the member activity dates', async () => {
+      const network = NetworksEnum.ethereumSepolia
+      const memberAddress = '0x123'
+      const expectedFirstActivity = 12313
+      const expectedLastActivity = 123123
+
+      const voteAggregationStub = sandbox.stub(Models.Vote, 'findMemberActivity').resolves({
+        network,
+        memberAddress,
+        firstActivity: expectedFirstActivity,
+        lastActivity: expectedLastActivity,
+      })
+
+      const currentTime = Date.now()
+
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(currentTime)
+
+      const { firstActivity, lastActivity } = await AggregatorMembers._getMemberActivityDates(memberAddress)
+
+      expect(getBlockTimestampStub.calledTwice).to.be.true
+      expect(getBlockTimestampStub.calledWith(expectedFirstActivity, network)).to.be.true
+      expect(getBlockTimestampStub.calledWith(expectedLastActivity, network)).to.be.true
+      expect(voteAggregationStub.calledOnce).to.be.true
+      expect(firstActivity).to.eq(currentTime)
+      expect(lastActivity).to.eq(currentTime)
+    })
   })
 })

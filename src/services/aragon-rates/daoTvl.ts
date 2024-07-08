@@ -23,7 +23,7 @@ export const DaoTvl = {
         const dao = await Models.Dao.findExistingLog({ address: data.address, network: data.network })
         if (dao) {
           await DbTx.executeTxFn(async ({ session }) => {
-            await dao.update({ tvlUSD: data.tvlUsd.toString() }, { session })
+            await dao.update({ tvlUSD: data.tvlUsd }, { session })
             await session.commitTransaction()
             await session.endSession()
           })

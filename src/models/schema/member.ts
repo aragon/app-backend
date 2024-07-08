@@ -1,6 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
+  type IActiveMemberExtraParams,
   type IMemberExtraParams,
   type IMemberIdParams,
   type IMembersResponse,
@@ -15,12 +16,35 @@ import ModelUtils from '@models/utils/models'
 
 const customName = 'Member'
 
-class MemberDao {
+export class Metrics {
+  @prop({ type: () => String })
+  public tokenBalance!: string
+
+  @prop({ type: () => Number })
+  public delegateCount!: number
+
+  @prop({ type: () => Number })
+  public voteCount!: number
+
+  @prop({ type: () => Number })
+  public proposalCount!: number
+}
+
+export class DaoHistory {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
-  @prop({ type: () => String, required: true })
-  public daoAddress!: HexAddress
+  @prop({ type: () => Number })
+  public fromBlockNumber!: number
+
+  @prop({ type: () => Number })
+  public toBlockNumber!: number
+
+  @prop({ type: () => String })
+  public fromTxHash!: HexAddress
+
+  @prop({ type: () => String })
+  public toTxHash!: HexAddress
 
   @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
@@ -28,17 +52,11 @@ class MemberDao {
   @prop({ type: () => String, default: null })
   public pluginSubdomain!: string
 
-  @prop({ type: () => Number })
-  public fromBlockNumber!: number
+  @prop({ type: () => String, default: null })
+  public tokenAddress!: HexAddress
 
-  @prop({ type: () => String })
-  public fromTxHash!: HexAddress
-
-  @prop({ type: () => Number })
-  public toBlockNumber!: number
-
-  @prop({ type: () => String })
-  public toTxHash!: HexAddress
+  @prop({ type: () => String, required: true })
+  public daoAddress!: HexAddress
 
   @prop({ type: () => String })
   public votingPower!: string
@@ -48,6 +66,12 @@ class MemberDao {
 
   @prop({ type: () => String })
   public delegateToAddress!: HexAddress
+
+  @prop({ type: () => Metrics, _id: false, default: null })
+  public metrics!: Metrics
+
+  @prop({ type: () => Number, default: 0 })
+  public fromBlockTimestamp!: number
 }
 
 @modelOptions({
@@ -64,7 +88,7 @@ class MemberDao {
 })
 @index({
   address: 1,
-  'daos.pluginAddress': 1,
+  'history.pluginAddress': 1,
 })
 export default class Member extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -76,8 +100,14 @@ export default class Member extends Model {
   @prop({ type: () => String, default: null })
   public ens!: HexAddress
 
-  @prop({ type: () => [MemberDao], default: [] })
-  public daos?: MemberDao[]
+  @prop({ type: () => [DaoHistory], _id: false, default: [] })
+  public history?: DaoHistory[]
+
+  @prop({ type: () => Number })
+  public lastActivity?: number
+
+  @prop({ type: () => Number })
+  public firstActivity?: number
 
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -119,6 +149,7 @@ export default class Member extends Model {
           key !== 'network' &&
           key !== 'daoAddress' &&
           key !== 'pluginAddress' &&
+          key !== 'tokenAddress' &&
           key !== 'onlyActive',
       ),
     )
@@ -127,28 +158,31 @@ export default class Member extends Model {
       ...dynamicFilter,
     }
 
-    // only filter active members in dao
-    if (extraParams.onlyActive) {
-      filter['$or'] = [{ 'daos.toBlockNumber': null }, { 'daos.toBlockNumber': { $exists: false } }]
-    }
-
-    if (extraParams.daoAddress) {
-      filter['daos.daoAddress'] = extraParams.daoAddress
-    }
-
-    if (extraParams.pluginAddress) {
-      filter['daos.pluginAddress'] = extraParams.pluginAddress
-    }
-
-    if (extraParams.network) {
-      filter['daos.network'] = extraParams.network
+    const historyFilter = {
+      ...(extraParams.tokenAddress && { 'history.tokenAddress': extraParams.tokenAddress }),
+      ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
+      ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
+      ...(extraParams.network && { 'history.network': extraParams.network }),
+      ...(extraParams.onlyActive && {
+        $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+      }),
     }
 
     const currentPage = request.skip / request.limit + 1
     const [data, totalRecords] = await Promise.all([
       this.aggregate([
-        { $unwind: '$daos' },
         { $match: filter },
+        { $unwind: '$history' },
+        { $match: historyFilter },
+        {
+          $group: {
+            _id: '$_id',
+            address: { $first: '$address' },
+            ens: { $first: '$ens' },
+            history: { $push: '$history' },
+          },
+        },
+        { $sort: request.sort },
         { $skip: request.skip },
         { $limit: request.limit },
         {
@@ -156,20 +190,17 @@ export default class Member extends Model {
             _id: 0,
             address: 1,
             ens: 1,
-            fromBlockNumber: '$daos.fromBlockNumber',
-            toBlockNumber: '$daos.toBlockNumber',
-            votingPower: {
-              $cond: {
-                if: { $gt: [{ $type: '$daos.votingPower' }, 'missing'] },
-                then: '$daos.votingPower',
-                else: '$$REMOVE',
-              },
-            },
+            history: 1,
           },
         },
-        { $sort: request.sort },
       ]),
-      this.countDocuments(filter),
+      this.aggregate([
+        { $match: filter },
+        { $unwind: '$history' },
+        { $match: historyFilter },
+        { $group: { _id: '$_id' } },
+        { $count: 'totalRecords' },
+      ]).then(results => (results[0] ? results[0].totalRecords : 0)),
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
@@ -185,8 +216,192 @@ export default class Member extends Model {
         totalPages,
         totalRecords,
       },
-      data,
+      data: data as any,
     }
+  }
+
+  static async findMemberByAddress(
+    address: HexAddress,
+    extraParams: IMemberExtraParams = {},
+  ): Promise<IMembersResponse> {
+    const filter = {
+      address,
+    }
+
+    const member = await this.aggregate([
+      { $match: filter },
+      {
+        $unwind: '$history',
+      },
+      {
+        $match: {
+          ...(extraParams.tokenAddress && { 'history.tokenAddress': extraParams.tokenAddress }),
+          ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
+          ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
+          ...(extraParams.network && { 'history.network': extraParams.network }),
+          ...(extraParams.onlyActive && {
+            $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+          }),
+        },
+      },
+      {
+        $group: {
+          _id: '$_id',
+          address: { $first: '$address' },
+          ens: { $first: '$ens' },
+          history: { $push: '$history' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: 1,
+          ens: 1,
+          history: 1,
+        },
+      },
+    ])
+    return member?.[0] as IMembersResponse
+  }
+
+  static async findActiveWithPagination({
+    extraParams = {},
+    paginationParams = {},
+  }: {
+    extraParams?: IActiveMemberExtraParams
+    paginationParams?: IPaginationParams
+  }): Promise<IPaginatedResult<IMembersResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, ['address', 'ens']),
+    }
+
+    if (extraParams.pluginAddress) {
+      filter['history.pluginAddress'] = extraParams.pluginAddress
+    }
+
+    if (extraParams.daoAddress) {
+      filter['history.daoAddress'] = extraParams.daoAddress
+    }
+
+    if (extraParams.tokenAddress) {
+      filter['history.tokenAddress'] = extraParams.tokenAddress
+    }
+
+    if (extraParams.network) {
+      filter['history.network'] = extraParams.network
+    }
+
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate([
+        { $match: filter },
+        {
+          $unwind: '$history',
+        },
+        {
+          $match: {
+            ...(extraParams.network && { 'history.network': extraParams.network }),
+            $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            address: '$address',
+            ens: '$ens',
+            network: '$history.network',
+            fromBlockNumber: '$history.fromBlockNumber',
+            fromTxHash: '$history.fromTxHash',
+            pluginAddress: '$history.pluginAddress',
+            pluginSubdomain: '$history.pluginSubdomain',
+            tokenAddress: '$history.tokenAddress',
+            daoAddress: '$history.daoAddress',
+            votingPower: '$history.votingPower',
+            // delegateFromAddress: '$history.delegateFromAddress',
+            // delegateToAddress: '$history.delegateToAddress',
+          },
+        },
+        { $sort: request.sort },
+        { $skip: request.skip },
+        { $limit: request.limit },
+      ]),
+      this.countDocuments({
+        ...filter,
+        $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+      }),
+    ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data: data as any,
+    }
+  }
+
+  static async findActiveMember(
+    address: HexAddress,
+    extraParams: IActiveMemberExtraParams = {},
+  ): Promise<IMembersResponse> {
+    const filter = {
+      address,
+    }
+
+    if (extraParams.pluginAddress) {
+      filter['history.pluginAddress'] = extraParams.pluginAddress
+    }
+
+    if (extraParams.daoAddress) {
+      filter['history.daoAddress'] = extraParams.daoAddress
+    }
+
+    if (extraParams.network) {
+      filter['history.network'] = extraParams.network
+    }
+
+    const member = await this.aggregate([
+      { $match: filter },
+      {
+        $unwind: '$history',
+      },
+      {
+        $match: {
+          ...(extraParams.network && { 'history.network': extraParams.network }),
+          $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: '$address',
+          ens: '$ens',
+          network: '$history.network',
+          fromBlockNumber: '$history.fromBlockNumber',
+          // toBlockNumber: '$history.toBlockNumber',
+          fromTxHash: '$history.fromTxHash',
+          // toTxHash: '$history.toTxHash',
+          pluginAddress: '$history.pluginAddress',
+          pluginSubdomain: '$history.pluginSubdomain',
+          tokenAddress: '$history.tokenAddress',
+          daoAddress: '$history.daoAddress',
+          votingPower: '$history.votingPower',
+          // delegateFromAddress: '$history.delegateFromAddress',
+          // delegateToAddress: '$history.delegateToAddress',
+        },
+      },
+    ])
+    return member?.[0] as IMembersResponse
   }
 
   async update(params: Partial<Member>, tOpts?: SaveOptions) {
@@ -209,16 +424,16 @@ export default class Member extends Model {
     return await this.model(customName).findById(this._id, tOpts)
   }
 
-  filterMemberKeys() {
+  filterMemberOnlyKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'daos', 'createdAt', 'updatedAt')
+    const filtered = _.omit(obj, '_id', 'id', '__v', 'history', 'createdAt', 'updatedAt')
     return filtered
   }
 
   filterKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
-    filtered.daos = _.omit(filtered.daos, '_id', '__v')
+    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
+    filtered.history = filtered.history.map((h: any) => _.omit(h, '_id', '__v'))
     return filtered
   }
 }

@@ -21,6 +21,7 @@ import { AggregatorAssets } from '@services/aragon-indexer/aggregator/asset'
 import { AggregatorTransactions } from '@services/aragon-indexer/aggregator/transaction'
 import { AggregatorDao } from '@services/aragon-indexer/aggregator/dao'
 import { AggregatorProposal } from '@indexer/aggregator/proposal'
+import { AggregatorDelegate } from '@indexer/aggregator/delegate'
 
 describe('Indexer: index', () => {
   let sandbox: SinonSandbox
@@ -56,6 +57,7 @@ describe('Indexer: index', () => {
       sandbox.stub(AggregatorAssets, 'start').resolves(),
       sandbox.stub(AggregatorTransactions, 'start').resolves(),
       sandbox.stub(AggregatorProposal, 'start').resolves(),
+      sandbox.stub(AggregatorDelegate, 'start').resolves(),
       sandbox.stub(AggregatorDao, 'start').resolves(),
     ]
 

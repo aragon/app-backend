@@ -1,15 +1,25 @@
 import logger from '@logger'
-import { IEventLogPluginType, type ILogInfo, ITokenType } from '@types'
+import { IEventLogPluginMembership, IEventLogPluginType, type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import Utils from '@helpers/utils'
 import { UtilsIndexer } from '@indexer/utils/indexer'
+import Web3Helper from '@helpers/web3'
+import { TokenVoting } from '@artifacts/TokenVoting'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:pluginSetupProcessorHandler' })
 
 export const PluginSetupProcessorHandler = {
   installationApplied: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const daoAddress = parsedEvent.args.dao
+    const existingDao = await Models.LogDaoRegistry.findByAddress(daoAddress, info.network)
+
+    if (!existingDao) {
+      logger.warn('dao not found', llo({ ...info, parsedEvent }))
+      return
+    }
+
     try {
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
         transactionHash: info.transactionHash,
@@ -21,7 +31,7 @@ export const PluginSetupProcessorHandler = {
           const pluginLog = {
             event: IEventLogPluginType.InstallationApplied,
             network: info.network,
-            daoAddress: parsedEvent.args.dao,
+            daoAddress,
             preparedSetupId: parsedEvent.args.preparedSetupId,
             appliedSetupId: parsedEvent.args.appliedSetupId,
             pluginAddress: parsedEvent.args.plugin,
@@ -41,13 +51,13 @@ export const PluginSetupProcessorHandler = {
   },
 
   installationPrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    /**
-     * As the tx log can a transaction Object or transaction receipt,
-     * We need to properly extract the transaction hash and block number
-     *
-     * This situation occurs when its is called from the daoRegistryHandler,
-     * dao creation lifecycle
-     */
+    const daoAddress = parsedEvent.args.dao
+    const existingDao = await Models.LogDaoRegistry.findByAddress(daoAddress, info.network)
+
+    if (!existingDao) {
+      logger.warn('dao not found', llo({ ...info, parsedEvent }))
+      return
+    }
 
     try {
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
@@ -57,12 +67,12 @@ export const PluginSetupProcessorHandler = {
 
       if (!existingLog) {
         await DbTx.executeTxFn(async ({ session }) => {
-          const pluginLog = {
+          const rawPluginLog = {
             event: IEventLogPluginType.InstallationPrepared,
             network: info.network,
-            permissions: Utils.parsePermissions(parsedEvent.args.preparedSetupData.permissions),
+            permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
             sender: parsedEvent.args.sender,
-            daoAddress: parsedEvent.args.dao,
+            daoAddress,
             preparedSetupId: parsedEvent.args.preparedSetupId,
             pluginSetupRepo: parsedEvent.args.pluginSetupRepo,
             pluginAddress: parsedEvent.args.plugin,
@@ -75,24 +85,24 @@ export const PluginSetupProcessorHandler = {
 
           /**
            * If the plugin is tokenBased then we need to save the token address
-           * The token address is inside the preparedSetupData tuple (struct) and
-           * in the helpers array. The first element of the helpers array is the token address
-           * as per the findings
            */
+          const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+          const pluginSetupLogs = Web3Helper.findLogsByName(
+            txReceipt!,
+            IEventLogPluginMembership.MembershipContractAnnounced,
+            TokenVoting.abi,
+          )
 
-          if (parsedEvent.args.preparedSetupData?.helpers && parsedEvent.args.preparedSetupData.helpers.length === 1) {
-            const tokenAddress = parsedEvent.args.preparedSetupData.helpers[0]
-            const token = await UtilsIndexer.saveAndGetToken(tokenAddress, info.network)
+          if (pluginSetupLogs.length > 0) {
+            const tokenAddress = pluginSetupLogs[0]?.parsed?.args?.[0]
 
-            /**
-             * If Token type is GovernanceERC20 then we save the token address
-             */
-            if (token?.type === ITokenType.GovernanceERC20) {
-              pluginLog.tokenAddress = tokenAddress
+            if (tokenAddress) {
+              await UtilsIndexer.saveAndGetToken(tokenAddress, info.network)
+              rawPluginLog.tokenAddress = tokenAddress
             }
           }
 
-          const logDb = await Models.LogPluginSetupProcessor.create(pluginLog, { session } as any)
+          const logDb = await Models.LogPluginSetupProcessor.create(rawPluginLog, { session } as any)
 
           await session.commitTransaction()
           await session.endSession()
@@ -105,6 +115,14 @@ export const PluginSetupProcessorHandler = {
   },
 
   uninstallationApplied: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const daoAddress = parsedEvent.args.dao
+    const existingDao = await Models.LogDaoRegistry.findByAddress(daoAddress, info.network)
+
+    if (!existingDao) {
+      logger.warn('dao not found', llo({ ...info, parsedEvent }))
+      return
+    }
+
     try {
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
         transactionHash: info.transactionHash,
@@ -116,7 +134,7 @@ export const PluginSetupProcessorHandler = {
           const pluginLog = {
             event: IEventLogPluginType.UninstallationApplied,
             network: info.network,
-            daoAddress: parsedEvent.args.dao,
+            daoAddress,
             preparedSetupId: parsedEvent.args.preparedSetupId,
             pluginAddress: parsedEvent.args.plugin,
             blockNumber: info.blockNumber,
@@ -135,6 +153,14 @@ export const PluginSetupProcessorHandler = {
   },
 
   uninstallationPrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const daoAddress = parsedEvent.args.dao
+    const existingDao = await Models.LogDaoRegistry.findByAddress(daoAddress, info.network)
+
+    if (!existingDao) {
+      logger.warn('dao not found', llo({ ...info, parsedEvent }))
+      return
+    }
+
     try {
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
         transactionHash: info.transactionHash,
@@ -146,9 +172,9 @@ export const PluginSetupProcessorHandler = {
           const pluginLog = {
             event: IEventLogPluginType.UninstallationPrepared,
             network: info.network,
-            permissions: Utils.parsePermissions(parsedEvent.args.preparedSetupData.permissions),
+            permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
             sender: parsedEvent.args.sender,
-            daoAddress: parsedEvent.args.dao,
+            daoAddress,
             preparedSetupId: parsedEvent.args.preparedSetupId,
             pluginSetupRepo: parsedEvent.args.pluginSetupRepo,
             pluginAddress: parsedEvent.args.plugin,
@@ -170,6 +196,14 @@ export const PluginSetupProcessorHandler = {
   },
 
   updateApplied: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const daoAddress = parsedEvent.args.dao
+    const existingDao = await Models.LogDaoRegistry.findByAddress(daoAddress, info.network)
+
+    if (!existingDao) {
+      logger.warn('dao not found', llo({ ...info, parsedEvent }))
+      return
+    }
+
     try {
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
         transactionHash: info.transactionHash,
@@ -181,7 +215,7 @@ export const PluginSetupProcessorHandler = {
           const pluginLog = {
             event: IEventLogPluginType.UpdateApplied,
             network: info.network,
-            daoAddress: parsedEvent.args.dao,
+            daoAddress,
             preparedSetupId: parsedEvent.args.preparedSetupId,
             appliedSetupId: parsedEvent.args.appliedSetupId,
             pluginAddress: parsedEvent.args.plugin,
@@ -201,6 +235,14 @@ export const PluginSetupProcessorHandler = {
   },
 
   updatePrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const daoAddress = parsedEvent.args.dao
+    const existingDao = await Models.LogDaoRegistry.findByAddress(daoAddress, info.network)
+
+    if (!existingDao) {
+      logger.warn('dao not found', llo({ ...info, parsedEvent }))
+      return
+    }
+
     try {
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
         transactionHash: info.transactionHash,
@@ -212,9 +254,9 @@ export const PluginSetupProcessorHandler = {
           const pluginLog = {
             event: IEventLogPluginType.UpdatePrepared,
             network: info.network,
-            permissions: Utils.parsePermissions(parsedEvent.args.preparedSetupData.permissions),
+            permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
             sender: parsedEvent.args.sender,
-            daoAddress: parsedEvent.args.dao,
+            daoAddress,
             preparedSetupId: parsedEvent.args.preparedSetupId,
             pluginSetupRepo: parsedEvent.args.pluginSetupRepo,
             pluginAddress: parsedEvent.args.setupPayload.plugin,

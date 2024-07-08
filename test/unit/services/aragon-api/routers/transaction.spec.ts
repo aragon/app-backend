@@ -20,7 +20,7 @@ describe('Router: Transaction', () => {
     it('Should get transaction with pagination - all params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
-        daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         category: ITransactionCategory.ERC20,
       }
       const paginationParams = {
@@ -47,7 +47,11 @@ describe('Router: Transaction', () => {
         search: undefined,
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
-      expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        daoAddress: filterParams.address,
+        network: filterParams.network,
+        category: filterParams.category,
+      })
     })
 
     it('Should get transaction with pagination - daoId', async () => {

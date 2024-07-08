@@ -25,15 +25,17 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     ARAGON_SUPPORTED_BLOCK: {
-      ETHEREUM_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ETHEREUM_MAINNET', 16721863),
-      ETHEREUM_SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ETHEREUM_SEPOLIA', 4421517),
+      ETHEREUM_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ETHEREUM_MAINNET', 16721812),
+      ETHEREUM_SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ETHEREUM_SEPOLIA', 4415294),
       POLYGON_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_POLYGON_MAINNET', 40830344),
-      BASE_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_BASE_MAINNET', 2094740),
+      BASE_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_BASE_MAINNET', 2094724),
+      ZKSYNC_SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ZKSYNC_SEPOLIA', 2441204),
+      ZKSYNC_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ZKSYNC_MAINNET', 37460765), // zkSync ERA
       ARBITRUM_MAINNET: utils.configParser(
         sourceConfig,
         'number',
         'ARAGON_SUPPORTED_BLOCK_ARBITRUM_MAINNET',
-        145462209,
+        145462155,
       ),
     },
 
@@ -49,6 +51,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       NODE_TRANSFER_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_TRANSFER_MIN_TIME', 1500),
       COINGECKO_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COINGECKO_MAX_CONCURRENT', 1),
       COINGECKO_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COINGECKO_MIN_TIME', 2000),
+      COVALENT_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COVALENT_MAX_CONCURRENT', 1),
+      COVALENT_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COVALENT_MIN_TIME', 20),
+      FOUR_BYTE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_FOUR_BYTE_MAX_CONCURRENT', 1),
+      FOUR_BYTE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_FOUR_BYTE_MIN_TIME', 20),
     },
 
     MONGO_DB: {
@@ -80,6 +86,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     COINGECKO: {
       URI: utils.configParser(sourceConfig, 'string', 'COINGECKO_URI', 'https://api.coingecko.com/api/v3'),
       API_KEY: utils.configParser(sourceConfig, 'string', 'COINGECKO_API_KEY', null),
+    },
+
+    FOUR_BYTE: {
+      URI: utils.configParser(sourceConfig, 'string', 'FOUR_BYTE_URI', 'https://www.4byte.directory/api/v1'),
     },
 
     ETHERSCAN: {
@@ -117,6 +127,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       POLYGON_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_POLYGON_MAINNET', null),
       BASE_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE_MAINNET', null),
       ARBITRUM_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM_MAINNET', null),
+      ZKSYNC_SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ZKSYNC_SEPOLIA', null),
+      ZKSYNC_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ZKSYNC_MAINNET', null),
     },
 
     SERVICES: {
@@ -129,6 +141,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
 
       ARAGON_INDEXER: {
+        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_INDEXER_NAME', 'ARAGON-INDEXER'),
         DAO_INTERVAL: utils.configParser(
           sourceConfig,
           'number',
@@ -156,6 +169,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
 
       ARAGON_RATES: {
+        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_RATES_NAME', 'ARAGON-RATES'),
         RATES_INTERVAL: utils.configParser(
           sourceConfig,
           'number',

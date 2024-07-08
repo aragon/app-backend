@@ -7,6 +7,8 @@ import ProposalRouter from './proposal'
 import SettingRouter from './setting'
 import TokenRouter from './token'
 import TransactionRouter from './transaction'
+import DelegateRouter from './delegate'
+import VoteRouter from '@api/routers/vote'
 
 const MainRouter = {
   router() {
@@ -18,6 +20,8 @@ const MainRouter = {
     const statusRouter = StatusRouter.router()
     const tokenRouter = TokenRouter.router()
     const transactionRouter = TransactionRouter.router()
+    const delegateRouter = DelegateRouter.router()
+    const voteRouter = VoteRouter.router()
 
     const mainRouter = new Router()
 
@@ -30,6 +34,8 @@ const MainRouter = {
     mainRouter.use('/settings', settingRouter.routes(), settingRouter.allowedMethods())
     mainRouter.use('/tokens', tokenRouter.routes(), tokenRouter.allowedMethods())
     mainRouter.use('/transactions', transactionRouter.routes(), transactionRouter.allowedMethods())
+    mainRouter.use('/delegates', delegateRouter.routes(), delegateRouter.allowedMethods())
+    mainRouter.use('/votes', voteRouter.routes(), voteRouter.allowedMethods())
 
     return mainRouter
   },

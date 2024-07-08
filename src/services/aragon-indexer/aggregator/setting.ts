@@ -3,6 +3,8 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Setting from '@models/schema/setting'
+import { NetworkHelper } from '@helpers/network'
+import { type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorSetting' })
 
@@ -10,14 +12,15 @@ export const AggregatorSetting = {
   start: async () => {
     logger.verbose('Start AggregatorSetting', llo({}))
 
+    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
       model: Models.LogPluginSetting,
       onDocument: AggregatorSetting.onDocument,
-      onError: (error: any) => {
-        logger.error('Error AggregatorSetting', llo({ error }))
+      onError: (error: any, document: any) => {
+        logger.error('Error AggregatorSetting', llo({ error, document }))
       },
       useAggregate: true,
-      aggregate: AggregatorSetting.query(),
+      aggregate: AggregatorSetting.query(supportedNetworks),
       batchSize: 1000,
       concurrency: 1,
     })
@@ -45,8 +48,13 @@ export const AggregatorSetting = {
     })
   },
 
-  query() {
+  query(networks: NetworksEnum[]) {
     return [
+      {
+        $match: {
+          ...(networks?.length > 0 && { network: { $in: networks } }),
+        },
+      },
       {
         $sort: { blockNumber: 1 },
       },
@@ -64,6 +72,10 @@ export const AggregatorSetting = {
           from: 'logPluginSetupProcessor',
           localField: '_id.pluginAddress',
           foreignField: 'pluginAddress',
+          pipeline: [
+            { $match: { event: 'InstallationPrepared' } },
+            { $project: { daoAddress: 1, pluginAddress: 1, pluginSetupRepo: 1, subdomain: 1, tokenAddress: 1 } },
+          ],
           as: 'pluginInfo',
         },
       },
@@ -122,6 +134,7 @@ export const AggregatorSetting = {
         $project: {
           _id: 0,
           daoAddress: { $arrayElemAt: ['$pluginInfo.daoAddress', 0] },
+          token: { $arrayElemAt: ['$pluginInfo.tokenAddress', 0] },
           pluginAddress: '$_id.pluginAddress',
           pluginSubdomain: 1,
           network: '$_id.network',
@@ -142,6 +155,39 @@ export const AggregatorSetting = {
                 minParticipation: '$events.minParticipation',
                 minDuration: '$events.minDuration',
                 minProposerVotingPower: { $toString: '$events.minProposerVotingPower' },
+              },
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'token',
+          localField: 'token',
+          foreignField: 'address',
+          as: 'token',
+        },
+      },
+      {
+        $addFields: {
+          token: {
+            $cond: {
+              if: { $eq: [{ $size: '$token' }, 0] },
+              then: null,
+              else: {
+                $let: {
+                  vars: {
+                    token: { $arrayElemAt: ['$token', 0] },
+                  },
+                  in: {
+                    type: '$$token.type',
+                    address: '$$token.address',
+                    logo: '$$token.logo',
+                    name: '$$token.name',
+                    decimals: '$$token.decimals',
+                    symbol: '$$token.symbol',
+                  },
+                },
               },
             },
           },

@@ -125,7 +125,7 @@ describe('Indexer:Aggregator:Setting', () => {
   })
 
   it('should query', () => {
-    const pipeline = AggregatorSetting.query()
-    expect(pipeline.length).to.eq(8)
+    const pipeline = AggregatorSetting.query([])
+    expect(pipeline.length).to.eq(11)
   })
 })

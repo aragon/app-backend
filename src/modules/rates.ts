@@ -1,31 +1,27 @@
 import { ZeroAddress } from 'ethers'
-import { type HexAddress, type NetworksEnum } from '@types'
+import { type HexAddress, type ITokenRate, type NetworksEnum } from '@types'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
 import CovalentHelper from '@helpers/covalent'
 
 export const RateModule = {
-  fetchRate: async (
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<{
-    priceUsd: string
-    priceChangeOnDayUsd: string
-    logo: string
-    lastUpdatedAt: Date
-  }> => {
-    return await RateModule.fetchRateWithCoinGecko(tokenAddress, network)
+  fetchRate: async (tokenAddress: HexAddress, network: NetworksEnum, pastDays?: number): Promise<ITokenRate> => {
+    const rate = await RateModule.fetchRateWithCovalent(tokenAddress, network)
+
+    // Note: its disabled because we need paid plan to have decent rate limit
+    // if (rate.priceUsd === '0') {
+    //   return await RateModule.fetchRateWithCoinGecko(tokenAddress, network)
+    // } else {
+    //   return rate
+    // }
+    return rate
   },
 
   fetchRateWithCovalent: async (
     tokenAddress: HexAddress,
     network: NetworksEnum,
-  ): Promise<{
-    priceUsd: string
-    priceChangeOnDayUsd: string
-    logo: string
-    lastUpdatedAt: Date
-  }> => {
+    pastDays?: number,
+  ): Promise<ITokenRate> => {
     const tokenPrice: any = {
       priceUsd: '0',
       priceChangeOnDayUsd: '0',
@@ -33,7 +29,7 @@ export const RateModule = {
       lastUpdatedAt: null,
     }
 
-    const token = await CovalentHelper.getToken(tokenAddress, network)
+    const token = await CovalentHelper.getToken(tokenAddress, network, pastDays)
 
     if (token) {
       tokenPrice.priceUsd = token.priceUsd?.toString() ?? '0'
@@ -45,15 +41,7 @@ export const RateModule = {
     return tokenPrice
   },
 
-  fetchRateWithCoinGecko: async (
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<{
-    priceUsd: string
-    priceChangeOnDayUsd: string
-    logo: string
-    lastUpdatedAt: Date
-  }> => {
+  fetchRateWithCoinGecko: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<ITokenRate> => {
     const tokenPrice: any = {
       priceUsd: '0',
       priceChangeOnDayUsd: '0',

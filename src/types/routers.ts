@@ -1,5 +1,6 @@
 import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 import { type ITokenType } from '@src/types/token'
+import { type IPluginSubdomain } from '@src/types/plugin'
 
 export interface IStatusResponse {
   status: string
@@ -11,13 +12,37 @@ export interface IStatusResponse {
   time: string
 }
 
+export interface IDelegatesResponse {
+  network: NetworksEnum
+  transactionHash: HexAddress
+  blockNumber: number
+  tokenAddress: HexAddress
+  fromDelegate: HexAddress
+  toDelegate: HexAddress
+  pluginAddress: HexAddress
+  daoAddress: HexAddress
+  amount: string
+  token: {
+    type: ITokenType
+    address: HexAddress
+    logo: string
+    name: string
+    decimals: number
+    symbol: string
+  }
+}
+
 export interface IMembersResponse {
-  id: string
+  network: NetworksEnum
+  fromBlockNumber?: number
+  fromTxHash?: HexAddress
   address: HexAddress
   ens: ENS | null
-  fromBlockNumber?: number
+  pluginSubdomain: IPluginSubdomain
+  pluginAddress: HexAddress
+  tokenAddress: HexAddress
+  daoAddress: HexAddress
   votingPower?: string
-  toBlockNumber?: number
 }
 
 export interface IDaoResponse {
@@ -30,6 +55,7 @@ export interface IDaoResponse {
   implementationAddress: HexAddress
   creatorAddress: HexAddress
   ens: ENS | null
+  subdomain: ENS | null
   members: number
   metadataIpfs: string | null
   name: string
@@ -47,11 +73,14 @@ export interface IDaoResponse {
     build: string
     subdomain: string
   }[]
-  tvlUSD: string
-  proposalsCreated: number
-  proposalsExecuted: number
-  uniqueVoters: number
-  votes: number
+  tvlUSD: number
+  metrics: {
+    proposalsCreated: number
+    proposalsExecuted: number
+    uniqueVoters: number
+    votes: number
+    members: number
+  }
   hideDao: boolean
 }
 
@@ -91,15 +120,36 @@ export interface ISettingResponse {
   }
 }
 
-export interface IProposalsResponse {
+export interface IVoteResponse {
   id: string
   transactionHash: string
   blockNumber: number
   network: NetworksEnum
-  pluginAddress: string
-  daoAddress: string
+  pluginAddress: HexAddress
+  daoAddress: HexAddress
   proposalId: number
-  creatorAddress: string
+  memberAddress: HexAddress
+  voteOption?: number
+  votingPower?: string
+  token: {
+    type: ITokenType
+    address: HexAddress
+    logo: string
+    name: string
+    decimals: number
+    symbol: string
+  }
+}
+
+export interface IProposalsResponse {
+  id: string
+  transactionHash: HexAddress
+  blockNumber: number
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  daoAddress: HexAddress
+  proposalId: number
+  creatorAddress: HexAddress
   startDate: number
   endDate: number
   metadataUri: string
@@ -112,12 +162,26 @@ export interface IProposalsResponse {
     blockNumber: number
   }
   settings: {
-    fromTxHash: string
-    toTxHash: string | null
+    fromTxHash: HexAddress
+    toTxHash: HexAddress
     fromBlockNumber: number
     toBlockNumber: number | null
-    minApprovals: number
-    onlyListed: boolean
+    minApprovals?: number
+    onlyListed?: boolean
+    votingMode?: number
+    supportThreshold?: number
+    minParticipation?: number
+    minDuration?: number
+    minProposerVotingPower?: string
+  }
+  actions: {
+    to: HexAddress
+    value: string
+    data: HexAddress
+    functionName: string
+    textSignature: string
+    decoded: any[]
+    contractName: string
   }
   media: {
     header: string | null

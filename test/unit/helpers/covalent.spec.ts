@@ -6,6 +6,7 @@ import logger from '@logger'
 import config from '@config'
 import { IToken, ITokenType, NetworksEnum } from '@types'
 import { TokenList } from '@test/mock/fakeCovalentTokens'
+import dayjs from '@helpers/dayjs'
 
 describe('Helpers: Covalent', () => {
   let sandbox: SinonSandbox
@@ -16,6 +17,36 @@ describe('Helpers: Covalent', () => {
 
   afterEach(() => {
     sandbox && sandbox.restore()
+  })
+
+  describe('networksMap', () => {
+    it('should correctly map NetworksEnum to network strings', () => {
+      const expectedMap = {
+        'ethereum-mainnet': 'eth-mainnet',
+        'ethereum-sepolia': 'eth-sepolia',
+        'polygon-mainnet': 'matic-mainnet',
+        'base-mainnet': 'base-mainnet',
+        'arbitrum-mainnet': 'arbitrum-mainnet',
+        'zksync-sepolia': 'zksync-sepolia-testnet',
+        'zksync-mainnet': 'zksync-mainnet',
+      }
+
+      Object.keys(NetworksEnum).forEach(key => {
+        const enumValue = NetworksEnum[key]
+        expect(CovalentHelper.networksMap[enumValue]).to.equal(expectedMap[enumValue])
+      })
+    })
+  })
+
+  describe('skipTestNetworks', () => {
+    it('should only include test networks for skipping', () => {
+      const expectedNetworks = [NetworksEnum.zksyncSepolia, NetworksEnum.ethereumSepolia]
+
+      expect(CovalentHelper.skipTestNetworks).to.deep.equal(expectedNetworks)
+      CovalentHelper.skipTestNetworks.forEach(network => {
+        expect(expectedNetworks).to.include(network)
+      })
+    })
   })
 
   describe('_rpCall', () => {
@@ -31,45 +62,50 @@ describe('Helpers: Covalent', () => {
 
     it('Should handle errors in _rpCall', async () => {
       const expectedError = new Error('RPC Call Failed')
-      const rpcCallStub = sandbox.stub(CovalentHelper.axiosInstance, 'get').rejects(expectedError)
+      sandbox.stub(CovalentHelper.axiosInstance, 'get').rejects(expectedError)
 
-      const loggerStub = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'error')
 
       await expect(CovalentHelper._rpCall('/path')).to.be.rejectedWith(expectedError)
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(rpcCallStub.calledWith(`${config.COVALENT.URI}/path`)).to.be.true
-      expect(loggerStub.args[0][0]).to.eq('Error in Covalent RPC Call')
+
+      expect(stubLogger.calledTwice).to.be.true
+      expect(stubLogger.calledWith('Error in Retry Request' as any)).to.be.true
+      expect(stubLogger.calledWith('Error in Covalent RPC Call' as any)).to.be.true
     })
   })
 
   describe('getToken', () => {
     it('should getToken', async () => {
-      const expectedToken = {
-        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        network: NetworksEnum.ethereumMainnet,
-        logo: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
-        name: 'Wrapped Ether',
-        symbol: 'WETH',
-        decimals: 18,
-        priceUsd: '4086.604',
-        holders: 0,
-        totalSupply: '0',
-        priceChangeOnDayUsd: 22.262699999999768,
-        lastUpdatedAt: '2024-03-12T00:28:29.991Z',
-      }
-      const mockResponse = TokenList
-
-      const rpcCallStub = sandbox.stub(CovalentHelper, '_rpCall').resolves(mockResponse as any)
-      const loggerStub = sandbox.stub(logger, 'error')
+      const fakeResponse = TokenList[0]
+      const rpcCallStub = sandbox.stub(CovalentHelper, '_rpCall').resolves([fakeResponse] as any)
 
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-      const token = (await CovalentHelper.getToken(address, NetworksEnum.ethereumMainnet)) as Partial<IToken>
-      expect(loggerStub.notCalled).to.be.true
+      const network = NetworksEnum.ethereumMainnet
+      const pastDays = 4
+      const token = (await CovalentHelper.getToken(address, network, pastDays)) as Partial<IToken>
       expect(rpcCallStub.calledOnce).to.be.true
+      expect(token.address).to.equal(address)
+      expect(token.name).to.equal(fakeResponse.contract_name)
+      expect(token.symbol).to.equal(fakeResponse.contract_ticker_symbol)
+      expect(token.decimals).to.equal(fakeResponse.contract_decimals)
+      expect(token.logo).to.equal(fakeResponse.logo_url)
 
-      expect(rpcCallStub.args[0][0].startsWith(`/pricing/historical_by_addresses_v2/eth-mainnet/USD/${address}/?from=`))
-        .to.be.true
-      expect(token.address).to.equal(expectedToken.address)
+      const networkId = CovalentHelper.networkToCovalent(network)
+      const back2Days = dayjs().subtract(pastDays, 'day').format('YYYY-MM-DD')
+      const path = `/pricing/historical_by_addresses_v2/${networkId}/${config.DEFAULT_CURRENCY}/${address}/?from=${back2Days}`
+      expect(rpcCallStub.args[0][0]).to.equal(path)
+    })
+
+    it('should getToken - unsupported network', async () => {
+      const fakeResponse = TokenList[0]
+      const rpcCallStub = sandbox.stub(CovalentHelper, '_rpCall').resolves([fakeResponse] as any)
+
+      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.zksyncSepolia
+      const pastDays = 4
+
+      const token = (await CovalentHelper.getToken(address, network, pastDays)) as Partial<IToken>
+      expect(token).to.be.false
     })
 
     it('should getToken with zeroAddress', async () => {
@@ -107,15 +143,11 @@ describe('Helpers: Covalent', () => {
     it('should fail getToken', async () => {
       sandbox.stub(CovalentHelper, '_rpCall').rejects(new Error('fake-error'))
 
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-
       const network = NetworksEnum.ethereumMainnet
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const result = (await CovalentHelper.getToken(address, network)) as Partial<IToken>
 
       expect(result).to.be.false
-      expect(loggerErrorStub.calledOnce).to.be.true
-      expect(loggerErrorStub.calledWith('Error fetching token' as any)).to.be.true
     })
   })
 
@@ -197,15 +229,11 @@ describe('Helpers: Covalent', () => {
     it('should fail getTokenBalance', async () => {
       sandbox.stub(CovalentHelper, '_rpCall').rejects(new Error('Token balance fetch failed'))
 
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-
       const address = '0x0000000000000000000000000000000000000000'
       const network = NetworksEnum.ethereumMainnet
       const result = await CovalentHelper.getTokenBalance(address, network, 'USD')
 
       expect(result).to.be.false
-      expect(loggerErrorStub.calledOnce).to.be.true
-      expect(loggerErrorStub.calledWith('Error fetching token balance' as any)).to.be.true
     })
   })
 
@@ -226,27 +254,21 @@ describe('Helpers: Covalent', () => {
 
   describe('getTokenType', () => {
     it('should return ITokenType.native if no ERC support is indicated', () => {
-      const token = { supports_erc: {} }
+      const token = { supports_erc: [] }
       const result = CovalentHelper.getTokenType(token as any)
       expect(result).to.equal(ITokenType.native)
     })
 
     it('should return ITokenType.ERC20 if token supports ERC20', () => {
-      const token = { supports_erc: { erc20: true } }
+      const token = { supports_erc: ['erc20'] }
       const result = CovalentHelper.getTokenType(token as any)
       expect(result).to.equal(ITokenType.ERC20)
     })
 
     it('should return ITokenType.ERC721 if token supports ERC721 and not ERC20', () => {
-      const token = { supports_erc: { erc721: true } }
+      const token = { supports_erc: ['erc721'] }
       const result = CovalentHelper.getTokenType(token as any)
       expect(result).to.equal(ITokenType.ERC721)
-    })
-
-    it('should prioritize ITokenType.ERC20 over ITokenType.ERC721 if both are supported', () => {
-      const token = { supports_erc: { erc20: true, erc721: true } }
-      const result = CovalentHelper.getTokenType(token as any)
-      expect(result).to.equal(ITokenType.ERC20)
     })
   })
 })

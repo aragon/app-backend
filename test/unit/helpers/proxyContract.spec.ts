@@ -6,6 +6,7 @@ import { ConfigState } from '@state/configState'
 import { getAddress } from 'ethers'
 import { NetworksEnum } from '@types'
 import proxyquire from 'proxyquire'
+import Logger from '@logger'
 
 describe('Helpers:ProxyContractHelper', () => {
   let sandbox: SinonSandbox
@@ -226,6 +227,20 @@ describe('Helpers:ProxyContractHelper', () => {
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.be.null
+    })
+
+    it('should fail implementation address', async () => {
+      const stubLogger = sandbox.stub(Logger, 'warn')
+      const getStorageStub = sandbox.stub().rejects(new Error('Error getting storage'))
+
+      const providerStub = {
+        getStorage: getStorageStub,
+      }
+      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+
+      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
+      expect(result).to.be.null
+      expect(stubLogger.calledOnce).to.be.true
     })
   })
 })

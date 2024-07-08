@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
+import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Transaction from '@models/schema/transaction'
 import { beforeEach } from 'mocha'
@@ -34,6 +34,14 @@ describe('Model: Transaction', () => {
         },
       ],
       proposalId: '18',
+      token: {
+        address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+        symbol: 'Test',
+        name: 'Test Token',
+        type: ITokenType.ERC20,
+        logo: 'fake-logo',
+        decimals: 18,
+      },
     }
   })
 
@@ -65,6 +73,12 @@ describe('Model: Transaction', () => {
     expect(createdToken.erc1155Metadata[0].tokenId).to.eq(rawTransaction.erc1155Metadata?.[0].tokenId)
     expect(createdToken.erc1155Metadata[0].value).to.eq(rawTransaction.erc1155Metadata?.[0].value)
     expect(createdToken.proposalId).to.eq(rawTransaction.proposalId)
+    expect(createdToken.token.address).to.eq(rawTransaction.token?.address)
+    expect(createdToken.token.symbol).to.eq(rawTransaction.token?.symbol.toUpperCase())
+    expect(createdToken.token.name).to.eq(rawTransaction.token?.name)
+    expect(createdToken.token.type).to.eq(rawTransaction.token?.type)
+    expect(createdToken.token.logo).to.eq(rawTransaction.token?.logo)
+    expect(createdToken.token.decimals).to.eq(rawTransaction.token?.decimals)
   })
 
   it('Should getEntityId', async () => {
@@ -132,6 +146,14 @@ describe('Model: Transaction', () => {
             },
           ],
           proposalId: '18',
+          token: {
+            address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+            symbol: 'Test',
+            name: 'Test Token',
+            type: ITokenType.ERC20,
+            logo: 'fake-logo',
+            decimals: 18,
+          },
         },
         {
           transactionHash: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
@@ -153,6 +175,14 @@ describe('Model: Transaction', () => {
             },
           ],
           proposalId: '19',
+          token: {
+            address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+            symbol: 'Test',
+            name: 'Test Token',
+            type: ITokenType.ERC20,
+            logo: 'fake-logo',
+            decimals: 18,
+          },
         },
       ]
 
@@ -225,5 +255,20 @@ describe('Model: Transaction', () => {
       expect(result.metadata.page).to.eq(1)
       expect(result.metadata.totalPages).to.eq(1)
     })
+  })
+
+  it('Should filterKeys', async () => {
+    const createdDao = await Models.Transaction.create(rawTransaction)
+    const filterDao = createdDao.filterKeys()
+
+    expect(filterDao.id).to.exist
+    expect(filterDao._id).to.be.undefined
+    expect(filterDao.__v).to.be.undefined
+    expect(filterDao.createdAt).to.be.undefined
+    expect(filterDao.tokenAddress).to.undefined
+    expect(filterDao.daoAddress).to.undefined
+    expect(filterDao.updatedAt).to.be.undefined
+    expect(filterDao.token._id).to.be.undefined
+    expect(Object.keys(filterDao).length).to.eq(15)
   })
 })

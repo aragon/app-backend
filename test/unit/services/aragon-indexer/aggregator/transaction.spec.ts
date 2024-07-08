@@ -5,10 +5,11 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import Logger from '@logger'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
-import { ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
+import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import { ConfigState } from '@state/configState'
 import { fakeAlchemyTransfer } from '@test/mock/fakeAlchemyTransfer'
+import { UtilsIndexer } from '@indexer/utils/indexer'
 
 describe('Indexer:Aggregator:Transactions', () => {
   let sandbox: sinon.SinonSandbox
@@ -57,6 +58,12 @@ describe('Indexer:Aggregator:Transactions', () => {
 
     const result2 = AggregatorTransactions.getCategories(NetworksEnum.arbitrumMainnet)
     expect(result2.length).to.eq(4)
+
+    const result3 = AggregatorTransactions.getCategories(NetworksEnum.baseMainnet)
+    expect(result3.length).to.eq(4)
+
+    const result4 = AggregatorTransactions.getCategories(NetworksEnum.zksyncSepolia)
+    expect(result4.length).to.eq(4)
   })
 
   describe('onDocument', async () => {
@@ -136,7 +143,7 @@ describe('Indexer:Aggregator:Transactions', () => {
     tests.forEach((tx: any) => {
       it(`should saveTransaction for ${tx.category}`, async () => {
         const daoRegistry = { id: 'daoRegistryId', address: tx.to, network: NetworksEnum.ethereumMainnet }
-        const expectedTransaction = {
+        const expectedTransaction: any = {
           transactionHash: tx.hash,
           blockNumber: parseInt(tx.blockNum, 16),
           network: daoRegistry.network,
@@ -152,6 +159,18 @@ describe('Indexer:Aggregator:Transactions', () => {
           category: tx.category,
         }
 
+        if (tx.rawContract.address) {
+          expectedTransaction.token = {
+            type: ITokenType.ERC20,
+            address: tx.rawContract.address,
+            logo: null,
+            name: 'Sepolia Avalanche',
+            symbol: 'SAVL',
+            decimals: 18,
+          }
+        }
+
+        const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves(expectedTransaction.token as any)
         await AggregatorTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any)
 
         const existingTxDb = await Models.Transaction.findExistingLog({
@@ -161,6 +180,10 @@ describe('Indexer:Aggregator:Transactions', () => {
         })
 
         expect(existingTxDb.transactionHash).to.equal(expectedTransaction.transactionHash)
+        if (expectedTransaction.token) {
+          expect(stubToken.calledOnce).to.be.true
+          expect(existingTxDb?.token?.address).to.equal(expectedTransaction?.token?.address)
+        }
       })
     })
 

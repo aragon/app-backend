@@ -65,7 +65,7 @@ describe('Indexer: MemberHandler', () => {
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: plugin.pluginAddress,
-        eventName: 'test',
+        eventName: 'MembersAdded',
       }
 
       const findByPluginAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findByPluginAddress')
@@ -81,12 +81,18 @@ describe('Indexer: MemberHandler', () => {
       expect(logMember).to.be.not.null
       expect(logMember.length).to.be.eq(2)
 
+      expect(logMember[1].id).to.be.eq(
+        `${logInfo.network}-${logInfo.transactionHash}-${logInfo.eventName}-${logInfo.address}-0xmember2-1`,
+      )
       expect(logMember[1].address).to.be.eq('0xmember2')
       expect(logMember[1].event).to.be.eq(fakeLog.name)
       expect(logMember[1].pluginAddress).to.be.eq(plugin.pluginAddress)
       expect(logMember[1].network).to.be.eq(logInfo.network)
       expect(logMember[1].transactionHash).to.be.eq(logInfo.transactionHash)
 
+      expect(logMember[0].id).to.be.eq(
+        `${logInfo.network}-${logInfo.transactionHash}-${logInfo.eventName}-${logInfo.address}-0xmember1-0`,
+      )
       expect(logMember[0].address).to.be.eq('0xmember1')
       expect(logMember[0].event).to.be.eq(fakeLog.name)
       expect(logMember[0].pluginAddress).to.be.eq(plugin.pluginAddress)
@@ -253,12 +259,12 @@ describe('Indexer: MemberHandler', () => {
         name: IEventLogMember.DelegateChanged,
         args: {
           fromDelegate: '0xfromDelegate',
-          toDelegate: '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859',
+          toDelegate: '0x092d25f5AFAdbfc6acf879Dc901acfD4b97DA499',
           delegator: '0xdelegator',
         },
       } as any
 
-      const deletageVotChangedLog = {
+      const delegateVotChangedLog = {
         name: IEventLogMember.DelegateVotesChanged,
         args: {
           previousBalance: '0x123',
@@ -280,8 +286,8 @@ describe('Indexer: MemberHandler', () => {
 
       sandbox.stub(Web3, 'findLogsByName').returns([
         {
-          parsed: deletageVotChangedLog,
-          txLog: { topics: ['', '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859'] },
+          parsed: delegateVotChangedLog,
+          txLog: { topics: ['', '0x000000000000000000000000092d25f5afadbfc6acf879dc901acfd4b97da499'] },
         },
       ] as any)
 
@@ -298,7 +304,7 @@ describe('Indexer: MemberHandler', () => {
       const logMember = await Models.LogMember.findOne({ transactionHash: logInfo.transactionHash })
 
       expect(logMember).to.be.not.null
-      expect(logMember.address).to.be.eq('0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859')
+      expect(logMember.address).to.be.eq('0x092d25f5AFAdbfc6acf879Dc901acfD4b97DA499')
     })
 
     it('should return if the tx is already processed', async () => {
@@ -307,6 +313,20 @@ describe('Indexer: MemberHandler', () => {
       sandbox.stub(Web3, 'getTransactionReceipt').resolves({
         logs: [],
       } as any)
+
+      const delegateVotChangedLog = {
+        name: IEventLogMember.DelegateVotesChanged,
+        args: {
+          previousBalance: '0x123',
+          newBalance: '0x456',
+        },
+      }
+      sandbox.stub(Web3, 'findLogsByName').returns([
+        {
+          parsed: delegateVotChangedLog,
+          txLog: { topics: ['', '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859'] },
+        },
+      ] as any)
 
       const fakeLog = {
         name: IEventLogMember.DelegateChanged,
@@ -326,15 +346,17 @@ describe('Indexer: MemberHandler', () => {
       }
 
       const findPluginByTokenAddressSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress')
+      const findModelCreate = sandbox.spy(Models.LogMember, 'create')
 
       await MemberHandler.delegateChanged(fakeLog, logInfo)
 
+      expect(findModelCreate.notCalled).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
-      expect(findPluginByTokenAddressSpy.notCalled).to.be.true
+      expect(findPluginByTokenAddressSpy.calledOnce).to.be.true
     })
 
     it('should return if the plugin is not found', async () => {
-      const verboseStub = sandbox.stub(logger, 'warn')
+      const stubLogger = sandbox.stub(logger, 'warn')
       const findExistingLogStub = sandbox.stub(Models.LogMember, 'findExistingLog').resolves(false)
       const findPluginByTokenAddressStub = sandbox
         .stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress')
@@ -365,52 +387,10 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.delegateChanged(fakeLog, logInfo)
 
-      expect(verboseStub.callCount).to.be.eq(1)
-      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(findExistingLogStub.notCalled).to.be.true
       expect(findPluginByTokenAddressStub.calledOnce).to.be.true
       expect(findLogsByNameSpy.notCalled).to.be.true
-    })
-
-    it('should return if the DelegateVotesChanged log is not found', async () => {
-      const verboseStub = sandbox.stub(logger, 'warn')
-      const findExistingLogStub = sandbox.stub(Models.LogMember, 'findExistingLog').resolves(false)
-      const findPluginByTokenAddressStub = sandbox
-        .stub(Models.LogPluginSetupProcessor, 'findPluginByTokenAddress')
-        .resolves(true)
-
-      sandbox.stub(Web3, 'getTransactionReceipt').resolves({
-        logs: [],
-        txLog: { topics: ['', '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859'] },
-      } as any)
-
-      const fakeLog = {
-        name: IEventLogMember.DelegateChanged,
-        args: {
-          fromDelegate: '0xfromDelegate',
-          toDelegate: '0xtoDelegate',
-          delegator: '0xdelegator',
-        },
-      } as any
-
-      const logInfo = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 3,
-        transactionHash: '0x0123123',
-        address: plugin.tokenAddress,
-        eventName: 'test',
-      }
-
-      const findLogsByNameSpy = sandbox.spy(Web3, 'findLogsByName')
-
-      const createSpy = sandbox.spy(Models.LogMember, 'create')
-
-      await MemberHandler.delegateChanged(fakeLog, logInfo)
-
-      expect(verboseStub.callCount).to.be.eq(1)
-      expect(findExistingLogStub.calledOnce).to.be.true
-      expect(findPluginByTokenAddressStub.calledOnce).to.be.true
-      expect(findLogsByNameSpy.calledOnce).to.be.true
-      expect(createSpy.notCalled).to.be.true
+      expect(stubLogger.calledOnceWith('Plugin not found' as any)).to.be.true
     })
   })
 })

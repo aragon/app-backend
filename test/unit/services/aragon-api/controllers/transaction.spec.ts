@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TransactionController from '@services/aragon-api/controllers/transaction'
-import { ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
+import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Transaction from '@models/schema/transaction'
 
@@ -33,6 +33,14 @@ describe('Controller: Transaction', () => {
         },
       ],
       proposalId: '18',
+      token: {
+        address: '0x2902b792af43ea1481569bc35b62a31bb2c20e95',
+        symbol: 'FREE',
+        name: 'FREEthereum',
+        type: ITokenType.ERC20,
+        decimals: 18,
+        logo: 'fake-logo',
+      },
     }
     await Models.Transaction.create(rawTransaction)
   })
@@ -82,9 +90,9 @@ describe('Controller: Transaction', () => {
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].transactionHash).to.eq(rawTransaction.transactionHash)
       expect(response.data[0].category).to.eq(rawTransaction.category)
-      expect(response.data[0].tokenAddress).to.eq(rawTransaction.tokenAddress)
-      expect(response.data[0].daoAddress).to.eq(rawTransaction.daoAddress)
       expect(response.data[0].network).to.eq(rawTransaction.network)
+      expect(response.data[0].token.type).to.eq(rawTransaction.token?.type)
+      expect(response.data[0].token.address).to.eq(rawTransaction.token?.address)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -126,9 +134,8 @@ describe('Controller: Transaction', () => {
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].transactionHash).to.eq(rawTransaction.transactionHash)
       expect(response.data[0].category).to.eq(rawTransaction.category)
-      expect(response.data[0].tokenAddress).to.eq(rawTransaction.tokenAddress)
-      expect(response.data[0].daoAddress).to.eq(rawTransaction.daoAddress)
       expect(response.data[0].network).to.eq(rawTransaction.network)
+      expect(response.data[0].token.address).to.eq(rawTransaction.token?.address)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -178,9 +185,8 @@ describe('Controller: Transaction', () => {
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].transactionHash).to.eq(rawTransaction.transactionHash)
       expect(response.data[0].category).to.eq(rawTransaction.category)
-      expect(response.data[0].tokenAddress).to.eq(rawTransaction.tokenAddress)
-      expect(response.data[0].daoAddress).to.eq(rawTransaction.daoAddress)
       expect(response.data[0].network).to.eq(rawTransaction.network)
+      expect(response.data[0].token.address).to.eq(rawTransaction.token?.address)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)

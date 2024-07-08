@@ -84,6 +84,7 @@ class Plugin {
 })
 @index({
   address: 1,
+  blockNumber: 1,
   name: 1,
   creatorAddress: 1,
   tvlUSD: 1,
@@ -117,6 +118,9 @@ export default class Dao extends Model {
   public ens?: ENS | null
 
   @prop({ type: () => String, default: null })
+  public subdomain!: string
+
+  @prop({ type: () => String, default: null })
   public metadataIpfs!: string
 
   @prop({ type: () => String, default: null })
@@ -128,16 +132,16 @@ export default class Dao extends Model {
   @prop({ type: () => String, default: null })
   public avatar!: string
 
-  @prop({ type: () => [Link], default: [] })
+  @prop({ type: () => [Link], _id: false, default: [] })
   public links?: Link[]
 
-  @prop({ type: () => [Plugin], default: [] })
+  @prop({ type: () => [Plugin], _id: false, default: [] })
   public plugins?: Plugin[]
 
-  @prop({ type: () => String, default: '0' })
-  public tvlUSD!: string
+  @prop({ type: () => Number, default: 0 })
+  public tvlUSD!: number
 
-  @prop({ type: () => Metrics })
+  @prop({ type: () => Metrics, _id: false })
   public metrics?: Metrics
 
   @prop({ type: () => Boolean, default: false })
@@ -187,7 +191,6 @@ export default class Dao extends Model {
     )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, [
-        'id',
         'address',
         'implementationAddress',
         'creatorAddress',

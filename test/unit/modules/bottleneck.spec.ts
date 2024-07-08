@@ -71,4 +71,42 @@ describe('Module: bottleneck', () => {
       expect(limiter1).not.eq(limiter2)
     })
   })
+
+  describe('getCovalentLimiter', () => {
+    it('returns the same instance for the same network', () => {
+      const limiter1 = BottleneckModule.getCovalentLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getCovalentLimiter(NetworksEnum.ethereumMainnet)
+
+      expect(limiter1).to.eq(limiter2)
+
+      const limiter3 = BottleneckModule.covalentLimiters[NetworksEnum.ethereumMainnet]
+      expect(limiter3).to.eq(limiter1)
+    })
+
+    it('returns different instances for different networks', () => {
+      const limiter1 = BottleneckModule.getCovalentLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getCovalentLimiter(NetworksEnum.ethereumSepolia)
+
+      expect(limiter1).not.eq(limiter2)
+    })
+  })
+
+  describe('get4ByteLimiter', () => {
+    it('returns the same instance for the same network', () => {
+      const limiter1 = BottleneckModule.get4ByteLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.get4ByteLimiter(NetworksEnum.ethereumMainnet)
+
+      expect(limiter1).to.eq(limiter2)
+
+      const limiter3 = BottleneckModule.fourBytesLimiters[NetworksEnum.ethereumMainnet]
+      expect(limiter3).to.eq(limiter1)
+    })
+
+    it('returns different instances for different networks', () => {
+      const limiter1 = BottleneckModule.get4ByteLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.get4ByteLimiter(NetworksEnum.ethereumSepolia)
+
+      expect(limiter1).not.eq(limiter2)
+    })
+  })
 })

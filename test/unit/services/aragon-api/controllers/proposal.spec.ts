@@ -35,6 +35,7 @@ describe('Controller: Proposal', () => {
         status: true,
         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
         blockNumber: 3,
+        blockTimestamp: 234234234,
       },
     }
     proposalDb = await Models.Proposal.create(rawProposal)
