@@ -44,6 +44,8 @@ describe('Router: Member', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,
@@ -78,6 +80,8 @@ describe('Router: Member', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,
@@ -115,6 +119,8 @@ describe('Router: Member', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,
@@ -177,6 +183,8 @@ describe('Router: Member', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,
@@ -210,6 +218,8 @@ describe('Router: Member', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,
@@ -246,6 +256,8 @@ describe('Router: Member', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,
