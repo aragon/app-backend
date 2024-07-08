@@ -76,8 +76,8 @@ export interface IPaginationParams {
   endDate?: Date | string | number
   pageSize?: number
   page?: number
-  order?: string // the property to order by
-  sort?: string // asc or desc
+  order?: 'asc' | 'desc' | string // asc or desc
+  sort?: string // the property to sort by
 }
 
 export interface IPaginationMetadata {

@@ -131,6 +131,16 @@ describe('Model: Member', () => {
         pluginSubdomain: 'token-voting',
       }
 
+      const rawDao4 = {
+        ...rawDao2,
+        fromBlockNumber: 3000,
+      }
+
+      const rawDao5 = {
+        ...rawDao3,
+        fromBlockNumber: 4000,
+      }
+
       const members = [
         {
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5408',
@@ -142,7 +152,7 @@ describe('Model: Member', () => {
         },
         {
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
-          history: [rawDao2, rawDao3],
+          history: [rawDao4, rawDao5],
         },
       ]
 
@@ -171,7 +181,10 @@ describe('Model: Member', () => {
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Member.findWithPagination({
         extraParams: { onlyActive: true, daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401' },
-        paginationParams: {},
+        paginationParams: {
+          order: 'history.fromBlockNumber',
+          sort: 'asc',
+        },
       })
 
       expect(data.length).to.eq(2)
@@ -181,12 +194,14 @@ describe('Model: Member', () => {
       expect(pageSize).to.eq(10)
       expect(data[0].address).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5408')
       expect(data[0].history.length).to.eq(1)
+      expect(data[0].history[0].fromBlockNumber).to.eq(2000)
       expect(data[0].history[0].toBlockNumber).to.be.undefined
       expect(data[0].history[0].toTxHash).to.be.undefined
       expect(data[0].history[0].tokenAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5402')
       expect(data[0].history[0].daoAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5401')
       expect(data[1].address).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5404')
       expect(data[1].history.length).to.eq(1)
+      expect(data[1].history[0].fromBlockNumber).to.eq(3000)
       expect(data[1].history[0].toBlockNumber).to.be.undefined
       expect(data[1].history[0].toTxHash).to.be.undefined
       expect(data[1].history[0].tokenAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5402')
