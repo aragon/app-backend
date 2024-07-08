@@ -282,22 +282,6 @@ export default class Member extends Model {
       ...ModelUtils.createFilter(paginationParams, ['address', 'ens']),
     }
 
-    if (extraParams.pluginAddress) {
-      filter['history.pluginAddress'] = extraParams.pluginAddress
-    }
-
-    if (extraParams.daoAddress) {
-      filter['history.daoAddress'] = extraParams.daoAddress
-    }
-
-    if (extraParams.tokenAddress) {
-      filter['history.tokenAddress'] = extraParams.tokenAddress
-    }
-
-    if (extraParams.network) {
-      filter['history.network'] = extraParams.network
-    }
-
     const currentPage = request.skip / request.limit + 1
     const [data, totalRecords] = await Promise.all([
       this.aggregate([
@@ -307,6 +291,9 @@ export default class Member extends Model {
         },
         {
           $match: {
+            ...(extraParams.tokenAddress && { 'history.pluginAddress': extraParams.tokenAddress }),
+            ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
+            ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
             ...(extraParams.network && { 'history.network': extraParams.network }),
             $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
           },
@@ -363,18 +350,6 @@ export default class Member extends Model {
       address,
     }
 
-    if (extraParams.pluginAddress) {
-      filter['history.pluginAddress'] = extraParams.pluginAddress
-    }
-
-    if (extraParams.daoAddress) {
-      filter['history.daoAddress'] = extraParams.daoAddress
-    }
-
-    if (extraParams.network) {
-      filter['history.network'] = extraParams.network
-    }
-
     const member = await this.aggregate([
       { $match: filter },
       {
@@ -382,6 +357,8 @@ export default class Member extends Model {
       },
       {
         $match: {
+          ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
+          ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
           ...(extraParams.network && { 'history.network': extraParams.network }),
           $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
         },

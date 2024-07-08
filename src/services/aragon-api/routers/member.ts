@@ -118,12 +118,12 @@ const MemberRouter = {
     router.get('/active/:address', MemberRouter.getActiveMemberByAddress)
 
     /**
-     * @api {get} /history/ Get Members
+     * @api {get} / Get Members
      * @apiName Members
      * @apiGroup Members
      * @apiDescription Get Members
      *
-     * @apiSampleRequest /history
+     * @apiSampleRequest /
      */
     router.get('/', MemberRouter.getMembersWithPagination)
 
