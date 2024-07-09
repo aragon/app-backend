@@ -26,7 +26,7 @@ export const UtilsIndexer = {
     return await DbTx.executeTxFn(
       async ({ session }) => {
         const rawToken = {
-          address: tokenAddress,
+          address: tokenInfo.address,
           type: tokenTypeInfo?.type,
           implementationAddress: tokenTypeInfo?.implementationAddress!,
           network,

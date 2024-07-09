@@ -12,6 +12,7 @@ const AssetRouter = {
     const extraParams: IAssetExtraParams = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.address as HexAddress,
+      tokenAddress: ctx.query.tokenAddress as HexAddress,
     }
     const daoId = ctx.query.daoId as string
 
