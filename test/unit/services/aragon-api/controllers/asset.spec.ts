@@ -5,6 +5,7 @@ import AssetController from '@services/aragon-api/controllers/asset'
 import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Asset from '@models/schema/asset'
+import PairDataModule from "@modules/pairData";
 
 describe('Controller: Asset', () => {
   let sandbox: SinonSandbox
@@ -125,15 +126,17 @@ describe('Controller: Asset', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`
+      const pairParams: any = {
+        daoId: `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`
+      }
 
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
-        address: rawAsset.daos?.[0].daoAddress,
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
+        daoAddress: rawAsset.daos?.[0].daoAddress,
         network: rawAsset.daos?.[0].network,
       })
       const spyReq = sandbox.spy(Models.Asset, 'findWithPagination')
 
-      const response = await AssetController.getAssetsWithPagination(paginationParams, filterParams, daoId)
+      const response = await AssetController.getAssetsWithPagination(paginationParams, filterParams, pairParams)
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -173,15 +176,18 @@ describe('Controller: Asset', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`
+      const pairParams: any = {
+        daoId: `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`
+      }
 
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
+
       const spyReq = sandbox.spy(Models.Asset, 'findWithPagination')
 
-      const response = await AssetController.getAssetsWithPagination(paginationParams, filterParams, daoId)
+      const response = await AssetController.getAssetsWithPagination(paginationParams, filterParams, pairParams)
 
-      expect(spyReq.notCalled).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(0)
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(1)
     })
   })
 })

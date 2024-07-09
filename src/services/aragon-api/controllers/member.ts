@@ -6,26 +6,20 @@ import {
   type IMembersResponse,
   type IPaginatedResult,
   type IPaginationParams,
+  type IPairParams,
 } from '@types'
 import { assertExposable } from '@errors'
-import ModelUtils from '@models/utils/models'
+import PairDataModule from '@modules/pairData'
 
 const MemberController = {
   getMembersWithPagination: async (
     paginationParams: IPaginationParams = {},
     extraParams: IMemberExtraParams = {},
-    daoId?: string,
+    pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<IMembersResponse>> => {
-    if (daoId) {
-      const daoDb = await Models.Dao.findByEntityId(daoId)
-      if (!daoDb) {
-        return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
-      }
-      extraParams.daoAddress = daoDb.address
-      extraParams.network = daoDb.network
-    }
-
+    extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
     const result = await Models.Member.findWithPagination({ extraParams, paginationParams })
+
     return result
   },
 
@@ -39,18 +33,11 @@ const MemberController = {
   getActiveMembersWithPagination: async (
     paginationParams: IPaginationParams = {},
     extraParams: IActiveMemberExtraParams = {},
-    daoId?: string,
+    pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<IMembersResponse>> => {
-    if (daoId) {
-      const daoDb = await Models.Dao.findByEntityId(daoId)
-      if (!daoDb) {
-        return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
-      }
-      extraParams.daoAddress = daoDb.address
-      extraParams.network = daoDb.network
-    }
-
+    extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
     const result = await Models.Member.findActiveWithPagination({ extraParams, paginationParams })
+
     return result
   },
 

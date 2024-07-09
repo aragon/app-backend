@@ -5,8 +5,9 @@ import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import SettingController from '@api/controllers/setting'
 import Setting from '@models/schema/setting'
+import PairDataModule from "@modules/pairData";
 
-describe('Controller: Setting', () => {
+describe.only('Controller: Setting', () => {
   let sandbox: SinonSandbox
   let rawSetting: Partial<Setting>
   let settingDb: Setting
@@ -132,7 +133,9 @@ describe('Controller: Setting', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawSetting.network}-${rawSetting.daoAddress}`
+      const pairParams: any = {
+        daoId: `${rawSetting.network}-${rawSetting.daoAddress}`
+      }
 
       sandbox.stub(Models.Dao, 'findByEntityId').resolves({
         address: rawSetting.daoAddress,
@@ -140,7 +143,7 @@ describe('Controller: Setting', () => {
       })
       const spyReq = sandbox.spy(Models.Setting, 'findWithPagination')
 
-      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams, daoId)
+      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams, pairParams)
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -179,15 +182,18 @@ describe('Controller: Setting', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawSetting.network}-${rawSetting.daoAddress}`
 
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      const pairParams: any = {
+        daoId: `${rawSetting.network}-${rawSetting.daoAddress}`
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
+
       const spyReq = sandbox.spy(Models.Setting, 'findWithPagination')
 
-      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams, daoId)
+      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams, pairParams)
 
-      expect(spyReq.notCalled).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(0)
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(1)
     })
   })
 

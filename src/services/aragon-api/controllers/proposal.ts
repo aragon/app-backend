@@ -7,28 +7,22 @@ import {
   type IProposalExtraParams,
   type NetworksEnum,
   type HexAddress,
+  type IPairParams,
 } from '@types'
 import { assertExposable } from '@errors'
 import type Proposal from '@models/schema/proposal'
-import ModelUtils from '@models/utils/models'
+import PairDataModule from '@modules/pairData'
 
 const ProposalController = {
   getProposalsWithPagination: async (
     paginationParams: IPaginationParams = {},
     extraParams: IProposalExtraParams = {},
-    daoId?: string,
+    pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<IProposalsResponse>> => {
-    if (daoId) {
-      const daoDb = await Models.Dao.findByEntityId(daoId)
-      if (!daoDb) {
-        return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
-      }
-      extraParams.daoAddress = daoDb.address
-      extraParams.network = daoDb.network
-    }
-
+    extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
     const result = await Models.Proposal.findWithPagination({ extraParams, paginationParams })
     result.data = result.data.map((proposal: Proposal) => proposal.filterKeys())
+
     return result
   },
 

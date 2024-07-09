@@ -5,8 +5,9 @@ import MemberController from '@services/aragon-api/controllers/member'
 import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Member from '@models/schema/member'
+import PairDataModule from "@modules/pairData";
 
-describe('Controller: Member', () => {
+describe.only('Controller: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
 
@@ -138,15 +139,16 @@ describe('Controller: Member', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`
-
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
-        address: rawMember.history?.[0].daoAddress,
+      const pairParams: any = {
+        daoId: `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
+        daoAddress: rawMember.history?.[0].daoAddress,
         network: rawMember.history?.[0].network,
       })
       const spyReq = sandbox.spy(Models.Member, 'findWithPagination')
 
-      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, daoId)
+      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -183,15 +185,16 @@ describe('Controller: Member', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`
-
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      const pairParams: any = {
+        daoId: `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
       const spyReq = sandbox.spy(Models.Member, 'findWithPagination')
 
-      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, daoId)
+      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
 
-      expect(spyReq.notCalled).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(0)
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(1)
     })
   })
 
@@ -348,15 +351,16 @@ describe('Controller: Member', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${member.history?.[0].network}-${member.history?.[0].daoAddress}`
-
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
-        address: member.history?.[0].daoAddress,
+      const pairParams: any = {
+        daoId: `${member.history?.[0].network}-${member.history?.[0].daoAddress}`
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
+        daoAddress: member.history?.[0].daoAddress,
         network: member.history?.[0].network,
       })
       const spyReq = sandbox.spy(Models.Member, 'findActiveWithPagination')
 
-      const response = await MemberController.getActiveMembersWithPagination(paginationParams, filterParams, daoId)
+      const response = await MemberController.getActiveMembersWithPagination(paginationParams, filterParams, pairParams)
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -393,14 +397,15 @@ describe('Controller: Member', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`
-
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      const pairParams: any = {
+        daoId: `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
       const spyReq = sandbox.spy(Models.Member, 'findActiveWithPagination')
 
-      const response = await MemberController.getActiveMembersWithPagination(paginationParams, filterParams, daoId)
+      const response = await MemberController.getActiveMembersWithPagination(paginationParams, filterParams, pairParams)
 
-      expect(spyReq.notCalled).to.be.true
+      expect(spyReq.calledOnce).to.be.true
       expect(response).to.have.property('data').with.lengthOf(0)
     })
   })

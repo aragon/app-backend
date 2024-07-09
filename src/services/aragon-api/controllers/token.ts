@@ -20,6 +20,7 @@ const TokenController = {
   ): Promise<IPaginatedResult<ITokenResponse>> => {
     const result = await Models.Token.findWithPagination({ extraParams, paginationParams })
     result.data = result.data.map((token: Token) => token.filterKeys())
+
     return result
   },
 
