@@ -21,6 +21,7 @@ describe('Router: Asset', () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
         address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        tokenAddress: '0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326',
       }
       const paginationParams = {
         pageSize: 10,
@@ -51,6 +52,7 @@ describe('Router: Asset', () => {
       expect(stubCtrl.args[0][1]).to.deep.eq({
         daoAddress: filterParams.address,
         network: filterParams.network,
+        tokenAddress: filterParams.tokenAddress,
       })
     })
 
@@ -88,6 +90,7 @@ describe('Router: Asset', () => {
       expect(stubCtrl.args[0][1]).to.deep.eq({
         network: undefined,
         daoAddress: undefined,
+        tokenAddress: undefined,
       })
       expect(stubCtrl.args[0][2]).to.eq(filterParams.daoId)
     })
@@ -122,7 +125,7 @@ describe('Router: Asset', () => {
         pageSize: 10,
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
-      expect(stubCtrl.args[0][1]).to.deep.eq({ ...filterParams, ...{ daoAddress: undefined } })
+      expect(stubCtrl.args[0][1]).to.deep.eq({ ...filterParams, ...{ daoAddress: undefined, tokenAddress: undefined } })
     })
   })
 })
