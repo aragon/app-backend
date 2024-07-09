@@ -31,8 +31,8 @@ describe('Controller: Member', () => {
           delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           votingPower: '100',
           pluginSubdomain: 'token-voting',
+          tokenBalance: '100',
           metrics: {
-            tokenBalance: '100',
             delegateCount: 0,
             voteCount: 0,
             proposalCount: 0,
