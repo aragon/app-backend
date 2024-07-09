@@ -2,10 +2,9 @@ import Router, { type RouterContext } from '@koa/router'
 import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import DelegateController from '@api/controllers/delegate'
-import { type HexAddress, type IDelegateExtraParams, type NetworksEnum } from '@types'
+import { type HexAddress, type IDelegateExtraParams, type IPairParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import DelegateSchema from '@api/routers/schema/delegate'
-import MemberSchema from '@api/routers/schema/member'
 
 const DelegateRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -17,18 +16,20 @@ const DelegateRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
     }
-    const daoId = ctx.query.daoId as string
+    const pairParams: IPairParams = {
+      daoId: ctx.query.daoId as string,
+    }
 
-    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
+    const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(DelegateSchema.getExtraParams, extraParams),
-      ValidationSchema.validateParams(MemberSchema.getDaoById, { id: daoId }),
+      ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
     ])
 
     ctx.body = await DelegateController.getDelegateWithPagination(
       formattedPaginationParams,
       formattedExtraParams,
-      formattedDaoId.id,
+      formattedPairParams,
     )
   },
 

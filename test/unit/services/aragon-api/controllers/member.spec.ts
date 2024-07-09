@@ -5,9 +5,9 @@ import MemberController from '@services/aragon-api/controllers/member'
 import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Member from '@models/schema/member'
-import PairDataModule from "@modules/pairData";
+import PairDataModule from '@modules/pairData'
 
-describe.only('Controller: Member', () => {
+describe('Controller: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
 
@@ -140,7 +140,7 @@ describe.only('Controller: Member', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`
+        daoId: `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
         daoAddress: rawMember.history?.[0].daoAddress,
@@ -186,7 +186,7 @@ describe.only('Controller: Member', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`
+        daoId: `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
       const spyReq = sandbox.spy(Models.Member, 'findWithPagination')
@@ -352,7 +352,7 @@ describe.only('Controller: Member', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${member.history?.[0].network}-${member.history?.[0].daoAddress}`
+        daoId: `${member.history?.[0].network}-${member.history?.[0].daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
         daoAddress: member.history?.[0].daoAddress,
@@ -398,7 +398,7 @@ describe.only('Controller: Member', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`
+        daoId: `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
       const spyReq = sandbox.spy(Models.Member, 'findActiveWithPagination')

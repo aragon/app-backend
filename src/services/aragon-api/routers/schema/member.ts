@@ -13,10 +13,6 @@ const MemberSchema = {
     tokenAddress: ValidationSchema.joiAddress.optional(),
   }),
 
-  getDaoById: Joi.object({
-    id: ValidationSchema.joiDaoId.optional(),
-  }),
-
   getMemberById: Joi.object({
     id: ValidationSchema.joiAddress.optional(),
   }),

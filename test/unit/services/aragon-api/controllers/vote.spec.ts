@@ -5,9 +5,9 @@ import VoteController from '@services/aragon-api/controllers/vote'
 import { ITokenType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Vote from '@models/schema/vote'
-import PairDataModule from "@modules/pairData";
+import PairDataModule from '@modules/pairData'
 
-describe.only('Controller: Vote', () => {
+describe('Controller: Vote', () => {
   let sandbox: SinonSandbox
   let rawVote: Partial<Vote>
 

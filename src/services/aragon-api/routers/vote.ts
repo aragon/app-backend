@@ -2,7 +2,7 @@ import Router, { type RouterContext } from '@koa/router'
 import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import VoteController from '@api/controllers/vote'
-import { type HexAddress, type IVoteExtraParams, type NetworksEnum } from '@types'
+import { type HexAddress, type IPairParams, type IVoteExtraParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import VoteSchema from '@api/routers/schema/vote'
 
@@ -17,18 +17,21 @@ const VoteRouter = {
       tokenAddress: ctx.query.tokenAddress as HexAddress,
       proposalId: ctx.query.proposalId ? Number(ctx.query.proposalId) : undefined,
     }
-    const ens = ctx.query.ens as string
+    const pairParams: IPairParams = {
+      daoId: ctx.query.daoId as string,
+      ens: ctx.query.ens as string,
+    }
 
-    const [formattedPaginationParams, formattedExtraParams, formattedEns] = await Promise.all([
+    const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(VoteSchema.getExtraParams, extraParams),
-      ValidationSchema.validateParams(VoteSchema.getMemberEns, { ens }),
+      ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
     ])
 
     ctx.body = await VoteController.getVoteWithPagination(
       formattedPaginationParams,
       formattedExtraParams,
-      formattedEns.ens,
+      formattedPairParams,
     )
   },
 

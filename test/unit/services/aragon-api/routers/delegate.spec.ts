@@ -96,7 +96,7 @@ describe('Router: Delegate', () => {
         memberAddress: undefined,
         tokenAddress: undefined,
       })
-      expect(stubCtrl.args[0][2]).to.eq(filterParams.daoId)
+      expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
 
     it('Should get delegate with pagination - missing pagination params', async () => {

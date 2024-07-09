@@ -3,7 +3,13 @@ import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import TransactionSchema from '@api/routers/schema/transaction'
 import TransactionController from '@api/controllers/transaction'
-import { type HexAddress, type ITransactionCategory, type ITransactionExtraParams, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IPairParams,
+  type ITransactionCategory,
+  type ITransactionExtraParams,
+  type NetworksEnum,
+} from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 
 const TransactionRouter = {
@@ -17,18 +23,20 @@ const TransactionRouter = {
       fromAddress: ctx.query.sender as HexAddress,
       toAddress: ctx.query.receiver as HexAddress,
     }
-    const daoId = ctx.query.daoId as string
+    const pairParams: IPairParams = {
+      daoId: ctx.query.daoId as string,
+    }
 
-    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
+    const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(TransactionSchema.getExtraParams, extraParams),
-      ValidationSchema.validateParams(TransactionSchema.getDaoById, { id: daoId }),
+      ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
     ])
 
     ctx.body = await TransactionController.getTransactionsWithPagination(
       formattedPaginationParams,
       formattedExtraParams,
-      formattedDaoId.id,
+      formattedPairParams,
     )
   },
 

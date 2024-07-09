@@ -53,7 +53,7 @@ describe('Router: Member', () => {
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
-      expect(stubCtrl.args[0][2]).not.to.exist
+      expect(stubCtrl.args[0][2]).to.deep.eq({ daoId: undefined })
     })
 
     it('Should get member with pagination - daoId', async () => {
@@ -96,7 +96,7 @@ describe('Router: Member', () => {
         pluginAddress: undefined,
         tokenAddress: undefined,
       })
-      expect(stubCtrl.args[0][2]).to.eq(filterParams.daoId)
+      expect(stubCtrl.args[0][2]).to.deep.eq({ daoId: filterParams.daoId })
     })
 
     it('Should get member with pagination - missing pagination params', async () => {
@@ -134,7 +134,7 @@ describe('Router: Member', () => {
         ...filterParams,
         ...{ daoAddress: undefined, pluginAddress: undefined, onlyActive: undefined, tokenAddress: undefined },
       })
-      expect(stubCtrl.args[0][2]).not.to.exist
+      expect(stubCtrl.args[0][2]).to.deep.eq({ daoId: undefined })
     })
   })
 
@@ -192,7 +192,7 @@ describe('Router: Member', () => {
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
-      expect(stubCtrl.args[0][2]).not.to.exist
+      expect(stubCtrl.args[0][2]).to.deep.eq({ daoId: undefined })
     })
 
     it('Should get active member with pagination - daoId', async () => {
@@ -233,7 +233,7 @@ describe('Router: Member', () => {
         pluginAddress: undefined,
         tokenAddress: undefined,
       })
-      expect(stubCtrl.args[0][2]).to.eq(filterParams.daoId)
+      expect(stubCtrl.args[0][2]).to.deep.eq({ daoId: filterParams.daoId })
     })
 
     it('Should get active member with pagination - missing pagination params', async () => {
@@ -271,7 +271,7 @@ describe('Router: Member', () => {
         ...filterParams,
         ...{ daoAddress: undefined, pluginAddress: undefined, tokenAddress: undefined },
       })
-      expect(stubCtrl.args[0][2]).not.to.exist
+      expect(stubCtrl.args[0][2]).to.deep.eq({ daoId: undefined })
     })
   })
 

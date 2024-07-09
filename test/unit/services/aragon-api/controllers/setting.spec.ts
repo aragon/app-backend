@@ -5,9 +5,9 @@ import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import SettingController from '@api/controllers/setting'
 import Setting from '@models/schema/setting'
-import PairDataModule from "@modules/pairData";
+import PairDataModule from '@modules/pairData'
 
-describe.only('Controller: Setting', () => {
+describe('Controller: Setting', () => {
   let sandbox: SinonSandbox
   let rawSetting: Partial<Setting>
   let settingDb: Setting
@@ -134,7 +134,7 @@ describe.only('Controller: Setting', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawSetting.network}-${rawSetting.daoAddress}`
+        daoId: `${rawSetting.network}-${rawSetting.daoAddress}`,
       }
 
       sandbox.stub(Models.Dao, 'findByEntityId').resolves({
@@ -184,7 +184,7 @@ describe.only('Controller: Setting', () => {
       const filterParams: any = {}
 
       const pairParams: any = {
-        daoId: `${rawSetting.network}-${rawSetting.daoAddress}`
+        daoId: `${rawSetting.network}-${rawSetting.daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
 
