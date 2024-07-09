@@ -12,7 +12,10 @@ const TransactionRouter = {
     const extraParams: ITransactionExtraParams = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.address as HexAddress,
+      tokenAddress: ctx.query.receiver as HexAddress,
       category: ctx.query.category as ITransactionCategory,
+      fromAddress: ctx.query.sender as HexAddress,
+      toAddress: ctx.query.receiver as HexAddress,
     }
     const daoId = ctx.query.daoId as string
 

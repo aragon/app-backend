@@ -42,16 +42,36 @@ describe('Model/Utils: models', () => {
     it('should create a filter with search terms and date range', () => {
       const params = {
         search: 'test',
-        startDate: '2022-01-01',
-        endDate: '2022-01-31',
+        startDate: 1719577224,
+        endDate: 2019577224,
       }
       const searchFields = ['name', 'description']
       const result = ModelUtils.createFilter(params, searchFields)
 
-      expect(result).to.include.keys(['$or', 'createdAt'])
-      expect(result.createdAt).to.deep.include({
-        $gte: dayjs.utc('2022-01-01').startOf('day').toDate(),
-        $lte: dayjs.utc('2022-01-31').endOf('day').toDate(),
+      expect(result).to.include.keys(['$or', 'startDate', 'endDate'])
+      expect(result.startDate).to.deep.include({
+        $gte: 1719577224,
+      })
+      expect(result.endDate).to.deep.include({
+        $lte: 2019577224,
+      })
+    })
+
+    it('should create a filter with search terms and date range with same params', () => {
+      const params = {
+        search: 'test',
+        startDateProp: 'blockNumber',
+        endDateProp: 'blockNumber',
+        startDate: 1719577224,
+        endDate: 2019577224,
+      }
+      const searchFields = ['name', 'description']
+      const result = ModelUtils.createFilter(params, searchFields)
+
+      expect(result).to.include.keys(['$or', 'blockNumber'])
+      expect(result.blockNumber).to.deep.include({
+        $gte: 1719577224,
+        $lte: 2019577224,
       })
     })
   })
@@ -68,12 +88,14 @@ describe('Model/Utils: models', () => {
 
       expect(result).to.deep.equal({
         search: undefined,
+        startDateProp: undefined,
+        endDateProp: undefined,
         startDate: undefined,
         endDate: undefined,
         pageSize: 15,
         page: 3,
         order: 'desc',
-        sort: 'createdAt',
+        sort: 'startDate',
       })
     })
 

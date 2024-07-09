@@ -4,6 +4,7 @@ import { expect } from 'chai'
 import VoteRouter from '@services/aragon-api/routers/vote'
 import VoteController from '@services/aragon-api/controllers/vote'
 import { NetworksEnum } from '@types'
+import * as _ from 'lodash'
 
 describe('Router: Vote', () => {
   let sandbox: SinonSandbox
@@ -20,7 +21,7 @@ describe('Router: Vote', () => {
     it('Should get vote with pagination - all params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
-        memberAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         tokenAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
@@ -44,18 +45,65 @@ describe('Router: Vote', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,
         sort: 'blockNumber',
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
-      expect(stubCtrl.args[0][1]).to.deep.eq({ ...filterParams, ...{ proposalId: 1 } })
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        ..._.omit(filterParams, 'address'),
+        ...{ proposalId: 1, memberAddress: filterParams.address },
+      })
+    })
+
+    it('Should get vote with pagination - ens', async () => {
+      const filterParams = {
+        ens: 'test.dao.eth',
+      }
+      const paginationParams = {
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+      }
+
+      const stubCtrl = sandbox.stub(VoteController, 'getVoteWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: { ...filterParams, ...paginationParams },
+      }
+
+      await VoteRouter.getWithPagination(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+
+      const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
+        endDate: undefined,
+        startDate: undefined,
+        search: undefined,
+        sort: 'blockNumber',
+      }
+
+      expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        network: undefined,
+        daoAddress: undefined,
+        pluginAddress: undefined,
+        memberAddress: undefined,
+        tokenAddress: undefined,
+        proposalId: undefined,
+      })
+      expect(stubCtrl.args[0][2]).to.eq(filterParams.ens)
     })
 
     it('Should get vote with pagination - missing pagination params', async () => {
       const filterParams = {
-        memberAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
       const paginationParams = {
         sort: 'createdAt',
@@ -73,6 +121,8 @@ describe('Router: Vote', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,
@@ -83,8 +133,8 @@ describe('Router: Vote', () => {
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
-        ...filterParams,
         ...{
+          memberAddress: filterParams.address,
           daoAddress: undefined,
           pluginAddress: undefined,
           tokenAddress: undefined,

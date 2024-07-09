@@ -97,26 +97,6 @@ const MemberRouter = {
     const router = new Router()
 
     /**
-     * @api {get} /history/ Get Members
-     * @apiName Members
-     * @apiGroup Members
-     * @apiDescription Get Members
-     *
-     * @apiSampleRequest /history
-     */
-    router.get('/history', MemberRouter.getMembersWithPagination)
-
-    /**
-     * @api {get} /:address Get Member by address
-     * @apiName Members
-     * @apiGroup Members
-     * @apiDescription Get Member by address
-     *
-     * @apiSampleRequest /member/history/:address
-     */
-    router.get('/history/:address', MemberRouter.getMemberByAddress)
-
-    /**
      * @api {get} / Get Members
      * @apiName Members
      * @apiGroup Members
@@ -125,7 +105,27 @@ const MemberRouter = {
      * @apiSampleRequest /
      *
      */
-    router.get('/', MemberRouter.getActiveMembersWithPagination)
+    router.get('/active', MemberRouter.getActiveMembersWithPagination)
+
+    /**
+     * @api {get} /active/:address Get Member by address
+     * @apiName Members
+     * @apiGroup Members
+     * @apiDescription Get Member by address
+     *
+     * @apiSampleRequest /active/:address
+     */
+    router.get('/active/:address', MemberRouter.getActiveMemberByAddress)
+
+    /**
+     * @api {get} / Get Members
+     * @apiName Members
+     * @apiGroup Members
+     * @apiDescription Get Members
+     *
+     * @apiSampleRequest /
+     */
+    router.get('/', MemberRouter.getMembersWithPagination)
 
     /**
      * @api {get} /:address Get Member by address
@@ -133,9 +133,9 @@ const MemberRouter = {
      * @apiGroup Members
      * @apiDescription Get Member by address
      *
-     * @apiSampleRequest /:address
+     * @apiSampleRequest /member/:address
      */
-    router.get('/:address', MemberRouter.getActiveMemberByAddress)
+    router.get('/:address', MemberRouter.getMemberByAddress)
 
     return router
   },

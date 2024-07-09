@@ -105,6 +105,7 @@ describe('Indexer:Aggregator:Dao', () => {
 
       const stubLogger = sandbox.stub(Logger, 'verbose')
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(100)
+      sandbox.stub(Web3Helper, 'subdomainExists').resolves(true)
 
       document.implementationAddress = '0x0000'
       await AggregatorDao.onDocument(document as any)

@@ -10,6 +10,8 @@ import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import { ConfigState } from '@state/configState'
 import { fakeAlchemyTransfer } from '@test/mock/fakeAlchemyTransfer'
 import { UtilsIndexer } from '@indexer/utils/indexer'
+import Web3Helper from '@helpers/web3'
+import { RateModule } from '@modules/rates'
 
 describe('Indexer:Aggregator:Transactions', () => {
   let sandbox: sinon.SinonSandbox
@@ -170,7 +172,10 @@ describe('Indexer:Aggregator:Transactions', () => {
           }
         }
 
+        const loggerStub = sandbox.stub(Logger, 'verbose')
         const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves(expectedTransaction.token as any)
+        const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
+        const fetchRateStub = sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
         await AggregatorTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any)
 
         const existingTxDb = await Models.Transaction.findExistingLog({
@@ -179,11 +184,19 @@ describe('Indexer:Aggregator:Transactions', () => {
           network: daoRegistry.network,
         })
 
+        expect(loggerStub.calledOnce).to.be.true
+        expect(loggerStub.calledOnceWith('New Transaction' as any)).to.be.true
+        if (tx.rawContract.address) {
+          expect(fetchRateStub.calledOnce).to.be.true
+        }
+
         expect(existingTxDb.transactionHash).to.equal(expectedTransaction.transactionHash)
         if (expectedTransaction.token) {
           expect(stubToken.calledOnce).to.be.true
           expect(existingTxDb?.token?.address).to.equal(expectedTransaction?.token?.address)
         }
+
+        expect(getBlockTimestampStub.calledOnce).to.be.true
       })
     })
 

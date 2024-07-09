@@ -8,7 +8,7 @@ import PaginationSchema from '@api/routers/schema/pagination'
 
 const DaoRouter = {
   getWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx)
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockTimestamp' })
     const extraParams: IDaoExtraParams = {
       network: ctx.query.network as NetworksEnum,
       address: ctx.query.address as HexAddress,
