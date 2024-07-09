@@ -11,7 +11,7 @@ import { ConfigState } from '@state/configState'
 import { fakeAlchemyTransfer } from '@test/mock/fakeAlchemyTransfer'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 
-describe('Indexer:Aggregator:Transactions', () => {
+describe.only('Indexer:Aggregator:Transactions', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(async () => {

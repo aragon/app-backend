@@ -26,6 +26,7 @@ export interface IProposalExtraParams {
 export interface IAssetExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
+  tokenAddress?: HexAddress
 }
 
 export interface IDaoExtraParams {

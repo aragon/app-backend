@@ -141,7 +141,6 @@ export const AggregatorTransactions = {
             tokenId: BigInt(w.tokenId)?.toString(),
             value: w.value?.toString(),
           })),
-          tokenAddress: tx.rawContract?.address!,
           category: tx.category,
         }
 
@@ -149,6 +148,7 @@ export const AggregatorTransactions = {
           const token = await UtilsIndexer.saveAndGetToken(tx.rawContract?.address, daoRegistry.network)
 
           if (token?.address) {
+            rawTx.tokenAddress = token.address
             // historical price
             const daysDifference = utils.calculateDaysDifference(rawTx.blockTimestamp)
             const rate = await RateModule.fetchRate(token.address, daoRegistry.network, daysDifference)
