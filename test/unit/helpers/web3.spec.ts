@@ -777,7 +777,7 @@ describe('Helpers:Web3', () => {
     const result = Web3Helper.parseAddress(address)
 
     expect(result).to.be.null
-    expect(stubLogger.calledWith('Error checksum dao address' as any)).to.be.true
+    expect(stubLogger.calledWith('Error checksum address' as any)).to.be.true
   })
 
   describe('parseProposalMetadata', () => {
@@ -868,7 +868,7 @@ describe('Helpers:Web3', () => {
       const result = Web3Helper.parseAddress(address)
 
       expect(result).to.be.null
-      expect(stubLogger.calledWith('Error checksum dao address' as any)).to.be.true
+      expect(stubLogger.calledWith('Error checksum address' as any)).to.be.true
     })
   })
 

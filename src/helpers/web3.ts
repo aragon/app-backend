@@ -373,7 +373,7 @@ const Web3Helper = {
       return getAddress(address)
     } catch (error) {
       logger.error(
-        'Error checksum dao address',
+        'Error checksum address',
         llo({
           address,
           error,
@@ -559,7 +559,9 @@ const Web3Helper = {
   }> {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
     const tokenInstance = new Contract(address, ERC20.abi, provider)
-    const token: any = { address }
+    const token: any = {
+      address: Web3Helper.parseAddress(address) || address
+    }
 
     try {
       token.name = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.name())
