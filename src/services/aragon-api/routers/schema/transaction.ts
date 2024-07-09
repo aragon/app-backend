@@ -15,10 +15,6 @@ const TransactionSchema = {
       .valid(...Object.values(ITransactionCategory))
       .optional(),
   }),
-
-  getDaoById: Joi.object({
-    id: ValidationSchema.joiDaoId.optional(),
-  }),
 }
 
 export default TransactionSchema

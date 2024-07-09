@@ -3,7 +3,7 @@ import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import ProposalSchema from '@api/routers/schema/proposal'
 import ProposalController from '@api/controllers/proposal'
-import { type HexAddress, type IProposalExtraParams, type NetworksEnum } from '@types'
+import { type HexAddress, type IPairParams, type IProposalExtraParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 
 const ProposalRouter = {
@@ -15,18 +15,20 @@ const ProposalRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       creatorAddress: ctx.query.creatorAddress as HexAddress,
     }
-    const daoId = ctx.query.daoId as string
+    const pairParams: IPairParams = {
+      daoId: ctx.query.daoId as string,
+    }
 
-    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
+    const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(ProposalSchema.getExtraParams, extraParams),
-      ValidationSchema.validateParams(ProposalSchema.getDaoById, { id: daoId }),
+      ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
     ])
 
     ctx.body = await ProposalController.getProposalsWithPagination(
       formattedPaginationParams,
       formattedExtraParams,
-      formattedDaoId.id,
+      formattedPairParams,
     )
   },
 

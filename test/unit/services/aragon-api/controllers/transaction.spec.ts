@@ -5,7 +5,7 @@ import TransactionController from '@services/aragon-api/controllers/transaction'
 import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Transaction from '@models/schema/transaction'
-import PairDataModule from "@modules/pairData";
+import PairDataModule from '@modules/pairData'
 
 describe('Controller: Transaction', () => {
   let sandbox: SinonSandbox
@@ -145,7 +145,7 @@ describe('Controller: Transaction', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawTransaction.network}-${rawTransaction.daoAddress}`
+        daoId: `${rawTransaction.network}-${rawTransaction.daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
         daoAddress: rawTransaction.daoAddress,
@@ -153,7 +153,11 @@ describe('Controller: Transaction', () => {
       })
       const spyReq = sandbox.spy(Models.Transaction, 'findWithPagination')
 
-      const response = await TransactionController.getTransactionsWithPagination(paginationParams, filterParams, pairParams)
+      const response = await TransactionController.getTransactionsWithPagination(
+        paginationParams,
+        filterParams,
+        pairParams,
+      )
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -193,12 +197,16 @@ describe('Controller: Transaction', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawTransaction.network}-${rawTransaction.daoAddress}`
+        daoId: `${rawTransaction.network}-${rawTransaction.daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
       const spyReq = sandbox.spy(Models.Transaction, 'findWithPagination')
 
-      const response = await TransactionController.getTransactionsWithPagination(paginationParams, filterParams, pairParams)
+      const response = await TransactionController.getTransactionsWithPagination(
+        paginationParams,
+        filterParams,
+        pairParams,
+      )
 
       expect(spyReq.notCalled).to.be.true
       expect(response).to.have.property('data').with.lengthOf(0)

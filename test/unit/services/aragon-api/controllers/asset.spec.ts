@@ -5,7 +5,7 @@ import AssetController from '@services/aragon-api/controllers/asset'
 import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Asset from '@models/schema/asset'
-import PairDataModule from "@modules/pairData";
+import PairDataModule from '@modules/pairData'
 
 describe('Controller: Asset', () => {
   let sandbox: SinonSandbox
@@ -127,7 +127,7 @@ describe('Controller: Asset', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`
+        daoId: `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`,
       }
 
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
@@ -177,7 +177,7 @@ describe('Controller: Asset', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`
+        daoId: `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`,
       }
 
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)

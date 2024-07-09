@@ -5,9 +5,9 @@ import DelegateController from '@services/aragon-api/controllers/delegate'
 import { ITokenType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Delegate from '@models/schema/delegate'
-import PairDataModule from "@modules/pairData";
+import PairDataModule from '@modules/pairData'
 
-describe.only('Controller: Delegate', () => {
+describe('Controller: Delegate', () => {
   let sandbox: SinonSandbox
   let rawDelegate: Partial<Delegate>
 
@@ -154,7 +154,7 @@ describe.only('Controller: Delegate', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawDelegate.network}-${rawDelegate.daoAddress}`
+        daoId: `${rawDelegate.network}-${rawDelegate.daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
         daoAddress: rawDelegate.daoAddress,
@@ -200,7 +200,7 @@ describe.only('Controller: Delegate', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawDelegate.network}-${rawDelegate.daoAddress}`
+        daoId: `${rawDelegate.network}-${rawDelegate.daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
 

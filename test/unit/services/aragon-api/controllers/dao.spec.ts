@@ -6,9 +6,9 @@ import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { DaoList } from '@test/mock/fakeDao'
 import Dao from '@models/schema/dao'
-import PairDataModule from "@modules/pairData";
+import PairDataModule from '@modules/pairData'
 
-describe.only('Controller: Dao', () => {
+describe('Controller: Dao', () => {
   let sandbox: SinonSandbox
   let rawDao: Partial<Dao>
 

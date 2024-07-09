@@ -3,7 +3,7 @@ import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import AssetSchema from '@api/routers/schema/asset'
 import AssetController from '@api/controllers/asset'
-import { type HexAddress, type IAssetExtraParams, type NetworksEnum } from '@types'
+import { type HexAddress, type IAssetExtraParams, type IPairParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 
 const AssetRouter = {
@@ -14,18 +14,20 @@ const AssetRouter = {
       daoAddress: ctx.query.address as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
     }
-    const daoId = ctx.query.daoId as string
+    const pairParams: IPairParams = {
+      daoId: ctx.query.daoId as string,
+    }
 
-    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
+    const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(AssetSchema.getExtraParams, extraParams),
-      ValidationSchema.validateParams(AssetSchema.getDaoById, { id: daoId }),
+      ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
     ])
 
     ctx.body = await AssetController.getAssetsWithPagination(
       formattedPaginationParams,
       formattedExtraParams,
-      formattedDaoId.id,
+      formattedPairParams,
     )
   },
 

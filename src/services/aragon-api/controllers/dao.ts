@@ -10,7 +10,7 @@ import {
 } from '@types'
 import type Dao from '@models/schema/dao'
 import { assertExposable } from '@errors'
-import PairDataModule from "@modules/pairData";
+import PairDataModule from '@modules/pairData'
 
 const DaoController = {
   getDaosWithPagination: async (

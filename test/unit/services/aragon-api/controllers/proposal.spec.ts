@@ -5,9 +5,9 @@ import ProposalController from '@services/aragon-api/controllers/proposal'
 import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Proposal from '@models/schema/proposal'
-import PairDataModule from "@modules/pairData";
+import PairDataModule from '@modules/pairData'
 
-describe.only('Controller: Proposal', () => {
+describe('Controller: Proposal', () => {
   let sandbox: SinonSandbox
   let rawProposal: Partial<Proposal>
   let proposalDb: Proposal
@@ -153,7 +153,7 @@ describe.only('Controller: Proposal', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawProposal.daos?.[0].network}-${rawProposal.daos?.[0].daoAddress}`
+        daoId: `${rawProposal.daos?.[0].network}-${rawProposal.daos?.[0].daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
         daoAddress: rawProposal.daos?.[0].daoAddress,
@@ -207,7 +207,7 @@ describe.only('Controller: Proposal', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawProposal.daos?.[0].network}-${rawProposal.daos?.[0].daoAddress}`
+        daoId: `${rawProposal.daos?.[0].network}-${rawProposal.daos?.[0].daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
       const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
