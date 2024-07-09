@@ -32,8 +32,6 @@ describe('Controller: Asset', () => {
     it('should get assets with pagination - all params', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -55,8 +53,6 @@ describe('Controller: Asset', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -79,8 +75,6 @@ describe('Controller: Asset', () => {
     it('should get assets no params', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -102,8 +96,6 @@ describe('Controller: Asset', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -126,8 +118,6 @@ describe('Controller: Asset', () => {
     it('should get proposals with pagination - daoId', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -154,8 +144,6 @@ describe('Controller: Asset', () => {
           },
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -178,8 +166,6 @@ describe('Controller: Asset', () => {
     it('should get proposals with pagination - daoId not found', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',

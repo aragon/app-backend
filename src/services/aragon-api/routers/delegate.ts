@@ -5,24 +5,31 @@ import DelegateController from '@api/controllers/delegate'
 import { type HexAddress, type IDelegateExtraParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import DelegateSchema from '@api/routers/schema/delegate'
+import MemberSchema from '@api/routers/schema/member'
 
 const DelegateRouter = {
   getWithPagination: async function (ctx: RouterContext) {
     const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockNumber' })
     const extraParams: IDelegateExtraParams = {
-      memberAddress: ctx.query.memberAddress as HexAddress,
+      memberAddress: ctx.query.address as HexAddress,
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
     }
+    const daoId = ctx.query.daoId as string
 
-    const [formattedPaginationParams, formattedExtraParams] = await Promise.all([
+    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(DelegateSchema.getExtraParams, extraParams),
+      ValidationSchema.validateParams(MemberSchema.getDaoById, { id: daoId }),
     ])
 
-    ctx.body = await DelegateController.getDelegateWithPagination(formattedPaginationParams, formattedExtraParams)
+    ctx.body = await DelegateController.getDelegateWithPagination(
+      formattedPaginationParams,
+      formattedExtraParams,
+      formattedDaoId.id,
+    )
   },
 
   router() {

@@ -45,11 +45,11 @@ export const AggregatorProposal = {
       proposalId: document.proposalId!,
     })
 
-    if (Web3Helper.needToSyncBlockTime(document)) {
+    if (Web3Helper.needToSyncBlockTime(existingLog)) {
       document.blockTimestamp = await Web3Helper.getBlockTimestamp(document.blockNumber!, document.network!)
     }
 
-    if (document.executed && Web3Helper.needToSyncBlockTime(document.executed)) {
+    if (document?.executed && Web3Helper.needToSyncBlockTime(existingLog?.executed)) {
       document.executed.blockTimestamp = await Web3Helper.getBlockTimestamp(
         document.executed.blockNumber,
         document.network!,

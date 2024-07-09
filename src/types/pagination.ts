@@ -26,6 +26,7 @@ export interface IProposalExtraParams {
 export interface IAssetExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
+  tokenAddress?: HexAddress
 }
 
 export interface IDaoExtraParams {
@@ -61,6 +62,9 @@ export interface ITransactionExtraParams {
   category?: ITransactionCategory
   network?: NetworksEnum
   daoAddress?: HexAddress
+  tokenAddress?: HexAddress
+  fromAddress?: HexAddress
+  toAddress?: HexAddress
 }
 
 export interface ISettingExtraParams {
@@ -72,12 +76,14 @@ export interface ISettingExtraParams {
 
 export interface IPaginationParams {
   search?: string
-  startDate?: Date | string | number
-  endDate?: Date | string | number
+  startDateProp?: string
+  endDateProp?: string
+  startDate?: number // in our system date is always seconds
+  endDate?: number // in our system date is always seconds
   pageSize?: number
   page?: number
-  order?: string // the property to order by
-  sort?: string // asc or desc
+  order?: 'asc' | 'desc' | string // asc or desc
+  sort?: string // the property to sort by
 }
 
 export interface IPaginationMetadata {

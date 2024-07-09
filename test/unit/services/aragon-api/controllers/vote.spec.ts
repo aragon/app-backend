@@ -44,8 +44,6 @@ describe('Controller: Vote', () => {
     it('should get vote with pagination - all params', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -71,8 +69,6 @@ describe('Controller: Vote', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -102,8 +98,6 @@ describe('Controller: Vote', () => {
     it('should get vote no params', async () => {
       const paginationParams = {
         search: '',
-        endDate: '',
-        startDate: '',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -122,8 +116,6 @@ describe('Controller: Vote', () => {
           extraParams: filterParams,
           paginationParams: {
             search: '',
-            endDate: '',
-            startDate: '',
             pageSize: 10,
             page: 1,
             order: 'asc',
@@ -148,6 +140,78 @@ describe('Controller: Vote', () => {
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get vote with pagination - ens', async () => {
+      const ens = 'test.eth'
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      sandbox.stub(Models.Member, 'findByEns').resolves({
+        address: rawVote.memberAddress,
+        ens,
+      })
+      const spyReq = sandbox.spy(Models.Vote, 'findWithPagination')
+
+      const response = await VoteController.getVoteWithPagination(paginationParams, {}, ens)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: {
+            memberAddress: rawVote.memberAddress,
+          },
+          paginationParams: {
+            search: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+
+      expect(response.data[0].network).to.eq(rawVote.network)
+      expect(response.data[0].blockNumber).to.eq(rawVote.blockNumber)
+      expect(response.data[0].transactionHash).to.eq(rawVote.transactionHash)
+      expect(response.data[0].memberAddress).to.eq(rawVote.memberAddress)
+      expect(response.data[0].pluginAddress).to.eq(rawVote.pluginAddress)
+      expect(response.data[0].daoAddress).to.eq(rawVote.daoAddress)
+      expect(response.data[0].pluginAddress).to.eq(rawVote.pluginAddress)
+      expect(response.data[0].voteOption).to.eq(rawVote.voteOption)
+      expect(response.data[0].votingPower).to.eq(rawVote.votingPower)
+      expect(response.data[0].token.type).to.eq(rawVote.token?.type)
+      expect(response.data[0].token.address).to.eq(rawVote.token?.address)
+      expect(response.data[0].token.decimals).to.eq(rawVote.token?.decimals)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get delegate with pagination - daoId not found', async () => {
+      const ens = 'test.eth'
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      sandbox.stub(Models.Member, 'findByEns').resolves(false)
+      const spyReq = sandbox.spy(Models.Vote, 'findWithPagination')
+
+      const response = await VoteController.getVoteWithPagination(paginationParams, {}, ens)
+
+      expect(spyReq.notCalled).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(0)
     })
   })
 })

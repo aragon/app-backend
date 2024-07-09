@@ -41,7 +41,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     BOTTLENECK: {
       NODE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MAX_CONCURRENT', 20),
-      NODE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MIN_TIME', 300),
+      NODE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MIN_TIME', 20),
       NODE_TRANSFER_MAX_CONCURRENT: utils.configParser(
         sourceConfig,
         'number',

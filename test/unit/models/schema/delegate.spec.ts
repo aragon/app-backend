@@ -17,6 +17,7 @@ describe('Model: Delegate', () => {
     rawDelegate = {
       transactionHash: '0x23cb0c69d2047aa825de386100e8c4509ac66b6b0b7afa1b54ec22b26cab875b',
       blockNumber: 48130742,
+      blockTimestamp: 1219577223,
       network: NetworksEnum.polygonMainnet,
       tokenAddress: '0x9707e0FD480e02Dee8836Cf7878d61D7b630fB99',
       fromDelegate: '0x0000000000000000000000000000000000000000',
@@ -106,6 +107,7 @@ describe('Model: Delegate', () => {
       const delegates = [
         {
           transactionHash: '0x23cb0c69d2047aa825de386100e8c4509ac66b6b0b7afa1b54ec22b26cab875b',
+          blockTimestamp: 1219577223,
           blockNumber: 48130742,
           network: NetworksEnum.polygonMainnet,
           tokenAddress: '0x9707e0FD480e02Dee8836Cf7878d61D7b630fB99',
@@ -125,6 +127,7 @@ describe('Model: Delegate', () => {
         },
         {
           transactionHash: '0x23cb0c69d2047aa825de386100e8c4509ac66b6b0b7afa1b54ec22b26cab875a',
+          blockTimestamp: 1219577223,
           blockNumber: 48130740,
           network: NetworksEnum.polygonMainnet,
           tokenAddress: '0x9707e0FD480e02Dee8836Cf7878d61D7b630fB99',
@@ -237,6 +240,6 @@ describe('Model: Delegate', () => {
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.token._id).to.be.undefined
     expect(filterDao.token.id).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(10)
+    expect(Object.keys(filterDao).length).to.eq(11)
   })
 })

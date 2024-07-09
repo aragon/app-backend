@@ -46,7 +46,7 @@ export const AggregatorDao = {
       const isValid = await Web3Helper.subdomainExists(document.subdomain!, document.network!)
       document.ens = isValid ? Web3Helper.parseSubdomainToEns(document.subdomain!) : null
 
-      if (Web3Helper.needToSyncBlockTime(document)) {
+      if (Web3Helper.needToSyncBlockTime(existingLog)) {
         document.blockTimestamp = await Web3Helper.getBlockTimestamp(document.blockNumber!, document.network!)
       }
 

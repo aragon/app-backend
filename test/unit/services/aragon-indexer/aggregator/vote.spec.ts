@@ -6,6 +6,7 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import Logger from '@logger'
 import { ITokenType, NetworksEnum } from '@types'
+import Web3Helper from '@helpers/web3'
 
 describe('Indexer:Aggregator:Vote', () => {
   let sandbox: SinonSandbox
@@ -66,10 +67,12 @@ describe('Indexer:Aggregator:Vote', () => {
     }
 
     const stubLogger = sandbox.stub(Logger, 'verbose')
+    const stubBlock = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(100)
 
     await AggregatorVote.onDocument(document as any)
 
     expect(stubLogger.calledOnce).to.be.true
+    expect(stubBlock.calledOnceWith(document.blockNumber, document.network)).to.be.true
 
     const vote = await Models.Vote.findExistingLog({
       network: document.network,
@@ -81,6 +84,7 @@ describe('Indexer:Aggregator:Vote', () => {
     expect(vote.id).to.exist
     expect(vote.network).to.eq(document.network)
     expect(vote.blockNumber).to.eq(document.blockNumber)
+    expect(vote.blockTimestamp).to.eq(100)
     expect(vote.transactionHash).to.eq(document.transactionHash)
     expect(vote.daoAddress).to.eq(document.daoAddress)
     expect(vote.pluginAddress).to.eq(document.pluginAddress)
@@ -115,6 +119,7 @@ describe('Indexer:Aggregator:Vote', () => {
     }
     const dbDoc = await Models.Vote.create(rawDoc)
     const loggerSpy = sandbox.stub(Logger, 'verbose')
+    sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(100)
 
     rawDoc.voteOption = 3
     await AggregatorVote.onDocument(rawDoc)

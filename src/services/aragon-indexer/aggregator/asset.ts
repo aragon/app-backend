@@ -8,7 +8,6 @@ import type Asset from '@models/schema/asset'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
-import Utils from '@helpers/utils'
 import { NetworkHelper } from '@helpers/network'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorAssets' })
@@ -74,9 +73,14 @@ export const AggregatorAssets = {
         tokenBalances
           .filter(token => Number(token.tokenBalance) > 0)
           .map(async (token: IAlchemyTokenBalance) => {
+            let tokenDb: any = null
+            if (token?.contractAddress) {
+              tokenDb = await UtilsIndexer.saveAndGetToken(token.contractAddress, document.network)
+            }
+
             const existingAssetDb = await Models.Asset.findExistingLog({
               daoAddress: document.address,
-              tokenAddress: token.contractAddress,
+              tokenAddress: tokenDb?.address,
               network: document.network,
             })
 
@@ -84,10 +88,10 @@ export const AggregatorAssets = {
               amount: token.tokenBalance,
               network: document.network,
               daoAddress: document.address,
-              tokenAddress: token.contractAddress,
+              tokenAddress: tokenDb?.address,
             }
 
-            const assetDb = await DbTx.executeTxFn(async ({ session }) => {
+            await DbTx.executeTxFn(async ({ session }) => {
               let logDb: any
               if (existingAssetDb) {
                 logDb = await existingAssetDb.update(rawData, { session })
@@ -100,10 +104,6 @@ export const AggregatorAssets = {
               logger.verbose(existingAssetDb ? 'Update Token Asset' : 'New Token Asset', llo({ logId: logDb?.id }))
               return logDb
             })
-
-            if (assetDb.tokenAddress) {
-              Utils.setImmediateAsync(async () => UtilsIndexer.saveAndGetToken(assetDb.tokenAddress, assetDb.network))
-            }
           }),
       )
     } catch (error) {

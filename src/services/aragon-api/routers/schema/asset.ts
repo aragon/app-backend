@@ -8,6 +8,7 @@ const AssetSchema = {
       .valid(...Object.values(NetworksEnum))
       .optional(),
     daoAddress: ValidationSchema.joiAddress.optional(),
+    tokenAddress: ValidationSchema.joiAddress.optional(),
   }),
 
   getDaoById: Joi.object({

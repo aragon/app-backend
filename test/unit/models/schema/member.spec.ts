@@ -16,7 +16,7 @@ describe('Model: Member', () => {
 
     rawMember = {
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      ens: undefined,
+      ens: 'test.eth',
       history: [
         {
           network: NetworksEnum.ethereumMainnet,
@@ -52,7 +52,7 @@ describe('Model: Member', () => {
     const member = await Models.Member.create(rawMember)
     expect(member.id).to.eq(entityId)
     expect(member.address).to.eq(rawMember.address)
-    expect(member.ens).to.be.null
+    expect(member.ens).to.eq(rawMember.ens)
     expect(member.history.length).to.eq(1)
     expect(member.history[0].daoAddress).to.eq(rawMember?.history?.[0].daoAddress)
     expect(member.history[0].tokenAddress).to.eq(rawMember?.history?.[0].tokenAddress)
@@ -86,6 +86,12 @@ describe('Model: Member', () => {
     const createdLogDao = await Models.Member.create(rawMember)
     const foundLogDao = await Models.Member.findByEntityId(createdLogDao.id)
     expect(foundLogDao?.id).to.eq(createdLogDao.id)
+  })
+
+  it('Should findByEns', async () => {
+    const createdMember = await Models.Member.create(rawMember)
+    const member = await Models.Member.findByEns(createdMember.ens)
+    expect(member?.address).to.eq(createdMember.address)
   })
 
   describe('Pagination', () => {
@@ -131,6 +137,16 @@ describe('Model: Member', () => {
         pluginSubdomain: 'token-voting',
       }
 
+      const rawDao4 = {
+        ...rawDao2,
+        fromBlockNumber: 3000,
+      }
+
+      const rawDao5 = {
+        ...rawDao3,
+        fromBlockNumber: 4000,
+      }
+
       const members = [
         {
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5408',
@@ -142,7 +158,7 @@ describe('Model: Member', () => {
         },
         {
           address: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
-          history: [rawDao2, rawDao3],
+          history: [rawDao4, rawDao5],
         },
       ]
 
@@ -171,7 +187,10 @@ describe('Model: Member', () => {
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Member.findWithPagination({
         extraParams: { onlyActive: true, daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401' },
-        paginationParams: {},
+        paginationParams: {
+          order: 'history.fromBlockNumber',
+          sort: 'desc',
+        },
       })
 
       expect(data.length).to.eq(2)
@@ -181,12 +200,14 @@ describe('Model: Member', () => {
       expect(pageSize).to.eq(10)
       expect(data[0].address).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5408')
       expect(data[0].history.length).to.eq(1)
+      expect(data[0].history[0].fromBlockNumber).to.eq(2000)
       expect(data[0].history[0].toBlockNumber).to.be.undefined
       expect(data[0].history[0].toTxHash).to.be.undefined
       expect(data[0].history[0].tokenAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5402')
       expect(data[0].history[0].daoAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5401')
       expect(data[1].address).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5404')
       expect(data[1].history.length).to.eq(1)
+      expect(data[1].history[0].fromBlockNumber).to.eq(3000)
       expect(data[1].history[0].toBlockNumber).to.be.undefined
       expect(data[1].history[0].toTxHash).to.be.undefined
       expect(data[1].history[0].tokenAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5402')
@@ -327,7 +348,7 @@ describe('Model: Member', () => {
     })
 
     it('should find with pagination empty result', async () => {
-      const spyUtils = sandbox.spy(ModelUtils, 'paginateEmptyResponse')
+      const spyUtils = sandbox.spy(ModelUtils, 'paginateAndSort')
       const {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },

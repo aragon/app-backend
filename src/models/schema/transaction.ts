@@ -157,7 +157,9 @@ export default class Transaction extends Model {
   }): Promise<IPaginatedResult<ITransactionResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
 
-    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([key, value]) => value !== undefined))
+    const dynamicFilter = Object.fromEntries(
+      Object.entries(extraParams).filter(([key, value]) => value !== undefined && key !== 'tokenAddress'),
+    )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, [
         'transactionHash',
@@ -167,6 +169,7 @@ export default class Transaction extends Model {
         'daoAddress',
       ]),
       ...dynamicFilter,
+      ...(extraParams.tokenAddress && { 'token.address': extraParams.tokenAddress }),
     }
 
     const currentPage = request.skip / request.limit + 1
@@ -223,7 +226,7 @@ export default class Transaction extends Model {
       'createdAt',
       'updatedAt',
     )
-    filtered.token = _.omit(filtered.token, '_id', '__v')
+    filtered.token = filtered.token ? _.omit(filtered.token, '_id', '__v') : undefined
     return filtered
   }
 }

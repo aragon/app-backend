@@ -42,6 +42,8 @@ describe('Router: Transaction', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,
@@ -51,6 +53,9 @@ describe('Router: Transaction', () => {
         daoAddress: filterParams.address,
         network: filterParams.network,
         category: filterParams.category,
+        fromAddress: undefined,
+        toAddress: undefined,
+        tokenAddress: undefined,
       })
     })
 
@@ -76,6 +81,8 @@ describe('Router: Transaction', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,
@@ -87,6 +94,9 @@ describe('Router: Transaction', () => {
         network: undefined,
         daoAddress: undefined,
         category: undefined,
+        fromAddress: undefined,
+        toAddress: undefined,
+        tokenAddress: undefined,
       })
       expect(stubCtrl.args[0][2]).to.eq(filterParams.daoId)
     })
@@ -111,6 +121,8 @@ describe('Router: Transaction', () => {
       expect(stubCtrl.calledOnce).to.be.true
 
       const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
         endDate: undefined,
         startDate: undefined,
         search: undefined,
@@ -119,7 +131,16 @@ describe('Router: Transaction', () => {
         pageSize: 10,
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
-      expect(stubCtrl.args[0][1]).to.deep.eq({ ...filterParams, ...{ daoAddress: undefined, category: undefined } })
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        ...filterParams,
+        ...{
+          fromAddress: undefined,
+          toAddress: undefined,
+          tokenAddress: undefined,
+          daoAddress: undefined,
+          category: undefined,
+        },
+      })
     })
   })
 })

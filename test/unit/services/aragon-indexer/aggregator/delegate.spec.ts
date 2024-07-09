@@ -6,6 +6,7 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import Logger from '@logger'
 import { ITokenType, NetworksEnum } from '@types'
+import Web3Helper from '@helpers/web3'
 
 describe('Indexer:Aggregator:Delegate', () => {
   let sandbox: SinonSandbox
@@ -66,10 +67,12 @@ describe('Indexer:Aggregator:Delegate', () => {
     }
 
     const stubLogger = sandbox.stub(Logger, 'verbose')
+    const stubBlock = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(100)
 
     await AggregatorDelegate.onDocument(document as any)
 
     expect(stubLogger.calledOnce).to.be.true
+    expect(stubBlock.calledOnceWith(document.blockNumber, document.network)).to.be.true
 
     const delegate = await Models.Delegate.findExistingLog({
       network: document.network,
@@ -77,6 +80,7 @@ describe('Indexer:Aggregator:Delegate', () => {
     } as any)
     expect(delegate.id).to.exist
     expect(delegate.network).to.eq(document.network)
+    expect(delegate.blockTimestamp).to.eq(100)
     expect(delegate.blockNumber).to.eq(document.blockNumber)
     expect(delegate.transactionHash).to.eq(document.transactionHash)
     expect(delegate.fromDelegate).to.eq(document.fromDelegate)
@@ -110,6 +114,7 @@ describe('Indexer:Aggregator:Delegate', () => {
     }
     const dbDoc = await Models.Delegate.create(rawDoc)
     const loggerSpy = sandbox.stub(Logger, 'verbose')
+    sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(100)
 
     rawDoc.tokenAddress = '0x0'
     await AggregatorDelegate.onDocument(rawDoc)
