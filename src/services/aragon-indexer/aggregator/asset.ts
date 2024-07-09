@@ -8,7 +8,6 @@ import type Asset from '@models/schema/asset'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
-import Utils from '@helpers/utils'
 import { NetworkHelper } from '@helpers/network'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorAssets' })
@@ -74,9 +73,8 @@ export const AggregatorAssets = {
         tokenBalances
           .filter(token => Number(token.tokenBalance) > 0)
           .map(async (token: IAlchemyTokenBalance) => {
-
             let tokenDb: any = null
-            if(token?.contractAddress) {
+            if (token?.contractAddress) {
               tokenDb = await UtilsIndexer.saveAndGetToken(token.contractAddress, document.network)
             }
 

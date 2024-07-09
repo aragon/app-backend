@@ -560,7 +560,7 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
     const tokenInstance = new Contract(address, ERC20.abi, provider)
     const token: any = {
-      address: Web3Helper.parseAddress(address) || address
+      address: Web3Helper.parseAddress(address) || address,
     }
 
     try {

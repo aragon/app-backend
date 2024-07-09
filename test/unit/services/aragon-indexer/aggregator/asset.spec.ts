@@ -9,9 +9,9 @@ import { HexAddress, IAlchemyTokenBalance, NetworksEnum } from '@types'
 import Logger from '@logger'
 import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
-import { UtilsIndexer } from "@indexer/utils/indexer";
+import { UtilsIndexer } from '@indexer/utils/indexer'
 
-describe.only('Indexer:Aggregator:Assets', () => {
+describe('Indexer:Aggregator:Assets', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -49,7 +49,7 @@ describe.only('Indexer:Aggregator:Assets', () => {
   })
 
   describe('onDocument', async () => {
-    it.only('should call onDocument and create asset', async () => {
+    it('should call onDocument and create asset', async () => {
       const document: Partial<Dao> = {
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         network: NetworksEnum.ethereumMainnet,
@@ -68,7 +68,7 @@ describe.only('Indexer:Aggregator:Assets', () => {
       }
 
       const fakeToken2 = {
-        address: '0x',
+        address: fakeTokenBalances[1].contractAddress,
         name: 'Token2',
         symbol: 'T2',
         decimals: 18,
@@ -76,10 +76,14 @@ describe.only('Indexer:Aggregator:Assets', () => {
       }
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
       const stubGetTokenBalances = sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
-      const stubGetToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken')
-        .onFirstCall().resolves(fakeToken as any)
-        .onSecondCall().resolves(fakeToken2 as any)
-        .onThirdCall().resolves(fakeToken2 as any)
+      const stubGetToken = sandbox
+        .stub(UtilsIndexer, 'saveAndGetToken')
+        .onFirstCall()
+        .resolves(fakeToken as any)
+        .onSecondCall()
+        .resolves(fakeToken2 as any)
+        .onThirdCall()
+        .resolves(fakeToken2 as any)
       const stubLogger = sandbox.stub(Logger, 'verbose')
 
       await AggregatorAssets.onDocument(document as any)
@@ -128,20 +132,23 @@ describe.only('Indexer:Aggregator:Assets', () => {
       const fakeEthBalance = '5000000000000000000'
       const fakeTokenBalances: IAlchemyTokenBalance[] = [{ contractAddress: '0xTokenAddress1', tokenBalance: '550000' }]
 
-      const assetNativeDb = await Models.Asset.create({
+      await Models.Asset.create({
         network: NetworksEnum.ethereumMainnet,
         daoAddress: document.address,
         tokenAddress: ZeroAddress,
         amount: '1000000000000000000',
       })
 
-      const assetTokenDb = await Models.Asset.create({
+      await Models.Asset.create({
         network: NetworksEnum.ethereumMainnet,
         daoAddress: document.address,
         tokenAddress: fakeTokenBalances[0].contractAddress,
         amount: '150000',
       })
 
+      const saveAndGetTokenStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+        address: fakeTokenBalances[0].contractAddress,
+      } as any)
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
       const stubGetTokenBalances = sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
       const stubLogger = sandbox.stub(Logger, 'verbose')
@@ -153,6 +160,7 @@ describe.only('Indexer:Aggregator:Assets', () => {
       expect(stubGetTokenBalances.callCount).to.eq(1)
       expect(stubGetTokenBalances.calledWith(document.address, document.network)).to.be.true
       expect(stubLogger.calledTwice).to.be.true
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
 
       const asset = await Models.Asset.findExistingLog({
         daoAddress: document.address as HexAddress,

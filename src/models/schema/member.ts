@@ -283,21 +283,24 @@ export default class Member extends Model {
     }
 
     const currentPage = request.skip / request.limit + 1
+    const query = [
+      { $match: filter },
+      {
+        $unwind: '$history',
+      },
+      {
+        $match: {
+          ...(extraParams.tokenAddress && { 'history.pluginAddress': extraParams.tokenAddress }),
+          ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
+          ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
+          ...(extraParams.network && { 'history.network': extraParams.network }),
+          $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+        },
+      },
+    ]
     const [data, totalRecords] = await Promise.all([
       this.aggregate([
-        { $match: filter },
-        {
-          $unwind: '$history',
-        },
-        {
-          $match: {
-            ...(extraParams.tokenAddress && { 'history.pluginAddress': extraParams.tokenAddress }),
-            ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
-            ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
-            ...(extraParams.network && { 'history.network': extraParams.network }),
-            $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
-          },
-        },
+        ...query,
         {
           $project: {
             _id: 0,
@@ -311,21 +314,17 @@ export default class Member extends Model {
             tokenAddress: '$history.tokenAddress',
             daoAddress: '$history.daoAddress',
             votingPower: '$history.votingPower',
-            // delegateFromAddress: '$history.delegateFromAddress',
-            // delegateToAddress: '$history.delegateToAddress',
           },
         },
         { $sort: request.sort },
         { $skip: request.skip },
         { $limit: request.limit },
       ]),
-      this.countDocuments({
-        ...filter,
-        $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
-      }),
+      this.aggregate([...query, { $count: 'totalRecords' }]),
     ])
 
-    const totalPages = Math.ceil(totalRecords / request.limit)
+    const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
+    const totalPages = Math.ceil(_totalRecords / request.limit)
 
     if (currentPage > totalPages) {
       return ModelUtils.paginateEmptyResponse(request.limit)
@@ -336,7 +335,7 @@ export default class Member extends Model {
         page: currentPage,
         pageSize: request.limit,
         totalPages,
-        totalRecords,
+        totalRecords: _totalRecords,
       },
       data: data as any,
     }

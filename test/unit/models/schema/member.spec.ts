@@ -348,7 +348,7 @@ describe('Model: Member', () => {
     })
 
     it('should find with pagination empty result', async () => {
-      const spyUtils = sandbox.spy(ModelUtils, 'paginateEmptyResponse')
+      const spyUtils = sandbox.spy(ModelUtils, 'paginateAndSort')
       const {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
