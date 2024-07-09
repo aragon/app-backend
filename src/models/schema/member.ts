@@ -174,11 +174,13 @@ export default class Member extends Model {
     }
 
     const currentPage = request.skip / request.limit + 1
+
     const [data, totalRecords] = await Promise.all([
       this.aggregate([
         { $match: filter },
         { $unwind: '$history' },
         { $match: historyFilter },
+        { $sort: request.sort },
         {
           $group: {
             _id: '$_id',
