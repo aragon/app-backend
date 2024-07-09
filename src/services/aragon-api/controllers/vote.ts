@@ -1,29 +1,24 @@
 import { Models } from '@dbModels'
 import {
-  type ENS,
   type IPaginatedResult,
   type IPaginationParams,
+  type IPairParams,
   type IVoteExtraParams,
   type IVoteResponse,
 } from '@types'
 import type Vote from '@models/schema/vote'
-import ModelUtils from '@models/utils/models'
+import PairDataModule from '@modules/pairData'
 
 const VoteController = {
   getVoteWithPagination: async (
     paginationParams: IPaginationParams = {},
     extraParams: IVoteExtraParams = {},
-    ens?: ENS,
+    pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<IVoteResponse>> => {
-    if (ens) {
-      const member = await Models.Member.findByEns(ens)
-      if (!member) {
-        return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
-      }
-      extraParams.memberAddress = member.address
-    }
+    extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
     const result = await Models.Vote.findWithPagination({ extraParams, paginationParams })
     result.data = result.data.map((vote: Vote) => vote.filterKeys())
+
     return result
   },
 }

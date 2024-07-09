@@ -2,28 +2,23 @@ import { Models } from '@dbModels'
 import {
   type IPaginatedResult,
   type IPaginationParams,
+  type IPairParams,
   type ITransactionExtraParams,
   type ITransactionResponse,
 } from '@types'
-import ModelUtils from '@models/utils/models'
 import type Transaction from '@models/schema/transaction'
+import PairDataModule from '@modules/pairData'
 
 const TransactionController = {
   getTransactionsWithPagination: async (
     paginationParams: IPaginationParams = {},
     extraParams: ITransactionExtraParams = {},
-    daoId?: string,
+    pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<ITransactionResponse>> => {
-    if (daoId) {
-      const daoDb = await Models.Dao.findByEntityId(daoId)
-      if (!daoDb) {
-        return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
-      }
-      extraParams.daoAddress = daoDb.address
-      extraParams.network = daoDb.network
-    }
+    extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
     const result = await Models.Transaction.findWithPagination({ extraParams, paginationParams })
     result.data = result.data.map((m: Transaction) => m.filterKeys())
+
     return result
   },
 }

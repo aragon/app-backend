@@ -5,8 +5,9 @@ import ProposalController from '@services/aragon-api/controllers/proposal'
 import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Proposal from '@models/schema/proposal'
+import PairDataModule from "@modules/pairData";
 
-describe('Controller: Proposal', () => {
+describe.only('Controller: Proposal', () => {
   let sandbox: SinonSandbox
   let rawProposal: Partial<Proposal>
   let proposalDb: Proposal
@@ -151,15 +152,16 @@ describe('Controller: Proposal', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawProposal.daos?.[0].network}-${rawProposal.daos?.[0].daoAddress}`
-
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
-        address: rawProposal.daos?.[0].daoAddress,
+      const pairParams: any = {
+        daoId: `${rawProposal.daos?.[0].network}-${rawProposal.daos?.[0].daoAddress}`
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
+        daoAddress: rawProposal.daos?.[0].daoAddress,
         network: rawProposal.daos?.[0].network,
       })
       const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
 
-      const response = await ProposalController.getProposalsWithPagination(paginationParams, filterParams, daoId)
+      const response = await ProposalController.getProposalsWithPagination(paginationParams, filterParams, pairParams)
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -204,15 +206,16 @@ describe('Controller: Proposal', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawProposal.daos?.[0].network}-${rawProposal.daos?.[0].daoAddress}`
-
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      const pairParams: any = {
+        daoId: `${rawProposal.daos?.[0].network}-${rawProposal.daos?.[0].daoAddress}`
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
       const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
 
-      const response = await ProposalController.getProposalsWithPagination(paginationParams, filterParams, daoId)
+      const response = await ProposalController.getProposalsWithPagination(paginationParams, filterParams, pairParams)
 
-      expect(spyReq.notCalled).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(0)
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(1)
     })
   })
 

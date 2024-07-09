@@ -10,14 +10,18 @@ import {
 } from '@types'
 import type Dao from '@models/schema/dao'
 import { assertExposable } from '@errors'
+import PairDataModule from "@modules/pairData";
 
 const DaoController = {
   getDaosWithPagination: async (
     paginationParams: IPaginationParams = {},
     extraParams: IDaoExtraParams = {},
   ): Promise<IPaginatedResult<IDaoResponse>> => {
+    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
+
     const result = await Models.Dao.findWithPagination({ extraParams, paginationParams })
     result.data = result.data.map((dao: Dao) => dao.filterKeys())
+
     return result
   },
 
