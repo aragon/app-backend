@@ -363,7 +363,6 @@ export const AggregatorMembers = {
     const userEns = await Web3Helper.getEnsFromAddress(member.address!, NetworksEnum.ethereumMainnet)
 
     const metrics: Metrics = {
-      tokenBalance: '0',
       delegateCount: 0,
       proposalCount: 0,
       voteCount: 0,
@@ -372,7 +371,7 @@ export const AggregatorMembers = {
     for (const activity of member.history!) {
       if (activity.toBlockNumber === null && activity.tokenAddress) {
         const balance = await Web3Helper.getERC20Balance(member.address!, activity.tokenAddress, activity.network)
-        metrics.tokenBalance = balance.toString()
+        activity.tokenBalance = balance.toString()
 
         metrics.delegateCount = await Models.Delegate.countDocuments({
           toDelegate: member.address,

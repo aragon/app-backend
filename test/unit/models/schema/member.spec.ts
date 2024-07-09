@@ -30,9 +30,9 @@ describe('Model: Member', () => {
           delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           votingPower: '100',
+          tokenBalance: '100',
           pluginSubdomain: 'token-voting',
           metrics: {
-            tokenBalance: '100',
             delegateCount: 0,
             voteCount: 0,
             proposalCount: 0,
@@ -66,6 +66,7 @@ describe('Model: Member', () => {
     expect(member.history[0].delegateFromAddress).to.eq(rawMember?.history?.[0].delegateToAddress)
     expect(member.history[0].votingPower).to.eq(rawMember?.history?.[0].votingPower)
     expect(member.history[0].pluginSubdomain).to.eq(rawMember?.history?.[0].pluginSubdomain)
+    expect(member.history[0].tokenBalance).to.eq(rawMember?.history?.[0].tokenBalance)
   })
 
   it('Should getEntityId', async () => {

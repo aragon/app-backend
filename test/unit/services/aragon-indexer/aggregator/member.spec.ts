@@ -23,6 +23,7 @@ describe('Indexer:Aggregator:Member', () => {
     delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
     delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
     votingPower: '100',
+    tokenBalance: '100',
     tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
   }
 
@@ -98,11 +99,13 @@ describe('Indexer:Aggregator:Member', () => {
     sandbox.stub(AggregatorMembers, '_getMemberData').resolves(rawDoc as any)
 
     rawDoc.history[0].delegateFromAddress = '0x011'
+    rawDoc.history[0].tokenBalance = '200'
     await AggregatorMembers.onDocument(rawDoc as any)
 
     const updatedDoc = await dbDoc.reload()
 
     expect(updatedDoc.history[0].delegateFromAddress).to.equal('0x011')
+    expect(updatedDoc.history[0].tokenBalance).to.equal('200')
     expect(loggerSpy.calledOnceWith('Update Aggregate Member' as any)).to.be.true
   })
 

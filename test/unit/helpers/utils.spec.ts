@@ -549,4 +549,9 @@ describe('Helpers:Utils', () => {
       expect(result).to.deep.eq([[]])
     })
   })
+
+  it('hasPropsWithValuesExcludingNetwork', () => {
+    expect(Utils.hasPropsWithValuesExcludingNetwork({ test: undefined, network: 'test' })).to.be.false
+    expect(Utils.hasPropsWithValuesExcludingNetwork({ test: 'test', network: undefined })).to.be.true
+  })
 })
