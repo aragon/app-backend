@@ -10,9 +10,22 @@ const PairDataModule = {
 
       if (ethRegex.test(searchStr)) {
         const member = await Models.Member.findByEns(searchStr as any)
+
         if (member) {
           paginationParams.search = member.address
         }
+        // else {
+        //   const address = await Web3Helper.getAddressFromEns(searchStr, NetworksEnum.ethereumMainnet)
+        //
+        //   if (address) {
+        //     const memberDb = await Models.Member.findByAddress(searchStr as any)
+        //
+        //     if (memberDb) {
+        //       await memberDb.update({ ens: searchStr })
+        //       paginationParams.search = memberDb.address
+        //     }
+        //   }
+        // }
       }
     }
 
