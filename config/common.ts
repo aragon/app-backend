@@ -131,6 +131,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ZKSYNC_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ZKSYNC_MAINNET', null),
     },
 
+    ALCHEMY: {
+      API_KEY: utils.configParser(sourceConfig, 'string', 'ALCHEMY_API_KEY', null),
+    },
+
     SERVICES: {
       ARAGON_API: {
         BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
