@@ -16,7 +16,13 @@ describe('Model: Member', () => {
 
     rawMember = {
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      ens: 'test.eth',
+      ens: [
+        {
+          name: 'leuts.eth',
+          registrationDateTimestamp: 0,
+          expiredDateTimestamp: 0,
+        },
+      ],
       history: [
         {
           network: NetworksEnum.ethereumMainnet,

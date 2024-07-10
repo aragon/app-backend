@@ -130,7 +130,13 @@ describe('Indexer:Aggregator:Member', () => {
         ],
       }
 
-      const web3Stub = sandbox.stub(Web3Helper, 'getEnsFromAddress').resolves('user-ens')
+      const web3Stub = sandbox.stub(Web3Helper, 'getEnsWithAlchemy').resolves([
+        {
+          name: 'user-ens',
+          registrationDateTimestamp: 123123,
+          expiredDateTimestamp: 123123,
+        },
+      ])
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123)
       const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves('100')
       const delegateCountStub = sandbox.stub(Models.Delegate, 'countDocuments').resolves(1)

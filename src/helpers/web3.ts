@@ -27,6 +27,7 @@ import { ERC721 } from '@artifacts/ERC721'
 import BottleneckModule from '@modules/bottleneck'
 import { ENSRegistry } from '@artifacts/ENSRegistry'
 import { Alchemy, Network } from 'alchemy-sdk'
+import { type EnsMember } from '@models/schema/member'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -632,7 +633,7 @@ const Web3Helper = {
     }
   },
 
-  async getEnsWithAlchemy(address: string) {
+  async getEnsWithAlchemy(address: string): Promise<EnsMember[]> {
     const alchemyConfig = {
       apiKey: config.ALCHEMY.API_KEY,
       network: Network.ETH_MAINNET,
@@ -646,7 +647,20 @@ const Web3Helper = {
       contractAddresses: [ensContractAddress],
     })
 
-    return nfts
+    return nfts.ownedNfts.map(nft => {
+      const registrationDateAttr = nft.raw.metadata.attributes.find(
+        (attr: any) => attr.trait_type === 'Registration Date',
+      ).value
+      const expirationDateAttr = nft.raw.metadata.attributes.find(
+        (attr: any) => attr.trait_type === 'Expiration Date',
+      ).value
+
+      return {
+        name: nft.name,
+        registrationDateTimestamp: Math.round(registrationDateAttr / 1000),
+        expirationDateTimestamp: Math.round(expirationDateAttr / 1000),
+      }
+    }) as any
   },
 }
 
