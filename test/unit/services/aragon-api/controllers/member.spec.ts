@@ -449,7 +449,7 @@ describe('Controller: Member', () => {
     it('should getActiveMemberByAddress with params', async () => {
       const memberDb = await Models.Member.create({
         address: '0x17368cae2b9c6c3055e9e3c78936a69006be5411',
-        ens: [{name: 'test.eth'}] as any,
+        ens: [{ name: 'test.eth' }] as any,
         history: [
           {
             daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
@@ -484,7 +484,7 @@ describe('Controller: Member', () => {
     it('should getActiveMemberByAddress', async () => {
       const memberDb = await Models.Member.create({
         address: '0x17368cae2b9c6c3055e9e3c78936a69006be5411',
-        ens: 'test.eth',
+        ens: [{ name: 'test.eth' }] as any,
         history: [
           {
             daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
@@ -505,7 +505,7 @@ describe('Controller: Member', () => {
 
       const member = await MemberController.getActiveMemberByAddress(memberDb.address)
       expect(member.address).to.eq(memberDb.address)
-      expect(member.ens).to.eq(memberDb.ens)
+      expect(member.ens[0].name).to.eq(memberDb.ens[0].name)
       expect(member.network).to.be.undefined
     })
 

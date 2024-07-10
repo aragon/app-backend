@@ -1,6 +1,7 @@
 import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 import { type ITokenType } from '@src/types/token'
 import { type IPluginSubdomain } from '@src/types/plugin'
+import { type EnsMember } from '@models/schema/member'
 
 export interface IStatusResponse {
   status: string
@@ -37,7 +38,7 @@ export interface IMembersResponse {
   fromBlockNumber?: number
   fromTxHash?: HexAddress
   address: HexAddress
-  ens: ENS | []
+  ens: EnsMember[]
   pluginSubdomain: IPluginSubdomain
   pluginAddress: HexAddress
   tokenAddress: HexAddress
