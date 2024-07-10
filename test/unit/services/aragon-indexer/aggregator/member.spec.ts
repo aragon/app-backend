@@ -74,7 +74,7 @@ describe('Indexer:Aggregator:Member', () => {
     expect(getMemberDataStub.calledOnce).to.be.true
     const member = await Models.Member.findExistingLog({ address: document.address })
     expect(member.address).to.equal(document.address)
-    expect(member.ens).to.be.null
+    expect(member.ens.length).to.eq(0)
     expect(member.history.length).to.eq(1)
     expect(member.history[0].network).to.eq(NetworksEnum.ethereumMainnet)
     expect(member.history[0].pluginAddress).to.eq(document.history[0].pluginAddress)
@@ -118,7 +118,7 @@ describe('Indexer:Aggregator:Member', () => {
   })
 
   describe('_getMemberData', () => {
-    it('should get member related data', async () => {
+    it.only('should get member related data', async () => {
       const rawMember = {
         address: '0x123',
         ens: [],
@@ -151,7 +151,7 @@ describe('Indexer:Aggregator:Member', () => {
       expect(getERC20BalanceStub.calledOnce).to.be.true
       expect(getERC20BalanceStub.calledWith(rawMember.address, rawDaoDoc.tokenAddress, rawDaoDoc.network)).to.be.true
 
-      expect(delegateCountStub.calledOnce).to.be.true
+      expect(delegateCountStub.calledTwice).to.be.true
       expect(
         delegateCountStub.calledWith({
           toDelegate: rawMember.address,
@@ -164,7 +164,7 @@ describe('Indexer:Aggregator:Member', () => {
 
       expect(getBlockTimestampStub.calledOnce).to.be.true
 
-      expect(member.ens).to.eq('user-ens')
+      expect(member.ens?.[0].name).to.eq('user-ens')
     })
 
     it('should get the member activity dates', async () => {

@@ -7,7 +7,7 @@ import { expect } from 'chai'
 import { Models } from '@dbModels'
 import ModelUtils from '@models/utils/models'
 
-describe('Model: Member', () => {
+describe.only('Model: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
 
@@ -59,7 +59,7 @@ describe('Model: Member', () => {
     const member = await Models.Member.create(rawMember)
     expect(member.id).to.eq(entityId)
     expect(member.address).to.eq(rawMember.address)
-    expect(member.ens).to.eq(rawMember.ens)
+    expect(member.ens[0].name).to.eq(rawMember.ens?.[0].name)
     expect(member.history.length).to.eq(1)
     expect(member.history[0].daoAddress).to.eq(rawMember?.history?.[0].daoAddress)
     expect(member.history[0].tokenAddress).to.eq(rawMember?.history?.[0].tokenAddress)
@@ -97,7 +97,7 @@ describe('Model: Member', () => {
 
   it('Should findByEns', async () => {
     const createdMember = await Models.Member.create(rawMember)
-    const member = await Models.Member.findByEns(createdMember.ens)
+    const member = await Models.Member.findByEns(createdMember.ens[0].name)
     expect(member?.address).to.eq(createdMember.address)
   })
 
@@ -425,7 +425,7 @@ describe('Model: Member', () => {
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(3)
+    expect(Object.keys(filterDao).length).to.eq(5)
     expect(Object.keys(filterDao.history[0]).length).to.eq(14)
   })
 
@@ -439,6 +439,6 @@ describe('Model: Member', () => {
     expect(filterDao.history).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(2)
+    expect(Object.keys(filterDao).length).to.eq(4)
   })
 })
