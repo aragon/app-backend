@@ -445,10 +445,45 @@ describe('Controller: Member', () => {
   })
 
   describe('getActiveMemberByAddress', () => {
+    it('should getActiveMemberByAddress with params', async () => {
+      const memberDb = await Models.Member.create({
+        address: '0x17368cae2b9c6c3055e9e3c78936a69006be5411',
+        ens: 'test.eth',
+        history: [
+          {
+            daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
+            network: NetworksEnum.ethereumMainnet,
+            pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
+            tokenAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
+            fromBlockNumber: 1,
+            toBlockNumber: undefined as any,
+            fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+            toTxHash: undefined as any,
+            delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+            delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+            votingPower: '100',
+            pluginSubdomain: 'token-voting',
+          },
+        ] as any,
+      })
+
+      const member = await MemberController.getActiveMemberByAddress(memberDb.address, {
+        daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
+      })
+      expect(member.ens).to.eq(memberDb.ens)
+      expect(member.address).to.eq(memberDb.address)
+      expect(member.network).to.eq(memberDb.history[0].network)
+      expect(member.fromBlockNumber).to.eq(memberDb.history[0].fromBlockNumber)
+      expect(member.daoAddress).to.eq(memberDb.history[0].daoAddress)
+      expect(member.tokenAddress).to.eq(memberDb.history[0].tokenAddress)
+      expect(member.pluginAddress).to.eq(memberDb.history[0].pluginAddress)
+      expect(member.votingPower).to.eq(memberDb.history[0].votingPower)
+    })
+
     it('should getActiveMemberByAddress', async () => {
       const memberDb = await Models.Member.create({
         address: '0x17368cae2b9c6c3055e9e3c78936a69006be5411',
-        ens: undefined,
+        ens: 'test.eth',
         history: [
           {
             daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
@@ -469,12 +504,8 @@ describe('Controller: Member', () => {
 
       const member = await MemberController.getActiveMemberByAddress(memberDb.address)
       expect(member.address).to.eq(memberDb.address)
-      expect(member.network).to.eq(memberDb.history[0].network)
-      expect(member.fromBlockNumber).to.eq(memberDb.history[0].fromBlockNumber)
-      expect(member.daoAddress).to.eq(memberDb.history[0].daoAddress)
-      expect(member.tokenAddress).to.eq(memberDb.history[0].tokenAddress)
-      expect(member.pluginAddress).to.eq(memberDb.history[0].pluginAddress)
-      expect(member.votingPower).to.eq(memberDb.history[0].votingPower)
+      expect(member.ens).to.eq(memberDb.ens)
+      expect(member.network).to.be.undefined
     })
 
     it('should fail getActiveMemberByAddress', async () => {
