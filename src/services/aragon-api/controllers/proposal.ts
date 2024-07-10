@@ -19,6 +19,7 @@ const ProposalController = {
     extraParams: IProposalExtraParams = {},
     pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<IProposalsResponse>> => {
+    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
     const result = await Models.Proposal.findWithPagination({ extraParams, paginationParams })
     result.data = result.data.map((proposal: Proposal) => proposal.filterKeys())
