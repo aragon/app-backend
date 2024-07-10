@@ -367,7 +367,8 @@ export const AggregatorMembers = {
 
     const metrics: Metrics = {
       tokenBalance: '0',
-      delegateCount: 0,
+      delegateReceivedCount: 0,
+      delegateSentCount: 0,
       proposalCount: 0,
       voteCount: 0,
     }
@@ -377,10 +378,19 @@ export const AggregatorMembers = {
         const balance = await Web3Helper.getERC20Balance(member.address!, activity.tokenAddress, activity.network)
         metrics.tokenBalance = balance.toString()
 
-        metrics.delegateCount = await Models.Delegate.countDocuments({
-          toDelegate: member.address,
-          tokenAddress: activity.tokenAddress,
-        })
+        const [delegateReceivedCount, delegateSentCount] = await Promise.all([
+          Models.Delegate.countDocuments({
+            toDelegate: member.address,
+            tokenAddress: activity.tokenAddress,
+          }),
+          Models.Delegate.countDocuments({
+            fromDelegate: member.address,
+            tokenAddress: activity.tokenAddress,
+          }),
+        ])
+
+        metrics.delegateReceivedCount = delegateReceivedCount
+        metrics.delegateSentCount = delegateSentCount
       }
 
       if (!activity.fromBlockTimestamp) {
@@ -395,7 +405,6 @@ export const AggregatorMembers = {
     }
 
     const memberActivityDates = await AggregatorMembers._getMemberActivityDates(member.address!)
-
     member.firstActivity = memberActivityDates?.firstActivity
     member.lastActivity = memberActivityDates?.lastActivity
 
@@ -411,8 +420,12 @@ export const AggregatorMembers = {
       const firstActivityBlock = activityResults.firstActivity
       const lastActivityBlock = activityResults.lastActivity
 
-      firstActivityTimestamp = await Web3Helper.getBlockTimestamp(firstActivityBlock, activityResults.network)
-      lastActivityTimestamp = await Web3Helper.getBlockTimestamp(lastActivityBlock, activityResults.network)
+      const [firstActivityTime, lastActivityTime] = await Promise.all([
+        Web3Helper.getBlockTimestamp(firstActivityBlock, activityResults.network),
+        Web3Helper.getBlockTimestamp(lastActivityBlock, activityResults.network),
+      ])
+      firstActivityTimestamp = firstActivityTime
+      lastActivityTimestamp = lastActivityTime
     }
 
     return {
