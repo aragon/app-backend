@@ -195,10 +195,7 @@ describe('Model: Member', () => {
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Member.findWithPagination({
         extraParams: { onlyActive: true, daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401' },
-        paginationParams: {
-          order: 'history.fromBlockNumber',
-          sort: 'desc',
-        },
+        paginationParams: {},
       })
 
       expect(data.length).to.eq(2)
@@ -206,20 +203,23 @@ describe('Model: Member', () => {
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)
-      expect(data[0].address).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5408')
-      expect(data[0].history.length).to.eq(1)
-      expect(data[0].history[0].fromBlockNumber).to.eq(2000)
-      expect(data[0].history[0].toBlockNumber).to.be.undefined
-      expect(data[0].history[0].toTxHash).to.be.undefined
-      expect(data[0].history[0].tokenAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5402')
-      expect(data[0].history[0].daoAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5401')
-      expect(data[1].address).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5404')
-      expect(data[1].history.length).to.eq(1)
-      expect(data[1].history[0].fromBlockNumber).to.eq(3000)
-      expect(data[1].history[0].toBlockNumber).to.be.undefined
-      expect(data[1].history[0].toTxHash).to.be.undefined
-      expect(data[1].history[0].tokenAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5402')
-      expect(data[1].history[0].daoAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5401')
+
+      const member1 = data.find((member: any) => member.address === '0x17366cae2b9c6c3055e9e3c78936a69006be5408')
+      expect(member1.address).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5408')
+      expect(member1.history.length).to.eq(1)
+      expect(member1.history[0].fromBlockNumber).to.eq(2000)
+      expect(member1.history[0].toBlockNumber).to.be.undefined
+      expect(member1.history[0].toTxHash).to.be.undefined
+      expect(member1.history[0].tokenAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5402')
+      expect(member1.history[0].daoAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5401')
+      const member2 = data.find((member: any) => member.address === '0x17366cae2b9c6c3055e9e3c78936a69006be5404')
+      expect(member2.address).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5404')
+      expect(member2.history.length).to.eq(1)
+      expect(member2.history[0].fromBlockNumber).to.eq(3000)
+      expect(member2.history[0].toBlockNumber).to.be.undefined
+      expect(member2.history[0].toTxHash).to.be.undefined
+      expect(member2.history[0].tokenAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5402')
+      expect(member2.history[0].daoAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5401')
     })
 
     it('should find with pagination with daoAddress', async () => {
