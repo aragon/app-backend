@@ -26,6 +26,7 @@ import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import BottleneckModule from '@modules/bottleneck'
 import { ENSRegistry } from '@artifacts/ENSRegistry'
+import { Alchemy, Network } from 'alchemy-sdk'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -629,6 +630,23 @@ const Web3Helper = {
     } catch (error) {
       return '0'
     }
+  },
+
+  async getEnsWithAlchemy(address: string) {
+    const alchemyConfig = {
+      apiKey: config.ALCHEMY.API_KEY,
+      network: Network.ETH_MAINNET,
+    }
+
+    const alchemy = new Alchemy(alchemyConfig)
+
+    const walletAddress = address // replace with wallet address
+    const ensContractAddress = '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85'
+    const nfts = await alchemy.nft.getNftsForOwner(walletAddress, {
+      contractAddresses: [ensContractAddress],
+    })
+
+    return nfts
   },
 }
 
