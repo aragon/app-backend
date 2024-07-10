@@ -7,7 +7,7 @@ import { expect } from 'chai'
 import { Models } from '@dbModels'
 import ModelUtils from '@models/utils/models'
 
-describe.only('Model: Member', () => {
+describe('Model: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
 
