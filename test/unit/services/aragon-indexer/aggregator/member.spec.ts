@@ -118,7 +118,7 @@ describe('Indexer:Aggregator:Member', () => {
   })
 
   describe('_getMemberData', () => {
-    it.only('should get member related data', async () => {
+    it('should get member related data', async () => {
       const rawMember = {
         address: '0x123',
         ens: [],
