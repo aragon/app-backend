@@ -121,7 +121,7 @@ describe('Indexer:Aggregator:Member', () => {
     it('should get member related data', async () => {
       const rawMember = {
         address: '0x123',
-        ens: null,
+        ens: [],
         history: [
           {
             ...rawDaoDoc,
