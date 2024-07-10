@@ -32,7 +32,8 @@ describe('Controller: Member', () => {
           pluginSubdomain: 'token-voting',
           metrics: {
             tokenBalance: '100',
-            delegateCount: 0,
+            delegateReceivedCount: 0,
+            delegateSentCount: 0,
             voteCount: 0,
             proposalCount: 0,
           },

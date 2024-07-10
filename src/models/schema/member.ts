@@ -22,7 +22,10 @@ export class Metrics {
   public tokenBalance!: string
 
   @prop({ type: () => Number })
-  public delegateCount!: number
+  public delegateReceivedCount!: number
+
+  @prop({ type: () => Number })
+  public delegateSentCount!: number
 
   @prop({ type: () => Number })
   public voteCount!: number
@@ -115,10 +118,10 @@ export default class Member extends Model {
   @prop({ type: () => [DaoHistory], _id: false, default: [] })
   public history?: DaoHistory[]
 
-  @prop({ type: () => Number })
+  @prop({ type: () => Number, default: null })
   public lastActivity?: number
 
-  @prop({ type: () => Number })
+  @prop({ type: () => Number, default: null })
   public firstActivity?: number
 
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
