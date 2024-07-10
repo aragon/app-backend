@@ -97,8 +97,8 @@ export const PluginSetupProcessorHandler = {
             const tokenAddress = pluginSetupLogs[0]?.parsed?.args?.[0]
 
             if (tokenAddress) {
-              await UtilsIndexer.saveAndGetToken(tokenAddress, info.network)
-              rawPluginLog.tokenAddress = tokenAddress
+              const tokenDb = await UtilsIndexer.saveAndGetToken(tokenAddress, info.network)
+              rawPluginLog.tokenAddress = tokenDb?.address || tokenAddress
             }
           }
 
