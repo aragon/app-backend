@@ -15,6 +15,7 @@ const TransactionController = {
     extraParams: ITransactionExtraParams = {},
     pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<ITransactionResponse>> => {
+    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
     const result = await Models.Transaction.findWithPagination({ extraParams, paginationParams })
     result.data = result.data.map((m: Transaction) => m.filterKeys())
