@@ -11,17 +11,18 @@ const llo = logger.logMeta.bind(null, { service: 'models:utils:indexer' })
 
 export const UtilsIndexer = {
   saveAndGetToken: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<null | Token> => {
-    const existingToken = await Models.Token.findExistingLog({ address: tokenAddress, network })
+    const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
+    const existingToken = await Models.Token.findExistingLog({ address: parsedTokenAddress, network })
 
     if (existingToken) {
       return existingToken
     }
 
-    const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
-    const tokenInfo = await Web3Helper.getTokenInfo(tokenAddress, network)
+    const tokenTypeInfo = await TokenDetector.detectTokenType(parsedTokenAddress, network)
+    const tokenInfo = await Web3Helper.getTokenInfo(parsedTokenAddress, network)
 
     // Note: we could fetch the rates while sync but this will slow down the sync process due to the rate limit
-    const rate = await RateModule.fetchRate(tokenAddress, network)
+    const rate = await RateModule.fetchRate(parsedTokenAddress, network)
 
     return await DbTx.executeTxFn(
       async ({ session }) => {
