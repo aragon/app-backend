@@ -23,7 +23,7 @@ export const AggregatorVote = {
       useAggregate: true,
       aggregate: AggregatorVote.query(supportedNetworks),
       batchSize: 500,
-      concurrency: 1,
+      concurrency: 10,
     })
 
     await crawler.crawl()

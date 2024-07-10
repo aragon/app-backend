@@ -39,7 +39,7 @@ export const AggregatorTransactions = {
         network: { $in: NetworkHelper.supportedNetworks().map(w => w.networkName) },
       },
       batchSize: 500,
-      concurrency: 1,
+      concurrency: 10,
     })
 
     await crawler.crawl()
@@ -144,6 +144,7 @@ export const AggregatorTransactions = {
           category: tx.category,
         }
 
+        // checksum address may not be consistent
         if (tx.rawContract?.address) {
           const token = await UtilsIndexer.saveAndGetToken(tx.rawContract?.address, daoRegistry.network)
 

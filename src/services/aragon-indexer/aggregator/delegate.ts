@@ -24,7 +24,7 @@ export const AggregatorDelegate = {
       useAggregate: true,
       aggregate: AggregatorDelegate.query(),
       batchSize: 500,
-      concurrency: 1,
+      concurrency: 10,
     })
 
     await crawler.crawl()

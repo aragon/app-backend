@@ -27,7 +27,7 @@ export const AggregatorMembers = {
         AggregatorMembers.queryMultisigMembers(supportedNetworks),
       ),
       batchSize: 1000,
-      concurrency: 1,
+      concurrency: 10,
     })
 
     await crawler.crawl()
