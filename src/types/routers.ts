@@ -37,7 +37,7 @@ export interface IMembersResponse {
   fromBlockNumber?: number
   fromTxHash?: HexAddress
   address: HexAddress
-  ens: ENS | null
+  ens: ENS | []
   pluginSubdomain: IPluginSubdomain
   pluginAddress: HexAddress
   tokenAddress: HexAddress
@@ -54,7 +54,7 @@ export interface IDaoResponse {
   address: HexAddress
   implementationAddress: HexAddress
   creatorAddress: HexAddress
-  ens: ENS | null
+  ens: ENS | []
   subdomain: ENS | null
   members: number
   metadataIpfs: string | null

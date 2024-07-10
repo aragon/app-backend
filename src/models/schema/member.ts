@@ -112,7 +112,7 @@ export default class Member extends Model {
   @prop({ type: () => String, required: true })
   public address!: HexAddress
 
-  @prop({ type: () => [EnsMember], default: null })
+  @prop({ type: () => [EnsMember], default: [] })
   public ens?: EnsMember[]
 
   @prop({ type: () => [DaoHistory], _id: false, default: [] })
@@ -150,7 +150,7 @@ export default class Member extends Model {
   }
 
   static async findByEns(ens: ENS) {
-    return await this.findOne({ ens })
+    return await this.findOne({ 'ens.name': ens })
   }
 
   static async findWithPagination({
