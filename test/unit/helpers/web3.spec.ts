@@ -1291,12 +1291,8 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe.only('getEnsWithAlchemy', () => {
+  describe('getEnsWithAlchemy', () => {
     it('should getEnsWithAlchemy', async () => {
-      const alchemyStub: any = sinon.stub(Alchemy.prototype, 'nft')
-      const alchemyNftStub = sandbox.stub()
-      alchemyStub.getNftsForOwner = alchemyNftStub
-      const fakeAddress = '0xFakeAddress'
       const fakeNfts = {
         ownedNfts: [
           {
@@ -1312,15 +1308,34 @@ describe('Helpers:Web3', () => {
           },
         ],
       }
-
-      alchemyNftStub.resolves(fakeNfts)
+      const alchemyStub = sandbox.stub(Web3Helper.alchemySdk.nft, 'getNftsForOwner').resolves(fakeNfts as any)
+      const fakeAddress = '0xFakeAddress'
 
       const result = await Web3Helper.getEnsWithAlchemy(fakeAddress)
 
+      expect(
+        alchemyStub.calledOnceWith(fakeAddress, {
+          contractAddresses: ['0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85'],
+        }),
+      ).to.be.true
       expect(result).to.be.an('array').that.is.not.empty
       expect(result[0]).to.have.property('name', 'example.eth')
       expect(result[0]).to.have.property('registrationDateTimestamp', 1609459200)
       expect(result[0]).to.have.property('expirationDateTimestamp', 1640995200)
+    })
+
+    it('should fail getEnsWithAlchemy', async () => {
+      const alchemyStub = sandbox.stub(Web3Helper.alchemySdk.nft, 'getNftsForOwner').resolves(undefined as any)
+      const fakeAddress = '0xFakeAddress'
+
+      const result = await Web3Helper.getEnsWithAlchemy(fakeAddress)
+
+      expect(
+        alchemyStub.calledOnceWith(fakeAddress, {
+          contractAddresses: ['0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85'],
+        }),
+      ).to.be.true
+      expect(result).to.be.an('array').empty
     })
   })
 })
