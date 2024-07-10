@@ -44,7 +44,9 @@ const MemberController = {
   getActiveMemberByAddress: async (
     address: string,
     extraParams: IActiveMemberExtraParams = {},
+    pairParams: IPairParams = {},
   ): Promise<IMembersResponse> => {
+    extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
     const member = await Models.Member.findActiveMember(address, extraParams)
     assertExposable(member, ErrorKeyEnum.notFound)
 

@@ -95,12 +95,17 @@ const MemberRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
     }
 
-    const [formattedParams, formattedExtraParams] = await Promise.all([
+    const pairParams: IPairParams = {
+      daoId: ctx.query.daoId as string,
+    }
+
+    const [formattedParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(MemberSchema.getMemberByAddress, params),
       ValidationSchema.validateParams(MemberSchema.getActiveMembersExtraParams, extraParams),
+      ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
     ])
 
-    ctx.body = await MemberController.getActiveMemberByAddress(formattedParams.address, formattedExtraParams)
+    ctx.body = await MemberController.getActiveMemberByAddress(formattedParams.address, formattedExtraParams, formattedPairParams)
   },
 
   router() {
