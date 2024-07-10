@@ -40,16 +40,16 @@ const IndexerService: IService = {
 
     // order is important
     const logFastTasks = [
-      [async () => LogPluginRepoRegistry.start(), async () => LogDaoRegistry.start()],
-      [async () => LogPluginSetupProcessor.start(), async () => LogDao.start()], // after logDaoRegistry
-      [async () => LogProposal.start(), async () => LogPluginSetting.start()], // after logPluginSetupProcessor
-      [async () => LogMember.start()], // after logPluginSetupProcessor
+      // [async () => LogPluginRepoRegistry.start(), async () => LogDaoRegistry.start()],
+      // [async () => LogPluginSetupProcessor.start(), async () => LogDao.start()], // after logDaoRegistry
+      // [async () => LogProposal.start(), async () => LogPluginSetting.start()], // after logPluginSetupProcessor
+      // [async () => LogMember.start()], // after logPluginSetupProcessor
     ]
 
     // order is important
     const aggregatorTasks = [
-      [async () => AggregatorPlugin.start()],
-      [async () => AggregatorSetting.start()],
+      // [async () => AggregatorPlugin.start()],
+      // [async () => AggregatorSetting.start()],
       [async () => AggregatorMembers.start()], // run after plugin
       [async () => AggregatorProposal.start()],
       [async () => AggregatorDao.start()],
