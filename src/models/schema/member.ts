@@ -322,6 +322,7 @@ export default class Member extends Model {
                 tokenAddress: '$history.tokenAddress',
                 daoAddress: '$history.daoAddress',
                 votingPower: '$history.votingPower',
+                tokenBalance: '$history.tokenBalance',
                 metrics: '$history.metrics',
               }
             : {
@@ -389,6 +390,7 @@ export default class Member extends Model {
               pluginSubdomain: '$history.pluginSubdomain',
               tokenAddress: '$history.tokenAddress',
               daoAddress: '$history.daoAddress',
+              tokenBalance: '$history.tokenBalance',
               votingPower: '$history.votingPower',
               metrics: '$history.metrics',
             }
