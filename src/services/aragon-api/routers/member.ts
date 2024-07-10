@@ -105,7 +105,11 @@ const MemberRouter = {
       ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
     ])
 
-    ctx.body = await MemberController.getActiveMemberByAddress(formattedParams.address, formattedExtraParams, formattedPairParams)
+    ctx.body = await MemberController.getActiveMemberByAddress(
+      formattedParams.address,
+      formattedExtraParams,
+      formattedPairParams,
+    )
   },
 
   router() {

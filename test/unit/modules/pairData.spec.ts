@@ -61,7 +61,7 @@ describe('Modules:PairDataModule', () => {
 
     rawMember = {
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      ens: 'test.eth',
+      ens: [{ name: 'test.eth' }] as any,
       history: [
         {
           network: NetworksEnum.ethereumMainnet,
@@ -78,7 +78,8 @@ describe('Modules:PairDataModule', () => {
           pluginSubdomain: 'token-voting',
           tokenBalance: '100',
           metrics: {
-            delegateCount: 0,
+            delegateSentCount: 0,
+            delegateReceivedCount: 0,
             voteCount: 0,
             proposalCount: 0,
           },
@@ -97,8 +98,8 @@ describe('Modules:PairDataModule', () => {
 
   describe('pairFromPaginationParams', () => {
     it('should pairFromPaginationParams with ens', async () => {
-      const paginationParams = { search: rawMember.ens }
-      const result = await PairDataModule.pairFromPaginationParams(paginationParams)
+      const paginationParams = { search: rawMember.ens?.[0].name }
+      const result = await PairDataModule.pairFromPaginationParams(paginationParams as any)
       expect(result.search).to.be.equal(rawMember.address)
     })
 
@@ -120,7 +121,7 @@ describe('Modules:PairDataModule', () => {
       const extraParams = {}
       const pairParams = {
         daoId: Models.Dao.getEntityId({ network: rawDao.network, address: rawDao.address } as any),
-        ens: rawMember.ens,
+        ens: rawMember.ens?.[0].name,
       }
 
       const result: any = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
