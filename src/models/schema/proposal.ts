@@ -95,6 +95,28 @@ export class ProposalExecuted {
   public blockTimestamp!: number
 }
 
+export class VotesByOption {
+  @prop({ type: () => Number, default: null })
+  public type!: number | null
+
+  @prop({ type: () => Number, default: 0 })
+  public total!: number
+
+  @prop({ type: () => Number, default: 0 })
+  public totalPower!: number
+}
+
+export class Metrics {
+  @prop({ type: () => Number, default: 0 })
+  public totalVotes!: number
+
+  @prop({ type: () => Number, default: 0 })
+  public missingVotes!: number
+
+  @prop({ type: () => [VotesByOption], default: {} })
+  public votesByOption!: VotesByOption[]
+}
+
 @modelOptions({
   schemaOptions: {
     id: false,
@@ -174,6 +196,9 @@ export default class Proposal extends Model {
 
   @prop({ type: () => Media, _id: false })
   public media!: Media
+
+  @prop({ type: () => Metrics, _id: false, default: null })
+  public metrics!: Metrics
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
