@@ -6,7 +6,7 @@ import {
   type ILogInfo,
   type IProposalMetadata,
   ITransactionType,
-  type NetworksEnum,
+  NetworksEnum,
 } from '@types'
 import {
   AbiCoder,
@@ -26,10 +26,17 @@ import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import BottleneckModule from '@modules/bottleneck'
 import { ENSRegistry } from '@artifacts/ENSRegistry'
+import { Alchemy, Network } from 'alchemy-sdk'
+import { type EnsMember } from '@models/schema/member'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
 const Web3Helper = {
+  alchemySdk: new Alchemy({
+    apiKey: config.ALCHEMY.API_KEY,
+    network: Network.ETH_MAINNET,
+  }),
+
   ERC1155_INTERFACE_ID: '0xd9b67a26',
   ERC165_INTERFACE_ID: '0x01ffc9a7',
   ERC721_INTERFACE_ID: '0x80ac58cd',
@@ -629,6 +636,32 @@ const Web3Helper = {
     } catch (error) {
       return '0'
     }
+  },
+
+  async getEnsWithAlchemy(address: string): Promise<EnsMember[]> {
+    const walletAddress = address
+    const ensContractAddress = '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85'
+
+    const nfts = await BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+      Web3Helper.alchemySdk.nft.getNftsForOwner(walletAddress, { contractAddresses: [ensContractAddress] }),
+    )
+
+    return (
+      (nfts?.ownedNfts?.map(nft => {
+        const registrationDateAttr = nft.raw.metadata.attributes.find(
+          (attr: any) => attr.trait_type === 'Registration Date',
+        ).value
+        const expirationDateAttr = nft.raw.metadata.attributes.find(
+          (attr: any) => attr.trait_type === 'Expiration Date',
+        ).value
+
+        return {
+          name: nft.name,
+          registrationDateTimestamp: Math.round(registrationDateAttr / 1000),
+          expirationDateTimestamp: Math.round(expirationDateAttr / 1000),
+        }
+      }) as any) || []
+    )
   },
 }
 

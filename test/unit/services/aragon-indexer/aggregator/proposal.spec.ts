@@ -100,7 +100,9 @@ describe('Indexer:Aggregator:Proposal', () => {
       const stubLogger = sandbox.stub(Logger, 'verbose')
       const stubGetBlockTime = sandbox.stub(Web3Helper, 'getBlockTimestamp')
       const stubParseActions = sandbox.stub(AggregatorProposal, 'parseActions').resolves(parsedActions)
-
+      const _getProposalMetricsStub = sandbox.stub(AggregatorProposal, '_getProposalMetrics').resolves({
+        totalVotes: 0,
+      })
       await AggregatorProposal.onDocument(document as any)
 
       expect(stubLogger.calledWith('New Aggregate Proposal' as any)).to.be.true
@@ -110,7 +112,7 @@ describe('Indexer:Aggregator:Proposal', () => {
         pluginAddress: document.pluginAddress,
         proposalId: document.proposalId,
       })
-
+      expect(_getProposalMetricsStub.calledOnce).to.be.false
       expect(stubGetBlockTime.calledTwice).to.be.true
       expect(stubParseActions.calledOnce).to.be.true
 
@@ -195,6 +197,9 @@ describe('Indexer:Aggregator:Proposal', () => {
 
       const stubLogger = sandbox.stub(Logger, 'verbose')
       const stubGetBlockTime = sandbox.stub(Web3Helper, 'getBlockTimestamp')
+      const _getProposalMetricsStub = sandbox.stub(AggregatorProposal, '_getProposalMetrics').resolves({
+        totalVotes: 0,
+      })
 
       document.title = 'test title'
       await AggregatorProposal.onDocument(document as any)
@@ -207,6 +212,7 @@ describe('Indexer:Aggregator:Proposal', () => {
         proposalId: document.proposalId,
       })
 
+      expect(_getProposalMetricsStub.calledOnce).to.be.true
       expect(stubGetBlockTime.calledTwice).to.be.true
       expect(member.id).to.exist
       expect(member.transactionHash).to.eq(document.transactionHash)
@@ -318,5 +324,13 @@ describe('Indexer:Aggregator:Proposal', () => {
   it('should use default date when none is provided', () => {
     const pipeline = AggregatorProposal.query([])
     expect(pipeline.length).to.equal(14)
+  })
+
+  it('should _getProposalMetrics', async () => {
+    const aggStub = sandbox.stub(Models.LogProposal, 'aggregate').resolves([])
+    await AggregatorProposal._getProposalMetrics('0', '0x0dao')
+
+    expect(aggStub.calledOnce).to.be.true
+    expect(aggStub.args[0][0].length).to.deep.eq(4)
   })
 })
