@@ -31,6 +31,17 @@ export class Metrics {
   public proposalCount!: number
 }
 
+export class Ens {
+  @prop({ type: () => String })
+  public registrationDateTimestamp!: string
+
+  @prop({ type: () => Number })
+  public expiredDateTimestamp!: number
+
+  @prop({ type: () => Number })
+  public name!: number
+}
+
 export class DaoHistory {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -98,8 +109,8 @@ export default class Member extends Model {
   @prop({ type: () => String, required: true })
   public address!: HexAddress
 
-  @prop({ type: () => String, default: null })
-  public ens!: HexAddress
+  @prop({ type: () => [Ens], default: null })
+  public ens?: [Ens]
 
   @prop({ type: () => [DaoHistory], _id: false, default: [] })
   public history?: DaoHistory[]
