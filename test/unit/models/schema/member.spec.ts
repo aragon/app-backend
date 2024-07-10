@@ -420,7 +420,7 @@ describe('Model: Member', () => {
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(Object.keys(filterDao).length).to.eq(3)
-    expect(Object.keys(filterDao.history[0]).length).to.eq(14)
+    expect(Object.keys(filterDao.history[0]).length).to.eq(15)
   })
 
   it('Should filterMemberOnlyKeys', async () => {
