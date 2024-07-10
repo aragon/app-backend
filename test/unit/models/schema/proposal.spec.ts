@@ -378,6 +378,6 @@ describe('Model: Proposal', () => {
     expect(filterProposal.__v).to.be.undefined
     expect(filterProposal.createdAt).to.be.undefined
     expect(filterProposal.updatedAt).to.be.undefined
-    expect(Object.keys(filterProposal).length).to.eq(19)
+    expect(Object.keys(filterProposal).length).to.eq(20)
   })
 })

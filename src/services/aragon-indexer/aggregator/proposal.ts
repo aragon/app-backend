@@ -63,6 +63,11 @@ export const AggregatorProposal = {
       if (!existingLog) {
         logDb = await Models.Proposal.create(document, { session } as any)
       } else {
+        document.metrics = await AggregatorProposal._getProposalMetrics(
+          document.proposalId!.toString(),
+          document.pluginAddress!,
+        )
+
         logDb = await existingLog.update(document, { session })
       }
       await session.commitTransaction()
@@ -334,5 +339,151 @@ export const AggregatorProposal = {
         },
       },
     ]
+  },
+
+  async _getProposalMetrics(proposalId: string, pluginAddress: string) {
+    const query = [
+      {
+        $match: {
+          pluginAddress,
+          proposalId,
+        },
+      },
+      {
+        $lookup: {
+          from: 'member',
+          let: {
+            network: '$network',
+            pluginAddress: '$pluginAddress',
+            membersAddresses: '$voteEvents.memberAddress',
+            voteBlockNumber: '$voteEvents.blockNumber',
+            proposalBlockNumber: '$blockNumber',
+            executedBlockNumber: '$executed.blockNumber',
+          },
+          pipeline: [
+            { $unwind: '$history' },
+            {
+              $sort: {
+                blockNumber: 1,
+              },
+            },
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$history.network', '$$network'] },
+                    { $eq: ['$history.pluginAddress', '$$pluginAddress'] },
+                    {
+                      $and: [
+                        {
+                          $or: [
+                            {
+                              $or: [
+                                { $eq: ['$history.toBlockNumber', null] },
+                                { $lt: ['$history.toBlockNumber', '$$executedBlockNumber'] },
+                              ],
+                            },
+                            { $in: ['$address', '$$membersAddresses'] },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $addFields: {
+                address: '$address',
+                ens: '$ens',
+                pluginAddress: '$history.pluginAddress',
+                fromBlockNumber: '$history.fromBlockNumber',
+                toBlockNumber: '$history.toBlockNumber',
+              },
+            },
+            {
+              $group: {
+                _id: '$address',
+                address: { $first: '$address' },
+                ens: { $first: '$ens' },
+                pluginAddress: { $first: '$history.pluginAddress' },
+                fromBlockNumber: { $first: '$history.fromBlockNumber' },
+                toBlockNumber: { $first: '$history.toBlockNumber' },
+              },
+            },
+            {
+              $project: {
+                address: 1,
+                ev: 1,
+                ens: 1,
+                pluginAddress: 1,
+                fromBlockNumber: 1,
+                toBlockNumber: 1,
+              },
+            },
+          ],
+          as: 'member',
+        },
+      },
+      {
+        $addFields: {
+          totalVotes: { $size: '$voteEvents' },
+          missingVotes: {
+            $cond: {
+              if: {
+                $and: [{ $not: ['$executed'] }, { $lt: [{ $size: '$voteEvents' }, { $size: '$member' }] }],
+              },
+              then: {
+                $subtract: [{ $size: '$member' }, { $size: '$voteEvents' }],
+              },
+              else: 0,
+            },
+          },
+          votesByOption: {
+            $map: {
+              input: { $setUnion: '$voteEvents.voteOption' },
+              as: 'option',
+              in: {
+                type: '$$option',
+                totalVoters: {
+                  $size: {
+                    $filter: {
+                      input: '$voteEvents',
+                      as: 'vote',
+                      cond: { $eq: ['$$vote.voteOption', '$$option'] },
+                    },
+                  },
+                },
+                totalVotingPower: {
+                  $sum: {
+                    $map: {
+                      input: {
+                        $filter: {
+                          input: '$voteEvents',
+                          as: 'vote',
+                          cond: { $eq: ['$$vote.voteOption', '$$option'] },
+                        },
+                      },
+                      as: 'vote',
+                      in: { $toDouble: '$$vote.votingPower' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          totalVotes: 1,
+          missingVotes: 1,
+          votesByOption: 1,
+        },
+      },
+    ]
+
+    const metrics = await Models.LogProposal.aggregate(query)
+    return metrics.length ? metrics[0] : {}
   },
 }
