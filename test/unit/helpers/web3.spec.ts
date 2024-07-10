@@ -8,6 +8,7 @@ import { ConfigState } from '@state/configState'
 import Logger from '@logger'
 import logger from '@logger'
 import proxyquire from 'proxyquire'
+import { Alchemy } from 'alchemy-sdk'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -1287,6 +1288,39 @@ describe('Helpers:Web3', () => {
       expect(result).to.be.undefined
       expect(stubTransactionReceipt.calledOnceWith(params.txLog.transactionHash, params.network)).to.be.true
       expect(stubFindLogsByName.calledOnceWith(true as any, params.eventName, params.abi)).to.be.true
+    })
+  })
+
+  describe.only('getEnsWithAlchemy', () => {
+    it('should getEnsWithAlchemy', async () => {
+      const alchemyStub: any = sinon.stub(Alchemy.prototype, 'nft')
+      const alchemyNftStub = sandbox.stub()
+      alchemyStub.getNftsForOwner = alchemyNftStub
+      const fakeAddress = '0xFakeAddress'
+      const fakeNfts = {
+        ownedNfts: [
+          {
+            name: 'example.eth',
+            raw: {
+              metadata: {
+                attributes: [
+                  { trait_type: 'Registration Date', value: 1609459200000 },
+                  { trait_type: 'Expiration Date', value: 1640995200000 },
+                ],
+              },
+            },
+          },
+        ],
+      }
+
+      alchemyNftStub.resolves(fakeNfts)
+
+      const result = await Web3Helper.getEnsWithAlchemy(fakeAddress)
+
+      expect(result).to.be.an('array').that.is.not.empty
+      expect(result[0]).to.have.property('name', 'example.eth')
+      expect(result[0]).to.have.property('registrationDateTimestamp', 1609459200)
+      expect(result[0]).to.have.property('expirationDateTimestamp', 1640995200)
     })
   })
 })

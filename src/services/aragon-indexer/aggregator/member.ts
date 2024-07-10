@@ -3,9 +3,10 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
+import { EnsMember } from '@models/schema/member'
 import { type Metrics } from '@models/schema/member'
 import { NetworkHelper } from '@helpers/network'
-import { NetworksEnum } from '@types'
+import { type NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMembers' })
@@ -360,7 +361,9 @@ export const AggregatorMembers = {
     /**
      * Trying to get the ENS from the Ethereum network.
      */
-    const userEns = await Web3Helper.getEnsFromAddress(member.address!, NetworksEnum.ethereumMainnet)
+    if (!member.ens) {
+      member.ens = await Web3Helper.getEnsWithAlchemy(member.address!)
+    }
 
     const metrics: Metrics = {
       tokenBalance: '0',
@@ -393,7 +396,6 @@ export const AggregatorMembers = {
 
     const memberActivityDates = await AggregatorMembers._getMemberActivityDates(member.address!)
 
-    member.ens = userEns!
     member.firstActivity = memberActivityDates?.firstActivity
     member.lastActivity = memberActivityDates?.lastActivity
 

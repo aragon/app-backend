@@ -31,15 +31,15 @@ export class Metrics {
   public proposalCount!: number
 }
 
-export class Ens {
+export class EnsMember {
   @prop({ type: () => String })
-  public registrationDateTimestamp!: string
+  public registrationDateTimestamp!: number
 
   @prop({ type: () => Number })
   public expiredDateTimestamp!: number
 
   @prop({ type: () => Number })
-  public name!: number
+  public name!: string
 }
 
 export class DaoHistory {
@@ -109,8 +109,8 @@ export default class Member extends Model {
   @prop({ type: () => String, required: true })
   public address!: HexAddress
 
-  @prop({ type: () => [Ens], default: null })
-  public ens?: [Ens]
+  @prop({ type: () => [EnsMember], default: null })
+  public ens?: EnsMember[]
 
   @prop({ type: () => [DaoHistory], _id: false, default: [] })
   public history?: DaoHistory[]
