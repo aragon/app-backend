@@ -360,7 +360,7 @@ export const AggregatorMembers = {
     /**
      * Trying to get the ENS from the Ethereum network.
      */
-    const userEns = await Web3Helper.getEnsFromAddress(member.address!, NetworksEnum.ethereumMainnet)
+    // const userEns = await Web3Helper.getEnsFromAddress(member.address!, NetworksEnum.ethereumMainnet)
 
     const metrics: Metrics = {
       delegateCount: 0,
@@ -392,7 +392,7 @@ export const AggregatorMembers = {
 
     const memberActivityDates = await AggregatorMembers._getMemberActivityDates(member.address!)
 
-    member.ens = userEns!
+    // member.ens = userEns!
     member.firstActivity = memberActivityDates?.firstActivity
     member.lastActivity = memberActivityDates?.lastActivity
 
