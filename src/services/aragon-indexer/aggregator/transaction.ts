@@ -145,7 +145,8 @@ export const AggregatorTransactions = {
         }
 
         if (tx.rawContract?.address) {
-          const token = await UtilsIndexer.saveAndGetToken(tx.rawContract?.address, daoRegistry.network)
+          const tokenAddress = Web3Helper.parseAddress(tx.rawContract?.address) || tx.rawContract?.address
+          const token = await UtilsIndexer.saveAndGetToken(tokenAddress, daoRegistry.network)
 
           if (token?.address) {
             rawTx.tokenAddress = token.address
