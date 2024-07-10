@@ -32,7 +32,8 @@ describe('Controller: Member', () => {
           pluginSubdomain: 'token-voting',
           metrics: {
             tokenBalance: '100',
-            delegateCount: 0,
+            delegateReceivedCount: 0,
+            delegateSentCount: 0,
             voteCount: 0,
             proposalCount: 0,
           },
@@ -85,7 +86,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawMember.address)
-      expect(response.data[0].ens).to.eq(null)
+      expect(response.data[0].ens?.length).to.eq(0)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -122,7 +123,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawMember.address)
-      expect(response.data[0].ens).to.eq(null)
+      expect(response.data[0].ens?.length).to.eq(0)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -167,7 +168,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawMember.address)
-      expect(response.data[0].ens).to.eq(null)
+      expect(response.data[0].ens?.length).to.eq(0)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -253,7 +254,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(member.address)
-      expect(response.data[0].ens).to.eq(null)
+      expect(response.data[0].ens.length).to.eq(0)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -311,7 +312,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(member.address)
-      expect(response.data[0].ens).to.eq(null)
+      expect(response.data[0].ens.length).to.eq(0)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -377,7 +378,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(member.address)
-      expect(response.data[0].ens).to.eq(null)
+      expect(response.data[0].ens.length).to.eq(0)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
