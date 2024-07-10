@@ -360,7 +360,7 @@ export const AggregatorMembers = {
     /**
      * Trying to get the ENS from the Ethereum network.
      */
-    if (!member.ens) {
+    if (!member.ens || member.ens.length === 0) {
       member.ens = await Web3Helper.getEnsWithAlchemy(member.address!)
     }
 
