@@ -22,13 +22,27 @@ export class Metrics {
   public tokenBalance!: string
 
   @prop({ type: () => Number })
-  public delegateCount!: number
+  public delegateReceivedCount!: number
+
+  @prop({ type: () => Number })
+  public delegateSentCount!: number
 
   @prop({ type: () => Number })
   public voteCount!: number
 
   @prop({ type: () => Number })
   public proposalCount!: number
+}
+
+export class EnsMember {
+  @prop({ type: () => String })
+  public registrationDateTimestamp!: number
+
+  @prop({ type: () => Number })
+  public expiredDateTimestamp!: number
+
+  @prop({ type: () => String })
+  public name!: string
 }
 
 export class DaoHistory {
@@ -98,16 +112,16 @@ export default class Member extends Model {
   @prop({ type: () => String, required: true })
   public address!: HexAddress
 
-  @prop({ type: () => String, default: null })
-  public ens!: HexAddress
+  @prop({ type: () => [EnsMember], default: [] })
+  public ens?: EnsMember[]
 
   @prop({ type: () => [DaoHistory], _id: false, default: [] })
   public history?: DaoHistory[]
 
-  @prop({ type: () => Number })
+  @prop({ type: () => Number, default: null })
   public lastActivity?: number
 
-  @prop({ type: () => Number })
+  @prop({ type: () => Number, default: null })
   public firstActivity?: number
 
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
@@ -136,7 +150,7 @@ export default class Member extends Model {
   }
 
   static async findByEns(ens: ENS) {
-    return await this.findOne({ ens })
+    return await this.findOne({ 'ens.name': ens })
   }
 
   static async findWithPagination({

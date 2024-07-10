@@ -106,6 +106,10 @@ export interface IConfig {
     ZKSYNC_MAINNET: string | null
   }
 
+  ALCHEMY: {
+    API_KEY: string
+  }
+
   SERVICES: {
     ARAGON_API: {
       BASE_URL: string
