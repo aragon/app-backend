@@ -642,7 +642,7 @@ const Web3Helper = {
     const walletAddress = address
     const ensContractAddress = '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85'
 
-    const nfts = await BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+    const nfts = await BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
       Web3Helper.alchemySdk.nft.getNftsForOwner(walletAddress, { contractAddresses: [ensContractAddress] }),
     )
 

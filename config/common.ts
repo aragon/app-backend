@@ -55,6 +55,13 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       COVALENT_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COVALENT_MIN_TIME', 20),
       FOUR_BYTE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_FOUR_BYTE_MAX_CONCURRENT', 1),
       FOUR_BYTE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_FOUR_BYTE_MIN_TIME', 20),
+      ALCHEMY_ENS_MAX_CONCURRENT: utils.configParser(
+        sourceConfig,
+        'number',
+        'BOTTLENECK_ALCHEMY_ENS_MAX_CONCURRENT',
+        1,
+      ),
+      ALCHEMY_ENS_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ALCHEMY_ENS_MIN_TIME', 100),
     },
 
     MONGO_DB: {
