@@ -18,7 +18,7 @@ import { AggregatorTransactions } from '@services/aragon-indexer/aggregator/tran
 import { AggregatorDao } from '@indexer/aggregator/dao'
 import { AggregatorDelegate } from '@indexer/aggregator/delegate'
 import { AggregatorVote } from '@indexer/aggregator/vote'
-import {AggregatorEnsMember} from "@indexer/aggregator/ensMember";
+import { AggregatorEnsMember } from '@indexer/aggregator/ensMember'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
