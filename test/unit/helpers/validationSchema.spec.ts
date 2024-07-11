@@ -127,6 +127,34 @@ describe('Helpers:ValidationSchema', () => {
       expect(result.endDate).to.deep.equal(endDate)
     })
 
+    it('should handle invalid startDate', async () => {
+      const invalidStartDate = 'invalid-date'
+
+      await expect(PaginationSchema.getPagination.validateAsync({ startDate: invalidStartDate })).to.be.rejectedWith(
+        Error,
+        '"startDate" must be one of [number, date]',
+      )
+    })
+
+    it('should handle invalid endDate', async () => {
+      const startDate = '2023-01-01'
+      const invalidEndDate = 'invalid-date'
+
+      await expect(
+        PaginationSchema.getPagination.validateAsync({ startDate, endDate: invalidEndDate }),
+      ).to.be.rejectedWith(Error, '"endDate" must be one of [number, date]')
+    })
+
+    it('should handle endDate before startDate', async () => {
+      const startDate = '2023-01-02'
+      const endDate = '2023-01-01'
+
+      await expect(PaginationSchema.getPagination.validateAsync({ startDate, endDate })).to.be.rejectedWith(
+        Error,
+        '"endDate" contains an invalid value',
+      )
+    })
+
     it('joiAddress should handle invalid mainnet address', async () => {
       const invalidAddress = '0x123'
 
