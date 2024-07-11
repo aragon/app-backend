@@ -47,6 +47,8 @@ export interface IConfig {
     COVALENT_MIN_TIME: number
     FOUR_BYTE_MAX_CONCURRENT: number
     FOUR_BYTE_MIN_TIME: number
+    ALCHEMY_ENS_MAX_CONCURRENT: number
+    ALCHEMY_ENS_MIN_TIME: number
   }
   MONGO_DB: {
     NAME: string
