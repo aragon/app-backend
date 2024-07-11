@@ -144,7 +144,7 @@ class DBCrawler {
     const aggregate = this.aggregate
 
     if (useAggregate) {
-      const aggregateWithSkipLimit: any = [...aggregate, { $skip: skip }, { $limit: limit }]
+      const aggregateWithSkipLimit: any = [{ $skip: skip }, { $limit: limit }, ...aggregate]
 
       const response = this.model.aggregate(aggregateWithSkipLimit)
 
