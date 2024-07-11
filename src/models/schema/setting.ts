@@ -15,6 +15,9 @@ import ModelUtils from '@models/utils/models'
 const customName = 'Setting'
 
 class Token {
+  @prop({ type: () => String, enum: NetworksEnum })
+  public network!: NetworksEnum
+
   @prop({ type: () => String, enum: ITokenType, required: true })
   public type!: ITokenType
 
@@ -32,6 +35,9 @@ class Token {
 
   @prop({ type: () => Number, default: 18 })
   public decimals!: number
+
+  @prop({ type: () => String, default: '0' })
+  public totalSupply!: string
 }
 
 class Settings {
