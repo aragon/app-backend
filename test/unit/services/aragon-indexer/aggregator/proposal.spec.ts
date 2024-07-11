@@ -328,7 +328,7 @@ describe('Indexer:Aggregator:Proposal', () => {
 
   it('should _getProposalMetrics', async () => {
     const aggStub = sandbox.stub(Models.LogProposal, 'aggregate').resolves([])
-    await AggregatorProposal._getProposalMetrics('0', '0x0dao')
+    await AggregatorProposal._getProposalMetrics(0, '0x0dao')
 
     expect(aggStub.calledOnce).to.be.true
     expect(aggStub.args[0][0].length).to.deep.eq(4)
