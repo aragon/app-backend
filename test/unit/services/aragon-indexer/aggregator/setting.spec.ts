@@ -5,7 +5,8 @@ import { AggregatorSetting } from '@services/aragon-indexer/aggregator/setting'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import Logger from '@logger'
-import { NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum } from '@types'
+import utils from '@helpers/utils'
 
 describe('Indexer:Aggregator:Setting', () => {
   let sandbox: SinonSandbox
@@ -63,6 +64,15 @@ describe('Indexer:Aggregator:Setting', () => {
         minApprovals: 1,
         onlyListed: true,
       },
+      token: {
+        address: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
+        symbol: 'DAI',
+        type: ITokenType.GovernanceERC20,
+        name: 'Dai Stablecoin',
+        decimals: 18,
+        totalSupply: '1000000000000000000000000000',
+        network: NetworksEnum.polygonMainnet,
+      },
     }
 
     const stubLogger = sandbox.stub(Logger, 'verbose')
@@ -90,6 +100,12 @@ describe('Indexer:Aggregator:Setting', () => {
     expect(setting.settings.minProposerVotingPower).to.eq(document.settings?.minProposerVotingPower)
     expect(setting.settings.minApprovals).to.eq(document.settings?.minApprovals)
     expect(setting.settings.onlyListed).to.eq(document.settings?.onlyListed)
+    expect(setting.token?.address).to.eq(document.token?.address)
+    expect(setting.token?.symbol).to.eq(document.token?.symbol)
+    expect(setting.token?.name).to.eq(document.token?.name)
+    expect(setting.token?.decimals).to.eq(document.token?.decimals)
+    expect(setting.token?.totalSupply).to.eq(document.token?.totalSupply)
+    expect(setting.token?.network).to.eq(document.token?.network)
   })
 
   it('should update an existing aggregate setting log', async () => {
@@ -117,7 +133,7 @@ describe('Indexer:Aggregator:Setting', () => {
 
     rawDoc.settings.minApprovals = 10
     await AggregatorSetting.onDocument(rawDoc)
-
+    await utils.wait(100)
     const updatedDoc = await dbDoc.reload()
 
     expect(updatedDoc.settings.minApprovals).to.equal(10)
