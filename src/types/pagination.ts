@@ -16,6 +16,11 @@ export interface IVoteExtraParams {
   memberAddress?: HexAddress
 }
 
+export interface IPairParams {
+  daoId?: string
+  ens?: string
+}
+
 export interface IProposalExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress

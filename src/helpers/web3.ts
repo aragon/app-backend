@@ -435,7 +435,7 @@ const Web3Helper = {
       const balances = response.tokenBalances
         .map((token: any) => {
           const result: IAlchemyTokenBalance = {
-            contractAddress: token.contractAddress,
+            contractAddress: Web3Helper.parseAddress(token.contractAddress) || token.contractAddress,
             tokenBalance: BigInt(token.tokenBalance).toString(),
           }
           return result

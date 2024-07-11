@@ -14,13 +14,11 @@ import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
+import Utils from '@helpers/utils'
 
 const customName = 'Member'
 
 export class Metrics {
-  @prop({ type: () => String })
-  public tokenBalance!: string
-
   @prop({ type: () => Number })
   public delegateReceivedCount!: number
 
@@ -75,6 +73,9 @@ export class DaoHistory {
 
   @prop({ type: () => String })
   public votingPower!: string
+
+  @prop({ type: () => String, default: '0' })
+  public tokenBalance!: string
 
   @prop({ type: () => String })
   public delegateFromAddress!: HexAddress
@@ -151,6 +152,10 @@ export default class Member extends Model {
 
   static async findByEns(ens: ENS) {
     return await this.findOne({ 'ens.name': ens })
+  }
+
+  static async findByAddress(address: HexAddress) {
+    return await this.findOne({ address })
   }
 
   static async findWithPagination({
@@ -306,7 +311,7 @@ export default class Member extends Model {
       },
       {
         $match: {
-          ...(extraParams.tokenAddress && { 'history.pluginAddress': extraParams.tokenAddress }),
+          ...(extraParams.tokenAddress && { 'history.tokenAddress': extraParams.tokenAddress }),
           ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
           ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
           ...(extraParams.network && { 'history.network': extraParams.network }),
@@ -318,19 +323,27 @@ export default class Member extends Model {
       this.aggregate([
         ...query,
         {
-          $project: {
-            _id: 0,
-            address: '$address',
-            ens: '$ens',
-            network: '$history.network',
-            fromBlockNumber: '$history.fromBlockNumber',
-            fromTxHash: '$history.fromTxHash',
-            pluginAddress: '$history.pluginAddress',
-            pluginSubdomain: '$history.pluginSubdomain',
-            tokenAddress: '$history.tokenAddress',
-            daoAddress: '$history.daoAddress',
-            votingPower: '$history.votingPower',
-          },
+          $project: Utils.hasPropsWithValuesExcludingNetwork(extraParams)
+            ? {
+                _id: 0,
+                address: '$address',
+                ens: '$ens',
+                network: '$history.network',
+                fromBlockNumber: '$history.fromBlockNumber',
+                fromTxHash: '$history.fromTxHash',
+                pluginAddress: '$history.pluginAddress',
+                pluginSubdomain: '$history.pluginSubdomain',
+                tokenAddress: '$history.tokenAddress',
+                daoAddress: '$history.daoAddress',
+                votingPower: '$history.votingPower',
+                tokenBalance: '$history.tokenBalance',
+                metrics: '$history.metrics',
+              }
+            : {
+                _id: 0,
+                address: '$address',
+                ens: '$ens',
+              },
         },
         { $sort: request.sort },
         { $skip: request.skip },
@@ -379,23 +392,27 @@ export default class Member extends Model {
         },
       },
       {
-        $project: {
-          _id: 0,
-          address: '$address',
-          ens: '$ens',
-          network: '$history.network',
-          fromBlockNumber: '$history.fromBlockNumber',
-          // toBlockNumber: '$history.toBlockNumber',
-          fromTxHash: '$history.fromTxHash',
-          // toTxHash: '$history.toTxHash',
-          pluginAddress: '$history.pluginAddress',
-          pluginSubdomain: '$history.pluginSubdomain',
-          tokenAddress: '$history.tokenAddress',
-          daoAddress: '$history.daoAddress',
-          votingPower: '$history.votingPower',
-          // delegateFromAddress: '$history.delegateFromAddress',
-          // delegateToAddress: '$history.delegateToAddress',
-        },
+        $project: Utils.hasPropsWithValuesExcludingNetwork(extraParams)
+          ? {
+              _id: 0,
+              address: '$address',
+              ens: '$ens',
+              network: '$history.network',
+              fromBlockNumber: '$history.fromBlockNumber',
+              fromTxHash: '$history.fromTxHash',
+              pluginAddress: '$history.pluginAddress',
+              pluginSubdomain: '$history.pluginSubdomain',
+              tokenAddress: '$history.tokenAddress',
+              daoAddress: '$history.daoAddress',
+              tokenBalance: '$history.tokenBalance',
+              votingPower: '$history.votingPower',
+              metrics: '$history.metrics',
+            }
+          : {
+              _id: 0,
+              address: '$address',
+              ens: '$ens',
+            },
       },
     ])
     return member?.[0] as IMembersResponse

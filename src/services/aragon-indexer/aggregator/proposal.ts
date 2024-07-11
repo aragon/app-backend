@@ -31,7 +31,7 @@ export const AggregatorProposal = {
       useAggregate: true,
       aggregate: AggregatorProposal.query(supportedNetworks),
       batchSize: 1000,
-      concurrency: 1,
+      concurrency: 10,
     })
 
     await crawler.crawl()

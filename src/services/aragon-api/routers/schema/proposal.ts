@@ -13,10 +13,6 @@ const ProposalSchema = {
     creatorAddress: ValidationSchema.joiAddress.optional(),
   }),
 
-  getDaoById: Joi.object({
-    id: ValidationSchema.joiDaoId.optional(),
-  }),
-
   getProposalById: Joi.object({
     id: Joi.string().required(),
   }),

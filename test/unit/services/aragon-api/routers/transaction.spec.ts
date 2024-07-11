@@ -98,7 +98,7 @@ describe('Router: Transaction', () => {
         toAddress: undefined,
         tokenAddress: undefined,
       })
-      expect(stubCtrl.args[0][2]).to.eq(filterParams.daoId)
+      expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
 
     it('Should get transaction with pagination - missing pagination params', async () => {

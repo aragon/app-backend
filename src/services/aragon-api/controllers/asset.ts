@@ -1,21 +1,20 @@
 import { Models } from '@dbModels'
-import { type IAssetExtraParams, type IAssetResponse, type IPaginatedResult, type IPaginationParams } from '@types'
-import ModelUtils from '@models/utils/models'
+import {
+  type IAssetExtraParams,
+  type IAssetResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type IPairParams,
+} from '@types'
+import PairDataModule from '@modules/pairData'
 
 const AssetController = {
   getAssetsWithPagination: async (
     paginationParams: IPaginationParams = {},
     extraParams: IAssetExtraParams = {},
-    daoId?: string,
+    pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<IAssetResponse>> => {
-    if (daoId) {
-      const daoDb = await Models.Dao.findByEntityId(daoId)
-      if (!daoDb) {
-        return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
-      }
-      extraParams.daoAddress = daoDb.address
-      extraParams.network = daoDb.network
-    }
+    extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
     return await Models.Asset.findWithPagination({ extraParams, paginationParams })
   },

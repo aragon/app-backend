@@ -5,6 +5,7 @@ import AssetController from '@services/aragon-api/controllers/asset'
 import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Asset from '@models/schema/asset'
+import PairDataModule from '@modules/pairData'
 
 describe('Controller: Asset', () => {
   let sandbox: SinonSandbox
@@ -15,7 +16,7 @@ describe('Controller: Asset', () => {
 
     rawAsset = {
       network: NetworksEnum.ethereumMainnet,
-      daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+      daoAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
       tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
       amount: '32423423',
       amountUsd: '100',
@@ -125,15 +126,17 @@ describe('Controller: Asset', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`
+      const pairParams: any = {
+        daoId: `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`,
+      }
 
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
-        address: rawAsset.daos?.[0].daoAddress,
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
+        daoAddress: rawAsset.daos?.[0].daoAddress,
         network: rawAsset.daos?.[0].network,
       })
       const spyReq = sandbox.spy(Models.Asset, 'findWithPagination')
 
-      const response = await AssetController.getAssetsWithPagination(paginationParams, filterParams, daoId)
+      const response = await AssetController.getAssetsWithPagination(paginationParams, filterParams, pairParams)
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -173,15 +176,18 @@ describe('Controller: Asset', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`
+      const pairParams: any = {
+        daoId: `${rawAsset.daos?.[0].network}-${rawAsset.daos?.[0].daoAddress}`,
+      }
 
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
+
       const spyReq = sandbox.spy(Models.Asset, 'findWithPagination')
 
-      const response = await AssetController.getAssetsWithPagination(paginationParams, filterParams, daoId)
+      const response = await AssetController.getAssetsWithPagination(paginationParams, filterParams, pairParams)
 
-      expect(spyReq.notCalled).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(0)
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(1)
     })
   })
 })

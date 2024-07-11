@@ -26,7 +26,7 @@ export const AggregatorAssets = {
         network: { $in: NetworkHelper.supportedNetworks().map(network => network.networkName) },
       },
       batchSize: 500,
-      concurrency: 1,
+      concurrency: 10,
     })
 
     await crawler.crawl()

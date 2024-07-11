@@ -91,7 +91,7 @@ describe('Router: Proposal', () => {
         pluginAddress: undefined,
         creatorAddress: undefined,
       })
-      expect(stubCtrl.args[0][2]).to.eq(filterParams.daoId)
+      expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
 
     it('Should get proposal with pagination - missing pagination params', async () => {

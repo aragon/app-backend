@@ -23,7 +23,7 @@ export const AggregatorDao = {
       useAggregate: true,
       aggregate: AggregatorDao.query(supportedNetworks),
       batchSize: 1000,
-      concurrency: 1,
+      concurrency: 10,
     })
 
     await crawler.crawl()

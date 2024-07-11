@@ -224,6 +224,14 @@ const Utils = {
     const timeDifferenceMs = currentTimestamp - transactionTimestamp
     return timeDifferenceMs / (1000 * 60 * 60 * 24)
   },
+
+  hasPropsWithValuesExcludingNetwork(obj: any) {
+    const filteredValues = Object.entries(obj)
+      .filter(([key, value]) => key !== 'network')
+      .map(([key, value]) => value)
+
+    return filteredValues.some(value => value !== undefined)
+  },
 }
 
 export default Utils

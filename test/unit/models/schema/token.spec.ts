@@ -17,7 +17,7 @@ describe('Model: Token', () => {
     rawToken = {
       network: NetworksEnum.ethereumMainnet,
       type: ITokenType.ERC20,
-      address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+      address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
       logo: 'fake-logo',
       name: 'ethereum',
       symbol: 'WETH',
@@ -107,7 +107,7 @@ describe('Model: Token', () => {
         {
           network: NetworksEnum.ethereumMainnet,
           type: ITokenType.ERC20,
-          address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+          address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
           logo: 'fake-logo',
           name: 'ethereum',
           symbol: 'WETH',

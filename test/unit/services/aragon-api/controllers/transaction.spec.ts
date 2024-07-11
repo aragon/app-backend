@@ -5,6 +5,7 @@ import TransactionController from '@services/aragon-api/controllers/transaction'
 import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Transaction from '@models/schema/transaction'
+import PairDataModule from '@modules/pairData'
 
 describe('Controller: Transaction', () => {
   let sandbox: SinonSandbox
@@ -14,7 +15,7 @@ describe('Controller: Transaction', () => {
     sandbox = sinon.createSandbox()
 
     rawTransaction = {
-      transactionHash: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+      transactionHash: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
       blockNumber: 1,
       network: NetworksEnum.ethereumMainnet,
       type: ITransactionType.deposit,
@@ -143,15 +144,20 @@ describe('Controller: Transaction', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawTransaction.network}-${rawTransaction.daoAddress}`
-
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
-        address: rawTransaction.daoAddress,
+      const pairParams: any = {
+        daoId: `${rawTransaction.network}-${rawTransaction.daoAddress}`,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
+        daoAddress: rawTransaction.daoAddress,
         network: rawTransaction.network,
       })
       const spyReq = sandbox.spy(Models.Transaction, 'findWithPagination')
 
-      const response = await TransactionController.getTransactionsWithPagination(paginationParams, filterParams, daoId)
+      const response = await TransactionController.getTransactionsWithPagination(
+        paginationParams,
+        filterParams,
+        pairParams,
+      )
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -190,15 +196,20 @@ describe('Controller: Transaction', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawTransaction.network}-${rawTransaction.daoAddress}`
-
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      const pairParams: any = {
+        daoId: `${rawTransaction.network}-${rawTransaction.daoAddress}`,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
       const spyReq = sandbox.spy(Models.Transaction, 'findWithPagination')
 
-      const response = await TransactionController.getTransactionsWithPagination(paginationParams, filterParams, daoId)
+      const response = await TransactionController.getTransactionsWithPagination(
+        paginationParams,
+        filterParams,
+        pairParams,
+      )
 
-      expect(spyReq.notCalled).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(0)
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(1)
     })
   })
 })

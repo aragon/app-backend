@@ -3,7 +3,13 @@ import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import MemberSchema from '@api/routers/schema/member'
 import MemberController from '@api/controllers/member'
-import { type HexAddress, type IActiveMemberExtraParams, type IMemberExtraParams, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IActiveMemberExtraParams,
+  type IMemberExtraParams,
+  type IPairParams,
+  type NetworksEnum,
+} from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 
 const MemberRouter = {
@@ -16,18 +22,20 @@ const MemberRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
     }
-    const daoId = ctx.query.daoId as string
+    const pairParams: IPairParams = {
+      daoId: ctx.query.daoId as string,
+    }
 
-    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
+    const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(MemberSchema.getExtraParams, extraParams),
-      ValidationSchema.validateParams(MemberSchema.getDaoById, { id: daoId }),
+      ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
     ])
 
     ctx.body = await MemberController.getMembersWithPagination(
       formattedPaginationParams,
       formattedExtraParams,
-      formattedDaoId.id,
+      formattedPairParams,
     )
   },
 
@@ -59,18 +67,20 @@ const MemberRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
     }
-    const daoId = ctx.query.daoId as string
+    const pairParams: IPairParams = {
+      daoId: ctx.query.daoId as string,
+    }
 
-    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
+    const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(MemberSchema.getActiveMembersExtraParams, extraParams),
-      ValidationSchema.validateParams(MemberSchema.getDaoById, { id: daoId }),
+      ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
     ])
 
     ctx.body = await MemberController.getActiveMembersWithPagination(
       formattedPaginationParams,
       formattedExtraParams,
-      formattedDaoId.id,
+      formattedPairParams,
     )
   },
 
@@ -85,12 +95,21 @@ const MemberRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
     }
 
-    const [formattedParams, formattedExtraParams] = await Promise.all([
+    const pairParams: IPairParams = {
+      daoId: ctx.query.daoId as string,
+    }
+
+    const [formattedParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(MemberSchema.getMemberByAddress, params),
       ValidationSchema.validateParams(MemberSchema.getActiveMembersExtraParams, extraParams),
+      ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
     ])
 
-    ctx.body = await MemberController.getActiveMemberByAddress(formattedParams.address, formattedExtraParams)
+    ctx.body = await MemberController.getActiveMemberByAddress(
+      formattedParams.address,
+      formattedExtraParams,
+      formattedPairParams,
+    )
   },
 
   router() {
