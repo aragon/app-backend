@@ -357,13 +357,6 @@ export const AggregatorMembers = {
   },
 
   async _getMemberData(member: Partial<Member>) {
-    /**
-     * Trying to get the ENS from the Ethereum network.
-     */
-    if (!member.ens || member.ens.length === 0) {
-      member.ens = await Web3Helper.getEnsWithAlchemy(member.address!)
-    }
-
     const metrics: Metrics = {
       delegateReceivedCount: 0,
       delegateSentCount: 0,
@@ -404,7 +397,6 @@ export const AggregatorMembers = {
 
     const memberActivityDates = await AggregatorMembers._getMemberActivityDates(member.address!)
 
-    // member.ens = userEns!
     member.firstActivity = memberActivityDates?.firstActivity
     member.lastActivity = memberActivityDates?.lastActivity
 
