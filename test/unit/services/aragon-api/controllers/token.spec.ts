@@ -128,9 +128,9 @@ describe('Controller: Token', () => {
   describe('getTokenByAddress', async () => {
     it('getTokenByAddress new token', async () => {
       const fakeRes = {
-        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0',
         network: NetworksEnum.ethereumMainnet,
-        logo: 'https://logos.covalenthq.com/tokens/1/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2.png',
+        logo: 'https://logos.covalenthq.com/tokens/1/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0.png',
         name: 'Wrapped Ether',
         symbol: 'WETH',
         type: ITokenType.ERC20,
@@ -143,7 +143,7 @@ describe('Controller: Token', () => {
       }
 
       const stubHelper = sandbox.stub(CovalentHelper, 'getToken').resolves(fakeRes as any)
-      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0'
       const token = await TokenController.getTokenByAddress({
         address,
         network: NetworksEnum.ethereumMainnet,
@@ -172,9 +172,9 @@ describe('Controller: Token', () => {
 
     it('getTokenByAddress existing token', async () => {
       const rawToken = {
-        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0',
         network: NetworksEnum.ethereumMainnet,
-        logo: 'https://logos.covalenthq.com/tokens/1/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2.png',
+        logo: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
         name: 'Wrapped Ether',
         symbol: 'WETH',
         type: ITokenType.ERC20,
@@ -189,7 +189,7 @@ describe('Controller: Token', () => {
       await Models.Token.create(rawToken)
 
       const stubHelper = sandbox.stub(CovalentHelper, 'getToken')
-      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0'
       const dbToken = await TokenController.getTokenByAddress({
         address,
         network: NetworksEnum.ethereumMainnet,
@@ -213,7 +213,7 @@ describe('Controller: Token', () => {
 
     it('getTokenByAddress not found', async () => {
       const stubHelper = sandbox.stub(CovalentHelper, 'getToken').resolves(undefined)
-      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc1'
       await expect(
         TokenController.getTokenByAddress({
           address,
