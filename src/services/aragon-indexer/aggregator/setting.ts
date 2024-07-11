@@ -134,7 +134,7 @@ export const AggregatorSetting = {
         $project: {
           _id: 0,
           daoAddress: { $arrayElemAt: ['$pluginInfo.daoAddress', 0] },
-          token: { $arrayElemAt: ['$pluginInfo.tokenAddress', 0] },
+          tokenAddress: { $arrayElemAt: ['$pluginInfo.tokenAddress', 0] },
           pluginAddress: '$_id.pluginAddress',
           pluginSubdomain: 1,
           network: '$_id.network',
@@ -163,8 +163,28 @@ export const AggregatorSetting = {
       {
         $lookup: {
           from: 'token',
-          localField: 'token',
-          foreignField: 'address',
+          let: { tokenAddress: '$tokenAddress' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$address', '$$tokenAddress'],
+                },
+              },
+            },
+            {
+              $project: {
+                network: 1,
+                type: 1,
+                address: 1,
+                logo: 1,
+                name: 1,
+                decimals: 1,
+                symbol: 1,
+                totalSupply: 1,
+              },
+            },
+          ],
           as: 'token',
         },
       },
@@ -180,12 +200,14 @@ export const AggregatorSetting = {
                     token: { $arrayElemAt: ['$token', 0] },
                   },
                   in: {
+                    network: '$$token.network',
                     type: '$$token.type',
                     address: '$$token.address',
                     logo: '$$token.logo',
                     name: '$$token.name',
                     decimals: '$$token.decimals',
                     symbol: '$$token.symbol',
+                    totalSupply: '$$token.totalSupply',
                   },
                 },
               },

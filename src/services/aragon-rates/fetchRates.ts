@@ -5,8 +5,8 @@ import DbTx from '@modules/dbTx'
 import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
-import { type ITokenRate, ITokenType, NetworksEnum } from '@types'
-import CovalentHelper from '@helpers/covalent'
+import { NetworksEnum } from '@types'
+import { UtilsIndexer } from '@indexer/utils/indexer'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:FetchRates' })
 
@@ -45,7 +45,7 @@ export const FetchRates = {
     const rawTokenUpdateRate = await RateModule.fetchRate(token.address, token.network)
 
     // skip governance tokens with no price or unsupported token networks
-    if (FetchRates.skipFetchToken(token, rawTokenUpdateRate)) {
+    if (UtilsIndexer.skipFetchToken(token, rawTokenUpdateRate)) {
       rawTokenUpdateRate.lastUpdatedAt = dayjs.utc().toDate()
       rawTokenUpdateRate.skipFetchRate = true
     }
@@ -59,14 +59,5 @@ export const FetchRates = {
         llo({ logId: logDb.id, tokenSymbol: logDb.symbol, tokenType: logDb.type, priceUsd: logDb.priceUsd }),
       )
     })
-  },
-
-  skipFetchToken(token: Token, tokenRate: ITokenRate) {
-    return (
-      (token.type === ITokenType.GovernanceERC20 ||
-        token.type === ITokenType.unknown ||
-        CovalentHelper.skipTestNetworks.includes(token.network)) &&
-      tokenRate.priceUsd === '0'
-    )
   },
 }
