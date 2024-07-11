@@ -25,7 +25,7 @@ export interface IAlchemyTransferOptions {
 }
 
 export interface IAlchemyTransferResponse {
-  blockNum: number
+  blockNum: number // hex block number
   uniqueId: string
   hash: HexAddress
   from: HexAddress
