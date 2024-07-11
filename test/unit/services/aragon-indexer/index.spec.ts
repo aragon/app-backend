@@ -22,6 +22,7 @@ import { AggregatorTransactions } from '@services/aragon-indexer/aggregator/tran
 import { AggregatorDao } from '@services/aragon-indexer/aggregator/dao'
 import { AggregatorProposal } from '@indexer/aggregator/proposal'
 import { AggregatorDelegate } from '@indexer/aggregator/delegate'
+import { AggregatorEnsMember } from '@indexer/aggregator/ensMember'
 
 describe('Indexer: index', () => {
   let sandbox: SinonSandbox
@@ -58,6 +59,7 @@ describe('Indexer: index', () => {
       sandbox.stub(AggregatorTransactions, 'start').resolves(),
       sandbox.stub(AggregatorProposal, 'start').resolves(),
       sandbox.stub(AggregatorDelegate, 'start').resolves(),
+      sandbox.stub(AggregatorEnsMember, 'start').resolves(),
       sandbox.stub(AggregatorDao, 'start').resolves(),
     ]
 
