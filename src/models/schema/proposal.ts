@@ -113,7 +113,7 @@ export class Metrics {
   @prop({ type: () => Number, default: 0 })
   public missingVotes!: number
 
-  @prop({ type: () => [VotesByOption], default: {} })
+  @prop({ type: () => [VotesByOption], _id: false, default: {} })
   public votesByOption!: VotesByOption[]
 }
 
