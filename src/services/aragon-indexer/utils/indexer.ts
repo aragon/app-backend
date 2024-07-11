@@ -1,11 +1,13 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { type HexAddress, type NetworksEnum } from '@types'
+import { type HexAddress, type ITokenRate, ITokenType, type NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
+import dayjs from '@helpers/dayjs'
+import CovalentHelper from '@helpers/covalent'
 
 const llo = logger.logMeta.bind(null, { service: 'models:utils:indexer' })
 
@@ -24,19 +26,25 @@ export const UtilsIndexer = {
     // Note: we could fetch the rates while sync but this will slow down the sync process due to the rate limit
     const rate = await RateModule.fetchRate(parsedTokenAddress, network)
 
-    return await DbTx.executeTxFn(
+    const rawToken = {
+      address: tokenInfo.address,
+      type: tokenTypeInfo?.type,
+      implementationAddress: tokenTypeInfo?.implementationAddress!,
+      network,
+      name: tokenInfo?.name,
+      decimals: tokenInfo?.decimals,
+      symbol: tokenInfo?.symbol,
+      totalSupply: tokenInfo?.totalSupply,
+      ...rate,
+    }
+
+    if (UtilsIndexer.skipFetchToken(rawToken, rate)) {
+      rawToken.lastUpdatedAt = dayjs.utc().toDate()
+      rawToken.skipFetchRate = true
+    }
+
+    const token = await DbTx.executeTxFn(
       async ({ session }) => {
-        const rawToken = {
-          address: tokenInfo.address,
-          type: tokenTypeInfo?.type,
-          implementationAddress: tokenTypeInfo?.implementationAddress!,
-          network,
-          name: tokenInfo.name,
-          decimals: tokenInfo.decimals,
-          symbol: tokenInfo.symbol,
-          totalSupply: tokenInfo.totalSupply,
-          ...rate,
-        }
         const logDb = await Models.Token.create(rawToken, { session } as any)
         await session.commitTransaction()
         await session.endSession()
@@ -44,6 +52,17 @@ export const UtilsIndexer = {
         return logDb
       },
       { stopRetry: true },
+    )
+
+    return token
+  },
+
+  skipFetchToken(token: Partial<Token>, tokenRate: ITokenRate) {
+    return (
+      (token.type === ITokenType.GovernanceERC20 ||
+        token.type === ITokenType.unknown ||
+        CovalentHelper.skipTestNetworks.includes(token?.network!)) &&
+      tokenRate.priceUsd === '0'
     )
   },
 }

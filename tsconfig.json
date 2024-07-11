@@ -23,6 +23,7 @@
       "@api/*": ["./src/services/aragon-api/*"],
       "@indexer/*": ["./src/services/aragon-indexer/*"],
       "@rates/*": ["./src/services/aragon-rates/*"],
+      "@tools/*": ["./tools/*"],
       "@test/*": ["./test/*"]
     },
     "esModuleInterop": true,
