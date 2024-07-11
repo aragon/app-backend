@@ -15,7 +15,7 @@ describe('Model: Asset', () => {
 
     rawAsset = {
       network: NetworksEnum.ethereumMainnet,
-      daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+      daoAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
       tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
       amount: '32423423',
     }
@@ -100,7 +100,7 @@ describe('Model: Asset', () => {
         {
           network: NetworksEnum.ethereumMainnet,
           daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
-          tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+          tokenAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
           amount: '2423423',
         },
         {

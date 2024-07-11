@@ -102,6 +102,12 @@ describe('Model: Member', () => {
     expect(member?.address).to.eq(createdMember.address)
   })
 
+  it('should findByAddress', async () => {
+    const createdMember = await Models.Member.create(rawMember)
+    const member = await Models.Member.findByAddress(createdMember.address)
+    expect(member?.address).to.eq(createdMember.address)
+  })
+
   describe('Pagination', () => {
     beforeEach(async () => {
       const rawDao = {

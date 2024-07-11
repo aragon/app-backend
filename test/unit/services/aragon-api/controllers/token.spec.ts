@@ -18,7 +18,7 @@ describe('Controller: Token', () => {
     rawToken = {
       network: NetworksEnum.ethereumMainnet,
       type: ITokenType.ERC20,
-      address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+      address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
       logo: 'fake-logo',
       name: 'ethereum',
       symbol: 'WETH',
@@ -130,7 +130,7 @@ describe('Controller: Token', () => {
       const fakeRes = {
         address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
         network: NetworksEnum.ethereumMainnet,
-        logo: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
+        logo: 'https://logos.covalenthq.com/tokens/1/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2.png',
         name: 'Wrapped Ether',
         symbol: 'WETH',
         type: ITokenType.ERC20,
@@ -174,7 +174,7 @@ describe('Controller: Token', () => {
       const rawToken = {
         address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
         network: NetworksEnum.ethereumMainnet,
-        logo: 'https://logos.covalenthq.com/tokens/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
+        logo: 'https://logos.covalenthq.com/tokens/1/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2.png',
         name: 'Wrapped Ether',
         symbol: 'WETH',
         type: ITokenType.ERC20,
