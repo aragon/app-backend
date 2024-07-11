@@ -6,6 +6,7 @@ import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { DaoList } from '@test/mock/fakeDao'
 import Dao from '@models/schema/dao'
+import PairDataModule from '@modules/pairData'
 
 describe('Controller: Dao', () => {
   let sandbox: SinonSandbox
@@ -80,6 +81,8 @@ describe('Controller: Dao', () => {
         address: rawDao.address,
       }
 
+      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
+
       const spyReq = sandbox.spy(Models.Dao, 'findWithPagination')
       const response = await DaoController.getDaosWithPagination(paginationParams, filterParams)
 
@@ -121,6 +124,7 @@ describe('Controller: Dao', () => {
         pluginAddress: rawDao.plugins?.[0].address,
       }
 
+      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
       const spyReq = sandbox.spy(Models.Dao, 'findWithPagination')
       const response = await DaoController.getDaosWithPagination(paginationParams, filterParams)
 
@@ -159,6 +163,7 @@ describe('Controller: Dao', () => {
 
       const filterParams: any = {}
 
+      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
       const spyReq = sandbox.spy(Models.Dao, 'findWithPagination')
       const response = await DaoController.getDaosWithPagination(paginationParams, filterParams)
 

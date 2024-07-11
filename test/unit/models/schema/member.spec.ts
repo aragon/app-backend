@@ -36,9 +36,9 @@ describe('Model: Member', () => {
           delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           votingPower: '100',
+          tokenBalance: '100',
           pluginSubdomain: 'token-voting',
           metrics: {
-            tokenBalance: '100',
             delegateReceivedCount: 0,
             delegateSentCount: 0,
             voteCount: 0,
@@ -73,6 +73,7 @@ describe('Model: Member', () => {
     expect(member.history[0].delegateFromAddress).to.eq(rawMember?.history?.[0].delegateToAddress)
     expect(member.history[0].votingPower).to.eq(rawMember?.history?.[0].votingPower)
     expect(member.history[0].pluginSubdomain).to.eq(rawMember?.history?.[0].pluginSubdomain)
+    expect(member.history[0].tokenBalance).to.eq(rawMember?.history?.[0].tokenBalance)
   })
 
   it('Should getEntityId', async () => {
@@ -98,6 +99,12 @@ describe('Model: Member', () => {
   it('Should findByEns', async () => {
     const createdMember = await Models.Member.create(rawMember)
     const member = await Models.Member.findByEns(createdMember.ens[0].name)
+    expect(member?.address).to.eq(createdMember.address)
+  })
+
+  it('should findByAddress', async () => {
+    const createdMember = await Models.Member.create(rawMember)
+    const member = await Models.Member.findByAddress(createdMember.address)
     expect(member?.address).to.eq(createdMember.address)
   })
 
@@ -426,7 +433,7 @@ describe('Model: Member', () => {
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(Object.keys(filterDao).length).to.eq(5)
-    expect(Object.keys(filterDao.history[0]).length).to.eq(14)
+    expect(Object.keys(filterDao.history[0]).length).to.eq(15)
   })
 
   it('Should filterMemberOnlyKeys', async () => {

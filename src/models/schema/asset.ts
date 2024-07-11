@@ -123,6 +123,7 @@ export default class Asset extends Model {
         {
           $addFields: {
             token: {
+              network: '$tokenDetails.network',
               address: { $ifNull: ['$tokenDetails.address', '$tokenAddress'] },
               symbol: '$tokenDetails.symbol',
               name: '$tokenDetails.name',

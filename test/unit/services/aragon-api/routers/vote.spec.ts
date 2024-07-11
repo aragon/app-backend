@@ -61,6 +61,7 @@ describe('Router: Vote', () => {
 
     it('Should get vote with pagination - ens', async () => {
       const filterParams = {
+        daoId: undefined,
         ens: 'test.dao.eth',
       }
       const paginationParams = {
@@ -98,7 +99,7 @@ describe('Router: Vote', () => {
         tokenAddress: undefined,
         proposalId: undefined,
       })
-      expect(stubCtrl.args[0][2]).to.eq(filterParams.ens)
+      expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
 
     it('Should get vote with pagination - missing pagination params', async () => {

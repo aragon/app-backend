@@ -13,10 +13,6 @@ const VoteSchema = {
     memberAddress: ValidationSchema.joiAddress.optional(),
     proposalId: Joi.number().integer().min(0).optional(),
   }),
-
-  getMemberEns: Joi.object({
-    ens: ValidationSchema.joiEns.optional(),
-  }),
 }
 
 export default VoteSchema

@@ -154,7 +154,7 @@ describe('Helpers: Covalent', () => {
   describe('getTokenBalance', () => {
     it('should getTokenBalance', async () => {
       const fakeResponse = {
-        address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
         updated_at: '2024-03-12T01:00:56.933198139Z',
         next_update_at: '2024-03-12T01:05:56.933198499Z',
         quote_currency: 'USD',

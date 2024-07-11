@@ -5,6 +5,7 @@ import VoteController from '@services/aragon-api/controllers/vote'
 import { ITokenType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Vote from '@models/schema/vote'
+import PairDataModule from '@modules/pairData'
 
 describe('Controller: Vote', () => {
   let sandbox: SinonSandbox
@@ -152,13 +153,13 @@ describe('Controller: Vote', () => {
         sort: 'createdAt',
       }
 
-      sandbox.stub(Models.Member, 'findByEns').resolves({
-        address: rawVote.memberAddress,
-        ens,
+      const pairParams: any = { ens }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
+        memberAddress: rawVote.memberAddress,
       })
       const spyReq = sandbox.spy(Models.Vote, 'findWithPagination')
 
-      const response = await VoteController.getVoteWithPagination(paginationParams, {}, ens)
+      const response = await VoteController.getVoteWithPagination(paginationParams, {}, pairParams)
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -205,13 +206,15 @@ describe('Controller: Vote', () => {
         sort: 'createdAt',
       }
 
-      sandbox.stub(Models.Member, 'findByEns').resolves(false)
+      const pairParams: any = { ens }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
+
       const spyReq = sandbox.spy(Models.Vote, 'findWithPagination')
 
-      const response = await VoteController.getVoteWithPagination(paginationParams, {}, ens)
+      const response = await VoteController.getVoteWithPagination(paginationParams, {}, pairParams)
 
-      expect(spyReq.notCalled).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(0)
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(1)
     })
   })
 })

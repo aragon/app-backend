@@ -5,6 +5,7 @@ import MemberController from '@services/aragon-api/controllers/member'
 import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Member from '@models/schema/member'
+import PairDataModule from '@modules/pairData'
 
 describe('Controller: Member', () => {
   let sandbox: SinonSandbox
@@ -30,8 +31,8 @@ describe('Controller: Member', () => {
           delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           votingPower: '100',
           pluginSubdomain: 'token-voting',
+          tokenBalance: '100',
           metrics: {
-            tokenBalance: '100',
             delegateReceivedCount: 0,
             delegateSentCount: 0,
             voteCount: 0,
@@ -139,15 +140,16 @@ describe('Controller: Member', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`
-
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
-        address: rawMember.history?.[0].daoAddress,
+      const pairParams: any = {
+        daoId: `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
+        daoAddress: rawMember.history?.[0].daoAddress,
         network: rawMember.history?.[0].network,
       })
       const spyReq = sandbox.spy(Models.Member, 'findWithPagination')
 
-      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, daoId)
+      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -184,15 +186,16 @@ describe('Controller: Member', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`
-
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      const pairParams: any = {
+        daoId: `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
       const spyReq = sandbox.spy(Models.Member, 'findWithPagination')
 
-      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, daoId)
+      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
 
-      expect(spyReq.notCalled).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(0)
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(1)
     })
   })
 
@@ -349,15 +352,16 @@ describe('Controller: Member', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${member.history?.[0].network}-${member.history?.[0].daoAddress}`
-
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves({
-        address: member.history?.[0].daoAddress,
+      const pairParams: any = {
+        daoId: `${member.history?.[0].network}-${member.history?.[0].daoAddress}`,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
+        daoAddress: member.history?.[0].daoAddress,
         network: member.history?.[0].network,
       })
       const spyReq = sandbox.spy(Models.Member, 'findActiveWithPagination')
 
-      const response = await MemberController.getActiveMembersWithPagination(paginationParams, filterParams, daoId)
+      const response = await MemberController.getActiveMembersWithPagination(paginationParams, filterParams, pairParams)
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -394,14 +398,15 @@ describe('Controller: Member', () => {
       }
 
       const filterParams: any = {}
-      const daoId = `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`
-
-      sandbox.stub(Models.Dao, 'findByEntityId').resolves(false)
+      const pairParams: any = {
+        daoId: `${rawMember.history?.[0].network}-${rawMember.history?.[0].daoAddress}`,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
       const spyReq = sandbox.spy(Models.Member, 'findActiveWithPagination')
 
-      const response = await MemberController.getActiveMembersWithPagination(paginationParams, filterParams, daoId)
+      const response = await MemberController.getActiveMembersWithPagination(paginationParams, filterParams, pairParams)
 
-      expect(spyReq.notCalled).to.be.true
+      expect(spyReq.calledOnce).to.be.true
       expect(response).to.have.property('data').with.lengthOf(0)
     })
   })
@@ -441,10 +446,45 @@ describe('Controller: Member', () => {
   })
 
   describe('getActiveMemberByAddress', () => {
+    it('should getActiveMemberByAddress with params', async () => {
+      const memberDb = await Models.Member.create({
+        address: '0x17368cae2b9c6c3055e9e3c78936a69006be5411',
+        ens: [{ name: 'test.eth' }] as any,
+        history: [
+          {
+            daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
+            network: NetworksEnum.ethereumMainnet,
+            pluginAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
+            tokenAddress: '0x12366cae2b9c6c3055e9e3c78936a69006be5409',
+            fromBlockNumber: 1,
+            toBlockNumber: undefined as any,
+            fromTxHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+            toTxHash: undefined as any,
+            delegateFromAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+            delegateToAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+            votingPower: '100',
+            pluginSubdomain: 'token-voting',
+          },
+        ] as any,
+      })
+
+      const member = await MemberController.getActiveMemberByAddress(memberDb.address, {
+        daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
+      })
+      expect(member.ens[0].name).to.eq(memberDb.ens[0].name)
+      expect(member.address).to.eq(memberDb.address)
+      expect(member.network).to.eq(memberDb.history[0].network)
+      expect(member.fromBlockNumber).to.eq(memberDb.history[0].fromBlockNumber)
+      expect(member.daoAddress).to.eq(memberDb.history[0].daoAddress)
+      expect(member.tokenAddress).to.eq(memberDb.history[0].tokenAddress)
+      expect(member.pluginAddress).to.eq(memberDb.history[0].pluginAddress)
+      expect(member.votingPower).to.eq(memberDb.history[0].votingPower)
+    })
+
     it('should getActiveMemberByAddress', async () => {
       const memberDb = await Models.Member.create({
         address: '0x17368cae2b9c6c3055e9e3c78936a69006be5411',
-        ens: undefined,
+        ens: [{ name: 'test.eth' }] as any,
         history: [
           {
             daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
@@ -465,12 +505,8 @@ describe('Controller: Member', () => {
 
       const member = await MemberController.getActiveMemberByAddress(memberDb.address)
       expect(member.address).to.eq(memberDb.address)
-      expect(member.network).to.eq(memberDb.history[0].network)
-      expect(member.fromBlockNumber).to.eq(memberDb.history[0].fromBlockNumber)
-      expect(member.daoAddress).to.eq(memberDb.history[0].daoAddress)
-      expect(member.tokenAddress).to.eq(memberDb.history[0].tokenAddress)
-      expect(member.pluginAddress).to.eq(memberDb.history[0].pluginAddress)
-      expect(member.votingPower).to.eq(memberDb.history[0].votingPower)
+      expect(member.ens[0].name).to.eq(memberDb.ens[0].name)
+      expect(member.network).to.be.undefined
     })
 
     it('should fail getActiveMemberByAddress', async () => {

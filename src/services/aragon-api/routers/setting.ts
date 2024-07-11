@@ -3,7 +3,7 @@ import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import SettingSchema from '@api/routers/schema/setting'
 import SettingController from '@api/controllers/setting'
-import { type HexAddress, type ISettingExtraParams, type NetworksEnum } from '@types'
+import { type HexAddress, type IPairParams, type ISettingExtraParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 
 const SettingRouter = {
@@ -15,18 +15,20 @@ const SettingRouter = {
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
     }
-    const daoId = ctx.query.daoId as string
+    const pairParams: IPairParams = {
+      daoId: ctx.query.daoId as string,
+    }
 
-    const [formattedPaginationParams, formattedExtraParams, formattedDaoId] = await Promise.all([
+    const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(SettingSchema.getExtraParams, extraParams),
-      ValidationSchema.validateParams(SettingSchema.getDaoById, { id: daoId }),
+      ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
     ])
 
     ctx.body = await SettingController.getSettingsWithPagination(
       formattedPaginationParams,
       formattedExtraParams,
-      formattedDaoId.id,
+      formattedPairParams,
     )
   },
 

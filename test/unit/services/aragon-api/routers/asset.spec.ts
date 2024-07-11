@@ -92,7 +92,7 @@ describe('Router: Asset', () => {
         daoAddress: undefined,
         tokenAddress: undefined,
       })
-      expect(stubCtrl.args[0][2]).to.eq(filterParams.daoId)
+      expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
 
     it('Should get asset with pagination - missing pagination params', async () => {

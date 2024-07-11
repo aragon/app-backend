@@ -27,7 +27,7 @@ export const AggregatorMembers = {
         AggregatorMembers.queryMultisigMembers(supportedNetworks),
       ),
       batchSize: 1000,
-      concurrency: 1,
+      concurrency: 10,
     })
 
     await crawler.crawl()
@@ -365,7 +365,6 @@ export const AggregatorMembers = {
     }
 
     const metrics: Metrics = {
-      tokenBalance: '0',
       delegateReceivedCount: 0,
       delegateSentCount: 0,
       proposalCount: 0,
@@ -375,7 +374,7 @@ export const AggregatorMembers = {
     for (const activity of member.history!) {
       if (activity.toBlockNumber === null && activity.tokenAddress) {
         const balance = await Web3Helper.getERC20Balance(member.address!, activity.tokenAddress, activity.network)
-        metrics.tokenBalance = balance.toString()
+        activity.tokenBalance = balance.toString()
 
         const [delegateReceivedCount, delegateSentCount] = await Promise.all([
           Models.Delegate.countDocuments({
@@ -404,6 +403,8 @@ export const AggregatorMembers = {
     }
 
     const memberActivityDates = await AggregatorMembers._getMemberActivityDates(member.address!)
+
+    // member.ens = userEns!
     member.firstActivity = memberActivityDates?.firstActivity
     member.lastActivity = memberActivityDates?.lastActivity
 
