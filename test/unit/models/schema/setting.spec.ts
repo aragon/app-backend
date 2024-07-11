@@ -36,6 +36,8 @@ describe('Model: Setting', () => {
         type: ITokenType.GovernanceERC20,
         logo: 'fake-logo',
         decimals: 18,
+        totalSupply: '1000000000000000000000000000',
+        network: NetworksEnum.polygonMainnet,
       },
     }
   })
