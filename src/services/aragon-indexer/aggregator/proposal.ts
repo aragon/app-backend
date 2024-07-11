@@ -63,10 +63,7 @@ export const AggregatorProposal = {
       if (!existingLog) {
         logDb = await Models.Proposal.create(document, { session } as any)
       } else {
-        document.metrics = await AggregatorProposal._getProposalMetrics(
-          document.proposalId!.toString(),
-          document.pluginAddress!,
-        )
+        document.metrics = await AggregatorProposal._getProposalMetrics(document.proposalId!, document.pluginAddress!)
 
         logDb = await existingLog.update(document, { session })
       }
@@ -341,7 +338,7 @@ export const AggregatorProposal = {
     ]
   },
 
-  async _getProposalMetrics(proposalId: string, pluginAddress: string) {
+  async _getProposalMetrics(proposalId: number, pluginAddress: string) {
     const query = [
       {
         $match: {
