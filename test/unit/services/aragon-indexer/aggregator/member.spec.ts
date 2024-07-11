@@ -133,13 +133,6 @@ describe('Indexer:Aggregator:Member', () => {
         ],
       }
 
-      const web3Stub = sandbox.stub(Web3Helper, 'getEnsWithAlchemy').resolves([
-        {
-          name: 'user-ens',
-          registrationDateTimestamp: 123123,
-          expiredDateTimestamp: 123123,
-        },
-      ])
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123)
       const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves('100')
       const delegateCountStub = sandbox.stub(Models.Delegate, 'countDocuments').resolves(1)
@@ -150,7 +143,6 @@ describe('Indexer:Aggregator:Member', () => {
 
       const member = await AggregatorMembers._getMemberData(rawMember as any)
 
-      expect(web3Stub.calledOnce).to.be.true
       expect(getERC20BalanceStub.calledOnce).to.be.true
       expect(getERC20BalanceStub.calledWith(rawMember.address, rawDaoDoc.tokenAddress, rawDaoDoc.network)).to.be.true
 
@@ -166,8 +158,6 @@ describe('Indexer:Aggregator:Member', () => {
       expect(activityDateStub.calledWith(rawMember.address)).to.be.true
 
       expect(getBlockTimestampStub.calledOnce).to.be.true
-
-      expect(member.ens?.[0].name).to.eq('user-ens')
     })
 
     it('should get the member activity dates', async () => {

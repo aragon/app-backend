@@ -33,7 +33,7 @@ export class Metrics {
 }
 
 export class EnsMember {
-  @prop({ type: () => String })
+  @prop({ type: () => Number })
   public registrationDateTimestamp!: number
 
   @prop({ type: () => Number })
