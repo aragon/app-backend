@@ -413,7 +413,7 @@ const Web3Helper = {
     try {
       const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
-      const response = await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+      const response = await BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
         provider.send('eth_getBalance', [address]),
       )
 
@@ -428,7 +428,7 @@ const Web3Helper = {
     try {
       const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
-      const response = await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+      const response = await BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
         provider.send('alchemy_getTokenBalances', [address]),
       )
 
@@ -646,22 +646,31 @@ const Web3Helper = {
       Web3Helper.alchemySdk.nft.getNftsForOwner(walletAddress, { contractAddresses: [ensContractAddress] }),
     )
 
-    return (
-      (nfts?.ownedNfts?.map(nft => {
-        const registrationDateAttr = nft.raw.metadata.attributes.find(
-          (attr: any) => attr.trait_type === 'Registration Date',
-        ).value
-        const expirationDateAttr = nft.raw.metadata.attributes.find(
-          (attr: any) => attr.trait_type === 'Expiration Date',
-        ).value
+    const result =
+      (
+        nfts?.ownedNfts?.map(nft => {
+          if (nft.raw.metadata.attributes) {
+            const registrationDateAttr = nft.raw.metadata.attributes.find(
+              (attr: any) => attr.trait_type === 'Registration Date',
+            )?.value
 
-        return {
-          name: nft.name,
-          registrationDateTimestamp: Math.round(registrationDateAttr / 1000),
-          expirationDateTimestamp: Math.round(expirationDateAttr / 1000),
-        }
-      }) as any) || []
-    )
+            const expirationDateAttr = nft.raw.metadata.attributes.find(
+              (attr: any) => attr.trait_type === 'Expiration Date',
+            )?.value
+
+            if (registrationDateAttr && expirationDateAttr) {
+              return {
+                name: nft.name,
+                registrationDateTimestamp: Math.round(registrationDateAttr / 1000),
+                expirationDateTimestamp: Math.round(expirationDateAttr / 1000),
+              }
+            }
+          }
+          return null
+        }) as any
+      )?.filter((item: any) => item !== null) || []
+
+    return result
   },
 }
 

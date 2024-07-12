@@ -9,6 +9,7 @@ class BottleneckModule {
   static covalentLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static fourBytesLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static alchemyENSLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static alchemyBalanceLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
 
   static getNodeLimiter(network: NetworksEnum) {
     if (!this.nodeLimiters[network]) {
@@ -68,6 +69,16 @@ class BottleneckModule {
       })
     }
     return this.alchemyENSLimiters[network]
+  }
+
+  static getAlchemyBalanceLimiter(network: NetworksEnum) {
+    if (!this.alchemyBalanceLimiters[network]) {
+      this.alchemyBalanceLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.ALCHEMY_BALANCE_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.ALCHEMY_BALANCE_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.alchemyBalanceLimiters[network]
   }
 }
 

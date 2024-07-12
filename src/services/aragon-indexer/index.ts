@@ -13,12 +13,9 @@ import { AggregatorProposal } from '@services/aragon-indexer/aggregator/proposal
 import { AggregatorPlugin } from '@services/aragon-indexer/aggregator/plugin'
 import { AggregatorMembers } from '@services/aragon-indexer/aggregator/member'
 import { AggregatorSetting } from '@services/aragon-indexer/aggregator/setting'
-import { AggregatorAssets } from '@services/aragon-indexer/aggregator/asset'
-import { AggregatorTransactions } from '@services/aragon-indexer/aggregator/transaction'
 import { AggregatorDao } from '@indexer/aggregator/dao'
 import { AggregatorDelegate } from '@indexer/aggregator/delegate'
 import { AggregatorVote } from '@indexer/aggregator/vote'
-import { AggregatorEnsMember } from '@indexer/aggregator/ensMember'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -28,16 +25,6 @@ const IndexerService: IService = {
 
   start: async function () {
     logger.info('IndexerService service sync start', llo({}))
-
-    // const logTasks = [
-    //   [async () => LogPluginRepoRegistry.start()],
-    //   [async () => LogDaoRegistry.start()],
-    //   [async () => LogPluginSetupProcessor.start()],
-    //   [async () => LogDao.start()], // after logDaoRegistry
-    //   [async () => LogPluginSetting.start()], // after logPluginSetupProcessor
-    //   [async () => LogProposal.start()], // after logPluginSetupProcessor
-    //   [async () => LogMember.start()], // after logPluginSetupProcessor
-    // ]
 
     // order is important
     const logFastTasks = [
@@ -52,13 +39,10 @@ const IndexerService: IService = {
       [async () => AggregatorPlugin.start()],
       [async () => AggregatorSetting.start()],
       [async () => AggregatorDao.start()],
-      [async () => AggregatorAssets.start()],
       [async () => AggregatorDelegate.start()],
       [async () => AggregatorMembers.start()], // run after plugin and delegate for metrics
       [async () => AggregatorProposal.start()], // run after member
       [async () => AggregatorVote.start()],
-      [async () => AggregatorTransactions.start()],
-      [async () => AggregatorEnsMember.start()],
     ]
 
     const taskOptions = {

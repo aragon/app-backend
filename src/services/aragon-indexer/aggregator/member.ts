@@ -7,12 +7,14 @@ import { type Metrics } from '@models/schema/member'
 import { NetworkHelper } from '@helpers/network'
 import { type NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMembers' })
 
 export const AggregatorMembers = {
   start: async () => {
-    logger.verbose('Start AggregatorMembers', llo({}))
+    const startTime = Date.now()
+    logger.verbose('Start AggregatorMembers', llo({ startTime }))
 
     const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
@@ -26,12 +28,17 @@ export const AggregatorMembers = {
         AggregatorMembers.queryVotingPowerMembers(supportedNetworks),
         AggregatorMembers.queryMultisigMembers(supportedNetworks),
       ),
-      batchSize: 1000,
-      concurrency: 10,
+      batchSize: config.CRAWLER_CONFIG.MEMBER_BATCH_SIZE,
+      concurrency: config.CRAWLER_CONFIG.MEMBER_CONCURRENCY,
     })
 
     await crawler.crawl()
-    logger.verbose('End AggregatorMembers', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt }))
+
+    const duration = Date.now() - startTime
+    logger.verbose(
+      'End AggregatorMembers',
+      llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt, duration: `${duration}ms` }),
+    )
   },
 
   onDocument: async function (document: Partial<Member>) {
@@ -366,10 +373,7 @@ export const AggregatorMembers = {
 
     for (const activity of member.history!) {
       if (activity.toBlockNumber === null && activity.tokenAddress) {
-        const balance = await Web3Helper.getERC20Balance(member.address!, activity.tokenAddress, activity.network)
-        activity.tokenBalance = balance.toString()
-
-        const [delegateReceivedCount, delegateSentCount] = await Promise.all([
+        const [delegateReceivedCount, delegateSentCount, balance] = await Promise.all([
           Models.Delegate.countDocuments({
             toDelegate: member.address,
             tokenAddress: activity.tokenAddress,
@@ -378,8 +382,10 @@ export const AggregatorMembers = {
             fromDelegate: member.address,
             tokenAddress: activity.tokenAddress,
           }),
+          Web3Helper.getERC20Balance(member.address!, activity.tokenAddress, activity.network),
         ])
 
+        activity.tokenBalance = balance.toString()
         metrics.delegateReceivedCount = delegateReceivedCount
         metrics.delegateSentCount = delegateSentCount
       }

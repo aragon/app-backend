@@ -37,7 +37,7 @@ export class EnsMember {
   public registrationDateTimestamp!: number
 
   @prop({ type: () => Number })
-  public expiredDateTimestamp!: number
+  public expirationDateTimestamp!: number
 
   @prop({ type: () => String })
   public name!: string
