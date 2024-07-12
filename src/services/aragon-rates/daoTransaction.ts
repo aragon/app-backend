@@ -17,33 +17,40 @@ import Web3Helper from '@helpers/web3'
 import { NetworkHelper } from '@helpers/network'
 import { RateModule } from '@modules/rates'
 import utils from '@helpers/utils'
+import config from '@config'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorTransactions' })
+const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:DaoTransactions' })
 
 /**
- * The AggregatorTransactions uses the alchemy_getAssetTransfers to fetch DAO transfers.
+ * The DaoTransactions uses the alchemy_getAssetTransfers to fetch DAO transfers.
  * Due to a low limit on the method, the service should run alone.
  */
 
-export const AggregatorTransactions = {
+export const DaoTransactions = {
   start: async () => {
-    logger.verbose('Start AggregatorTransactions', llo({}))
+    const startTime = Date.now()
+    logger.verbose('Start DaoTransactions', llo({ startTime }))
 
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
-      onDocument: async (daoRegistry: LogDaoRegistry) => AggregatorTransactions.onDocument(daoRegistry),
+      onDocument: async (daoRegistry: LogDaoRegistry) => DaoTransactions.onDocument(daoRegistry),
       onError: (error: any, document: any) => {
-        logger.error('Error AggregatorTransactions', llo({ error, document }))
+        logger.error('Error DaoTransactions', llo({ error, document }))
       },
       where: {
         network: { $in: NetworkHelper.supportedNetworks().map(w => w.networkName) },
       },
-      batchSize: 500,
-      concurrency: 10,
+      batchSize: config.CRAWLER_CONFIG.DAO_TRANSACTIONS_BATCH_SIZE,
+      concurrency: config.CRAWLER_CONFIG.DAO_TRANSACTIONS_CONCURRENCY,
     })
 
     await crawler.crawl()
-    logger.verbose('End AggregatorTransactions', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
+
+    const duration = Date.now() - startTime
+    logger.verbose(
+      'End DaoTransactions',
+      llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt, duration: `${duration}ms` }),
+    )
   },
 
   getCategories: (network: NetworksEnum) => {
@@ -66,7 +73,7 @@ export const AggregatorTransactions = {
     }
   },
   onDocument: async (daoRegistry: LogDaoRegistry) => {
-    const category = AggregatorTransactions.getCategories(daoRegistry.network)
+    const category = DaoTransactions.getCategories(daoRegistry.network)
     // txs to daoAddress
     const depositTxCrawler = new BlockchainTransferCrawler({
       network: daoRegistry.network,
@@ -76,7 +83,7 @@ export const AggregatorTransactions = {
         category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) =>
-        AggregatorTransactions.saveTransaction(txLog, ITransactionType.deposit, daoRegistry),
+        DaoTransactions.saveTransaction(txLog, ITransactionType.deposit, daoRegistry),
       onError: async (error: any) => {
         logger.error(
           'Error deposit transfer',
@@ -97,7 +104,7 @@ export const AggregatorTransactions = {
         category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) =>
-        AggregatorTransactions.saveTransaction(txLog, ITransactionType.withdraw, daoRegistry),
+        DaoTransactions.saveTransaction(txLog, ITransactionType.withdraw, daoRegistry),
       onError: async (error: any) => {
         logger.error(
           'Error withdraw transfer',
@@ -144,7 +151,7 @@ export const AggregatorTransactions = {
           category: tx.category,
         }
 
-        // checksum address may not be consistent
+        // checksum address may not be consistent ERC20
         if (tx.rawContract?.address) {
           const token = await UtilsIndexer.saveAndGetToken(tx.rawContract?.address, daoRegistry.network)
 
@@ -164,6 +171,8 @@ export const AggregatorTransactions = {
               decimals: token.decimals,
             }
           }
+        } else {
+          //  native grab the token
         }
 
         const logDb = await Models.Transaction.create(rawTx, { session } as any)
