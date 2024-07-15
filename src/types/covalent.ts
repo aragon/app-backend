@@ -84,7 +84,7 @@ export interface ITokenHolderResponse {
   contract_ticker_symbol: string
   supports_erc: string[]
   logo_url: string
-  total_supply: number
+  total_supply: number | string
   block_height: number
 }
 
