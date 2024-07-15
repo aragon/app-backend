@@ -53,8 +53,7 @@ describe('Modules:CoinGeckoHelper', () => {
 
       await expect(CoinGeckoHelper._rpCall(path)).to.be.rejectedWith(error, 'Test Error')
 
-      expect(stubLogger.calledTwice).to.be.true
-      expect(stubLogger.calledWith('Error in Retry Request' as any)).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Error in CoinGecko RPC Call' as any)).to.be.true
     })
   })

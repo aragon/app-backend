@@ -11,7 +11,7 @@ import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import { NetworkHelper } from '@helpers/network'
 import config from '@config'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorAssets' })
+const llo = logger.logMeta.bind(null, { service: 'rates:DaoAssets' })
 
 export const DaoAssets = {
   start: async () => {

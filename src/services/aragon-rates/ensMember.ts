@@ -6,7 +6,7 @@ import type Member from '@models/schema/member'
 import Web3Helper from '@helpers/web3'
 import config from '@config'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorEnsMember' })
+const llo = logger.logMeta.bind(null, { service: 'rates:EnsMember' })
 
 export const EnsMember = {
   start: async () => {

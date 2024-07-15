@@ -19,7 +19,7 @@ import { RateModule } from '@modules/rates'
 import utils from '@helpers/utils'
 import config from '@config'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:DaoTransactions' })
+const llo = logger.logMeta.bind(null, { service: 'rates:DaoTransactions' })
 
 /**
  * The DaoTransactions uses the alchemy_getAssetTransfers to fetch DAO transfers.
