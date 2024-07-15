@@ -121,7 +121,6 @@ describe('Indexer: MemberHandler', () => {
 
       await MemberHandler.membersAdded(fakeLog, logInfo)
 
-      console.log(findExistingLogStub.callCount)
       expect(findExistingLogStub.calledTwice).to.be.true
       expect(findByPluginAddressSpy.calledOnce).to.be.true
     })

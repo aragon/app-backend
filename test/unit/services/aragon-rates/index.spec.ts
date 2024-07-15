@@ -9,6 +9,9 @@ import { EnumConnection } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import logger from '@logger'
 import { DaoTvl } from '@rates/daoTvl'
+import { EnsMember } from '@rates/ensMember'
+import { DaoAssets } from '@rates/daoAsset'
+import { DaoTransactions } from '@rates/daoTransaction'
 
 describe('Rates: index', () => {
   let sandbox: SinonSandbox
@@ -25,13 +28,16 @@ describe('Rates: index', () => {
     let schedulerStub = sandbox.createStubInstance(TaskSchedulerState)
     sandbox.stub(TaskSchedulerState, 'getInstance').returns(schedulerStub)
 
-    expect(RatesService.NEED_CONNECTIONS).to.deep.equal([EnumConnection.MONGODB])
+    expect(RatesService.NEED_CONNECTIONS).to.deep.equal([EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN])
 
     const configBk = config.SERVICES.ARAGON_RATES.RATES_INTERVAL
     config.SERVICES.ARAGON_RATES.RATES_INTERVAL = 200
 
-    const taskStubs = [sandbox.stub(FetchRates, 'start').resolves()]
+    const task0Stubs = [sandbox.stub(EnsMember, 'start').resolves()]
+    const task1Stubs = [sandbox.stub(FetchRates, 'start').resolves()]
     const task2Stubs = [sandbox.stub(DaoTvl, 'start').resolves()]
+    const task3Stubs = [sandbox.stub(DaoAssets, 'start').resolves()]
+    const task4Stubs = [sandbox.stub(DaoTransactions, 'start').resolves()]
 
     await RatesService.start()
     await utils.wait(100)
@@ -46,8 +52,11 @@ describe('Rates: index', () => {
       }
     }
 
-    expect(taskStubs.every(stub => stub.calledOnce)).to.be.true
+    expect(task0Stubs.every(stub => stub.calledOnce)).to.be.true
+    expect(task1Stubs.every(stub => stub.calledOnce)).to.be.true
     expect(task2Stubs.every(stub => stub.calledOnce)).to.be.true
+    expect(task3Stubs.every(stub => stub.calledOnce)).to.be.true
+    expect(task4Stubs.every(stub => stub.calledOnce)).to.be.true
 
     await RatesService.stop()
 

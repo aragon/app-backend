@@ -61,15 +61,15 @@ describe('Helpers: Covalent', () => {
     })
 
     it('Should handle errors in _rpCall', async () => {
-      const expectedError = new Error('RPC Call Failed')
+      const expectedError: any = new Error('RPC Call Failed')
+
       sandbox.stub(CovalentHelper.axiosInstance, 'get').rejects(expectedError)
 
       const stubLogger = sandbox.stub(logger, 'error')
 
       await expect(CovalentHelper._rpCall('/path')).to.be.rejectedWith(expectedError)
 
-      expect(stubLogger.calledTwice).to.be.true
-      expect(stubLogger.calledWith('Error in Retry Request' as any)).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Error in Covalent RPC Call' as any)).to.be.true
     })
   })

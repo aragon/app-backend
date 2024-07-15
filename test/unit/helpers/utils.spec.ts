@@ -155,7 +155,6 @@ describe('Helpers:Utils', () => {
     const child: any = {}
     const obj = { a: 1, child, b: 22n }
     child.obj = obj
-    console.log(Utils.JSONStringifyCircular(obj))
     expect(Utils.JSONStringifyCircular(obj)).to.be.eq('{\n  "a": 1,\n  "child": {},\n  "b": "22"\n}')
   })
 

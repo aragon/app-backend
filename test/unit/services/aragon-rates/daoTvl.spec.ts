@@ -89,7 +89,10 @@ describe('Rates: DaoTvl', () => {
         network: rawDao.network,
       })
 
-      expect(stubLogger.calledTwice).to.be.true
+      expect(stubLogger.calledThrice).to.be.true
+      expect(stubLogger.calledWith('Start DaoTvl' as any)).to.be.true
+      expect(stubLogger.calledWith('Update Dao tvlUSD' as any)).to.be.true
+      expect(stubLogger.calledWith('End DaoTvl' as any)).to.be.true
       expect(daoDb.tvlUSD).to.eq(11204.2)
     })
   })

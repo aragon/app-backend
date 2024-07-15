@@ -5,7 +5,7 @@ import { type ENS, type HexAddress, type NetworksEnum } from '@types'
 import DBCrawler from '@models/utils/crawler'
 import config from '@config'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:DaoTvl' })
+const llo = logger.logMeta.bind(null, { service: 'rates:DaoTvl' })
 
 interface IQueryResult {
   ens: ENS

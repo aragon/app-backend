@@ -9,7 +9,7 @@ import { NetworksEnum } from '@types'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 import config from '@config'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:FetchRates' })
+const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
 export const FetchRates = {
   start: async () => {
