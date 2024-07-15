@@ -20,7 +20,7 @@ describe('Model: Member', () => {
         {
           name: 'leuts.eth',
           registrationDateTimestamp: 0,
-          expiredDateTimestamp: 0,
+          expirationDateTimestamp: 0,
         },
       ],
       history: [

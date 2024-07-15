@@ -7,12 +7,14 @@ import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
 import { NetworksEnum } from '@types'
 import { UtilsIndexer } from '@indexer/utils/indexer'
+import config from '@config'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:FetchRates' })
+const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
 export const FetchRates = {
   start: async () => {
-    logger.verbose('Start FetchRates', llo({}))
+    const startTime = Date.now()
+    logger.verbose('Start FetchRates', llo({ startTime }))
 
     const crawler = new DBCrawler({
       model: Models.Token,
@@ -33,12 +35,17 @@ export const FetchRates = {
           },
         ],
       },
-      batchSize: 1000,
-      concurrency: 1,
+      batchSize: config.CRAWLER_CONFIG.TOKEN_RATES_BATCH_SIZE,
+      concurrency: config.CRAWLER_CONFIG.TOKEN_RATES_CONCURRENCY,
     })
 
     await crawler.crawl()
-    logger.verbose('End FetchRates', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt }))
+
+    const duration = Date.now() - startTime
+    logger.verbose(
+      'End FetchRates',
+      llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt, duration: `${duration}ms` }),
+    )
   },
 
   async onDocument(token: Token) {

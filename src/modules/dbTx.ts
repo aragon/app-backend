@@ -70,8 +70,6 @@ const DbTx = {
 
   async handleTxError(error: any, retryFn: any, i = 0) {
     if (DbTx.isErrorConflict(error)) {
-      logger.warn('mongodb concurrent error', llo({ error }))
-
       assert(i < config.MONGO_DB.RETRY_CONCURRENT_INTERVAL, 'mongodb_concurrent', {
         errorMongoDb: error,
       })

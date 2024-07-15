@@ -6,12 +6,14 @@ import type Plugin from '@models/schema/plugin'
 import { NetworkHelper } from '@helpers/network'
 import { type NetworksEnum } from '@types'
 import ProxyContractHelper from '@helpers/proxyContract'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorPlugin' })
 
 export const AggregatorPlugin = {
   start: async () => {
-    logger.verbose('Start AggregatorPlugin', llo({}))
+    const startTime = Date.now()
+    logger.verbose('Start AggregatorPlugin', llo({ startTime }))
 
     const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
@@ -22,12 +24,17 @@ export const AggregatorPlugin = {
       },
       useAggregate: true,
       aggregate: AggregatorPlugin.query(supportedNetworks),
-      batchSize: 1000,
-      concurrency: 1,
+      batchSize: config.CRAWLER_CONFIG.DA0_PLUGIN_BATCH_SIZE,
+      concurrency: config.CRAWLER_CONFIG.DAO_PLUGIN_CONCURRENCY,
     })
 
     await crawler.crawl()
-    logger.verbose('End AggregatorPlugin', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt }))
+
+    const duration = Date.now() - startTime
+    logger.verbose(
+      'End AggregatorPlugin',
+      llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt, duration: `${duration}ms` }),
+    )
   },
 
   async onDocument(document: Partial<Plugin>) {

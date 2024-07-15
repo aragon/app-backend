@@ -61,7 +61,14 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BOTTLENECK_ALCHEMY_ENS_MAX_CONCURRENT',
         1,
       ),
-      ALCHEMY_ENS_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ALCHEMY_ENS_MIN_TIME', 500),
+      ALCHEMY_ENS_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ALCHEMY_ENS_MIN_TIME', 1000),
+      ALCHEMY_BALANCE_MAX_CONCURRENT: utils.configParser(
+        sourceConfig,
+        'number',
+        'BOTTLENECK_ALCHEMY_BALANCE_MAX_CONCURRENT',
+        1,
+      ),
+      ALCHEMY_BALANCE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ALCHEMY_BALANCE_MIN_TIME', 20),
     },
 
     MONGO_DB: {
@@ -159,24 +166,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_INDEXER_DAO_INTERVAL',
           3 * 60 * 60 * 1000,
         ), // 3 hours
-        DAO_FETCH_BATCH_SIZE: utils.configParser(
-          sourceConfig,
-          'number',
-          'SERVICES_ARAGON_INDEXER_DAO_FETCH_BATCH_SIZE',
-          2000,
-        ),
-        TOKEN_INTERVAL: utils.configParser(
-          sourceConfig,
-          'number',
-          'SERVICES_ARAGON_INDEXER_TOKEN_INTERVAL',
-          6 * 60 * 60 * 1000,
-        ), // 6 hours
-        TOKEN_FETCH_BATCH_SIZE: utils.configParser(
-          sourceConfig,
-          'number',
-          'SERVICES_ARAGON_INDEXER_TOKEN_FETCH_BATCH_SIZE',
-          500,
-        ),
       },
 
       ARAGON_RATES: {
@@ -188,6 +177,56 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           6 * 60 * 60 * 1000,
         ), // 6 hours
       },
+    },
+
+    CRAWLER_CONFIG: {
+      // INDEXER
+      DA0_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_BATCH_SIZE', 1000),
+      DAO_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_CONCURRENCY', 1),
+      DA0_PLUGIN_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_PLUGIN_BATCH_SIZE', 1000),
+      DAO_PLUGIN_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_PLUGIN_CONCURRENCY', 1),
+      DA0_SETTING_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_SETTING_BATCH_SIZE', 1000),
+      DAO_SETTING_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_SETTING_CONCURRENCY', 1),
+      MEMBER_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_MEMBER_BATCH_SIZE', 1000),
+      MEMBER_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_MEMBER_CONCURRENCY', 1),
+      MEMBER_DELEGATE_BATCH_SIZE: utils.configParser(
+        sourceConfig,
+        'number',
+        'INDEXER_CONFIG_MEMBER_DELEGATE_BATCH_SIZE',
+        1000,
+      ),
+      MEMBER_DELEGATE_CONCURRENCY: utils.configParser(
+        sourceConfig,
+        'number',
+        'INDEXER_CONFIG_MEMBER_DELEGATE_CONCURRENCY',
+        1,
+      ),
+      PROPOSAL_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_PROPOSAL_BATCH_SIZE', 1000),
+      PROPOSAL_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_PROPOSAL_CONCURRENCY', 1),
+      VOTE_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_VOTE_BATCH_SIZE', 1000),
+      VOTE_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_VOTE_CONCURRENCY', 1),
+
+      // RATES
+      ENS_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_ENS_BATCH_SIZE', 1000),
+      ENS_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_ENS_CONCURRENCY', 1),
+      TOKEN_RATES_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_BATCH_SIZE', 1000),
+      TOKEN_RATES_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_CONCURRENCY', 1),
+      DAO_TVL_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_TVL_BATCH_SIZE', 1000),
+      DAO_TVL_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_TVL_CONCURRENCY', 1),
+      DAO_ASSETS_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_ASSETS_BATCH_SIZE', 1000),
+      DAO_ASSETS_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_ASSETS_CONCURRENCY', 1),
+      DAO_TRANSACTIONS_BATCH_SIZE: utils.configParser(
+        sourceConfig,
+        'number',
+        'INDEXER_CONFIG_DAO_TRANSACTIONS_BATCH_SIZE',
+        1000,
+      ),
+      DAO_TRANSACTIONS_CONCURRENCY: utils.configParser(
+        sourceConfig,
+        'number',
+        'INDEXER_CONFIG_DAO_TRANSACTIONS_CONCURRENCY',
+        1,
+      ),
     },
   }
 }

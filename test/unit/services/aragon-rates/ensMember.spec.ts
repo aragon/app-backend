@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { AggregatorEnsMember } from '@services/aragon-indexer/aggregator/ensMember'
+import { EnsMember } from '@rates/ensMember'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { NetworksEnum } from '@types'
@@ -22,7 +22,7 @@ describe('Indexer:Aggregator:EnsMember', () => {
         {
           name: 'leuts.eth',
           registrationDateTimestamp: 0,
-          expiredDateTimestamp: 0,
+          expirationDateTimestamp: 0,
         },
       ],
       history: [
@@ -57,26 +57,26 @@ describe('Indexer:Aggregator:EnsMember', () => {
   })
 
   describe('start', async () => {
-    it('should start the AggregatorEnsMember', async () => {
+    it('should start the EnsMember', async () => {
       const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl')
 
-      await AggregatorEnsMember.start()
+      await EnsMember.start()
 
-      expect(stubLogger.calledWith('End AggregatorEnsMember' as any)).to.be.true
+      expect(stubLogger.calledWith('End EnsMember' as any)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
 
-    it('should error the AggregatorEnsMember', async () => {
+    it('should error the EnsMember', async () => {
       const stubLoggerError = sandbox.stub(Logger, 'error')
       const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onError(true)
       })
 
-      await AggregatorEnsMember.start()
+      await EnsMember.start()
 
-      expect(stubLogger.calledWith('End AggregatorEnsMember' as any)).to.be.true
+      expect(stubLogger.calledWith('End EnsMember' as any)).to.be.true
       expect(stubLoggerError.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
@@ -87,11 +87,11 @@ describe('Indexer:Aggregator:EnsMember', () => {
 
     const stubLogger = sandbox.stub(Logger, 'verbose')
     const stubEns = sandbox.stub(Web3Helper, 'getEnsWithAlchemy').resolves([
-      { name: 'matrix.eth', registrationDateTimestamp: 1, expiredDateTimestamp: 1 },
-      { name: 'matrix1.eth', registrationDateTimestamp: 0, expiredDateTimestamp: 0 },
+      { name: 'matrix.eth', registrationDateTimestamp: 1, expirationDateTimestamp: 1 },
+      { name: 'matrix1.eth', registrationDateTimestamp: 0, expirationDateTimestamp: 0 },
     ])
 
-    await AggregatorEnsMember.onDocument(document as any)
+    await EnsMember.onDocument(document as any)
 
     expect(stubLogger.calledOnce).to.be.true
     expect(stubEns.calledOnceWith(document.address)).to.be.true
@@ -101,9 +101,9 @@ describe('Indexer:Aggregator:EnsMember', () => {
     expect(member.ens.length).to.eq(2)
     expect(member.ens[0].name).to.eq('matrix.eth')
     expect(member.ens[0].registrationDateTimestamp).to.eq(1)
-    expect(member.ens[0].expiredDateTimestamp).to.eq(1)
+    expect(member.ens[0].expirationDateTimestamp).to.eq(1)
     expect(member.ens[1].name).to.eq('matrix1.eth')
     expect(member.ens[1].registrationDateTimestamp).to.eq(0)
-    expect(member.ens[1].expiredDateTimestamp).to.eq(0)
+    expect(member.ens[1].expirationDateTimestamp).to.eq(0)
   })
 })

@@ -4,26 +4,30 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
 import Web3Helper from '@helpers/web3'
+import config from '@config'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorEnsMember' })
+const llo = logger.logMeta.bind(null, { service: 'rates:EnsMember' })
 
-export const AggregatorEnsMember = {
+export const EnsMember = {
   start: async () => {
-    logger.verbose('Start AggregatorEnsMember', llo({}))
+    const startTime = Date.now()
+    logger.verbose('Start EnsMember', llo({ startTime }))
 
     const crawler = new DBCrawler({
       model: Models.Member,
-      onDocument: AggregatorEnsMember.onDocument,
+      onDocument: EnsMember.onDocument,
       onError: (error: any, document: any) => {
-        logger.error('Error AggregatorEnsMember', llo({ error, document }))
+        logger.error('Error EnsMember', llo({ error, document }))
       },
       where: {},
-      batchSize: 1000,
-      concurrency: 10,
+      batchSize: config.CRAWLER_CONFIG.ENS_BATCH_SIZE,
+      concurrency: config.CRAWLER_CONFIG.ENS_CONCURRENCY,
     })
 
     await crawler.crawl()
-    logger.verbose('End AggregatorEnsMember', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt }))
+
+    const duration = Date.now() - startTime
+    logger.verbose('End EnsMember', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt, duration: `${duration}ms` }))
   },
 
   onDocument: async function (document: Partial<Member>) {

@@ -9,28 +9,35 @@ import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import { NetworkHelper } from '@helpers/network'
+import config from '@config'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorAssets' })
+const llo = logger.logMeta.bind(null, { service: 'rates:DaoAssets' })
 
-export const AggregatorAssets = {
+export const DaoAssets = {
   start: async () => {
-    logger.verbose('Start AggregatorAssets', llo({}))
+    const startTime = Date.now()
+    logger.verbose('Start DaoAssets', llo({ startTime }))
 
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
-      onDocument: AggregatorAssets.onDocument,
+      onDocument: DaoAssets.onDocument,
       onError: (error: any, document: any) => {
-        logger.error('Error AggregatorAssets', llo({ error, document }))
+        logger.error('Error DaoAssets', llo({ error, document }))
       },
       where: {
         network: { $in: NetworkHelper.supportedNetworks().map(network => network.networkName) },
       },
-      batchSize: 500,
-      concurrency: 10,
+      batchSize: config.CRAWLER_CONFIG.DAO_ASSETS_BATCH_SIZE,
+      concurrency: config.CRAWLER_CONFIG.DAO_ASSETS_CONCURRENCY,
     })
 
     await crawler.crawl()
-    logger.verbose('End AggregatorAssets', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
+
+    const duration = Date.now() - startTime
+    logger.verbose(
+      'End DaoAssets',
+      llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt, duration: `${duration}ms` }),
+    )
   },
 
   onDocument: async (document: LogDaoRegistry) => {
@@ -107,7 +114,7 @@ export const AggregatorAssets = {
           }),
       )
     } catch (error) {
-      logger.error('Error AggregatorAssets', llo({ error, logId: document.id }))
+      logger.error('Error DaoAssets', llo({ error, logId: document.id }))
     }
   },
 }

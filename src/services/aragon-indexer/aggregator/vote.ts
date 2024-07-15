@@ -11,7 +11,8 @@ const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorV
 
 export const AggregatorVote = {
   start: async () => {
-    logger.verbose('Start AggregatorVote', llo({}))
+    const startTime = Date.now()
+    logger.verbose('Start AggregatorVote', llo({ startTime }))
 
     const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
@@ -27,7 +28,12 @@ export const AggregatorVote = {
     })
 
     await crawler.crawl()
-    logger.verbose('End AggregatorVote', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
+
+    const duration = Date.now() - startTime
+    logger.verbose(
+      'End AggregatorVote',
+      llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt, duration: `${duration}ms` }),
+    )
   },
 
   async onDocument(document: Partial<Vote>) {

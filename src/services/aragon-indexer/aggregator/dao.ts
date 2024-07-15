@@ -6,12 +6,14 @@ import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
 import { type NetworksEnum } from '@types'
 import { NetworkHelper } from '@helpers/network'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorDao' })
 
 export const AggregatorDao = {
   start: async () => {
-    logger.verbose('Start AggregatorDao', llo({}))
+    const startTime = Date.now()
+    logger.verbose('Start AggregatorDao', llo({ startTime }))
 
     const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
@@ -22,12 +24,17 @@ export const AggregatorDao = {
       },
       useAggregate: true,
       aggregate: AggregatorDao.query(supportedNetworks),
-      batchSize: 1000,
-      concurrency: 10,
+      batchSize: config.CRAWLER_CONFIG.DA0_BATCH_SIZE,
+      concurrency: config.CRAWLER_CONFIG.DAO_CONCURRENCY,
     })
 
     await crawler.crawl()
-    logger.verbose('End AggregatorDao', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
+
+    const duration = Date.now() - startTime
+    logger.verbose(
+      'End AggregatorDao',
+      llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt, duration: `${duration}ms` }),
+    )
   },
 
   async onDocument(document: Partial<Dao>) {

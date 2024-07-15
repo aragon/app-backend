@@ -5,12 +5,14 @@ import DbTx from '@modules/dbTx'
 import type Delegate from '@models/schema/delegate'
 import { NetworkHelper } from '@helpers/network'
 import Web3Helper from '@helpers/web3'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorDelegate' })
 
 export const AggregatorDelegate = {
   start: async () => {
-    logger.verbose('Start AggregatorDelegate', llo({}))
+    const startTime = Date.now()
+    logger.verbose('Start AggregatorDelegate', llo({ startTime }))
 
     const crawler = new DBCrawler({
       model: Models.LogMember,
@@ -23,12 +25,17 @@ export const AggregatorDelegate = {
       },
       useAggregate: true,
       aggregate: AggregatorDelegate.query(),
-      batchSize: 500,
-      concurrency: 10,
+      batchSize: config.CRAWLER_CONFIG.MEMBER_DELEGATE_BATCH_SIZE,
+      concurrency: config.CRAWLER_CONFIG.MEMBER_DELEGATE_CONCURRENCY,
     })
 
     await crawler.crawl()
-    logger.verbose('End AggregatorDelegate', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
+
+    const duration = Date.now() - startTime
+    logger.verbose(
+      'End AggregatorDelegate',
+      llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt, duration: `${duration}ms` }),
+    )
   },
 
   async onDocument(document: Partial<Delegate>) {

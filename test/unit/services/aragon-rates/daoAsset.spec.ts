@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { ZeroAddress } from 'ethers'
 import { expect } from 'chai'
-import { AggregatorAssets } from '@services/aragon-indexer/aggregator/asset'
+import { DaoAssets } from '@rates/daoAsset'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { HexAddress, IAlchemyTokenBalance, NetworksEnum } from '@types'
@@ -27,22 +27,22 @@ describe('Indexer:Aggregator:Assets', () => {
       const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl')
 
-      await AggregatorAssets.start()
+      await DaoAssets.start()
 
-      expect(stubLogger.calledWith('End AggregatorAssets' as any)).to.be.true
+      expect(stubLogger.calledWith('End DaoAssets' as any)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
 
-    it('should error the AggregatorAssets', async () => {
+    it('should error the DaoAssets', async () => {
       const stubLoggerError = sandbox.stub(Logger, 'error')
       const stubLogger = sandbox.stub(Logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onError(true)
       })
 
-      await AggregatorAssets.start()
+      await DaoAssets.start()
 
-      expect(stubLogger.calledWith('End AggregatorAssets' as any)).to.be.true
+      expect(stubLogger.calledWith('End DaoAssets' as any)).to.be.true
       expect(stubLoggerError.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
@@ -86,7 +86,7 @@ describe('Indexer:Aggregator:Assets', () => {
         .resolves(fakeToken2 as any)
       const stubLogger = sandbox.stub(Logger, 'verbose')
 
-      await AggregatorAssets.onDocument(document as any)
+      await DaoAssets.onDocument(document as any)
 
       expect(stubGetBalance.callCount).to.eq(1)
       expect(stubGetBalance.calledWith(document.address, document.network)).to.be.true
@@ -153,7 +153,7 @@ describe('Indexer:Aggregator:Assets', () => {
       const stubGetTokenBalances = sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
       const stubLogger = sandbox.stub(Logger, 'verbose')
 
-      await AggregatorAssets.onDocument(document as any)
+      await DaoAssets.onDocument(document as any)
 
       expect(stubGetBalance.callCount).to.eq(1)
       expect(stubGetBalance.calledWith(document.address, document.network)).to.be.true
@@ -191,7 +191,7 @@ describe('Indexer:Aggregator:Assets', () => {
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').rejects(new Error('Error'))
       const stubLogger = sandbox.stub(Logger, 'error')
 
-      await AggregatorAssets.onDocument(document as any)
+      await DaoAssets.onDocument(document as any)
 
       expect(stubGetBalance.callCount).to.eq(1)
       expect(stubGetBalance.calledWith(document.address, document.network)).to.be.true
