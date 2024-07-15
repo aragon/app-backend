@@ -2,22 +2,32 @@ import logger from '@logger'
 import { EnumConnection, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
+import { EnsMember } from '@rates/ensMember'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
 import { DaoTvl } from '@services/aragon-rates/daoTvl'
+import { DaoAssets } from '@rates/daoAsset'
+import { DaoTransactions } from '@rates/daoTransaction'
 
 const llo = logger.logMeta.bind(null, { service: 'service:RatesService' })
 
 const RatesService: IService = {
-  NEED_CONNECTIONS: [EnumConnection.MONGODB],
+  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async function () {
     logger.info('RatesService service sync start', llo({}))
 
-    const taskFetchRates = [async () => FetchRates.start()]
-    const taskUpdateDaoTvl = [async () => DaoTvl.start()]
+    const tasks = [
+      [
+        async () => EnsMember.start(),
+        async () => FetchRates.start(),
+        async () => DaoTvl.start(),
+        async () => DaoAssets.start(),
+        async () => DaoTransactions.start(),
+      ],
+    ]
 
     const taskOptions = {
-      fn: () => [taskFetchRates, taskUpdateDaoTvl],
+      fn: () => [...tasks],
       interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
       onError: (error: any) => {
         logger.error('RatesService task error', llo({ error }))

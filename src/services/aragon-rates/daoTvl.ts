@@ -2,8 +2,10 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import { type ENS, type HexAddress, type NetworksEnum } from '@types'
+import DBCrawler from '@models/utils/crawler'
+import config from '@config'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:DaoTvl' })
+const llo = logger.logMeta.bind(null, { service: 'rates:DaoTvl' })
 
 interface IQueryResult {
   ens: ENS
@@ -14,23 +16,37 @@ interface IQueryResult {
 
 export const DaoTvl = {
   start: async () => {
-    logger.verbose('Start DaoTvl', llo({}))
+    const startTime = Date.now()
+    logger.verbose('Start DaoTvl', llo({ startTime }))
 
-    const result: IQueryResult[] = await Models.Asset.aggregate(DaoTvl.query())
+    const crawler = new DBCrawler({
+      model: Models.Asset,
+      onDocument: DaoTvl.onDocument,
+      onError: (error: any, document: any) => {
+        logger.error('Error FetchRates', llo({ error, document }))
+      },
+      useAggregate: true,
+      aggregate: DaoTvl.query(),
+      batchSize: config.CRAWLER_CONFIG.ENS_BATCH_SIZE,
+      concurrency: config.CRAWLER_CONFIG.ENS_CONCURRENCY,
+    })
 
-    await Promise.all(
-      result.map(async (data: IQueryResult) => {
-        const dao = await Models.Dao.findExistingLog({ address: data.address, network: data.network })
-        if (dao) {
-          await DbTx.executeTxFn(async ({ session }) => {
-            await dao.update({ tvlUSD: data.tvlUsd }, { session })
-            await session.commitTransaction()
-            await session.endSession()
-          })
-        }
-      }),
-    )
-    logger.verbose('End DaoTvl', llo())
+    await crawler.crawl()
+
+    const duration = Date.now() - startTime
+    logger.verbose('End DaoTvl', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt, duration: `${duration}ms` }))
+  },
+
+  onDocument: async function (document: IQueryResult) {
+    const dao = await Models.Dao.findExistingLog({ address: document.address, network: document.network })
+    if (dao) {
+      await DbTx.executeTxFn(async ({ session }) => {
+        const logDb = await dao.update({ tvlUSD: document.tvlUsd.toString() }, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Update Dao tvlUSD', llo({ logId: logDb?.id }))
+      })
+    }
   },
 
   query() {

@@ -5,12 +5,14 @@ import DbTx from '@modules/dbTx'
 import type Setting from '@models/schema/setting'
 import { NetworkHelper } from '@helpers/network'
 import { type NetworksEnum } from '@types'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorSetting' })
 
 export const AggregatorSetting = {
   start: async () => {
-    logger.verbose('Start AggregatorSetting', llo({}))
+    const startTime = Date.now()
+    logger.verbose('Start AggregatorSetting', llo({ startTime }))
 
     const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
@@ -21,12 +23,17 @@ export const AggregatorSetting = {
       },
       useAggregate: true,
       aggregate: AggregatorSetting.query(supportedNetworks),
-      batchSize: 1000,
-      concurrency: 1,
+      batchSize: config.CRAWLER_CONFIG.DA0_SETTING_BATCH_SIZE,
+      concurrency: config.CRAWLER_CONFIG.DAO_SETTING_CONCURRENCY,
     })
 
     await crawler.crawl()
-    logger.verbose('End AggregatorSetting', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt }))
+
+    const duration = Date.now() - startTime
+    logger.verbose(
+      'End AggregatorSetting',
+      llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt, duration: `${duration}ms` }),
+    )
   },
 
   async onDocument(document: Partial<Setting>) {

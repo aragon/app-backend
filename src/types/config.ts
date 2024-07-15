@@ -49,6 +49,8 @@ export interface IConfig {
     FOUR_BYTE_MIN_TIME: number
     ALCHEMY_ENS_MAX_CONCURRENT: number
     ALCHEMY_ENS_MIN_TIME: number
+    ALCHEMY_BALANCE_MAX_CONCURRENT: number
+    ALCHEMY_BALANCE_MIN_TIME: number
   }
   MONGO_DB: {
     NAME: string
@@ -122,14 +124,38 @@ export interface IConfig {
     }
     ARAGON_INDEXER: {
       NAME: string
-      TOKEN_INTERVAL: number
-      TOKEN_FETCH_BATCH_SIZE: number
       DAO_INTERVAL: number
-      DAO_FETCH_BATCH_SIZE: number
     }
     ARAGON_RATES: {
       NAME: string
       RATES_INTERVAL: number
     }
+  }
+
+  CRAWLER_CONFIG: {
+    DA0_BATCH_SIZE: number
+    DAO_CONCURRENCY: number
+    DA0_PLUGIN_BATCH_SIZE: number
+    DAO_PLUGIN_CONCURRENCY: number
+    DA0_SETTING_BATCH_SIZE: number
+    DAO_SETTING_CONCURRENCY: number
+    MEMBER_BATCH_SIZE: number
+    MEMBER_CONCURRENCY: number
+    MEMBER_DELEGATE_BATCH_SIZE: number
+    MEMBER_DELEGATE_CONCURRENCY: number
+    PROPOSAL_BATCH_SIZE: number
+    PROPOSAL_CONCURRENCY: number
+    VOTE_BATCH_SIZE: number
+    VOTE_CONCURRENCY: number
+    ENS_BATCH_SIZE: number
+    ENS_CONCURRENCY: number
+    TOKEN_RATES_BATCH_SIZE: number
+    TOKEN_RATES_CONCURRENCY: number
+    DAO_TVL_BATCH_SIZE: number
+    DAO_TVL_CONCURRENCY: number
+    DAO_ASSETS_BATCH_SIZE: number
+    DAO_ASSETS_CONCURRENCY: number
+    DAO_TRANSACTIONS_BATCH_SIZE: number
+    DAO_TRANSACTIONS_CONCURRENCY: number
   }
 }

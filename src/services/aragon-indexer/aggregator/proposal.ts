@@ -7,6 +7,7 @@ import Web3Helper from '@helpers/web3'
 import DecodeActions from '@helpers/decodeActions'
 import { NetworkHelper } from '@helpers/network'
 import { type NetworksEnum } from '@types'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorProposal' })
 
@@ -19,7 +20,8 @@ interface ILogAction {
 // must run after AggregatorSetting
 export const AggregatorProposal = {
   start: async () => {
-    logger.verbose('Start AggregatorProposal', llo({}))
+    const startTime = Date.now()
+    logger.verbose('Start AggregatorProposal', llo({ startTime }))
 
     const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
@@ -30,12 +32,17 @@ export const AggregatorProposal = {
       },
       useAggregate: true,
       aggregate: AggregatorProposal.query(supportedNetworks),
-      batchSize: 1000,
-      concurrency: 10,
+      batchSize: config.CRAWLER_CONFIG.PROPOSAL_BATCH_SIZE,
+      concurrency: config.CRAWLER_CONFIG.PROPOSAL_CONCURRENCY,
     })
 
     await crawler.crawl()
-    logger.verbose('End AggregatorProposal', llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt }))
+
+    const duration = Date.now() - startTime
+    logger.verbose(
+      'End AggregatorProposal',
+      llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt, duration: `${duration}ms` }),
+    )
   },
 
   async onDocument(document: Partial<Proposal>) {
