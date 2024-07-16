@@ -3,8 +3,8 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
-import Web3Helper from '@helpers/web3'
 import config from '@config'
+import EnsHelper from '@helpers/ens'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:EnsMember' })
 
@@ -32,7 +32,7 @@ export const EnsMember = {
 
   onDocument: async function (document: Partial<Member>) {
     await DbTx.executeTxFn(async ({ session }) => {
-      document.ens = await Web3Helper.getEnsWithAlchemy(document.address!)
+      document.ens = await EnsHelper.getEnsWithUniversalResolver(document.address!)
 
       const logDb = await document.save({ session })
 

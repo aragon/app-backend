@@ -75,7 +75,7 @@ describe('Indexer:Aggregator:Member', () => {
     expect(getMemberDataStub.calledOnce).to.be.true
     const member = await Models.Member.findExistingLog({ address: document.address })
     expect(member.address).to.equal(document.address)
-    expect(member.ens.length).to.eq(0)
+    expect(member.ens).to.be.null
     expect(member.history.length).to.eq(1)
     expect(member.history[0].network).to.eq(NetworksEnum.ethereumMainnet)
     expect(member.history[0].pluginAddress).to.eq(document.history[0].pluginAddress)
@@ -124,7 +124,7 @@ describe('Indexer:Aggregator:Member', () => {
     it('should get member related data', async () => {
       const rawMember = {
         address: '0x123',
-        ens: [],
+        ens: undefined,
         history: [
           {
             ...rawDaoDoc,
