@@ -32,17 +32,6 @@ export class Metrics {
   public proposalCount!: number
 }
 
-export class EnsMember {
-  @prop({ type: () => Number })
-  public registrationDateTimestamp!: number
-
-  @prop({ type: () => Number })
-  public expirationDateTimestamp!: number
-
-  @prop({ type: () => String })
-  public name!: string
-}
-
 export class DaoHistory {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -113,8 +102,8 @@ export default class Member extends Model {
   @prop({ type: () => String, required: true })
   public address!: HexAddress
 
-  @prop({ type: () => [EnsMember], _id: false, default: [] })
-  public ens?: EnsMember[]
+  @prop({ type: () => String, default: null })
+  public ens!: ENS | null
 
   @prop({ type: () => [DaoHistory], _id: false, default: [] })
   public history?: DaoHistory[]
@@ -151,7 +140,7 @@ export default class Member extends Model {
   }
 
   static async findByEns(ens: ENS) {
-    return await this.findOne({ 'ens.name': ens })
+    return await this.findOne({ ens })
   }
 
   static async findByAddress(address: HexAddress) {

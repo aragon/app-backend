@@ -57,7 +57,6 @@
     "@pinata/sdk": "^2.1.0",
     "@sentry/node": "^7.102.1",
     "@typegoose/typegoose": "^12.1.0",
-    "alchemy-sdk": "^3.3.1",
     "async": "^3.2.5",
     "axios": "^1.6.7",
     "bottleneck": "^2.19.5",
