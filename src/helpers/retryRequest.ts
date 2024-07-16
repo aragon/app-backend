@@ -1,4 +1,3 @@
-import { type AxiosResponse } from 'axios'
 import logger from '@logger'
 import Utils from '@helpers/utils'
 
@@ -8,10 +7,7 @@ interface RetryOptions {
   maxRetries?: number
 }
 
-export async function retryRequest(
-  requestFunction: () => Promise<any>,
-  options: RetryOptions = {},
-): Promise<AxiosResponse<any>> {
+export async function retryRequest<T>(requestFunction: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   const { maxRetries = 10 } = options
   const retryDelay = (retryCount: number) => Math.pow(2, retryCount) * 1000
 
@@ -22,7 +18,7 @@ export async function retryRequest(
       const response = await requestFunction()
       return response
     } catch (error: any) {
-      if (error?.response?.status === 429) {
+      if (error?.response?.status === 429 || error?.info?.error?.code === 429) {
         logger.warn('Rate limit exceeded, retrying...', llo({ retryCount, wait: retryDelay(retryCount) }))
         await Utils.wait(retryDelay(retryCount))
         retryCount++
