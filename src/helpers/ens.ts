@@ -15,7 +15,9 @@ const EnsHelper = {
       const result = await contract.reverse(packetBytes)
 
       return result[0]
-    } catch (error) {}
+    } catch (error) {
+      return undefined
+    }
   },
 
   _addressToPacket: function (address: string): Uint8Array {
