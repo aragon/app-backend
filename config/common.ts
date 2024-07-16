@@ -61,7 +61,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BOTTLENECK_ALCHEMY_ENS_MAX_CONCURRENT',
         1,
       ),
-      ALCHEMY_ENS_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ALCHEMY_ENS_MIN_TIME', 1000),
+      ALCHEMY_ENS_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ALCHEMY_ENS_MIN_TIME', 0),
       ALCHEMY_BALANCE_MAX_CONCURRENT: utils.configParser(
         sourceConfig,
         'number',

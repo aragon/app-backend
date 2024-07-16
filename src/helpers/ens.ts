@@ -1,18 +1,21 @@
 import { Contract, hexlify, toUtf8Bytes, keccak256, type WebSocketProvider } from 'ethers'
 import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
+import BottleneckModule from '@modules/bottleneck'
+import { UniversalResolver } from '@artifacts/UniversalResolver'
 
 const EnsHelper = {
   async getEnsWithUniversalResolver(address: string): Promise<string | undefined> {
     const provider = ConfigState.getInstance().getConfigItem(NetworksEnum.ethereumMainnet) as WebSocketProvider
-    const contractAbi = ['function reverse(bytes node) view returns (string,address,address,address)']
     const universalResolver = '0xce01f8eee7E479C928F8919abD53E553a36CeF67'
 
     try {
-      const contract = new Contract(universalResolver, contractAbi as any, provider)
+      const contract = new Contract(universalResolver, UniversalResolver.abi as any, provider)
       const packetBytes = hexlify(EnsHelper._addressToPacket(address))
 
-      const result = await contract.reverse(packetBytes)
+      const result = await BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+        contract.reverse(packetBytes),
+      )
 
       return result[0]
     } catch (error) {
