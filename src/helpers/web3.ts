@@ -6,12 +6,11 @@ import {
   type ILogInfo,
   type IProposalMetadata,
   ITransactionType,
-  NetworksEnum,
+  type NetworksEnum,
 } from '@types'
 import {
   AbiCoder,
   Contract,
-  ethers,
   getAddress,
   Interface,
   type Log,
@@ -27,17 +26,10 @@ import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import BottleneckModule from '@modules/bottleneck'
 import { ENSRegistry } from '@artifacts/ENSRegistry'
-import { Alchemy, Network } from 'alchemy-sdk'
-import { type EnsMember } from '@models/schema/member'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
 const Web3Helper = {
-  alchemySdk: new Alchemy({
-    apiKey: config.ALCHEMY.API_KEY,
-    network: Network.ETH_MAINNET,
-  }),
-
   ERC1155_INTERFACE_ID: '0xd9b67a26',
   ERC165_INTERFACE_ID: '0x01ffc9a7',
   ERC721_INTERFACE_ID: '0x80ac58cd',
@@ -450,41 +442,6 @@ const Web3Helper = {
     }
   },
 
-  async getAddressFromEns(name: string, network: NetworksEnum): Promise<HexAddress | null> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-
-    try {
-      const address = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.resolveName(name))
-      return address
-    } catch (error) {
-      logger.error(
-        'Error resolving ENS name',
-        llo({
-          name,
-          network,
-        }),
-      )
-      return null
-    }
-  },
-
-  async getEnsFromAddress(address: string, network: NetworksEnum): Promise<string | null> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-
-    try {
-      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.lookupAddress(address))
-    } catch (error) {
-      logger.warn(
-        'Error looking up address',
-        llo({
-          address,
-          network,
-        }),
-      )
-      return null
-    }
-  },
-
   parseSubdomainToEns(subdomain: string): ENS | undefined {
     return `${subdomain}.${config.ENS_DOMAIN}` as ENS
   },
@@ -637,81 +594,6 @@ const Web3Helper = {
     } catch (error) {
       return '0'
     }
-  },
-
-  async getEnsWithAlchemy(address: string): Promise<EnsMember[]> {
-    const walletAddress = address
-    const ensContractAddress = '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85'
-
-    const nfts = await BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
-      Web3Helper.alchemySdk.nft.getNftsForOwner(walletAddress, { contractAddresses: [ensContractAddress] }),
-    )
-
-    const result =
-      (
-        nfts?.ownedNfts?.map(nft => {
-          if (nft.raw.metadata.attributes) {
-            const registrationDateAttr = nft.raw.metadata.attributes.find(
-              (attr: any) => attr.trait_type === 'Registration Date',
-            )?.value
-
-            const expirationDateAttr = nft.raw.metadata.attributes.find(
-              (attr: any) => attr.trait_type === 'Expiration Date',
-            )?.value
-
-            if (registrationDateAttr && expirationDateAttr) {
-              return {
-                name: nft.name,
-                registrationDateTimestamp: Math.round(registrationDateAttr / 1000),
-                expirationDateTimestamp: Math.round(expirationDateAttr / 1000),
-              }
-            }
-          }
-          return null
-        }) as any
-      )?.filter((item: any) => item !== null) || []
-
-    return result
-  },
-
-  async getEnsWithUniversalResolver(address: string): Promise<string> {
-    const provider = ConfigState.getInstance().getConfigItem(NetworksEnum.ethereumMainnet) as WebSocketProvider
-    const contractAbi = ['function reverse(bytes node) view returns (string,address,address,address)']
-    const universalResolver = '0xce01f8eee7E479C928F8919abD53E553a36CeF67'
-    const contract = new ethers.Contract(universalResolver, contractAbi, provider)
-
-    const packetBytes = ethers.hexlify(Web3Helper._addressToPacket(address))
-
-    const result = await contract.reverse(packetBytes)
-
-    return result[0]
-  },
-
-  _addressToPacket: function (address: string): Uint8Array {
-    const packet = address.replace('0x', '').toLowerCase() + '.addr.reverse'
-
-    // Strip leading and trailing `.`
-    const value = packet.replace(/^\.|\.$/gm, '')
-    if (value.length === 0) return new Uint8Array(1)
-
-    const stringToBytes = (str: string) => ethers.toUtf8Bytes(str)
-
-    const bytes = new Uint8Array(stringToBytes(value).length + 2)
-    let offset = 0
-    const list = value.split('.')
-    for (const label of list) {
-      let encoded: any = stringToBytes(label)
-      if (encoded.length > 255) {
-        encoded = ethers.hexlify(ethers.keccak256(encoded))
-      }
-
-      bytes[offset] = encoded.length
-      bytes.set(encoded, offset + 1)
-      offset += encoded.length + 1
-    }
-
-    if (bytes.length !== offset + 1) return bytes.slice(0, offset + 1)
-    return bytes
   },
 }
 
