@@ -1,11 +1,11 @@
 import { Contract, hexlify, toUtf8Bytes, keccak256, type WebSocketProvider } from 'ethers'
 import { ConfigState } from '@state/configState'
-import { NetworksEnum } from '@types'
+import { type ENS, NetworksEnum } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { UniversalResolver } from '@artifacts/UniversalResolver'
 
 const EnsHelper = {
-  async getEnsWithUniversalResolver(address: string): Promise<string | undefined> {
+  async getEnsWithUniversalResolver(address: string): Promise<ENS | null> {
     const provider = ConfigState.getInstance().getConfigItem(NetworksEnum.ethereumMainnet) as WebSocketProvider
     const universalResolver = '0xce01f8eee7E479C928F8919abD53E553a36CeF67'
 
@@ -19,7 +19,7 @@ const EnsHelper = {
 
       return result[0]
     } catch (error) {
-      return undefined
+      return null
     }
   },
 

@@ -61,7 +61,7 @@ describe('Helpers: ENS', () => {
     })
 
     const res = await MockedEnsHelper.getEnsWithUniversalResolver('0x42E6DD8D517abB3E4f6611Ca53a8D1243C183fB0')
-    expect(res).to.eq(undefined)
+    expect(res).to.eq(null)
   })
 
   it('should _addressToPacket correctly convert address to packet', () => {
