@@ -1,8 +1,12 @@
-import { Contract, hexlify, toUtf8Bytes, keccak256, type WebSocketProvider } from 'ethers'
+import { Contract, hexlify, keccak256, toUtf8Bytes, type WebSocketProvider } from 'ethers'
 import { ConfigState } from '@state/configState'
 import { type ENS, NetworksEnum } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { UniversalResolver } from '@artifacts/UniversalResolver'
+import logger from '@logger'
+import { retryRequest } from '@helpers/retryRequest'
+
+const llo = logger.logMeta.bind(null, { service: 'helper:EnsHelper' })
 
 const EnsHelper = {
   async getEnsWithUniversalResolver(address: string): Promise<ENS | null> {
@@ -13,12 +17,15 @@ const EnsHelper = {
       const contract = new Contract(universalResolver, UniversalResolver.abi as any, provider)
       const packetBytes = hexlify(EnsHelper._addressToPacket(address))
 
-      const result = await BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
-        contract.reverse(packetBytes),
+      const result = await retryRequest(async () =>
+        BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+          contract.reverse(packetBytes),
+        ),
       )
 
       return result[0]
     } catch (error) {
+      logger.warn('Error getting ENS with Universal Resolver', llo({ address, error }))
       return null
     }
   },
