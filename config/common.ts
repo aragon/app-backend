@@ -61,7 +61,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BOTTLENECK_ALCHEMY_ENS_MAX_CONCURRENT',
         1,
       ),
-      ALCHEMY_ENS_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ALCHEMY_ENS_MIN_TIME', 1000),
+      ALCHEMY_ENS_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ALCHEMY_ENS_MIN_TIME', 0),
       ALCHEMY_BALANCE_MAX_CONCURRENT: utils.configParser(
         sourceConfig,
         'number',
@@ -143,10 +143,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ARBITRUM_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM_MAINNET', null),
       ZKSYNC_SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ZKSYNC_SEPOLIA', null),
       ZKSYNC_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ZKSYNC_MAINNET', null),
-    },
-
-    ALCHEMY: {
-      API_KEY: utils.configParser(sourceConfig, 'string', 'ALCHEMY_API_KEY', null),
     },
 
     SERVICES: {
