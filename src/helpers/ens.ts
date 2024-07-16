@@ -7,9 +7,9 @@ const EnsHelper = {
     const provider = ConfigState.getInstance().getConfigItem(NetworksEnum.ethereumMainnet) as WebSocketProvider
     const contractAbi = ['function reverse(bytes node) view returns (string,address,address,address)']
     const universalResolver = '0xce01f8eee7E479C928F8919abD53E553a36CeF67'
-    const contract = new Contract(universalResolver, contractAbi as any, provider)
 
     try {
+      const contract = new Contract(universalResolver, contractAbi as any, provider)
       const packetBytes = hexlify(EnsHelper._addressToPacket(address))
 
       const result = await contract.reverse(packetBytes)
