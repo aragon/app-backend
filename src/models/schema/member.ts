@@ -103,7 +103,7 @@ export default class Member extends Model {
   public address!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public ens!: string
+  public ens!: ENS | null
 
   @prop({ type: () => [DaoHistory], _id: false, default: [] })
   public history?: DaoHistory[]

@@ -1,6 +1,6 @@
 import sinon from 'sinon'
 import { expect } from 'chai'
-import { NetworksEnum } from '@types'
+import { ENS, NetworksEnum } from '@types'
 import PairDataModule from '@modules/pairData'
 import Member from '@models/schema/member'
 import { Models } from '@dbModels'
@@ -121,7 +121,7 @@ describe('Modules:PairDataModule', () => {
       const extraParams = {}
       const pairParams = {
         daoId: Models.Dao.getEntityId({ network: rawDao.network, address: rawDao.address } as any),
-        ens: rawMember.ens,
+        ens: rawMember.ens as ENS,
       }
 
       const result: any = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
