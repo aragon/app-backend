@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { NetworksEnum } from '@types'
+import { NetworksEnum, ProposalActionType } from '@types'
 import Proposal from '@models/schema/proposal'
 import { Models } from '@dbModels'
 import { beforeEach } from 'mocha'
@@ -41,6 +41,8 @@ describe('Model: Proposal', () => {
           textSignature: 'test(uint256,uint256)',
           decoded: ['1', 1],
           contractName: null,
+          type: ProposalActionType.Unknown,
+          metadata: null,
         },
       ],
       daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',

@@ -12,6 +12,7 @@ import { Model, type SaveOptions, Schema } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
+import { ProposalActionType } from '@src/types/proposalAction'
 
 const customName = 'Proposal'
 
@@ -36,6 +37,12 @@ class Action {
 
   @prop({ type: () => String, default: null })
   public contractName!: string | null
+
+  @prop({ type: () => String, enum: ProposalActionType, default: ProposalActionType.Unknown })
+  public type!: ProposalActionType
+
+  @prop({ type: () => [Schema.Types.Mixed], default: null })
+  public metadata!: any
 }
 
 class Media {

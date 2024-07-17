@@ -271,4 +271,32 @@ describe('Helpers: Covalent', () => {
       expect(result).to.equal(ITokenType.ERC721)
     })
   })
+
+  describe('should get token total supply', () => {
+    it('should get token supply', async () => {
+      const rpcCallStub = sandbox
+        .stub(CovalentHelper, '_rpCall')
+        .resolves({ items: [{ total_supply: '100000000000000000000000000' }] } as any)
+
+      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.ethereumMainnet
+
+      const supply = await CovalentHelper.getTokenTotalSupply(address, network)
+
+      expect(rpcCallStub.calledOnce).to.be.true
+      expect(supply).to.equal('100000000000000000000000000')
+
+      expect(rpcCallStub.args[0][0].includes(address)).to.be.true
+    })
+
+    it('should fail to get token supply', async () => {
+      sandbox.stub(CovalentHelper, '_rpCall').rejects(new Error('Token supply fetch failed'))
+
+      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+
+      const supply = await CovalentHelper.getTokenTotalSupply(address, NetworksEnum.ethereumMainnet)
+
+      expect(supply).to.be.null
+    })
+  })
 })
