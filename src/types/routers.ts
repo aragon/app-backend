@@ -23,6 +23,7 @@ export interface IDelegatesResponse {
   daoAddress: HexAddress
   amount: string
   token: {
+    network: NetworksEnum
     type: ITokenType
     address: HexAddress
     logo: string
@@ -132,6 +133,7 @@ export interface IVoteResponse {
   voteOption?: number
   votingPower?: string
   token: {
+    network: NetworksEnum
     type: ITokenType
     address: HexAddress
     logo: string
@@ -191,11 +193,12 @@ export interface IProposalsResponse {
 
 export interface IAssetResponse {
   network: NetworksEnum
-  daoAddress: string
-  tokenAddress: string
+  daoAddress: HexAddress
+  tokenAddress: HexAddress
   amount: string
   token: {
-    address: string
+    network: NetworksEnum
+    address: HexAddress
     symbol: string
     name: string
     type: string
@@ -220,7 +223,8 @@ export interface ITransactionResponse {
   tokenAddress: string
   daoAddress: string
   token: {
-    address: string
+    network: NetworksEnum
+    address: HexAddress
     symbol: string
     name: string
     type: string
