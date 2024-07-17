@@ -449,7 +449,7 @@ export const AggregatorProposal = {
               as: 'option',
               in: {
                 type: '$$option',
-                totalVoters: {
+                totalVotes: {
                   $size: {
                     $filter: {
                       input: '$voteEvents',

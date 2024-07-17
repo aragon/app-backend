@@ -8,7 +8,6 @@ import { ConfigState } from '@state/configState'
 import Logger from '@logger'
 import logger from '@logger'
 import proxyquire from 'proxyquire'
-import { Alchemy } from 'alchemy-sdk'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -908,64 +907,6 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('getAddressFromEns', () => {
-    it('should get address from ens', async () => {
-      const resolveName = sandbox.stub().resolves('0x000001')
-      const stubInstance = sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
-        resolveName,
-      })
-
-      const name = 'aavegotchi.dao.eth'
-      const address = await Web3Helper.getAddressFromEns(name, NetworksEnum.ethereumMainnet)
-
-      expect(address).to.eq('0x000001')
-      expect(stubInstance.calledOnce).to.be.true
-      expect(stubInstance.calledWith(NetworksEnum.ethereumMainnet)).to.be.true
-      expect(resolveName.calledOnce).to.be.true
-    })
-
-    it('should fail to get address from ens', async () => {
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').rejects(new Error('fake-error'))
-      const stubLogger = sandbox.stub(Logger, 'error')
-
-      const name = 'aavegotchi.dao.eth'
-      const address = await Web3Helper.getAddressFromEns(name, NetworksEnum.ethereumMainnet)
-
-      expect(address).to.eq(null)
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Error resolving ENS name' as any)).to.be.true
-    })
-  })
-
-  describe('getEnsFromAddress', () => {
-    it('should get address from ens', async () => {
-      const lookupAddress = sandbox.stub().resolves('aavegotchi.dao.eth')
-      const stubInstance = sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
-        lookupAddress,
-      })
-
-      const address = '0xF1cf9aFc900Ce3426A235212e164587A6274736A'
-      const ensName = await Web3Helper.getEnsFromAddress(address, NetworksEnum.ethereumMainnet)
-
-      expect(ensName).to.eq('aavegotchi.dao.eth')
-      expect(stubInstance.calledOnce).to.be.true
-      expect(stubInstance.calledWith(NetworksEnum.ethereumMainnet)).to.be.true
-      expect(lookupAddress.calledOnce).to.be.true
-    })
-
-    it('should fail to get address from ens', async () => {
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').rejects(new Error('fake-error'))
-      const stubLogger = sandbox.stub(Logger, 'warn')
-
-      const address = '0xF1cf9aFc900Ce3426A235212e164587A6274736A'
-      const ensName = await Web3Helper.getEnsFromAddress(address, NetworksEnum.ethereumMainnet)
-
-      expect(ensName).to.eq(null)
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Error looking up address' as any)).to.be.true
-    })
-  })
-
   describe('subdomainExists', () => {
     it('should check if subdomainExists', async () => {
       const stubConfigState = {
@@ -1288,54 +1229,6 @@ describe('Helpers:Web3', () => {
       expect(result).to.be.undefined
       expect(stubTransactionReceipt.calledOnceWith(params.txLog.transactionHash, params.network)).to.be.true
       expect(stubFindLogsByName.calledOnceWith(true as any, params.eventName, params.abi)).to.be.true
-    })
-  })
-
-  describe('getEnsWithAlchemy', () => {
-    it('should getEnsWithAlchemy', async () => {
-      const fakeNfts = {
-        ownedNfts: [
-          {
-            name: 'example.eth',
-            raw: {
-              metadata: {
-                attributes: [
-                  { trait_type: 'Registration Date', value: 1609459200000 },
-                  { trait_type: 'Expiration Date', value: 1640995200000 },
-                ],
-              },
-            },
-          },
-        ],
-      }
-      const alchemyStub = sandbox.stub(Web3Helper.alchemySdk.nft, 'getNftsForOwner').resolves(fakeNfts as any)
-      const fakeAddress = '0xFakeAddress'
-
-      const result = await Web3Helper.getEnsWithAlchemy(fakeAddress)
-
-      expect(
-        alchemyStub.calledOnceWith(fakeAddress, {
-          contractAddresses: ['0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85'],
-        }),
-      ).to.be.true
-      expect(result).to.be.an('array').that.is.not.empty
-      expect(result[0]).to.have.property('name', 'example.eth')
-      expect(result[0]).to.have.property('registrationDateTimestamp', 1609459200)
-      expect(result[0]).to.have.property('expirationDateTimestamp', 1640995200)
-    })
-
-    it('should fail getEnsWithAlchemy', async () => {
-      const alchemyStub = sandbox.stub(Web3Helper.alchemySdk.nft, 'getNftsForOwner').resolves(undefined as any)
-      const fakeAddress = '0xFakeAddress'
-
-      const result = await Web3Helper.getEnsWithAlchemy(fakeAddress)
-
-      expect(
-        alchemyStub.calledOnceWith(fakeAddress, {
-          contractAddresses: ['0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85'],
-        }),
-      ).to.be.true
-      expect(result).to.be.an('array').empty
     })
   })
 })

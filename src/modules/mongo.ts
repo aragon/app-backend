@@ -22,22 +22,25 @@ const Mongo = {
   async connect(): Promise<any> {
     await ModelProxy.setMongoModels()
 
-    mongoose.connection.on('error', (error: Error) => {
-      logger.verbose('MongoDB connection error', llo({ error }))
-    })
-
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    mongoose.connection.on('connected', async () => {
-      await Promise.all(
-        Object.keys(mongoose.models).map(async name => {
-          await mongoose.models[name].syncIndexes()
-        }),
-      )
-
-      logger.info('MongoDB connected', llo({ env: config.NODE_ENV }))
-    })
-
     mongoose.set('debug', config.MONGO_DB.DEBUGGER)
+
+    const connectionPromise = new Promise((resolve, reject) => {
+      mongoose.connection.on('error', (error: Error) => {
+        logger.warn('MongoDB connection error', llo({ error }))
+        reject(error)
+      })
+
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      mongoose.connection.on('connected', async () => {
+        try {
+          await Promise.all(Object.keys(mongoose.models).map(async name => mongoose.models[name].syncIndexes()))
+          logger.info('MongoDB connected', llo({ env: config.NODE_ENV }))
+          resolve(mongoose)
+        } catch (syncError) {
+          reject(syncError)
+        }
+      })
+    })
 
     return await retry(async () => {
       logger.verbose(
@@ -48,7 +51,8 @@ const Mongo = {
         }),
       )
 
-      return await mongoose.connect(config.MONGO_DB.URI, mongoOptions)
+      await mongoose.connect(config.MONGO_DB.URI, mongoOptions)
+      return connectionPromise
     }, retryOptions)
   },
 
