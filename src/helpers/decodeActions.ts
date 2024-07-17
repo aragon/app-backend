@@ -11,7 +11,7 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import FourByte from '@helpers/4byte'
 import Web3Helper from '@helpers/web3'
 import type Proposal from '@models/schema/proposal'
-import { type IDecodedData, type IRawAction } from '@types'
+import { type IDecodedData, type IRawAction, KnownActionSignature } from '@types'
 import { ProposalActionType } from '@src/types'
 import { Models } from '@dbModels'
 import { UtilsIndexer } from '@indexer/utils/indexer'
@@ -228,12 +228,12 @@ class DecodeActions {
     }
 
     switch (decodedData.textSignature) {
-      case 'transfer(address,uint256)':
+      case KnownActionSignature.Transfer:
         await setCommonMetadata(document.daoAddress!, decodedData.decoded[0], decodedData.decoded[1])
         break
 
-      case 'transferFrom(address,address,uint256)':
-      case 'safeTransferFrom(address,address,uint256)':
+      case KnownActionSignature.TransferFrom:
+      case KnownActionSignature.SafeTransferFrom:
         await setCommonMetadata(decodedData.decoded[0], decodedData.decoded[1], decodedData.decoded[2])
         break
       default:
@@ -247,37 +247,32 @@ class DecodeActions {
   }
 
   async _getMedataIfMint(action: IRawAction, decodedData: IDecodedData, document: Partial<Proposal>) {
-    const metadata: any = {}
+    if (decodedData.textSignature !== KnownActionSignature.Mint) {
+      return null
+    }
 
-    const setCommonMetadata = async (to: string, value: string) => {
-      const token = await UtilsIndexer.saveAndGetToken(action.to, document.network!)
+    const token = await UtilsIndexer.saveAndGetToken(action.to, document.network!)
 
-      if (token) {
-        metadata.token = {
+    if (token) {
+      const metadata = {
+        token: {
           address: token?.address,
           name: token?.name,
           symbol: token?.symbol,
           decimals: token?.decimals,
           logo: token?.logo,
           type: token?.type,
-        }
-        metadata.to = to
-        metadata.value = value
+        },
+        to: decodedData.decoded[0],
+        value: decodedData.decoded[1],
+      }
+      return {
+        type: ProposalActionType.Mint,
+        metadata,
       }
     }
 
-    switch (decodedData.textSignature) {
-      case 'mint(address,uint256)':
-        await setCommonMetadata(decodedData.decoded[0], decodedData.decoded[1])
-        break
-      default:
-        return null
-    }
-
-    return {
-      type: ProposalActionType.Mint,
-      metadata,
-    }
+    return null
   }
 }
 
