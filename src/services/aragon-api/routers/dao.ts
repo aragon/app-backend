@@ -5,6 +5,7 @@ import ModelUtils from '@models/utils/models'
 import DaoSchema from '@services/aragon-api/routers/schema/dao'
 import { type HexAddress, type IDaoExtraParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
+import Utils from '@helpers/utils'
 
 const DaoRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -14,10 +15,12 @@ const DaoRouter = {
       address: ctx.query.address as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams({ ...paginationParams, ...extraParams }, ctx.query)
 
     const [formattedPaginationParams, formattedExtraParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(DaoSchema.getExtraParams, extraParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
     ctx.body = await DaoController.getDaosWithPagination(formattedPaginationParams, formattedExtraParams)
@@ -27,8 +30,12 @@ const DaoRouter = {
     const params = {
       id: ctx.params.id,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const formattedValues = await ValidationSchema.validateParams(DaoSchema.getDaoById, params)
+    const [formattedValues] = await Promise.all([
+      ValidationSchema.validateParams(DaoSchema.getDaoById, params),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
 
     ctx.body = await DaoController.getDaoById(formattedValues.id)
   },
@@ -38,8 +45,12 @@ const DaoRouter = {
       network: ctx.params.network,
       address: ctx.params.address,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const formattedValues = await ValidationSchema.validateParams(DaoSchema.getDaoByAddress, params)
+    const [formattedValues] = await Promise.all([
+      ValidationSchema.validateParams(DaoSchema.getDaoByAddress, params),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
 
     ctx.body = await DaoController.getDaoByAddress(formattedValues.address, formattedValues.network)
   },

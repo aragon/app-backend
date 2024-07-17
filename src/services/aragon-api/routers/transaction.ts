@@ -11,6 +11,7 @@ import {
   type NetworksEnum,
 } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
+import Utils from '@helpers/utils'
 
 const TransactionRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -18,19 +19,25 @@ const TransactionRouter = {
     const extraParams: ITransactionExtraParams = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.address as HexAddress,
-      tokenAddress: ctx.query.receiver as HexAddress,
+      tokenAddress: ctx.query.tokenAddress as HexAddress,
       category: ctx.query.category as ITransactionCategory,
-      fromAddress: ctx.query.sender as HexAddress,
-      toAddress: ctx.query.receiver as HexAddress,
+      fromAddress: ctx.query.fromAddress as HexAddress,
+      toAddress: ctx.query.toAddress as HexAddress,
     }
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams(
+      { ...paginationParams, ...extraParams, ...pairParams },
+      ctx.query,
+      ['address'],
+    )
 
     const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(TransactionSchema.getExtraParams, extraParams),
       ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
     ctx.body = await TransactionController.getTransactionsWithPagination(

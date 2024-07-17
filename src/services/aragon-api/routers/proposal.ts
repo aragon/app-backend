@@ -5,6 +5,7 @@ import ProposalSchema from '@api/routers/schema/proposal'
 import ProposalController from '@api/controllers/proposal'
 import { type HexAddress, type IPairParams, type IProposalExtraParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
+import Utils from '@helpers/utils'
 
 const ProposalRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -18,11 +19,16 @@ const ProposalRouter = {
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams(
+      { ...paginationParams, ...extraParams, ...pairParams },
+      ctx.query,
+    )
 
     const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(ProposalSchema.getExtraParams, extraParams),
       ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
     ctx.body = await ProposalController.getProposalsWithPagination(
@@ -36,8 +42,12 @@ const ProposalRouter = {
     const params = {
       id: ctx.params.id,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const formattedValues = await ValidationSchema.validateParams(ProposalSchema.getProposalById, params)
+    const [formattedValues] = await Promise.all([
+      ValidationSchema.validateParams(ProposalSchema.getProposalById, params),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
 
     ctx.body = await ProposalController.getProposalById(formattedValues.id)
   },
@@ -47,8 +57,12 @@ const ProposalRouter = {
       network: ctx.params.network,
       transactionHash: ctx.params.transactionHash,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const formattedValues = await ValidationSchema.validateParams(ProposalSchema.getProposalByTransactionHash, params)
+    const [formattedValues] = await Promise.all([
+      ValidationSchema.validateParams(ProposalSchema.getProposalByTransactionHash, params),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
 
     ctx.body = await ProposalController.getProposalByTransactionHash(
       formattedValues.transactionHash,

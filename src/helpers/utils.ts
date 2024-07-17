@@ -20,6 +20,22 @@ const Utils = {
 
   networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],
 
+  extractAdditionalParams: (
+    knownParams: Record<string, any> = {},
+    queryParams: Record<string, any> = {},
+    skipKeys: string[] = [],
+  ) => {
+    const knownKeys = new Set<string>(Object.keys(knownParams))
+    const skipKeysSet = new Set<string>(skipKeys)
+
+    return Object.keys(queryParams)
+      .filter(key => !knownKeys.has(key) && !skipKeysSet.has(key))
+      .reduce<Record<string, any>>((obj, key) => {
+        obj[key] = queryParams[key]
+        return obj
+      }, {})
+  },
+
   chunkArray: (array: any[], size: number) => {
     if (!array || array.length === 0) {
       return [[]]

@@ -5,6 +5,7 @@ import VoteController from '@api/controllers/vote'
 import { type HexAddress, type IPairParams, type IVoteExtraParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import VoteSchema from '@api/routers/schema/vote'
+import Utils from '@helpers/utils'
 
 const VoteRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -21,11 +22,17 @@ const VoteRouter = {
       daoId: ctx.query.daoId as string,
       ens: ctx.query.ens as string,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams(
+      { ...paginationParams, ...extraParams, ...pairParams },
+      ctx.query,
+      ['address'],
+    )
 
     const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(VoteSchema.getExtraParams, extraParams),
       ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
     ctx.body = await VoteController.getVoteWithPagination(

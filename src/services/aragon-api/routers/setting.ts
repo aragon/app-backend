@@ -5,6 +5,7 @@ import SettingSchema from '@api/routers/schema/setting'
 import SettingController from '@api/controllers/setting'
 import { type HexAddress, type IPairParams, type ISettingExtraParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
+import Utils from '@helpers/utils'
 
 const SettingRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -18,11 +19,16 @@ const SettingRouter = {
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams(
+      { ...paginationParams, ...extraParams, ...pairParams },
+      ctx.query,
+    )
 
     const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(SettingSchema.getExtraParams, extraParams),
       ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
     ctx.body = await SettingController.getSettingsWithPagination(
@@ -36,8 +42,12 @@ const SettingRouter = {
     const params = {
       id: ctx.params.daoId,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const formattedValues = await ValidationSchema.validateParams(SettingSchema.getDaoById, params)
+    const [formattedValues] = await Promise.all([
+      ValidationSchema.validateParams(SettingSchema.getDaoById, params),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
 
     ctx.body = await SettingController.getActiveSettingByDaoId(formattedValues.id)
   },
@@ -47,8 +57,12 @@ const SettingRouter = {
       network: ctx.params.network as NetworksEnum,
       daoAddress: ctx.params.daoAddress,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const formattedValues = await ValidationSchema.validateParams(SettingSchema.getSettingByDaoAddress, params)
+    const [formattedValues] = await Promise.all([
+      ValidationSchema.validateParams(SettingSchema.getSettingByDaoAddress, params),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
 
     ctx.body = await SettingController.getActiveSettingByDaoAddress(formattedValues.daoAddress, formattedValues.network)
   },

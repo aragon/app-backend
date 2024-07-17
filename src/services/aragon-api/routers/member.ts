@@ -11,6 +11,7 @@ import {
   type NetworksEnum,
 } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
+import Utils from '@helpers/utils'
 
 const MemberRouter = {
   getMembersWithPagination: async function (ctx: RouterContext) {
@@ -25,11 +26,16 @@ const MemberRouter = {
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams(
+      { ...paginationParams, ...extraParams, ...pairParams },
+      ctx.query,
+    )
 
     const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(MemberSchema.getExtraParams, extraParams),
       ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
     ctx.body = await MemberController.getMembersWithPagination(
@@ -50,10 +56,12 @@ const MemberRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams({ ...params, ...extraParams }, ctx.query)
 
     const [formattedParams, formattedExtraParams] = await Promise.all([
       ValidationSchema.validateParams(MemberSchema.getMemberByAddress, params),
       ValidationSchema.validateParams(MemberSchema.getExtraParams, extraParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
     ctx.body = await MemberController.getMemberByAddress(formattedParams.address, formattedExtraParams)
@@ -70,11 +78,16 @@ const MemberRouter = {
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams(
+      { ...paginationParams, ...extraParams, ...pairParams },
+      ctx.query,
+    )
 
     const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(MemberSchema.getActiveMembersExtraParams, extraParams),
       ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
     ctx.body = await MemberController.getActiveMembersWithPagination(
@@ -88,21 +101,21 @@ const MemberRouter = {
     const params = {
       address: ctx.params.address,
     }
-
     const extraParams: IActiveMemberExtraParams = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
     }
-
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams({ ...params, ...extraParams, ...pairParams }, ctx.query)
 
     const [formattedParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(MemberSchema.getMemberByAddress, params),
       ValidationSchema.validateParams(MemberSchema.getActiveMembersExtraParams, extraParams),
       ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
     ctx.body = await MemberController.getActiveMemberByAddress(
