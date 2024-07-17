@@ -35,6 +35,7 @@ describe('Model: Transaction', () => {
       ],
       proposalId: '18',
       token: {
+        network: NetworksEnum.polygonMainnet,
         address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
         symbol: 'Test',
         name: 'Test Token',
@@ -147,6 +148,7 @@ describe('Model: Transaction', () => {
           ],
           proposalId: '18',
           token: {
+            network: NetworksEnum.ethereumMainnet,
             address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
             symbol: 'Test',
             name: 'Test Token',
@@ -176,6 +178,7 @@ describe('Model: Transaction', () => {
           ],
           proposalId: '19',
           token: {
+            network: NetworksEnum.ethereumMainnet,
             address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
             symbol: 'Test',
             name: 'Test Token',
