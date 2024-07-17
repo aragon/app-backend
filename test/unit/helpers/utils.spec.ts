@@ -18,6 +18,52 @@ describe('Helpers:Utils', () => {
     sandbox?.restore()
   })
 
+  describe('extractAdditionalParams', () => {
+    it('should return an empty object if no additional params are present', () => {
+      const knownParams = { a: 1, b: 2 }
+      const queryParams = { a: 1, b: 2 }
+      const result = Utils.extractAdditionalParams(knownParams, queryParams)
+      expect(result).to.deep.equal({})
+    })
+
+    it('should return additional params that are not in knownParams', () => {
+      const knownParams = { a: 1, b: 2 }
+      const queryParams = { a: 1, b: 2, c: 3, d: 4 }
+      const result = Utils.extractAdditionalParams(knownParams, queryParams)
+      expect(result).to.deep.equal({ c: 3, d: 4 })
+    })
+
+    it('should skip keys specified in skipKeys', () => {
+      const knownParams = { a: 1, b: 2 }
+      const queryParams = { a: 1, b: 2, c: 3, d: 4, e: 5 }
+      const skipKeys = ['c', 'e']
+      const result = Utils.extractAdditionalParams(knownParams, queryParams, skipKeys)
+      expect(result).to.deep.equal({ d: 4 })
+    })
+
+    it('should handle empty knownParams and return all queryParams except skipped ones', () => {
+      const knownParams = {}
+      const queryParams = { a: 1, b: 2, c: 3, d: 4 }
+      const skipKeys = ['b', 'd']
+      const result = Utils.extractAdditionalParams(knownParams, queryParams, skipKeys)
+      expect(result).to.deep.equal({ a: 1, c: 3 })
+    })
+
+    it('should handle empty queryParams and return an empty object', () => {
+      const knownParams = { a: 1, b: 2 }
+      const queryParams = {}
+      const result = Utils.extractAdditionalParams(knownParams, queryParams)
+      expect(result).to.deep.equal({})
+    })
+
+    it('should handle both empty knownParams and queryParams and return an empty object', () => {
+      const knownParams = {}
+      const queryParams = {}
+      const result = Utils.extractAdditionalParams(knownParams, queryParams)
+      expect(result).to.deep.equal({})
+    })
+  })
+
   it('Should noop', () => {
     expect(Utils.noop()).to.eq(0)
   })
