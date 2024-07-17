@@ -92,9 +92,9 @@ export const AggregatorProposal = {
         let decodeData: any
 
         if (action.data?.length >= 10) {
-          decodeData = await decodeActions.decodeData(action.data)
+          decodeData = await decodeActions.decodeData(action, document)
         } else {
-          decodeData = decodeActions.decodeTransfer(action, document)
+          decodeData = await decodeActions.decodeTransfer(action, document)
         }
 
         if (decodeData) {

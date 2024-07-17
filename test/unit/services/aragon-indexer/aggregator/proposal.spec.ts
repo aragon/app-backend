@@ -4,10 +4,12 @@ import { expect } from 'chai'
 import { AggregatorProposal } from '@services/aragon-indexer/aggregator/proposal'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
-import { NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum, ProposalActionType } from '@types'
 import Logger from '@logger'
 import DecodeActions from '@helpers/decodeActions'
 import Web3Helper from '@helpers/web3'
+import { UtilsIndexer } from '@indexer/utils/indexer'
+import { ethers } from 'ethers'
 
 describe('Indexer:Aggregator:Proposal', () => {
   let sandbox: SinonSandbox
@@ -256,6 +258,15 @@ describe('Indexer:Aggregator:Proposal', () => {
         },
       ]
 
+      sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+        address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: 'ERC20',
+      } as any)
+
       const actions = await AggregatorProposal.parseActions(logActions, document)
 
       expect(actions).to.deep.equal([
@@ -267,6 +278,19 @@ describe('Indexer:Aggregator:Proposal', () => {
           textSignature: 'mint(address,uint256)',
           decoded: ['0x284803C34A3F049f787E2562e6F8C084bdBC3197', 1000000000000000000n],
           contractName: 'IERC20MintableUpgradeable',
+          type: ProposalActionType.Mint,
+          metadata: {
+            token: {
+              address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+              name: 'MockToken',
+              symbol: 'MOCK',
+              decimals: 18,
+              logo: 'https://mock.com/logo.png',
+              type: 'ERC20',
+            },
+            to: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+            value: 1000000000000000000n,
+          },
         },
       ])
     })
@@ -287,6 +311,15 @@ describe('Indexer:Aggregator:Proposal', () => {
         },
       ]
 
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({
+        address: ethers.ZeroAddress,
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: ITokenType.native,
+      } as any)
+
       const document = { daoAddress: '0x0dao', to: '0x', value: '0' }
       const actions = await AggregatorProposal.parseActions(logActions, document)
 
@@ -298,6 +331,20 @@ describe('Indexer:Aggregator:Proposal', () => {
           functionName: 'NativeTransfer',
           textSignature: 'nativeTransfer(address,address,uint256)',
           decoded: ['0x0dao', '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31', '424000000000000'],
+          type: ProposalActionType.Transfer,
+          metadata: {
+            from: '0x0dao',
+            to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+            value: '424000000000000',
+            token: {
+              address: ethers.ZeroAddress,
+              name: 'MockToken',
+              symbol: 'MOCK',
+              decimals: 18,
+              logo: 'https://mock.com/logo.png',
+              type: ITokenType.native,
+            },
+          },
         },
       ])
     })

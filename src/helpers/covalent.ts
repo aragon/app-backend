@@ -6,7 +6,7 @@ import {
   type ITokenBalanceResponse,
   type TokensBalancesType,
   ITokenType,
-  ITokenHolderResponse, ITokenHoldersResponse,
+  type ITokenHoldersResponse,
 } from '@types'
 import config from '@config'
 import dayjs from '@helpers/dayjs'

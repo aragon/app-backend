@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { FunctionFragment, hexlify, Interface } from 'ethers'
+import { ethers, FunctionFragment, hexlify, Interface } from 'ethers'
 import { Multisig } from '@artifacts/Multisig'
 import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
 import { IERC20MintableUpgradeable } from '@artifacts/IERC20MintableUpgradeable'
@@ -11,7 +11,10 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import FourByte from '@helpers/4byte'
 import Web3Helper from '@helpers/web3'
 import type Proposal from '@models/schema/proposal'
-import { type IDecodedData } from '@types'
+import { type IDecodedData, type IRawAction } from '@types'
+import { ProposalActionType } from '@src/types'
+import { Models } from '@dbModels'
+import { UtilsIndexer } from '@indexer/utils/indexer'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -30,33 +33,66 @@ class DecodeActions {
     this._setupSignatures()
   }
 
-  public decodeTransfer(
-    action: { to: string; value: any; data: any },
-    document: Partial<Proposal>,
-  ): IDecodedData | null {
+  public async decodeTransfer(action: IRawAction, document: Partial<Proposal>): Promise<IDecodedData | null> {
     if (Web3Helper.isNativeTokenAction(action)) {
+      const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
       // native token transfer
       return {
         functionName: 'NativeTransfer',
         textSignature: 'nativeTransfer(address,address,uint256)',
         decoded: [document.daoAddress, action.to, action.value],
+        type: ProposalActionType.Transfer,
+        metadata: {
+          from: document.daoAddress,
+          to: action.to,
+          value: action.value,
+          token: {
+            address: nativeToken?.address,
+            name: nativeToken?.name,
+            symbol: nativeToken?.symbol,
+            decimals: nativeToken?.decimals,
+            logo: nativeToken?.logo,
+            type: nativeToken?.type,
+          },
+        },
       }
     }
 
     return null
   }
 
-  public async decodeData(data: string): Promise<IDecodedData | null> {
-    let decoded = this._decodeWithAbi(data)
+  public async decodeData(action: IRawAction, document: Partial<Proposal>): Promise<IDecodedData | null> {
+    const decoded = (await this._decodeWithAbi(action.data)) || (await this._decodeFallback(action.data))
 
-    if (!decoded) {
-      decoded = await this._decodeFallback(data)
+    if (!decoded) return null
+
+    const actionHandlers: Record<
+      string,
+      (action: IRawAction, decoded: IDecodedData, document: Partial<Proposal>) => Promise<any>
+    > = {
+      transfer: this._getMetadataIfTransfer.bind(this),
+      mint: this._getMedataIfMint.bind(this),
+      // TODO: We can add more handlers later
     }
+
+    for (const pattern in actionHandlers) {
+      if (decoded.textSignature.toLowerCase().includes(pattern.toLowerCase())) {
+        const actionMetaData = await actionHandlers[pattern](action, decoded, document)
+        if (actionMetaData) {
+          decoded.type = actionMetaData.type
+          decoded.metadata = actionMetaData.metadata
+        }
+        break
+      }
+    }
+
+    decoded.type = decoded.type ?? ProposalActionType.Unknown
+    decoded.metadata = decoded.metadata ?? null
 
     return decoded
   }
 
-  _decodeWithAbi(data: string): IDecodedData | null {
+  async _decodeWithAbi(data: string): Promise<IDecodedData | null> {
     const dataHex = hexlify(data)
     for (const { contractName, signatures, abi } of this.allSignatures) {
       const fragment = this._getFunctionFragment(dataHex, signatures)
@@ -69,7 +105,12 @@ class DecodeActions {
           const parameters = fragment.inputs.map((input: any) => input.type).join(',')
           const textSignature = `${functionName}(${parameters})`
 
-          return { functionName, textSignature, decoded: decoded?.toArray(), contractName }
+          return {
+            functionName,
+            textSignature,
+            decoded: decoded?.toArray(),
+            contractName,
+          }
         } catch (error) {
           logger.error('Error decoding action data with abi', llo({ error, contractName, fragment, dataHex }))
         }
@@ -97,6 +138,8 @@ class DecodeActions {
         functionName: signatureInfo.text_signature.split('(')[0],
         textSignature: signatureInfo.text_signature,
         decoded: decoded?.toArray(),
+        type: ProposalActionType.Unknown,
+        metadata: null,
       }
     } catch (error) {
       logger.error('Error decoding action data', llo({ error, data }))
@@ -157,6 +200,84 @@ class DecodeActions {
       }
     }
     return undefined
+  }
+
+  /**
+   * Actions handlers based on the readable functionSignature
+   */
+
+  async _getMetadataIfTransfer(action: IRawAction, decodedData: IDecodedData, document: Partial<Proposal>) {
+    const metadata: any = {}
+
+    const setCommonMetadata = async (from: string, to: string, value: string) => {
+      const token = await UtilsIndexer.saveAndGetToken(action.to, document.network!)
+
+      if (token) {
+        metadata.token = {
+          address: token?.address,
+          name: token?.name,
+          symbol: token?.symbol,
+          decimals: token?.decimals,
+          logo: token?.logo,
+          type: token?.type,
+        }
+        metadata.from = from
+        metadata.to = to
+        metadata.value = value
+      }
+    }
+
+    switch (decodedData.textSignature) {
+      case 'transfer(address,uint256)':
+        await setCommonMetadata(document.daoAddress!, decodedData.decoded[0], decodedData.decoded[1])
+        break
+
+      case 'transferFrom(address,address,uint256)':
+      case 'safeTransferFrom(address,address,uint256)':
+        await setCommonMetadata(decodedData.decoded[0], decodedData.decoded[1], decodedData.decoded[2])
+        break
+      default:
+        return null
+    }
+
+    return {
+      type: ProposalActionType.Transfer,
+      metadata,
+    }
+  }
+
+  async _getMedataIfMint(action: IRawAction, decodedData: IDecodedData, document: Partial<Proposal>) {
+    const metadata: any = {}
+
+    const setCommonMetadata = async (to: string, value: string) => {
+      const token = await UtilsIndexer.saveAndGetToken(action.to, document.network!)
+
+      if (token) {
+        metadata.token = {
+          address: token?.address,
+          name: token?.name,
+          symbol: token?.symbol,
+          decimals: token?.decimals,
+          logo: token?.logo,
+          type: token?.type,
+        }
+        metadata.to = to
+        metadata.value = value
+      }
+    }
+
+    switch (decodedData.textSignature) {
+      case 'mint(address,uint256)':
+        await setCommonMetadata(decodedData.decoded[0], decodedData.decoded[1])
+        break
+      default:
+        return null
+    }
+
+    return {
+      type: ProposalActionType.Mint,
+      metadata,
+    }
   }
 }
 
