@@ -6,7 +6,7 @@ import {
   type ILogInfo,
   type IProposalMetadata,
   ITransactionType,
-  NetworksEnum,
+  type NetworksEnum,
 } from '@types'
 import {
   AbiCoder,
@@ -26,17 +26,11 @@ import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import BottleneckModule from '@modules/bottleneck'
 import { ENSRegistry } from '@artifacts/ENSRegistry'
-import { Alchemy, Network } from 'alchemy-sdk'
-import { type EnsMember } from '@models/schema/member'
+import { retryRequest } from '@helpers/retryRequest'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
 const Web3Helper = {
-  alchemySdk: new Alchemy({
-    apiKey: config.ALCHEMY.API_KEY,
-    network: Network.ETH_MAINNET,
-  }),
-
   ERC1155_INTERFACE_ID: '0xd9b67a26',
   ERC165_INTERFACE_ID: '0x01ffc9a7',
   ERC721_INTERFACE_ID: '0x80ac58cd',
@@ -148,8 +142,8 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
     const contract = new Contract(tokenAddress, ERC721.abi, provider)
     try {
-      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-        contract.supportsInterface(interfaceId),
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.supportsInterface(interfaceId)),
       )
     } catch (error) {
       return false
@@ -401,7 +395,10 @@ const Web3Helper = {
     try {
       const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
-      const block = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber))
+      const block = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber)),
+      )
+
       return block?.timestamp ?? 0
     } catch (error) {
       logger.error('Error getBlockTimestamp', llo({ blockNumber, network, error }))
@@ -413,8 +410,10 @@ const Web3Helper = {
     try {
       const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
-      const response = await BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
-        provider.send('eth_getBalance', [address]),
+      const response = await retryRequest(async () =>
+        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
+          provider.send('eth_getBalance', [address]),
+        ),
       )
 
       return BigInt(response).toString()
@@ -428,12 +427,14 @@ const Web3Helper = {
     try {
       const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
-      const response = await BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
-        provider.send('alchemy_getTokenBalances', [address]),
+      const response = await retryRequest(async () =>
+        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
+          provider.send('alchemy_getTokenBalances', [address]),
+        ),
       )
 
-      const balances = response.tokenBalances
-        .map((token: any) => {
+      const balances = response?.tokenBalances
+        ?.map((token: any) => {
           const result: IAlchemyTokenBalance = {
             contractAddress: Web3Helper.parseAddress(token.contractAddress) || token.contractAddress,
             tokenBalance: BigInt(token.tokenBalance).toString(),
@@ -446,41 +447,6 @@ const Web3Helper = {
     } catch (error) {
       logger.error('Error getTokenBalances', llo({ address, network, error }))
       return []
-    }
-  },
-
-  async getAddressFromEns(name: string, network: NetworksEnum): Promise<HexAddress | null> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-
-    try {
-      const address = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.resolveName(name))
-      return address
-    } catch (error) {
-      logger.error(
-        'Error resolving ENS name',
-        llo({
-          name,
-          network,
-        }),
-      )
-      return null
-    }
-  },
-
-  async getEnsFromAddress(address: string, network: NetworksEnum): Promise<string | null> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
-
-    try {
-      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.lookupAddress(address))
-    } catch (error) {
-      logger.warn(
-        'Error looking up address',
-        llo({
-          address,
-          network,
-        }),
-      )
-      return null
     }
   },
 
@@ -500,8 +466,8 @@ const Web3Helper = {
 
       const nameHashed = namehash(ensName)
 
-      const recordExists = await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-        ensContract.recordExists(nameHashed),
+      const recordExists = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => ensContract.recordExists(nameHashed)),
       )
 
       return recordExists
@@ -522,7 +488,9 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getTransaction(txHash))
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getTransaction(txHash)),
+      )
     } catch (error) {
       logger.error(
         'Error get transaction',
@@ -539,8 +507,8 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
 
     try {
-      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-        provider.getTransactionReceipt(txHash),
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getTransactionReceipt(txHash)),
       )
     } catch (error) {
       logger.error(
@@ -571,27 +539,33 @@ const Web3Helper = {
     }
 
     try {
-      token.name = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.name())
+      token.name = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.name()),
+      )
     } catch (error) {
       logger.warn('Error getting token info name', llo({ error, address }))
     }
 
     try {
-      token.symbol = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.symbol())
+      token.symbol = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.symbol()),
+      )
     } catch (error) {
       logger.warn('Error getting token symbol', llo({ error, address }))
     }
 
     try {
-      const decimals = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.decimals())
+      const decimals = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.decimals()),
+      )
       token.decimals = Number(decimals)
     } catch (error) {
       logger.warn('Error getting token symbol', llo({ error, address }))
     }
 
     try {
-      const totalSupply = await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-        tokenInstance.totalSupply(),
+      const totalSupply = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.totalSupply()),
       )
       token.totalSupply = BigInt(totalSupply).toString()
     } catch (error) {
@@ -632,45 +606,12 @@ const Web3Helper = {
     const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
     const contract = new Contract(tokenAddress, ERC20.abi, provider)
     try {
-      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.balanceOf(address))
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.balanceOf(address)),
+      )
     } catch (error) {
       return '0'
     }
-  },
-
-  async getEnsWithAlchemy(address: string): Promise<EnsMember[]> {
-    const walletAddress = address
-    const ensContractAddress = '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85'
-
-    const nfts = await BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
-      Web3Helper.alchemySdk.nft.getNftsForOwner(walletAddress, { contractAddresses: [ensContractAddress] }),
-    )
-
-    const result =
-      (
-        nfts?.ownedNfts?.map(nft => {
-          if (nft.raw.metadata.attributes) {
-            const registrationDateAttr = nft.raw.metadata.attributes.find(
-              (attr: any) => attr.trait_type === 'Registration Date',
-            )?.value
-
-            const expirationDateAttr = nft.raw.metadata.attributes.find(
-              (attr: any) => attr.trait_type === 'Expiration Date',
-            )?.value
-
-            if (registrationDateAttr && expirationDateAttr) {
-              return {
-                name: nft.name,
-                registrationDateTimestamp: Math.round(registrationDateAttr / 1000),
-                expirationDateTimestamp: Math.round(expirationDateAttr / 1000),
-              }
-            }
-          }
-          return null
-        }) as any
-      )?.filter((item: any) => item !== null) || []
-
-    return result
   },
 }
 

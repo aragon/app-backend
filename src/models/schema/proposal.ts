@@ -107,10 +107,10 @@ export class VotesByOption {
   public type!: number | null
 
   @prop({ type: () => Number, default: 0 })
-  public total!: number
+  public totalVotes!: number
 
   @prop({ type: () => Number, default: 0 })
-  public totalPower!: number
+  public totalVotingPower!: number
 }
 
 export class Metrics {

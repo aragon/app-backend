@@ -87,7 +87,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawMember.address)
-      expect(response.data[0].ens?.length).to.eq(0)
+      expect(response.data[0].ens).to.eq(null)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -124,7 +124,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawMember.address)
-      expect(response.data[0].ens?.length).to.eq(0)
+      expect(response.data[0].ens).to.eq(null)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -170,7 +170,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawMember.address)
-      expect(response.data[0].ens?.length).to.eq(0)
+      expect(response.data[0].ens).to.eq(null)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -257,7 +257,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(member.address)
-      expect(response.data[0].ens.length).to.eq(0)
+      expect(response.data[0].ens).to.eq(member.ens)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -315,7 +315,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(member.address)
-      expect(response.data[0].ens.length).to.eq(0)
+      expect(response.data[0].ens).to.eq(member.ens)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -382,7 +382,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(member.address)
-      expect(response.data[0].ens.length).to.eq(0)
+      expect(response.data[0].ens).to.eq(member.ens)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -449,7 +449,7 @@ describe('Controller: Member', () => {
     it('should getActiveMemberByAddress with params', async () => {
       const memberDb = await Models.Member.create({
         address: '0x17368cae2b9c6c3055e9e3c78936a69006be5411',
-        ens: [{ name: 'test.eth' }] as any,
+        ens: 'test.eth',
         history: [
           {
             daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
@@ -471,7 +471,7 @@ describe('Controller: Member', () => {
       const member = await MemberController.getActiveMemberByAddress(memberDb.address, {
         daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
       })
-      expect(member.ens[0].name).to.eq(memberDb.ens[0].name)
+      expect(member.ens).to.eq(memberDb.ens)
       expect(member.address).to.eq(memberDb.address)
       expect(member.network).to.eq(memberDb.history[0].network)
       expect(member.fromBlockNumber).to.eq(memberDb.history[0].fromBlockNumber)
@@ -484,7 +484,7 @@ describe('Controller: Member', () => {
     it('should getActiveMemberByAddress', async () => {
       const memberDb = await Models.Member.create({
         address: '0x17368cae2b9c6c3055e9e3c78936a69006be5411',
-        ens: [{ name: 'test.eth' }] as any,
+        ens: 'test.eth',
         history: [
           {
             daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
@@ -505,7 +505,7 @@ describe('Controller: Member', () => {
 
       const member = await MemberController.getActiveMemberByAddress(memberDb.address)
       expect(member.address).to.eq(memberDb.address)
-      expect(member.ens[0].name).to.eq(memberDb.ens[0].name)
+      expect(member.ens).to.eq(memberDb.ens)
       expect(member.network).to.be.undefined
     })
 

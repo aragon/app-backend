@@ -16,13 +16,7 @@ describe('Model: Member', () => {
 
     rawMember = {
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      ens: [
-        {
-          name: 'leuts.eth',
-          registrationDateTimestamp: 0,
-          expirationDateTimestamp: 0,
-        },
-      ],
+      ens: 'leuts.eth',
       history: [
         {
           network: NetworksEnum.ethereumMainnet,
@@ -59,7 +53,7 @@ describe('Model: Member', () => {
     const member = await Models.Member.create(rawMember)
     expect(member.id).to.eq(entityId)
     expect(member.address).to.eq(rawMember.address)
-    expect(member.ens[0].name).to.eq(rawMember.ens?.[0].name)
+    expect(member.ens).to.eq(rawMember.ens)
     expect(member.history.length).to.eq(1)
     expect(member.history[0].daoAddress).to.eq(rawMember?.history?.[0].daoAddress)
     expect(member.history[0].tokenAddress).to.eq(rawMember?.history?.[0].tokenAddress)
@@ -98,7 +92,7 @@ describe('Model: Member', () => {
 
   it('Should findByEns', async () => {
     const createdMember = await Models.Member.create(rawMember)
-    const member = await Models.Member.findByEns(createdMember.ens[0].name)
+    const member = await Models.Member.findByEns(createdMember.ens)
     expect(member?.address).to.eq(createdMember.address)
   })
 
