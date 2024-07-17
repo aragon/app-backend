@@ -475,21 +475,6 @@ export const AggregatorProposal = {
                     },
                   },
                 },
-                // totalVotingPower: {
-                //   $sum: {
-                //     $map: {
-                //       input: {
-                //         $filter: {
-                //           input: '$voteEvents',
-                //           as: 'vote',
-                //           cond: { $eq: ['$$vote.voteOption', '$$option'] },
-                //         },
-                //       },
-                //       as: 'vote',
-                //       in: { $toDouble: '$$vote.votingPower' },
-                //     },
-                //   },
-                // },
               },
             },
           },
