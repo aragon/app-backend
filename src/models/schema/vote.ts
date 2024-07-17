@@ -18,6 +18,9 @@ import ModelUtils from '@models/utils/models'
 const customName = 'Vote'
 
 class Token {
+  @prop({ type: () => String, enum: NetworksEnum })
+  public network!: NetworksEnum
+
   @prop({ type: () => String, enum: ITokenType, required: true })
   public type!: ITokenType
 

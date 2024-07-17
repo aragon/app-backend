@@ -103,6 +103,7 @@ export const AggregatorDelegate = {
                     token: { $arrayElemAt: ['$tokenDetails', 0] },
                   },
                   in: {
+                    network: '$$token.network',
                     type: '$$token.type',
                     address: '$$token.address',
                     logo: '$$token.logo',

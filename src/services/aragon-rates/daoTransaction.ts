@@ -163,6 +163,7 @@ export const DaoTransactions = {
             rawTx.amountUsd = rate ? (Number(rawTx.value) * Number(rate.priceUsd)).toString() : '0'
 
             rawTx.token = {
+              network: token.network,
               address: token.address,
               symbol: token.symbol,
               name: token.name,
