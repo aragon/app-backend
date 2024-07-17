@@ -5,6 +5,7 @@ import DelegateController from '@api/controllers/delegate'
 import { type HexAddress, type IDelegateExtraParams, type IPairParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import DelegateSchema from '@api/routers/schema/delegate'
+import Utils from '@helpers/utils'
 
 const DelegateRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -19,11 +20,17 @@ const DelegateRouter = {
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams(
+      { ...paginationParams, ...extraParams, ...pairParams },
+      ctx.query,
+      ['address'],
+    )
 
     const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
       ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
       ValidationSchema.validateParams(DelegateSchema.getExtraParams, extraParams),
       ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
     ctx.body = await DelegateController.getDelegateWithPagination(

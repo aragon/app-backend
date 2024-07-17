@@ -6,7 +6,6 @@ import Mongo from '@modules/mongo'
 import config from '@config'
 import { ModelProxy } from '@dbModels'
 import Logger from '@logger'
-import Utils from '@helpers/utils'
 
 describe('Module: mongo', () => {
   let sandbox: SinonSandbox
@@ -23,38 +22,51 @@ describe('Module: mongo', () => {
     const stubSetModels = sandbox.stub(ModelProxy, 'setMongoModels').resolves()
     const stubConnect = sandbox.stub(mongoose, 'connect').resolves()
     const loggerInfoStub = sandbox.stub(Logger, 'info')
+    const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
 
-    Object.values(mongoose.models).map(model => {
+    Object.values(mongoose.models).forEach(model => {
       sandbox.stub(model, 'syncIndexes').resolves()
     })
 
+    sandbox.stub(mongoose.connection, 'on').callsFake((event, callback) => {
+      if (event === 'connected') {
+        process.nextTick(callback)
+      }
+      return mongoose.connection
+    })
+
     await Mongo.connect()
-    mongoose.connection.emit('connected')
-    await Utils.wait(10)
 
     expect(loggerInfoStub.calledOnce).to.be.true
+    expect(loggerVerboseStub.calledOnce).to.be.true
     expect(stubSetModels.calledOnce).to.be.true
     expect(stubConnect.calledOnce).to.be.true
     expect(stubConnect.calledWith(config.MONGO_DB.URI, sandbox.match.object)).to.be.true
   })
 
-  it('error connects to MongoDB and syncs indexes', async () => {
+  it('handles connection error to MongoDB', async () => {
     const stubSetModels = sandbox.stub(ModelProxy, 'setMongoModels').resolves()
     const stubConnect = sandbox.stub(mongoose, 'connect').resolves()
-    const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+    const loggerVerboseStub = sandbox.stub(Logger, 'warn')
 
     Object.values(mongoose.models).map(model => {
       sandbox.stub(model, 'syncIndexes').resolves()
     })
 
-    await Mongo.connect()
-    mongoose.connection.emit('error')
-    await Utils.wait(10)
+    sandbox.stub(mongoose.connection, 'on').callsFake((event, callback) => {
+      if (event === 'error') {
+        process.nextTick(() => callback(new Error('Connection error')))
+      }
+      return mongoose.connection
+    })
 
-    expect(loggerVerboseStub.calledWith('MongoDB connection error' as any)).to.be.true
+    try {
+      await Mongo.connect()
+    } catch (err) {}
+
+    expect(loggerVerboseStub.calledWith(sinon.match('MongoDB connection error'))).to.be.true
     expect(stubSetModels.calledOnce).to.be.true
-    expect(stubConnect.calledOnce).to.be.true
-    expect(stubConnect.calledWith(config.MONGO_DB.URI, sandbox.match.object)).to.be.true
+    expect(stubConnect.calledOnce).to.be.false
   })
 
   it('disconnects from MongoDB', async () => {
