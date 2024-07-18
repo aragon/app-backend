@@ -7,6 +7,7 @@ import DbTx from '@modules/dbTx'
 import config from '@config'
 import utils from '@helpers/utils'
 import ProviderModule from '@modules/provider'
+import { retryRequest } from '@helpers/retryRequest'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' })
 
@@ -106,8 +107,10 @@ class BlockchainLogCrawler {
   async getBlockNumber(blockNumber: string | number | undefined): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
-        return await BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
-          this.provider.getBlockNumber(),
+        return await retryRequest(async () =>
+          BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
+            this.provider.getBlockNumber(),
+          ),
         )
       } catch (error) {
         logger.error(
@@ -167,13 +170,15 @@ class BlockchainLogCrawler {
         let success = false
         while (!success) {
           try {
-            const logs = await BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
-              this.provider.getLogs({
-                address: this.filter.address,
-                topics: [topics],
-                fromBlock: currentBlock,
-                toBlock,
-              }),
+            const logs = await retryRequest(async () =>
+              BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
+                this.provider.getLogs({
+                  address: this.filter.address,
+                  topics: [topics],
+                  fromBlock: currentBlock,
+                  toBlock,
+                }),
+              ),
             )
             await this.processLogs(logs)
             this.batchSize = this.originalBatchSize
