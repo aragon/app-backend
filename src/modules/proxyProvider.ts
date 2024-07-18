@@ -12,8 +12,10 @@ export const createProviderProxy = (initialProvider: IWebSocketProvider) => {
     return new Promise<void>(resolve => {
       const checkConnection = () => {
         if (isConnectionOpen()) {
+          logger.verbose('connection open', llo({}))
           resolve()
         } else {
+          logger.verbose('wait to reconnect', llo({}))
           setTimeout(checkConnection, 100) // Check every 100ms
         }
       }
@@ -27,6 +29,7 @@ export const createProviderProxy = (initialProvider: IWebSocketProvider) => {
         logger.verbose('processQueue', llo({}))
         // Special handler to manage the update and reconnection logic
         return (newProvider: IWebSocketProvider) => {
+          logger.verbose('updateProvider', llo({ target, newProvider }))
           target = newProvider
         }
       }
