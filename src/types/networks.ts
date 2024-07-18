@@ -2,6 +2,13 @@ import { type WebSocketProvider } from 'ethers'
 export type HexAddress = `0x${string}` | string
 export type ENS = `${string}.eth`
 
+export enum IWebSocketStatus {
+  CONNECTING = 0,
+  OPEN = 1,
+  CLOSING = 2,
+  CLOSED = 3,
+}
+
 export interface ISupportedNetwork {
   provider: WebSocketProvider
   networkName: NetworksEnum

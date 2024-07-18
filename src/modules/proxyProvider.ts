@@ -1,4 +1,4 @@
-import { type IWebSocketProvider } from '@src/types'
+import { type IWebSocketProvider, IWebSocketStatus } from '@src/types'
 import logger from '@logger'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyProvider' })
@@ -7,7 +7,7 @@ export const createProviderProxy = (initialProvider: IWebSocketProvider) => {
   let currentProvider = initialProvider
 
   const isConnectionOpen = () => {
-    return currentProvider.websocket && currentProvider.websocket.readyState === 1
+    return currentProvider.websocket && currentProvider.websocket.readyState === IWebSocketStatus.OPEN
   }
 
   const waitForConnection = async () => {
