@@ -4,8 +4,10 @@ import logger from '@logger'
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyProvider' })
 
 export const createProviderProxy = (initialProvider: IWebSocketProvider) => {
+  let currentProvider = initialProvider
+
   const isConnectionOpen = () => {
-    return initialProvider.websocket && initialProvider.websocket.readyState === 1
+    return currentProvider.websocket && currentProvider.websocket.readyState === 1
   }
 
   const waitForConnection = async () => {
@@ -26,10 +28,10 @@ export const createProviderProxy = (initialProvider: IWebSocketProvider) => {
   return new Proxy(initialProvider, {
     get(target, prop, receiver) {
       if (prop === 'updateProvider') {
-        logger.verbose('processQueue', llo({ target, prop, receiver }))
+        logger.verbose('updateProvider', llo({ target, prop, receiver }))
         return (newProvider: IWebSocketProvider) => {
-          logger.verbose('processQueue return', llo({ newProvider }))
-          initialProvider = newProvider
+          logger.verbose('updating provider', llo({ newProvider }))
+          currentProvider = newProvider
         }
       }
 
@@ -38,10 +40,10 @@ export const createProviderProxy = (initialProvider: IWebSocketProvider) => {
       if (typeof value === 'function') {
         return async (...args: any[]) => {
           if (!isConnectionOpen()) {
-            logger.verbose(`Connection not open, waiting to call ${String(prop)}`, llo({ args }))
+            logger.verbose(`Connection not open, waiting to call ${String(prop)}`, llo({ args, prop: String(prop) }))
             await waitForConnection()
           }
-          return value.apply(initialProvider, args)
+          return value.apply(currentProvider, args)
         }
       }
       return value
