@@ -1,14 +1,15 @@
 import { type IWebSocketProvider, NetworksEnum } from '@types'
+import { WebSocketProvider } from 'ethers'
 import config from '@config'
 import logger from '@logger'
-import { ConfigState } from '@state/configState'
-import { WebSocketProvider } from 'ethers'
 import { assert } from '@errors'
+import { createProviderProxy } from '@modules/proxyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
 const ProviderModule = {
-  configState: ConfigState.getInstance(),
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  providerProxies: {} as Record<string, IWebSocketProvider>,
   networksMap: {
     ETHEREUM_MAINNET: NetworksEnum.ethereumMainnet,
     ETHEREUM_SEPOLIA: NetworksEnum.ethereumSepolia,
@@ -41,8 +42,13 @@ const ProviderModule = {
   async connectToNetwork(network: NetworksEnum, nodeUrl: string) {
     return new Promise((resolve, reject) => {
       try {
-        const provider: IWebSocketProvider = new WebSocketProvider(nodeUrl)
-        ProviderModule.attachEventListeners(provider, network, nodeUrl, resolve, reject) // it resolve inside
+        const provider = new WebSocketProvider(nodeUrl) as IWebSocketProvider
+        if (!ProviderModule.providerProxies[network]) {
+          ProviderModule.providerProxies[network] = createProviderProxy(provider)
+        } else {
+          ProviderModule.providerProxies[network].updateProvider(provider)
+        }
+        ProviderModule.attachEventListeners(provider, network, nodeUrl, resolve, reject)
       } catch (error) {
         logger.error('Failed to create WebSocketProvider', llo({ network, error }))
         reject(error)
@@ -59,7 +65,6 @@ const ProviderModule = {
   ) {
     const handleOpen = async () => {
       logger.info(`WebSocket connected successfully to ${network}`)
-      ProviderModule.configState.setConfigItem(network, provider)
       provider.websocket.removeEventListener('open', handleOpen)
       if (resolve) resolve(provider)
     }
@@ -85,7 +90,6 @@ const ProviderModule = {
     if (attempt >= config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS) {
       logger.error(`Max reconnect attempts reached for ${network}`)
       return
-      // throw new Error(`Max reconnect attempts reached for ${network}`);
     }
     const delay = config.NODE_CONFIG.RECONNECT_INTERVAL * Math.pow(2, attempt)
     return new Promise((resolve, reject) => {
@@ -107,12 +111,16 @@ const ProviderModule = {
   async closeAllNetworks() {
     const networks = Object.values(NetworksEnum)
     networks.map(async network => {
-      const provider: IWebSocketProvider = ProviderModule.configState.getConfigItem(network)
+      const provider = ProviderModule.providerProxies[network]
       if (provider) {
         await provider.destroy()
         logger.info(`WebSocket connection closed for ${network}`)
       }
     })
+  },
+
+  getProvider(network: NetworksEnum): IWebSocketProvider | undefined {
+    return ProviderModule.providerProxies[network]
   },
 }
 

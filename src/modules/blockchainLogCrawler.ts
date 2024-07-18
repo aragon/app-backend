@@ -1,12 +1,12 @@
 import logger from '@logger'
 import { type Filter, type Log, type WebSocketProvider } from 'ethers'
-import { ConfigState } from '@state/configState'
 import { type IEnumIndexerService, NetworksEnum } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import config from '@config'
 import utils from '@helpers/utils'
+import ProviderModule from '@modules/provider'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' })
 
@@ -42,7 +42,7 @@ class BlockchainLogCrawler {
     stopOnError?: boolean
     logService?: IEnumIndexerService
   }) {
-    this.provider = ConfigState.getInstance().getConfigItem(opts.network) as WebSocketProvider
+    this.provider = ProviderModule.getProvider(opts.network)!
     if (!this.provider) {
       throw new Error('Provider not configured for network: ' + opts.network)
     }
