@@ -26,11 +26,10 @@ export const createProviderProxy = (initialProvider: IWebSocketProvider) => {
   return new Proxy(initialProvider, {
     get(target, prop, receiver) {
       if (prop === 'updateProvider') {
-        logger.verbose('processQueue', llo({}))
-        // Special handler to manage the update and reconnection logic
+        logger.verbose('processQueue', llo({ target, prop, receiver }))
         return (newProvider: IWebSocketProvider) => {
-          logger.verbose('updateProvider', llo({ target, newProvider }))
-          target = newProvider
+          logger.verbose('processQueue return', llo({ newProvider }))
+          initialProvider = newProvider
         }
       }
 
@@ -42,7 +41,7 @@ export const createProviderProxy = (initialProvider: IWebSocketProvider) => {
             logger.verbose(`Connection not open, waiting to call ${String(prop)}`, llo({ args }))
             await waitForConnection()
           }
-          return value.apply(target, args)
+          return value.apply(initialProvider, args)
         }
       }
       return value

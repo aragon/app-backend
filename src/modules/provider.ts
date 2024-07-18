@@ -32,7 +32,7 @@ const ProviderModule = {
           assert(!!nodeUrl && nodeUrl.length > 0, 'Node URL is not configured')
           return ProviderModule.connectToNetwork(ProviderModule.parseNetwork(network) as NetworksEnum, nodeUrl!)
         } catch (error) {
-          logger.warn(`Node URL for ${network} is not configured.`)
+          logger.warn(`Node URL for ${network} is not configured.`, llo({ network }))
           return Promise.resolve()
         }
       }),
@@ -70,7 +70,10 @@ const ProviderModule = {
     }
 
     const handleClose = () => {
-      logger.error(`WebSocket connection closed unexpectedly for ${network}. Attempting to reconnect...`)
+      logger.error(
+        `WebSocket connection closed unexpectedly for ${network}. Attempting to reconnect...`,
+        llo({ network }),
+      )
       provider.websocket.removeEventListener('close', handleClose)
       ProviderModule.reconnectToNetwork(network, nodeUrl)
     }
@@ -88,18 +91,21 @@ const ProviderModule = {
 
   async reconnectToNetwork(network: NetworksEnum, nodeUrl: string, attempt = 0): Promise<void> {
     if (attempt >= config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS) {
-      logger.error(`Max reconnect attempts reached for ${network}`)
+      logger.error(`Max reconnect attempts reached for ${network}`, llo({ network }))
       return
     }
     const delay = config.NODE_CONFIG.RECONNECT_INTERVAL * Math.pow(2, attempt)
     return new Promise((resolve, reject) => {
       setTimeout(async () => {
         try {
-          logger.info(`Reconnecting to ${network}... Attempt ${attempt + 1}`)
+          logger.info(`Reconnecting to ${network}... Attempt ${attempt + 1}`, llo({ network, attempt: attempt + 1 }))
           await ProviderModule.connectToNetwork(network, nodeUrl)
           resolve()
         } catch (error) {
-          logger.error(`Reconnection attempt ${attempt + 1} failed for ${network}`, llo({ error }))
+          logger.error(
+            `Reconnection attempt ${attempt + 1} failed for ${network}`,
+            llo({ error, network, attempt: attempt + 1 }),
+          )
           await ProviderModule.reconnectToNetwork(network, nodeUrl, attempt + 1)
             .then(resolve)
             .catch(reject)
@@ -114,7 +120,7 @@ const ProviderModule = {
       const provider = ProviderModule.providerProxies[network]
       if (provider) {
         await provider.destroy()
-        logger.info(`WebSocket connection closed for ${network}`)
+        logger.info(`WebSocket connection closed for ${network}`, llo({ network }))
       }
     })
   },
