@@ -57,7 +57,6 @@ describe('Module: provider', () => {
     it('should connect to network successfully', async () => {
       const mockUrl = 'wss://ethereum-rpc.publicnode.com'
       const stubLoggerInfo = sandbox.stub(Logger, 'info')
-      const stubConfigSet = sandbox.stub(ProviderModule.configState, 'setConfigItem')
 
       const mockWebSocket = new MockWebSocket()
 
@@ -73,7 +72,7 @@ describe('Module: provider', () => {
       }
 
       expect(stubLoggerInfo.calledOnce).to.be.true
-      expect(stubConfigSet.calledOnceWith(NetworksEnum.ethereumMainnet)).to.be.true
+      expect(ProviderModule.getProvider(NetworksEnum.ethereumMainnet)).to.not.be.undefined
     })
 
     it('should handle WebSocket error during connection', async () => {
@@ -234,9 +233,8 @@ describe('Module: provider', () => {
         [NetworksEnum.ethereumSepolia]: { destroy: sandbox.stub().resolves() },
       }
 
-      const getConfigStub = sandbox
-        .stub(ProviderModule.configState, 'getConfigItem')
-        .callsFake(network => fakeProviders[network])
+      ProviderModule.providerProxies = fakeProviders as any
+
       const loggerInfoStub = sandbox.stub(Logger, 'info')
 
       await ProviderModule.closeAllNetworks()
@@ -245,9 +243,6 @@ describe('Module: provider', () => {
         expect(fakeProviders[network].destroy.calledOnce).to.be.true
         expect(loggerInfoStub.calledWith(`WebSocket connection closed for ${network}` as any)).to.be.true
       })
-
-      expect(getConfigStub.calledWith(NetworksEnum.ethereumMainnet)).to.be.true
-      expect(getConfigStub.calledWith(NetworksEnum.ethereumSepolia)).to.be.true
 
       config.BLOCKCHAIN_NODES = backupConfig
     })

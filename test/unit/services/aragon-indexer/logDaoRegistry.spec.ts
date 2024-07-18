@@ -6,12 +6,11 @@ import logger from '@logger'
 import Logger from '@logger'
 import { NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
-import Provider from '@modules/provider'
 import { DaoRegistryHandler } from '@services/aragon-indexer/handlers/daoRegistryHandler'
-import { UnitTestUtils } from '@test/lib/utils'
 import Web3Helper from '@helpers/web3'
 import { NetworkHelper } from '@helpers/network'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { UnitTestUtils } from '@test/lib/utils'
 
 describe('Indexer: LogDaoRegistry', () => {
   let sandbox: SinonSandbox
@@ -30,11 +29,10 @@ describe('Indexer: LogDaoRegistry', () => {
   describe('start', () => {
     it('should start', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
-      sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
         Object.values(NetworksEnum).map(networkName => ({
           networkName,
-          provider: {} as any,
+          provider: fakeProviders[networkName] as any,
         })),
       )
 
@@ -51,11 +49,10 @@ describe('Indexer: LogDaoRegistry', () => {
 
     it('should start handle error', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
-      sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
         Object.values(NetworksEnum).map(networkName => ({
           networkName,
-          provider: {} as any,
+          provider: fakeProviders[networkName] as any,
         })),
       )
 

@@ -4,15 +4,14 @@ import { expect } from 'chai'
 import { LogDao } from '@services/aragon-indexer/logDao'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
-import Provider from '@modules/provider'
+import ProviderModule from '@modules/provider'
 import { DaoHandler } from '@services/aragon-indexer/handlers/daoHandler'
 import Utils from '@helpers/utils'
 import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
-import { UnitTestUtils } from '@test/lib/utils'
 import Web3Helper from '@helpers/web3'
 import { NetworkHelper } from '@helpers/network'
-import Logger from '@logger'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { UnitTestUtils } from '@test/lib/utils'
 
 describe('Indexer: LogDao', () => {
   let sandbox: SinonSandbox
@@ -22,6 +21,7 @@ describe('Indexer: LogDao', () => {
   })
 
   afterEach(async () => {
+    await ProviderModule.closeAllNetworks()
     sandbox?.restore()
   })
 
@@ -32,12 +32,14 @@ describe('Indexer: LogDao', () => {
   describe('start', () => {
     it('should start', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
-      sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
-      sandbox
-        .stub(NetworkHelper, 'supportedNetworks')
-        .returns(Object.values(NetworksEnum).map(networkName => ({ networkName, provider: {} as any })))
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
+        Object.values(NetworksEnum).map(networkName => ({
+          networkName,
+          provider: fakeProviders[networkName] as any,
+        })),
+      )
 
-      const stubLogger = sandbox.stub(Logger, 'verbose')
+      const stubLogger = sandbox.stub(logger, 'verbose')
       const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onLog(true)
       })
@@ -48,14 +50,16 @@ describe('Indexer: LogDao', () => {
       expect(crawlerStub.callCount).to.eq(Object.values(NetworksEnum).length)
     })
 
-    it('should start handle error', async () => {
+    it('should start and handle error', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
-      sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
-      sandbox
-        .stub(NetworkHelper, 'supportedNetworks')
-        .returns(Object.values(NetworksEnum).map(networkName => ({ networkName, provider: {} as any })))
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
+        Object.values(NetworksEnum).map(networkName => ({
+          networkName,
+          provider: fakeProviders[networkName] as any,
+        })),
+      )
 
-      const stubLogger = sandbox.stub(Logger, 'verbose')
+      const stubLogger = sandbox.stub(logger, 'verbose')
       const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onError(true)
       })
@@ -68,7 +72,7 @@ describe('Indexer: LogDao', () => {
   })
 
   describe('processLog', () => {
-    it('should process pluginRepoLog', async () => {
+    it('should process log events', async () => {
       const network = NetworksEnum.ethereumMainnet
       const txLog = {
         transactionHash: '0x123',
@@ -124,7 +128,7 @@ describe('Indexer: LogDao', () => {
       expect(loggerStub.notCalled).to.be.true
     })
 
-    it('should not processLog unknown event', async () => {
+    it('should not process unknown event', async () => {
       const network = NetworksEnum.ethereumMainnet
       const txLog: any = {
         transactionHash: '0x123',
