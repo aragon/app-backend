@@ -7,11 +7,12 @@ import Logger from '@logger'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
-import { ConfigState } from '@state/configState'
 import { fakeAlchemyTransfer } from '@test/mock/fakeAlchemyTransfer'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import { RateModule } from '@modules/rates'
+import { UnitTestUtils } from '@test/lib/utils'
+import ProviderModule from '@modules/provider'
 
 describe('Indexer:Aggregator:Transactions', () => {
   let sandbox: sinon.SinonSandbox
@@ -84,10 +85,10 @@ describe('Indexer:Aggregator:Transactions', () => {
         value: 1000,
         blockNum: 1,
       }
-      const fakeProvider = {
-        send: sandbox.stub().resolves({ transfers: [txLog] }),
-      }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(fakeProvider)
+
+      const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
+      ;(fakeProviders.send = sandbox.stub().resolves({ transfers: [txLog] })),
+        sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
 
       const crawlStub = sandbox.stub(BlockchainTransferCrawler.prototype, 'crawl').callsFake(async function (
         this: any,
@@ -120,10 +121,10 @@ describe('Indexer:Aggregator:Transactions', () => {
         value: 1000,
         blockNum: 1,
       }
-      const fakeProvider = {
-        send: sandbox.stub().resolves({ transfers: [txLog] }),
-      }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(fakeProvider)
+
+      const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
+      fakeProviders.send = sandbox.stub().resolves({ transfers: [txLog] })
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
 
       const crawlStub = sandbox.stub(BlockchainTransferCrawler.prototype, 'crawl').callsFake(async function (
         this: any,

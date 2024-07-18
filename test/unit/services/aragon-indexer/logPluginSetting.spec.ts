@@ -5,16 +5,15 @@ import { LogPluginSetting } from '@services/aragon-indexer/logPluginSetting'
 import logger from '@logger'
 import Logger from '@logger'
 import { NetworksEnum } from '@types'
-import Provider from '@modules/provider'
 import { ethers, Interface } from 'ethers'
 import { PluginSettingHandler } from '@services/aragon-indexer/handlers/pluginSettingHandler'
 import Utils from '@helpers/utils'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { Multisig } from '@artifacts/Multisig'
-import { UnitTestUtils } from '@test/lib/utils'
 import Web3Helper from '@helpers/web3'
 import { NetworkHelper } from '@helpers/network'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { UnitTestUtils } from '@test/lib/utils'
 
 describe('Indexer: LogPluginSetting', () => {
   let sandbox: SinonSandbox
@@ -35,11 +34,10 @@ describe('Indexer: LogPluginSetting', () => {
   describe('start', () => {
     it('should start', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
-      sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
         Object.values(NetworksEnum).map(networkName => ({
           networkName,
-          provider: {} as any,
+          provider: fakeProviders[networkName] as any,
         })),
       )
 
@@ -56,11 +54,10 @@ describe('Indexer: LogPluginSetting', () => {
 
     it('should start handle error', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
-      sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
         Object.values(NetworksEnum).map(networkName => ({
           networkName,
-          provider: {} as any,
+          provider: fakeProviders[networkName] as any,
         })),
       )
 

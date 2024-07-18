@@ -106,7 +106,7 @@ class BlockchainLogCrawler {
   async getBlockNumber(blockNumber: string | number | undefined): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
-        return await BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+        return await BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
           this.provider.getBlockNumber(),
         )
       } catch (error) {

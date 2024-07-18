@@ -2,16 +2,15 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { LogMember } from '@services/aragon-indexer/logMember'
-import Provider from '@modules/provider'
 import logger from '@logger'
 import Logger from '@logger'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import { MemberHandler } from '@services/aragon-indexer/handlers/memberHandler'
-import { UnitTestUtils } from '@test/lib/utils'
 import Web3Helper from '@helpers/web3'
 import { NetworkHelper } from '@helpers/network'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { UnitTestUtils } from '@test/lib/utils'
 
 describe('Indexer: LogMember', () => {
   let sandbox: SinonSandbox
@@ -31,11 +30,10 @@ describe('Indexer: LogMember', () => {
   describe('start', () => {
     it('should start', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
-      sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
         Object.values(NetworksEnum).map(networkName => ({
           networkName,
-          provider: {} as any,
+          provider: fakeProviders[networkName] as any,
         })),
       )
 
@@ -52,11 +50,10 @@ describe('Indexer: LogMember', () => {
 
     it('should start handle error', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
-      sandbox.stub(Provider.configState, 'getConfigItem').callsFake(network => fakeProviders[network])
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
         Object.values(NetworksEnum).map(networkName => ({
           networkName,
-          provider: {} as any,
+          provider: fakeProviders[networkName] as any,
         })),
       )
 
