@@ -17,9 +17,7 @@ import {
   type LogDescription,
   namehash,
   type TransactionReceipt,
-  type WebSocketProvider,
 } from 'ethers'
-import { ConfigState } from '@state/configState'
 import logger from '@logger'
 import config from '@config'
 import { ERC20 } from '@artifacts/ERC20'
@@ -27,6 +25,7 @@ import { ERC721 } from '@artifacts/ERC721'
 import BottleneckModule from '@modules/bottleneck'
 import { ENSRegistry } from '@artifacts/ENSRegistry'
 import { retryRequest } from '@helpers/retryRequest'
+import ProviderModule from '@modules/provider'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -139,7 +138,7 @@ const Web3Helper = {
   },
 
   async supportsInterface(tokenAddress: string, interfaceId: string, network: NetworksEnum): Promise<boolean> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+    const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, ERC721.abi, provider)
     try {
       return await retryRequest(async () =>
@@ -393,7 +392,7 @@ const Web3Helper = {
 
   async getBlockTimestamp(blockNumber: number, network: NetworksEnum): Promise<number> {
     try {
-      const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+      const provider = ProviderModule.getProvider(network)!
 
       const block = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber)),
@@ -408,7 +407,7 @@ const Web3Helper = {
 
   async getBalance(address: HexAddress, network: NetworksEnum): Promise<string> {
     try {
-      const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+      const provider = ProviderModule.getProvider(network)!
 
       const response = await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
@@ -425,7 +424,7 @@ const Web3Helper = {
 
   async getTokenBalances(address: HexAddress, network: NetworksEnum): Promise<IAlchemyTokenBalance[] | []> {
     try {
-      const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+      const provider = ProviderModule.getProvider(network)!
 
       const response = await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
@@ -459,7 +458,7 @@ const Web3Helper = {
       return false
     }
 
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+    const provider = ProviderModule.getProvider(network)!
 
     try {
       const ensContract = new Contract(config.CONTRACTS.ENS_REGISTRY, ENSRegistry.abi, provider)
@@ -485,7 +484,7 @@ const Web3Helper = {
   },
 
   async getTransaction(txHash: string, network: NetworksEnum) {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+    const provider = ProviderModule.getProvider(network)!
 
     try {
       return await retryRequest(async () =>
@@ -504,7 +503,7 @@ const Web3Helper = {
   },
 
   async getTransactionReceipt(txHash: string, network: NetworksEnum): Promise<TransactionReceipt | null> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+    const provider = ProviderModule.getProvider(network)!
 
     try {
       return await retryRequest(async () =>
@@ -532,7 +531,7 @@ const Web3Helper = {
     decimals: number
     totalSupply: string
   }> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+    const provider = ProviderModule.getProvider(network)!
     const tokenInstance = new Contract(address, ERC20.abi, provider)
     const token: any = {
       address: Web3Helper.parseAddress(address) || address,
@@ -603,7 +602,7 @@ const Web3Helper = {
   },
 
   async getERC20Balance(tokenAddress: string, address: string, network: NetworksEnum) {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+    const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, ERC20.abi, provider)
     try {
       return await retryRequest(async () =>

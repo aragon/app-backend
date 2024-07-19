@@ -1,7 +1,7 @@
-import { keccak256, type WebSocketProvider, ZeroAddress } from 'ethers'
+import { keccak256, ZeroAddress } from 'ethers'
 import { ITokenType, type NetworksEnum } from '@types'
-import { ConfigState } from '@state/configState'
 import ProxyContractHelper from '@helpers/proxyContract'
+import ProviderModule from '@modules/provider'
 
 export const ERC20_FUNCTIONS = [
   'totalSupply()',
@@ -71,7 +71,7 @@ async function detectTokenType(
     }
   }
 
-  const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+  const provider = ProviderModule.getProvider(network)!
   let contractAddress = address
 
   // Check if the contract is a proxy and get the implementation address
