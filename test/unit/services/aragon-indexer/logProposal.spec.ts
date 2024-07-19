@@ -31,6 +31,7 @@ describe('Indexer: LogProposal', () => {
   describe('start', () => {
     it('should start', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
         Object.values(NetworksEnum).map(networkName => ({
           networkName,

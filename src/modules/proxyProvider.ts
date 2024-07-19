@@ -30,7 +30,6 @@ export const createProviderProxy = (initialProvider: IWebSocketProvider) => {
       if (prop === 'updateProvider') {
         logger.verbose('updateProvider', llo({ target, prop, receiver }))
         return (newProvider: IWebSocketProvider) => {
-          logger.verbose('updating provider', llo({ newProvider }))
           currentProvider = newProvider
         }
       }
