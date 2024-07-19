@@ -157,9 +157,13 @@ const CovalentHelper = {
     }
   },
 
-  async getTokenTotalSupply(address: HexAddress, network: NetworksEnum): Promise<number | string | null> {
+  async getTokenTotalSupply(
+    address: HexAddress,
+    network: NetworksEnum,
+    blockHeight: number,
+  ): Promise<number | string | null> {
     const networkId = CovalentHelper.networkToCovalent(network)
-    const path = `/${networkId}/tokens/${address}/token_holders_v2/?`
+    const path = `/${networkId}/tokens/${address}/token_holders_v2/?block-height=${blockHeight}`
     try {
       const response = await CovalentHelper._rpCall<ITokenHoldersResponse>(path)
       assert(response.items && response.items.length > 0, 'Token supply data not complete')

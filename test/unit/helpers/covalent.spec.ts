@@ -281,7 +281,7 @@ describe('Helpers: Covalent', () => {
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const network = NetworksEnum.ethereumMainnet
 
-      const supply = await CovalentHelper.getTokenTotalSupply(address, network)
+      const supply = await CovalentHelper.getTokenTotalSupply(address, network, 1234)
 
       expect(rpcCallStub.calledOnce).to.be.true
       expect(supply).to.equal('100000000000000000000000000')
@@ -294,7 +294,7 @@ describe('Helpers: Covalent', () => {
 
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
 
-      const supply = await CovalentHelper.getTokenTotalSupply(address, NetworksEnum.ethereumMainnet)
+      const supply = await CovalentHelper.getTokenTotalSupply(address, NetworksEnum.ethereumMainnet, 123)
 
       expect(supply).to.be.null
     })
