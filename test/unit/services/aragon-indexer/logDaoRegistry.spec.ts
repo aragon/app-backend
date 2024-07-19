@@ -11,6 +11,7 @@ import Web3Helper from '@helpers/web3'
 import { NetworkHelper } from '@helpers/network'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { UnitTestUtils } from '@test/lib/utils'
+import ProviderModule from '@modules/provider'
 
 describe('Indexer: LogDaoRegistry', () => {
   let sandbox: SinonSandbox
@@ -29,6 +30,7 @@ describe('Indexer: LogDaoRegistry', () => {
   describe('start', () => {
     it('should start', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
         Object.values(NetworksEnum).map(networkName => ({
           networkName,
@@ -49,6 +51,7 @@ describe('Indexer: LogDaoRegistry', () => {
 
     it('should start handle error', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
         Object.values(NetworksEnum).map(networkName => ({
           networkName,
