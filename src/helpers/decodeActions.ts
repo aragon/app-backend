@@ -15,6 +15,7 @@ import { type IDecodedData, type IRawAction, KnownActionSignature } from '@types
 import { ProposalActionType } from '@src/types'
 import { Models } from '@dbModels'
 import { UtilsIndexer } from '@indexer/utils/indexer'
+import IPFSModule from '@modules/ipfs'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -68,16 +69,19 @@ class DecodeActions {
 
     const actionHandlers: Record<
       string,
-      (action: IRawAction, decoded: IDecodedData, document: Partial<Proposal>) => Promise<any>
+      (decoded: IDecodedData, action: IRawAction, document: Partial<Proposal>) => Promise<any>
     > = {
       transfer: this._getMetadataIfTransfer.bind(this),
       mint: this._getMedataIfMint.bind(this),
+      addAddresses: this._getMetadataOfAddMultiSigMember.bind(this),
+      removeAddresses: this._getMetadataOfRemoveMultiSigMember.bind(this),
+      setMetadata: this._getMetadataForMetadataUpdate.bind(this),
       // TODO: We can add more handlers later
     }
 
     for (const pattern in actionHandlers) {
       if (decoded.textSignature.toLowerCase().includes(pattern.toLowerCase())) {
-        const actionMetaData = await actionHandlers[pattern](action, decoded, document)
+        const actionMetaData = await actionHandlers[pattern](decoded, action, document)
         if (actionMetaData) {
           decoded.type = actionMetaData.type
           decoded.metadata = actionMetaData.metadata
@@ -206,7 +210,7 @@ class DecodeActions {
    * Actions handlers based on the readable functionSignature
    */
 
-  async _getMetadataIfTransfer(action: IRawAction, decodedData: IDecodedData, document: Partial<Proposal>) {
+  async _getMetadataIfTransfer(decodedData: IDecodedData, action: IRawAction, document: Partial<Proposal>) {
     const metadata: any = {}
 
     const setCommonMetadata = async (from: string, to: string, value: string) => {
@@ -246,7 +250,33 @@ class DecodeActions {
     }
   }
 
-  async _getMedataIfMint(action: IRawAction, decodedData: IDecodedData, document: Partial<Proposal>) {
+  async _getMetadataOfAddMultiSigMember(decodedData: IDecodedData) {
+    if (decodedData.textSignature !== KnownActionSignature.MultisigAddMembers) {
+      return null
+    }
+
+    return {
+      type: ProposalActionType.MultisigAddMembers,
+      metadata: {
+        addresses: decodedData.decoded[0],
+      },
+    }
+  }
+
+  async _getMetadataOfRemoveMultiSigMember(decodedData: IDecodedData) {
+    if (decodedData.textSignature !== KnownActionSignature.MultisigRemoveMembers) {
+      return null
+    }
+
+    return {
+      type: ProposalActionType.MultisigRemoveMembers,
+      metadata: {
+        addresses: decodedData.decoded[0],
+      },
+    }
+  }
+
+  async _getMedataIfMint(decodedData: IDecodedData, action: IRawAction, document: Partial<Proposal>) {
     if (decodedData.textSignature !== KnownActionSignature.Mint) {
       return null
     }
@@ -273,6 +303,26 @@ class DecodeActions {
     }
 
     return null
+  }
+
+  async _getMetadataForMetadataUpdate(decodedData: IDecodedData) {
+    if (decodedData.textSignature !== KnownActionSignature.MetadataUpdate) {
+      return null
+    }
+
+    try {
+      const ipfsUrl = Web3Helper.extractMetadataUri(decodedData.decoded[0])
+      const ifpsContent = await IPFSModule.fetchMetadata(ipfsUrl!)
+      return {
+        type: ProposalActionType.MetadataUpdate,
+        metadata: {
+          ipfsUrl,
+          ...ifpsContent,
+        },
+      }
+    } catch (e) {
+      return null
+    }
   }
 }
 

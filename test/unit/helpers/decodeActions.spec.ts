@@ -111,7 +111,7 @@ describe('Helpers: DecodeActions', () => {
 
       expect(result?.type).to.eq('Transfer')
       expect(getMetadataStub.calledOnce).to.be.true
-      expect(getMetadataStub.args[0][1].decoded[0]).to.be.eq('0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31')
+      expect(getMetadataStub.args[0][0].decoded[0]).to.be.eq('0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31')
     })
 
     it('Should fail decodeData', async () => {
@@ -528,7 +528,7 @@ describe('Helpers: DecodeActions', () => {
     })
   })
 
-  describe('_getMetadataIfTransfer', () => {
+  describe('parse action metadata', () => {
     it('should return metadata for a transfer action with sig transfer(address,uint256)', async () => {
       const decodeActions = new DecodeActions()
 
@@ -548,11 +548,11 @@ describe('Helpers: DecodeActions', () => {
       } as any)
 
       const result = await decodeActions._getMetadataIfTransfer(
-        action,
         {
           decoded: ['0x72423fe5168185afb26390b5b9709ab58d20e3d8', 1000000000000000000n],
           textSignature: 'transfer(address,uint256)',
         } as any,
+        action,
         {
           network: NetworksEnum.ethereumMainnet,
           daoAddress: '0x8e1e51BdeA4Ea2C42FF2d0f7D3303D417603298F',
@@ -598,11 +598,11 @@ describe('Helpers: DecodeActions', () => {
       } as any)
 
       const result = await decodeActions._getMetadataIfTransfer(
-        action,
         {
           decoded: ['0x460eec6155b7b810edb83809d34f9f41f3fbb29a', '0x72423fe5168185afb26390b5b9709ab58d20e3d8', 31n],
           textSignature: 'transferFrom(address,address,uint256)',
         } as any,
+        action,
         {
           network: NetworksEnum.ethereumMainnet,
           daoAddress: '0x8e1e51BdeA4Ea2C42FF2d0f7D3303D417603298F',
@@ -650,11 +650,11 @@ describe('Helpers: DecodeActions', () => {
       } as any)
 
       const result = await decodeActions._getMedataIfMint(
-        action,
         {
           decoded: ['0x284803C34A3F049f787E2562e6F8C084bdBC3197', 1000000000000000000n],
           textSignature: 'mint(address,uint256)',
         } as any,
+        action,
         {
           network: NetworksEnum.ethereumMainnet,
         },
@@ -677,6 +677,42 @@ describe('Helpers: DecodeActions', () => {
           value: 1000000000000000000n,
         },
         type: ProposalActionType.Mint,
+      })
+    })
+
+    it('should handle multisig add members action with sig addAddresses(address[])', async () => {
+      const decodeActions = new DecodeActions()
+
+      const decoded = {
+        textSignature: 'addAddresses(address[])',
+        decoded: [['0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F']],
+      }
+
+      const result = await decodeActions._getMetadataOfAddMultiSigMember(decoded as any)
+
+      expect(result).to.deep.eq({
+        metadata: {
+          addresses: ['0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'],
+        },
+        type: ProposalActionType.MultisigAddMembers,
+      })
+    })
+
+    it('should handle multisig remove members action with sig removeAddresses(address[])', async () => {
+      const decodeActions = new DecodeActions()
+
+      const decoded = {
+        textSignature: 'removeAddresses(address[])',
+        decoded: [['0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F']],
+      }
+
+      const result = await decodeActions._getMetadataOfRemoveMultiSigMember(decoded as any)
+
+      expect(result).to.deep.eq({
+        metadata: {
+          addresses: ['0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'],
+        },
+        type: ProposalActionType.MultisigRemoveMembers,
       })
     })
   })

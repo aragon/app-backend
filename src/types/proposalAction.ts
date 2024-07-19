@@ -2,6 +2,9 @@ export enum ProposalActionType {
   Transfer = 'Transfer',
   Unknown = 'Unknown',
   Mint = 'Mint',
+  MultisigAddMembers = 'MultisigAddMembers',
+  MultisigRemoveMembers = 'MultisigRemoveMembers',
+  MetadataUpdate = 'MetadataUpdate',
 }
 
 export interface IRawAction {
@@ -15,4 +18,7 @@ export enum KnownActionSignature {
   TransferFrom = 'transferFrom(address,address,uint256)',
   SafeTransferFrom = 'safeTransferFrom(address,address,uint256)',
   Mint = 'mint(address,uint256)',
+  MultisigAddMembers = 'addAddresses(address[])',
+  MultisigRemoveMembers = 'removeAddresses(address[])',
+  MetadataUpdate = 'setMetadata(bytes)',
 }
