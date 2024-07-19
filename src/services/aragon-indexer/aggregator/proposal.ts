@@ -67,10 +67,6 @@ export const AggregatorProposal = {
 
     if (document?.tokenAddress) {
       document.token = await AggregatorProposal._fetchTokenDetails(document)
-      /**
-       * we save the token details in the token field, so we don't need to save the tokenAddress
-       */
-      delete document.tokenAddress
     }
 
     document.actions = await AggregatorProposal.parseActions(document.actions, document)
