@@ -7,6 +7,8 @@ import FourByte from '@helpers/4byte'
 import Logger from '@logger'
 import { NetworksEnum, ProposalActionType } from '@types'
 import { UtilsIndexer } from '@indexer/utils/indexer'
+import Web3Helper from '@helpers/web3'
+import IPFSModule from '@modules/ipfs'
 
 describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
@@ -714,6 +716,51 @@ describe('Helpers: DecodeActions', () => {
         },
         type: ProposalActionType.MultisigRemoveMembers,
       })
+    })
+
+    it('should handle metadata update action with sig setMetadata(bytes)', async () => {
+      const decodeActions = new DecodeActions()
+
+      const decoded = {
+        textSignature: 'setMetadata(bytes)',
+        decoded: [
+          '0x697066733a2f2f6261666b726569656a697572753268366b7463616f37336c6d71656b6a37377469716536706a747235626b7876746d37777137613235326a783779',
+        ],
+      }
+
+      const extractMetadataUriSpy = sandbox.spy(Web3Helper, 'extractMetadataUri')
+      const ipfsGetStub = sandbox.stub(IPFSModule, 'fetchMetadata').resolves({
+        title: 'Test Title',
+      } as any)
+
+      const result: any = await decodeActions._getMetadataForMetadataUpdate(decoded as any)
+
+      expect(extractMetadataUriSpy.calledOnce).to.be.true
+      expect(ipfsGetStub.calledOnce).to.be.true
+
+      expect(result?.type).to.be.eq(ProposalActionType.MetadataUpdate)
+      expect(result?.metadata.title).to.be.eq('Test Title')
+    })
+
+    it('should fail if the metadata has bad content', async () => {
+      const decodeActions = new DecodeActions()
+
+      const decoded = {
+        textSignature: 'setMetadata(bytes)',
+        decoded: [
+          '0x697066733a2f2f6261666b726569656a697572753268366b7463616f37336c6d71656b6a37377469716536706a747235626b7876746d37777137613235326a783779',
+        ],
+      }
+
+      const extractMetadataUriSpy = sandbox.spy(Web3Helper, 'extractMetadataUri')
+      const ipfsGetStub = sandbox.stub(IPFSModule, 'fetchMetadata').rejects(new Error('fake-error'))
+
+      const result = await decodeActions._getMetadataForMetadataUpdate(decoded as any)
+
+      expect(extractMetadataUriSpy.calledOnce).to.be.true
+      expect(ipfsGetStub.calledOnce).to.be.true
+
+      expect(result).to.be.null
     })
   })
 })
