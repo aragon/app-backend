@@ -6,6 +6,7 @@ import {
   type IProposalExtraParams,
   type IProposalIdParams,
   type IProposalsResponse,
+  ITokenType,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions, Schema } from 'mongoose'
@@ -124,6 +125,29 @@ export class Metrics {
   public votesByOption!: VotesByOption[]
 }
 
+class Token {
+  @prop({ type: () => String, enum: ITokenType, required: true })
+  public type!: ITokenType
+
+  @prop({ type: () => String, required: true })
+  public address!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public logo!: string
+
+  @prop({ type: () => String, default: null })
+  public name!: string
+
+  @prop({ type: () => String, default: null, uppercase: true })
+  public symbol!: string
+
+  @prop({ type: () => Number, default: 18 })
+  public decimals!: number
+
+  @prop({ type: () => String, default: 0 })
+  public totalSupply!: string
+}
+
 @modelOptions({
   schemaOptions: {
     id: false,
@@ -206,6 +230,9 @@ export default class Proposal extends Model {
 
   @prop({ type: () => Metrics, _id: false, default: null })
   public metrics!: Metrics
+
+  @prop({ type: () => Token, _id: false, default: null })
+  public token!: Token
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
