@@ -239,9 +239,23 @@ export const AggregatorMembers = {
       {
         $lookup: {
           from: 'logPluginRepo',
-          localField: 'pluginInfo.pluginSetupRepo',
-          foreignField: 'pluginRepo',
-          pipeline: [{ $project: { subdomain: 1 } }],
+          let: {
+            repoAddrs: '$pluginInfo.pluginSetupRepo',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ['$pluginRepo', '$$repoAddrs'],
+                },
+              },
+            },
+            {
+              $project: {
+                subdomain: 1,
+              },
+            },
+          ],
           as: 'pluginRepoInfo',
         },
       },

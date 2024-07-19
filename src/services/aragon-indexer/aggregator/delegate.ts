@@ -86,8 +86,8 @@ export const AggregatorDelegate = {
       {
         $lookup: {
           from: 'token',
-          localField: 'tokenAddress',
-          foreignField: 'address',
+          let: { tokenAddr: '$tokenAddress' },
+          pipeline: [{ $match: { $expr: { $eq: ['$$tokenAddr', '$address'] } } }],
           as: 'tokenDetails',
         },
       },
