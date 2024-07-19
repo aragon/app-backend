@@ -1,13 +1,14 @@
 import * as sinon from 'sinon'
 import { expect } from 'chai'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
-import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import Logger from '@logger'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import config from '@config'
+import { UnitTestUtils } from '@test/lib/utils'
+import ProviderModule from '@modules/provider'
 
 describe('Modules:BlockchainTransferCrawler', () => {
   let sandbox: sinon.SinonSandbox
@@ -31,7 +32,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
   describe('constructor', () => {
     it('should throw an error if the provider is not configured', () => {
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(null)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(_ => null as any)
       expect(
         () =>
           new BlockchainTransferCrawler({
@@ -43,8 +44,8 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
 
     it('should initialize with default values', () => {
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
 
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
@@ -72,7 +73,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const providerStub = {
         getBlockNumber: sandbox.stub().resolves(123),
       }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => providerStub as any)
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
         filter: {},
@@ -87,7 +88,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const providerStub = {
         getBlockNumber: sandbox.stub().rejects(new Error('error')),
       }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => providerStub as any)
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
         filter: {},
@@ -99,8 +100,9 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
 
     it('should return the block number when given a specific block', async () => {
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
+
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
         filter: {},
@@ -114,8 +116,8 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
   describe('crawl', () => {
     it('should crawl transfers correctly', async () => {
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => mockProvider as any)
       const error = new Error('Log response size exceeded')
-      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
       mockProvider.getBlockNumber.resolves(300)
       mockProvider.send
         .onCall(0)
@@ -145,8 +147,8 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
 
     it('should crawl transfers correctly with logService', async () => {
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => mockProvider as any)
       const stubSaveProgress = sandbox.stub(BlockchainTransferCrawler.prototype, 'onSaveProgress').resolves()
-      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
       mockProvider.getBlockNumber.resolves(16721863 + 10)
       mockProvider.send
         .onFirstCall()
@@ -176,7 +178,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
 
     it('should handle crawling', async () => {
-      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => mockProvider as any)
       let blockNumber = 16721863 + 20
       mockProvider.getBlockNumber.callsFake(() => Promise.resolve(blockNumber++))
       mockProvider.send.resolves({ transfers: [{ transactionHash: `0x${blockNumber}`, blockNum: blockNumber }] })
@@ -212,7 +214,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
         getBlockNumber: getBlockNumberStub,
         send: sandbox.stub().resolves({ transfers: [] }),
       }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => providerStub as any)
       const onTxStub = sandbox.stub().resolves()
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
@@ -231,7 +233,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
         send: sandbox.stub().resolves({ transfers: [] }),
       }
       const convertToHexNumberStub = sandbox.spy(Web3Helper, 'convertToHexNumber')
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => providerStub as any)
 
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
@@ -256,7 +258,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
         send: sandbox.stub().resolves({ transfers: [] }),
       }
       const convertToHexNumberStub = sandbox.spy(Web3Helper, 'convertToHexNumber')
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => providerStub as any)
 
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
@@ -276,8 +278,9 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
 
     it('should throw an error if already crawling', async () => {
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
+
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
         filter: {},
@@ -297,7 +300,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
         getBlockNumber: sandbox.stub().onFirstCall().resolves(100).onSecondCall().resolves(100),
         send: sandbox.stub().rejects(new Error('Test Error')),
       }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => providerStub as any)
       const onErrorStub = sandbox.stub()
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
@@ -320,8 +323,9 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
   describe('handleErrors', () => {
     it('should reduce batch size on batch size error', async () => {
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
+
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
         filter: {},
@@ -337,8 +341,9 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
     it('should wait on rate limited error', async () => {
       const waitStub = sandbox.stub(Utils, 'wait').resolves()
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
+
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
         filter: {},
@@ -353,8 +358,9 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
     it('should call onError and shutdown on other errors', async () => {
       const onErrorStub = sandbox.stub()
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
+
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
         filter: {},
@@ -372,8 +378,9 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
   describe('processTxs', () => {
     it('should process transactions successfully', async () => {
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
+
       const onTxStub = sandbox.stub().resolves()
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
@@ -389,8 +396,9 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
 
     it('should handle errors and increment error count', async () => {
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
+
       const onTxStub = sandbox.stub().rejects(new Error('Transaction error'))
       const onErrorStub = sandbox.stub()
       const crawler = new BlockchainTransferCrawler({
@@ -410,8 +418,8 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
   describe('getServiceStartBlock', () => {
     it('should getServiceStartBlock', async () => {
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
 
       const mockLogService = 'testService'
       const mockNetwork = NetworksEnum.ethereumMainnet
@@ -433,8 +441,8 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
 
     it('should getServiceStartBlock from config', async () => {
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
 
       const mockLogService = 'testService'
       const mockNetwork = NetworksEnum.ethereumMainnet
@@ -458,7 +466,9 @@ describe('Modules:BlockchainTransferCrawler', () => {
 
   describe('onSaveProgress', () => {
     it('should onSaveProgress - create', async () => {
-      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
+
       const blockNumber = 10
 
       const crawler = new BlockchainTransferCrawler({
@@ -480,7 +490,9 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
 
     it('should onSaveProgress - update', async () => {
-      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
+
       const blockNumber = 10
 
       const crawler = new BlockchainTransferCrawler({

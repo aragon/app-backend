@@ -1,8 +1,8 @@
 import { type HexAddress, type NetworksEnum } from '@types'
-import { Contract, ethers, getAddress, type WebSocketProvider, ZeroAddress } from 'ethers'
-import { ConfigState } from '@state/configState'
+import { Contract, ethers, getAddress, ZeroAddress } from 'ethers'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyContractHelper' })
 
@@ -27,7 +27,7 @@ const ProxyContractHelper = {
   },
 
   async _fallBackImplementationViaViewCall(address: string, network: NetworksEnum): Promise<HexAddress | null> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+    const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(
       address,
       ['function implementation() view returns (address)', 'function getImplementation() view returns (address)'],
@@ -50,7 +50,7 @@ const ProxyContractHelper = {
   },
 
   async getImplementationAddress(address: string, network: NetworksEnum): Promise<HexAddress | null> {
-    const provider = ConfigState.getInstance().getConfigItem(network) as WebSocketProvider
+    const provider = ProviderModule.getProvider(network)!
 
     // Helper function to extract an address from a storage slot
     async function getAddressFromStorage(slot: string): Promise<HexAddress | null> {

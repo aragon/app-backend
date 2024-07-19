@@ -5,6 +5,7 @@ import { DaoTvl } from '@services/aragon-rates/daoTvl'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import { ITokenType, NetworksEnum } from '@types'
+import DBCrawler from '@models/utils/crawler'
 
 describe('Rates: DaoTvl', () => {
   let sandbox: SinonSandbox
@@ -94,6 +95,20 @@ describe('Rates: DaoTvl', () => {
       expect(stubLogger.calledWith('Update Dao tvlUSD' as any)).to.be.true
       expect(stubLogger.calledWith('End DaoTvl' as any)).to.be.true
       expect(daoDb.tvlUSD).to.eq(11204.2)
+    })
+
+    it('should error DaoTvl', async () => {
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onError(true)
+      })
+
+      await DaoTvl.start()
+
+      expect(stubLogger.calledWith('End DaoTvl' as any)).to.be.true
+      expect(stubLoggerError.calledOnce).to.be.true
+      expect(crawlerStub.calledOnce).to.be.true
     })
   })
 

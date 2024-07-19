@@ -7,6 +7,9 @@ import { getAddress } from 'ethers'
 import { NetworksEnum } from '@types'
 import proxyquire from 'proxyquire'
 import Logger from '@logger'
+import { UnitTestUtils } from '@test/lib/utils'
+import ProviderModule from '@modules/provider'
+import { NetworkHelper } from '@helpers/network'
 
 describe('Helpers:ProxyContractHelper', () => {
   let sandbox: SinonSandbox
@@ -42,10 +45,7 @@ describe('Helpers:ProxyContractHelper', () => {
       const providerStub = {
         getStorage: sandbox.stub().resolves('0x'),
       }
-
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns(providerStub),
-      }
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => providerStub as any)
 
       const contractStub = {
         getImplementation: sandbox.stub().resolves('0x0000000000000000000000000000000000000001'),
@@ -58,8 +58,8 @@ describe('Helpers:ProxyContractHelper', () => {
             return contractStub
           },
         },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
+        '@modules/provider': {
+          getProvider: () => providerStub,
         },
       })
 
@@ -150,7 +150,7 @@ describe('Helpers:ProxyContractHelper', () => {
         getStorage: getStorageStub,
         getCode: getCodeStub,
       }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(_ => providerStub as any)
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.equal(getAddress(`0x${hexAddress}`))
@@ -173,7 +173,7 @@ describe('Helpers:ProxyContractHelper', () => {
         getStorage: getStorageStub,
         getCode: getCodeStub,
       }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(_ => providerStub as any)
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.equal(getAddress(`0x${hexAddress}`))
@@ -191,7 +191,7 @@ describe('Helpers:ProxyContractHelper', () => {
         getStorage: getStorageStub,
         getCode: getCodeStub,
       }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(_ => providerStub as any)
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.equal(getAddress(`0x${implementationAddress}`))
@@ -207,7 +207,7 @@ describe('Helpers:ProxyContractHelper', () => {
         getStorage: getStorageStub,
         getCode: getCodeStub,
       }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(_ => providerStub as any)
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.equal('0x123456')
@@ -223,7 +223,7 @@ describe('Helpers:ProxyContractHelper', () => {
         getStorage: getStorageStub,
         getCode: getCodeStub,
       }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(_ => providerStub as any)
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.be.null
@@ -236,7 +236,7 @@ describe('Helpers:ProxyContractHelper', () => {
       const providerStub = {
         getStorage: getStorageStub,
       }
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(_ => providerStub as any)
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.be.null
