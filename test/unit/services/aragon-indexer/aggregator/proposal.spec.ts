@@ -110,6 +110,7 @@ describe('Indexer:Aggregator:Proposal', () => {
       const _fetchTokenDetailsStub = sandbox.stub(AggregatorProposal, '_fetchTokenDetails').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         name: 'MockToken',
+        type: ITokenType.ERC20,
       })
       await AggregatorProposal.onDocument(document as any)
 
