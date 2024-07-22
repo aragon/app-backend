@@ -76,6 +76,7 @@ class DecodeActions {
       addAddresses: this._getMetadataOfAddMultiSigMember.bind(this),
       removeAddresses: this._getMetadataOfRemoveMultiSigMember.bind(this),
       setMetadata: this._getMetadataForMetadataUpdate.bind(this),
+      updateMultisigSettings: this._getMetdataOfMultiSigSetting.bind(this),
       // TODO: We can add more handlers later
     }
 
@@ -322,6 +323,37 @@ class DecodeActions {
       }
     } catch (e) {
       return null
+    }
+  }
+
+  async _getMetdataOfMultiSigSetting(decodedData: IDecodedData) {
+    if (decodedData.textSignature !== KnownActionSignature.UpdateMultiSigSettings) {
+      return null
+    }
+
+    return {
+      type: ProposalActionType.UpdateMultiSigSettings,
+      metadata: {
+        onlyListed: decodedData.decoded[0][0],
+        minApprovals: decodedData.decoded[0][1],
+      },
+    }
+  }
+
+  async _getMetdataOfVoteSetting(decodedData: IDecodedData) {
+    if (decodedData.textSignature !== KnownActionSignature.UpdateVoteSettings) {
+      return null
+    }
+
+    return {
+      type: ProposalActionType.UpdateVoteSettings,
+      metadata: {
+        votingMode: decodedData.decoded[0][0],
+        supportThreshold: decodedData.decoded[0][1],
+        minParticipation: decodedData.decoded[0][2],
+        minDuration: decodedData.decoded[0][3],
+        minProposerVotingPower: decodedData.decoded[0][4],
+      },
     }
   }
 }

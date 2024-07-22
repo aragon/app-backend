@@ -762,5 +762,46 @@ describe('Helpers: DecodeActions', () => {
 
       expect(result).to.be.null
     })
+
+    it('should handle multisig setting update action with sig updateMultisigSettings(tuple)', async () => {
+      const decodeActions = new DecodeActions()
+
+      const decoded = {
+        textSignature: 'updateMultisigSettings(tuple)',
+        decoded: [[true, 3]],
+      }
+
+      const result = await decodeActions._getMetdataOfMultiSigSetting(decoded as any)
+
+      expect(result).to.deep.eq({
+        metadata: {
+          onlyListed: true,
+          minApprovals: 3,
+        },
+        type: ProposalActionType.UpdateMultiSigSettings,
+      })
+    })
+
+    it('should handle vote setting update action with sig updateVoteSettings(tuple)', async () => {
+      const decodeActions = new DecodeActions()
+
+      const decoded = {
+        textSignature: 'updateVotingSettings(tuple)',
+        decoded: [[0, 500000, 150000, 1209600, 1000000000000000000]],
+      }
+
+      const result = await decodeActions._getMetdataOfVoteSetting(decoded as any)
+
+      expect(result).to.deep.eq({
+        metadata: {
+          votingMode: 0,
+          supportThreshold: 500000,
+          minParticipation: 150000,
+          minDuration: 1209600,
+          minProposerVotingPower: 1000000000000000000,
+        },
+        type: ProposalActionType.UpdateVoteSettings,
+      })
+    })
   })
 })
