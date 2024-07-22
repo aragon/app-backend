@@ -317,7 +317,7 @@ class DecodeActions {
     }
 
     try {
-      const ifpsContent = await IPFSModule.fetchMetadata(ipfsUrl!)
+      const ifpsContent = await IPFSModule.fetchMetadata(ipfsUrl)
       return {
         type: ProposalActionType.MetadataUpdate,
         metadata: {
