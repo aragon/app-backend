@@ -311,8 +311,12 @@ class DecodeActions {
       return null
     }
 
+    const ipfsUrl = Web3Helper.extractMetadataUri(decodedData.decoded[0])
+    if (!ipfsUrl) {
+      return null
+    }
+
     try {
-      const ipfsUrl = Web3Helper.extractMetadataUri(decodedData.decoded[0])
       const ifpsContent = await IPFSModule.fetchMetadata(ipfsUrl!)
       return {
         type: ProposalActionType.MetadataUpdate,
@@ -322,7 +326,12 @@ class DecodeActions {
         },
       }
     } catch (e) {
-      return null
+      return {
+        type: ProposalActionType.MetadataUpdate,
+        metadata: {
+          ipfsUrl,
+        },
+      }
     }
   }
 
