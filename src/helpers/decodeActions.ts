@@ -77,6 +77,7 @@ class DecodeActions {
       removeAddresses: this._getMetadataOfRemoveMultiSigMember.bind(this),
       setMetadata: this._getMetadataForMetadataUpdate.bind(this),
       updateMultisigSettings: this._getMetdataOfMultiSigSetting.bind(this),
+      updateVotingSettings: this._getMetdataOfVoteSetting.bind(this),
       // TODO: We can add more handlers later
     }
 
