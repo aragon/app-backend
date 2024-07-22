@@ -466,17 +466,19 @@ export const AggregatorProposal = {
                   },
                 },
                 totalVotingPower: {
-                  $sum: {
-                    $map: {
-                      input: {
-                        $filter: {
-                          input: '$voteEvents',
-                          as: 'vote',
-                          cond: { $eq: ['$$vote.voteOption', '$$option'] },
+                  $toString: {
+                    $sum: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: '$voteEvents',
+                            as: 'vote',
+                            cond: { $eq: ['$$vote.voteOption', '$$option'] },
+                          },
                         },
+                        as: 'vote',
+                        in: { $toDouble: '$$vote.votingPower' },
                       },
-                      as: 'vote',
-                      in: { $toDouble: '$$vote.votingPower' },
                     },
                   },
                 },
@@ -487,6 +489,7 @@ export const AggregatorProposal = {
       },
       {
         $project: {
+          _id: 0,
           totalVotes: 1,
           missingVotes: 1,
           votesByOption: 1,

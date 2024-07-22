@@ -27,6 +27,9 @@ class ERC1155Metadata {
 }
 
 class Token {
+  @prop({ type: () => String, enum: NetworksEnum })
+  public network!: NetworksEnum
+
   @prop({ type: () => String, enum: ITokenType, required: true })
   public type!: ITokenType
 

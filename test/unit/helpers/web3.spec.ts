@@ -8,6 +8,9 @@ import { ConfigState } from '@state/configState'
 import Logger from '@logger'
 import logger from '@logger'
 import proxyquire from 'proxyquire'
+import { UnitTestUtils } from '@test/lib/utils'
+import ProviderModule from '@modules/provider'
+import { ERC20_FUNCTIONS } from '@helpers/tokenDetector'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -711,7 +714,7 @@ describe('Helpers:Web3', () => {
       const providerStub = {
         send: sandbox.stub().resolves(fakeResponse),
       }
-      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => providerStub } as any)
+      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
 
       const balance = await Web3Helper.getBalance(fakeAddress, fakeNetwork)
       expect(balance).to.equal('2000000000000000000') // Check if conversion from wei to ether is correct
@@ -725,7 +728,7 @@ describe('Helpers:Web3', () => {
       const providerStub = {
         send: sandbox.stub().rejects(new Error('RPC error')),
       }
-      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => providerStub } as any)
+      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
 
       const balance = await Web3Helper.getBalance(fakeAddress, fakeNetwork)
       expect(balance).to.equal('0')
@@ -746,7 +749,7 @@ describe('Helpers:Web3', () => {
       const providerStub = {
         send: sandbox.stub().resolves(fakeResponse),
       }
-      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => providerStub } as any)
+      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
 
       const balances = await Web3Helper.getTokenBalances(fakeAddress, fakeNetwork)
       expect(balances.length).to.equal(2)
@@ -762,7 +765,7 @@ describe('Helpers:Web3', () => {
       const providerStub = {
         send: sandbox.stub().rejects(new Error('RPC error')),
       }
-      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => providerStub } as any)
+      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
 
       const balances = await Web3Helper.getTokenBalances(fakeAddress, fakeNetwork)
       expect(balances).to.be.an('array').that.is.empty
@@ -878,10 +881,11 @@ describe('Helpers:Web3', () => {
       const expectedTimestamp = 1615551010 // Example Unix timestamp
       const stubGetBlock = sandbox.stub().resolves({ timestamp: expectedTimestamp })
       const resolveName = sandbox.stub().resolves('0x000001')
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+
+      sandbox.stub(ProviderModule, 'getProvider').returns({
         resolveName,
         getBlock: stubGetBlock,
-      })
+      } as any)
 
       const timestamp = await Web3Helper.getBlockTimestamp(blockNumber, NetworksEnum.ethereumMainnet)
 
@@ -894,10 +898,11 @@ describe('Helpers:Web3', () => {
       const stubLogger = sandbox.stub(Logger, 'error')
       const stubGetBlock = sandbox.stub().rejects(new Error('fake-error'))
       const resolveName = sandbox.stub().resolves('0x000001')
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+
+      sandbox.stub(ProviderModule, 'getProvider').returns({
         resolveName,
         getBlock: stubGetBlock,
-      })
+      } as any)
 
       const timestamp = await Web3Helper.getBlockTimestamp(blockNumber, NetworksEnum.ethereumMainnet)
 
@@ -997,9 +1002,10 @@ describe('Helpers:Web3', () => {
     it('should getTransaction successfully', async () => {
       const txHash = '0x0'
       const getTransactionStub = sandbox.stub().resolves(true)
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+
+      sandbox.stub(ProviderModule, 'getProvider').returns({
         getTransaction: getTransactionStub,
-      })
+      } as any)
 
       const result = await Web3Helper.getTransaction(txHash, NetworksEnum.ethereumMainnet)
 
@@ -1010,9 +1016,10 @@ describe('Helpers:Web3', () => {
       const txHash = '0x0'
       const stubLogger = sandbox.stub(Logger, 'error')
       const getTransactionStub = sandbox.stub().rejects(new Error('fake-error'))
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+
+      sandbox.stub(ProviderModule, 'getProvider').returns({
         getTransaction: getTransactionStub,
-      })
+      } as any)
 
       const result = await Web3Helper.getTransaction(txHash, NetworksEnum.ethereumMainnet)
 
@@ -1026,9 +1033,9 @@ describe('Helpers:Web3', () => {
     it('should getTransactionReceipt successfully', async () => {
       const txHash = '0x0'
       const getTransactionReceiptStubStub = sandbox.stub().resolves(true)
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+      sandbox.stub(ProviderModule, 'getProvider').returns({
         getTransactionReceipt: getTransactionReceiptStubStub,
-      })
+      } as any)
 
       const result = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.ethereumMainnet)
 
@@ -1040,9 +1047,9 @@ describe('Helpers:Web3', () => {
       const txHash = '0x0'
       const stubLogger = sandbox.stub(Logger, 'error')
       const getTransactionReceiptStub = sandbox.stub().rejects(new Error('fake-error'))
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns({
+      sandbox.stub(ProviderModule, 'getProvider').returns({
         getTransactionReceipt: getTransactionReceiptStub,
-      })
+      } as any)
 
       const result = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.ethereumMainnet)
 
