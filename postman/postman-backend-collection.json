@@ -143,63 +143,54 @@
 								{
 									"key": "page",
 									"value": "<number>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "pageSize",
 									"value": "<number>",
 									"description": "any property returned by the data object",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "order",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "sort",
 									"value": "<string>",
-									"type": "text",
+									"description": "let's see whether this will commit to github :)",
 									"disabled": true
 								},
 								{
 									"key": "startDateProp",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "endDateProp",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "startDate",
 									"value": "<Date | timestamp>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "endDate",
 									"value": "<Date | timestamp>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "network",
 									"value": "<Network>",
 									"description": "ExtraParams:\nethereum-mainnet | ethereum-sepolia | polygon-mainnet | base-mainnet | arbitrum-mainnet",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "address",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
@@ -2416,15 +2407,51 @@
 							"script": {
 								"id": "54a6bda2-6014-4682-b72c-3abfbf231761",
 								"exec": [
-									"// Example: Check if the response status is 200",
-									"pm.test(\"Status code is 200\", function () {",
-									"    pm.response.to.have.status(200);",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
 									"});",
 									"",
-									"// Example: Check response time",
 									"pm.test(\"Response time is less than 6000ms\", function () {",
-									"    pm.expect(pm.response.responseTime).to.be.below(6000);",
-									"});"
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});",
+									"",
+									"pm.test(\"Response has data array\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"data\").that.is.an(\"array\", \"Expected response to have a 'data' property that is an array\");",
+									"});",
+									"",
+									"pm.test(\"Each Asset has correct properties and types\", function () {",
+									"    const data = pm.response.json().data;",
+									"    const expectedAssetPropertyCount = 6; // network, daoAddress, tokenAddress, amount, token, amountUsd",
+									"",
+									"    data.forEach((asset, index) => {",
+									"        try {",
+									"            const actualPropertyCount = Object.keys(asset).length;",
+									"            pm.expect(actualPropertyCount).to.equal(expectedAssetPropertyCount, `Asset ${index + 1}: Expected ${expectedAssetPropertyCount} properties but found ${actualPropertyCount}`);",
+									"            ",
+									"            pm.expect(asset).to.have.property(\"network\").that.is.a(\"string\", `Asset ${index + 1}: 'network' should be a string`);",
+									"            pm.expect(asset).to.have.property(\"daoAddress\").that.is.a(\"string\", `Asset ${index + 1}: 'daoAddress' should be a string`);",
+									"            pm.expect(asset).to.have.property(\"tokenAddress\").that.is.a(\"string\", `Asset ${index + 1}: 'tokenAddress' should be a string`);",
+									"            pm.expect(asset).to.have.property(\"amount\").that.is.a(\"string\", `Asset ${index + 1}: 'amount' should be a string`);",
+									"            pm.expect(asset).to.have.property(\"amountUsd\").that.is.a(\"string\", `Asset ${index + 1}: 'amountUsd' should be a string`);",
+									"            ",
+									"            const token = asset.token;",
+									"            pm.expect(token).to.have.property(\"network\").that.is.a(\"string\", `Asset ${index + 1}: 'token.network' should be a string`);",
+									"            pm.expect(token).to.have.property(\"address\").that.is.a(\"string\", `Asset ${index + 1}: 'token.address' should be a string`);",
+									"            pm.expect(token).to.have.property(\"symbol\").that.is.a(\"string\", `Asset ${index + 1}: 'token.symbol' should be a string`);",
+									"            pm.expect(token).to.have.property(\"name\").that.is.a(\"string\", `Asset ${index + 1}: 'token.name' should be a string`);",
+									"            pm.expect(token).to.have.property(\"type\").that.is.a(\"string\", `Asset ${index + 1}: 'token.type' should be a string`);",
+									"            pm.expect(token).to.have.property(\"logo\").that.is.a(\"string\", `Asset ${index + 1}: 'token.logo' should be a string`);",
+									"            pm.expect(token).to.have.property(\"decimals\").that.is.a(\"number\", `Asset ${index + 1}: 'token.decimals' should be a number`);",
+									"            pm.expect(token).to.have.property(\"priceChangeOnDayUsd\").that.is.a(\"string\", `Asset ${index + 1}: 'token.priceChangeOnDayUsd' should be a string`);",
+									"            pm.expect(token).to.have.property(\"priceUsd\").that.is.a(\"string\", `Asset ${index + 1}: 'token.priceUsd' should be a string`);",
+									"        } catch (e) {",
+									"            console.error(`Error in Asset ${index + 1}: ${e.message}`, asset);",
+									"            throw new Error(`Asset ${index + 1}: Check the console for more details. ${e.message}`);",
+									"        }",
+									"    });",
+									"});",
+									""
 								],
 								"type": "text/javascript",
 								"packages": {}
@@ -2450,79 +2477,66 @@
 								{
 									"key": "search",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "page",
 									"value": "<number>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "pageSize",
 									"value": "<number>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "order",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "sort",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "startDateProp",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "endDateProp",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "startDate",
 									"value": "<Date | timestamp>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "endDate",
 									"value": "<Date | timestamp>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "network",
 									"value": "<Network>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "address",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "tokenAddress",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "daoId",
 									"value": "<daoId>",
-									"type": "text",
 									"disabled": true
 								}
 							]
@@ -2660,6 +2674,84 @@
 			"item": [
 				{
 					"name": "get settings",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "b355ab82-213a-4c92-b4c5-66aaa78e9603",
+								"exec": [
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});",
+									"",
+									"pm.test(\"Response has data array\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"data\").that.is.an(\"array\", \"Expected response to have a 'data' property that is an array\");",
+									"});",
+									"",
+									"pm.test(\"Each Settings object has correct properties and types\", function () {",
+									"    const data = pm.response.json().data;",
+									"    const expectedSettingsPropertyCount = 12; // id, network, fromTxHash, toTxHash, fromBlockNumber, toBlockNumber, daoAddress, pluginAddress, pluginSubdomain, settings, tokenAddress, token (optional)",
+									"",
+									"    data.forEach((settings, index) => {",
+									"        try {",
+									"            const actualPropertyCount = Object.keys(settings).length;",
+									"            const hasToken = settings.hasOwnProperty(\"token\");",
+									"            pm.expect(actualPropertyCount).to.equal(expectedSettingsPropertyCount - (hasToken ? 0 : 1), `Settings ${index + 1}: Expected ${expectedSettingsPropertyCount - (hasToken ? 0 : 1)} properties but found ${actualPropertyCount}`);",
+									"            ",
+									"            pm.expect(settings).to.have.property(\"id\").that.is.a(\"string\", `Settings ${index + 1}: 'id' should be a string`);",
+									"            pm.expect(settings).to.have.property(\"network\").that.is.a(\"string\", `Settings ${index + 1}: 'network' should be a string`);",
+									"            pm.expect(settings).to.have.property(\"fromTxHash\").that.is.a(\"string\", `Settings ${index + 1}: 'fromTxHash' should be a string`);",
+									"            pm.expect(settings).to.have.property(\"toTxHash\").that.satisfies(value => value === null || typeof value === \"string\", `Settings ${index + 1}: 'toTxHash' should be null or a string`);",
+									"            pm.expect(settings).to.have.property(\"fromBlockNumber\").that.is.a(\"number\", `Settings ${index + 1}: 'fromBlockNumber' should be a number`);",
+									"            pm.expect(settings).to.have.property(\"toBlockNumber\").that.satisfies(value => value === null || typeof value === \"number\", `Settings ${index + 1}: 'toBlockNumber' should be null or a number`);",
+									"            pm.expect(settings).to.have.property(\"daoAddress\").that.is.a(\"string\", `Settings ${index + 1}: 'daoAddress' should be a string`);",
+									"            pm.expect(settings).to.have.property(\"pluginAddress\").that.is.a(\"string\", `Settings ${index + 1}: 'pluginAddress' should be a string`);",
+									"            pm.expect(settings).to.have.property(\"pluginSubdomain\").that.is.a(\"string\", `Settings ${index + 1}: 'pluginSubdomain' should be a string`);",
+									"            pm.expect(settings).to.have.property(\"settings\").that.is.an(\"object\", `Settings ${index + 1}: 'settings' should be an object`);",
+									"            pm.expect(settings).to.have.property(\"tokenAddress\").that.satisfies(value => value === null || typeof value === \"string\", `Settings ${index + 1}: 'tokenAddress' should be null or a string`);",
+									"",
+									"            const pluginSettings = settings.settings;",
+									"",
+									"            if (settings.pluginSubdomain === \"multisig\" || settings.pluginSubdomain === \"multisigplugin\") {",
+									"                pm.expect(pluginSettings).to.have.property(\"minApprovals\").that.is.a(\"number\", `Settings ${index + 1}: 'settings.minApprovals' should be a number`);",
+									"                pm.expect(pluginSettings).to.have.property(\"onlyListed\").that.is.a(\"boolean\", `Settings ${index + 1}: 'settings.onlyListed' should be a boolean`);",
+									"            } else {",
+									"                pm.expect(pluginSettings).to.have.property(\"votingMode\").that.is.a(\"number\", `Settings ${index + 1}: 'settings.votingMode' should be a number`);",
+									"                pm.expect(pluginSettings).to.have.property(\"supportThreshold\").that.is.a(\"number\", `Settings ${index + 1}: 'settings.supportThreshold' should be a number`);",
+									"                pm.expect(pluginSettings).to.have.property(\"minParticipation\").that.is.a(\"number\", `Settings ${index + 1}: 'settings.minParticipation' should be a number`);",
+									"                pm.expect(pluginSettings).to.have.property(\"minDuration\").that.is.a(\"number\", `Settings ${index + 1}: 'settings.minDuration' should be a number`);",
+									"                pm.expect(pluginSettings).to.have.property(\"minProposerVotingPower\").that.is.a(\"string\", `Settings ${index + 1}: 'settings.minProposerVotingPower' should be a string`);",
+									"            }",
+									"",
+									"            if (hasToken) {",
+									"                const token = settings.token;",
+									"                pm.expect(token).to.have.property(\"network\").that.is.a(\"string\", `Settings ${index + 1}: 'token.network' should be a string`);",
+									"                pm.expect(token).to.have.property(\"type\").that.is.a(\"string\", `Settings ${index + 1}: 'token.type' should be a string`);",
+									"                pm.expect(token).to.have.property(\"address\").that.is.a(\"string\", `Settings ${index + 1}: 'token.address' should be a string`);",
+									"                pm.expect(token).to.have.property(\"logo\").that.satisfies(value => value === null || typeof value === \"string\", `Settings ${index + 1}: 'token.logo' should be null or a string`);",
+									"                pm.expect(token).to.have.property(\"name\").that.is.a(\"string\", `Settings ${index + 1}: 'token.name' should be a string`);",
+									"                pm.expect(token).to.have.property(\"symbol\").that.is.a(\"string\", `Settings ${index + 1}: 'token.symbol' should be a string`);",
+									"                pm.expect(token).to.have.property(\"decimals\").that.is.a(\"number\", `Settings ${index + 1}: 'token.decimals' should be a number`);",
+									"                pm.expect(token).to.have.property(\"totalSupply\").that.is.a(\"string\", `Settings ${index + 1}: 'token.totalSupply' should be a string`);",
+									"            }",
+									"        } catch (e) {",
+									"            console.error(`Error in Settings ${index + 1}: ${e.message}`, settings);",
+									"            throw new Error(`Settings ${index + 1}: Check the console for more details. ${e.message}`);",
+									"        }",
+									"    });",
+									"});",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
 					"id": "234e20d7-a47e-4b49-a2f3-953b7a6de908",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
@@ -2679,85 +2771,71 @@
 								{
 									"key": "search",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "page",
 									"value": "<number>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "pageSize",
 									"value": "<number>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "order",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "sort",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "startDateProp",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "endDateProp",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "startDate",
 									"value": "<Date | timestamp>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "endDate",
 									"value": "<Date | timestamp>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "onlyActive",
 									"value": "<boolean>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "network",
 									"value": "<Network>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "daoAddress",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "pluginAddress",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "daoId",
 									"value": "<daoId>",
-									"type": "text",
 									"disabled": true
 								}
 							]
@@ -3216,15 +3294,61 @@
 							"script": {
 								"id": "d0522220-cfe2-4176-b787-00395e831d42",
 								"exec": [
-									"// Example: Check if the response status is 200",
-									"pm.test(\"Status code is 200\", function () {",
-									"    pm.response.to.have.status(200);",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
 									"});",
 									"",
-									"// Example: Check response time",
 									"pm.test(\"Response time is less than 6000ms\", function () {",
-									"    pm.expect(pm.response.responseTime).to.be.below(6000);",
-									"});"
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});",
+									"",
+									"pm.test(\"Response has data array\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"data\").that.is.an(\"array\", \"Expected response to have a 'data' property that is an array\");",
+									"});",
+									"",
+									"pm.test(\"Each Transaction object has correct properties and types\", function () {",
+									"    const data = pm.response.json().data;",
+									"    const expectedTransactionPropertyCount = 16; // id, transactionHash, blockNumber, blockTimestamp, network, type, category, fromAddress, toAddress, value, tokenId, erc721TokenId, erc1155Metadata, proposalId, amountUsd, token (optional)",
+									"",
+									"    data.forEach((transaction, index) => {",
+									"        try {",
+									"            const actualPropertyCount = Object.keys(transaction).length;",
+									"            const hasToken = transaction.hasOwnProperty(\"token\");",
+									"            pm.expect(actualPropertyCount).to.equal(expectedTransactionPropertyCount - (hasToken ? 0 : 1), `Transaction ${index + 1}: Expected ${expectedTransactionPropertyCount - (hasToken ? 0 : 1)} properties but found ${actualPropertyCount}`);",
+									"            ",
+									"            pm.expect(transaction).to.have.property(\"id\").that.is.a(\"string\", `Transaction ${index + 1}: 'id' should be a string`);",
+									"            pm.expect(transaction).to.have.property(\"transactionHash\").that.is.a(\"string\", `Transaction ${index + 1}: 'transactionHash' should be a string`);",
+									"            pm.expect(transaction).to.have.property(\"blockNumber\").that.is.a(\"number\", `Transaction ${index + 1}: 'blockNumber' should be a number`);",
+									"            pm.expect(transaction).to.have.property(\"blockTimestamp\").that.is.a(\"number\", `Transaction ${index + 1}: 'blockTimestamp' should be a number`);",
+									"            pm.expect(transaction).to.have.property(\"network\").that.is.a(\"string\", `Transaction ${index + 1}: 'network' should be a string`);",
+									"            pm.expect(transaction).to.have.property(\"type\").that.is.a(\"string\", `Transaction ${index + 1}: 'type' should be a string`);",
+									"            pm.expect(transaction).to.have.property(\"category\").that.is.a(\"string\", `Transaction ${index + 1}: 'category' should be a string`);",
+									"            pm.expect(transaction).to.have.property(\"fromAddress\").that.is.a(\"string\", `Transaction ${index + 1}: 'fromAddress' should be a string`);",
+									"            pm.expect(transaction).to.have.property(\"toAddress\").that.is.a(\"string\", `Transaction ${index + 1}: 'toAddress' should be a string`);",
+									"            pm.expect(transaction).to.have.property(\"value\").that.is.a(\"string\", `Transaction ${index + 1}: 'value' should be a string`);",
+									"            pm.expect(transaction).to.have.property(\"tokenId\").that.satisfies(value => value === null || typeof value === \"string\", `Transaction ${index + 1}: 'tokenId' should be null or a string`);",
+									"            pm.expect(transaction).to.have.property(\"erc721TokenId\").that.satisfies(value => value === null || typeof value === \"string\", `Transaction ${index + 1}: 'erc721TokenId' should be null or a string`);",
+									"            pm.expect(transaction).to.have.property(\"erc1155Metadata\").that.is.an(\"array\", `Transaction ${index + 1}: 'erc1155Metadata' should be an array`);",
+									"            pm.expect(transaction).to.have.property(\"proposalId\").that.satisfies(value => value === null || typeof value === \"string\", `Transaction ${index + 1}: 'proposalId' should be null or a string`);",
+									"            pm.expect(transaction).to.have.property(\"amountUsd\").that.is.a(\"string\", `Transaction ${index + 1}: 'amountUsd' should be a string`);",
+									"",
+									"            if (hasToken) {",
+									"                const token = transaction.token;",
+									"                pm.expect(token).to.have.property(\"type\").that.is.a(\"string\", `Transaction ${index + 1}: 'token.type' should be a string`);",
+									"                pm.expect(token).to.have.property(\"address\").that.is.a(\"string\", `Transaction ${index + 1}: 'token.address' should be a string`);",
+									"                pm.expect(token).to.have.property(\"logo\").that.satisfies(value => value === null || typeof value === \"string\", `Transaction ${index + 1}: 'token.logo' should be null or a string`);",
+									"                pm.expect(token).to.have.property(\"name\").that.is.a(\"string\", `Transaction ${index + 1}: 'token.name' should be a string`);",
+									"                pm.expect(token).to.have.property(\"symbol\").that.satisfies(value => value === null || typeof value === \"string\", `Transaction ${index + 1}: 'token.symbol' should be null or a string`);",
+									"                pm.expect(token).to.have.property(\"decimals\").that.is.a(\"number\", `Transaction ${index + 1}: 'token.decimals' should be a number`);",
+									"            }",
+									"        } catch (e) {",
+									"            console.error(`Error in Transaction ${index + 1}: ${e.message}`, transaction);",
+									"            throw new Error(`Transaction ${index + 1}: Check the console for more details. ${e.message}`);",
+									"        }",
+									"    });",
+									"});",
+									""
 								],
 								"type": "text/javascript",
 								"packages": {}
@@ -3250,91 +3374,76 @@
 								{
 									"key": "search",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "page",
 									"value": "<number>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "pageSize",
 									"value": "<number>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "order",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "sort",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "startDateProp",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "endDateProp",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "startDate",
 									"value": "<Date | timestamp>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "endDate",
 									"value": "<Date | timestamp>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "network",
 									"value": "<Network>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "address",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "fromAddress",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "toAddress",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "category",
 									"value": "<transactionCategory>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "daoId",
 									"value": "<daoId>",
-									"type": "text",
 									"disabled": true
 								}
 							]
@@ -3610,15 +3719,49 @@
 							"script": {
 								"id": "8e26c89e-d622-4621-8848-29bb004be8d5",
 								"exec": [
-									"// Example: Check if the response status is 200",
-									"pm.test(\"Status code is 200\", function () {",
-									"    pm.response.to.have.status(200);",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
 									"});",
 									"",
-									"// Example: Check response time",
 									"pm.test(\"Response time is less than 6000ms\", function () {",
-									"    pm.expect(pm.response.responseTime).to.be.below(6000);",
-									"});"
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});",
+									"",
+									"pm.test(\"Response has data array\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"data\").that.is.an(\"array\", \"Expected response to have a 'data' property that is an array\");",
+									"});",
+									"",
+									"pm.test(\"Each Token object has correct properties and types\", function () {",
+									"    const data = pm.response.json().data;",
+									"    const expectedTokenPropertyCount = 14; // id, network, type, address, implementationAddress, logo, name, symbol, decimals, holders, totalSupply, priceChangeOnDayUsd, priceUsd, lastUpdatedAt",
+									"",
+									"    data.forEach((token, index) => {",
+									"        try {",
+									"            const actualPropertyCount = Object.keys(token).length;",
+									"            pm.expect(actualPropertyCount).to.equal(expectedTokenPropertyCount, `Token ${index + 1}: Expected ${expectedTokenPropertyCount} properties but found ${actualPropertyCount}`);",
+									"            ",
+									"            pm.expect(token).to.have.property(\"id\").that.is.a(\"string\", `Token ${index + 1}: 'id' should be a string`);",
+									"            pm.expect(token).to.have.property(\"network\").that.is.a(\"string\", `Token ${index + 1}: 'network' should be a string`);",
+									"            pm.expect(token).to.have.property(\"type\").that.is.a(\"string\", `Token ${index + 1}: 'type' should be a string`);",
+									"            pm.expect(token).to.have.property(\"address\").that.is.a(\"string\", `Token ${index + 1}: 'address' should be a string`);",
+									"            pm.expect(token).to.have.property(\"implementationAddress\").that.satisfies(value => value === null || typeof value === \"string\", `Token ${index + 1}: 'implementationAddress' should be null or a string`);",
+									"            pm.expect(token).to.have.property(\"logo\").that.satisfies(value => value === null || typeof value === \"string\", `Token ${index + 1}: 'logo' should be null or a string`);",
+									"            pm.expect(token).to.have.property(\"name\").that.is.a(\"string\", `Token ${index + 1}: 'name' should be a string`);",
+									"            pm.expect(token).to.have.property(\"symbol\").that.is.a(\"string\", `Token ${index + 1}: 'symbol' should be a string`);",
+									"            pm.expect(token).to.have.property(\"decimals\").that.is.a(\"number\", `Token ${index + 1}: 'decimals' should be a number`);",
+									"            pm.expect(token).to.have.property(\"holders\").that.is.a(\"number\", `Token ${index + 1}: 'holders' should be a number`);",
+									"            pm.expect(token).to.have.property(\"totalSupply\").that.is.a(\"string\", `Token ${index + 1}: 'totalSupply' should be a string`);",
+									"            pm.expect(token).to.have.property(\"priceChangeOnDayUsd\").that.is.a(\"string\", `Token ${index + 1}: 'priceChangeOnDayUsd' should be a string`);",
+									"            pm.expect(token).to.have.property(\"priceUsd\").that.is.a(\"string\", `Token ${index + 1}: 'priceUsd' should be a string`);",
+									"            pm.expect(token).to.have.property(\"lastUpdatedAt\").that.satisfies(value => value === null || typeof value === \"string\", `Token ${index + 1}: 'lastUpdatedAt' should be null or a string`);",
+									"        } catch (e) {",
+									"            console.error(`Error in Token ${index + 1}: ${e.message}`, token);",
+									"            throw new Error(`Token ${index + 1}: Check the console for more details. ${e.message}`);",
+									"        }",
+									"    });",
+									"});",
+									""
 								],
 								"type": "text/javascript",
 								"packages": {}
@@ -3644,67 +3787,56 @@
 								{
 									"key": "search",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "page",
-									"value": "<number>",
-									"type": "text",
+									"value": "<name>",
 									"disabled": true
 								},
 								{
 									"key": "pageSize",
-									"value": "<number>",
-									"type": "text",
+									"value": "<name>",
 									"disabled": true
 								},
 								{
 									"key": "order",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "sort",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "startDateProp",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "endDateProp",
 									"value": "<string>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "startDate",
 									"value": "<Date | timestamp>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "endDate",
 									"value": "<Date | timestamp>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "network",
 									"value": "<Network>",
-									"type": "text",
 									"disabled": true
 								},
 								{
 									"key": "type",
 									"value": "<tokenType>",
-									"type": "text",
 									"disabled": true
 								}
 							]
