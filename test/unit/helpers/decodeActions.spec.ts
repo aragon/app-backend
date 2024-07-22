@@ -742,6 +742,25 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.metadata.title).to.be.eq('Test Title')
     })
 
+    it('should return null if the extracted metadata uri is invalid', async () => {
+      const decodeActions = new DecodeActions()
+
+      const decoded = {
+        textSignature: 'setMetadata(bytes)',
+        decoded: [
+          '0x697066733a2f2f6261666b726569656a697572753268366b7463616f37336c6d71656b6a37377469716536706a747235626b7876746d37777137613235326a783779',
+        ],
+      }
+
+      const extractMetadataUriStub = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(null)
+
+      const result = await decodeActions._getMetadataForMetadataUpdate(decoded as any)
+
+      expect(extractMetadataUriStub.calledOnce).to.be.true
+
+      expect(result).to.be.null
+    })
+
     it('should fail if the metadata has bad content', async () => {
       const decodeActions = new DecodeActions()
 
@@ -760,7 +779,12 @@ describe('Helpers: DecodeActions', () => {
       expect(extractMetadataUriSpy.calledOnce).to.be.true
       expect(ipfsGetStub.calledOnce).to.be.true
 
-      expect(result).to.be.null
+      expect(result).to.deep.eq({
+        type: ProposalActionType.MetadataUpdate,
+        metadata: {
+          ipfsUrl: 'ipfs://bafkreiejiuru2h6ktcao73lmqekj77tiqe6pjtr5bkxvtm7wq7a252jx7y',
+        },
+      })
     })
 
     it('should handle multisig setting update action with sig updateMultisigSettings(tuple)', async () => {
