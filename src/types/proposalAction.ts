@@ -5,6 +5,8 @@ export enum ProposalActionType {
   MultisigAddMembers = 'MultisigAddMembers',
   MultisigRemoveMembers = 'MultisigRemoveMembers',
   MetadataUpdate = 'MetadataUpdate',
+  UpdateMultiSigSettings = 'UpdateMultiSigSettings',
+  UpdateVoteSettings = 'UpdateVoteSettings',
 }
 
 export interface IRawAction {
@@ -21,4 +23,6 @@ export enum KnownActionSignature {
   MultisigAddMembers = 'addAddresses(address[])',
   MultisigRemoveMembers = 'removeAddresses(address[])',
   MetadataUpdate = 'setMetadata(bytes)',
+  UpdateMultiSigSettings = 'updateMultisigSettings(tuple)',
+  UpdateVoteSettings = 'updateVotingSettings(tuple)',
 }
