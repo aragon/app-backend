@@ -1,12 +1,13 @@
 import logger from '@logger'
 import { type Filter, type Log, type WebSocketProvider } from 'ethers'
-import { ConfigState } from '@state/configState'
 import { type IEnumIndexerService, NetworksEnum } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import config from '@config'
 import utils from '@helpers/utils'
+import ProviderModule from '@modules/provider'
+import { retryRequest } from '@helpers/retryRequest'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' })
 
@@ -42,7 +43,7 @@ class BlockchainLogCrawler {
     stopOnError?: boolean
     logService?: IEnumIndexerService
   }) {
-    this.provider = ConfigState.getInstance().getConfigItem(opts.network) as WebSocketProvider
+    this.provider = ProviderModule.getProvider(opts.network)!
     if (!this.provider) {
       throw new Error('Provider not configured for network: ' + opts.network)
     }
@@ -106,8 +107,10 @@ class BlockchainLogCrawler {
   async getBlockNumber(blockNumber: string | number | undefined): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
-        return await BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
-          this.provider.getBlockNumber(),
+        return await retryRequest(async () =>
+          BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
+            this.provider.getBlockNumber(),
+          ),
         )
       } catch (error) {
         logger.error(
@@ -167,13 +170,15 @@ class BlockchainLogCrawler {
         let success = false
         while (!success) {
           try {
-            const logs = await BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
-              this.provider.getLogs({
-                address: this.filter.address,
-                topics: [topics],
-                fromBlock: currentBlock,
-                toBlock,
-              }),
+            const logs = await retryRequest(async () =>
+              BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
+                this.provider.getLogs({
+                  address: this.filter.address,
+                  topics: [topics],
+                  fromBlock: currentBlock,
+                  toBlock,
+                }),
+              ),
             )
             await this.processLogs(logs)
             this.batchSize = this.originalBatchSize

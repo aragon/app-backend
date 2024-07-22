@@ -8,6 +8,9 @@ import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import { Models } from '@dbModels'
 import config from '@config'
+import { UnitTestUtils } from '@test/lib/utils'
+import ProviderModule from '@modules/provider'
+import { ERC721_FUNCTIONS } from '@helpers/tokenDetector'
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
@@ -32,7 +35,8 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   it('should crawl logs correctly', async () => {
-    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+    sandbox.stub(ProviderModule, 'getProvider').callsFake(network => mockProvider as any)
+
     mockProvider.getBlockNumber.resolves(10)
     mockProvider.getLogs
       .onFirstCall()
@@ -57,7 +61,7 @@ describe('Module: blockchainLogCrawler', () => {
 
   it('should crawl logs correctly with logService', async () => {
     const stubSaveProgress = sandbox.stub(BlockchainLogCrawler.prototype, 'onSaveProgress').resolves()
-    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
     mockProvider.getBlockNumber.resolves(16721863 + 10)
     mockProvider.getLogs
       .onFirstCall()
@@ -86,7 +90,7 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   it('should handle continuous crawling with new blocks added', async () => {
-    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
     let blockNumber = 10
     mockProvider.getBlockNumber.callsFake(() => Promise.resolve(blockNumber++))
     mockProvider.getLogs.resolves([{ transactionHash: `0x${blockNumber}` }])
@@ -119,7 +123,7 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   it('should handle rate limiting by pausing and retrying', async () => {
-    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
 
     const rateLimitError = new Error('Your app has exceeded its compute units per second capacity')
     rateLimitError.message = 'Your app has exceeded its compute units per second capacity'
@@ -151,7 +155,7 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   it('should reduce batch size and retry on batch size error, restore batch size on next batch', async () => {
-    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
     const error = new Error('Log response size exceeded')
     error.message = 'Log response size exceeded'
     mockProvider.getBlockNumber.onFirstCall().resolves(300).onSecondCall().resolves(300)
@@ -181,7 +185,7 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   it('should reduce batch size and retry on batch size error with default error', async () => {
-    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
     const error = new Error('Log response size exceeded')
     error.message = 'Log response size exceeded'
     mockProvider.getBlockNumber.onFirstCall().resolves(2000).onSecondCall().resolves(100)
@@ -203,7 +207,7 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   it('should handle empty log responses', async () => {
-    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
     mockProvider.getBlockNumber.resolves(100)
     mockProvider.getLogs.resolves([])
 
@@ -222,7 +226,7 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   it('should properly handle network errors', async () => {
-    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
     const networkError = new Error('Network failure')
     mockProvider.getBlockNumber.rejects(networkError)
 
@@ -241,9 +245,7 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   it('should throw an error if the provider is not configured for the network', () => {
-    sandbox.stub(ConfigState, 'getInstance').returns({
-      getConfigItem: sandbox.stub().returns(null),
-    } as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(null as any)
 
     const options = {
       network: NetworksEnum.ethereumMainnet,
@@ -259,7 +261,7 @@ describe('Module: blockchainLogCrawler', () => {
       getBlockNumber: sandbox.stub().resolves(10),
       getLogs: sandbox.stub().resolves([]),
     }
-    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => provider } as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(provider as any)
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.ethereumMainnet,
       filter: {},
@@ -278,7 +280,7 @@ describe('Module: blockchainLogCrawler', () => {
       getBlockNumber: sandbox.stub().resolves(10),
       getLogs: sandbox.stub().resolves([]),
     }
-    sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => provider } as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(provider as any)
     const mockOnError = sandbox.stub()
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.ethereumMainnet,
@@ -310,7 +312,7 @@ describe('Module: blockchainLogCrawler', () => {
     let crawler
 
     beforeEach(() => {
-      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
       crawler = new BlockchainLogCrawler({
         network: NetworksEnum.ethereumMainnet,
         filter: {},
@@ -349,7 +351,7 @@ describe('Module: blockchainLogCrawler', () => {
 
   describe('onSaveProgress', () => {
     it('should onSaveProgress - create', async () => {
-      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
       const blockNumber = 10
 
       const crawler = new BlockchainLogCrawler({
@@ -372,7 +374,7 @@ describe('Module: blockchainLogCrawler', () => {
     })
 
     it('should onSaveProgress - update', async () => {
-      sandbox.stub(ConfigState, 'getInstance').returns({ getConfigItem: () => mockProvider } as any)
+      sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
       const blockNumber = 10
 
       const crawler = new BlockchainLogCrawler({
@@ -399,8 +401,8 @@ describe('Module: blockchainLogCrawler', () => {
 
   describe('getServiceStartBlock', () => {
     it('should getServiceStartBlock', async () => {
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
 
       const mockLogService = 'testService'
       const mockNetwork = NetworksEnum.ethereumMainnet
@@ -425,8 +427,8 @@ describe('Module: blockchainLogCrawler', () => {
     })
 
     it('should getServiceStartBlock from config', async () => {
-      const providerStub = {}
-      sandbox.stub(ConfigState.getInstance(), 'getConfigItem').returns(providerStub)
+      const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
 
       const mockLogService = 'testService'
       const mockNetwork = NetworksEnum.ethereumMainnet

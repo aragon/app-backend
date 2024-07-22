@@ -1,16 +1,16 @@
-import { Contract, hexlify, keccak256, toUtf8Bytes, type WebSocketProvider } from 'ethers'
-import { ConfigState } from '@state/configState'
+import { Contract, hexlify, keccak256, toUtf8Bytes } from 'ethers'
 import { type ENS, NetworksEnum } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { UniversalResolver } from '@artifacts/UniversalResolver'
 import logger from '@logger'
 import { retryRequest } from '@helpers/retryRequest'
+import ProviderModule from '@modules/provider'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:EnsHelper' })
 
 const EnsHelper = {
   async getEnsWithUniversalResolver(address: string): Promise<ENS | null> {
-    const provider = ConfigState.getInstance().getConfigItem(NetworksEnum.ethereumMainnet) as WebSocketProvider
+    const provider = ProviderModule.getProvider(NetworksEnum.ethereumMainnet)!
     const universalResolver = '0xce01f8eee7E479C928F8919abD53E553a36CeF67'
 
     try {

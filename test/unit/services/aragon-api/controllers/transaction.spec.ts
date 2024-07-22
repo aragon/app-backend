@@ -35,6 +35,7 @@ describe('Controller: Transaction', () => {
       ],
       proposalId: '18',
       token: {
+        network: NetworksEnum.ethereumMainnet,
         address: '0x2902b792af43ea1481569bc35b62a31bb2c20e95',
         symbol: 'FREE',
         name: 'FREEthereum',

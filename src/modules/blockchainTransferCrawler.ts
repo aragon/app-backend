@@ -1,6 +1,5 @@
 import logger from '@logger'
 import { type WebSocketProvider } from 'ethers'
-import { ConfigState } from '@state/configState'
 import {
   type IAlchemyTransferOptions,
   type IAlchemyTransferResponse,
@@ -13,6 +12,7 @@ import { Models } from '@dbModels'
 import config from '@config'
 import DbTx from '@modules/dbTx'
 import utils from '@helpers/utils'
+import ProviderModule from '@modules/provider'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainTransferCrawler' })
 
@@ -50,7 +50,7 @@ class BlockchainTransferCrawler {
     logService?: IEnumIndexerService
   }) {
     this.network = opts.network
-    this.provider = ConfigState.getInstance().getConfigItem(opts.network) as WebSocketProvider
+    this.provider = ProviderModule.getProvider(opts.network)!
     if (!this.provider) {
       throw new Error('Provider not configured for network: ' + opts.network)
     }

@@ -119,6 +119,7 @@ export const AggregatorVote = {
               then: null,
               else: {
                 address: { $ifNull: ['$tokenDetails.address', '$pluginDetails.tokenAddress'] },
+                network: '$tokenDetails.network',
                 type: '$tokenDetails.type',
                 logo: '$tokenDetails.logo',
                 name: '$tokenDetails.name',

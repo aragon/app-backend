@@ -57,6 +57,7 @@ describe('Indexer:Aggregator:Vote', () => {
       votingPower: '4000000000000000000',
       blockNumber: 4879275,
       token: {
+        network: NetworksEnum.ethereumSepolia,
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         type: ITokenType.GovernanceERC20,
         logo: 'https://logos.covalenthq.com/tokens/11155111/0x3949f15155d4b85d0159ab79cbf38dc51c41dd9f.png',
@@ -109,6 +110,7 @@ describe('Indexer:Aggregator:Vote', () => {
       votingPower: '4000000000000000000',
       blockNumber: 4879275,
       token: {
+        network: NetworksEnum.ethereumSepolia,
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         type: ITokenType.GovernanceERC20,
         logo: 'https://logos.covalenthq.com/tokens/11155111/0x3949f15155d4b85d0159ab79cbf38dc51c41dd9f.png',

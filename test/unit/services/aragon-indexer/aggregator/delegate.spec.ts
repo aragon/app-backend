@@ -57,6 +57,7 @@ describe('Indexer:Aggregator:Delegate', () => {
       daoAddress: '0x5f39E3c3CcDf02D028C97b9d04365AFDE8432AED',
       amount: '101192000000000000',
       token: {
+        network: NetworksEnum.polygonMainnet,
         type: ITokenType.GovernanceERC20,
         address: '0x5B08305497fb3a087Fc582D45fcb648c98177c43',
         logo: 'https://logos.covalenthq.com/tokens/11155111/0x5b08305497fb3a087fc582d45fcb648c98177c43.png',
@@ -104,6 +105,7 @@ describe('Indexer:Aggregator:Delegate', () => {
       daoAddress: '0x5f39E3c3CcDf02D028C97b9d04365AFDE8432AED',
       amount: '101192000000000000',
       token: {
+        network: NetworksEnum.polygonMainnet,
         type: ITokenType.GovernanceERC20,
         address: '0x5B08305497fb3a087Fc582D45fcb648c98177c43',
         logo: 'https://logos.covalenthq.com/tokens/11155111/0x5b08305497fb3a087fc582d45fcb648c98177c43.png',

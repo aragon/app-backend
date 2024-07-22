@@ -26,6 +26,7 @@ describe('Model: Vote', () => {
       blockNumber: 4879275,
       daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3804',
       token: {
+        network: NetworksEnum.ethereumSepolia,
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         type: ITokenType.GovernanceERC20,
         logo: 'https://logos.covalenthq.com/tokens/11155111/0x3949f15155d4b85d0159ab79cbf38dc51c41dd9f.png',
@@ -148,6 +149,7 @@ describe('Model: Vote', () => {
       blockNumber: 5879275,
       daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3804',
       token: {
+        network: NetworksEnum.ethereumSepolia,
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         type: ITokenType.GovernanceERC20,
         logo: 'https://logos.covalenthq.com/tokens/11155111/0x3949f15155d4b85d0159ab79cbf38dc51c41dd9f.png',
@@ -190,6 +192,7 @@ describe('Model: Vote', () => {
           blockNumber: 4879275,
           daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3800',
           token: {
+            network: NetworksEnum.ethereumSepolia,
             address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
             type: ITokenType.GovernanceERC20,
             logo: 'https://logos.covalenthq.com/tokens/11155111/0x3949f15155d4b85d0159ab79cbf38dc51c41dd9f.png',
@@ -210,6 +213,7 @@ describe('Model: Vote', () => {
           blockNumber: 4879275,
           daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3801',
           token: {
+            network: NetworksEnum.ethereumSepolia,
             address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
             type: ITokenType.GovernanceERC20,
             logo: 'https://logos.covalenthq.com/tokens/11155111/0x3949f15155d4b85d0159ab79cbf38dc51c41dd9f.png',
