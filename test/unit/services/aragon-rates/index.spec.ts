@@ -33,11 +33,13 @@ describe('Rates: index', () => {
     const configBk = config.SERVICES.ARAGON_RATES.RATES_INTERVAL
     config.SERVICES.ARAGON_RATES.RATES_INTERVAL = 200
 
-    const task0Stubs = [sandbox.stub(EnsMember, 'start').resolves()]
-    const task1Stubs = [sandbox.stub(FetchRates, 'start').resolves()]
-    const task2Stubs = [sandbox.stub(DaoTvl, 'start').resolves()]
-    const task3Stubs = [sandbox.stub(DaoAssets, 'start').resolves()]
-    const task4Stubs = [sandbox.stub(DaoTransactions, 'start').resolves()]
+    const taskStubs = [
+      sandbox.stub(EnsMember, 'start').resolves(),
+      sandbox.stub(FetchRates, 'start').resolves(),
+      sandbox.stub(DaoTvl, 'start').resolves(),
+      sandbox.stub(DaoAssets, 'start').resolves(),
+      sandbox.stub(DaoTransactions, 'start').resolves(),
+    ]
 
     await RatesService.start()
     await utils.wait(100)
@@ -48,15 +50,12 @@ describe('Rates: index', () => {
     // Simulate the task execution
     for (const taskGroup of taskOptions.fn()) {
       for (const task of taskGroup) {
-        await task()
+        const taskName = Object.keys(task)[0]
+        await task[taskName].start()
       }
     }
 
-    expect(task0Stubs.every(stub => stub.calledOnce)).to.be.true
-    expect(task1Stubs.every(stub => stub.calledOnce)).to.be.true
-    expect(task2Stubs.every(stub => stub.calledOnce)).to.be.true
-    expect(task3Stubs.every(stub => stub.calledOnce)).to.be.true
-    expect(task4Stubs.every(stub => stub.calledOnce)).to.be.true
+    expect(taskStubs.every(stub => stub.calledOnce)).to.be.true
 
     await RatesService.stop()
 
@@ -69,11 +68,11 @@ describe('Rates: index', () => {
     const stubLoggerError = sandbox.stub(logger, 'error')
 
     sandbox.stub(TaskSchedulerState.prototype, 'startTask').callsFake((_: string, options: any): any => {
-      options?.onError(true)
+      options?.onError(new Error('Task error'))
     })
 
     await RatesService.start()
 
-    expect(stubLoggerError.calledOnce).to.be.true
+    expect(stubLoggerError.calledOnceWith('RatesService task error' as any)).to.be.true
   })
 })

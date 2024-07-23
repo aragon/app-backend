@@ -28,26 +28,28 @@ const IndexerService: IService = {
 
     // order is important
     const logFastTasks = [
-      [async () => LogPluginRepoRegistry.start(), async () => LogDaoRegistry.start()],
-      [async () => LogPluginSetupProcessor.start(), async () => LogDao.start()], // after logDaoRegistry
-      [async () => LogProposal.start(), async () => LogPluginSetting.start()], // after logPluginSetupProcessor
-      [async () => LogMember.start()], // after logPluginSetupProcessor
+      [{ logPluginRepoRegistry: LogPluginRepoRegistry }, { logDaoRegistry: LogDaoRegistry }],
+      [{ logPluginSetupProcessor: LogPluginSetupProcessor }, { logDao: LogDao }],
+      [{ logProposal: LogProposal }, { logPluginSetting: LogPluginSetting }],
+      [{ logMember: LogMember }],
     ]
 
     // order is important
     const aggregatorTasks = [
-      [async () => AggregatorPlugin.start()],
-      [async () => AggregatorSetting.start()],
-      [async () => AggregatorDao.start()],
-      [async () => AggregatorDelegate.start()],
-      [async () => AggregatorMembers.start()], // run after plugin and delegate for metrics
-      [async () => AggregatorProposal.start()], // run after member
-      [async () => AggregatorVote.start()],
+      [{ aggregatorPlugin: AggregatorPlugin }],
+      [{ aggregatorSetting: AggregatorSetting }],
+      [{ aggregatorDao: AggregatorDao }],
+      [{ aggregatorDelegate: AggregatorDelegate }],
+      [{ aggregatorMembers: AggregatorMembers }], // run after plugin and delegate for metrics
+      [{ aggregatorProposal: AggregatorProposal }], // run after member
+      [{ aggregatorVote: AggregatorVote }],
     ]
 
     const taskOptions = {
       fn: () => [...logFastTasks, ...aggregatorTasks],
       interval: config.SERVICES.ARAGON_INDEXER.DAO_INTERVAL,
+      runNow: true,
+      stopOnError: false,
       onError: (error: any) => {
         logger.error('IndexerService task error', llo({ error }))
       },

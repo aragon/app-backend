@@ -64,7 +64,7 @@ describe('Module: mongo', () => {
       await Mongo.connect()
     } catch (err) {}
 
-    expect(loggerVerboseStub.calledWith(sinon.match('MongoDB connection error'))).to.be.true
+    expect(loggerVerboseStub.calledWith('MongoDB connection error' as any)).to.be.true
     expect(stubSetModels.calledOnce).to.be.true
     expect(stubConnect.calledOnce).to.be.false
   })
@@ -85,5 +85,44 @@ describe('Module: mongo', () => {
 
     await Mongo.drop()
     expect(deleteMany.calledOnce).to.be.true
+  })
+
+  it('handles syncIndexes error during connection', async () => {
+    const connectionRetry = config.MONGO_DB.CONNECTION_RETRY
+    const connectionTimeout = config.MONGO_DB.CONNECTION_TIMEOUT
+    const connectionDelay = config.MONGO_DB.CONNECTION_DELAY
+    config.MONGO_DB.CONNECTION_RETRY = 1
+    config.MONGO_DB.CONNECTION_TIMEOUT = 10
+    config.MONGO_DB.CONNECTION_DELAY = 5
+
+    const stubSetModels = sandbox.stub(ModelProxy, 'setMongoModels').resolves()
+    sandbox.stub(mongoose, 'connect').resolves()
+    const loggerWarnStub = sandbox.stub(Logger, 'warn')
+    const loggerInfoStub = sandbox.stub(Logger, 'info')
+
+    Object.values(mongoose.models).forEach(model => {
+      sandbox.stub(model, 'syncIndexes').rejects(new Error('Sync indexes error'))
+    })
+
+    sandbox.stub(mongoose.connection, 'on').callsFake((event, callback) => {
+      if (event === 'connected') {
+        process.nextTick(callback)
+      }
+      return mongoose.connection
+    })
+
+    try {
+      await Mongo.connect()
+    } catch (err: any) {
+      expect(err.message).to.equal('Timeout after 5000ms')
+    }
+
+    expect(loggerWarnStub.notCalled).to.be.true
+    expect(loggerInfoStub.notCalled).to.be.true
+    expect(stubSetModels.calledOnce).to.be.true
+
+    config.MONGO_DB.CONNECTION_RETRY = connectionRetry
+    config.MONGO_DB.CONNECTION_TIMEOUT = connectionTimeout
+    config.MONGO_DB.CONNECTION_DELAY = connectionDelay
   })
 })

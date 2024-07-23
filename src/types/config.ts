@@ -58,6 +58,9 @@ export interface IConfig {
     DEBUGGER: boolean
     RETRY_CONCURRENT_INTERVAL: number
     RETRY_CONCURRENT_TIME: number
+    CONNECTION_RETRY: number
+    CONNECTION_TIMEOUT: number
+    CONNECTION_DELAY: number
   }
   LOG: {
     LEVEL: string

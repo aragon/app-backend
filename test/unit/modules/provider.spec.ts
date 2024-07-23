@@ -170,4 +170,132 @@ describe('Module: provider', () => {
       config.BLOCKCHAIN_NODES = backupConfig
     })
   })
+
+  describe('attachEventListeners', () => {
+    it('should attach open event listener and resolve on open', () => {
+      const mockWebSocket = new MockWebSocket()
+      const mockProvider = { websocket: mockWebSocket } as any
+      const mockResolve = sandbox.stub()
+      const stubLoggerInfo = sandbox.stub(Logger, 'info')
+
+      ProviderModule.attachEventListeners(mockProvider, NetworksEnum.ethereumMainnet, 'wss://mock-url', mockResolve)
+
+      mockWebSocket.onopen()
+      expect(stubLoggerInfo.calledOnceWith(`WebSocket connected successfully to ethereum-mainnet` as any)).to.be.true
+      expect(mockResolve.calledOnce).to.be.true
+    })
+
+    it('should attach close event listener and log error on close', () => {
+      const mockWebSocket = new MockWebSocket()
+      const mockProvider = { websocket: mockWebSocket } as any
+      const stubLoggerError = sandbox.stub(Logger, 'error')
+      const stubReconnect = sandbox.stub(ProviderModule, 'reconnectToNetwork').resolves()
+
+      ProviderModule.attachEventListeners(mockProvider, NetworksEnum.ethereumMainnet, 'wss://mock-url')
+
+      mockWebSocket.onclose()
+      expect(
+        stubLoggerError.calledOnceWith(
+          `WebSocket connection closed unexpectedly for ethereum-mainnet. Attempting to reconnect...` as any,
+        ),
+      ).to.be.true
+      expect(stubReconnect.calledOnce).to.be.true
+    })
+
+    it('should attach error event listener and reject on error', () => {
+      const mockWebSocket = new MockWebSocket()
+      const mockProvider = { websocket: mockWebSocket } as any
+      const mockReject = sandbox.stub()
+      const stubLoggerError = sandbox.stub(Logger, 'error')
+
+      ProviderModule.attachEventListeners(
+        mockProvider,
+        NetworksEnum.ethereumMainnet,
+        'wss://mock-url',
+        undefined,
+        mockReject,
+      )
+
+      const error = new Error('test error')
+      mockWebSocket.onerror(error)
+      expect(mockReject.calledOnceWith(error)).to.be.true
+    })
+  })
+
+  describe('reconnectToNetwork', () => {
+    it('should attempt to reconnect to network and succeed', async () => {
+      const maxAttempts = config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS
+      const reconnectinterval = config.NODE_CONFIG.RECONNECT_INTERVAL
+      config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS = 1
+      config.NODE_CONFIG.RECONNECT_INTERVAL = 50
+
+      const network = NetworksEnum.ethereumMainnet
+      const nodeUrl = 'wss://mock-url'
+      const stubConnect = sandbox.stub(ProviderModule, 'connectToNetwork').resolves()
+      const stubLoggerInfo = sandbox.stub(Logger, 'info')
+      const stubLoggerError = sandbox.stub(Logger, 'error')
+
+      await ProviderModule.reconnectToNetwork(network, nodeUrl, 0)
+
+      expect(stubConnect.calledOnce).to.be.true
+      expect(stubLoggerInfo.calledWith(`Reconnecting to ${network}... Attempt 1` as any)).to.be.true
+      expect(stubLoggerError.notCalled).to.be.true
+
+      config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS = maxAttempts
+      config.NODE_CONFIG.RECONNECT_INTERVAL = reconnectinterval
+    })
+
+    it('should attempt to reconnect to network and fail, then retry', async () => {
+      const maxAttempts = config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS
+      const reconnectInterval = config.NODE_CONFIG.RECONNECT_INTERVAL
+      config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS = 2
+      config.NODE_CONFIG.RECONNECT_INTERVAL = 50
+
+      const network = NetworksEnum.ethereumMainnet
+      const nodeUrl = 'wss://mock-url'
+      let attempt = 0
+
+      sandbox.stub(ProviderModule, 'connectToNetwork').callsFake(async () => {
+        if (attempt === 0) {
+          attempt++
+          throw new Error('connection error')
+        }
+        return Promise.resolve()
+      })
+
+      const stubLoggerInfo = sandbox.stub(Logger, 'info')
+      const stubLoggerError = sandbox.stub(Logger, 'error')
+
+      await ProviderModule.reconnectToNetwork(network, nodeUrl, 0)
+
+      expect(stubLoggerInfo.calledWith(`Reconnecting to ${network}... Attempt 1` as any)).to.be.true
+      expect(stubLoggerInfo.calledWith(`Reconnecting to ${network}... Attempt 2` as any)).to.be.true
+      expect(stubLoggerError.calledWith(`Reconnection attempt 1 failed for ${network}` as any)).to.be.true
+
+      config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS = maxAttempts
+      config.NODE_CONFIG.RECONNECT_INTERVAL = reconnectInterval
+    })
+
+    it('should stop retrying after reaching max attempts', async () => {
+      const maxAttempts = config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS
+      const reconnectInterval = config.NODE_CONFIG.RECONNECT_INTERVAL
+      config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS = 1
+      config.NODE_CONFIG.RECONNECT_INTERVAL = 50
+
+      const network = NetworksEnum.ethereumMainnet
+      const nodeUrl = 'wss://mock-url'
+      const stubConnect = sandbox.stub(ProviderModule, 'connectToNetwork').rejects(new Error('connection error'))
+      const stubReconnect = sandbox.stub(ProviderModule, 'reconnectToNetwork').callThrough()
+      const stubLoggerError = sandbox.stub(Logger, 'error')
+
+      await ProviderModule.reconnectToNetwork(network, nodeUrl, 1)
+
+      expect(stubConnect.notCalled).to.be.true
+      expect(stubReconnect.calledOnce).to.be.true
+      expect(stubLoggerError.calledWith(`Max reconnect attempts reached for ${network}` as any)).to.be.true
+
+      config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS = maxAttempts
+      config.NODE_CONFIG.RECONNECT_INTERVAL = reconnectInterval
+    })
+  })
 })
