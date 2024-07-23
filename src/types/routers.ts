@@ -1,7 +1,7 @@
 import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 import { type ITokenType } from '@src/types/token'
-import { IPluginAction, type IPluginSubdomain } from '@src/types/plugin'
-import { IActionMetadata } from '@src/types/proposalAction'
+import { type IPluginAction, type IPluginSubdomain } from '@src/types/plugin'
+import { type IActionMetadata } from '@src/types/proposalAction'
 
 export interface IStatusResponse {
   status: string

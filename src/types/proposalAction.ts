@@ -1,4 +1,4 @@
-import { ITokenMetadata } from '@src/types/token'
+import { type ITokenMetadata } from '@src/types/token'
 
 export enum ProposalActionType {
   Transfer = 'Transfer',
