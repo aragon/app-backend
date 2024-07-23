@@ -17,18 +17,18 @@ const RatesService: IService = {
     logger.info('RatesService service sync start', llo({}))
 
     const tasks = [
-      [
-        async () => EnsMember.start(),
-        async () => FetchRates.start(),
-        async () => DaoTvl.start(),
-        async () => DaoAssets.start(),
-        async () => DaoTransactions.start(),
-      ],
+      [{ ensMember: EnsMember }],
+      [{ fetchRates: FetchRates }],
+      [{ daoTvl: DaoTvl }],
+      [{ daoAssets: DaoAssets }],
+      [{ daoTransactions: DaoTransactions }],
     ]
 
     const taskOptions = {
       fn: () => [...tasks],
       interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
+      runNow: true,
+      stopOnError: false,
       onError: (error: any) => {
         logger.error('RatesService task error', llo({ error }))
       },

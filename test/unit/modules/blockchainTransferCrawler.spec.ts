@@ -515,4 +515,53 @@ describe('Modules:BlockchainTransferCrawler', () => {
       expect(spyModelCreate.notCalled).to.be.true
     })
   })
+
+  it('should stop crawling if batch size becomes too small', async () => {
+    sandbox.stub(ProviderModule, 'getProvider').callsFake(network => mockProvider as any)
+    const error = new Error('Log response size exceeded')
+    mockProvider.getBlockNumber.resolves(4)
+    mockProvider.send.onFirstCall().rejects(error).onSecondCall().rejects(error).onThirdCall().rejects(error)
+
+    const onTxStub = sandbox.stub().resolves()
+    const onErrorStub = sandbox.stub()
+    const crawler = new BlockchainTransferCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      filter: {},
+      onTx: onTxStub,
+      onError: onErrorStub,
+    })
+
+    sandbox.stub(crawler, 'isBatchSizeError').returns(true)
+    crawler['batchSize'] = 2
+
+    await crawler.crawl()
+
+    expect(onErrorStub.calledOnce).to.be.true
+    expect(logError.calledWith('Batch size too small, stopping crawl')).to.be.true
+    expect(onTxStub.callCount).to.eq(0)
+    expect(crawler['crawling']).to.be.false
+  })
+
+  it('should stop crawling if shutdown flag is set', async () => {
+    sandbox.stub(ProviderModule, 'getProvider').callsFake(network => mockProvider as any)
+    mockProvider.getBlockNumber.resolves(10)
+    mockProvider.send.resolves({ transfers: [] })
+
+    const onTxStub = sandbox.stub().resolves()
+    const crawler = new BlockchainTransferCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      filter: {},
+      onTx: onTxStub,
+    })
+
+    sandbox.stub(crawler, 'updateAndCheckConditions').callsFake(async () => {
+      crawler.shutdown = true
+      return true
+    })
+
+    await crawler.crawl()
+
+    expect(onTxStub.notCalled).to.be.true
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+  })
 })

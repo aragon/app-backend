@@ -3,14 +3,12 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import logger from '@logger'
-import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import { Models } from '@dbModels'
 import config from '@config'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
-import { ERC721_FUNCTIONS } from '@helpers/tokenDetector'
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
@@ -306,6 +304,30 @@ describe('Module: blockchainLogCrawler', () => {
     expect(mockOnError.calledOnceWith(processingError, testLogs[1]))
     expect((crawler as any).crawlResult.nbError).to.equal(1)
     expect((crawler as any).isOnError).to.be.true
+  })
+
+  it('should stop crawling if batch size becomes too small', async () => {
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    const error = new Error('Log response size exceeded')
+    error.message = 'Log response size exceeded'
+    mockProvider.getBlockNumber.onFirstCall().resolves(300).onSecondCall().resolves(300)
+    mockProvider.getLogs.onFirstCall().rejects(error).onSecondCall().rejects(error).onThirdCall().rejects(error)
+
+    const onLogStub = sandbox.stub().resolves()
+    const onErrorStub = sandbox.stub()
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      filter: {},
+      batchSize: 2,
+      onLog: onLogStub,
+      onError: onErrorStub,
+    })
+
+    await crawler.crawl()
+
+    expect(onErrorStub.callCount).to.eq(1)
+    expect(logError.calledWith('Batch size too small, stopping crawl')).to.be.true
+    expect(onLogStub.callCount).to.eq(0)
   })
 
   describe('calculateBatchSize', () => {
