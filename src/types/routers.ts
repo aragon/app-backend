@@ -45,6 +45,8 @@ export interface IMembersResponse {
   tokenAddress: HexAddress
   daoAddress: HexAddress
   votingPower?: string
+  firstActivity?: number
+  lastActivity?: number
 }
 
 export interface IDaoResponse {
