@@ -17,6 +17,8 @@ import type Proposal from '@models/schema/proposal'
 import type ConfigIndexer from '@models/schema/configIndexer'
 import type Delegate from '@models/schema/delegate'
 import type Vote from '@models/schema/vote'
+import type TaskService from '@models/schema/taskService'
+import type TaskRun from '@models/schema/taskRun'
 
 export interface IMongoModel {
   Dao: typeof Dao
@@ -38,6 +40,8 @@ export interface IMongoModel {
   ConfigIndexer: typeof ConfigIndexer
   Delegate: typeof Delegate
   Vote: typeof Vote
+  TaskService: typeof TaskService
+  TaskRun: typeof TaskRun
 }
 
 export enum IEventLogPluginMembership {
