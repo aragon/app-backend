@@ -41,7 +41,8 @@
       "src/**"
     ],
     "exclude": [
-      "src/artifacts/**"
+      "src/artifacts/**",
+      "postman/**"
     ],
     "reporter": [
       "text",
