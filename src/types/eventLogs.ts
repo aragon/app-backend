@@ -1,4 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+import { type ProposalActionType } from '@src/types/proposalAction'
 
 export interface ILogInfo {
   network: NetworksEnum
@@ -13,4 +14,6 @@ export interface IDecodedData {
   functionName: any
   decoded: any
   textSignature: string
+  type?: ProposalActionType
+  metadata?: any
 }

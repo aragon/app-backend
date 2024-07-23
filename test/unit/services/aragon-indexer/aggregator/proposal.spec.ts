@@ -4,10 +4,13 @@ import { expect } from 'chai'
 import { AggregatorProposal } from '@services/aragon-indexer/aggregator/proposal'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
-import { NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum, ProposalActionType } from '@types'
 import Logger from '@logger'
 import DecodeActions from '@helpers/decodeActions'
 import Web3Helper from '@helpers/web3'
+import { UtilsIndexer } from '@indexer/utils/indexer'
+import { ethers } from 'ethers'
+import CovalentHelper from '@helpers/covalent'
 
 describe('Indexer:Aggregator:Proposal', () => {
   let sandbox: SinonSandbox
@@ -63,6 +66,7 @@ describe('Indexer:Aggregator:Proposal', () => {
           transactionHash: '0xe49a4a878ed2073e012249ef39960b9c9a21446f223e4e5a6ef0edc97831c37e',
           blockNumber: 16733707,
         },
+        tokenAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         settings: {
           votingMode: 1,
           supportThreshold: 500000,
@@ -103,6 +107,11 @@ describe('Indexer:Aggregator:Proposal', () => {
       const _getProposalMetricsStub = sandbox.stub(AggregatorProposal, '_getProposalMetrics').resolves({
         totalVotes: 0,
       })
+      const _fetchTokenDetailsStub = sandbox.stub(AggregatorProposal, '_fetchTokenDetails').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        name: 'MockToken',
+        type: ITokenType.ERC20,
+      })
       await AggregatorProposal.onDocument(document as any)
 
       expect(stubLogger.calledWith('New Aggregate Proposal' as any)).to.be.true
@@ -115,6 +124,7 @@ describe('Indexer:Aggregator:Proposal', () => {
       expect(_getProposalMetricsStub.calledOnce).to.be.false
       expect(stubGetBlockTime.calledTwice).to.be.true
       expect(stubParseActions.calledOnce).to.be.true
+      expect(_fetchTokenDetailsStub.calledOnce).to.be.true
 
       expect(member.id).to.exist
       expect(member.transactionHash).to.eq(document.transactionHash)
@@ -126,6 +136,8 @@ describe('Indexer:Aggregator:Proposal', () => {
       expect(member.startDate).to.eq(document.startDate)
       expect(member.endDate).to.eq(document.endDate)
       expect(member.metadataUri).to.eq(document.metadataUri)
+      expect(member.tokenAddress).to.be.eq(undefined)
+      expect(member.token.address).to.be.eq(document.tokenAddress)
       expect(member.settings?.votingMode).to.eq(document.settings?.votingMode)
       expect(member.settings?.supportThreshold).to.eq(document.settings?.supportThreshold)
       expect(member.settings?.minParticipation).to.eq(document.settings?.minParticipation)
@@ -256,6 +268,15 @@ describe('Indexer:Aggregator:Proposal', () => {
         },
       ]
 
+      sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+        address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: 'ERC20',
+      } as any)
+
       const actions = await AggregatorProposal.parseActions(logActions, document)
 
       expect(actions).to.deep.equal([
@@ -267,6 +288,19 @@ describe('Indexer:Aggregator:Proposal', () => {
           textSignature: 'mint(address,uint256)',
           decoded: ['0x284803C34A3F049f787E2562e6F8C084bdBC3197', 1000000000000000000n],
           contractName: 'IERC20MintableUpgradeable',
+          type: ProposalActionType.Mint,
+          metadata: {
+            token: {
+              address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+              name: 'MockToken',
+              symbol: 'MOCK',
+              decimals: 18,
+              logo: 'https://mock.com/logo.png',
+              type: 'ERC20',
+            },
+            to: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+            value: 1000000000000000000n,
+          },
         },
       ])
     })
@@ -287,6 +321,15 @@ describe('Indexer:Aggregator:Proposal', () => {
         },
       ]
 
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({
+        address: ethers.ZeroAddress,
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: ITokenType.native,
+      } as any)
+
       const document = { daoAddress: '0x0dao', to: '0x', value: '0' }
       const actions = await AggregatorProposal.parseActions(logActions, document)
 
@@ -298,6 +341,20 @@ describe('Indexer:Aggregator:Proposal', () => {
           functionName: 'NativeTransfer',
           textSignature: 'nativeTransfer(address,address,uint256)',
           decoded: ['0x0dao', '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31', '424000000000000'],
+          type: ProposalActionType.Transfer,
+          metadata: {
+            from: '0x0dao',
+            to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+            value: '424000000000000',
+            token: {
+              address: ethers.ZeroAddress,
+              name: 'MockToken',
+              symbol: 'MOCK',
+              decimals: 18,
+              logo: 'https://mock.com/logo.png',
+              type: ITokenType.native,
+            },
+          },
         },
       ])
     })
@@ -332,5 +389,67 @@ describe('Indexer:Aggregator:Proposal', () => {
 
     expect(aggStub.calledOnce).to.be.true
     expect(aggStub.args[0][0].length).to.deep.eq(4)
+  })
+
+  describe('_fetchTokenDetails', () => {
+    it('should _fetchTokenDetails when token details are not saved', async () => {
+      const tokenAddress = '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'
+      const network = NetworksEnum.ethereumMainnet
+
+      const token = {
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: ITokenType.ERC20,
+      }
+
+      const getTotalSupplyStub = sandbox.stub(CovalentHelper, 'getTokenTotalSupply').resolves('1000000000000000000000')
+      const getTokenDetailStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves(token as any)
+      const findExistingStub = sandbox.stub(Models.Proposal, 'findByTransactionHash').resolves({
+        aa: 'aa',
+      })
+      const tokenDetails = await AggregatorProposal._fetchTokenDetails({
+        transactionHash: '0x90a26411d62d1ba9f7b82e3697e94ff1ae9b5cce89e3f594ebe57b897245d39e',
+        tokenAddress,
+        network,
+        blockHeight: 16733707,
+      } as any)
+
+      expect(getTotalSupplyStub.calledOnce).to.be.true
+      expect(getTokenDetailStub.calledOnce).to.be.true
+      expect(findExistingStub.calledOnce).to.be.true
+      expect(tokenDetails).to.deep.eq({
+        ...token,
+        totalSupply: '1000000000000000000000',
+      })
+    })
+
+    it('should _fetchTokenDetails when token details are saved', async () => {
+      const findExistingStub = sandbox.stub(Models.Proposal, 'findByTransactionHash').resolves({
+        token: {
+          address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          name: 'MockToken',
+          symbol: 'MOCK',
+          decimals: 18,
+          logo: 'https://mock.com/logo.png',
+          type: ITokenType.ERC20,
+        },
+      })
+
+      const getTotalSupplyStub = sandbox.stub(CovalentHelper, 'getTokenTotalSupply')
+
+      const tokenDetails = await AggregatorProposal._fetchTokenDetails({
+        transactionHash: '0x90a26411d62d1ba9f7b82e3697e94ff1ae9b5cce89e3f594ebe57b897245d39e',
+        tokenAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        network: NetworksEnum.ethereumMainnet,
+        blockHeight: 16733707,
+      })
+
+      expect(getTotalSupplyStub.calledOnce).to.be.false
+      expect(findExistingStub.calledOnce).to.be.true
+      expect(tokenDetails.address).to.eq('0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F')
+    })
   })
 })

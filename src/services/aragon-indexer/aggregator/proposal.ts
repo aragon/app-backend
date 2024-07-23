@@ -8,6 +8,8 @@ import DecodeActions from '@helpers/decodeActions'
 import { NetworkHelper } from '@helpers/network'
 import { type NetworksEnum } from '@types'
 import config from '@config'
+import Covalent from '@helpers/covalent'
+import { UtilsIndexer } from '@indexer/utils/indexer'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorProposal' })
 
@@ -63,6 +65,10 @@ export const AggregatorProposal = {
       )
     }
 
+    if (document?.tokenAddress) {
+      document.token = await AggregatorProposal._fetchTokenDetails(document)
+    }
+
     document.actions = await AggregatorProposal.parseActions(document.actions, document)
 
     await DbTx.executeTxFn(async ({ session }) => {
@@ -92,9 +98,9 @@ export const AggregatorProposal = {
         let decodeData: any
 
         if (action.data?.length >= 10) {
-          decodeData = await decodeActions.decodeData(action.data)
+          decodeData = await decodeActions.decodeData(action, document)
         } else {
-          decodeData = decodeActions.decodeTransfer(action, document)
+          decodeData = await decodeActions.decodeTransfer(action, document)
         }
 
         if (decodeData) {
@@ -214,8 +220,8 @@ export const AggregatorProposal = {
       {
         $lookup: {
           from: 'setting',
-          localField: 'pluginAddress',
-          foreignField: 'pluginAddress',
+          let: { pluginAddr: '$pluginAddress' },
+          pipeline: [{ $match: { $expr: { $eq: ['$pluginAddress', '$$pluginAddr'] } } }],
           as: 'pluginSettings',
         },
       },
@@ -323,6 +329,7 @@ export const AggregatorProposal = {
           title: '$metadata.title',
           description: '$metadata.description',
           summary: '$metadata.summary',
+          tokenAddress: '$pluginInfo.tokenAddress',
           media: {
             header: '$metadata.media.header',
             logo: '$metadata.media.logo',
@@ -492,5 +499,31 @@ export const AggregatorProposal = {
 
     const metrics = await Models.LogProposal.aggregate(query)
     return metrics.length ? metrics[0] : {}
+  },
+
+  async _fetchTokenDetails(document: Partial<Proposal>) {
+    const alreadyFetched = await Models.Proposal.findByTransactionHash(document.transactionHash!, document.network!)
+    if (alreadyFetched.token) {
+      return alreadyFetched.token
+    }
+
+    const token = await UtilsIndexer.saveAndGetToken(document.tokenAddress, document.network!)
+    if (token) {
+      const totalSupply = await Covalent.getTokenTotalSupply(
+        document.tokenAddress,
+        document.network!,
+        document.blockNumber!,
+      )
+
+      return {
+        type: token.type,
+        address: document.tokenAddress,
+        name: token.name,
+        symbol: token.symbol,
+        totalSupply,
+        decimals: token.decimals,
+        logo: token.logo,
+      }
+    }
   },
 }

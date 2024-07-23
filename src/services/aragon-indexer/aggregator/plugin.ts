@@ -158,8 +158,23 @@ export const AggregatorPlugin = {
       {
         $lookup: {
           from: 'logPluginRepo',
-          localField: 'prepared.pluginSetupRepo',
-          foreignField: 'pluginRepo',
+          let: {
+            repoAddr: '$prepared.pluginSetupRepo',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$pluginRepo', '$$repoAddr'],
+                },
+              },
+            },
+            {
+              $project: {
+                subdomain: 1,
+              },
+            },
+          ],
           as: 'pluginDetails',
         },
       },

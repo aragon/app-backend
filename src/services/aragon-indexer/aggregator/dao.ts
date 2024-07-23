@@ -78,8 +78,18 @@ export const AggregatorDao = {
       {
         $lookup: {
           from: 'plugin',
-          localField: 'address',
-          foreignField: 'daoAddress',
+          let: {
+            daoAddr: '$address',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$$daoAddr', '$daoAddress'],
+                },
+              },
+            },
+          ],
           as: 'plugins',
         },
       },
@@ -252,8 +262,18 @@ export const AggregatorDao = {
       {
         $lookup: {
           from: 'logDaoMetadata',
-          localField: 'address',
-          foreignField: 'daoAddress',
+          let: {
+            daoAddr: '$address',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$$daoAddr', '$daoAddress'],
+                },
+              },
+            },
+          ],
           as: 'metadata',
         },
       },

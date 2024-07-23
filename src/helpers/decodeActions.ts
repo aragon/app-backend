@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { FunctionFragment, hexlify, Interface } from 'ethers'
+import { ethers, FunctionFragment, hexlify, Interface } from 'ethers'
 import { Multisig } from '@artifacts/Multisig'
 import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
 import { IERC20MintableUpgradeable } from '@artifacts/IERC20MintableUpgradeable'
@@ -11,7 +11,12 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import FourByte from '@helpers/4byte'
 import Web3Helper from '@helpers/web3'
 import type Proposal from '@models/schema/proposal'
-import { type IDecodedData } from '@types'
+import { type IDecodedData, type IRawAction, KnownActionSignature } from '@types'
+import { ProposalActionType } from '@src/types'
+import { Models } from '@dbModels'
+import { UtilsIndexer } from '@indexer/utils/indexer'
+import IPFSModule from '@modules/ipfs'
+import _ from 'lodash'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -30,33 +35,65 @@ class DecodeActions {
     this._setupSignatures()
   }
 
-  public decodeTransfer(
-    action: { to: string; value: any; data: any },
-    document: Partial<Proposal>,
-  ): IDecodedData | null {
+  public async decodeTransfer(action: IRawAction, document: Partial<Proposal>): Promise<IDecodedData | null> {
     if (Web3Helper.isNativeTokenAction(action)) {
+      const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
+      const token = _.pick(nativeToken, ['address', 'name', 'symbol', 'decimals', 'logo', 'type'])
       // native token transfer
       return {
         functionName: 'NativeTransfer',
         textSignature: 'nativeTransfer(address,address,uint256)',
         decoded: [document.daoAddress, action.to, action.value],
+        type: ProposalActionType.Transfer,
+        metadata: {
+          from: document.daoAddress,
+          to: action.to,
+          value: action.value,
+          token,
+        },
       }
     }
 
     return null
   }
 
-  public async decodeData(data: string): Promise<IDecodedData | null> {
-    let decoded = this._decodeWithAbi(data)
+  public async decodeData(action: IRawAction, document: Partial<Proposal>): Promise<IDecodedData | null> {
+    const decoded = (await this._decodeWithAbi(action.data)) || (await this._decodeFallback(action.data))
 
-    if (!decoded) {
-      decoded = await this._decodeFallback(data)
+    if (!decoded) return null
+
+    const actionHandlers: Record<
+      string,
+      (decoded: IDecodedData, action: IRawAction, document: Partial<Proposal>) => Promise<any>
+    > = {
+      transfer: this._getMetadataIfTransfer.bind(this),
+      mint: this._getMedataIfMint.bind(this),
+      addAddresses: this._getMetadataOfAddMultiSigMember.bind(this),
+      removeAddresses: this._getMetadataOfRemoveMultiSigMember.bind(this),
+      setMetadata: this._getMetadataForMetadataUpdate.bind(this),
+      updateMultisigSettings: this._getMetdataOfMultiSigSetting.bind(this),
+      updateVotingSettings: this._getMetdataOfVoteSetting.bind(this),
+      // TODO: We can add more handlers later
     }
+
+    for (const pattern in actionHandlers) {
+      if (decoded.textSignature.toLowerCase().includes(pattern.toLowerCase())) {
+        const actionMetaData = await actionHandlers[pattern](decoded, action, document)
+        if (actionMetaData) {
+          decoded.type = actionMetaData.type
+          decoded.metadata = actionMetaData.metadata
+        }
+        break
+      }
+    }
+
+    decoded.type = decoded.type ?? ProposalActionType.Unknown
+    decoded.metadata = decoded.metadata ?? null
 
     return decoded
   }
 
-  _decodeWithAbi(data: string): IDecodedData | null {
+  async _decodeWithAbi(data: string): Promise<IDecodedData | null> {
     const dataHex = hexlify(data)
     for (const { contractName, signatures, abi } of this.allSignatures) {
       const fragment = this._getFunctionFragment(dataHex, signatures)
@@ -69,7 +106,12 @@ class DecodeActions {
           const parameters = fragment.inputs.map((input: any) => input.type).join(',')
           const textSignature = `${functionName}(${parameters})`
 
-          return { functionName, textSignature, decoded: decoded?.toArray(), contractName }
+          return {
+            functionName,
+            textSignature,
+            decoded: decoded?.toArray(),
+            contractName,
+          }
         } catch (error) {
           logger.error('Error decoding action data with abi', llo({ error, contractName, fragment, dataHex }))
         }
@@ -97,6 +139,8 @@ class DecodeActions {
         functionName: signatureInfo.text_signature.split('(')[0],
         textSignature: signatureInfo.text_signature,
         decoded: decoded?.toArray(),
+        type: ProposalActionType.Unknown,
+        metadata: null,
       }
     } catch (error) {
       logger.error('Error decoding action data', llo({ error, data }))
@@ -157,6 +201,151 @@ class DecodeActions {
       }
     }
     return undefined
+  }
+
+  /**
+   * Actions handlers based on the readable functionSignature
+   */
+
+  async _getMetadataIfTransfer(decodedData: IDecodedData, action: IRawAction, document: Partial<Proposal>) {
+    const metadata: any = {}
+
+    const setCommonMetadata = async (from: string, to: string, value: string) => {
+      const token = await UtilsIndexer.saveAndGetToken(action.to, document.network!)
+
+      if (token) {
+        metadata.token = _.pick(token, ['address', 'name', 'symbol', 'decimals', 'logo', 'type'])
+        metadata.from = from
+        metadata.to = to
+        metadata.value = value
+      }
+    }
+
+    switch (decodedData.textSignature) {
+      case KnownActionSignature.Transfer:
+        await setCommonMetadata(document.daoAddress!, decodedData.decoded[0], decodedData.decoded[1])
+        break
+
+      case KnownActionSignature.TransferFrom:
+      case KnownActionSignature.SafeTransferFrom:
+        await setCommonMetadata(decodedData.decoded[0], decodedData.decoded[1], decodedData.decoded[2])
+        break
+      default:
+        return null
+    }
+
+    return {
+      type: ProposalActionType.Transfer,
+      metadata,
+    }
+  }
+
+  async _getMetadataOfAddMultiSigMember(decodedData: IDecodedData) {
+    if (decodedData.textSignature !== KnownActionSignature.MultisigAddMembers) {
+      return null
+    }
+
+    return {
+      type: ProposalActionType.MultisigAddMembers,
+      metadata: {
+        addresses: decodedData.decoded[0],
+      },
+    }
+  }
+
+  async _getMetadataOfRemoveMultiSigMember(decodedData: IDecodedData) {
+    if (decodedData.textSignature !== KnownActionSignature.MultisigRemoveMembers) {
+      return null
+    }
+
+    return {
+      type: ProposalActionType.MultisigRemoveMembers,
+      metadata: {
+        addresses: decodedData.decoded[0],
+      },
+    }
+  }
+
+  async _getMedataIfMint(decodedData: IDecodedData, action: IRawAction, document: Partial<Proposal>) {
+    if (decodedData.textSignature !== KnownActionSignature.Mint) {
+      return null
+    }
+
+    const token = await UtilsIndexer.saveAndGetToken(action.to, document.network!)
+
+    if (token) {
+      const metadata = {
+        token: _.pick(token, ['address', 'name', 'symbol', 'decimals', 'logo', 'type']),
+        to: decodedData.decoded[0],
+        value: decodedData.decoded[1],
+      }
+      return {
+        type: ProposalActionType.Mint,
+        metadata,
+      }
+    }
+
+    return null
+  }
+
+  async _getMetadataForMetadataUpdate(decodedData: IDecodedData) {
+    if (decodedData.textSignature !== KnownActionSignature.MetadataUpdate) {
+      return null
+    }
+
+    const ipfsUrl = Web3Helper.extractMetadataUri(decodedData.decoded[0])
+    if (!ipfsUrl) {
+      return null
+    }
+
+    try {
+      const ifpsContent = await IPFSModule.fetchMetadata(ipfsUrl)
+      return {
+        type: ProposalActionType.MetadataUpdate,
+        metadata: {
+          ipfsUrl,
+          ...ifpsContent,
+        },
+      }
+    } catch (e) {
+      return {
+        type: ProposalActionType.MetadataUpdate,
+        metadata: {
+          ipfsUrl,
+        },
+      }
+    }
+  }
+
+  async _getMetdataOfMultiSigSetting(decodedData: IDecodedData) {
+    if (decodedData.textSignature !== KnownActionSignature.UpdateMultiSigSettings) {
+      return null
+    }
+
+    return {
+      type: ProposalActionType.UpdateMultiSigSettings,
+      metadata: {
+        onlyListed: decodedData.decoded[0][0],
+        minApprovals: decodedData.decoded[0][1],
+      },
+    }
+  }
+
+  async _getMetdataOfVoteSetting(decodedData: IDecodedData) {
+    if (decodedData.textSignature !== KnownActionSignature.UpdateVoteSettings) {
+      return null
+    }
+
+    return {
+      type: ProposalActionType.UpdateVoteSettings,
+      metadata: {
+        votingMode: decodedData.decoded[0][0],
+        supportThreshold: decodedData.decoded[0][1],
+        minParticipation: decodedData.decoded[0][2],
+        minDuration: decodedData.decoded[0][3],
+        minProposerVotingPower: decodedData.decoded[0][4],
+      },
+    }
   }
 }
 
