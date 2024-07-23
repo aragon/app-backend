@@ -4,7 +4,7 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
-import { type NetworksEnum } from '@types'
+import { type ICrawlStat, type NetworksEnum } from '@types'
 import { NetworkHelper } from '@helpers/network'
 import config from '@config'
 
@@ -37,7 +37,7 @@ export const AggregatorDao = {
     )
   },
 
-  async onDocument(document: Partial<Dao>) {
+  async onDocument(document: Partial<Dao>, stats: ICrawlStat) {
     const existingLog = await Models.Dao.findExistingLog({
       network: document.network!,
       address: document.address!,
@@ -64,7 +64,7 @@ export const AggregatorDao = {
       }
       await session.commitTransaction()
       await session.endSession()
-      logger.verbose(existingLog ? 'Update Aggregate Dao' : 'New Aggregate Dao', llo({ logId: logDb?.id }))
+      logger.verbose(existingLog ? 'Update Aggregate Dao' : 'New Aggregate Dao', llo({ logId: logDb?.id, stats }))
     })
   },
 

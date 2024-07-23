@@ -1,5 +1,11 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
+export interface ICrawlStat {
+  nbWorked: number
+  nbTotal: number
+  remaining: number
+}
+
 export interface IMemberProposalMetrics {
   proposalCount: number
   voteCount: number

@@ -1,4 +1,4 @@
-import { type IAlchemyTokenBalance } from '@types'
+import { type IAlchemyTokenBalance, type ICrawlStat } from '@types'
 import DBCrawler from '@models/utils/crawler'
 import { ZeroAddress } from 'ethers'
 import { Models } from '@dbModels'
@@ -41,7 +41,7 @@ export const DaoAssets = {
     )
   },
 
-  onDocument: async (document: LogDaoRegistry) => {
+  onDocument: async (document: LogDaoRegistry, stats: ICrawlStat) => {
     try {
       const [ethBalance, tokenBalances] = await Promise.all([
         Web3Helper.getBalance(document.address, document.network),
@@ -72,7 +72,7 @@ export const DaoAssets = {
           await session.endSession()
           logger.verbose(
             existingEthAssetDb ? 'Update ETH Asset' : 'New ETH Asset',
-            llo({ logId: logDb?.id, network: logDb?.network }),
+            llo({ logId: logDb?.id, network: logDb?.network, stats }),
           )
         })
       }
@@ -111,7 +111,10 @@ export const DaoAssets = {
 
               await session.commitTransaction()
               await session.endSession()
-              logger.verbose(existingAssetDb ? 'Update Token Asset' : 'New Token Asset', llo({ logId: logDb?.id }))
+              logger.verbose(
+                existingAssetDb ? 'Update Token Asset' : 'New Token Asset',
+                llo({ logId: logDb?.id, stats }),
+              )
               return logDb
             })
           }),

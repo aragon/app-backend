@@ -5,7 +5,7 @@ import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
 import { type Metrics } from '@models/schema/member'
 import { NetworkHelper } from '@helpers/network'
-import { type NetworksEnum } from '@types'
+import { type ICrawlStat, type NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import config from '@config'
 
@@ -41,7 +41,7 @@ export const AggregatorMembers = {
     )
   },
 
-  onDocument: async function (document: Partial<Member>) {
+  onDocument: async function (document: Partial<Member>, stats: ICrawlStat) {
     const existingLog = await Models.Member.findExistingLog({ address: document.address! })
     document = await AggregatorMembers._getMemberData(document)
 
@@ -55,7 +55,7 @@ export const AggregatorMembers = {
       }
       await session.commitTransaction()
       await session.endSession()
-      logger.verbose(existingLog ? 'Update Aggregate Member' : 'New Aggregate Member', llo({ logId: logDb?.id }))
+      logger.verbose(existingLog ? 'Update Aggregate Member' : 'New Aggregate Member', llo({ logId: logDb?.id, stats }))
     })
   },
 

@@ -5,6 +5,7 @@ import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
 import config from '@config'
 import EnsHelper from '@helpers/ens'
+import { type ICrawlStat } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:EnsMember' })
 
@@ -30,7 +31,7 @@ export const EnsMember = {
     logger.verbose('End EnsMember', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt, duration: `${duration}ms` }))
   },
 
-  onDocument: async function (document: Partial<Member>) {
+  onDocument: async function (document: Partial<Member>, stats: ICrawlStat) {
     await DbTx.executeTxFn(async ({ session }) => {
       document.ens = await EnsHelper.getEnsWithUniversalResolver(document.address!)
 
@@ -38,7 +39,7 @@ export const EnsMember = {
 
       await session.commitTransaction()
       await session.endSession()
-      logger.verbose('Update Ens Member', llo({ logId: logDb?.id }))
+      logger.verbose('Update Ens Member', llo({ logId: logDb?.id, stats }))
     })
   },
 }
