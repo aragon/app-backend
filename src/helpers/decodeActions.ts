@@ -16,6 +16,7 @@ import { ProposalActionType } from '@src/types'
 import { Models } from '@dbModels'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 import IPFSModule from '@modules/ipfs'
+import _ from 'lodash'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -37,6 +38,7 @@ class DecodeActions {
   public async decodeTransfer(action: IRawAction, document: Partial<Proposal>): Promise<IDecodedData | null> {
     if (Web3Helper.isNativeTokenAction(action)) {
       const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
+      const token = _.pick(nativeToken, ['address', 'name', 'symbol', 'decimals', 'logo', 'type'])
       // native token transfer
       return {
         functionName: 'NativeTransfer',
@@ -47,14 +49,7 @@ class DecodeActions {
           from: document.daoAddress,
           to: action.to,
           value: action.value,
-          token: {
-            address: nativeToken?.address,
-            name: nativeToken?.name,
-            symbol: nativeToken?.symbol,
-            decimals: nativeToken?.decimals,
-            logo: nativeToken?.logo,
-            type: nativeToken?.type,
-          },
+          token,
         },
       }
     }
@@ -219,14 +214,7 @@ class DecodeActions {
       const token = await UtilsIndexer.saveAndGetToken(action.to, document.network!)
 
       if (token) {
-        metadata.token = {
-          address: token?.address,
-          name: token?.name,
-          symbol: token?.symbol,
-          decimals: token?.decimals,
-          logo: token?.logo,
-          type: token?.type,
-        }
+        metadata.token = _.pick(token, ['address', 'name', 'symbol', 'decimals', 'logo', 'type'])
         metadata.from = from
         metadata.to = to
         metadata.value = value
@@ -287,14 +275,7 @@ class DecodeActions {
 
     if (token) {
       const metadata = {
-        token: {
-          address: token?.address,
-          name: token?.name,
-          symbol: token?.symbol,
-          decimals: token?.decimals,
-          logo: token?.logo,
-          type: token?.type,
-        },
+        token: _.pick(token, ['address', 'name', 'symbol', 'decimals', 'logo', 'type']),
         to: decodedData.decoded[0],
         value: decodedData.decoded[1],
       }

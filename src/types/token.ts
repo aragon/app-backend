@@ -22,7 +22,6 @@ export interface IToken {
   lastUpdatedAt: string
   createdAt: string
 }
-
 export interface ITokenBalance {
   contractAddress: HexAddress
   contractName: string
@@ -46,4 +45,13 @@ export enum ITokenType {
   GovernanceERC20 = 'GovernanceERC20',
   native = 'native',
   unknown = 'unknown',
+}
+
+export interface ITokenMetadata {
+  name: string
+  address: string
+  symbol: string
+  decimals: number
+  logo: string
+  type: ITokenType
 }

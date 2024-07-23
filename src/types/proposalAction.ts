@@ -1,3 +1,5 @@
+import { ITokenMetadata } from '@src/types/token'
+
 export enum ProposalActionType {
   Transfer = 'Transfer',
   Unknown = 'Unknown',
@@ -26,3 +28,40 @@ export enum KnownActionSignature {
   UpdateMultiSigSettings = 'updateMultisigSettings(tuple)',
   UpdateVoteSettings = 'updateVotingSettings(tuple)',
 }
+
+export interface ITransfacerActionMeta {
+  token: ITokenMetadata
+  from: string
+  to: string
+  value: string
+}
+
+export interface IMintActionMeta {
+  token: ITokenMetadata
+  to: string
+  value: string
+}
+
+export interface IAddMembersActionMeta {
+  addresses: string[]
+}
+
+export interface IMultiSigSettingsMeta {
+  onlyListed: boolean
+  minApprovals: number
+}
+
+export interface IVoteSettingsMeta {
+  votingMode: number
+  supportThreshold: number
+  minParticipation: number
+  minDuration: number
+  minProposerVotingPower: string
+}
+
+export type IActionMetadata =
+  | ITransfacerActionMeta
+  | IMintActionMeta
+  | IAddMembersActionMeta
+  | IMultiSigSettingsMeta
+  | IVoteSettingsMeta
