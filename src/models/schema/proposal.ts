@@ -17,6 +17,14 @@ import { ProposalActionType } from '@src/types/proposalAction'
 
 const customName = 'Proposal'
 
+class Resource {
+  @prop({ type: () => String, default: null })
+  public url!: string
+
+  @prop({ type: () => String, default: null })
+  public name!: string
+}
+
 class Action {
   @prop({ type: () => String, default: null })
   public to!: string
@@ -212,6 +220,9 @@ export default class Proposal extends Model {
 
   @prop({ type: () => String, default: null })
   public summary!: string
+
+  @prop({ type: () => [Resource], _id: false, default: [] })
+  public resources?: Resource[]
 
   @prop({ type: () => Number, default: 0 })
   public allowFailureMap!: number
