@@ -1,5 +1,11 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type ILogProposalIdParams, type IMemberProposalMetrics, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  type ILogProposalIdParams,
+  type IMemberActivityMetrics,
+  type IMemberProposalMetrics,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -174,6 +180,81 @@ export default class LogProposal extends Model {
       },
     ])
     return metrics?.[0] as IMemberProposalMetrics
+  }
+
+  static async getMemberActivity(memberAddress: HexAddress) {
+    const query = [
+      {
+        $facet: {
+          voteActivity: [
+            {
+              $unwind: '$voteEvents',
+            },
+            {
+              $match: {
+                'voteEvents.memberAddress': memberAddress,
+              },
+            },
+            {
+              $project: {
+                network: 1,
+                blockNumber: '$voteEvents.blockNumber',
+              },
+            },
+          ],
+          proposalActivity: [
+            {
+              $match: {
+                creatorAddress: memberAddress,
+              },
+            },
+            {
+              $project: {
+                network: 1,
+                blockNumber: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $project: {
+          allActivities: {
+            $concatArrays: ['$voteActivity', '$proposalActivity'],
+          },
+        },
+      },
+      {
+        $unwind: '$allActivities',
+      },
+      {
+        $group: {
+          _id: null,
+          firstActivity: {
+            $min: {
+              blockNumber: '$allActivities.blockNumber',
+              network: '$allActivities.network',
+            },
+          },
+          lastActivity: {
+            $max: {
+              blockNumber: '$allActivities.blockNumber',
+              network: '$allActivities.network',
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          firstActivity: 1,
+          lastActivity: 1,
+        },
+      },
+    ]
+
+    const activity = await this.aggregate(query)
+    return activity?.[0] as IMemberActivityMetrics
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {

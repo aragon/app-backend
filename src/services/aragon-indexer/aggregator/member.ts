@@ -424,17 +424,14 @@ export const AggregatorMembers = {
   },
 
   async _getMemberActivityDates(address: string) {
-    const activityResults = await Models.Vote.findMemberActivity(address)
+    const activityResults = await Models.LogProposal.getMemberActivity(address)
     let firstActivityTimestamp = 0
     let lastActivityTimestamp = 0
 
     if (activityResults) {
-      const firstActivityBlock = activityResults.firstActivity
-      const lastActivityBlock = activityResults.lastActivity
-
       const [firstActivityTime, lastActivityTime] = await Promise.all([
-        Web3Helper.getBlockTimestamp(firstActivityBlock, activityResults.network),
-        Web3Helper.getBlockTimestamp(lastActivityBlock, activityResults.network),
+        Web3Helper.getBlockTimestamp(activityResults.firstActivity.blockNumber, activityResults.firstActivity.network),
+        Web3Helper.getBlockTimestamp(activityResults.lastActivity.blockNumber, activityResults.lastActivity.network),
       ])
       firstActivityTimestamp = firstActivityTime
       lastActivityTimestamp = lastActivityTime
