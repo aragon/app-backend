@@ -6,12 +6,14 @@ import {
   type IProposalExtraParams,
   type IProposalIdParams,
   type IProposalsResponse,
+  ITokenType,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions, Schema } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
+import { ProposalActionType } from '@src/types/proposalAction'
 
 const customName = 'Proposal'
 
@@ -36,6 +38,12 @@ class Action {
 
   @prop({ type: () => String, default: null })
   public contractName!: string | null
+
+  @prop({ type: () => String, enum: ProposalActionType, default: ProposalActionType.Unknown })
+  public type!: ProposalActionType
+
+  @prop({ type: () => [Schema.Types.Mixed], default: null })
+  public metadata!: any
 }
 
 class Media {
@@ -115,6 +123,29 @@ export class Metrics {
 
   @prop({ type: () => [VotesByOption], _id: false, default: [] })
   public votesByOption!: VotesByOption[]
+}
+
+class Token {
+  @prop({ type: () => String, enum: ITokenType, required: true })
+  public type!: ITokenType
+
+  @prop({ type: () => String, required: true })
+  public address!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public logo!: string
+
+  @prop({ type: () => String, default: null })
+  public name!: string
+
+  @prop({ type: () => String, default: null, uppercase: true })
+  public symbol!: string
+
+  @prop({ type: () => Number, default: 18 })
+  public decimals!: number
+
+  @prop({ type: () => String, default: 0 })
+  public totalSupply!: string
 }
 
 @modelOptions({
@@ -199,6 +230,9 @@ export default class Proposal extends Model {
 
   @prop({ type: () => Metrics, _id: false, default: null })
   public metrics!: Metrics
+
+  @prop({ type: () => Token, _id: false, default: null })
+  public token!: Token
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {

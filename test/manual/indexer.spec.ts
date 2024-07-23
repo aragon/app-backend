@@ -1,6 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import IndexerService from '@services/aragon-indexer'
+import Web3Helper from '@helpers/web3'
 
 describe('Manual: Indexer', () => {
   let sandbox: SinonSandbox
