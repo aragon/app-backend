@@ -20,6 +20,7 @@ import { AggregatorSetting } from '@services/aragon-indexer/aggregator/setting'
 import { AggregatorDao } from '@services/aragon-indexer/aggregator/dao'
 import { AggregatorProposal } from '@indexer/aggregator/proposal'
 import { AggregatorDelegate } from '@indexer/aggregator/delegate'
+import { AggregatorVote } from '@indexer/aggregator/vote'
 
 describe('Indexer: index', () => {
   let sandbox: SinonSandbox
@@ -55,6 +56,7 @@ describe('Indexer: index', () => {
       sandbox.stub(AggregatorProposal, 'start').resolves(),
       sandbox.stub(AggregatorDelegate, 'start').resolves(),
       sandbox.stub(AggregatorDao, 'start').resolves(),
+      sandbox.stub(AggregatorVote, 'start').resolves(),
     ]
 
     await IndexerService.start()
@@ -66,7 +68,8 @@ describe('Indexer: index', () => {
     // Simulate the task execution
     for (const taskGroup of taskOptions.fn()) {
       for (const task of taskGroup) {
-        await task()
+        const taskName = Object.keys(task)[0]
+        await task[taskName].start()
       }
     }
 
@@ -83,11 +86,11 @@ describe('Indexer: index', () => {
     const stubLoggerError = sandbox.stub(logger, 'error')
 
     sandbox.stub(TaskSchedulerState.prototype, 'startTask').callsFake((_: string, options: any): any => {
-      options?.onError(true)
+      options?.onError(new Error('Task error'))
     })
 
     await IndexerService.start()
 
-    expect(stubLoggerError.calledOnce).to.be.true
+    expect(stubLoggerError.calledOnceWith('IndexerService task error' as any)).to.be.true
   })
 })

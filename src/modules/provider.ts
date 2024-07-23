@@ -43,6 +43,7 @@ const ProviderModule = {
     return new Promise((resolve, reject) => {
       try {
         const provider = new WebSocketProvider(nodeUrl) as IWebSocketProvider
+
         if (!ProviderModule.providerProxies[network]) {
           ProviderModule.providerProxies[network] = createProviderProxy(provider)
         } else {

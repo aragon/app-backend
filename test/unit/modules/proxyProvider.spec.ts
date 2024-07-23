@@ -76,4 +76,14 @@ describe('Module: proxyProvider', () => {
     expect(result).to.equal('result')
     expect(stubLog.neverCalledWith('wait to reconnect' as any)).to.be.true
   })
+
+  it('should return a proxy with the expected methods and behavior', async () => {
+    const proxy = createProviderProxy(mockProvider) as IWebSocketProviderMock
+
+    expect(proxy.updateProvider).to.be.a('function')
+
+    mockWebSocket.readyState = IWebSocketStatus.OPEN
+    const result = await proxy.someMethod()
+    expect(result).to.equal('result')
+  })
 })
