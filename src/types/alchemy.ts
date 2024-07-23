@@ -8,7 +8,7 @@ export interface IWebSocketProvider extends WebSocketProvider {
 }
 
 export interface IAlchemyTokenBalance {
-  contractAddress: HexAddress
+  contractAddress?: HexAddress | undefined
   tokenBalance: string
 }
 

@@ -151,29 +151,25 @@ export const DaoTransactions = {
           category: tx.category,
         }
 
-        // checksum address may not be consistent ERC20
-        if (tx.rawContract?.address) {
-          const token = await UtilsIndexer.saveAndGetToken(tx.rawContract?.address, daoRegistry.network)
+        const tokenAddress = tx.rawContract?.address || utils.zeroAddress
+        const token = await UtilsIndexer.saveAndGetToken(tokenAddress, daoRegistry.network)
 
-          if (token?.address) {
-            rawTx.tokenAddress = token.address
-            // historical price
-            const daysDifference = utils.calculateDaysDifference(rawTx.blockTimestamp)
-            const rate = await RateModule.fetchRate(token.address, daoRegistry.network, daysDifference)
-            rawTx.amountUsd = rate ? (Number(rawTx.value) * Number(rate.priceUsd)).toString() : '0'
+        if (token?.address) {
+          rawTx.tokenAddress = token.address
+          // historical price
+          const daysDifference = utils.calculateDaysDifference(rawTx.blockTimestamp)
+          const rate = await RateModule.fetchRate(token.address, daoRegistry.network, daysDifference)
+          rawTx.amountUsd = rate ? (Number(rawTx.value) * Number(rate.priceUsd)).toString() : '0'
 
-            rawTx.token = {
-              network: token.network,
-              address: token.address,
-              symbol: token.symbol,
-              name: token.name,
-              type: token.type,
-              logo: token.logo,
-              decimals: token.decimals,
-            }
+          rawTx.token = {
+            network: token.network,
+            address: token.address,
+            symbol: token.symbol,
+            name: token.name,
+            type: token.type,
+            logo: token.logo,
+            decimals: token.decimals,
           }
-        } else {
-          //  native grab the token
         }
 
         const logDb = await Models.Transaction.create(rawTx, { session } as any)
