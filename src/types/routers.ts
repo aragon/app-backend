@@ -45,6 +45,14 @@ export interface IMembersResponse {
   tokenAddress: HexAddress
   daoAddress: HexAddress
   votingPower?: string
+  firstActivity?: number
+  lastActivity?: number
+  metrics: {
+    delegateReceivedCount: number
+    delegateSentCount: number
+    voteCount: number
+    proposalCount: number
+  }
 }
 
 export interface IDaoResponse {

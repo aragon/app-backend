@@ -5,6 +5,16 @@ export interface IMemberProposalMetrics {
   voteCount: number
 }
 
+export interface IMemberActivityMetrics {
+  firstActivity: {
+    blockNumber: number
+    network: NetworksEnum
+  }
+  lastActivity: {
+    blockNumber: number
+    network: NetworksEnum
+  }
+}
 export interface IMemberVoteMetrics {
   address: HexAddress
   firstActivity: number
