@@ -329,6 +329,7 @@ export const AggregatorProposal = {
           title: '$metadata.title',
           description: '$metadata.description',
           summary: '$metadata.summary',
+          resources: '$metadata.resources',
           tokenAddress: '$pluginInfo.tokenAddress',
           media: {
             header: '$metadata.media.header',
