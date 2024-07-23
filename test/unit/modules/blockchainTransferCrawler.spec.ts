@@ -541,4 +541,27 @@ describe('Modules:BlockchainTransferCrawler', () => {
     expect(onTxStub.callCount).to.eq(0)
     expect(crawler['crawling']).to.be.false
   })
+
+  it('should stop crawling if shutdown flag is set', async () => {
+    sandbox.stub(ProviderModule, 'getProvider').callsFake(network => mockProvider as any)
+    mockProvider.getBlockNumber.resolves(10)
+    mockProvider.send.resolves({ transfers: [] })
+
+    const onTxStub = sandbox.stub().resolves()
+    const crawler = new BlockchainTransferCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      filter: {},
+      onTx: onTxStub,
+    })
+
+    sandbox.stub(crawler, 'updateAndCheckConditions').callsFake(async () => {
+      crawler.shutdown = true
+      return true
+    })
+
+    await crawler.crawl()
+
+    expect(onTxStub.notCalled).to.be.true
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+  })
 })
