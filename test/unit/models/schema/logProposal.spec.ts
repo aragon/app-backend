@@ -212,4 +212,19 @@ describe('Model: LogProposal', () => {
 
     expect(createdLogProposal.daoAddress).to.eq(rawLogProposal.daoAddress)
   })
+
+  it('should getMemberActivity', async () => {
+    const aggStub = sandbox.stub(Models.LogProposal, 'aggregate').resolves([
+      {
+        firstActivity: { blockNumber: 12313, network: NetworksEnum.ethereumMainnet },
+        lastActivity: { blockNumber: 123123, network: NetworksEnum.ethereumMainnet },
+      },
+    ])
+
+    const result = await Models.LogProposal.getMemberActivity('0x123')
+    expect(aggStub.calledOnce).to.be.true
+    expect(aggStub.args[0][0].length).to.be.eq(5)
+    expect(result.firstActivity.blockNumber).to.equal(12313)
+    expect(result.lastActivity.blockNumber).to.equal(123123)
+  })
 })
