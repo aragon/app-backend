@@ -55,7 +55,7 @@ describe('Modules: TaskScheduler', () => {
     expect(fakeService.start.callCount).to.be.at.least(6)
     expect(failingService.start.callCount).to.be.at.least(1)
 
-    await Utils.wait(810)
+    await Utils.wait(805)
     expect(fakeService.start.callCount).to.be.at.least(12)
     expect(failingService.start.callCount).to.be.at.least(2)
 
