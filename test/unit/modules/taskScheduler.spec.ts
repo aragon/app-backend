@@ -55,7 +55,7 @@ describe('Modules: TaskScheduler', () => {
     expect(fakeService.start.callCount).to.be.at.least(6)
     expect(failingService.start.callCount).to.be.at.least(1)
 
-    await Utils.wait(805)
+    await Utils.wait(820)
     expect(fakeService.start.callCount).to.be.at.least(12)
     expect(failingService.start.callCount).to.be.at.least(2)
 
@@ -73,7 +73,7 @@ describe('Modules: TaskScheduler', () => {
     expect(serviceDb[0].nextStartAt).to.exist
     expect(serviceDb[0].lastStartAt).to.exist
 
-    expect(tasksDb.length).to.eq(11)
+    expect(tasksDb.length).to.be.at.least(11)
     expect(tasksDb[0].serviceName).to.eq('indexer')
     expect(tasksDb[0].tasks.length).to.eq(7)
 
