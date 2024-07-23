@@ -13,9 +13,9 @@ const mongoOptions: ConnectOptions = {
 }
 
 const retryOptions = {
-  retries: 60,
-  timeout: 5000,
-  delay: 1000,
+  retries: config.MONGO_DB.CONNECTION_RETRY,
+  timeout: config.MONGO_DB.CONNECTION_TIMEOUT,
+  delay: config.MONGO_DB.CONNECTION_DELAY,
 }
 
 const Mongo = {

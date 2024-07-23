@@ -11,6 +11,13 @@ export interface IService {
   stop: () => void | Promise<void>
 }
 
+export enum IEnumTaskStatus {
+  PENDING = 'PENDING',
+  RUNNING = 'RUNNING',
+  DONE = 'DONE',
+  ERROR = 'ERROR',
+}
+
 export enum IEnumIndexerService {
   daoLog = 'daoLog',
   daoRegistryLog = 'daoRegistryLog',
