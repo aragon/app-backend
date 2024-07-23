@@ -311,13 +311,7 @@ describe('Module: blockchainLogCrawler', () => {
     const error = new Error('Log response size exceeded')
     error.message = 'Log response size exceeded'
     mockProvider.getBlockNumber.onFirstCall().resolves(300).onSecondCall().resolves(300)
-    mockProvider.getLogs
-      .onFirstCall()
-      .rejects(error)
-      .onSecondCall()
-      .rejects(error)
-      .onThirdCall()
-      .rejects(error)
+    mockProvider.getLogs.onFirstCall().rejects(error).onSecondCall().rejects(error).onThirdCall().rejects(error)
 
     const onLogStub = sandbox.stub().resolves()
     const onErrorStub = sandbox.stub()
