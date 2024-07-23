@@ -3,14 +3,12 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import logger from '@logger'
-import { ConfigState } from '@state/configState'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import { Models } from '@dbModels'
 import config from '@config'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
-import { ERC721_FUNCTIONS } from '@helpers/tokenDetector'
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
