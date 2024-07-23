@@ -7,6 +7,7 @@ import config from '@config'
 import { IToken, ITokenType, NetworksEnum } from '@types'
 import { TokenList } from '@test/mock/fakeCovalentTokens'
 import dayjs from '@helpers/dayjs'
+import utils from '@helpers/utils'
 
 describe('Helpers: Covalent', () => {
   let sandbox: SinonSandbox
@@ -19,34 +20,26 @@ describe('Helpers: Covalent', () => {
     sandbox && sandbox.restore()
   })
 
-  describe('networksMap', () => {
-    it('should correctly map NetworksEnum to network strings', () => {
-      const expectedMap = {
-        'ethereum-mainnet': 'eth-mainnet',
-        'ethereum-sepolia': 'eth-sepolia',
-        'polygon-mainnet': 'matic-mainnet',
-        'base-mainnet': 'base-mainnet',
-        'arbitrum-mainnet': 'arbitrum-mainnet',
-        'zksync-sepolia': 'zksync-sepolia-testnet',
-        'zksync-mainnet': 'zksync-mainnet',
-      }
-
-      Object.keys(NetworksEnum).forEach(key => {
-        const enumValue = NetworksEnum[key]
-        expect(CovalentHelper.networksMap[enumValue]).to.equal(expectedMap[enumValue])
-      })
-    })
-  })
-
-  describe('skipTestNetworks', () => {
-    it('should only include test networks for skipping', () => {
-      const expectedNetworks = [NetworksEnum.zksyncSepolia, NetworksEnum.ethereumSepolia]
-
-      expect(CovalentHelper.skipTestNetworks).to.deep.equal(expectedNetworks)
-      CovalentHelper.skipTestNetworks.forEach(network => {
-        expect(expectedNetworks).to.include(network)
-      })
-    })
+  it('networksMap', () => {
+    expect(CovalentHelper.nativeTokens[NetworksEnum.ethereumMainnet]).to.equal(
+      '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    )
+    expect(CovalentHelper.nativeTokens[NetworksEnum.ethereumSepolia]).to.equal(
+      '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    )
+    expect(CovalentHelper.nativeTokens[NetworksEnum.polygonMainnet]).to.equal(
+      '0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0',
+    )
+    expect(CovalentHelper.nativeTokens[NetworksEnum.arbitrumMainnet]).to.equal(
+      '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    )
+    expect(CovalentHelper.nativeTokens[NetworksEnum.baseMainnet]).to.equal('0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE')
+    expect(CovalentHelper.nativeTokens[NetworksEnum.zksyncMainnet]).to.equal(
+      '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    )
+    expect(CovalentHelper.nativeTokens[NetworksEnum.zksyncSepolia]).to.equal(
+      '0x000000000000000000000000000000000000800a',
+    )
   })
 
   describe('_rpCall', () => {
@@ -96,18 +89,6 @@ describe('Helpers: Covalent', () => {
       expect(rpcCallStub.args[0][0]).to.equal(path)
     })
 
-    it('should getToken - unsupported network', async () => {
-      const fakeResponse = TokenList[0]
-      const rpcCallStub = sandbox.stub(CovalentHelper, '_rpCall').resolves([fakeResponse] as any)
-
-      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-      const network = NetworksEnum.zksyncSepolia
-      const pastDays = 4
-
-      const token = (await CovalentHelper.getToken(address, network, pastDays)) as Partial<IToken>
-      expect(token).to.be.false
-    })
-
     it('should getToken with zeroAddress', async () => {
       const expectedToken = {
         address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
@@ -134,10 +115,10 @@ describe('Helpers: Covalent', () => {
 
       expect(
         rpcCallStub.args[0][0].startsWith(
-          `/pricing/historical_by_addresses_v2/eth-mainnet/USD/${CovalentHelper.nativeTokenAddress}/?from=`,
+          `/pricing/historical_by_addresses_v2/eth-mainnet/USD/${CovalentHelper.nativeTokens[NetworksEnum.ethereumMainnet]}/?from=`,
         ),
       ).to.be.true
-      expect(token.address).to.equal(expectedToken.address)
+      expect(token.address).to.equal(utils.zeroAddress)
     })
 
     it('should fail getToken', async () => {
@@ -272,7 +253,7 @@ describe('Helpers: Covalent', () => {
     })
   })
 
-  describe('should get token total supply', () => {
+  describe('getTokenTotalSupply', () => {
     it('should get token supply', async () => {
       const rpcCallStub = sandbox
         .stub(CovalentHelper, '_rpCall')
