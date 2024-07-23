@@ -47,6 +47,12 @@ export interface IMembersResponse {
   votingPower?: string
   firstActivity?: number
   lastActivity?: number
+  metrics: {
+    delegateReceivedCount: number
+    delegateSentCount: number
+    voteCount: number
+    proposalCount: number
+  }
 }
 
 export interface IDaoResponse {
