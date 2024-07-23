@@ -212,4 +212,17 @@ describe('Model: LogProposal', () => {
 
     expect(createdLogProposal.daoAddress).to.eq(rawLogProposal.daoAddress)
   })
+
+  it('should getMemberActivity', async () => {
+    const aggStub = sandbox.stub(Models.LogProposal, 'aggregate').resolves([
+      {
+        firstActivity: 12313,
+        lastActivity: 123123,
+      },
+    ])
+
+    await Models.LogProposal.getMemberActivity('0x123')
+    expect(aggStub.calledOnce).to.be.true
+    expect(aggStub.args[0][0].length).to.be.eq(2)
+  })
 })
