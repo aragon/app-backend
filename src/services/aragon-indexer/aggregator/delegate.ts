@@ -6,6 +6,7 @@ import type Delegate from '@models/schema/delegate'
 import { NetworkHelper } from '@helpers/network'
 import Web3Helper from '@helpers/web3'
 import config from '@config'
+import { type ICrawlStat } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorDelegate' })
 
@@ -38,7 +39,7 @@ export const AggregatorDelegate = {
     )
   },
 
-  async onDocument(document: Partial<Delegate>) {
+  async onDocument(document: Partial<Delegate>, stats: ICrawlStat) {
     const existingLog = await Models.Delegate.findExistingLog({
       network: document.network!,
       transactionHash: document.transactionHash!,
@@ -58,7 +59,7 @@ export const AggregatorDelegate = {
       }
       await session.commitTransaction()
       await session.endSession()
-      logger.verbose(existingLog ? 'Update Aggregate Delegate' : 'Aggregate Delegate', llo({ logId: logDb?.id }))
+      logger.verbose(existingLog ? 'Update Aggregate Delegate' : 'Aggregate Delegate', llo({ logId: logDb?.id, stats }))
     })
   },
 

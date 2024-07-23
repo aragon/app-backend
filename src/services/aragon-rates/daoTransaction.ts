@@ -1,5 +1,6 @@
 import {
   type IAlchemyTransferResponse,
+  type ICrawlStat,
   IEnumIndexerService,
   ITransactionCategory,
   ITransactionType,
@@ -33,7 +34,7 @@ export const DaoTransactions = {
 
     const crawler = new DBCrawler({
       model: Models.LogDaoRegistry,
-      onDocument: async (daoRegistry: LogDaoRegistry) => DaoTransactions.onDocument(daoRegistry),
+      onDocument: DaoTransactions.onDocument,
       onError: (error: any, document: any) => {
         logger.error('Error DaoTransactions', llo({ error, document }))
       },
@@ -72,7 +73,7 @@ export const DaoTransactions = {
         return category
     }
   },
-  onDocument: async (daoRegistry: LogDaoRegistry) => {
+  onDocument: async (daoRegistry: LogDaoRegistry, stats: ICrawlStat) => {
     const category = DaoTransactions.getCategories(daoRegistry.network)
     // txs to daoAddress
     const depositTxCrawler = new BlockchainTransferCrawler({
@@ -83,7 +84,7 @@ export const DaoTransactions = {
         category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) =>
-        DaoTransactions.saveTransaction(txLog, ITransactionType.deposit, daoRegistry),
+        DaoTransactions.saveTransaction(txLog, ITransactionType.deposit, daoRegistry, stats),
       onError: async (error: any) => {
         logger.error(
           'Error deposit transfer',
@@ -104,7 +105,7 @@ export const DaoTransactions = {
         category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) =>
-        DaoTransactions.saveTransaction(txLog, ITransactionType.withdraw, daoRegistry),
+        DaoTransactions.saveTransaction(txLog, ITransactionType.withdraw, daoRegistry, stats),
       onError: async (error: any) => {
         logger.error(
           'Error withdraw transfer',
@@ -117,7 +118,12 @@ export const DaoTransactions = {
     await withdrawTxCrawler.crawl()
   },
 
-  saveTransaction: async (tx: IAlchemyTransferResponse, type: ITransactionType, daoRegistry: LogDaoRegistry) => {
+  saveTransaction: async (
+    tx: IAlchemyTransferResponse,
+    type: ITransactionType,
+    daoRegistry: LogDaoRegistry,
+    stats: ICrawlStat,
+  ) => {
     try {
       const existingTxDb = await Models.Transaction.findExistingLog({
         transactionHash: tx.hash,
@@ -175,7 +181,7 @@ export const DaoTransactions = {
         const logDb = await Models.Transaction.create(rawTx, { session } as any)
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('New Transaction', llo({ logId: logDb?.id }))
+        logger.verbose('New Transaction', llo({ logId: logDb?.id, stats }))
       })
     } catch (error) {
       logger.error('Error Transaction', llo({ error, logId: daoRegistry.id }))

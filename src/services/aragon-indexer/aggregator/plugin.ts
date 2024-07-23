@@ -4,7 +4,7 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Plugin from '@models/schema/plugin'
 import { NetworkHelper } from '@helpers/network'
-import { type NetworksEnum } from '@types'
+import { type ICrawlStat, type NetworksEnum } from '@types'
 import ProxyContractHelper from '@helpers/proxyContract'
 import config from '@config'
 
@@ -37,7 +37,7 @@ export const AggregatorPlugin = {
     )
   },
 
-  async onDocument(document: Partial<Plugin>) {
+  async onDocument(document: Partial<Plugin>, stats: ICrawlStat) {
     const existingLog = await Models.Plugin.findExistingLog({
       transactionHash: document.transactionHash!,
       action: document.action!,
@@ -60,7 +60,7 @@ export const AggregatorPlugin = {
       }
       await session.commitTransaction()
       await session.endSession()
-      logger.verbose(existingLog ? 'Update Aggregate Plugin' : 'New Aggregate Plugin', llo({ logId: logDb?.id }))
+      logger.verbose(existingLog ? 'Update Aggregate Plugin' : 'New Aggregate Plugin', llo({ logId: logDb?.id, stats }))
     })
   },
 

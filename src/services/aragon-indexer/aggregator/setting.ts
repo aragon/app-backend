@@ -4,7 +4,7 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Setting from '@models/schema/setting'
 import { NetworkHelper } from '@helpers/network'
-import { type NetworksEnum } from '@types'
+import { type ICrawlStat, type NetworksEnum } from '@types'
 import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorSetting' })
@@ -36,7 +36,7 @@ export const AggregatorSetting = {
     )
   },
 
-  async onDocument(document: Partial<Setting>) {
+  async onDocument(document: Partial<Setting>, stats: ICrawlStat) {
     const existingLog = await Models.Setting.findExistingLog({
       fromTxHash: document.fromTxHash!,
       network: document.network!,
@@ -51,7 +51,7 @@ export const AggregatorSetting = {
       }
       await session.commitTransaction()
       await session.endSession()
-      logger.verbose(existingLog ? 'Update Aggregate Setting' : 'Aggregate Setting', llo({ logId: logDb?.id }))
+      logger.verbose(existingLog ? 'Update Aggregate Setting' : 'Aggregate Setting', llo({ logId: logDb?.id, stats }))
     })
   },
 

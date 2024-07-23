@@ -4,7 +4,7 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Vote from '@models/schema/vote'
 import { NetworkHelper } from '@helpers/network'
-import { type NetworksEnum } from '@types'
+import { type ICrawlStat, type NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorVote' })
@@ -36,7 +36,7 @@ export const AggregatorVote = {
     )
   },
 
-  async onDocument(document: Partial<Vote>) {
+  async onDocument(document: Partial<Vote>, stats: ICrawlStat) {
     const existingLog = await Models.Vote.findExistingLog({
       network: document.network!,
       transactionHash: document.transactionHash!,
@@ -58,7 +58,7 @@ export const AggregatorVote = {
       }
       await session.commitTransaction()
       await session.endSession()
-      logger.verbose(existingLog ? 'Update Aggregate Vote' : 'Aggregate Vote', llo({ logId: logDb?.id }))
+      logger.verbose(existingLog ? 'Update Aggregate Vote' : 'Aggregate Vote', llo({ logId: logDb?.id, stats }))
     })
   },
 

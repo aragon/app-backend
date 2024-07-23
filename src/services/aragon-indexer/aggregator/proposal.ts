@@ -6,7 +6,7 @@ import type Proposal from '@models/schema/proposal'
 import Web3Helper from '@helpers/web3'
 import DecodeActions from '@helpers/decodeActions'
 import { NetworkHelper } from '@helpers/network'
-import { type NetworksEnum } from '@types'
+import { type ICrawlStat, type NetworksEnum } from '@types'
 import config from '@config'
 import Covalent from '@helpers/covalent'
 import { UtilsIndexer } from '@indexer/utils/indexer'
@@ -47,7 +47,7 @@ export const AggregatorProposal = {
     )
   },
 
-  async onDocument(document: Partial<Proposal>) {
+  async onDocument(document: Partial<Proposal>, stats: ICrawlStat) {
     const existingLog = await Models.Proposal.findExistingLog({
       transactionHash: document.transactionHash!,
       pluginAddress: document.pluginAddress!,
@@ -82,7 +82,10 @@ export const AggregatorProposal = {
       }
       await session.commitTransaction()
       await session.endSession()
-      logger.verbose(existingLog ? 'Update Aggregate Proposal' : 'New Aggregate Proposal', llo({ logId: logDb?.id }))
+      logger.verbose(
+        existingLog ? 'Update Aggregate Proposal' : 'New Aggregate Proposal',
+        llo({ logId: logDb?.id, stats }),
+      )
     })
   },
 

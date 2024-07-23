@@ -1,6 +1,7 @@
 import { type Document, type Model } from 'mongoose'
 import * as async from 'async'
 import logger from '@logger'
+import { type ICrawlStat } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'modules: Crawler' })
 
@@ -175,9 +176,10 @@ class DBCrawler {
   async _worker(document: Document): Promise<void> {
     this.nbWorked++
 
-    const stat = {
-      nbWorked: this.nbWorked,
+    const stat: ICrawlStat = {
+      nbWorked: ++this.nbWorked,
       nbTotal: this.nbTotal,
+      remaining: --this.nbTotal,
     }
 
     try {

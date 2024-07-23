@@ -39,7 +39,6 @@ describe('Module: proxyProvider', () => {
 
     proxy.updateProvider(newMockProvider)
 
-    console.log('stubLogger', stubLogger.callCount)
     expect(stubLogger.calledOnce).to.be.true
     expect(await proxy.someMethod()).to.equal('result')
   })

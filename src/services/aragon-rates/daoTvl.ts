@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
-import { type ENS, type HexAddress, type NetworksEnum } from '@types'
+import { type ENS, type HexAddress, type ICrawlStat, type NetworksEnum } from '@types'
 import DBCrawler from '@models/utils/crawler'
 import config from '@config'
 
@@ -37,14 +37,14 @@ export const DaoTvl = {
     logger.verbose('End DaoTvl', llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt, duration: `${duration}ms` }))
   },
 
-  onDocument: async function (document: IQueryResult) {
+  onDocument: async function (document: IQueryResult, stats: ICrawlStat) {
     const dao = await Models.Dao.findExistingLog({ address: document.address, network: document.network })
     if (dao) {
       await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await dao.update({ tvlUSD: document.tvlUsd.toString() }, { session })
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('Update Dao tvlUSD', llo({ logId: logDb?.id }))
+        logger.verbose('Update Dao tvlUSD', llo({ logId: logDb?.id, stats }))
       })
     }
   },

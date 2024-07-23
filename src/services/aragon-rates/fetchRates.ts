@@ -5,7 +5,7 @@ import DbTx from '@modules/dbTx'
 import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
-import { NetworksEnum } from '@types'
+import { type ICrawlStat, NetworksEnum } from '@types'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 import config from '@config'
 
@@ -48,7 +48,7 @@ export const FetchRates = {
     )
   },
 
-  async onDocument(token: Token) {
+  async onDocument(token: Token, stats: ICrawlStat) {
     const rawTokenUpdateRate = await RateModule.fetchRate(token.address, token.network)
 
     // skip governance tokens with no price or unsupported token networks
@@ -63,7 +63,7 @@ export const FetchRates = {
       await session.endSession()
       logger.verbose(
         'Token rate updated',
-        llo({ logId: logDb.id, tokenSymbol: logDb.symbol, tokenType: logDb.type, priceUsd: logDb.priceUsd }),
+        llo({ logId: logDb.id, tokenSymbol: logDb.symbol, tokenType: logDb.type, priceUsd: logDb.priceUsd, stats }),
       )
     })
   },
