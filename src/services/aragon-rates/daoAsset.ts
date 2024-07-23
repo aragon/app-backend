@@ -10,6 +10,7 @@ import Web3Helper from '@helpers/web3'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import { NetworkHelper } from '@helpers/network'
 import config from '@config'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:DaoAssets' })
 
@@ -83,6 +84,8 @@ export const DaoAssets = {
             let tokenDb: any = null
             if (token?.contractAddress) {
               tokenDb = await UtilsIndexer.saveAndGetToken(token.contractAddress, document.network)
+            } else {
+              tokenDb = await UtilsIndexer.saveAndGetToken(utils.zeroAddress, document.network)
             }
 
             const existingAssetDb = await Models.Asset.findExistingLog({

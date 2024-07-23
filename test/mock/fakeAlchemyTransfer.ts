@@ -47,11 +47,6 @@ export const fakeAlchemyTransfer = [
     tokenId: null,
     asset: 'ETH',
     category: 'internal',
-    rawContract: {
-      value: '0xac1830c2a856d0c0',
-      address: null,
-      decimal: '0x12',
-    },
   },
   {
     blockNum: '0x1148e8a',

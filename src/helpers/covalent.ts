@@ -41,7 +41,15 @@ const CovalentHelper = {
 
   skipTestNetworks: [NetworksEnum.zksyncSepolia, NetworksEnum.ethereumSepolia],
 
-  nativeTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as HexAddress,
+  nativeTokens: {
+    [NetworksEnum.ethereumMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.ethereumSepolia]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.polygonMainnet]: '0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0',
+    [NetworksEnum.arbitrumMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.baseMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.zksyncMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.zksyncSepolia]: '0x000000000000000000000000000000000000800a',
+  },
 
   networkToCovalent: (network: NetworksEnum) => {
     return CovalentHelper.networksMap[network]
@@ -86,12 +94,11 @@ const CovalentHelper = {
     network: NetworksEnum,
     pastDays: number = 2,
   ): Promise<Partial<IToken> | false> => {
-    if (CovalentHelper.skipTestNetworks.includes(network)) {
-      return false
-    }
+    let isNativeToken = false
 
     if (tokenContractAddress === utils.zeroAddress) {
-      tokenContractAddress = CovalentHelper.nativeTokenAddress
+      tokenContractAddress = CovalentHelper.nativeTokens[network]
+      isNativeToken = true
     }
 
     const networkId = CovalentHelper.networkToCovalent(network)
@@ -102,13 +109,13 @@ const CovalentHelper = {
       const response = await CovalentHelper._rpCall<ITokenCovalentResponse[]>(path)
       assert(response.length > 0, 'Price data not complete')
 
-      return CovalentHelper._parseToken(response[0], network)
+      return CovalentHelper._parseToken(response[0], network, isNativeToken)
     } catch (_) {
       return false
     }
   },
 
-  _parseToken: (token: ITokenCovalentResponse, network: NetworksEnum): Partial<any> => {
+  _parseToken: (token: ITokenCovalentResponse, network: NetworksEnum, isNativeToken: boolean): Partial<any> => {
     const validPrices = token.prices?.filter(price => price.price !== null)
 
     const mostRecentPrice = validPrices?.[0]?.price ?? 0
@@ -117,7 +124,7 @@ const CovalentHelper = {
     const type = CovalentHelper.getTokenType(token)
 
     return {
-      address: Web3Helper.parseAddress(token.contract_address)!,
+      address: isNativeToken ? utils.zeroAddress : Web3Helper.parseAddress(token.contract_address)!,
       network,
       type,
       logo: token.logo_url,
