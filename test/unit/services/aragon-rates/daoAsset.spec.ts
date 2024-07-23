@@ -10,6 +10,7 @@ import Logger from '@logger'
 import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
 import { UtilsIndexer } from '@indexer/utils/indexer'
+import utils from '@helpers/utils'
 
 describe('Indexer:Aggregator:Assets', () => {
   let sandbox: SinonSandbox
@@ -58,6 +59,7 @@ describe('Indexer:Aggregator:Assets', () => {
       const fakeTokenBalances: IAlchemyTokenBalance[] = [
         { contractAddress: '0xTokenAddress1', tokenBalance: '150000' },
         { contractAddress: '0xTokenAddress2', tokenBalance: '200000' },
+        { contractAddress: undefined, tokenBalance: '300000' },
       ]
       const fakeToken = {
         address: fakeTokenBalances[0].contractAddress,
@@ -74,16 +76,27 @@ describe('Indexer:Aggregator:Assets', () => {
         decimals: 18,
         network: document.network,
       }
+
+      const fakeToken3 = {
+        address: utils.zeroAddress,
+        name: 'Token3',
+        symbol: 'T3',
+        decimals: 18,
+        network: document.network,
+      }
+
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
       const stubGetTokenBalances = sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
       const stubGetToken = sandbox
         .stub(UtilsIndexer, 'saveAndGetToken')
-        .onFirstCall()
+        .onCall(0)
         .resolves(fakeToken as any)
-        .onSecondCall()
+        .onCall(1)
         .resolves(fakeToken2 as any)
-        .onThirdCall()
+        .onCall(2)
         .resolves(fakeToken2 as any)
+        .onCall(3)
+        .resolves(fakeToken3 as any)
       const stubLogger = sandbox.stub(Logger, 'verbose')
 
       await DaoAssets.onDocument(document as any)
@@ -92,35 +105,32 @@ describe('Indexer:Aggregator:Assets', () => {
       expect(stubGetBalance.calledWith(document.address, document.network)).to.be.true
       expect(stubGetTokenBalances.callCount).to.eq(1)
       expect(stubGetTokenBalances.calledWith(document.address, document.network)).to.be.true
-      expect(stubGetToken.calledTwice).to.be.true
+      expect(stubGetToken.calledThrice).to.be.true
       expect(stubLogger.calledThrice).to.be.true
 
-      const asset = await Models.Asset.findExistingLog({
-        daoAddress: document.address as HexAddress,
-        tokenAddress: fakeTokenBalances[0].contractAddress,
-        network: document.network as NetworksEnum,
-      })
-      expect(asset.daoAddress).to.equal(document.address)
-      expect(asset.network).to.equal(document.network)
-      expect(asset.tokenAddress).to.equal(fakeTokenBalances[0].contractAddress)
-      expect(asset.amount).to.equal(fakeTokenBalances[0].tokenBalance)
+      const assets = await Models.Asset.findAssetsByDao(
+        document.address as HexAddress,
+        document.network as NetworksEnum,
+      )
+      expect(assets.length).to.equal(3)
 
-      const asset2 = await Models.Asset.findExistingLog({
-        daoAddress: document.address as HexAddress,
-        tokenAddress: fakeTokenBalances[1].contractAddress as HexAddress,
-        network: document.network as NetworksEnum,
-      })
+      const asset1 = assets.find((asset: any) => asset.tokenAddress === fakeTokenBalances[0].contractAddress)
+      const asset2 = assets.find((asset: any) => asset.tokenAddress === fakeTokenBalances[1].contractAddress)
+      const asset3 = assets.find((asset: any) => asset.tokenAddress === utils.zeroAddress)
+
+      expect(asset1.daoAddress).to.equal(document.address)
+      expect(asset1.network).to.equal(document.network)
+      expect(asset1.tokenAddress).to.equal(fakeTokenBalances[0].contractAddress)
+      expect(asset1.amount).to.equal(fakeTokenBalances[0].tokenBalance)
+
       expect(asset2.daoAddress).to.equal(document.address)
+      expect(asset2.network).to.equal(document.network)
       expect(asset2.tokenAddress).to.equal(fakeTokenBalances[1].contractAddress)
       expect(asset2.amount).to.equal(fakeTokenBalances[1].tokenBalance)
 
-      const asset3 = await Models.Asset.findExistingLog({
-        daoAddress: document.address as HexAddress,
-        tokenAddress: ZeroAddress as HexAddress,
-        network: document.network as NetworksEnum,
-      })
       expect(asset3.daoAddress).to.equal(document.address)
-      expect(asset3.tokenAddress).to.equal(ZeroAddress)
+      expect(asset3.network).to.equal(document.network)
+      expect(asset3.tokenAddress).to.equal(fakeToken3.address)
       expect(asset3.amount).to.equal(fakeEthBalance)
     })
 

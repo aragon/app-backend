@@ -13,6 +13,7 @@ import Web3Helper from '@helpers/web3'
 import { RateModule } from '@modules/rates'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
+import utils from '@helpers/utils'
 
 describe('Indexer:Aggregator:Transactions', () => {
   let sandbox: sinon.SinonSandbox
@@ -158,25 +159,24 @@ describe('Indexer:Aggregator:Transactions', () => {
           tokenId: tx.tokenId,
           erc721TokenId: tx.erc721TokenId,
           erc1155Metadata: tx.erc1155Metadata,
-          tokenAddress: tx.rawContract.address,
+          tokenAddress: tx.rawContract?.address ? tx.rawContract.address : utils.zeroAddress,
           category: tx.category,
         }
 
-        if (tx.rawContract.address) {
-          expectedTransaction.token = {
-            type: ITokenType.ERC20,
-            address: tx.rawContract.address,
-            logo: null,
-            name: 'Sepolia Avalanche',
-            symbol: 'SAVL',
-            decimals: 18,
-          }
+        expectedTransaction.token = {
+          type: ITokenType.ERC20,
+          address: tx.rawContract?.address ? tx.rawContract.address : utils.zeroAddress,
+          logo: null,
+          name: 'Sepolia Avalanche',
+          symbol: 'SAVL',
+          decimals: 18,
         }
 
         const loggerStub = sandbox.stub(Logger, 'verbose')
         const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves(expectedTransaction.token as any)
         const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
         const fetchRateStub = sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
+
         await DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any)
 
         const existingTxDb = await Models.Transaction.findExistingLog({
@@ -187,17 +187,18 @@ describe('Indexer:Aggregator:Transactions', () => {
 
         expect(loggerStub.calledOnce).to.be.true
         expect(loggerStub.calledOnceWith('New Transaction' as any)).to.be.true
-        if (tx.rawContract.address) {
-          expect(fetchRateStub.calledOnce).to.be.true
-        }
+        expect(fetchRateStub.calledOnce).to.be.true
 
         expect(existingTxDb.transactionHash).to.equal(expectedTransaction.transactionHash)
-        if (expectedTransaction.token) {
-          expect(stubToken.calledOnce).to.be.true
-          expect(existingTxDb?.token?.address).to.equal(expectedTransaction?.token?.address)
-        }
+        expect(stubToken.calledOnce).to.be.true
+        expect(existingTxDb?.token?.address).to.equal(expectedTransaction?.token?.address)
 
         expect(getBlockTimestampStub.calledOnce).to.be.true
+
+        loggerStub.restore()
+        stubToken.restore()
+        getBlockTimestampStub.restore()
+        fetchRateStub.restore()
       })
     })
 
