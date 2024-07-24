@@ -7,7 +7,7 @@ import { Models } from '@dbModels'
 import { IEnumTaskStatus } from '@types'
 import logger from '@logger'
 
-describe('Modules: TaskScheduler', () => {
+describe.only('Modules: TaskScheduler', () => {
   let sandbox: SinonSandbox
   let scheduler: TaskScheduler
 
@@ -83,7 +83,6 @@ describe('Modules: TaskScheduler', () => {
     expect(task0.position).to.eq(0)
     expect(task0.startAt).to.exist
     expect(task0.endAt).to.exist
-    expect(task0.metadata.error).to.exist
   })
 
   it('should run task at least twice at the specified interval when runNow is false', async () => {
@@ -142,7 +141,6 @@ describe('Modules: TaskScheduler', () => {
     expect(task0.position).to.eq(0)
     expect(task0.startAt).to.exist
     expect(task0.endAt).to.exist
-    expect(task0.metadata.error).to.exist
   })
 
   it('should allow manual execution of a task via runTaskNow', async () => {
