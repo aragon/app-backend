@@ -92,6 +92,7 @@ describe('Indexer:Aggregator:Member', () => {
   it('should update an existing aggregate member log', async () => {
     const rawDoc = {
       address: '0x12345',
+      ens: 'test',
       history: [rawDaoDoc],
     }
     const dbDoc = await Models.Member.create(rawDoc)
@@ -104,6 +105,7 @@ describe('Indexer:Aggregator:Member', () => {
 
     const updatedDoc = await dbDoc.reload()
 
+    expect(updatedDoc.ens).to.equal('test')
     expect(updatedDoc.history[0].delegateFromAddress).to.equal('0x011')
     expect(updatedDoc.history[0].tokenBalance).to.equal('200')
     expect(loggerSpy.calledOnceWith('Update Aggregate Member' as any)).to.be.true
