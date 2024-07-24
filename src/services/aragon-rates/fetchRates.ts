@@ -12,6 +12,9 @@ import config from '@config'
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
 export const FetchRates = {
+  batchSize: config.CRAWLER_CONFIG.TOKEN_RATES_BATCH_SIZE,
+  concurrency: config.CRAWLER_CONFIG.TOKEN_RATES_CONCURRENCY,
+
   start: async () => {
     const startTime = Date.now()
     logger.verbose('Start FetchRates', llo({ startTime }))
@@ -35,8 +38,8 @@ export const FetchRates = {
           },
         ],
       },
-      batchSize: config.CRAWLER_CONFIG.TOKEN_RATES_BATCH_SIZE,
-      concurrency: config.CRAWLER_CONFIG.TOKEN_RATES_CONCURRENCY,
+      batchSize: FetchRates.batchSize,
+      concurrency: FetchRates.concurrency,
     })
 
     await crawler.crawl()
