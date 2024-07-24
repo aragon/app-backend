@@ -24,10 +24,10 @@ class Task {
   public status!: IEnumTaskStatus
 
   @prop({ type: () => Number })
-  public batchSize!: number
+  public batchSize?: number
 
   @prop({ type: () => Number })
-  public concurrency!: number
+  public concurrency?: number
 
   @prop({ type: () => mongoose.Schema.Types.Mixed, default: null })
   public metadata?: any
