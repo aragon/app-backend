@@ -27,6 +27,9 @@ const llo = logger.logMeta.bind(null, { service: 'rates:DaoTransactions' })
  */
 
 export const DaoTransactions = {
+  batchSize: config.CRAWLER_CONFIG.DAO_TRANSACTIONS_BATCH_SIZE,
+  concurrency: config.CRAWLER_CONFIG.DAO_TRANSACTIONS_CONCURRENCY,
+
   start: async () => {
     const startTime = Date.now()
     logger.verbose('Start DaoTransactions', llo({ startTime }))
@@ -40,8 +43,8 @@ export const DaoTransactions = {
       where: {
         network: { $in: NetworkHelper.supportedNetworks().map(w => w.networkName) },
       },
-      batchSize: config.CRAWLER_CONFIG.DAO_TRANSACTIONS_BATCH_SIZE,
-      concurrency: config.CRAWLER_CONFIG.DAO_TRANSACTIONS_CONCURRENCY,
+      batchSize: DaoTransactions.batchSize,
+      concurrency: DaoTransactions.concurrency,
     })
 
     await crawler.crawl()

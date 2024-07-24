@@ -12,6 +12,9 @@ import config from '@config'
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMembers' })
 
 export const AggregatorMembers = {
+  batchSize: config.CRAWLER_CONFIG.MEMBER_BATCH_SIZE,
+  concurrency: config.CRAWLER_CONFIG.MEMBER_CONCURRENCY,
+
   start: async () => {
     const startTime = Date.now()
     logger.verbose('Start AggregatorMembers', llo({ startTime }))
@@ -28,8 +31,8 @@ export const AggregatorMembers = {
         AggregatorMembers.queryVotingPowerMembers(supportedNetworks),
         AggregatorMembers.queryMultisigMembers(supportedNetworks),
       ),
-      batchSize: config.CRAWLER_CONFIG.MEMBER_BATCH_SIZE,
-      concurrency: config.CRAWLER_CONFIG.MEMBER_CONCURRENCY,
+      batchSize: AggregatorMembers.batchSize,
+      concurrency: AggregatorMembers.concurrency,
     })
 
     await crawler.crawl()

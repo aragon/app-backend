@@ -15,6 +15,9 @@ import utils from '@helpers/utils'
 const llo = logger.logMeta.bind(null, { service: 'rates:DaoAssets' })
 
 export const DaoAssets = {
+  batchSize: config.CRAWLER_CONFIG.DAO_ASSETS_BATCH_SIZE,
+  concurrency: config.CRAWLER_CONFIG.DAO_ASSETS_CONCURRENCY,
+
   start: async () => {
     const startTime = Date.now()
     logger.verbose('Start DaoAssets', llo({ startTime }))
@@ -28,8 +31,8 @@ export const DaoAssets = {
       where: {
         network: { $in: NetworkHelper.supportedNetworks().map(network => network.networkName) },
       },
-      batchSize: config.CRAWLER_CONFIG.DAO_ASSETS_BATCH_SIZE,
-      concurrency: config.CRAWLER_CONFIG.DAO_ASSETS_CONCURRENCY,
+      batchSize: DaoAssets.batchSize,
+      concurrency: DaoAssets.concurrency,
     })
 
     await crawler.crawl()

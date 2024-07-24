@@ -11,6 +11,9 @@ import config from '@config'
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorDao' })
 
 export const AggregatorDao = {
+  batchSize: config.CRAWLER_CONFIG.DA0_BATCH_SIZE,
+  concurrency: config.CRAWLER_CONFIG.DAO_CONCURRENCY,
+
   start: async () => {
     const startTime = Date.now()
     logger.verbose('Start AggregatorDao', llo({ startTime }))
@@ -24,8 +27,8 @@ export const AggregatorDao = {
       },
       useAggregate: true,
       aggregate: AggregatorDao.query(supportedNetworks),
-      batchSize: config.CRAWLER_CONFIG.DA0_BATCH_SIZE,
-      concurrency: config.CRAWLER_CONFIG.DAO_CONCURRENCY,
+      batchSize: AggregatorDao.batchSize,
+      concurrency: AggregatorDao.concurrency,
     })
 
     await crawler.crawl()

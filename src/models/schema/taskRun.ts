@@ -23,6 +23,12 @@ class Task {
   @prop({ type: () => String, enum: IEnumTaskStatus, required: true })
   public status!: IEnumTaskStatus
 
+  @prop({ type: () => Number })
+  public batchSize?: number
+
+  @prop({ type: () => Number })
+  public concurrency?: number
+
   @prop({ type: () => mongoose.Schema.Types.Mixed, default: null })
   public metadata?: any
 }
