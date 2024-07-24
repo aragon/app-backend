@@ -28,9 +28,6 @@ class Task {
 
   @prop({ type: () => Number })
   public concurrency?: number
-
-  @prop({ type: () => mongoose.Schema.Types.Mixed, default: null })
-  public metadata?: any
 }
 
 @modelOptions({
