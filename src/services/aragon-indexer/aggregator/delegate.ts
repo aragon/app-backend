@@ -90,7 +90,21 @@ export const AggregatorDelegate = {
         $lookup: {
           from: 'token',
           let: { tokenAddr: '$tokenAddress' },
-          pipeline: [{ $match: { $expr: { $eq: ['$$tokenAddr', '$address'] } } }],
+          pipeline: [
+            { $match: { $expr: { $eq: ['$$tokenAddr', '$address'] } } },
+            {
+              $project: {
+                network: 1,
+                type: 1,
+                address: 1,
+                logo: 1,
+                name: 1,
+                decimals: 1,
+                symbol: 1,
+                _id: 0,
+              },
+            },
+          ],
           as: 'tokenDetails',
         },
       },
@@ -101,20 +115,7 @@ export const AggregatorDelegate = {
               if: { $eq: [{ $size: '$tokenDetails' }, 0] },
               then: null,
               else: {
-                $let: {
-                  vars: {
-                    token: { $arrayElemAt: ['$tokenDetails', 0] },
-                  },
-                  in: {
-                    network: '$$token.network',
-                    type: '$$token.type',
-                    address: '$$token.address',
-                    logo: '$$token.logo',
-                    name: '$$token.name',
-                    decimals: '$$token.decimals',
-                    symbol: '$$token.symbol',
-                  },
-                },
+                $arrayElemAt: ['$tokenDetails', 0],
               },
             },
           },

@@ -1,5 +1,4 @@
 import { modelOptions, prop } from '@typegoose/typegoose'
-import * as mongoose from 'mongoose'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { IEnumTaskStatus } from '@types'
