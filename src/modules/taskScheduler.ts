@@ -137,6 +137,8 @@ class TaskScheduler {
                   $set: {
                     'tasks.$.status': IEnumTaskStatus.RUNNING,
                     'tasks.$.startAt': taskStartTime.toDate(),
+                    'tasks.$.batchSize': serviceInstance.batchSize,
+                    'tasks.$.concurrency': serviceInstance.concurrency,
                   },
                 },
               )
