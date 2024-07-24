@@ -54,6 +54,7 @@ export const AggregatorMembers = {
       if (!existingLog) {
         logDb = await Models.Member.create(document, { session } as any)
       } else {
+        document.ens = existingLog.ens // keep ens if it exists
         logDb = await existingLog.update(document, { session })
       }
       await session.commitTransaction()
