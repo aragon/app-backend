@@ -21,6 +21,9 @@ interface ILogAction {
 
 // must run after AggregatorSetting
 export const AggregatorProposal = {
+  batchSize: config.CRAWLER_CONFIG.PROPOSAL_BATCH_SIZE,
+  concurrency: config.CRAWLER_CONFIG.PROPOSAL_CONCURRENCY,
+
   start: async () => {
     const startTime = Date.now()
     logger.verbose('Start AggregatorProposal', llo({ startTime }))
@@ -34,8 +37,8 @@ export const AggregatorProposal = {
       },
       useAggregate: true,
       aggregate: AggregatorProposal.query(supportedNetworks),
-      batchSize: config.CRAWLER_CONFIG.PROPOSAL_BATCH_SIZE,
-      concurrency: config.CRAWLER_CONFIG.PROPOSAL_CONCURRENCY,
+      batchSize: AggregatorProposal.batchSize,
+      concurrency: AggregatorProposal.concurrency,
     })
 
     await crawler.crawl()

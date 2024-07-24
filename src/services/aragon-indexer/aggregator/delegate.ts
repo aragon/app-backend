@@ -10,6 +10,9 @@ import config from '@config'
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorDelegate' })
 
 export const AggregatorDelegate = {
+  batchSize: config.CRAWLER_CONFIG.MEMBER_DELEGATE_BATCH_SIZE,
+  concurrency: config.CRAWLER_CONFIG.MEMBER_DELEGATE_CONCURRENCY,
+
   start: async () => {
     const startTime = Date.now()
     logger.verbose('Start AggregatorDelegate', llo({ startTime }))
@@ -25,8 +28,8 @@ export const AggregatorDelegate = {
       },
       useAggregate: true,
       aggregate: AggregatorDelegate.query(),
-      batchSize: config.CRAWLER_CONFIG.MEMBER_DELEGATE_BATCH_SIZE,
-      concurrency: config.CRAWLER_CONFIG.MEMBER_DELEGATE_CONCURRENCY,
+      batchSize: AggregatorDelegate.batchSize,
+      concurrency: AggregatorDelegate.concurrency,
     })
 
     await crawler.crawl()

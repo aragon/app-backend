@@ -15,6 +15,9 @@ interface IQueryResult {
 }
 
 export const DaoTvl = {
+  batchSize: config.CRAWLER_CONFIG.DAO_TVL_BATCH_SIZE,
+  concurrency: config.CRAWLER_CONFIG.DAO_TVL_CONCURRENCY,
+
   start: async () => {
     const startTime = Date.now()
     logger.verbose('Start DaoTvl', llo({ startTime }))
@@ -27,8 +30,8 @@ export const DaoTvl = {
       },
       useAggregate: true,
       aggregate: DaoTvl.query(),
-      batchSize: config.CRAWLER_CONFIG.ENS_BATCH_SIZE,
-      concurrency: config.CRAWLER_CONFIG.ENS_CONCURRENCY,
+      batchSize: DaoTvl.batchSize,
+      concurrency: DaoTvl.concurrency,
     })
 
     await crawler.crawl()
