@@ -36,13 +36,11 @@ const IndexerService: IService = {
 
     // order is important
     const aggregatorTasks = [
-      [{ aggregatorPlugin: AggregatorPlugin }],
-      [{ aggregatorSetting: AggregatorSetting }],
-      [{ aggregatorDao: AggregatorDao }],
-      [{ aggregatorDelegate: AggregatorDelegate }],
+      [{ aggregatorPlugin: AggregatorPlugin }, { aggregatorSetting: AggregatorSetting }],
+      [{ aggregatorDelegate: AggregatorDelegate }, { aggregatorVote: AggregatorVote }],
       [{ aggregatorMembers: AggregatorMembers }], // run after plugin and delegate for metrics
+      [{ aggregatorDao: AggregatorDao }], // run after plugin and members
       [{ aggregatorProposal: AggregatorProposal }], // run after member
-      [{ aggregatorVote: AggregatorVote }],
     ]
 
     const taskOptions = {
