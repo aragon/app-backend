@@ -117,6 +117,8 @@ class TaskScheduler {
                   taskName: Object.keys(task)[0],
                   status: IEnumTaskStatus.PENDING,
                   position: index,
+                  batchSize: task[Object.keys(task)[0]].batchSize,
+                  concurrency: task[Object.keys(task)[0]].concurrency,
                 }) as any,
             ),
         })
@@ -135,8 +137,6 @@ class TaskScheduler {
                   $set: {
                     'tasks.$.status': IEnumTaskStatus.RUNNING,
                     'tasks.$.startAt': taskStartTime.toDate(),
-                    'tasks.$.batchSize': serviceInstance.batchSize,
-                    'tasks.$.concurrency': serviceInstance.concurrency,
                   },
                 },
               )
