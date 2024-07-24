@@ -101,14 +101,14 @@ export class ProposalExecuted {
   @prop({ type: () => Boolean, default: false })
   public status!: boolean
 
-  @prop({ type: () => String, default: null })
-  public transactionHash!: HexAddress
+  @prop({ type: () => String })
+  public transactionHash?: HexAddress
 
   @prop({ type: () => Number })
-  public blockNumber!: number
+  public blockNumber?: number
 
   @prop({ type: () => Number })
-  public blockTimestamp!: number
+  public blockTimestamp?: number
 }
 
 export class VotesByOption {
@@ -227,7 +227,7 @@ export default class Proposal extends Model {
   @prop({ type: () => Number, default: 0 })
   public allowFailureMap!: number
 
-  @prop({ type: () => ProposalExecuted, _id: false })
+  @prop({ type: () => ProposalExecuted, _id: false, default: {} })
   public executed!: ProposalExecuted
 
   @prop({ type: () => Settings, _id: false })
