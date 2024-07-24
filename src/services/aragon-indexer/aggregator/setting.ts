@@ -10,6 +10,9 @@ import config from '@config'
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorSetting' })
 
 export const AggregatorSetting = {
+  batchSize: config.CRAWLER_CONFIG.DA0_SETTING_BATCH_SIZE,
+  concurrency: config.CRAWLER_CONFIG.DAO_SETTING_CONCURRENCY,
+
   start: async () => {
     const startTime = Date.now()
     logger.verbose('Start AggregatorSetting', llo({ startTime }))
@@ -23,8 +26,8 @@ export const AggregatorSetting = {
       },
       useAggregate: true,
       aggregate: AggregatorSetting.query(supportedNetworks),
-      batchSize: config.CRAWLER_CONFIG.DA0_SETTING_BATCH_SIZE,
-      concurrency: config.CRAWLER_CONFIG.DAO_SETTING_CONCURRENCY,
+      batchSize: AggregatorSetting.batchSize,
+      concurrency: AggregatorSetting.concurrency,
     })
 
     await crawler.crawl()

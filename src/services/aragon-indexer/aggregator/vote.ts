@@ -6,10 +6,14 @@ import type Vote from '@models/schema/vote'
 import { NetworkHelper } from '@helpers/network'
 import { type NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorVote' })
 
 export const AggregatorVote = {
+  batchSize: config.CRAWLER_CONFIG.VOTE_BATCH_SIZE,
+  concurrency: config.CRAWLER_CONFIG.VOTE_CONCURRENCY,
+
   start: async () => {
     const startTime = Date.now()
     logger.verbose('Start AggregatorVote', llo({ startTime }))
@@ -23,8 +27,8 @@ export const AggregatorVote = {
       },
       useAggregate: true,
       aggregate: AggregatorVote.query(supportedNetworks),
-      batchSize: 500,
-      concurrency: 10,
+      batchSize: AggregatorVote.batchSize,
+      concurrency: AggregatorVote.concurrency,
     })
 
     await crawler.crawl()

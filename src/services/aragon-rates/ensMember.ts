@@ -9,6 +9,9 @@ import EnsHelper from '@helpers/ens'
 const llo = logger.logMeta.bind(null, { service: 'rates:EnsMember' })
 
 export const EnsMember = {
+  batchSize: config.CRAWLER_CONFIG.ENS_BATCH_SIZE,
+  concurrency: config.CRAWLER_CONFIG.ENS_CONCURRENCY,
+
   start: async () => {
     const startTime = Date.now()
     logger.verbose('Start EnsMember', llo({ startTime }))
@@ -20,8 +23,8 @@ export const EnsMember = {
         logger.error('Error EnsMember', llo({ error, document }))
       },
       where: {},
-      batchSize: config.CRAWLER_CONFIG.ENS_BATCH_SIZE,
-      concurrency: config.CRAWLER_CONFIG.ENS_CONCURRENCY,
+      batchSize: EnsMember.batchSize,
+      concurrency: EnsMember.concurrency,
     })
 
     await crawler.crawl()
