@@ -162,7 +162,6 @@ class TaskScheduler {
                     $set: {
                       'tasks.$.status': IEnumTaskStatus.ERROR,
                       'tasks.$.endAt': taskEndTime.toDate(),
-                      'tasks.$.metadata': { error },
                     },
                   },
                 )

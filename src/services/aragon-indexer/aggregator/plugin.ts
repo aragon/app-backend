@@ -72,14 +72,16 @@ export const AggregatorPlugin = {
       {
         $match: {
           ...(networks?.length > 0 && { network: { $in: networks } }),
-          $or: [
-            { event: 'InstallationPrepared' },
-            { event: 'InstallationApplied' },
-            { event: 'UpdatePrepared' },
-            { event: 'UpdateApplied' },
-            { event: 'UninstallationPrepared' },
-            { event: 'UninstallationApplied' },
-          ],
+          event: {
+            $in: [
+              'InstallationPrepared',
+              'InstallationApplied',
+              'UpdatePrepared',
+              'UpdateApplied',
+              'UninstallationPrepared',
+              'UninstallationApplied',
+            ],
+          },
         },
       },
       {
