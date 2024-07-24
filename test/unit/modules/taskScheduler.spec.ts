@@ -7,7 +7,7 @@ import { Models } from '@dbModels'
 import { IEnumTaskStatus } from '@types'
 import logger from '@logger'
 
-describe.only('Modules: TaskScheduler', () => {
+describe('Modules: TaskScheduler', () => {
   let sandbox: SinonSandbox
   let scheduler: TaskScheduler
 
