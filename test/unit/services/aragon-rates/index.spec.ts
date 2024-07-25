@@ -8,8 +8,6 @@ import utils from '@helpers/utils'
 import { EnumConnection } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import logger from '@logger'
-import { DaoTvl } from '@rates/daoTvl'
-import { EnsMember } from '@rates/ensMember'
 import { DaoAssets } from '@rates/daoAsset'
 import { DaoTransactions } from '@rates/daoTransaction'
 
@@ -34,9 +32,7 @@ describe('Rates: index', () => {
     config.SERVICES.ARAGON_RATES.RATES_INTERVAL = 200
 
     const taskStubs = [
-      sandbox.stub(EnsMember, 'start').resolves(),
       sandbox.stub(FetchRates, 'start').resolves(),
-      sandbox.stub(DaoTvl, 'start').resolves(),
       sandbox.stub(DaoAssets, 'start').resolves(),
       sandbox.stub(DaoTransactions, 'start').resolves(),
     ]

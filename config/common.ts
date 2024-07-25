@@ -206,8 +206,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       VOTE_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_VOTE_CONCURRENCY', 1),
 
       // RATES
-      ENS_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_ENS_BATCH_SIZE', 1000),
-      ENS_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_ENS_CONCURRENCY', 1),
       TOKEN_RATES_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_BATCH_SIZE', 1000),
       TOKEN_RATES_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_CONCURRENCY', 1),
       DAO_TVL_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_TVL_BATCH_SIZE', 1000),

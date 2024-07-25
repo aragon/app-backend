@@ -84,6 +84,90 @@ export default class Asset extends Model {
     return await this.find({ daoAddress, network })
   }
 
+  static async getDaoTvl(daoAddress: HexAddress, network: NetworksEnum) {
+    const response = await this.aggregate([
+      {
+        $match: { daoAddress, network },
+      },
+      {
+        $lookup: {
+          from: 'token',
+          let: { tokenAddress: '$tokenAddress', network: '$network' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ['$address', '$$tokenAddress'] }, { $eq: ['$network', '$$network'] }],
+                },
+              },
+            },
+          ],
+          as: 'rate',
+        },
+      },
+      {
+        $unwind: {
+          path: '$rate',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          priceUsd: {
+            $ifNull: [{ $toDecimal: '$rate.priceUsd' }, 0],
+          },
+          decimals: {
+            $ifNull: [{ $toInt: '$rate.decimals' }, 18],
+          },
+          amountBigInt: { $toDecimal: '$amount' },
+        },
+      },
+      {
+        $addFields: {
+          normalizedAmount: {
+            $divide: ['$amountBigInt', { $pow: [10, '$decimals'] }],
+          },
+        },
+      },
+      {
+        $addFields: {
+          totalValueUsd: {
+            $multiply: ['$priceUsd', '$normalizedAmount'],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: '$daoAddress',
+          totalValueUsd: {
+            $sum: '$totalValueUsd',
+          },
+          dao: { $first: '$$ROOT' },
+        },
+      },
+      {
+        $addFields: {
+          totalValueUsdRounded: {
+            $round: ['$totalValueUsd', 2],
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: '$dao.daoAddress',
+          network: '$dao.network',
+          tvlUsd: '$totalValueUsdRounded',
+        },
+      },
+    ])
+    return {
+      tvlUsd: response[0]?.tvlUsd || 0,
+      daoAddress,
+      network,
+    }
+  }
+
   static async findAssetByTokenAndDao(tokenAddress: HexAddress, daoAddress: HexAddress, network: NetworksEnum) {
     return await this.findOne({ tokenAddress, daoAddress, network })
   }

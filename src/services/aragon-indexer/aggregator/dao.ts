@@ -63,6 +63,7 @@ export const AggregatorDao = {
       if (!existingLog) {
         logDb = await Models.Dao.create(document, { session } as any)
       } else {
+        document.tvlUSD = existingLog.tvlUSD // keep tvl
         logDb = await existingLog.update(document, { session })
       }
       await session.commitTransaction()
