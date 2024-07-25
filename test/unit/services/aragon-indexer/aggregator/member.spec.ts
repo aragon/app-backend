@@ -7,6 +7,7 @@ import DBCrawler from '@models/utils/crawler'
 import { NetworksEnum } from '@types'
 import Logger from '@logger'
 import Web3Helper from '@helpers/web3'
+import EnsHelper from '@helpers/ens'
 
 describe('Indexer:Aggregator:Member', () => {
   let sandbox: SinonSandbox
@@ -61,54 +62,59 @@ describe('Indexer:Aggregator:Member', () => {
     })
   })
 
-  it('should call onDocument', async () => {
-    const document = {
-      address: '0x123',
-      history: [rawDaoDoc],
-    }
+  describe('onDocument', async () => {
+    it('should call onDocument', async () => {
+      const ens = 'leuts.eth'
+      const document = {
+        address: '0x123',
+        history: [rawDaoDoc],
+      }
 
-    const stubLogger = sandbox.stub(Logger, 'verbose')
-    const getMemberDataStub = sandbox.stub(AggregatorMembers, '_getMemberData').resolves(document as any)
-    await AggregatorMembers.onDocument(document as any)
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      const stubEns = sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves(ens)
+      const getMemberDataStub = sandbox.stub(AggregatorMembers, '_getMemberData').resolves(document as any)
+      await AggregatorMembers.onDocument(document as any)
 
-    expect(stubLogger.calledOnce).to.be.true
-    expect(getMemberDataStub.calledOnce).to.be.true
-    const member = await Models.Member.findExistingLog({ address: document.address })
-    expect(member.address).to.equal(document.address)
-    expect(member.ens).to.be.null
-    expect(member.history.length).to.eq(1)
-    expect(member.history[0].network).to.eq(NetworksEnum.ethereumMainnet)
-    expect(member.history[0].pluginAddress).to.eq(document.history[0].pluginAddress)
-    expect(member.history[0].pluginSubdomain).to.eq(document.history[0].pluginSubdomain)
-    expect(member.history[0].fromBlockNumber).to.eq(document.history[0].fromBlockNumber)
-    expect(member.history[0].toBlockNumber).to.eq(document.history[0].toBlockNumber)
-    expect(member.history[0].fromTxHash).to.eq(document.history[0].fromTxHash)
-    expect(member.history[0].toTxHash).to.eq(document.history[0].toTxHash)
-    expect(member.history[0].delegateFromAddress).to.eq(document.history[0].delegateFromAddress)
-    expect(member.history[0].delegateToAddress).to.eq(document.history[0].delegateToAddress)
-    expect(member.history[0].votingPower).to.eq(document.history[0].votingPower)
-  })
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubEns.calledOnceWith(document.address)).to.be.true
+      expect(getMemberDataStub.calledOnce).to.be.true
+      const member = await Models.Member.findExistingLog({ address: document.address })
+      expect(member.address).to.equal(document.address)
+      expect(member.ens).to.eq(ens)
+      expect(member.history.length).to.eq(1)
+      expect(member.history[0].network).to.eq(NetworksEnum.ethereumMainnet)
+      expect(member.history[0].pluginAddress).to.eq(document.history[0].pluginAddress)
+      expect(member.history[0].pluginSubdomain).to.eq(document.history[0].pluginSubdomain)
+      expect(member.history[0].fromBlockNumber).to.eq(document.history[0].fromBlockNumber)
+      expect(member.history[0].toBlockNumber).to.eq(document.history[0].toBlockNumber)
+      expect(member.history[0].fromTxHash).to.eq(document.history[0].fromTxHash)
+      expect(member.history[0].toTxHash).to.eq(document.history[0].toTxHash)
+      expect(member.history[0].delegateFromAddress).to.eq(document.history[0].delegateFromAddress)
+      expect(member.history[0].delegateToAddress).to.eq(document.history[0].delegateToAddress)
+      expect(member.history[0].votingPower).to.eq(document.history[0].votingPower)
+    })
 
-  it('should update an existing aggregate member log', async () => {
-    const rawDoc = {
-      address: '0x12345',
-      ens: 'test',
-      history: [rawDaoDoc],
-    }
-    const dbDoc = await Models.Member.create(rawDoc)
-    const loggerSpy = sandbox.stub(Logger, 'verbose')
-    sandbox.stub(AggregatorMembers, '_getMemberData').resolves(rawDoc as any)
+    it('should update an existing aggregate member log', async () => {
+      const rawDoc = {
+        address: '0x12345',
+        ens: 'test',
+        history: [rawDaoDoc],
+      }
+      const dbDoc = await Models.Member.create(rawDoc)
+      const loggerSpy = sandbox.stub(Logger, 'verbose')
+      sandbox.stub(AggregatorMembers, '_getMemberData').resolves(rawDoc as any)
 
-    rawDoc.history[0].delegateFromAddress = '0x011'
-    rawDoc.history[0].tokenBalance = '200'
-    await AggregatorMembers.onDocument(rawDoc as any)
+      rawDoc.history[0].delegateFromAddress = '0x011'
+      rawDoc.history[0].tokenBalance = '200'
+      await AggregatorMembers.onDocument(rawDoc as any)
 
-    const updatedDoc = await dbDoc.reload()
+      const updatedDoc = await dbDoc.reload()
 
-    expect(updatedDoc.ens).to.equal('test')
-    expect(updatedDoc.history[0].delegateFromAddress).to.equal('0x011')
-    expect(updatedDoc.history[0].tokenBalance).to.equal('200')
-    expect(loggerSpy.calledOnceWith('Update Aggregate Member' as any)).to.be.true
+      expect(updatedDoc.ens).to.equal('test')
+      expect(updatedDoc.history[0].delegateFromAddress).to.equal('0x011')
+      expect(updatedDoc.history[0].tokenBalance).to.equal('200')
+      expect(loggerSpy.calledOnceWith('Update Aggregate Member' as any)).to.be.true
+    })
   })
 
   it('should use query', () => {

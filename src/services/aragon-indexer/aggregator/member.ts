@@ -8,6 +8,7 @@ import { NetworkHelper } from '@helpers/network'
 import { type NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import config from '@config'
+import EnsHelper from '@helpers/ens'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMembers' })
 
@@ -52,6 +53,7 @@ export const AggregatorMembers = {
       let logDb: any
 
       if (!existingLog) {
+        document.ens = await EnsHelper.getEnsWithUniversalResolver(document.address!)
         logDb = await Models.Member.create(document, { session } as any)
       } else {
         document.ens = existingLog.ens // keep ens if it exists
