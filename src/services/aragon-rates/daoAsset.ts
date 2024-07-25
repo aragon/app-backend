@@ -1,6 +1,5 @@
-import { type IAlchemyTokenBalance } from '@types'
+import { type HexAddress, type IAlchemyTokenBalance, type NetworksEnum } from '@types'
 import DBCrawler from '@models/utils/crawler'
-import { ZeroAddress } from 'ethers'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
@@ -56,11 +55,14 @@ export const DaoAssets = {
           amount: ethBalance,
           network: document.network,
           daoAddress: document.address,
-          tokenAddress: ZeroAddress, // ETH native token
+          tokenAddress: utils.zeroAddress, // ETH native token
         }
+
+        await UtilsIndexer.saveAndGetToken(utils.zeroAddress, document.network)
+
         const existingEthAssetDb = await Models.Asset.findExistingLog({
           daoAddress: document.address,
-          tokenAddress: ZeroAddress,
+          tokenAddress: utils.zeroAddress,
           network: document.network,
         })
 
@@ -88,7 +90,7 @@ export const DaoAssets = {
             if (token?.contractAddress) {
               tokenDb = await UtilsIndexer.saveAndGetToken(token.contractAddress, document.network)
             } else {
-              tokenDb = await UtilsIndexer.saveAndGetToken(utils.zeroAddress, document.network)
+              logger.error('Error Token balance missing contractAddress', llo({ token }))
             }
 
             const existingAssetDb = await Models.Asset.findExistingLog({
@@ -119,8 +121,26 @@ export const DaoAssets = {
             })
           }),
       )
+
+      if (Number(ethBalance) > 0 || tokenBalances.length > 0) {
+        await DaoAssets.daoTvl(document.address, document.network)
+      }
     } catch (error) {
       logger.error('Error DaoAssets', llo({ error, logId: document.id }))
+    }
+  },
+
+  daoTvl: async (daoAddress: HexAddress, network: NetworksEnum) => {
+    const dao = await Models.Dao.findExistingLog({ address: daoAddress, network })
+
+    if (dao) {
+      const response = await Models.Asset.getDaoTvl(daoAddress, network)
+      await DbTx.executeTxFn(async ({ session }) => {
+        const logDb = await dao.update({ tvlUSD: response.tvlUsd }, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Update Dao tvlUSD', llo({ logId: logDb?.id }))
+      })
     }
   },
 }
