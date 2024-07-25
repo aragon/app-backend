@@ -3,6 +3,7 @@ import {
   type ENS,
   HexAddress,
   type IActiveMemberExtraParams,
+  type IDaoExtraParams,
   type IMemberExtraParams,
   type IMemberIdParams,
   type IMembersResponse,
@@ -243,7 +244,7 @@ export default class Member extends Model {
       address,
     }
 
-    const member = await this.aggregate([
+    const query = [
       { $match: filter },
       {
         $unwind: '$history',
@@ -264,7 +265,36 @@ export default class Member extends Model {
           _id: '$_id',
           address: { $first: '$address' },
           ens: { $first: '$ens' },
-          history: { $push: '$history' },
+          daos: { $push: '$history' },
+        },
+      },
+      ...ModelUtils.daoInfoAggregationFragment('$daos.daoAddress'),
+      {
+        $addFields: {
+          daos: {
+            $map: {
+              input: '$daos',
+              as: 'dao',
+              in: {
+                $mergeObjects: [
+                  '$$dao',
+                  {
+                    daoInfo: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: '$daoDetails',
+                            cond: { $eq: ['$$this.address', '$$dao.daoAddress'] },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          },
         },
       },
       {
@@ -272,10 +302,12 @@ export default class Member extends Model {
           _id: 0,
           address: 1,
           ens: 1,
-          history: 1,
+          history: '$daos',
         },
       },
-    ])
+    ]
+
+    const member = await this.aggregate(query as any)
     return member?.[0] as IMembersResponse
   }
 
@@ -405,6 +437,79 @@ export default class Member extends Model {
       },
     ])
     return member?.[0] as IMembersResponse
+  }
+
+  static async findDaoOfMemberWithPagination(extraParams?: IDaoExtraParams, paginationParams?: IPaginationParams) {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const filter = {
+      address: extraParams?.memberAddress,
+    }
+
+    const currentPage = request.skip / request.limit + 1
+
+    const query = [
+      { $match: filter },
+      {
+        $unwind: '$history',
+      },
+      {
+        $match: {
+          ...(extraParams?.network && { 'history.network': extraParams.network }),
+          $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+        },
+      },
+      {
+        $lookup: {
+          from: 'dao',
+          let: { daoAddress: '$history.daoAddress' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$address', '$$daoAddress'] },
+              },
+            },
+            {
+              $project: {
+                createdAt: 0,
+                updatedAt: 0,
+                __v: 0,
+                hideDao: 0,
+                _id: 0,
+              },
+            },
+          ],
+          as: 'daoDetails',
+        },
+      },
+      {
+        $unwind: '$daoDetails',
+      },
+      {
+        $replaceRoot: { newRoot: '$daoDetails' },
+      },
+    ]
+
+    const [result, totalRecords] = await Promise.all([
+      this.aggregate([...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]),
+      this.aggregate([...query, { $count: 'totalRecords' }]),
+    ])
+
+    const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
+    const totalPages = Math.ceil(_totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords: _totalRecords,
+      },
+      data: result as any,
+    }
   }
 
   async update(params: Partial<Member>, tOpts?: SaveOptions) {
