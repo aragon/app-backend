@@ -217,7 +217,9 @@ export default class Vote extends Model {
   }): Promise<IPaginatedResult<IVoteResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(([key, value]) => value !== undefined && key !== 'tokenAddress'),
+      Object.entries(extraParams).filter(
+        ([key, value]) => value !== undefined && key !== 'tokenAddress' && key !== 'includeInfo',
+      ),
     )
 
     const filter = {
@@ -229,10 +231,76 @@ export default class Vote extends Model {
       filter['token.address'] = extraParams.tokenAddress
     }
 
-    const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
+    // make the aggregation query better
+    let query: any = [
+      {
+        $match: filter,
+      },
+    ]
 
-    const totalPages = Math.ceil(totalRecords / request.limit)
+    if (extraParams.includeInfo) {
+      query = [
+        ...query,
+        {
+          $lookup: {
+            from: 'logProposalMetadata',
+            let: { pId: '$proposalId', pluginAddr: '$pluginAddress' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [{ $eq: ['$proposalId', '$$pId'] }, { $eq: ['$pluginAddress', '$$pluginAddr'] }],
+                  },
+                },
+              },
+              {
+                $project: {
+                  title: 1,
+                  description: 1,
+                  summary: 1,
+                  metadataUri: 1,
+                  resources: 1,
+                  media: 1,
+                },
+              },
+            ],
+            as: 'proposalDetails',
+          },
+        },
+        {
+          $addFields: {
+            proposalInfo: {
+              $arrayElemAt: ['$proposalDetails', 0],
+            },
+          },
+        },
+      ]
+    }
+
+    query = [
+      ...query,
+      {
+        $project: {
+          createdAt: 0,
+          updatedAt: 0,
+          __v: 0,
+          _id: 0,
+          proposalDetails: 0,
+        },
+      },
+    ]
+
+    const currentPage = request.skip / request.limit + 1
+    const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery),
+      this.aggregate([...query, { $count: 'totalRecords' }]),
+    ])
+
+    const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
+
+    const totalPages = Math.ceil(_totalRecords / request.limit)
 
     if (currentPage > totalPages) {
       return ModelUtils.paginateEmptyResponse(request.limit)
@@ -243,7 +311,7 @@ export default class Vote extends Model {
         page: currentPage,
         pageSize: request.limit,
         totalPages,
-        totalRecords,
+        totalRecords: _totalRecords,
       },
       data: data as any,
     }

@@ -6,7 +6,6 @@ import {
   type IVoteExtraParams,
   type IVoteResponse,
 } from '@types'
-import type Vote from '@models/schema/vote'
 import PairDataModule from '@modules/pairData'
 
 const VoteController = {
@@ -16,10 +15,7 @@ const VoteController = {
     pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<IVoteResponse>> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
-    const result = await Models.Vote.findWithPagination({ extraParams, paginationParams })
-    result.data = result.data.map((vote: Vote) => vote.filterKeys())
-
-    return result
+    return await Models.Vote.findWithPagination({ extraParams, paginationParams })
   },
 }
 

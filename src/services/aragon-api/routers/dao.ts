@@ -26,6 +26,24 @@ const DaoRouter = {
     ctx.body = await DaoController.getDaosWithPagination(formattedPaginationParams, formattedExtraParams)
   },
 
+  getDaoByMemberAddress: async function (ctx: RouterContext) {
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockTimestamp' })
+    const extraParams = {
+      memberAddress: ctx.params.address,
+      network: ctx.query.network,
+    }
+
+    const anyInvalidParams = Utils.extractAdditionalParams({ ...paginationParams, ...extraParams }, ctx.query)
+
+    const [formattedPaginationParams, formattedExtraParams] = await Promise.all([
+      ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
+      ValidationSchema.validateParams(DaoSchema.getDaosByMember, extraParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
+
+    ctx.body = await DaoController.getDaosByMember(formattedPaginationParams, formattedExtraParams)
+  },
+
   getDaoById: async function (ctx: RouterContext) {
     const params = {
       id: ctx.params.id,
@@ -78,6 +96,17 @@ const DaoRouter = {
      * @apiSampleRequest /:id
      */
     router.get('/:id', DaoRouter.getDaoById)
+
+    /**
+     * @api {get} /:address/member/:address Get Dao By Member Address
+     * @apiName Daos
+     * @apiGroup Daos
+     * @apiDescription Get Dao By Member Address
+     *
+     * @apiSampleRequest /:address/member/:address
+     */
+
+    router.get('/member/:address', DaoRouter.getDaoByMemberAddress)
 
     /**
      * @api {get} /:network/:address Get Dao by address
