@@ -38,6 +38,13 @@ const DaoController = {
 
     return dao.filterKeys()
   },
+
+  getDaosByMember: async (paginationParams: IPaginationParams = {}, extraParams: IDaoExtraParams = {}) => {
+    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
+    extraParams.memberAddress = await PairDataModule.checkIFEns(extraParams.memberAddress!)
+
+    return await Models.Member.findDaoOfMemberWithPagination(extraParams, paginationParams)
+  },
 }
 
 export default DaoController

@@ -15,6 +15,7 @@ const ProposalRouter = {
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       creatorAddress: ctx.query.creatorAddress as HexAddress,
+      daoInfo: ctx.query.daoInfo !== undefined && Boolean(ctx.query.daoInfo),
     }
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,

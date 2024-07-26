@@ -14,6 +14,7 @@ export interface IVoteExtraParams {
   tokenAddress?: HexAddress
   proposalId?: number
   memberAddress?: HexAddress
+  includeInfo?: boolean
 }
 
 export interface IPairParams {
@@ -26,6 +27,7 @@ export interface IProposalExtraParams {
   daoAddress?: HexAddress
   pluginAddress?: HexAddress
   creatorAddress?: HexAddress
+  daoInfo?: boolean
 }
 
 export interface IAssetExtraParams {
@@ -38,6 +40,7 @@ export interface IDaoExtraParams {
   address?: HexAddress | undefined
   network?: NetworksEnum | undefined
   pluginAddress?: HexAddress | undefined
+  memberAddress?: HexAddress | undefined
 }
 
 export interface IMemberExtraParams {
