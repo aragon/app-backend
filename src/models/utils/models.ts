@@ -111,36 +111,7 @@ const ModelUtils = {
    * @param daoAddrField
    */
 
-  daoInfoAggregationFragment(daoAddrField = 'daoAddress') {
-    return [
-      {
-        $lookup: {
-          from: 'dao',
-          let: { daoAddresses: daoAddrField },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $in: ['$address', '$$daoAddresses'],
-                },
-              },
-            },
-            {
-              $project: {
-                _id: 0,
-                address: 1,
-                name: 1,
-                description: 1,
-                avatar: 1,
-                links: 1,
-              },
-            },
-          ],
-          as: 'daoDetails',
-        },
-      },
-    ]
-  },
+  daoInfoAggregationFragment(daoAddrField = 'daoAddress') {},
 }
 
 export default ModelUtils

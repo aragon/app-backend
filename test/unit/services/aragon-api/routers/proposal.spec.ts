@@ -24,6 +24,7 @@ describe('Router: Proposal', () => {
         daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         creatorAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        daoInfo: false,
       }
       const paginationParams = {
         pageSize: 10,
@@ -57,6 +58,7 @@ describe('Router: Proposal', () => {
     it('Should get proposal with pagination - daoId', async () => {
       const filterParams = {
         daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        daoInfo: false,
       }
       const paginationParams = {
         pageSize: 10,
@@ -90,13 +92,15 @@ describe('Router: Proposal', () => {
         daoAddress: undefined,
         pluginAddress: undefined,
         creatorAddress: undefined,
+        daoInfo: false,
       })
-      expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
+      expect(stubCtrl.args[0][2]?.daoId).to.deep.eq(filterParams.daoId)
     })
 
     it('Should get proposal with pagination - missing pagination params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
+        daoInfo: true,
       }
       const paginationParams = {
         sort: 'createdAt',

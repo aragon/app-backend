@@ -10,7 +10,6 @@ import {
   type IPairParams,
 } from '@types'
 import { assertExposable } from '@errors'
-import type Proposal from '@models/schema/proposal'
 import PairDataModule from '@modules/pairData'
 
 const ProposalController = {
@@ -21,10 +20,7 @@ const ProposalController = {
   ): Promise<IPaginatedResult<IProposalsResponse>> => {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
-    const result = await Models.Proposal.findWithPagination({ extraParams, paginationParams })
-    result.data = result.data.map((proposal: Proposal) => proposal.filterKeys())
-
-    return result
+    return await Models.Proposal.findWithPagination({ extraParams, paginationParams })
   },
 
   getProposalById: async (id: string): Promise<IProposalsResponse> => {

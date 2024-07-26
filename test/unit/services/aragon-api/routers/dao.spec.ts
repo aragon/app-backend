@@ -122,4 +122,22 @@ describe('Router: Dao', () => {
     expect(stubCtrl.calledOnce).to.be.true
     expect(stubCtrl.calledWith(params.address, params.network)).to.be.true
   })
+
+  it('should get daos by member address', async () => {
+    const params = {
+      address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    }
+
+    const stubCtrl = sandbox.stub(DaoController, 'getDaosByMember').returns(true as any)
+
+    const ctx: any = {
+      params,
+      query: {},
+    }
+
+    await DaoRouter.getDaoByMemberAddress(ctx)
+
+    expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+  })
 })

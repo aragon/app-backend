@@ -27,6 +27,7 @@ export interface IProposalExtraParams {
   daoAddress?: HexAddress
   pluginAddress?: HexAddress
   creatorAddress?: HexAddress
+  daoInfo?: boolean
 }
 
 export interface IAssetExtraParams {
