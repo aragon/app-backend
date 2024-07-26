@@ -336,6 +336,42 @@ describe('Model: Member', () => {
       expect(pageSize).to.eq(10)
     })
 
+    it('should findDaoOfMemberWithPagination', async () => {
+      await Models.Dao.create({
+        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+        title: 'DAO 1',
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0x0',
+        blockNumber: 0,
+        blockTimestamp: 1219577223,
+        implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+        creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+        ens: 'dao.eth',
+        subdomain: 'dao',
+        members: 10,
+        metadataIpfs: 'metadataIpfs',
+        name: 'fake-name',
+        description: 'fake-description',
+        avatar: 'fake-avatar',
+      } as any)
+
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Member.findDaoOfMemberWithPagination(
+        {
+          memberAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5408',
+        },
+        {},
+      )
+
+      expect(data.length).to.eq(1)
+      expect(totalRecords).to.eq(1)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
     it('should find with pagination with pluginAddress', async () => {
       const {
         data,

@@ -26,6 +26,7 @@ describe('Router: Vote', () => {
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         tokenAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         proposalId: '1',
+        includeInfo: true,
       }
       const paginationParams = {
         pageSize: 10,
@@ -98,6 +99,7 @@ describe('Router: Vote', () => {
         memberAddress: undefined,
         tokenAddress: undefined,
         proposalId: undefined,
+        includeInfo: false,
       })
       expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
@@ -141,6 +143,7 @@ describe('Router: Vote', () => {
           tokenAddress: undefined,
           network: undefined,
           proposalId: undefined,
+          includeInfo: false,
         },
       })
     })

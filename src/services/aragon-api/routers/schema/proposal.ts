@@ -11,6 +11,7 @@ const ProposalSchema = {
     daoAddress: ValidationSchema.joiAddress.optional(),
     pluginAddress: ValidationSchema.joiAddress.optional(),
     creatorAddress: ValidationSchema.joiAddress.optional(),
+    daoInfo: Joi.boolean().optional(),
   }),
 
   getProposalById: Joi.object({

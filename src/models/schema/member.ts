@@ -268,7 +268,32 @@ export default class Member extends Model {
           daos: { $push: '$history' },
         },
       },
-      ...ModelUtils.daoInfoAggregationFragment('$daos.daoAddress'),
+      {
+        $lookup: {
+          from: 'dao',
+          let: { daoAddresses: '$daos.daoAddress' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ['$address', '$$daoAddresses'],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                address: 1,
+                name: 1,
+                description: 1,
+                avatar: 1,
+                links: 1,
+              },
+            },
+          ],
+          as: 'daoDetails',
+        },
+      },
       {
         $addFields: {
           daos: {
