@@ -32,6 +32,18 @@ const PairDataModule = {
     return paginationParams
   },
 
+  checkIFEns: async (searchStr: string): Promise<HexAddress> => {
+    const ifEns = searchStr.match(/\.eth$/)
+    if (ifEns) {
+      const member = await Models.Member.findByEns(searchStr as any)
+      if (member) {
+        return member.address
+      }
+    }
+
+    return searchStr
+  },
+
   pairFromExtraParams: async <
     T extends { network?: NetworksEnum; daoAddress?: HexAddress; memberAddress?: HexAddress },
   >(

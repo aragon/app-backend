@@ -150,6 +150,14 @@ export interface IVoteResponse {
     decimals: number
     symbol: string
   }
+  proposalInfo: {
+    title: string
+    description: string
+    summary: string
+    metadataUri: string
+    resources: string[]
+    media: string
+  }
 }
 
 export interface IProposalsResponse {
@@ -199,6 +207,13 @@ export interface IProposalsResponse {
   media: {
     header: string | null
     logo: string | null
+  }
+  daoDetails: {
+    name: string
+    avatar: string
+    description: string
+    address: ENS
+    links: string[]
   }
 }
 

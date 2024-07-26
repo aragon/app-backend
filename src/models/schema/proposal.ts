@@ -295,7 +295,9 @@ export default class Proposal extends Model {
     paginationParams?: IPaginationParams
   }): Promise<IPaginatedResult<IProposalsResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([_, v]) => v !== undefined))
+    const dynamicFilter = Object.fromEntries(
+      Object.entries(extraParams).filter(([_, v]) => v !== undefined && _ !== 'daoInfo'),
+    )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, [
         'title',
@@ -308,9 +310,73 @@ export default class Proposal extends Model {
     }
 
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
 
-    const totalPages = Math.ceil(totalRecords / request.limit)
+    let query: any = [
+      {
+        $match: filter,
+      },
+    ]
+
+    if (extraParams.daoInfo) {
+      query = [
+        ...query,
+        {
+          $lookup: {
+            from: 'dao',
+            let: { daoAddresses: '$daoAddress' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: ['$address', '$$daoAddresses'],
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 0,
+                  address: 1,
+                  name: 1,
+                  description: 1,
+                  avatar: 1,
+                  links: 1,
+                },
+              },
+            ],
+            as: 'daoDetails',
+          },
+        },
+        {
+          $addFields: {
+            daoDetails: {
+              $arrayElemAt: ['$daoDetails', 0],
+            },
+          },
+        },
+      ]
+    }
+
+    const aggQuery = [
+      ...query,
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+      {
+        $project: {
+          _id: 0,
+          __v: 0,
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+    ]
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery),
+      this.aggregate([...aggQuery, { $count: 'totalRecords' }]),
+    ])
+    const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
+    const totalPages = Math.ceil(_totalRecords / request.limit)
 
     if (currentPage > totalPages) {
       return ModelUtils.paginateEmptyResponse(request.limit)
@@ -321,7 +387,7 @@ export default class Proposal extends Model {
         page: currentPage,
         pageSize: request.limit,
         totalPages,
-        totalRecords,
+        totalRecords: _totalRecords,
       },
       data: data as any,
     }

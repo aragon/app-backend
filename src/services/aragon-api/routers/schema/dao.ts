@@ -11,6 +11,13 @@ const DaoSchema = {
     address: ValidationSchema.joiAddress.optional(),
   }),
 
+  getDaosByMember: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .optional(),
+    memberAddress: Joi.alternatives().try(ValidationSchema.joiAddress.required(), ValidationSchema.joiEns.required()),
+  }),
+
   getDaoById: Joi.object({
     id: ValidationSchema.joiDaoId.required(),
   }),

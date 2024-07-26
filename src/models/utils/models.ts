@@ -105,6 +105,13 @@ const ModelUtils = {
       data: [],
     }
   },
+
+  /**
+   * Aggregation fragment to join DAO details
+   * @param daoAddrField
+   */
+
+  daoInfoAggregationFragment(daoAddrField = 'daoAddress') {},
 }
 
 export default ModelUtils

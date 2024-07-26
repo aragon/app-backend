@@ -17,6 +17,7 @@ const VoteRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
       proposalId: ctx.query.proposalId ? Number(ctx.query.proposalId) : undefined,
+      includeInfo: ctx.query.includeInfo !== undefined && Boolean(ctx.query.includeInfo),
     }
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,

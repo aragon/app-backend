@@ -141,5 +141,18 @@ describe('Modules:PairDataModule', () => {
       expect(result.daoAddress).to.be.undefined
       expect(result.memberAddress).to.be.undefined
     })
+    it('should checkIFEns', async () => {
+      const findByEnsStub = sandbox.stub(Models.Member, 'findByEns').returns(rawMember as any)
+      const result = await PairDataModule.checkIFEns('abc.eth')
+      expect(result).to.be.eq(rawMember.address)
+      expect(findByEnsStub.calledOnce).to.be.true
+    })
+
+    it('should return if ens not found', async () => {
+      const findByEnsStub = sandbox.stub(Models.Member, 'findByEns').returns(null)
+      const result = await PairDataModule.checkIFEns('abc.eth')
+      expect(result).to.be.eq('abc.eth')
+      expect(findByEnsStub.calledOnce).to.be.true
+    })
   })
 })
