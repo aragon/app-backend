@@ -146,8 +146,6 @@ export interface IConfig {
     PROPOSAL_CONCURRENCY: number
     VOTE_BATCH_SIZE: number
     VOTE_CONCURRENCY: number
-    ENS_BATCH_SIZE: number
-    ENS_CONCURRENCY: number
     TOKEN_RATES_BATCH_SIZE: number
     TOKEN_RATES_CONCURRENCY: number
     DAO_TVL_BATCH_SIZE: number
