@@ -1,16 +1,16 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { ZeroAddress } from 'ethers'
 import { expect } from 'chai'
 import { DaoAssets } from '@rates/daoAsset'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
-import { HexAddress, IAlchemyTokenBalance, NetworksEnum } from '@types'
+import { HexAddress, IAlchemyTokenBalance, ITokenType, NetworksEnum } from '@types'
 import Logger from '@logger'
 import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 import utils from '@helpers/utils'
+import logger from '@logger'
 
 describe('Indexer:Aggregator:Assets', () => {
   let sandbox: SinonSandbox
@@ -59,8 +59,15 @@ describe('Indexer:Aggregator:Assets', () => {
       const fakeTokenBalances: IAlchemyTokenBalance[] = [
         { contractAddress: '0xTokenAddress1', tokenBalance: '150000' },
         { contractAddress: '0xTokenAddress2', tokenBalance: '200000' },
-        { contractAddress: undefined, tokenBalance: '300000' },
       ]
+      const fakeNativeToken = {
+        address: utils.zeroAddress,
+        name: 'Token3',
+        symbol: 'T3',
+        decimals: 18,
+        network: document.network,
+      }
+
       const fakeToken = {
         address: fakeTokenBalances[0].contractAddress,
         name: 'Token1',
@@ -77,26 +84,17 @@ describe('Indexer:Aggregator:Assets', () => {
         network: document.network,
       }
 
-      const fakeToken3 = {
-        address: utils.zeroAddress,
-        name: 'Token3',
-        symbol: 'T3',
-        decimals: 18,
-        network: document.network,
-      }
-
+      const stubDaoTvl = sandbox.stub(DaoAssets, 'daoTvl').resolves()
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
       const stubGetTokenBalances = sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
       const stubGetToken = sandbox
         .stub(UtilsIndexer, 'saveAndGetToken')
         .onCall(0)
-        .resolves(fakeToken as any)
+        .resolves(fakeNativeToken as any)
         .onCall(1)
-        .resolves(fakeToken2 as any)
+        .resolves(fakeToken as any)
         .onCall(2)
         .resolves(fakeToken2 as any)
-        .onCall(3)
-        .resolves(fakeToken3 as any)
       const stubLogger = sandbox.stub(Logger, 'verbose')
 
       await DaoAssets.onDocument(document as any)
@@ -113,6 +111,7 @@ describe('Indexer:Aggregator:Assets', () => {
         document.network as NetworksEnum,
       )
       expect(assets.length).to.equal(3)
+      expect(stubDaoTvl.calledOnce).to.be.true
 
       const asset1 = assets.find((asset: any) => asset.tokenAddress === fakeTokenBalances[0].contractAddress)
       const asset2 = assets.find((asset: any) => asset.tokenAddress === fakeTokenBalances[1].contractAddress)
@@ -130,7 +129,7 @@ describe('Indexer:Aggregator:Assets', () => {
 
       expect(asset3.daoAddress).to.equal(document.address)
       expect(asset3.network).to.equal(document.network)
-      expect(asset3.tokenAddress).to.equal(fakeToken3.address)
+      expect(asset3.tokenAddress).to.equal(fakeNativeToken.address)
       expect(asset3.amount).to.equal(fakeEthBalance)
     })
 
@@ -145,7 +144,7 @@ describe('Indexer:Aggregator:Assets', () => {
       await Models.Asset.create({
         network: NetworksEnum.ethereumMainnet,
         daoAddress: document.address,
-        tokenAddress: ZeroAddress,
+        tokenAddress: utils.zeroAddress,
         amount: '1000000000000000000',
       })
 
@@ -162,6 +161,7 @@ describe('Indexer:Aggregator:Assets', () => {
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
       const stubGetTokenBalances = sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
       const stubLogger = sandbox.stub(Logger, 'verbose')
+      const stubDaoTvl = sandbox.stub(DaoAssets, 'daoTvl').resolves()
 
       await DaoAssets.onDocument(document as any)
 
@@ -170,7 +170,8 @@ describe('Indexer:Aggregator:Assets', () => {
       expect(stubGetTokenBalances.callCount).to.eq(1)
       expect(stubGetTokenBalances.calledWith(document.address, document.network)).to.be.true
       expect(stubLogger.calledTwice).to.be.true
-      expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(saveAndGetTokenStub.calledTwice).to.be.true
+      expect(stubDaoTvl.calledOnce).to.be.true
 
       const asset = await Models.Asset.findExistingLog({
         daoAddress: document.address as HexAddress,
@@ -184,11 +185,11 @@ describe('Indexer:Aggregator:Assets', () => {
 
       const asset2 = await Models.Asset.findExistingLog({
         daoAddress: document.address as HexAddress,
-        tokenAddress: ZeroAddress as HexAddress,
+        tokenAddress: utils.zeroAddress as HexAddress,
         network: document.network as NetworksEnum,
       })
       expect(asset2.daoAddress).to.equal(document.address)
-      expect(asset2.tokenAddress).to.equal(ZeroAddress)
+      expect(asset2.tokenAddress).to.equal(utils.zeroAddress)
       expect(asset2.amount).to.equal(fakeEthBalance)
     })
 
@@ -207,5 +208,66 @@ describe('Indexer:Aggregator:Assets', () => {
       expect(stubGetBalance.calledWith(document.address, document.network)).to.be.true
       expect(stubLogger.calledOnce).to.be.true
     })
+  })
+
+  it('daoTvl', async () => {
+    const daoDb = await Models.Dao.create({
+      blockTimestamp: 1719577230,
+      address: '0xee0627bA21e9114336977482372486d084497efa',
+      creatorAddress: '0xEFbB4E6e5CF4bB4Ae8Cdc2c109da90D2a2433B50',
+      network: NetworksEnum.ethereumMainnet,
+      tvlUSD: 0,
+    } as any)
+
+    const tokenNativeDb = await Models.Token.create({
+      network: NetworksEnum.ethereumMainnet,
+      type: ITokenType.ERC20,
+      address: utils.zeroAddress,
+      logo: 'fake-logo',
+      name: 'ethereum',
+      symbol: 'ETH',
+      decimals: 18,
+      holders: 10,
+      totalSupply: '100',
+      priceChangeOnDayUsd: '1',
+      priceUsd: '100',
+    })
+
+    const tokenDb = await Models.Token.create({
+      network: NetworksEnum.ethereumMainnet,
+      type: ITokenType.ERC20,
+      address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+      logo: 'fake-logo',
+      name: 'ethereum',
+      symbol: 'WETH',
+      decimals: 18,
+      holders: 10,
+      totalSupply: '100',
+      priceChangeOnDayUsd: '1',
+      priceUsd: '1',
+    })
+
+    await Models.Asset.create({
+      network: NetworksEnum.ethereumMainnet,
+      daoAddress: daoDb.address,
+      tokenAddress: tokenNativeDb.address,
+      amount: '1000000000000000000',
+    })
+
+    await Models.Asset.create({
+      network: NetworksEnum.ethereumMainnet,
+      daoAddress: daoDb.address,
+      tokenAddress: tokenDb.address,
+      amount: '500000000000000000',
+    })
+
+    const stubLogger = sandbox.stub(logger, 'verbose')
+
+    await DaoAssets.daoTvl(daoDb.address, daoDb.network)
+
+    const reloadDao = await daoDb.reload()
+
+    expect(reloadDao.tvlUSD).to.be.equal(100.5)
+    expect(stubLogger.calledOnceWith('Update Dao tvlUSD' as any)).to.be.true
   })
 })

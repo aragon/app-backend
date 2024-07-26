@@ -172,4 +172,10 @@ describe('Model: Asset', () => {
 
     expect(createdAsset.tokenAddress).to.eq(rawAsset.tokenAddress)
   })
+
+  it('Should getDaoTvl', async () => {
+    sandbox.stub(Models.Asset, 'aggregate').resolves([{ tvlUsd: 10 }])
+    const result = await Models.Asset.getDaoTvl('0x', NetworksEnum.ethereumMainnet)
+    expect(result.tvlUsd).to.eq(10)
+  })
 })
