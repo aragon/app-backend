@@ -194,10 +194,10 @@ describe('Controller: Dao', () => {
 
   describe('getDaoById', () => {
     it('should getDaoById', async () => {
-      const memberDb = await Models.Dao.create(DaoList[0])
+      const daoDb = await Models.Dao.create(DaoList[0])
 
-      const member = await DaoController.getDaoById(memberDb.id)
-      expect(member.id).to.eq(memberDb.id)
+      const dao = await DaoController.getDaoById(daoDb.id)
+      expect(dao.id).to.eq(daoDb.id)
     })
 
     it('should fail to getDaoById', async () => {
@@ -209,10 +209,10 @@ describe('Controller: Dao', () => {
 
   describe('getDaoByAddress', () => {
     it('should getDaoByAddress', async () => {
-      const memberDb = await Models.Dao.create(DaoList[0])
+      const daoDB = await Models.Dao.create(DaoList[0])
 
-      const member = await DaoController.getDaoByAddress(memberDb.address, memberDb.network)
-      expect(member.id).to.eq(memberDb.id)
+      const daoDb = await DaoController.getDaoByAddress(daoDB.address, daoDB.network)
+      expect(daoDb.id).to.eq(daoDB.id)
     })
 
     it('should fail to getDaoByAddress', async () => {

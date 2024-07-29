@@ -259,4 +259,118 @@ export default class Dao extends Model {
     filtered.plugins = filtered.plugins.map((plugin: any) => _.omit(plugin, '_id', '__v'))
     return filtered
   }
+
+  static async getDaoDetails(address: HexAddress) {
+    const query = [
+      {
+        $match: {
+          address,
+        },
+      },
+      {
+        $lookup: {
+          from: 'token',
+          let: { tokenAddresses: '$plugins.tokenAddress' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ['$address', '$$tokenAddresses'],
+                },
+              },
+            },
+            {
+              $project: {
+                address: 1,
+                type: 1,
+                logo: 1,
+                name: 1,
+                symbol: 1,
+                totalSupply: 1,
+                holders: 1,
+                decimals: 1,
+              },
+            },
+          ],
+          as: 'token',
+        },
+      },
+      {
+        $addFields: {
+          token: {
+            $arrayElemAt: ['$token', 0],
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'member',
+          let: { daoAddr: '$address' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {
+                      $in: ['$$daoAddr', '$history.daoAddress'],
+                    },
+                    {
+                      $in: [null, '$history.toBlockNumber'],
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $addFields: {
+                history: {
+                  $arrayElemAt: ['$history', 0],
+                },
+              },
+            },
+            {
+              $replaceRoot: {
+                newRoot: {
+                  $mergeObjects: [
+                    '$$ROOT',
+                    '$history',
+                    {
+                      memberAddress: '$address',
+                      memberId: '$id',
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                address: 1,
+                ens: 1,
+                lastActvity: 1,
+                firstActivity: 1,
+                fromBlockNumber: 1,
+                fromTxHash: 1,
+                fromBlockTimestamp: 1,
+                network: 1,
+                tokenAddress: 1,
+                votingPower: 1,
+                tokenBalance: 1,
+              },
+            },
+          ],
+          as: 'members',
+        },
+      },
+      {
+        $project: {
+          __v: 0,
+          _id: 0,
+        },
+      },
+    ]
+
+    const results = await this.aggregate(query)
+    return results[0]
+  }
 }
