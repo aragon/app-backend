@@ -1,5 +1,5 @@
 import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
+import { fake, SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Web3Helper from '@helpers/web3'
 import { ITransactionType, NetworksEnum } from '@types'
@@ -1152,7 +1152,7 @@ describe('Helpers:Web3', () => {
       const fakeAddress = '0x1234567890123456789012345678901234567890'
       const fakeNetwork = NetworksEnum.ethereumMainnet
 
-      const balance = await MockedWeb3Helper.getERC20Balance(fakeTokenAddress, fakeAddress, fakeNetwork)
+      const balance = await MockedWeb3Helper.getERC20Balance(fakeAddress, fakeTokenAddress, fakeNetwork)
       expect(balance).to.equal('1000')
     })
 
