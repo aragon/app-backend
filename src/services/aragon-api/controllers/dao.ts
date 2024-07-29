@@ -28,15 +28,13 @@ const DaoController = {
   getDaoById: async (id: string): Promise<IDaoResponse> => {
     const dao = await Models.Dao.findByEntityId(id)
     assertExposable(dao, ErrorKeyEnum.notFound)
-
-    return dao.filterKeys()
+    return await Models.Dao.getDaoDetails(dao.address)
   },
 
   getDaoByAddress: async (address: HexAddress, network: NetworksEnum): Promise<IDaoResponse> => {
     const dao = await Models.Dao.findByAddress(address, network)
     assertExposable(dao, ErrorKeyEnum.notFound)
-
-    return dao.filterKeys()
+    return await Models.Dao.getDaoDetails(dao.address)
   },
 
   getDaosByMember: async (paginationParams: IPaginationParams = {}, extraParams: IDaoExtraParams = {}) => {
