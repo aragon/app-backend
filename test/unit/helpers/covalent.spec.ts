@@ -280,4 +280,17 @@ describe('Helpers: Covalent', () => {
       expect(supply).to.be.null
     })
   })
+  describe('getTokenTotalHolders', () => {
+    it('should get token holders', async () => {
+      const rpcCallStub = sandbox
+        .stub(CovalentHelper, '_rpCall')
+        .resolves({ pagination: { total_count: 100 }, items: [{ a: 'xxx' }] } as any)
+      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.ethereumMainnet
+
+      const holders = await CovalentHelper.getTokenTotalHolders(address, network)
+      expect(rpcCallStub.calledOnce).to.be.true
+      expect(holders).to.equal(100)
+    })
+  })
 })

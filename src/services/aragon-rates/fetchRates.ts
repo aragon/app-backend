@@ -8,6 +8,7 @@ import dayjs from '@helpers/dayjs'
 import { NetworksEnum } from '@types'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 import config from '@config'
+import Covalent from '@helpers/covalent'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
@@ -53,7 +54,7 @@ export const FetchRates = {
 
   async onDocument(token: Token) {
     const rawTokenUpdateRate = await RateModule.fetchRate(token.address, token.network)
-
+    token.holders = await Covalent.getTokenTotalHolders(token.address, token.network)
     // skip governance tokens with no price or unsupported token networks
     if (UtilsIndexer.skipFetchToken(token, rawTokenUpdateRate)) {
       rawTokenUpdateRate.lastUpdatedAt = dayjs.utc().toDate()

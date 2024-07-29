@@ -180,6 +180,19 @@ const CovalentHelper = {
       return null
     }
   },
+
+  async getTokenTotalHolders(address: HexAddress, network: NetworksEnum) {
+    const networkId = CovalentHelper.networkToCovalent(network)
+    const path = `/${networkId}/tokens/${address}/token_holders_v2/?`
+    try {
+      const response = await CovalentHelper._rpCall<ITokenHoldersResponse>(path)
+      assert(response.items && response.items.length > 0, 'Token holders data not complete')
+
+      return response.pagination.total_count
+    } catch (error) {
+      return 0
+    }
+  },
 }
 
 export default CovalentHelper
