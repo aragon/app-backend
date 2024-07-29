@@ -55,7 +55,10 @@ describe('Rates: FetchRates', () => {
     const fakeRate = { priceUsd: 1, priceChangeOnDayUsd: 1 }
     const stubFetchRates = sandbox.stub(RateModule, 'fetchRate').resolves(fakeRate as any)
     const stubLogger = sandbox.stub(logger, 'verbose')
-    sandbox.stub(CovalentHelper, 'getTokenTotalHolders').resolves(10)
+    sandbox.stub(CovalentHelper, 'getTokenTotalHolders').resolves({
+      totalSupply: '100',
+      totalHolders: 10,
+    })
     sandbox.stub(UtilsIndexer, 'skipFetchToken').returns(true)
 
     const tokenDb = await Models.Token.create({

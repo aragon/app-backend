@@ -5,7 +5,7 @@ import DbTx from '@modules/dbTx'
 import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
-import { NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum } from '@types'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 import config from '@config'
 import Covalent from '@helpers/covalent'
@@ -54,7 +54,13 @@ export const FetchRates = {
 
   async onDocument(token: Token) {
     const rawTokenUpdateRate = await RateModule.fetchRate(token.address, token.network)
-    token.holders = await Covalent.getTokenTotalHolders(token.address, token.network)
+    if (token.type === ITokenType.GovernanceERC20) {
+      const tokenInfo = await Covalent.getTokenTotalHolders(token.address, token.network)
+      if (tokenInfo) {
+        token.totalSupply = tokenInfo.totalSupply
+        token.holders = tokenInfo.totalHolders
+      }
+    }
     // skip governance tokens with no price or unsupported token networks
     if (UtilsIndexer.skipFetchToken(token, rawTokenUpdateRate)) {
       rawTokenUpdateRate.lastUpdatedAt = dayjs.utc().toDate()
