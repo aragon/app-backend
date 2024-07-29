@@ -4,7 +4,6 @@ import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import Dao from '@models/schema/dao'
 import { Models } from '@dbModels'
-import dayjs from '@helpers/dayjs'
 
 describe('Model: Dao', () => {
   let sandbox: SinonSandbox
@@ -417,5 +416,15 @@ describe('Model: Dao', () => {
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.hideDao).to.be.undefined
     expect(Object.keys(filterDao).length).to.eq(18)
+  })
+
+  it('should getDaoDetails', async () => {
+    const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').returns([{ a: 1 }])
+    await Models.Dao.getDaoDetails('0x17366cae2b9c6c3055e9e3c78936a69006be5409')
+
+    expect(aggregateStub.calledOnce).to.be.true
+    expect(aggregateStub.args[0][0][0].$match).to.deep.eq({
+      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+    })
   })
 })
