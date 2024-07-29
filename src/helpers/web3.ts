@@ -601,7 +601,7 @@ const Web3Helper = {
     return { txReceipt, events }
   },
 
-  async getERC20Balance(tokenAddress: string, address: string, network: NetworksEnum) {
+  async getERC20Balance(address: string, tokenAddress: string, network: NetworksEnum) {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, ERC20.abi, provider)
     try {
