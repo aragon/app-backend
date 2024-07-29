@@ -8,6 +8,7 @@ import DBCrawler from '@models/utils/crawler'
 import { RateModule } from '@modules/rates'
 import { ITokenType, NetworksEnum } from '@types'
 import { UtilsIndexer } from '@indexer/utils/indexer'
+import CovalentHelper from '@helpers/covalent'
 
 describe('Rates: FetchRates', () => {
   let sandbox: SinonSandbox
@@ -54,6 +55,7 @@ describe('Rates: FetchRates', () => {
     const fakeRate = { priceUsd: 1, priceChangeOnDayUsd: 1 }
     const stubFetchRates = sandbox.stub(RateModule, 'fetchRate').resolves(fakeRate as any)
     const stubLogger = sandbox.stub(logger, 'verbose')
+    sandbox.stub(CovalentHelper, 'getTokenTotalHolders').resolves(10)
     sandbox.stub(UtilsIndexer, 'skipFetchToken').returns(true)
 
     const tokenDb = await Models.Token.create({
@@ -80,5 +82,6 @@ describe('Rates: FetchRates', () => {
     expect(updatedToken.priceChangeOnDayUsd).to.be.equal('1')
     expect(updatedToken.lastUpdatedAt).to.exist
     expect(updatedToken.skipFetchRate).to.be.true
+    expect(updatedToken.holders).to.be.equal(10)
   })
 })
