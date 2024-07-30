@@ -11,7 +11,6 @@ const VoteSchema = {
     pluginAddress: ValidationSchema.joiAddress.optional(),
     tokenAddress: ValidationSchema.joiAddress.optional(),
     memberAddress: ValidationSchema.joiAddress.optional(),
-    proposalId: Joi.number().integer().min(0).optional(),
     includeInfo: Joi.boolean().optional(),
   }),
 }
