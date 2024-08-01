@@ -181,7 +181,7 @@ const CovalentHelper = {
     }
   },
 
-  async getTokenTotalHolders(
+  async getTokenInfo(
     address: HexAddress,
     network: NetworksEnum,
     blockHeight: number | undefined = undefined,

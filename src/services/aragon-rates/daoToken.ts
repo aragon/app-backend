@@ -85,7 +85,7 @@ export const FetchDaoTokenInfo = {
   },
 
   async onDocument(token: Partial<Token>) {
-    const tokenInfo = await Covalent.getTokenTotalHolders(token.address!, token.network!)
+    const tokenInfo = await Covalent.getTokenInfo(token.address!, token.network!)
     if (!tokenInfo) {
       return
     }
