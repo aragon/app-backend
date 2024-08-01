@@ -2394,7 +2394,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": "{{host}}/proposals/0x60704c3053b846124e792e22d03f429487d277ab8e1ee20923f22f81014ae530-0x0C0DC2f4Bb051e01d923E55CFc525c9ecdC2783d-75"
+						"url": "{{host}}/proposals/0xf01c9b505ad8e00c4f774268bd1866d9088591a10332afcc7bcb1daaa5bae25e-0x9486A57A8989522A4d540CCE21910E9BC353A2d6-1"
 					},
 					"response": []
 				},
