@@ -45,7 +45,13 @@ const PairDataModule = {
   },
 
   pairFromExtraParams: async <
-    T extends { network?: NetworksEnum; daoAddress?: HexAddress; memberAddress?: HexAddress },
+    T extends {
+      network?: NetworksEnum
+      daoAddress?: HexAddress
+      memberAddress?: HexAddress
+      pluginAddress?: HexAddress
+      proposalId?: string
+    },
   >(
     extraParams: T,
     pairParams: IPairParams,
@@ -64,6 +70,14 @@ const PairDataModule = {
       const memberDb = await Models.Member.findByEns(pairParams.ens as any)
       if (memberDb) {
         extraParams.memberAddress = memberDb.address
+      }
+    }
+
+    if (pairParams?.proposalId) {
+      const proposalDb = await Models.Proposal.findByEntityId(pairParams.proposalId)
+      if (proposalDb) {
+        extraParams.pluginAddress = proposalDb.pluginAddress
+        extraParams.proposalId = proposalDb.proposalId
       }
     }
 
