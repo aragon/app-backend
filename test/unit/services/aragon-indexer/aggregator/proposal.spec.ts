@@ -12,7 +12,7 @@ import { UtilsIndexer } from '@indexer/utils/indexer'
 import { ethers } from 'ethers'
 import CovalentHelper from '@helpers/covalent'
 
-describe.only('Indexer:Aggregator:Proposal', () => {
+describe('Indexer:Aggregator:Proposal', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
