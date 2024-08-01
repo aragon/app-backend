@@ -513,10 +513,10 @@ export const AggregatorProposal = {
 
     const token = await UtilsIndexer.saveAndGetToken(document.tokenAddress, document.network!)
     if (token) {
-      const totalSupply = await Covalent.getTokenTotalSupply(
+      const tokenInfo = await Covalent.getTokenTotalHolders(
         document.tokenAddress,
         document.network!,
-        document.blockNumber!,
+        document.blockNumber,
       )
 
       return {
@@ -524,7 +524,8 @@ export const AggregatorProposal = {
         address: document.tokenAddress,
         name: token.name,
         symbol: token.symbol,
-        totalSupply,
+        totalSupply: tokenInfo ? tokenInfo.totalSupply : '0',
+        holdersCount: tokenInfo ? tokenInfo.totalHolders : 0,
         decimals: token.decimals,
         logo: token.logo,
       }
