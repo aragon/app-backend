@@ -43,7 +43,7 @@ const ActionTransformer = {
       case ProposalActionType.MetadataUpdate:
         return this._handleMetadataUpdate(proposalAction, action, dbData)
       default:
-        throw new Error(`Unhandled action type: ${action.type}`)
+        return proposalAction
     }
   },
 
