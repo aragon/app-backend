@@ -155,4 +155,18 @@ describe('Modules:PairDataModule', () => {
       expect(findByEnsStub.calledOnce).to.be.true
     })
   })
+
+  describe('pairFromExtraParams', () => {
+    it('should pair from proposal id - found', async () => {
+      const findProposalStub = sandbox
+        .stub(Models.Proposal, 'findByEntityId')
+        .returns({ pluginAddress: rawDao.plugins![0].address, proposalId: 1 } as any)
+      const extraParams: any = {}
+
+      await PairDataModule.pairFromExtraParams(extraParams, { proposalId: 'fake-id' })
+      expect(findProposalStub.calledOnce).to.be.true
+      expect(extraParams.pluginAddress).to.be.eq(rawDao.plugins![0].address)
+      expect(extraParams.proposalId).to.be.eq(1)
+    })
+  })
 })
