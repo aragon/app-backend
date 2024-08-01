@@ -53,17 +53,26 @@ describe('Router: Vote', () => {
         search: undefined,
         sort: 'blockNumber',
       }
+
+      const extraParams = {
+        daoId: undefined,
+        ens: undefined,
+        proposalId: '1',
+      }
+
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
-        ..._.omit(filterParams, 'address'),
-        ...{ proposalId: 1, memberAddress: filterParams.address },
+        ..._.omit(filterParams, 'address', 'proposalId'),
+        ...{ memberAddress: filterParams.address },
       })
+      expect(stubCtrl.args[0][2]).to.deep.eq(extraParams)
     })
 
     it('Should get vote with pagination - ens', async () => {
       const filterParams = {
         daoId: undefined,
         ens: 'test.dao.eth',
+        proposalId: undefined,
       }
       const paginationParams = {
         pageSize: 10,
@@ -98,7 +107,6 @@ describe('Router: Vote', () => {
         pluginAddress: undefined,
         memberAddress: undefined,
         tokenAddress: undefined,
-        proposalId: undefined,
         includeInfo: false,
       })
       expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
@@ -142,7 +150,6 @@ describe('Router: Vote', () => {
           pluginAddress: undefined,
           tokenAddress: undefined,
           network: undefined,
-          proposalId: undefined,
           includeInfo: false,
         },
       })
