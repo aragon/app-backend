@@ -176,7 +176,7 @@ describe('Helper:Action Transformer', () => {
         token: {
           totalSupply: '1000000000000000000000000000',
           holdersCount: 1,
-        }
+        },
       } as any,
     )
     expect(action.type).to.be.eq(ProposalActionType.Mint)
@@ -231,7 +231,7 @@ describe('Helper:Action Transformer', () => {
         settings: {
           onlyListed: true,
           minApprovals: 1,
-        }
+        },
       } as any,
     )
     expect(action.type).to.be.eq(ProposalActionType.UpdateMultiSigSettings)
@@ -249,7 +249,7 @@ describe('Helper:Action Transformer', () => {
           minParticipation: '17000',
           minDuration: '86400',
           minProposerVotingPower: 0,
-        }
+        },
       } as any,
     )
     expect(action.type).to.be.eq(ProposalActionType.UpdateVoteSettings)
