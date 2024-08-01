@@ -93,6 +93,14 @@ export const AggregatorDao = {
                 },
               },
             },
+            {
+              $sort: {
+                tokenAddress: -1, // Sort to prioritize plugins with tokenAddress
+              },
+            },
+            {
+              $limit: 1, // Only return the top result after sorting
+            },
           ],
           as: 'plugins',
         },
