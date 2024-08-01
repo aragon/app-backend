@@ -254,4 +254,39 @@ describe('Helper:Action Transformer', () => {
     )
     expect(action.type).to.be.eq(ProposalActionType.UpdateVoteSettings)
   })
+
+  it('should test the failing cases', async () => {
+    const action = {
+      to: '0xB4EE2ce193378FA8A585fe5F2c2EE14BcA941d61',
+      data: '0xfe22b8d700000000000000000000000010e0c14163610a27da33336fb86962361b532070',
+      value: '0',
+      functionName: null,
+      textSignature: null,
+      decoded: null,
+      contractName: null,
+      type: 'Unknown',
+      metadata: null,
+    }
+
+    const result = await ActionTransformer.handleAction(action as any, {} as any)
+    expect(result.inputData).to.be.null
+    expect(result.type).to.be.eq(ProposalActionType.Unknown)
+  })
+
+  it('should the action with unknown but has function signature', async () => {
+    const action = {
+      to: '0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9',
+      data: '0xd0e30db0',
+      value: '1000000000000000000',
+      functionName: 'deposit',
+      textSignature: 'deposit()',
+      decoded: [],
+      contractName: null,
+      type: 'Unknown',
+      metadata: null,
+    }
+
+    const result = await ActionTransformer.handleAction(action as any, {} as any)
+    expect(result.inputData).to.be.not.null
+  })
 })
