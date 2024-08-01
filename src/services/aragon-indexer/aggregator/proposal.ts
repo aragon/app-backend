@@ -513,11 +513,7 @@ export const AggregatorProposal = {
 
     const token = await UtilsIndexer.saveAndGetToken(document.tokenAddress, document.network!)
     if (token) {
-      const tokenInfo = await Covalent.getTokenTotalHolders(
-        document.tokenAddress,
-        document.network!,
-        document.blockNumber,
-      )
+      const tokenInfo = await Covalent.getTokenInfo(document.tokenAddress, document.network!, document.blockNumber)
 
       return {
         type: token.type,

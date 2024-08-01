@@ -55,7 +55,7 @@ describe('aggregator:FetchDaoTokenInfo', () => {
   })
 
   it('should handle the document', async () => {
-    const tokenInfoStub = sandbox.stub(CovalentHelper, 'getTokenTotalHolders').returns({
+    const tokenInfoStub = sandbox.stub(CovalentHelper, 'getTokenInfo').returns({
       totalHolders: 1,
       totalSupply: 1,
     } as any)

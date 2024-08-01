@@ -405,6 +405,10 @@ describe('Indexer:Aggregator:Proposal', () => {
         type: ITokenType.ERC20,
       }
 
+      const getTokenInfoCovalentStub = sandbox.stub(CovalentHelper, 'getTokenInfo').resolves({
+        totalSupply: '1000000000000000000000',
+        totalHolders: 1,
+      })
       const getTokenDetailStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves(token as any)
       const findExistingStub = sandbox.stub(Models.Proposal, 'findByTransactionHash').resolves({
         aa: 'aa',
@@ -415,7 +419,7 @@ describe('Indexer:Aggregator:Proposal', () => {
         network,
         blockHeight: 16733707,
       } as any)
-
+      expect(getTokenInfoCovalentStub.calledOnce).to.be.true
       expect(getTokenDetailStub.calledOnce).to.be.true
       expect(findExistingStub.calledOnce).to.be.true
       expect(tokenDetails).to.deep.eq({
