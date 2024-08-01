@@ -154,6 +154,9 @@ class Token {
 
   @prop({ type: () => String, default: 0 })
   public totalSupply!: string
+
+  @prop({ type: () => Number, default: 0 })
+  public holdersCount!: number
 }
 
 @modelOptions({

@@ -101,7 +101,9 @@ class DecodeActions {
         try {
           const iface = new Interface(abi)
           const decoded = iface.decodeFunctionData(fragment, dataHex)
-
+          const decodedFormatted = decoded
+            .toArray()
+            .map((item: any) => (item instanceof BigInt ? item.toString() : item))
           const functionName = fragment.name
           const parameters = fragment.inputs.map((input: any) => input.type).join(',')
           const textSignature = `${functionName}(${parameters})`
@@ -109,7 +111,7 @@ class DecodeActions {
           return {
             functionName,
             textSignature,
-            decoded: decoded?.toArray(),
+            decoded: decodedFormatted,
             contractName,
           }
         } catch (error) {
@@ -134,11 +136,12 @@ class DecodeActions {
 
       const iface = new Interface([`function ${signatureInfo.text_signature}`])
       const decoded = iface.decodeFunctionData(signatureInfo.text_signature, data as any)
+      const decodedFormatted = decoded.toArray().map((item: any) => (item instanceof BigInt ? item.toString() : item))
 
       return {
         functionName: signatureInfo.text_signature.split('(')[0],
         textSignature: signatureInfo.text_signature,
-        decoded: decoded?.toArray(),
+        decoded: decodedFormatted,
         type: ProposalActionType.Unknown,
         metadata: null,
       }

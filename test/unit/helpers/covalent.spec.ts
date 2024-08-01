@@ -288,7 +288,7 @@ describe('Helpers: Covalent', () => {
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const network = NetworksEnum.ethereumMainnet
 
-      const holders = await CovalentHelper.getTokenTotalHolders(address, network)
+      const holders = await CovalentHelper.getTokenTotalHolders(address, network, 12345)
       expect(rpcCallStub.calledOnce).to.be.true
       expect(holders).to.deep.eq({
         totalSupply: '12',
