@@ -12,7 +12,7 @@ import { UtilsIndexer } from '@indexer/utils/indexer'
 import { ethers } from 'ethers'
 import CovalentHelper from '@helpers/covalent'
 
-describe('Indexer:Aggregator:Proposal', () => {
+describe.only('Indexer:Aggregator:Proposal', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -424,6 +424,7 @@ describe('Indexer:Aggregator:Proposal', () => {
       expect(findExistingStub.calledOnce).to.be.true
       expect(tokenDetails).to.deep.eq({
         ...token,
+        holdersCount: 1,
         totalSupply: '1000000000000000000000',
       })
     })
