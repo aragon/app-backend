@@ -5,26 +5,31 @@ import Web3Helper from '@helpers/web3'
 
 const ActionTransformer = {
   async handleAction(action: IProposalRawAction, dbData: Proposal) {
-    const regex = /\(([^)]+)\)/
-    const match = action.textSignature.match(regex)
-    const parameterTypes = match ? match[1].split(',') : []
-
-    const parameters = parameterTypes.map((param, index) => ({
-      type: param,
-      value: action.decoded[index],
-    }))
-
     const proposalAction: IProposalAction = {
       from: dbData.daoAddress,
       to: action.to,
       data: action.data,
       value: action.value,
       type: action.type,
-      inputData: {
+      inputData: null,
+    }
+
+    const regex = /\(([^)]+)\)/
+
+    if (action.textSignature) {
+      const match = action.textSignature.match(regex)
+      const parameterTypes = match ? match[1].split(',') : []
+
+      const parameters = parameterTypes.map((param, index) => ({
+        type: param,
+        value: action.decoded[index],
+      }))
+
+      proposalAction.inputData = {
         function: action.functionName,
         contract: action.contractName,
         parameters,
-      },
+      }
     }
 
     switch (action.type) {
