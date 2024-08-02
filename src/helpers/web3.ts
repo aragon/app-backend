@@ -26,6 +26,7 @@ import BottleneckModule from '@modules/bottleneck'
 import { ENSRegistry } from '@artifacts/ENSRegistry'
 import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
+import { DAO } from '@artifacts/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -608,6 +609,19 @@ const Web3Helper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.balanceOf(address)),
       )
+    } catch (error) {
+      return '0'
+    }
+  },
+
+  async getDaoOsVersion(address: HexAddress, network: NetworksEnum) {
+    const provider = ProviderModule.getProvider(network)!
+    const contract = new Contract(address, DAO.abi, provider)
+    try {
+      const version = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.protocolVersion(address)),
+      )
+      return version.join('.')
     } catch (error) {
       return '0'
     }
