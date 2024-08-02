@@ -57,8 +57,8 @@ const ActionTransformer = {
 
     return {
       ...action,
-      sender: rawAction.metadata.from,
-      receiver: rawAction.metadata.to,
+      sender: { address: rawAction.metadata.from },
+      receiver: { address: rawAction.metadata.to },
       amount: rawAction.metadata.value,
       token: {
         name: rawAction.metadata.token.name,
