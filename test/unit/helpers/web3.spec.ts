@@ -1181,6 +1181,27 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  it('should get the the dao version', async () => {
+    const stubConfigState = {
+      getConfigItem: sandbox.stub().returns({}),
+    }
+
+    const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+      ethers: {
+        Contract: function () {
+          return { protocolVersion: sandbox.stub().resolves([1,0,1]) }
+        },
+      },
+      '@state/configState': {
+        ConfigState: { getInstance: () => stubConfigState },
+      },
+    })
+
+    const result = await MockedWeb3Helper.getDaoOsVersion('0xDaoAddress', NetworksEnum.ethereumMainnet)
+
+    expect(result).to.equal('1.0.1')
+  })
+
   describe('getDataFromTxReceipt', () => {
     it('should getDataFromTxReceipt', async () => {
       const stubTransactionReceipt = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
