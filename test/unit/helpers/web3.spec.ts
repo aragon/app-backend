@@ -1189,7 +1189,7 @@ describe('Helpers:Web3', () => {
     const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
       ethers: {
         Contract: function () {
-          return { protocolVersion: sandbox.stub().resolves([1,0,1]) }
+          return { protocolVersion: sandbox.stub().resolves([1, 0, 1]) }
         },
       },
       '@state/configState': {
