@@ -225,6 +225,71 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         1,
       ),
     },
+    ETHERSCAN_API: {
+      ETHEREUM_MAINNET: {
+        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_ETHEREUM_MAINNET_API_KEY', null),
+        API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'ETHERSCAN_API_ETHEREUM_MAINNET_API_URL',
+          'https://api.etherscan.io/api',
+        ),
+      },
+      ETHEREUM_SEPOLIA: {
+        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_ETHEREUM_SEPOLIA_API_KEY', null),
+        API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'ETHERSCAN_API_ETHEREUM_SPOILIA_API_URL',
+          'https://api-sepolia.etherscan.io/api',
+        ),
+      },
+      POLYGON_MAINNET: {
+        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_POLYGON_MAINNET_API_KEY', null),
+        API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'ETHERSCAN_API_POLYGON_MAINNET_API_URL',
+          'https://api.polygonscan.com/api',
+        ),
+      },
+      BASE_MAINNET: {
+        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_BASE_MAINNET_API_KEY', null),
+        API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'ETHERSCAN_API_BASE_MAINNET_API_URL',
+          'https://api.basescan.org/api',
+        ),
+      },
+      ARBITRUM_MAINNET: {
+        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_ARBITRUM_MAINNET_API_KEY', null),
+        API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'ETHERSCAN_API_ARBITRUM_MAINNET_API_URL',
+          'https://api.arbiscan.io/api',
+        ),
+      },
+      ZKSYNC_SEPOLIA: {
+        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_ZKSYNC_SEPOLIA_API_KEY', null),
+        API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'ETHERSCAN_API_ZKSYNC_SEPOLIA_API_URL',
+          'https://block-explorer-api.sepolia.zksync.dev/api',
+        ),
+      },
+      ZKSYNC_MAINNET: {
+        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_ZKSYNC_MAINNET_API_KEY', null),
+        API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'ETHERSCAN_API_ZKSYNC_MAINNET_API_URL',
+          'https://block-explorer-api.mainnet.zksync.io/api',
+        ),
+      },
+    },
   }
 }
 

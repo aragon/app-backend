@@ -116,7 +116,7 @@ export default class LogDaoMetadata extends Model {
     return await this.model(customName).findById(this._id, tOpts)
   }
 
-  static async getMetadataAtBlockNumber(daoAddress: HexAddress, blockNumber: number, network: NetworksEnum) {
+  static async getMetadataAtBlockNumber(daoAddress: string, blockNumber: number, network: NetworksEnum) {
     const response = await this.aggregate([
       {
         $match: {

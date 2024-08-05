@@ -12,6 +12,11 @@ export enum IEnumNodeEnv {
   production = 'production',
 }
 
+export interface IEtherScanConfig {
+  API_KEY: string
+  API_URL: string
+}
+
 export interface IConfig {
   APP_NAME: string
   ENVIRONMENT: IEnumEnvironment
@@ -154,5 +159,15 @@ export interface IConfig {
     DAO_ASSETS_CONCURRENCY: number
     DAO_TRANSACTIONS_BATCH_SIZE: number
     DAO_TRANSACTIONS_CONCURRENCY: number
+  }
+
+  ETHERSCAN_API: {
+    ETHEREUM_MAINNET: IEtherScanConfig
+    ETHEREUM_SEPOLIA: IEtherScanConfig
+    POLYGON_MAINNET: IEtherScanConfig
+    BASE_MAINNET: IEtherScanConfig
+    ARBITRUM_MAINNET: IEtherScanConfig
+    ZKSYNC_SEPOLIA: IEtherScanConfig
+    ZKSYNC_MAINNET: IEtherScanConfig
   }
 }
