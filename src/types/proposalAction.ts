@@ -90,7 +90,17 @@ export interface IProposalActionInputDataParameter {
   /**
    * The value of the parameter.
    */
-  value: string
+  value: any
+
+  /**
+   * The name of the parameter.
+   */
+  name?: string
+
+  /**
+   * Notice of the parameter.
+   */
+  notice?: string
 }
 
 export interface IProposalActionInputData {
@@ -101,11 +111,17 @@ export interface IProposalActionInputData {
   /**
    * The name of the contract to interact with.
    */
-  contract: string
+  contract?: string
   /**
    * The parameters to pass to the function.
    */
   parameters: IProposalActionInputDataParameter[]
+  /**
+   * Notice of the input data.
+   */
+  notice?: string
+
+  textSignature?: string
 }
 
 export interface ICompositeAddress {
@@ -185,6 +201,11 @@ export interface IProposalActionTokenMintMetadataReceiver extends ICompositeAddr
    * Receivers new token balance after mint.
    */
   newBalance: number
+
+  /**
+   * Receiver address.
+   */
+  address: string
 }
 
 export interface IProposalActionTokenMint extends IProposalAction {
@@ -301,4 +322,10 @@ export interface IProposalActionWithdrawToken extends IProposalAction {
      */
     address: string
   }
+}
+
+export interface IEtherScanSource {
+  SourceCode: string
+  ABI: string
+  ContractName: string
 }
