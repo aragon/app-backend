@@ -187,30 +187,35 @@ describe('Helpers: DecodeActions', () => {
       decodeActions.allSignatures = [
         {
           contractName: 'IERC20MintableUpgradeable',
-          signatures: [{ method: 'mint', inputs: [
-              {
-                name: 'to',
-                type: 'address',
-                notice: 'The address to mint tokens to',
-              },
-              {
-                name: 'amount',
-                type: 'uint256',
-                notice: 'The amount of tokens to mint',
-              },
-            ],
-            notice: 'Mint tokens to a specific address', sig: '0x40c10f19', fragment: functionFragment as any }],
+          signatures: [
+            {
+              method: 'mint',
+              inputs: [
+                {
+                  name: 'to',
+                  type: 'address',
+                  notice: 'The address to mint tokens to',
+                },
+                {
+                  name: 'amount',
+                  type: 'uint256',
+                  notice: 'The amount of tokens to mint',
+                },
+              ],
+              notice: 'Mint tokens to a specific address',
+              sig: '0x40c10f19',
+              fragment: functionFragment as any,
+            },
+          ],
           abi: abi,
         },
       ]
 
-      const result = await decodeActions._decodeWithAbi(
-        {
-          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-          data: data,
-          value: '0',
-        },
-      )
+      const result = await decodeActions._decodeWithAbi({
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        data: data,
+        value: '0',
+      })
 
       expect(result).to.deep.equal({
         contract: 'IERC20MintableUpgradeable',
@@ -242,13 +247,11 @@ describe('Helpers: DecodeActions', () => {
       // No ABI setup
       decodeActions.allSignatures = []
 
-      const result = await decodeActions._decodeWithAbi(
-        {
-          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-          data: data,
-          value: '0',
-        },
-      )
+      const result = await decodeActions._decodeWithAbi({
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        data: data,
+        value: '0',
+      })
 
       expect(result).to.be.null
     })
@@ -272,19 +275,19 @@ describe('Helpers: DecodeActions', () => {
       decodeActions.allSignatures = [
         {
           contractName: 'IERC20MintableUpgradeable',
-          signatures: [{ notice: 'xx', inputs: [], method: 'mint', sig: '0x40c10f19', fragment: functionFragment as any }],
+          signatures: [
+            { notice: 'xx', inputs: [], method: 'mint', sig: '0x40c10f19', fragment: functionFragment as any },
+          ],
           abi: abi,
         },
       ]
 
       const stubLogger = sandbox.stub(Logger, 'error')
-      const result = await decodeActions._decodeWithAbi(
-        {
-          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-          data: data,
-          value: '0',
-        },
-      )
+      const result = await decodeActions._decodeWithAbi({
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        data: data,
+        value: '0',
+      })
       expect(result).to.be.null
       expect(stubLogger.calledWith('Error decoding action data with abi' as any)).to.be.true
     })
@@ -520,7 +523,6 @@ describe('Helpers: DecodeActions', () => {
       expect(allSignatures[13].contractName).to.eq('MultiSigSetup')
       expect(allSignatures[14].contractName).to.eq('AddresslistVoting')
       expect(allSignatures[15].contractName).to.eq('TokenVoting')
-
     })
   })
 
@@ -529,7 +531,13 @@ describe('Helpers: DecodeActions', () => {
       const decodeActions = new DecodeActions()
       const dataHex = '0x095ea7b3000000000000000000000000' // Example function selector with data
 
-      const availableSignatures = { method: 'approve', sig: '0x095ea7b3', fragment: 'test' as any, notice: 'xx', inputs: [] }
+      const availableSignatures = {
+        method: 'approve',
+        sig: '0x095ea7b3',
+        fragment: 'test' as any,
+        notice: 'xx',
+        inputs: [],
+      }
 
       const fragment = decodeActions._getFunctionFragment(dataHex, [availableSignatures])
       expect(fragment?.fragment).to.deep.equal('test')
@@ -538,7 +546,13 @@ describe('Helpers: DecodeActions', () => {
     it('should return undefined for an invalid function selector', () => {
       const decodeActions = new DecodeActions()
       const dataHex = '0x12345678000000000000000000000000' // Invalid function selector
-      const availableSignatures = { notice: 'xx', inputs: [], method: 'approve', sig: '0x095ea7b3', fragment: 'test' as any }
+      const availableSignatures = {
+        notice: 'xx',
+        inputs: [],
+        method: 'approve',
+        sig: '0x095ea7b3',
+        fragment: 'test' as any,
+      }
 
       const fragment = decodeActions._getFunctionFragment(dataHex, [availableSignatures])
       expect(fragment).to.be.undefined
