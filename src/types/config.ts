@@ -42,6 +42,8 @@ export interface IConfig {
     RECONNECT_INTERVAL: number
   }
   BOTTLENECK: {
+    ETHERSCAN_MAX_CONCURRENT: number
+    ETHERSCAN_MIN_TIME: number
     NODE_MAX_CONCURRENT: number
     NODE_MIN_TIME: number
     NODE_TRANSFER_MAX_CONCURRENT: number

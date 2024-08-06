@@ -76,4 +76,23 @@ describe('aggregator:FetchDaoTokenInfo', () => {
     expect(updateStub.calledOnce).to.be.true
     expect(findByEntityIdStub.calledOnce).to.be.true
   })
+
+  it('should return null if tokenInfo is null', async () => {
+    const tokenInfoStub = sandbox.stub(CovalentHelper, 'getTokenInfo').returns(null as any)
+
+    const updateStub = sandbox.stub().returns({ id: 'xxx' })
+    sandbox.stub(Models.Token, 'findByEntityId').returns({
+      update: updateStub,
+    })
+
+    await FetchDaoTokenInfo.onDocument({
+      tokenAddress: '0x123',
+      id: 'xxx',
+      address: '0x00',
+      network: NetworksEnum.ethereumSepolia,
+    } as any)
+
+    expect(tokenInfoStub.calledOnce).to.be.true
+    expect(updateStub.calledOnce).to.be.false
+  })
 })

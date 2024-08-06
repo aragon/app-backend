@@ -29,6 +29,8 @@ import ProxyContract from '@helpers/proxyContract'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 import Covalent from '@helpers/covalent'
 import IPFSModule from '@src/modules/ipfs'
+import { retryRequest } from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -151,7 +153,7 @@ class DecodeActions {
 
   async _parseAddMemberAction(decodedData: IProposalActionInputData, action: IRawAction, document: Partial<Proposal>) {
     const currentMembers = await Models.LogMember.getMultiSigMemberAtBlockNumber(
-      document.daoAddress!,
+      document.pluginAddress!,
       document.blockNumber!,
       document.network!,
     )
@@ -160,8 +162,8 @@ class DecodeActions {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigAddMembers,
-      members: decodedData.parameters.map((address: any) => ({ address })),
-      currentMembers: currentMembers.members,
+      members: decodedData.parameters.map((params: any) => ({ address: params.value })),
+      currentMembers: currentMembers.members.map((member: any) => ({ address: member.address })),
     }
   }
 
@@ -171,7 +173,7 @@ class DecodeActions {
     document: Partial<Proposal>,
   ) {
     const currentMembers = await Models.LogMember.getMultiSigMemberAtBlockNumber(
-      document.daoAddress!,
+      document.pluginAddress!,
       document.blockNumber!,
       document.network!,
     )
@@ -180,8 +182,8 @@ class DecodeActions {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigRemoveMembers,
-      members: decodedData.parameters.map((address: any) => ({ address })),
-      currentMembers: currentMembers.members,
+      members: decodedData.parameters.map((params: any) => ({ address: params.value })),
+      currentMembers: currentMembers.members.map((member: any) => ({ address: member.address })),
     }
   }
 
@@ -191,9 +193,9 @@ class DecodeActions {
     document: Partial<Proposal>,
   ) {
     const existingMetadata = await Models.LogDaoMetadata.getMetadataAtBlockNumber(
-      document.daoAddress,
-      document.blockNumber,
-      document.network,
+      document.daoAddress!,
+      document.blockNumber!,
+      document.network!,
     )
 
     const ipfsUrl = Web3Helper.extractMetadataUri(decodedData.parameters[0].value)
@@ -248,12 +250,6 @@ class DecodeActions {
     action: IRawAction,
     document: Partial<Proposal>,
   ) {
-    const tupleType = ['uint8', 'uint32', 'uint32', 'uint64', 'uint256']
-    const parameters = decodedData.parameters[0].value.map((value: any, index: any) => ({
-      type: tupleType[index],
-      value: typeof value === 'object' ? value.toString() : value,
-    }))
-
     return {
       ...action,
       inputData: decodedData,
@@ -362,7 +358,12 @@ class DecodeActions {
       implementationAddress = address
     }
 
-    const contractDetails = await Etherscan.fetchContractSourceCode(implementationAddress, network)
+    const contractDetails = await retryRequest(async () =>
+      BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+        Etherscan.fetchContractSourceCode(implementationAddress!, network),
+      ),
+    )
+
     if (contractDetails) {
       const results = ContractNetspecHelper.parseNetspec(
         contractDetails.SourceCode,
@@ -391,7 +392,7 @@ class DecodeActions {
           const decoded = iface.decodeFunctionData(fragment, dataHex)
           const decodedFormatted = decoded
             .toArray()
-            .map((item: any) => (item instanceof BigInt ? item.toString() : item))
+            .map((item: any) => (typeof item === 'bigint' ? item.toString() : item))
           const functionName = fragment.name
 
           const parameters = fragment.inputs.map((input: any) => input.type).join(',')
@@ -399,7 +400,9 @@ class DecodeActions {
           const paramsInfo = fragment.inputs.map((input: any, index: number) => ({
             name: input.name,
             type: input.type,
-            value: decodedFormatted[index],
+            value: Array.isArray(decodedFormatted[index])
+              ? decodedFormatted[index].map((val: any) => val.toString())
+              : decodedFormatted[index],
           })) as IProposalActionInputDataParameter[]
 
           const contractNetspec = await this.parseContractNetspec(functionName, action.to, document.network!)

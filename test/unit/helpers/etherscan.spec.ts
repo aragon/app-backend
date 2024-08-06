@@ -4,6 +4,8 @@ import { expect } from 'chai'
 import EtherscanHelper from '@helpers/etherscan'
 import logger from '@logger'
 import config from '@config'
+import axios from 'axios'
+import { NetworksEnum } from '@types'
 
 describe('Helpers: Etherscan', () => {
   let sandbox: SinonSandbox
@@ -76,6 +78,58 @@ describe('Helpers: Etherscan', () => {
       const loggerStub = sandbox.stub(logger, 'error')
 
       await expect(EtherscanHelper.fetchAllTransactions('0x123', 100)).to.be.rejectedWith(expectedError)
+
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.args[0]).to.include('Error in Etherscan API call')
+    })
+  })
+
+  describe('fetchContractSourceCode', async () => {
+    it('should fetchContractSourceCode', async () => {
+      config.ETHERSCAN_API.ETHEREUM_SEPOLIA = {
+        API_KEY: 'API_KEY',
+        API_URL: 'API_URL',
+      }
+      const daoFactoryAddress = '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0'
+      const axiosGetStub = sandbox.stub(axios, 'get').resolves({
+        data: {
+          result: [],
+        },
+      })
+      await EtherscanHelper.fetchContractSourceCode(daoFactoryAddress, NetworksEnum.ethereumSepolia)
+      expect(axiosGetStub.calledOnce).to.be.true
+
+      config.ETHERSCAN_API.ETHEREUM_SEPOLIA = {
+        API_URL: '',
+        API_KEY: '',
+      }
+    })
+
+    it('should fail if the network is not configured', async () => {
+      const daoFactoryAddress = '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0'
+      const axiosGetStub = sandbox.stub(axios, 'get').resolves({
+        data: {
+          result: [],
+        },
+      })
+      const loggerError = sandbox.stub(logger, 'error')
+      await EtherscanHelper.fetchContractSourceCode(daoFactoryAddress, NetworksEnum.ethereumSepolia)
+      expect(axiosGetStub.calledOnce).to.be.false
+      expect(loggerError.calledOnce).to.be.true
+    })
+
+    it('should handle errors when fetching contract source code fails', async () => {
+      config.ETHERSCAN_API.ETHEREUM_SEPOLIA = {
+        API_KEY: 'API_KEY',
+        API_URL: 'API_URL',
+      }
+
+      const daoFactoryAddress = '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0'
+      const expectedError = new Error('Failed to fetch contract source code')
+      sandbox.stub(axios, 'get').rejects(expectedError)
+
+      const loggerStub = sandbox.stub(logger, 'error')
+      await EtherscanHelper.fetchContractSourceCode(daoFactoryAddress, NetworksEnum.ethereumSepolia)
 
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.args[0]).to.include('Error in Etherscan API call')

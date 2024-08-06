@@ -11,22 +11,13 @@ import {
 } from '@types'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
-import ActionTransformer from '@helpers/actionTransformer'
 
 const ProposalController = {
   getProposalById: async (id: string): Promise<IProposalsResponse> => {
     const proposal = await Models.Proposal.findByEntityId(id)
     assertExposable(proposal, ErrorKeyEnum.notFound)
-    const proposalActions = await Promise.all(
-      proposal.actions.map(async (action: any) => {
-        return await ActionTransformer.handleAction(action, proposal)
-      }),
-    )
-
-    return {
-      ...proposal.filterKeys(),
-      actions: proposalActions,
-    }
+    proposal.executed = proposal.executed ? proposal.executed : { status: false }
+    return proposal.filterKeys()
   },
 
   getProposalByTransactionHash: async (
@@ -35,7 +26,7 @@ const ProposalController = {
   ): Promise<IProposalsResponse> => {
     const proposal = await Models.Proposal.findByTransactionHash(transactionHash, network)
     assertExposable(proposal, ErrorKeyEnum.notFound)
-
+    proposal.executed = proposal.executed ? proposal.executed : { status: false }
     return proposal.filterKeys()
   },
 

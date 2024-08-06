@@ -45,6 +45,11 @@ const EtherscanHelper = {
     const networkConfigKey = network.replace('-', '_').toUpperCase()
     const etherscanConfig = config.ETHERSCAN_API[networkConfigKey]
 
+    if (!etherscanConfig?.API_KEY) {
+      logger.error('Etherscan API config not found', llo({ network }))
+      return null
+    }
+
     const apiKey = etherscanConfig.API_KEY
     const baseUrl =
       etherscanConfig.API_URL +
@@ -52,7 +57,8 @@ const EtherscanHelper = {
 
     try {
       const response = await axios.get(baseUrl)
-      return response.data.result[0]
+      const results = response.data.result[0]
+      return results.SourceCode ? response.data.result[0] : null
     } catch (e) {
       logger.error('Error in Etherscan API call', llo({ error: e }))
       return null
