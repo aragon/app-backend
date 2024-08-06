@@ -98,6 +98,9 @@ export const AggregatorProposal = {
 
     const actions = await Promise.all(
       logActions.map(async (action: any) => {
+        if (action.inputData) {
+          return action
+        }
         let decodeData: any
 
         if (action.data?.length >= 10) {
