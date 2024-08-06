@@ -126,7 +126,6 @@ export const AggregatorProposal = {
       {
         $match: {
           ...(networks?.length > 0 && { network: { $in: networks } }),
-          transactionHash: '0x1895dc297f235415cbdcd3cb79a227a7e23a5c43cb1521241da6e3a374a2a8d4',
         },
       },
       {
