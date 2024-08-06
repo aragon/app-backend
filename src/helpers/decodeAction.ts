@@ -175,7 +175,7 @@ class DecodeActions {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigAddMembers,
-      members: decodedData.parameters.map((params: any) => ({ address: params.value })),
+      members: decodedData.parameters[0].value.map((member: any) => ({ address: member })),
       currentMembers: currentMembers.members.map((member: any) => ({ address: member })),
     }
   }
@@ -195,7 +195,7 @@ class DecodeActions {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigRemoveMembers,
-      members: decodedData.parameters.map((params: any) => ({ address: params.value })),
+      members: decodedData.parameters[0].value.map((member: any) => ({ address: member })),
       currentMembers: currentMembers.members.map((member: any) => ({ address: member })),
     }
   }
