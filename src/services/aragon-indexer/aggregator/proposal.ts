@@ -72,7 +72,9 @@ export const AggregatorProposal = {
       document.token = await AggregatorProposal._fetchTokenDetails(document)
     }
 
-    document.actions = await AggregatorProposal.parseActions(document.actions, document)
+    if (!existingLog || (existingLog?.actions?.length && !existingLog?.actions[0].inputData)) {
+      document.actions = await AggregatorProposal.parseActions(document.actions, document)
+    }
 
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
@@ -98,9 +100,6 @@ export const AggregatorProposal = {
 
     const actions = await Promise.all(
       logActions.map(async (action: any) => {
-        if (action.inputData) {
-          return action
-        }
         let decodeData: any
 
         if (action.data?.length >= 10) {

@@ -2,6 +2,7 @@ import logger from '@logger'
 import axios from 'axios'
 import config from '@config'
 import { type IEtherScanSource, type NetworksEnum } from '@types'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:EtherscanHelper' })
 
@@ -54,7 +55,7 @@ const EtherscanHelper = {
     const baseUrl =
       etherscanConfig.API_URL +
       `?module=contract&action=getsourcecode&address=${contractAddress.toLowerCase()}&apikey=${apiKey}`
-
+    await Utils.wait(1000)
     try {
       const response = await axios.get(baseUrl)
       const results = response.data.result[0]
