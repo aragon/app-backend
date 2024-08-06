@@ -24,7 +24,8 @@
       "@indexer/*": ["./src/services/aragon-indexer/*"],
       "@rates/*": ["./src/services/aragon-rates/*"],
       "@tools/*": ["./tools/*"],
-      "@test/*": ["./test/*"]
+      "@test/*": ["./test/*"],
+      "@aragonContracts/*": ["./src/services/aragonContracts/*"]
     },
     "esModuleInterop": true,
     "resolveJsonModule": true
