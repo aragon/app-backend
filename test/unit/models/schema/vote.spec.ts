@@ -201,7 +201,9 @@ describe('Model: Vote', () => {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Vote.findWithPagination({
-        extraParams: {},
+        extraParams: {
+          includeInfo: true,
+        },
         paginationParams: {},
       })
 
@@ -305,5 +307,17 @@ describe('Model: Vote', () => {
     const createdWithoutToken = await Models.Vote.create({ ...rawVote, ...{ token: undefined } })
     const withoutToken = createdWithoutToken.filterKeys()
     expect(withoutToken.token).to.be.undefined
+  })
+
+  it('should findMemberActivity', async () => {
+    const aggStub = sandbox.stub(Models.Vote, 'aggregate').resolves([
+      {
+        xx: 'yy',
+      },
+    ])
+
+    const result = await Models.Vote.findMemberActivity('0x123')
+    expect(result).to.deep.eq({ xx: 'yy' })
+    expect(aggStub.calledOnce).to.be.true
   })
 })

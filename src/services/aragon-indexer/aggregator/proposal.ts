@@ -4,7 +4,7 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Proposal from '@models/schema/proposal'
 import Web3Helper from '@helpers/web3'
-import DecodeActions from '@helpers/decodeActionV2'
+import DecodeActions from '@helpers/decodeAction'
 import { NetworkHelper } from '@helpers/network'
 import { type NetworksEnum } from '@types'
 import config from '@config'
@@ -119,11 +119,6 @@ export const AggregatorProposal = {
 
   query(networks: NetworksEnum[]) {
     return [
-      {
-        $sort: {
-          blockNumber: -1,
-        },
-      },
       {
         $match: {
           ...(networks?.length > 0 && { network: { $in: networks } }),

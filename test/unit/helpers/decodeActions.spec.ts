@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import DecodeActions from '@helpers/decodeActionV2'
+import DecodeActions from '@helpers/decodeAction'
 import { expect } from 'chai'
 import { Fragment, FunctionFragment } from 'ethers'
 import FourByte from '@helpers/4byte'
@@ -9,8 +9,13 @@ import { NetworksEnum, ProposalActionType } from '@types'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import Covalent from '@helpers/covalent'
+import ProxyContract from '@helpers/proxyContract'
+import Etherscan from '@helpers/etherscan'
+import * as ContractNetspecHelper from '@helpers/contractNetspec'
+import Ipfs from '@modules/ipfs'
+import { Models } from '@dbModels'
 
-describe.only('Helpers: DecodeActions', () => {
+describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -253,7 +258,7 @@ describe.only('Helpers: DecodeActions', () => {
             name: 'amount',
             notice: 'The amount of tokens to mint',
             type: 'uint256',
-            value: 1000000000000000000n,
+            value: '1000000000000000000',
           },
         ],
       })
@@ -349,8 +354,9 @@ describe.only('Helpers: DecodeActions', () => {
         parameters: [
           {
             type: 'bytes',
-            value: '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458'
-          }
+            value:
+              '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+          },
         ],
       })
       expect(stubFourByte.calledOnce).to.be.true
@@ -533,7 +539,7 @@ describe.only('Helpers: DecodeActions', () => {
       const decodeActions = new DecodeActions()
 
       const allSignatures = decodeActions.allSignatures.map(({ contractName, abi }) => ({ contractName, abi }))
-      expect(allSignatures.length).to.eq(8)
+      expect(allSignatures.length).to.eq(9)
       expect(allSignatures[0].contractName).to.eq('DaoFactory')
       expect(allSignatures[1].contractName).to.eq('Multisig')
       expect(allSignatures[2].contractName).to.eq('MajorityVotingBase')
@@ -542,6 +548,7 @@ describe.only('Helpers: DecodeActions', () => {
       expect(allSignatures[5].contractName).to.eq('ERC721')
       expect(allSignatures[6].contractName).to.eq('ERC1155')
       expect(allSignatures[7].contractName).to.eq('GovernanceERC20')
+      expect(allSignatures[8].contractName).to.eq('DAO')
     })
   })
 
@@ -563,6 +570,251 @@ describe.only('Helpers: DecodeActions', () => {
 
       const fragment = decodeActions._getFunctionFragment(dataHex, [availableSignatures])
       expect(fragment).to.be.undefined
+    })
+  })
+
+  describe('parseContractNetspec', () => {
+    it('should return the correct contract netspec', async () => {
+      const decodeActions = new DecodeActions()
+      const contractAddress = '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'
+      const network = NetworksEnum.ethereumMainnet
+
+      const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      const getContractSourceCode = sandbox.stub(Etherscan, 'fetchContractSourceCode').resolves({
+        SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
+        ContractName: 'IERC20MintableUpgradeable',
+        ABI: '[]',
+      })
+      const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([
+        {
+          inputs: [
+            { name: 'to', type: 'address', notice: 'The address to mint tokens to' },
+            { name: 'amount', type: 'uint256', notice: 'The amount of tokens to mint' },
+          ],
+          notice: 'Mint tokens to a specific address',
+          name: 'mint',
+          type: 'function',
+        },
+      ])
+
+      const result = await decodeActions.parseContractNetspec('mint', contractAddress, network)
+      expect(result).to.deep.equal({
+        contractName: 'IERC20MintableUpgradeable',
+        inputs: [
+          {
+            name: 'to',
+            type: 'address',
+            notice: 'The address to mint tokens to',
+          },
+          {
+            name: 'amount',
+            type: 'uint256',
+            notice: 'The amount of tokens to mint',
+          },
+        ],
+        notice: 'Mint tokens to a specific address',
+      })
+      expect(getImplementationAddressStub.calledOnce).to.be.true
+      expect(getContractSourceCode.calledOnce).to.be.true
+      expect(parseNetspecStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('decodeAction', () => {
+    it('_parseTransferAction', async () => {
+      const decodeActions = new DecodeActions()
+
+      const baseAction = {
+        textSignature: 'transfer(address,uint256)',
+        function: 'transfer',
+        contract: 'IERC20',
+        parameters: [
+          {
+            name: 'recipient',
+            type: 'address',
+            value: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          },
+          {
+            name: 'amount',
+            type: 'uint256',
+            value: 10n,
+          },
+        ],
+      }
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 10n,
+        data: '0x',
+      }
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+      const saveAndGetStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: 'ERC20',
+      } as any)
+      const result = await decodeActions._parseTransferAction(baseAction, action, document as any)
+      expect(result?.type).to.be.eq(ProposalActionType.Transfer)
+      expect(saveAndGetStub.calledOnce).to.be.true
+    })
+
+    it('_parse add multisig action', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'addAddresses(address[])',
+        function: 'addAddresses',
+        contract: 'Multisig',
+        parameters: [
+          {
+            name: 'multisig',
+            type: 'address[]',
+            value: ['0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'],
+          },
+        ],
+      }
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x',
+      }
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+      const result = await decodeActions._parseAddMemberAction(baseAction, action, document as any)
+      expect(result?.type).to.be.eq(ProposalActionType.MultisigAddMembers)
+    })
+
+    it('should parse _removeMemberAction', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'removeAddresses(address[])',
+        function: 'removeAddresses',
+        contract: 'Multisig',
+        parameters: [
+          {
+            name: 'multisig',
+            type: 'address[]',
+            value: ['0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'],
+          },
+        ],
+      }
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x',
+      }
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+      const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
+      expect(result?.type).to.be.eq(ProposalActionType.MultisigRemoveMembers)
+    })
+
+    it('should parse _mintAction', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'mint(address,uint256)',
+        function: 'mint',
+        contract: 'IERC20Mint',
+        parameters: [
+          {
+            name: 'to',
+            type: 'address',
+            value: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          },
+          {
+            name: 'amount',
+            type: 'uint256',
+            value: 10n,
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc319700',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const saveAndGetTokenStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: 'ERC20',
+      } as any)
+
+      const covalentTokenInfo = sandbox.stub(Covalent, 'getTokenInfo').resolves({
+        totalSupply: '1000000000000000000',
+        totalHolders: 1,
+      })
+
+      const result = await decodeActions._parseMintAction(baseAction, action, document as any)
+      expect(result?.type).to.be.eq(ProposalActionType.Mint)
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(covalentTokenInfo.calledOnce).to.be.true
+      expect(result.totalSupply).to.be.eq('1000000000000000000')
+      expect(result.holdersCount).to.be.eq(1)
+    })
+
+    it('should parse _parseUpdateDaoMetadata', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'setMetadata(bytes)',
+        function: 'setMetadata',
+        contract: 'DaoFactory',
+        parameters: [
+          {
+            name: 'metadata',
+            type: 'bytes',
+            value:
+              '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x00',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const getMetadataAtBlockNumberStub = sandbox.stub(Models.LogDaoMetadata, 'getMetadataAtBlockNumber').resolves({
+        name: 'MockDao',
+      })
+      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('http://link')
+      const ipfsFetchStubb = sandbox.stub(Ipfs, 'fetchMetadata').resolves({
+        name: 'Updated Dao',
+      })
+
+      const result = await decodeActions._parseUpdateDaoMetadata(baseAction, action, document as any)
+      expect(result?.type).to.be.eq(ProposalActionType.MetadataUpdate)
+      expect(stubExtractMetadataUri.calledOnce).to.be.true
+      expect(ipfsFetchStubb.calledOnce).to.be.true
+      expect(getMetadataAtBlockNumberStub.calledOnce).to.be.true
     })
   })
 })

@@ -6,7 +6,7 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { ITokenType, NetworksEnum, ProposalActionType } from '@types'
 import Logger from '@logger'
-import DecodeActions from '@helpers/decodeActionV2'
+import DecodeActions from '@helpers/decodeAction'
 import Web3Helper from '@helpers/web3'
 import { UtilsIndexer } from '@indexer/utils/indexer'
 import { ethers } from 'ethers'
@@ -275,7 +275,15 @@ describe('Indexer:Aggregator:Proposal', () => {
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
+        priceUsd: '12',
       } as any)
+
+      sandbox.stub(CovalentHelper, 'getTokenInfo').resolves({
+        totalSupply: '1000000000000000000000',
+        totalHolders: 1,
+      })
+
+      sandbox.stub(DecodeActions.prototype, 'parseContractNetspec').resolves(null)
 
       const actions = await AggregatorProposal.parseActions(logActions, document)
 
@@ -284,22 +292,38 @@ describe('Indexer:Aggregator:Proposal', () => {
           to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
           value: '0',
           data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
-          functionName: 'mint',
-          textSignature: 'mint(address,uint256)',
-          decoded: ['0x284803C34A3F049f787E2562e6F8C084bdBC3197', 1000000000000000000n],
-          contractName: 'IERC20MintableUpgradeable',
+          inputData: {
+            textSignature: 'mint(address,uint256)',
+            function: 'mint',
+            contract: 'IERC20MintableUpgradeable',
+            parameters: [
+              {
+                name: '_to',
+                type: 'address',
+                value: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+              },
+              {
+                name: '_amount',
+                type: 'uint256',
+                value: '1000000000000000000',
+              },
+            ],
+          },
           type: ProposalActionType.Mint,
-          metadata: {
-            token: {
-              address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
-              name: 'MockToken',
-              symbol: 'MOCK',
-              decimals: 18,
-              logo: 'https://mock.com/logo.png',
-              type: 'ERC20',
-            },
-            to: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
-            value: 1000000000000000000n,
+          receivers: {
+            address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+            currentBalance: '0',
+            newBalance: '1000000000000000000',
+          },
+          totalSupply: '1000000000000000000000',
+          holdersCount: 1,
+          token: {
+            name: 'MockToken',
+            symbol: 'MOCK',
+            decimals: 18,
+            priceUsd: '12',
+            logo: 'https://mock.com/logo.png',
+            address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
           },
         },
       ])
@@ -338,22 +362,37 @@ describe('Indexer:Aggregator:Proposal', () => {
           to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
           value: '424000000000000',
           data: '0x',
-          functionName: 'NativeTransfer',
-          textSignature: 'nativeTransfer(address,address,uint256)',
-          decoded: ['0x0dao', '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31', '424000000000000'],
+          from: '0x0dao',
           type: ProposalActionType.Transfer,
-          metadata: {
-            from: '0x0dao',
-            to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
-            value: '424000000000000',
-            token: {
-              address: ethers.ZeroAddress,
-              name: 'MockToken',
-              symbol: 'MOCK',
-              decimals: 18,
-              logo: 'https://mock.com/logo.png',
-              type: ITokenType.native,
-            },
+          sender: {
+            address: '0x0dao',
+          },
+          receiver: {
+            address: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+          },
+          amount: '424000000000000',
+          token: {
+            address: '0x0000000000000000000000000000000000000000',
+            name: 'MockToken',
+            symbol: 'MOCK',
+            decimals: 18,
+            logo: 'https://mock.com/logo.png',
+            type: 'native',
+          },
+          inputData: {
+            textSignature: 'nativeTransfer(address,uint256)',
+            function: 'NativeTransfer',
+            contract: 'NativeToken',
+            parameters: [
+              {
+                type: 'address',
+                value: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+              },
+              {
+                type: 'uint256',
+                value: '424000000000000',
+              },
+            ],
           },
         },
       ])
