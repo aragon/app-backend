@@ -1,14 +1,5 @@
 import logger from '@logger'
 import { ethers, FunctionFragment, hexlify, Interface } from 'ethers'
-import { Multisig } from '@artifacts/Multisig'
-import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
-import { IERC20MintableUpgradeable } from '@artifacts/IERC20MintableUpgradeable'
-import { ERC20 } from '@artifacts/ERC20'
-import { ERC721 } from '@artifacts/ERC721'
-import { ERC1155 } from '@artifacts/ERC1155'
-import { DAOFactory } from '@artifacts/daoFactory'
-import { DAO } from '@artifacts/dao'
-import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import FourByte from '@helpers/4byte'
 import Web3Helper from '@helpers/web3'
 import type Proposal from '@models/schema/proposal'
@@ -32,12 +23,34 @@ import IPFSModule from '@src/modules/ipfs'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 
+import {
+  AddresslistVoting,
+  DAO,
+  DAOFactory,
+  GoveranceERC20,
+  Multisig,
+  TokenVoting,
+  MultiSigSetup,
+  PluginRepo,
+  PluginRepoFactory,
+  PluginRepoRegistry,
+  DAORegistry,
+} from '@src/aragonContracts'
+
+import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
+import { IERC20MintableUpgradeable } from '@artifacts/IERC20MintableUpgradeable'
+import { ERC20 } from '@artifacts/ERC20'
+import { ERC721 } from '@artifacts/ERC721'
+import { ERC1155 } from '@artifacts/ERC1155'
+
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
 interface Signature {
   method: string
   sig: string
   fragment: FunctionFragment
+  notice: string
+  inputs: any[]
 }
 
 class DecodeActions {
@@ -85,7 +98,7 @@ class DecodeActions {
   }
 
   public async decodeData(action: IRawAction, document: Partial<Proposal>): Promise<IProposalAction | null> {
-    const decoded = (await this._decodeWithAbi(action, document)) || (await this._decodeFallback(action.data))
+    const decoded = (await this._decodeWithAbi(action)) || (await this._decodeFallback(action.data))
 
     if (!decoded) return null
 
@@ -382,12 +395,13 @@ class DecodeActions {
     return null
   }
 
-  async _decodeWithAbi(action: IRawAction, document: Partial<Proposal>): Promise<IProposalActionInputData | null> {
+  async _decodeWithAbi(action: IRawAction): Promise<IProposalActionInputData | null> {
     const dataHex = hexlify(action.data)
     for (const { contractName, signatures, abi } of this.allSignatures) {
-      const fragment = this._getFunctionFragment(dataHex, signatures)
-      if (fragment) {
+      const fragmentDetails = this._getFunctionFragment(dataHex, signatures)
+      if (fragmentDetails) {
         try {
+          const { fragment, inputs, notice } = fragmentDetails
           const iface = new Interface(abi)
           const decoded = iface.decodeFunctionData(fragment, dataHex)
           const decodedFormatted = decoded
@@ -405,29 +419,19 @@ class DecodeActions {
               : decodedFormatted[index],
           })) as IProposalActionInputDataParameter[]
 
-          const contractNetspec = await this.parseContractNetspec(functionName, action.to, document.network!)
-          if (contractNetspec) {
-            contractNetspec.inputs.forEach((input: any, index: number) => {
-              paramsInfo[index].notice = input.notice
-            })
-
-            return {
-              function: functionName,
-              contract: contractNetspec.contractName,
-              parameters: paramsInfo,
-              notice: contractNetspec.notice,
-              textSignature,
-            }
-          }
+          inputs.forEach((input: any, index: number) => {
+            paramsInfo[index].notice = input.notice
+          })
 
           return {
-            textSignature,
             function: functionName,
             contract: contractName,
             parameters: paramsInfo,
+            notice,
+            textSignature,
           }
         } catch (error) {
-          logger.error('Error decoding action data with abi', llo({ error, contractName, fragment, dataHex }))
+          logger.error('Error decoding action data with abi', llo({ error, contractName, dataHex }))
         }
       }
     }
@@ -441,7 +445,7 @@ class DecodeActions {
         try {
           const sig = FunctionFragment.getSelector(item.name, item.inputs)
           const fragment = FunctionFragment.from(item)
-          return { method: item.name, sig, fragment }
+          return { method: item.name, sig, fragment, notice: item.notice, inputs: item.inputs }
         } catch (error) {
           logger.warn('Error creating FunctionFragment', llo({ error, item, name, abi }))
           return null
@@ -452,7 +456,6 @@ class DecodeActions {
 
   _setupSignatures() {
     const multisigSignatures: Signature[] = this._getSignaturesFromAbi(Multisig.abi, 'Multisig')
-    const tokenVotingSignatures: Signature[] = this._getSignaturesFromAbi(MajorityVotingBase.abi, 'MajorityVotingBase')
     const erc20MintableSignatures: Signature[] = this._getSignaturesFromAbi(
       IERC20MintableUpgradeable.abi,
       'IERC20MintableUpgradeable',
@@ -461,13 +464,34 @@ class DecodeActions {
     const erc721Signatures: Signature[] = this._getSignaturesFromAbi(ERC721.abi, 'ERC721')
     const erc1155Signatures: Signature[] = this._getSignaturesFromAbi(ERC1155.abi, 'ERC1155')
     const daoFactorySignatures: Signature[] = this._getSignaturesFromAbi(DAOFactory.abi, 'DAOFactory')
-    const governanceSignatures: Signature[] = this._getSignaturesFromAbi(GovernanceERC20.abi, 'GovernanceERC20')
+    const governanceSignatures: Signature[] = this._getSignaturesFromAbi(GoveranceERC20.abi, 'GovernanceERC20')
     const daoSignatures: Signature[] = this._getSignaturesFromAbi(DAO.abi, 'DAO')
+    const tokenVotingSignatures: Signature[] = this._getSignaturesFromAbi(TokenVoting.abi, 'TokenVoting')
+
+    const majorityVotingBaseSignatures: Signature[] = this._getSignaturesFromAbi(
+      MajorityVotingBase.abi,
+      'MajorityVotingBase',
+    )
+    const pluginRepoSignatures: Signature[] = this._getSignaturesFromAbi(PluginRepo.abi, 'PluginRepo')
+    const pluginRepoFactorySignatures: Signature[] = this._getSignaturesFromAbi(
+      PluginRepoFactory.abi,
+      'PluginRepoFactory',
+    )
+    const pluginRepoRegistrySignatures: Signature[] = this._getSignaturesFromAbi(
+      PluginRepoRegistry.abi,
+      'PluginRepoRegistry',
+    )
+    const daoRegistrySignatures: Signature[] = this._getSignaturesFromAbi(DAORegistry.abi, 'DAORegistry')
+    const multisigSetupSignatures: Signature[] = this._getSignaturesFromAbi(MultiSigSetup.abi, 'MultiSigSetup')
+    const addresslistVotingSignatures: Signature[] = this._getSignaturesFromAbi(
+      AddresslistVoting.abi,
+      'AddresslistVoting',
+    )
 
     this.allSignatures = [
+      { contractName: 'MajorityVotingBase', signatures: majorityVotingBaseSignatures, abi: MajorityVotingBase.abi },
       { contractName: 'DaoFactory', signatures: daoFactorySignatures, abi: DAOFactory.abi },
       { contractName: 'Multisig', signatures: multisigSignatures, abi: Multisig.abi },
-      { contractName: 'MajorityVotingBase', signatures: tokenVotingSignatures, abi: MajorityVotingBase.abi },
       {
         contractName: 'IERC20MintableUpgradeable',
         signatures: erc20MintableSignatures,
@@ -476,20 +500,37 @@ class DecodeActions {
       { contractName: 'ERC20', signatures: erc20Signatures, abi: ERC20.abi },
       { contractName: 'ERC721', signatures: erc721Signatures, abi: ERC721.abi },
       { contractName: 'ERC1155', signatures: erc1155Signatures, abi: ERC1155.abi },
-      { contractName: 'GovernanceERC20', signatures: governanceSignatures, abi: GovernanceERC20.abi },
+      { contractName: 'GovernanceERC20', signatures: governanceSignatures, abi: GoveranceERC20.abi },
       { contractName: 'DAO', signatures: daoSignatures, abi: DAO.abi },
+      { contractName: 'PluginRepo', signatures: pluginRepoSignatures, abi: PluginRepo.abi },
+      { contractName: 'PluginRepoFactory', signatures: pluginRepoFactorySignatures, abi: PluginRepoFactory.abi },
+      { contractName: 'PluginRepoRegistry', signatures: pluginRepoRegistrySignatures, abi: PluginRepoRegistry.abi },
+      { contractName: 'DAORegistry', signatures: daoRegistrySignatures, abi: DAORegistry.abi },
+      { contractName: 'MultiSigSetup', signatures: multisigSetupSignatures, abi: MultiSigSetup.abi },
+      { contractName: 'AddresslistVoting', signatures: addresslistVotingSignatures, abi: AddresslistVoting.abi },
+      { contractName: 'TokenVoting', signatures: tokenVotingSignatures, abi: TokenVoting.abi },
     ]
   }
 
-  _getFunctionFragment(dataHex: string, availableSignatures: Signature[]): FunctionFragment | undefined {
+  _getFunctionFragment(dataHex: string, availableSignatures: Signature[]): IExtendedFragment | undefined {
     const functionSelector = dataHex.substring(0, 10)
-    for (const { sig, fragment } of availableSignatures) {
+    for (const { sig, fragment, notice, inputs } of availableSignatures) {
       if (functionSelector === sig) {
-        return fragment
+        return {
+          fragment,
+          notice,
+          inputs,
+        }
       }
     }
     return undefined
   }
+}
+
+interface IExtendedFragment {
+  fragment: FunctionFragment
+  notice: string
+  inputs: any[]
 }
 
 export default DecodeActions
