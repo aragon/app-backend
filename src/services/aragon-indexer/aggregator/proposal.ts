@@ -507,7 +507,7 @@ export const AggregatorProposal = {
 
   async _fetchTokenDetails(document: Partial<Proposal>) {
     const alreadyFetched = await Models.Proposal.findByTransactionHash(document.transactionHash!, document.network!)
-    if (alreadyFetched.token) {
+    if (alreadyFetched?.token) {
       return alreadyFetched.token
     }
 
