@@ -6,9 +6,9 @@ import { Fragment, FunctionFragment } from 'ethers'
 import FourByte from '@helpers/4byte'
 import Logger from '@logger'
 import { NetworksEnum, ProposalActionType } from '@types'
-import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import IPFSModule from '@modules/ipfs'
+import { TokenProxy } from '@modules/tokenProxy'
 
 describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
@@ -35,7 +35,7 @@ describe('Helpers: DecodeActions', () => {
       const spyDecodeFallback = sandbox.spy(decodeActions, '_decodeFallback')
       const spyGetMintMetadata = sandbox.spy(decodeActions, '_getMedataIfMint')
 
-      const saveAndGetTokenStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+      const saveAndGetTokenStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
         address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
         name: 'MockToken',
         symbol: 'MOCK',
@@ -540,7 +540,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x',
       }
 
-      const saveAndGetTokenStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+      const saveAndGetTokenStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
         address: '0x42c9a3f034592c39028aea70a6e69fbc6ccf6c31',
         name: 'MockToken',
         symbol: 'MOCK',
@@ -590,7 +590,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x',
       }
 
-      const saveAndGetTokenStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+      const saveAndGetTokenStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
         address: '0x460eec6155b7b810edb83809d34f9f41f3fbb29a',
         name: 'MockToken',
         symbol: 'MOCK',
@@ -642,7 +642,7 @@ describe('Helpers: DecodeActions', () => {
         data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
       }
 
-      const saveAndGetTokenStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+      const saveAndGetTokenStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
         address: '0x384803C34A3F049f787E2562e6F8C084bdBC3197',
         name: 'MockToken',
         symbol: 'MOCK',
