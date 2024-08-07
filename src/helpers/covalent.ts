@@ -4,6 +4,7 @@ import {
   type ITokenBalanceResponse,
   type ITokenCovalentResponse,
   type ITokenHoldersResponse,
+  type ITokenMetrics,
   ITokenType,
   NetworksEnum,
   type TokensBalancesType,
@@ -181,10 +182,7 @@ const CovalentHelper = {
     }
   },
 
-  async getTokenTotalHolders(
-    address: HexAddress,
-    network: NetworksEnum,
-  ): Promise<{ totalSupply: string; totalHolders: number } | null> {
+  async getTokenTotalHolders(address: HexAddress, network: NetworksEnum): Promise<ITokenMetrics | null> {
     const networkId = CovalentHelper.networkToCovalent(network)
     const path = `/${networkId}/tokens/${address}/token_holders_v2/?`
     try {

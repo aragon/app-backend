@@ -43,20 +43,23 @@ describe('Modules: TokenProxy', () => {
   describe('saveAndGetToken', () => {
     it('should detect token type and create new token if not found', async () => {
       const stubRate = sandbox.stub(RateModule, 'fetchRate').resolves({
+        address: '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
+        name: 'TokenName',
+        decimals: 18,
+        symbol: 'TKN',
         priceUsd: '0',
-        priceChangeOnDayUsd: '0.0',
+        priceChangeOnDayUsd: '0',
+        logo: null,
+      } as any)
+
+      const stubTokenMetrics = sandbox.stub(TokenProxy, 'getTokenMetrics').resolves({
+        totalHolders: 20,
+        totalSupply: '1000',
       } as any)
       const stubFind = sandbox.stub(Models.Token, 'findExistingLog').resolves(null)
       const stubDetectTokenType = sandbox
         .stub(TokenDetector, 'detectTokenType')
         .resolves({ type: ITokenType.GovernanceERC20, implementationAddress: '0x456' } as any)
-      const stubGetToken = sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
-        address: '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
-        name: 'TokenName',
-        decimals: 18,
-        symbol: 'TKN',
-        totalSupply: '2000',
-      })
 
       const token = await TokenProxy.saveAndGetToken(
         '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
@@ -66,8 +69,8 @@ describe('Modules: TokenProxy', () => {
       expect(stubRate.calledOnceWith('0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564', NetworksEnum.ethereumMainnet)).to.be
         .true
       expect(stubFind.calledOnce).to.be.true
+      expect(stubTokenMetrics.calledOnce).to.be.true
       expect(stubDetectTokenType.calledOnce).to.be.true
-      expect(stubGetToken.calledOnce).to.be.true
       expect(token!.address).to.eq('0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564')
       expect(token!.skipFetchRate).to.eq(true)
       expect(token!.type).to.eq(ITokenType.GovernanceERC20)
@@ -75,14 +78,20 @@ describe('Modules: TokenProxy', () => {
       expect(token!.name).to.eq('TokenName')
       expect(token!.decimals).to.eq(18)
       expect(token!.symbol).to.eq('TKN')
-      expect(token!.totalSupply).to.eq('2000')
+      expect(token!.holders).to.eq(20)
+      expect(token!.totalSupply).to.eq('1000')
       expect(token!.network).to.eq(NetworksEnum.ethereumMainnet)
       expect(token!.priceUsd).to.eq('0')
-      expect(token!.priceChangeOnDayUsd).to.eq('0.0')
+      expect(token!.priceChangeOnDayUsd).to.eq('0')
     })
 
     it('should detect token type unknown', async () => {
       const stubRate = sandbox.stub(RateModule, 'fetchRate').resolves({
+        address: '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
+        name: 'TokenName',
+        decimals: 18,
+        symbol: 'TKN',
+        logo: null,
         priceUsd: '1',
         priceChangeOnDayUsd: '0.1',
       } as any)
@@ -90,13 +99,10 @@ describe('Modules: TokenProxy', () => {
       const stubDetectTokenType = sandbox
         .stub(TokenDetector, 'detectTokenType')
         .resolves({ type: ITokenType.unknown } as any)
-      const stubGetToken = sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
-        address: '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
-        name: 'TokenName',
-        decimals: 18,
-        symbol: 'TKN',
+      const stubTokenMetrics = sandbox.stub(TokenProxy, 'getTokenMetrics').resolves({
+        totalHolders: 20,
         totalSupply: '2000',
-      })
+      } as any)
 
       const token = await TokenProxy.saveAndGetToken(
         '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
@@ -107,7 +113,7 @@ describe('Modules: TokenProxy', () => {
         .true
       expect(stubFind.calledOnce).to.be.true
       expect(stubDetectTokenType.calledOnce).to.be.true
-      expect(stubGetToken.calledOnce).to.be.true
+      expect(stubTokenMetrics.calledOnce).to.be.true
       expect(token!.type).to.eq(ITokenType.unknown)
       expect(token!.skipFetchRate).to.eq(false)
     })
