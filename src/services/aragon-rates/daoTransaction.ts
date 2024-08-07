@@ -9,7 +9,6 @@ import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
-import { UtilsIndexer } from '@indexer/utils/indexer'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import type Transaction from '@models/schema/transaction'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
@@ -18,6 +17,7 @@ import { NetworkHelper } from '@helpers/network'
 import { RateModule } from '@modules/rates'
 import utils from '@helpers/utils'
 import config from '@config'
+import { TokenProxy } from '@modules/tokenProxy'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:DaoTransactions' })
 
@@ -75,13 +75,13 @@ export const DaoTransactions = {
         return category
     }
   },
+
   onDocument: async (daoRegistry: LogDaoRegistry) => {
     const category = DaoTransactions.getCategories(daoRegistry.network)
     // txs to daoAddress
     const depositTxCrawler = new BlockchainTransferCrawler({
       network: daoRegistry.network,
       filter: {
-        // fromBlock: aggregatorDb?.lastBlockNumber,
         toAddress: daoRegistry.address,
         category,
       },
@@ -102,7 +102,6 @@ export const DaoTransactions = {
     const withdrawTxCrawler = new BlockchainTransferCrawler({
       network: daoRegistry.network,
       filter: {
-        // fromBlock: aggregatorDb?.lastBlockNumber,
         fromAddress: daoRegistry.address,
         category,
       },
@@ -155,14 +154,17 @@ export const DaoTransactions = {
         }
 
         const tokenAddress = tx.rawContract?.address || utils.zeroAddress
-        const token = await UtilsIndexer.saveAndGetToken(tokenAddress, daoRegistry.network)
+        const token = await TokenProxy.saveAndGetToken(tokenAddress, daoRegistry.network)
 
         if (token?.address) {
           rawTx.tokenAddress = token.address
           // historical price
           const daysDifference = utils.calculateDaysDifference(rawTx.blockTimestamp)
-          const rate = await RateModule.fetchRate(token.address, daoRegistry.network, daysDifference)
-          rawTx.amountUsd = rate ? (Number(rawTx.value) * Number(rate.priceUsd)).toString() : '0'
+          const tokenRate = await RateModule.fetchRate(token.address, daoRegistry.network, daysDifference)
+          rawTx.amountUsd = DaoTransactions.calculateAmountUsd(
+            Number(rawTx.value || 0),
+            Number(tokenRate.priceUsd || 0),
+          )
 
           rawTx.token = {
             network: token.network,
@@ -183,5 +185,10 @@ export const DaoTransactions = {
     } catch (error) {
       logger.error('Error Transaction', llo({ error, logId: daoRegistry.id }))
     }
+  },
+
+  calculateAmountUsd: (rawValue: number, ratePriceUsd: number): string => {
+    const amountUsd = Number(rawValue) * Number(ratePriceUsd)
+    return isNaN(amountUsd) ? '0' : amountUsd.toString()
   },
 }

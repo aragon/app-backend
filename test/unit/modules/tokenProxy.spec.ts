@@ -1,7 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { UtilsIndexer } from '@indexer/utils/indexer'
 import { Models } from '@dbModels'
 import { ITokenType, NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
@@ -10,8 +9,9 @@ import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
 import utils from '@helpers/utils'
+import { TokenProxy } from '@modules/tokenProxy'
 
-describe('Model/Utils: indexer', () => {
+describe('Modules: TokenProxy', () => {
   let sandbox: SinonSandbox
   let rawToken: Partial<Token>
 
@@ -58,7 +58,7 @@ describe('Model/Utils: indexer', () => {
         totalSupply: '2000',
       })
 
-      const token = await UtilsIndexer.saveAndGetToken(
+      const token = await TokenProxy.saveAndGetToken(
         '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
         NetworksEnum.ethereumMainnet,
       )
@@ -98,7 +98,7 @@ describe('Model/Utils: indexer', () => {
         totalSupply: '2000',
       })
 
-      const token = await UtilsIndexer.saveAndGetToken(
+      const token = await TokenProxy.saveAndGetToken(
         '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
         NetworksEnum.ethereumMainnet,
       )
@@ -115,7 +115,7 @@ describe('Model/Utils: indexer', () => {
     it('should return existing token if found', async () => {
       const stubDetect = sandbox.stub(TokenDetector, 'detectTokenType')
 
-      const result = await UtilsIndexer.saveAndGetToken(rawToken.address as any, rawToken.network as any)
+      const result = await TokenProxy.saveAndGetToken(rawToken.address as any, rawToken.network as any)
 
       expect(stubDetect.notCalled).to.be.true
       expect(result?.address).to.equal(rawToken.address)
@@ -123,7 +123,7 @@ describe('Model/Utils: indexer', () => {
 
     it('token not found', async () => {
       const stubFind = sandbox.stub(Models.Token, 'findExistingLog').resolves(true)
-      const token = await UtilsIndexer.saveAndGetToken(
+      const token = await TokenProxy.saveAndGetToken(
         '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
         NetworksEnum.ethereumMainnet,
       )
@@ -143,7 +143,7 @@ describe('Model/Utils: indexer', () => {
         priceUsd: '0',
       }
 
-      const result = UtilsIndexer.skipFetchToken(token as any, tokenRate as any)
+      const result = TokenProxy.skipFetchToken(token as any, tokenRate as any)
       expect(result).to.be.true
     })
 
@@ -156,7 +156,7 @@ describe('Model/Utils: indexer', () => {
         priceUsd: '1',
       }
 
-      const result = UtilsIndexer.skipFetchToken(token as any, tokenRate as any)
+      const result = TokenProxy.skipFetchToken(token as any, tokenRate as any)
       expect(result).to.be.false
     })
 
@@ -169,7 +169,7 @@ describe('Model/Utils: indexer', () => {
         priceUsd: '0',
       }
 
-      const result = UtilsIndexer.skipFetchToken(token as any, tokenRate as any)
+      const result = TokenProxy.skipFetchToken(token as any, tokenRate as any)
       expect(result).to.be.true
     })
 
@@ -182,7 +182,7 @@ describe('Model/Utils: indexer', () => {
         priceUsd: '0',
       }
 
-      const result = UtilsIndexer.skipFetchToken(token as any, tokenRate as any)
+      const result = TokenProxy.skipFetchToken(token as any, tokenRate as any)
       expect(result).to.be.true
     })
 
@@ -195,7 +195,7 @@ describe('Model/Utils: indexer', () => {
         priceUsd: '100',
       }
 
-      const result = UtilsIndexer.skipFetchToken(token as any, tokenRate as any)
+      const result = TokenProxy.skipFetchToken(token as any, tokenRate as any)
       expect(result).to.be.false
     })
   })
