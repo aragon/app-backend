@@ -4,6 +4,9 @@ export interface ITokenRate {
   priceUsd: string
   priceChangeOnDayUsd: string
   logo: string
+  decimals: number
+  symbol: string
+  name: string
   lastUpdatedAt: Date
   skipFetchRate?: boolean
 }

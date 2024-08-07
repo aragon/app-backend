@@ -6,8 +6,8 @@ import { IEventLogPluginType, ITokenType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { PluginSetupProcessorHandler } from '@services/aragon-indexer/handlers/pluginSetupProcessorHandler'
 import { Models } from '@dbModels'
-import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
+import { TokenProxy } from '@modules/tokenProxy'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -161,7 +161,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
           parsed: { args: [tokenAddress] },
         },
       ] as any)
-      const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+      const stubToken = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
         address: tokenAddress,
         name: 'FakeToken',
         symbol: 'FTK',

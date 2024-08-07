@@ -8,9 +8,9 @@ import { ITokenType, NetworksEnum, ProposalActionType } from '@types'
 import Logger from '@logger'
 import DecodeActions from '@helpers/decodeActions'
 import Web3Helper from '@helpers/web3'
-import { UtilsIndexer } from '@indexer/utils/indexer'
 import { ethers } from 'ethers'
 import CovalentHelper from '@helpers/covalent'
+import { TokenProxy } from '@modules/tokenProxy'
 
 describe('Indexer:Aggregator:Proposal', () => {
   let sandbox: SinonSandbox
@@ -268,7 +268,7 @@ describe('Indexer:Aggregator:Proposal', () => {
         },
       ]
 
-      sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+      sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
         address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
         name: 'MockToken',
         symbol: 'MOCK',
@@ -406,7 +406,7 @@ describe('Indexer:Aggregator:Proposal', () => {
       }
 
       const getTotalSupplyStub = sandbox.stub(CovalentHelper, 'getTokenTotalSupply').resolves('1000000000000000000000')
-      const getTokenDetailStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves(token as any)
+      const getTokenDetailStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves(token as any)
       const findExistingStub = sandbox.stub(Models.Proposal, 'findByTransactionHash').resolves({
         aa: 'aa',
       })

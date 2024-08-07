@@ -1,12 +1,12 @@
 import {
   type HexAddress,
   type IToken,
-  type ITokenCovalentResponse,
-  NetworksEnum,
   type ITokenBalanceResponse,
-  type TokensBalancesType,
-  ITokenType,
+  type ITokenCovalentResponse,
   type ITokenHoldersResponse,
+  ITokenType,
+  NetworksEnum,
+  type TokensBalancesType,
 } from '@types'
 import config from '@config'
 import dayjs from '@helpers/dayjs'

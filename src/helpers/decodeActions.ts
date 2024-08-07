@@ -14,9 +14,9 @@ import type Proposal from '@models/schema/proposal'
 import { type IDecodedData, type IRawAction, KnownActionSignature } from '@types'
 import { ProposalActionType } from '@src/types'
 import { Models } from '@dbModels'
-import { UtilsIndexer } from '@indexer/utils/indexer'
 import IPFSModule from '@modules/ipfs'
 import _ from 'lodash'
+import { TokenProxy } from '@modules/tokenProxy'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -211,7 +211,7 @@ class DecodeActions {
     const metadata: any = {}
 
     const setCommonMetadata = async (from: string, to: string, value: string) => {
-      const token = await UtilsIndexer.saveAndGetToken(action.to, document.network!)
+      const token = await TokenProxy.saveAndGetToken(action.to, document.network!)
 
       if (token) {
         metadata.token = _.pick(token, ['address', 'name', 'symbol', 'decimals', 'logo', 'type'])
@@ -271,7 +271,7 @@ class DecodeActions {
       return null
     }
 
-    const token = await UtilsIndexer.saveAndGetToken(action.to, document.network!)
+    const token = await TokenProxy.saveAndGetToken(action.to, document.network!)
 
     if (token) {
       const metadata = {

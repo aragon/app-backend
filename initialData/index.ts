@@ -1,6 +1,6 @@
 import { EnumConnection, type IService, NetworksEnum } from '@types'
 import { TokensList } from './tokens'
-import { UtilsIndexer } from '@indexer/utils/indexer'
+import { TokenProxy } from '@modules/tokenProxy'
 
 export const InitialData: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
@@ -10,7 +10,7 @@ export const InitialData: IService = {
     const tokens = TokensList.filter(tk => tk.network === NetworksEnum.arbitrumMainnet)
     await Promise.all(
       tokens.map(async token => {
-        await UtilsIndexer.saveAndGetToken(token.contractAddress, token.network)
+        await TokenProxy.saveAndGetToken(token.contractAddress, token.network)
       }),
     )
   },

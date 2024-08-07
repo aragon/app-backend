@@ -9,7 +9,7 @@ import { NetworkHelper } from '@helpers/network'
 import { type NetworksEnum } from '@types'
 import config from '@config'
 import Covalent from '@helpers/covalent'
-import { UtilsIndexer } from '@indexer/utils/indexer'
+import { TokenProxy } from '@modules/tokenProxy'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorProposal' })
 
@@ -511,7 +511,7 @@ export const AggregatorProposal = {
       return alreadyFetched.token
     }
 
-    const token = await UtilsIndexer.saveAndGetToken(document.tokenAddress, document.network!)
+    const token = await TokenProxy.saveAndGetToken(document.tokenAddress, document.network!)
     if (token) {
       const totalSupply = await Covalent.getTokenTotalSupply(
         document.tokenAddress,
