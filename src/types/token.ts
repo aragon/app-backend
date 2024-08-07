@@ -1,9 +1,18 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
+export interface ITokenInfo {
+  type: ITokenType
+  proxy: boolean
+  implementationAddress: string | null
+}
+
 export interface ITokenRate {
   priceUsd: string
   priceChangeOnDayUsd: string
   logo: string
+  decimals: number
+  symbol: string
+  name: string
   lastUpdatedAt: Date
   skipFetchRate?: boolean
 }
@@ -22,6 +31,7 @@ export interface IToken {
   lastUpdatedAt: string
   createdAt: string
 }
+
 export interface ITokenBalance {
   contractAddress: HexAddress
   contractName: string
