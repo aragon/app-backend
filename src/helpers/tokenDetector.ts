@@ -1,5 +1,5 @@
 import { keccak256, ZeroAddress } from 'ethers'
-import { ITokenType, type NetworksEnum } from '@types'
+import { type ITokenInfo, ITokenType, type NetworksEnum } from '@types'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
 
@@ -59,10 +59,7 @@ const functionHashes = allFunctions.reduce<Record<string, string>>((acc, func) =
   return acc
 }, {})
 
-async function detectTokenType(
-  address: string,
-  network: NetworksEnum,
-): Promise<{ type: ITokenType; proxy: boolean; implementationAddress: string | null } | null> {
+async function detectTokenType(address: string, network: NetworksEnum): Promise<ITokenInfo | null> {
   if (address === ZeroAddress) {
     return {
       type: ITokenType.native,

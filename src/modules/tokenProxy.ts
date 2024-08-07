@@ -1,6 +1,13 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { type HexAddress, type ITokenRate, ITokenType, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type ITokenInfo,
+  type ITokenMetrics,
+  type ITokenRate,
+  ITokenType,
+  type NetworksEnum,
+} from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -30,12 +37,12 @@ export const TokenProxy = {
 
     const tokenTypeInfo = await TokenDetector.detectTokenType(parsedTokenAddress, network)
     const tokenMetrics = await TokenProxy.getTokenMetrics(tokenTypeInfo?.type!, parsedTokenAddress, network)
-    const rate = await RateModule.fetchRate(parsedTokenAddress, network)
+    const tokenRate = await RateModule.fetchRate(parsedTokenAddress, network)
 
-    const rawToken = TokenProxy.constructRawToken(parsedTokenAddress, tokenTypeInfo, tokenMetrics, rate, network)
+    const rawToken = TokenProxy.constructRawToken(parsedTokenAddress, tokenTypeInfo!, tokenMetrics, tokenRate, network)
     rawToken.lastUpdatedAt = dayjs.utc().toDate()
 
-    if (TokenProxy.skipFetchToken(rawToken, rate)) {
+    if (TokenProxy.skipFetchToken(rawToken, tokenRate)) {
       rawToken.skipFetchRate = true
     }
 
@@ -77,7 +84,11 @@ export const TokenProxy = {
     return existingToken
   },
 
-  getTokenMetrics: async (tokenType: ITokenType, tokenAddress: HexAddress, network: NetworksEnum) => {
+  getTokenMetrics: async (
+    tokenType: ITokenType,
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<ITokenMetrics> => {
     const base = { totalHolders: 0, totalSupply: '0' }
     if (tokenType === ITokenType.native) {
       return base
@@ -88,8 +99,8 @@ export const TokenProxy = {
 
   constructRawToken: (
     tokenAddress: HexAddress,
-    tokenTypeInfo: any,
-    tokenMetrics: any,
+    tokenTypeInfo: ITokenInfo,
+    tokenMetrics: ITokenMetrics,
     tokenRate: ITokenRate,
     network: NetworksEnum,
   ) => {
