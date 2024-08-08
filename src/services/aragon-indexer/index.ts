@@ -28,18 +28,18 @@ const IndexerService: IService = {
 
     // order is important
     const logFastTasks = [
-      // [{ logPluginRepoRegistry: LogPluginRepoRegistry }, { logDaoRegistry: LogDaoRegistry }],
-      // [{ logPluginSetupProcessor: LogPluginSetupProcessor }, { logDao: LogDao }],
-      // [{ logProposal: LogProposal }, { logPluginSetting: LogPluginSetting }],
-      // [{ logMember: LogMember }],
+      [{ logPluginRepoRegistry: LogPluginRepoRegistry }, { logDaoRegistry: LogDaoRegistry }],
+      [{ logPluginSetupProcessor: LogPluginSetupProcessor }, { logDao: LogDao }],
+      [{ logProposal: LogProposal }, { logPluginSetting: LogPluginSetting }],
+      [{ logMember: LogMember }],
     ]
 
     // order is important
     const aggregatorTasks = [
-      // [{ aggregatorPlugin: AggregatorPlugin }, { aggregatorSetting: AggregatorSetting }],
-      // [{ aggregatorDelegate: AggregatorDelegate }, { aggregatorVote: AggregatorVote }],
-      // [{ aggregatorMembers: AggregatorMembers }], // run after plugin and delegate for metrics
-      // [{ aggregatorDao: AggregatorDao }], // run after plugin and members
+      [{ aggregatorPlugin: AggregatorPlugin }, { aggregatorSetting: AggregatorSetting }],
+      [{ aggregatorDelegate: AggregatorDelegate }, { aggregatorVote: AggregatorVote }],
+      [{ aggregatorMembers: AggregatorMembers }], // run after plugin and delegate for metrics
+      [{ aggregatorDao: AggregatorDao }], // run after plugin and members
       [{ aggregatorProposal: AggregatorProposal }], // run after member
     ]
 
