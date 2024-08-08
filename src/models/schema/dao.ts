@@ -275,7 +275,7 @@ export default class Dao extends Model {
             {
               $match: {
                 $expr: {
-                  $and: [{ $in: ['$address', '$$tokenAddresses'] }, { $in: ['$network', '$$network'] }],
+                  $and: [{ $eq: ['$address', '$$tokenAddresses'] }, { $eq: ['$network', '$$network'] }],
                 },
               },
             },
