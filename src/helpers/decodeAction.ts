@@ -243,44 +243,28 @@ class DecodeActions {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.UpdateMultiSigSettings,
-      proposedSettings: [
-        {
-          term: 'minApprovals',
-          definition: decodedData.parameters[0].value[1],
-        },
-      ],
-      existingSettings: [
-        {
-          term: 'minApprovals',
-          definition: document.settings!.minApprovals,
-        },
-      ],
+      proposedSettings: {
+        minApprovals: decodedData.parameters[0].value[1],
+      },
+
+      existingSettings: {
+        minApprovals: document.settings!.minApprovals,
+      },
     }
   }
 
-  async _parseTokenVotingSettingUpdateAction(
-    decodedData: IProposalActionInputData,
-    action: IRawAction,
-    document: Partial<Proposal>,
-  ) {
+  async _parseTokenVotingSettingUpdateAction(decodedData: IProposalActionInputData, action: IRawAction) {
     return {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.UpdateVoteSettings,
-      proposedSettings: [
-        { term: 'votingMode', definition: decodedData.parameters[0].value[0] },
-        { term: 'supportThreshold', definition: decodedData.parameters[0].value[1].toString() },
-        { term: 'minParticipation', definition: decodedData.parameters[0].value[2].toString() },
-        { term: 'minDuration', definition: decodedData.parameters[0].value[3] },
-        { term: 'minProposerVotingPower', definition: decodedData.parameters[0].value[4].toString() },
-      ],
-      existingSettings: [
-        { term: 'votingMode', definition: document.settings!.votingMode },
-        { term: 'supportThreshold', definition: document.settings!.supportThreshold },
-        { term: 'minParticipation', definition: document.settings!.minParticipation },
-        { term: 'minDuration', definition: document.settings!.minDuration },
-        { term: 'minProposerVotingPower', definition: document.settings!.minProposerVotingPower },
-      ],
+      proposedSettings: {
+        votingMode: decodedData.parameters[0].value[0],
+        supportThreshold: decodedData.parameters[0].value[1],
+        minParticipation: decodedData.parameters[0].value[2],
+        minDuration: decodedData.parameters[0].value[3],
+        minProposerVotingPower: decodedData.parameters[0].value[4],
+      },
     }
   }
 

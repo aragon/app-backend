@@ -293,6 +293,7 @@ describe('Indexer:Aggregator:Proposal', () => {
           value: '0',
           data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
           inputData: {
+            notice: undefined,
             textSignature: 'mint(address,uint256)',
             function: 'mint',
             contract: 'IERC20MintableUpgradeable',
@@ -300,11 +301,13 @@ describe('Indexer:Aggregator:Proposal', () => {
               {
                 name: '_to',
                 type: 'address',
+                notice: undefined,
                 value: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
               },
               {
                 name: '_amount',
                 type: 'uint256',
+                notice: undefined,
                 value: '1000000000000000000',
               },
             ],
