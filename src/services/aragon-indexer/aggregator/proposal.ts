@@ -223,8 +223,22 @@ export const AggregatorProposal = {
       {
         $lookup: {
           from: 'setting',
-          let: { pluginAddr: '$pluginAddress' },
-          pipeline: [{ $match: { $expr: { $eq: ['$pluginAddress', '$$pluginAddr'] } } }],
+          let: { pluginAddr: '$pluginAddress', blockNumber: '$blockNumber' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$pluginAddress', '$$pluginAddr'] },
+                    { $lte: ['$fromBlockNumber', '$$blockNumber'] },
+                    {
+                      $or: [{ $gt: ['$toBlockNumber', '$blockNumber'] }, { $eq: ['$toBlockNumber', null] }],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
           as: 'pluginSettings',
         },
       },
@@ -236,29 +250,8 @@ export const AggregatorProposal = {
         },
       },
       {
-        $addFields: {
-          validSettings: {
-            $cond: {
-              if: {
-                $and: [
-                  { $lte: ['$pluginSettings.fromBlockNumber', '$blockNumber'] },
-                  {
-                    $or: [
-                      { $gt: ['$pluginSettings.toBlockNumber', '$blockNumber'] },
-                      { $eq: ['$pluginSettings.toBlockNumber', null] },
-                    ],
-                  },
-                ],
-              },
-              then: '$pluginSettings',
-              else: null,
-            },
-          },
-        },
-      },
-      {
         $match: {
-          validSettings: {
+          pluginSettings: {
             $ne: null,
           },
         },
@@ -267,13 +260,13 @@ export const AggregatorProposal = {
         $addFields: {
           settings: {
             $mergeObjects: [
-              '$validSettings.settings',
-              '$validSettings.settings.configs',
+              '$pluginSettings.settings',
+              '$pluginSettings.settings.configs',
               {
-                fromBlockNumber: '$validSettings.fromBlockNumber',
-                toBlockNumber: '$validSettings.toBlockNumber',
-                fromTxHash: '$validSettings.fromTxHash',
-                toTxHash: '$validSettings.toTxHash',
+                fromBlockNumber: '$pluginSettings.fromBlockNumber',
+                toBlockNumber: '$pluginSettings.toBlockNumber',
+                fromTxHash: '$pluginSettings.fromTxHash',
+                toTxHash: '$pluginSettings.toTxHash',
               },
             ],
           },
@@ -353,6 +346,7 @@ export const AggregatorProposal = {
           },
         },
       },
+      { $sort: { proposalId: 1 } },
     ]
   },
 
