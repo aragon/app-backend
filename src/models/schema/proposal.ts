@@ -239,7 +239,7 @@ export default class Proposal extends Model {
   @prop({ type: () => Media, _id: false })
   public media!: Media
 
-  @prop({ type: () => Metrics, _id: false, default: null })
+  @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics!: Metrics
 
   @prop({ type: () => Token, _id: false, default: null })
