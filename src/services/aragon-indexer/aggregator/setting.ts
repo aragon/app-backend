@@ -173,12 +173,12 @@ export const AggregatorSetting = {
       {
         $lookup: {
           from: 'token',
-          let: { tokenAddress: '$tokenAddress' },
+          let: { tokenAddress: '$tokenAddress', network: '$network' },
           pipeline: [
             {
               $match: {
                 $expr: {
-                  $eq: ['$address', '$$tokenAddress'],
+                  $and: [{ $eq: ['$address', '$$tokenAddress'] }, { $eq: ['$network', '$$network'] }],
                 },
               },
             },

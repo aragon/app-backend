@@ -193,8 +193,16 @@ export default class Asset extends Model {
         {
           $lookup: {
             from: 'token',
-            localField: 'tokenAddress',
-            foreignField: 'address',
+            let: { tokenAddress: '$tokenAddress', network: '$network' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [{ $eq: ['$address', '$$tokenAddress'] }, { $eq: ['$network', '$$network'] }],
+                  },
+                },
+              },
+            ],
             as: 'tokenDetails',
           },
         },

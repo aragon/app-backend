@@ -270,17 +270,18 @@ export default class Dao extends Model {
       {
         $lookup: {
           from: 'token',
-          let: { tokenAddresses: '$plugins.tokenAddress' },
+          let: { tokenAddresses: '$plugins.tokenAddress', network: '$network' },
           pipeline: [
             {
               $match: {
                 $expr: {
-                  $in: ['$address', '$$tokenAddresses'],
+                  $and: [{ $in: ['$address', '$$tokenAddresses'] }, { $in: ['$network', '$$network'] }],
                 },
               },
             },
             {
               $project: {
+                network: 1,
                 address: 1,
                 type: 1,
                 logo: 1,
