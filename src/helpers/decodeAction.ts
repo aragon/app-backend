@@ -135,6 +135,10 @@ class DecodeActions {
   }
 
   async _parseMintAction(decodedData: IProposalActionInputData, action: IRawAction, document: Partial<Proposal>) {
+    if (decodedData.textSignature !== KnownActionSignature.Mint) {
+      return null
+    }
+
     const receiver = decodedData.parameters[0].value
 
     const [currentBalance, tokenInfo, token] = await Promise.all([
@@ -165,6 +169,10 @@ class DecodeActions {
   }
 
   async _parseAddMemberAction(decodedData: IProposalActionInputData, action: IRawAction, document: Partial<Proposal>) {
+    if (decodedData.textSignature !== KnownActionSignature.MetadataUpdate) {
+      return null
+    }
+
     const currentMembers = await Models.LogMember.getMultiSigMemberAtBlockNumber(
       document.pluginAddress!,
       document.blockNumber!,
@@ -185,6 +193,10 @@ class DecodeActions {
     action: IRawAction,
     document: Partial<Proposal>,
   ) {
+    if (decodedData.textSignature !== KnownActionSignature.MultisigRemoveMembers) {
+      return null
+    }
+
     const currentMembers = await Models.LogMember.getMultiSigMemberAtBlockNumber(
       document.pluginAddress!,
       document.blockNumber!,
@@ -205,6 +217,9 @@ class DecodeActions {
     action: IRawAction,
     document: Partial<Proposal>,
   ) {
+    if (decodedData.textSignature !== KnownActionSignature.MetadataUpdate) {
+      return null
+    }
     const existingMetadata = await Models.LogDaoMetadata.getMetadataAtBlockNumber(
       document.daoAddress!,
       document.blockNumber!,
@@ -239,6 +254,9 @@ class DecodeActions {
     action: IRawAction,
     document: Partial<Proposal>,
   ) {
+    if (decodedData.textSignature !== KnownActionSignature.UpdateMultiSigSettings) {
+      return null
+    }
     return {
       ...action,
       inputData: decodedData,
@@ -254,6 +272,10 @@ class DecodeActions {
   }
 
   async _parseTokenVotingSettingUpdateAction(decodedData: IProposalActionInputData, action: IRawAction) {
+    if (decodedData.textSignature !== KnownActionSignature.UpdateVoteSettings) {
+      return null
+    }
+
     return {
       ...action,
       inputData: decodedData,
