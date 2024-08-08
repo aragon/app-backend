@@ -306,7 +306,7 @@ class DecodeActions {
 
     switch (decodedData.textSignature) {
       case KnownActionSignature.Transfer:
-        await setCommonMetadata(document.daoAddress!, decodedData.parameters[0].value, decodedData.parameters[0].value)
+        await setCommonMetadata(document.daoAddress!, decodedData.parameters[0].value, decodedData.parameters[1].value)
         break
 
       case KnownActionSignature.TransferFrom:
