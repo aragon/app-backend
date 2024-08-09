@@ -126,7 +126,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{host}}/daos?page=2&pageSize=100",
+							"raw": "{{host}}/daos",
 							"host": [
 								"{{host}}"
 							],
@@ -142,12 +142,14 @@
 								},
 								{
 									"key": "page",
-									"value": "2"
+									"value": "<number>",
+									"disabled": true
 								},
 								{
 									"key": "pageSize",
-									"value": "100",
-									"description": "any property returned by the data object"
+									"value": "<number>",
+									"description": "any property returned by the data object",
+									"disabled": true
 								},
 								{
 									"key": "order",
@@ -2294,7 +2296,7 @@
 							"query": [
 								{
 									"key": "search",
-									"value": "0xe9d02d6f9ceeb66e6adc850252eeac24437dfd2f0bb407f2faa85e6471038bc8-0x11bDa1400a3d236878c36EB1B584d44Aba86f738-8",
+									"value": "<string>",
 									"type": "text",
 									"disabled": true
 								},
@@ -2393,7 +2395,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": "{{host}}/proposals/0xe9d02d6f9ceeb66e6adc850252eeac24437dfd2f0bb407f2faa85e6471038bc8-0x11bDa1400a3d236878c36EB1B584d44Aba86f738-8"
+						"url": "{{host}}/proposals/0xf01c9b505ad8e00c4f774268bd1866d9088591a10332afcc7bcb1daaa5bae25e-0x9486A57A8989522A4d540CCE21910E9BC353A2d6-1"
 					},
 					"response": []
 				},
