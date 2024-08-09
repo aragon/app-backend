@@ -227,7 +227,7 @@ export default class Proposal extends Model {
   @prop({ type: () => Number, default: 0 })
   public allowFailureMap!: number
 
-  @prop({ type: () => ProposalExecuted, _id: false })
+  @prop({ type: () => ProposalExecuted, _id: false, default: {} })
   public executed!: ProposalExecuted
 
   @prop({ type: () => Settings, _id: false })
@@ -361,17 +361,6 @@ export default class Proposal extends Model {
       { $sort: request?.sort },
       { $skip: request?.skip },
       { $limit: request?.limit },
-      {
-        $addFields: {
-          executed: {
-            $cond: {
-              if: { $eq: [{ $type: '$executed' }, 'missing'] },
-              then: { status: false },
-              else: { $ifNull: ['$executed', false] },
-            },
-          },
-        },
-      },
       {
         $project: {
           _id: 0,
