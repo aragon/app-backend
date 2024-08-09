@@ -382,10 +382,20 @@ export default class Proposal extends Model {
       },
     ]
 
-    const [data, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery),
-      this.aggregate([...aggQuery, { $count: 'totalRecords' }]),
-    ])
+    const aggCountQuery = [
+      ...query,
+      {
+        $project: {
+          _id: 0,
+          __v: 0,
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+      { $count: 'totalRecords' },
+    ]
+
+    const [data, totalRecords] = await Promise.all([this.aggregate(aggQuery), this.aggregate(aggCountQuery)])
     const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
     const totalPages = Math.ceil(_totalRecords / request.limit)
 
