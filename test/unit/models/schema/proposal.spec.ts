@@ -106,6 +106,7 @@ describe('Model: Proposal', () => {
   })
 
   function checkProperties(rawProposal: Partial<Proposal>, createdProposal: Proposal) {
+    console.log(rawProposal, createdProposal)
     for (const key in rawProposal) {
       if (typeof rawProposal[key] === 'object' && rawProposal[key] !== null) {
         checkProperties(rawProposal[key], createdProposal[key])
@@ -380,6 +381,7 @@ describe('Model: Proposal', () => {
     expect(filterProposal.__v).to.be.undefined
     expect(filterProposal.createdAt).to.be.undefined
     expect(filterProposal.updatedAt).to.be.undefined
-    expect(Object.keys(filterProposal).length).to.eq(22)
+    expect(filterProposal.executed.status).to.be.false
+    expect(Object.keys(filterProposal).length).to.eq(23)
   })
 })
