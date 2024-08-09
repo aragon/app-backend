@@ -362,17 +362,6 @@ export default class Proposal extends Model {
       { $skip: request?.skip },
       { $limit: request?.limit },
       {
-        $addFields: {
-          executed: {
-            $cond: {
-              if: { $eq: [{ $type: '$executed' }, 'missing'] },
-              then: { status: false },
-              else: { $ifNull: ['$executed', false] },
-            },
-          },
-        },
-      },
-      {
         $project: {
           _id: 0,
           __v: 0,
