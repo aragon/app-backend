@@ -3994,26 +3994,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": {
-							"raw": "{{host}}/tokens?network=mainnet&address=0xe4fBbB0B11b3B48D10B4753a1D2c00244b247b33",
-							"host": [
-								"{{host}}"
-							],
-							"path": [
-								"tokens"
-							],
-							"query": [
-								{
-									"key": "network",
-									"value": "mainnet",
-									"description": "ethereum | goerli | sepolia | mumbai | polygon | base | baseGoerli | arbitrum | arbitrumGoerli\n"
-								},
-								{
-									"key": "address",
-									"value": "0xe4fBbB0B11b3B48D10B4753a1D2c00244b247b33"
-								}
-							]
-						}
+						"url": "{{host}}/tokens/ethereum-mainnet/0xe4fBbB0B11b3B48D10B4753a1D2c00244b247b33"
 					},
 					"response": [
 						{
