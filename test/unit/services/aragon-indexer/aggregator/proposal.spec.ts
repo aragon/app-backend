@@ -121,7 +121,7 @@ describe('Indexer:Aggregator:Proposal', () => {
         pluginAddress: document.pluginAddress,
         proposalId: document.proposalId,
       })
-      expect(_getProposalMetricsStub.calledOnce).to.be.false
+      expect(_getProposalMetricsStub.calledOnce).to.be.true
       expect(stubGetBlockTime.calledTwice).to.be.true
       expect(stubParseActions.calledOnce).to.be.true
       expect(_fetchTokenDetailsStub.calledOnce).to.be.true
