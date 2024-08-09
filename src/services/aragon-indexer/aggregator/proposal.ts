@@ -73,14 +73,13 @@ export const AggregatorProposal = {
     }
 
     document.actions = await AggregatorProposal.parseActions(document.actions, document)
+    document.metrics = await AggregatorProposal._getProposalMetrics(document.proposalId!, document.pluginAddress!)
 
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
       if (!existingLog) {
         logDb = await Models.Proposal.create(document, { session } as any)
       } else {
-        document.metrics = await AggregatorProposal._getProposalMetrics(document.proposalId!, document.pluginAddress!)
-
         logDb = await existingLog.update(document, { session })
       }
       await session.commitTransaction()

@@ -73,7 +73,7 @@ export class DaoHistory {
   @prop({ type: () => String })
   public delegateToAddress!: HexAddress
 
-  @prop({ type: () => Metrics, _id: false, default: null })
+  @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics!: Metrics
 
   @prop({ type: () => Number, default: 0 })
