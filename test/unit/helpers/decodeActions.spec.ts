@@ -6,7 +6,7 @@ import { Fragment, FunctionFragment } from 'ethers'
 import FourByte from '@helpers/4byte'
 import Logger from '@logger'
 import { NetworksEnum, ProposalActionType } from '@types'
-import { UtilsIndexer } from '@indexer/utils/indexer'
+import { TokenProxy } from '@modules/tokenProxy'
 import Web3Helper from '@helpers/web3'
 import Covalent from '@helpers/covalent'
 import ProxyContract from '@helpers/proxyContract'
@@ -45,7 +45,7 @@ describe('Helpers: DecodeActions', () => {
         totalHolders: 1,
       })
 
-      const saveAndGetTokenStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+      const saveAndGetTokenStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
         address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
         name: 'MockToken',
         symbol: 'MOCK',
@@ -637,7 +637,7 @@ describe('Helpers: DecodeActions', () => {
         to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         value: '0x40c10f19',
       }
-      const saveAndGetStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+      const saveAndGetStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         name: 'MockToken',
         symbol: 'MOCK',
@@ -738,7 +738,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
-      const saveAndGetTokenStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+      const saveAndGetTokenStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         name: 'MockToken',
         symbol: 'MOCK',
@@ -756,8 +756,8 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true
       expect(covalentTokenInfo.calledOnce).to.be.true
-      expect(result.totalSupply).to.be.eq('1000000000000000000')
-      expect(result.holdersCount).to.be.eq(1)
+      expect(result!.totalSupply).to.be.eq('1000000000000000000')
+      expect(result!.holdersCount).to.be.eq(1)
     })
 
     it('should parse _parseUpdateDaoMetadata', async () => {
