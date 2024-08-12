@@ -182,7 +182,11 @@ const CovalentHelper = {
     }
   },
 
-  async getTokenInfo(address: HexAddress, network: NetworksEnum, blockHeight: number | undefined = undefined): Promise<ITokenMetrics | null> {
+  async getTokenInfo(
+    address: HexAddress,
+    network: NetworksEnum,
+    blockHeight: number | undefined = undefined,
+  ): Promise<ITokenMetrics | null> {
     const networkId = CovalentHelper.networkToCovalent(network)
     const path = `/${networkId}/tokens/${address}/token_holders_v2/?${blockHeight ? `block-height=${blockHeight}` : ''}`
     try {

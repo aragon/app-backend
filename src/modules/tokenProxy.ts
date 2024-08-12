@@ -93,7 +93,7 @@ export const TokenProxy = {
     if (tokenType === ITokenType.native) {
       return base
     }
-    const metrics = await CovalentHelper.getTokenTotalHolders(tokenAddress, network)
+    const metrics = await CovalentHelper.getTokenInfo(tokenAddress, network)
     return metrics || base
   },
 

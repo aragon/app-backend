@@ -17,7 +17,7 @@ import _ from 'lodash'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import Etherscan from '@helpers/etherscan'
 import ProxyContract from '@helpers/proxyContract'
-import { UtilsIndexer } from '@indexer/utils/indexer'
+import { TokenProxy } from '@modules/tokenProxy'
 import Covalent from '@helpers/covalent'
 import IPFSModule from '@src/modules/ipfs'
 import { retryRequest } from '@helpers/retryRequest'
@@ -143,8 +143,8 @@ class DecodeActions {
 
     const [currentBalance, tokenInfo, token] = await Promise.all([
       Web3Helper.getERC20Balance(receiver, action.to, document.network!),
-      Covalent.getTokenInfo(action.to, document.network!),
-      UtilsIndexer.saveAndGetToken(action.to, document.network!),
+      Covalent.getTokenInfo(action.to, document.network!, document.blockNumber),
+      TokenProxy.saveAndGetToken(action.to, document.network!),
     ])
 
     return {
@@ -169,7 +169,7 @@ class DecodeActions {
   }
 
   async _parseAddMemberAction(decodedData: IProposalActionInputData, action: IRawAction, document: Partial<Proposal>) {
-    if (decodedData.textSignature !== KnownActionSignature.MetadataUpdate) {
+    if (decodedData.textSignature !== KnownActionSignature.MultisigAddMembers) {
       return null
     }
 
@@ -294,7 +294,7 @@ class DecodeActions {
     const metadata: any = {}
 
     const setCommonMetadata = async (from: string, to: string, value: string) => {
-      const token = await UtilsIndexer.saveAndGetToken(action.to, document.network!)
+      const token = await TokenProxy.saveAndGetToken(action.to, document.network!)
 
       if (token) {
         metadata.token = _.pick(token, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
