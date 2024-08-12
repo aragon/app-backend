@@ -293,18 +293,18 @@ describe('Indexer:Aggregator:Proposal', () => {
           data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
           inputData: {
             function: 'mint',
-            notice: undefined,
-            contract: 'IERC20MintableUpgradeable',
+            notice: 'Mints tokens to an address.',
+            contract: 'GovernanceERC20',
             parameters: [
               {
-                name: '_to',
-                notice: undefined,
+                name: 'to',
+                notice: 'The address receiving the tokens.',
                 type: 'address',
                 value: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
               },
               {
-                name: '_amount',
-                notice: undefined,
+                name: 'amount',
+                notice: 'The amount of tokens to be minted.',
                 type: 'uint256',
                 value: '1000000000000000000',
               },
