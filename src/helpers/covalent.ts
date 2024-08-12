@@ -1,12 +1,13 @@
 import {
   type HexAddress,
   type IToken,
-  type ITokenCovalentResponse,
-  NetworksEnum,
   type ITokenBalanceResponse,
-  type TokensBalancesType,
-  ITokenType,
+  type ITokenCovalentResponse,
   type ITokenHoldersResponse,
+  type ITokenMetrics,
+  ITokenType,
+  NetworksEnum,
+  type TokensBalancesType,
 } from '@types'
 import config from '@config'
 import dayjs from '@helpers/dayjs'
@@ -181,11 +182,7 @@ const CovalentHelper = {
     }
   },
 
-  async getTokenInfo(
-    address: HexAddress,
-    network: NetworksEnum,
-    blockHeight: number | undefined = undefined,
-  ): Promise<{ totalSupply: string; totalHolders: number } | null> {
+  async getTokenInfo(address: HexAddress, network: NetworksEnum, blockHeight: number | undefined = undefined): Promise<ITokenMetrics | null> {
     const networkId = CovalentHelper.networkToCovalent(network)
     const path = `/${networkId}/tokens/${address}/token_holders_v2/?${blockHeight ? `block-height=${blockHeight}` : ''}`
     try {

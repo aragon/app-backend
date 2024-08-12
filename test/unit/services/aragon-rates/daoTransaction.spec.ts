@@ -8,12 +8,12 @@ import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import { fakeAlchemyTransfer } from '@test/mock/fakeAlchemyTransfer'
-import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import { RateModule } from '@modules/rates'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
 import utils from '@helpers/utils'
+import { TokenProxy } from '@modules/tokenProxy'
 
 describe('Indexer:Aggregator:Transactions', () => {
   let sandbox: sinon.SinonSandbox
@@ -173,7 +173,7 @@ describe('Indexer:Aggregator:Transactions', () => {
         }
 
         const loggerStub = sandbox.stub(Logger, 'verbose')
-        const stubToken = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves(expectedTransaction.token as any)
+        const stubToken = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves(expectedTransaction.token as any)
         const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
         const fetchRateStub = sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
 

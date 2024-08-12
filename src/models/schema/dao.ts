@@ -141,7 +141,7 @@ export default class Dao extends Model {
   @prop({ type: () => Number, default: 0 })
   public tvlUSD!: number
 
-  @prop({ type: () => Metrics, _id: false })
+  @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics?: Metrics
 
   @prop({ type: () => Boolean, default: false })
@@ -273,17 +273,18 @@ export default class Dao extends Model {
       {
         $lookup: {
           from: 'token',
-          let: { tokenAddresses: '$plugins.tokenAddress' },
+          let: { tokenAddresses: '$plugins.tokenAddress', network: '$network' },
           pipeline: [
             {
               $match: {
                 $expr: {
-                  $in: ['$address', '$$tokenAddresses'],
+                  $and: [{ $eq: ['$address', '$$tokenAddresses'] }, { $eq: ['$network', '$$network'] }],
                 },
               },
             },
             {
               $project: {
+                network: 1,
                 address: 1,
                 type: 1,
                 logo: 1,

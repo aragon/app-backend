@@ -199,7 +199,7 @@ export default class Proposal extends Model {
   @prop({ type: () => Number, default: 0 })
   public allowFailureMap!: number
 
-  @prop({ type: () => ProposalExecuted, _id: false })
+  @prop({ type: () => ProposalExecuted, _id: false, default: {} })
   public executed!: ProposalExecuted
 
   @prop({ type: () => Settings, _id: false })
@@ -211,7 +211,7 @@ export default class Proposal extends Model {
   @prop({ type: () => Media, _id: false })
   public media!: Media
 
-  @prop({ type: () => Metrics, _id: false, default: null })
+  @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics!: Metrics
 
   @prop({ type: () => Token, _id: false, default: null })
@@ -334,17 +334,6 @@ export default class Proposal extends Model {
       { $skip: request?.skip },
       { $limit: request?.limit },
       {
-        $addFields: {
-          executed: {
-            $cond: {
-              if: { $eq: [{ $type: '$executed' }, 'missing'] },
-              then: { status: false },
-              else: { $ifNull: ['$executed', false] },
-            },
-          },
-        },
-      },
-      {
         $project: {
           _id: 0,
           __v: 0,
@@ -354,10 +343,20 @@ export default class Proposal extends Model {
       },
     ]
 
-    const [data, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery),
-      this.aggregate([...aggQuery, { $count: 'totalRecords' }]),
-    ])
+    const aggCountQuery = [
+      ...query,
+      {
+        $project: {
+          _id: 0,
+          __v: 0,
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+      { $count: 'totalRecords' },
+    ]
+
+    const [data, totalRecords] = await Promise.all([this.aggregate(aggQuery), this.aggregate(aggCountQuery)])
     const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
     const totalPages = Math.ceil(_totalRecords / request.limit)
 

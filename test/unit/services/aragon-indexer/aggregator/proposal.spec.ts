@@ -6,11 +6,11 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { ITokenType, NetworksEnum, ProposalActionType } from '@types'
 import Logger from '@logger'
-import DecodeActions from '@helpers/decodeAction'
+import DecodeActions from '@helpers/decodeActions'
 import Web3Helper from '@helpers/web3'
-import { UtilsIndexer } from '@indexer/utils/indexer'
 import { ethers } from 'ethers'
 import CovalentHelper from '@helpers/covalent'
+import { TokenProxy } from '@modules/tokenProxy'
 
 describe('Indexer:Aggregator:Proposal', () => {
   let sandbox: SinonSandbox
@@ -121,7 +121,7 @@ describe('Indexer:Aggregator:Proposal', () => {
         pluginAddress: document.pluginAddress,
         proposalId: document.proposalId,
       })
-      expect(_getProposalMetricsStub.calledOnce).to.be.false
+      expect(_getProposalMetricsStub.calledOnce).to.be.true
       expect(stubGetBlockTime.calledTwice).to.be.true
       expect(stubParseActions.calledOnce).to.be.true
       expect(_fetchTokenDetailsStub.calledOnce).to.be.true
@@ -268,22 +268,14 @@ describe('Indexer:Aggregator:Proposal', () => {
         },
       ]
 
-      sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+      sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
         address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
         name: 'MockToken',
         symbol: 'MOCK',
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
-        priceUsd: '12',
       } as any)
-
-      sandbox.stub(CovalentHelper, 'getTokenInfo').resolves({
-        totalSupply: '1000000000000000000000',
-        totalHolders: 1,
-      })
-
-      sandbox.stub(DecodeActions.prototype, 'parseContractNetspec').resolves(null)
 
       const actions = await AggregatorProposal.parseActions(logActions, document)
 
@@ -292,41 +284,22 @@ describe('Indexer:Aggregator:Proposal', () => {
           to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
           value: '0',
           data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
-          inputData: {
-            notice: undefined,
-            textSignature: 'mint(address,uint256)',
-            function: 'mint',
-            contract: 'IERC20MintableUpgradeable',
-            parameters: [
-              {
-                name: '_to',
-                type: 'address',
-                notice: undefined,
-                value: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
-              },
-              {
-                name: '_amount',
-                type: 'uint256',
-                notice: undefined,
-                value: '1000000000000000000',
-              },
-            ],
-          },
+          functionName: 'mint',
+          textSignature: 'mint(address,uint256)',
+          decoded: ['0x284803C34A3F049f787E2562e6F8C084bdBC3197', 1000000000000000000n],
+          contractName: 'IERC20MintableUpgradeable',
           type: ProposalActionType.Mint,
-          receivers: {
-            address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
-            currentBalance: '0',
-            newBalance: '1000000000000000000',
-          },
-          totalSupply: '1000000000000000000000',
-          holdersCount: 1,
-          token: {
-            name: 'MockToken',
-            symbol: 'MOCK',
-            decimals: 18,
-            priceUsd: '12',
-            logo: 'https://mock.com/logo.png',
-            address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+          metadata: {
+            token: {
+              address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+              name: 'MockToken',
+              symbol: 'MOCK',
+              decimals: 18,
+              logo: 'https://mock.com/logo.png',
+              type: 'ERC20',
+            },
+            to: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+            value: 1000000000000000000n,
           },
         },
       ])
@@ -365,37 +338,22 @@ describe('Indexer:Aggregator:Proposal', () => {
           to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
           value: '424000000000000',
           data: '0x',
-          from: '0x0dao',
+          functionName: 'NativeTransfer',
+          textSignature: 'nativeTransfer(address,address,uint256)',
+          decoded: ['0x0dao', '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31', '424000000000000'],
           type: ProposalActionType.Transfer,
-          sender: {
-            address: '0x0dao',
-          },
-          receiver: {
-            address: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
-          },
-          amount: '424000000000000',
-          token: {
-            address: '0x0000000000000000000000000000000000000000',
-            name: 'MockToken',
-            symbol: 'MOCK',
-            decimals: 18,
-            logo: 'https://mock.com/logo.png',
-            type: 'native',
-          },
-          inputData: {
-            textSignature: 'nativeTransfer(address,uint256)',
-            function: 'NativeTransfer',
-            contract: 'NativeToken',
-            parameters: [
-              {
-                type: 'address',
-                value: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
-              },
-              {
-                type: 'uint256',
-                value: '424000000000000',
-              },
-            ],
+          metadata: {
+            from: '0x0dao',
+            to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+            value: '424000000000000',
+            token: {
+              address: ethers.ZeroAddress,
+              name: 'MockToken',
+              symbol: 'MOCK',
+              decimals: 18,
+              logo: 'https://mock.com/logo.png',
+              type: ITokenType.native,
+            },
           },
         },
       ])
@@ -447,11 +405,8 @@ describe('Indexer:Aggregator:Proposal', () => {
         type: ITokenType.ERC20,
       }
 
-      const getTokenInfoCovalentStub = sandbox.stub(CovalentHelper, 'getTokenInfo').resolves({
-        totalSupply: '1000000000000000000000',
-        totalHolders: 1,
-      })
-      const getTokenDetailStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves(token as any)
+      const getTotalSupplyStub = sandbox.stub(CovalentHelper, 'getTokenTotalSupply').resolves('1000000000000000000000')
+      const getTokenDetailStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves(token as any)
       const findExistingStub = sandbox.stub(Models.Proposal, 'findByTransactionHash').resolves({
         aa: 'aa',
       })
@@ -461,12 +416,12 @@ describe('Indexer:Aggregator:Proposal', () => {
         network,
         blockHeight: 16733707,
       } as any)
-      expect(getTokenInfoCovalentStub.calledOnce).to.be.true
+
+      expect(getTotalSupplyStub.calledOnce).to.be.true
       expect(getTokenDetailStub.calledOnce).to.be.true
       expect(findExistingStub.calledOnce).to.be.true
       expect(tokenDetails).to.deep.eq({
         ...token,
-        holdersCount: 1,
         totalSupply: '1000000000000000000000',
       })
     })

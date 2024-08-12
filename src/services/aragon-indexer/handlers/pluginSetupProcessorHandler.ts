@@ -4,9 +4,9 @@ import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import Utils from '@helpers/utils'
-import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import { TokenVoting } from '@artifacts/TokenVoting'
+import { TokenProxy } from '@modules/tokenProxy'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:pluginSetupProcessorHandler' })
 
@@ -97,7 +97,7 @@ export const PluginSetupProcessorHandler = {
             const tokenAddress = pluginSetupLogs[0]?.parsed?.args?.[0]
 
             if (tokenAddress) {
-              const tokenDb = await UtilsIndexer.saveAndGetToken(tokenAddress, info.network)
+              const tokenDb = await TokenProxy.saveAndGetToken(tokenAddress, info.network)
               rawPluginLog.tokenAddress = tokenDb?.address || tokenAddress
             }
           }

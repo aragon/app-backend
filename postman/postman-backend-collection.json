@@ -66,8 +66,8 @@
                   "            pm.expect(dao).to.have.property(\"ens\").that.satisfies(value => value === null || typeof value === \"string\", `DAO ${index + 1}: 'ens' should be null or a string`);",
                   "            pm.expect(dao).to.have.property(\"subdomain\").that.satisfies(value => value === null || typeof value === \"string\", `DAO ${index + 1}: 'subdomain' should be null or a string`);",
                   "            pm.expect(dao).to.have.property(\"metadataIpfs\").that.satisfies(value => value === null || typeof value === \"string\", `DAO ${index + 1}: 'metadataIpfs' should be null or a string`);",
-                  "            pm.expect(dao).to.have.property(\"name\").that.is.a(\"string\", `DAO ${index + 1}: 'name' should be a string`);",
-                  "            pm.expect(dao).to.have.property(\"description\").that.is.a(\"string\", `DAO ${index + 1}: 'description' should be a string`);",
+                  "            pm.expect(dao).to.have.property(\"name\").that.satisfies(value => value === null || typeof value === \"string\", `DAO ${index + 1}: 'name' should be null or a string`);",
+                  "            pm.expect(dao).to.have.property(\"description\").that.satisfies(value => value === null || typeof value === \"string\", `DAO ${index + 1}: 'description' should be null or a string`);",
                   "            pm.expect(dao).to.have.property(\"avatar\").that.satisfies(value => value === null || typeof value === \"string\", `DAO ${index + 1}: 'avatar' should be null or a string`);",
                   "            pm.expect(dao).to.have.property(\"links\").that.is.an(\"array\", `DAO ${index + 1}: 'links' should be an array`);",
                   "            pm.expect(dao).to.have.property(\"plugins\").that.is.an(\"array\", `DAO ${index + 1}: 'plugins' should be an array`);",
@@ -1762,8 +1762,8 @@
                   "",
                   "pm.test(\"Each Vote has correct properties and types\", function () {",
                   "    const data = pm.response.json().data;",
-                  "    const expectedVotePropertyCountWithVotingPower = 11; // transactionHash, blockNumber, blockTimestamp, network, daoAddress, pluginAddress, memberAddress, proposalId, token, voteOption, votingPower",
-                  "    const expectedVotePropertyCountWithoutVotingPower = 9; // transactionHash, blockNumber, blockTimestamp, network, daoAddress, pluginAddress, memberAddress, proposalId, votingPower",
+                  "    const expectedVotePropertyCountWithVotingPower = 12; // id, transactionHash, blockNumber, blockTimestamp, network, daoAddress, pluginAddress, memberAddress, proposalId, token, voteOption, votingPower",
+                  "    const expectedVotePropertyCountWithoutVotingPower = 10; // id, transactionHash, blockNumber, blockTimestamp, network, daoAddress, pluginAddress, memberAddress, proposalId",
                   "",
                   "    data.forEach((vote, index) => {",
                   "        try {",
@@ -1786,6 +1786,7 @@
                   "                pm.expect(vote).to.not.have.property(\"token\", `Vote ${index + 1}: 'token' should not exist`);",
                   "            }",
                   "",
+                  "            pm.expect(vote).to.have.property(\"id\").that.is.a(\"string\", `Vote ${index + 1}: 'id' should be a string`);",
                   "            pm.expect(vote).to.have.property(\"transactionHash\").that.is.a(\"string\", `Vote ${index + 1}: 'transactionHash' should be a string`);",
                   "            pm.expect(vote).to.have.property(\"blockNumber\").that.is.a(\"number\", `Vote ${index + 1}: 'blockNumber' should be a number`);",
                   "            pm.expect(vote).to.have.property(\"blockTimestamp\").that.is.a(\"number\", `Vote ${index + 1}: 'blockTimestamp' should be a number`);",
@@ -1822,13 +1823,11 @@
                 {
                   "key": "search",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "page",
                   "value": "<number>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
@@ -1839,80 +1838,67 @@
                 {
                   "key": "order",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "sort",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "startDateProp",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "endDateProp",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "startDate",
                   "value": "<Date | timestamp>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "endDate",
                   "value": "<Date | timestamp>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "network",
                   "value": "<Network>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "address",
                   "value": "<string>",
                   "description": "memberAddress",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "daoAddress",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "tokenAddress",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "pluginAddress",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "daoId",
                   "value": "<daoId>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "proposalId",
-                  "value": "<string>",
-                  "type": "text"
+                  "value": "<string>"
                 },
                 {
                   "key": "includeInfo",
@@ -2161,9 +2147,14 @@
                   "            if (proposal.hasOwnProperty(\"executed\")) {",
                   "                const executed = proposal.executed;",
                   "                pm.expect(executed).to.have.property(\"status\").that.is.a(\"boolean\", `Proposal ${index + 1}: 'executed.status' should be a boolean`);",
-                  "                pm.expect(executed).to.have.property(\"transactionHash\").that.is.a(\"string\", `Proposal ${index + 1}: 'executed.transactionHash' should be a string`);",
-                  "                pm.expect(executed).to.have.property(\"blockNumber\").that.is.a(\"number\", `Proposal ${index + 1}: 'executed.blockNumber' should be a number`);",
-                  "                pm.expect(executed).to.have.property(\"blockTimestamp\").that.is.a(\"number\", `Proposal ${index + 1}: 'executed.blockTimestamp' should be a number`);",
+                  "                if (executed.status) {",
+                  "                    pm.expect(executed).to.include.all.keys('transactionHash', 'blockNumber', 'blockTimestamp');",
+                  "                    pm.expect(executed.transactionHash).to.be.a(\"string\", `Proposal ${index + 1}: 'executed.transactionHash' should be a string`);",
+                  "                    pm.expect(executed.blockNumber).to.be.a(\"number\", `Proposal ${index + 1}: 'executed.blockNumber' should be a number`);",
+                  "                    pm.expect(executed.blockTimestamp).to.be.a(\"number\", `Proposal ${index + 1}: 'executed.blockTimestamp' should be a number`);",
+                  "                } else {",
+                  "                    pm.expect(executed).to.not.have.any.keys('transactionHash', 'blockNumber', 'blockTimestamp', `Proposal ${index + 1}: 'executed' should not have 'transactionHash', 'blockNumber', or 'blockTimestamp' when status is false`);",
+                  "                }",
                   "            }",
                   "",
                   "            // Verify settings properties based on pluginSubdomain",
@@ -2234,14 +2225,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{host}}/proposals?daoInfo=true",
+              "raw": "{{host}}/proposals",
               "host": ["{{host}}"],
               "path": ["proposals"],
               "query": [
                 {
                   "key": "search",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
@@ -2257,72 +2247,62 @@
                 {
                   "key": "order",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "sort",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "startDateProp",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "endDateProp",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "startDate",
                   "value": "<Date | timestamp>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "endDate",
                   "value": "<Date | timestamp>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "network",
                   "value": "<Network>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "daoAddress",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "pluginAddress",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "creatorAddress",
                   "value": "<string>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "daoId",
                   "value": "<daoId>",
-                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "daoInfo",
-                  "value": "true"
+                  "value": "true",
+                  "disabled": true
                 }
               ]
             }
@@ -3897,22 +3877,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{host}}/tokens?network=mainnet&address=0xe4fBbB0B11b3B48D10B4753a1D2c00244b247b33",
-              "host": ["{{host}}"],
-              "path": ["tokens"],
-              "query": [
-                {
-                  "key": "network",
-                  "value": "mainnet",
-                  "description": "ethereum | goerli | sepolia | mumbai | polygon | base | baseGoerli | arbitrum | arbitrumGoerli\n"
-                },
-                {
-                  "key": "address",
-                  "value": "0xe4fBbB0B11b3B48D10B4753a1D2c00244b247b33"
-                }
-              ]
-            }
+            "url": "{{host}}/tokens/ethereum-mainnet/0xe4fBbB0B11b3B48D10B4753a1D2c00244b247b33"
           },
           "response": [
             {

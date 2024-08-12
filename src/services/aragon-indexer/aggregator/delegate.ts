@@ -89,9 +89,15 @@ export const AggregatorDelegate = {
       {
         $lookup: {
           from: 'token',
-          let: { tokenAddr: '$tokenAddress' },
+          let: { tokenAddress: '$tokenAddress', network: '$network' },
           pipeline: [
-            { $match: { $expr: { $eq: ['$$tokenAddr', '$address'] } } },
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ['$address', '$$tokenAddress'] }, { $eq: ['$network', '$$network'] }],
+                },
+              },
+            },
             {
               $project: {
                 network: 1,
