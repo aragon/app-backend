@@ -493,6 +493,7 @@ class DecodeActions {
     )
 
     this.allSignatures = [
+      { contractName: 'TokenVoting', signatures: tokenVotingSignatures, abi: TokenVoting.abi },
       { contractName: 'MajorityVotingBase', signatures: majorityVotingBaseSignatures, abi: MajorityVotingBase.abi },
       { contractName: 'DaoFactory', signatures: daoFactorySignatures, abi: DAOFactory.abi },
       { contractName: 'Multisig', signatures: multisigSignatures, abi: Multisig.abi },
@@ -512,7 +513,6 @@ class DecodeActions {
       { contractName: 'DAORegistry', signatures: daoRegistrySignatures, abi: DAORegistry.abi },
       { contractName: 'MultiSigSetup', signatures: multisigSetupSignatures, abi: MultiSigSetup.abi },
       { contractName: 'AddresslistVoting', signatures: addresslistVotingSignatures, abi: AddresslistVoting.abi },
-      { contractName: 'TokenVoting', signatures: tokenVotingSignatures, abi: TokenVoting.abi },
     ]
   }
 
