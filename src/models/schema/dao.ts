@@ -147,6 +147,9 @@ export default class Dao extends Model {
   @prop({ type: () => Boolean, default: false })
   public hideDao!: boolean
 
+  @prop({ type: () => String, default: null })
+  public daoVersion!: string
+
   static async create(rawData: Partial<Dao>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')

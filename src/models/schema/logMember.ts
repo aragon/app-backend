@@ -119,4 +119,45 @@ export default class LogMember extends Model {
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
   }
+
+  static async getMultiSigMemberAtBlockNumber(pluginAddress: HexAddress, blockNumber: number, network: NetworksEnum) {
+    const response = await this.aggregate([
+      {
+        $match: {
+          event: {
+            $in: ['MembersRemoved', 'MembersAdded'],
+          },
+          blockNumber: {
+            $lte: blockNumber,
+          },
+          pluginAddress,
+          network,
+        },
+      },
+      {
+        $group: {
+          _id: '$pluginAddress',
+          addedMembers: {
+            $push: {
+              $cond: [{ $eq: ['$event', 'MembersAdded'] }, '$address', null],
+            },
+          },
+          removedMembers: {
+            $push: {
+              $cond: [{ $eq: ['$event', 'MembersRemoved'] }, '$address', null],
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          members: {
+            $setDifference: [{ $setUnion: '$addedMembers' }, { $setUnion: '$removedMembers' }],
+          },
+        },
+      },
+    ])
+
+    return response.length > 0 ? response[0] : { members: [] }
+  }
 }

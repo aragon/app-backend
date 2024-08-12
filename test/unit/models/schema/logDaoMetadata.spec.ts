@@ -118,4 +118,15 @@ describe('Model: LogDaoMetadata', () => {
 
     expect(createdLogDao.address).to.eq(rawLogDaoMetadata.address)
   })
+
+  it('getMetadataAtBlockNumber', async () => {
+    const createdLogDao = await Models.LogDaoMetadata.create(rawLogDaoMetadata)
+    const metadataAtBlockNumber = await Models.LogDaoMetadata.getMetadataAtBlockNumber(
+      rawLogDaoMetadata.daoAddress!,
+      rawLogDaoMetadata.blockNumber!,
+      NetworksEnum.ethereumMainnet,
+    )
+
+    expect(metadataAtBlockNumber?.name).to.eq(createdLogDao.name)
+  })
 })

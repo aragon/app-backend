@@ -7,6 +7,7 @@ const PaginationSchema = {
   getPairParams: Joi.object({
     daoId: ValidationSchema.joiDaoId.optional(),
     ens: ValidationSchema.joiEns.optional(),
+    proposalId: Joi.string().optional(),
   }),
 
   getNotAllowedParams: Joi.object().max(0),

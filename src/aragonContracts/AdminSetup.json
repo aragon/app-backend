@@ -1,0 +1,294 @@
+{
+  "contractName": "AdminSetup",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "admin",
+          "type": "address"
+        }
+      ],
+      "name": "AdminAddressInvalid",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "implementation",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Returns the plugin implementation address."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_dao",
+          "type": "address",
+          "notice": "The address of the installing DAO."
+        },
+        {
+          "internalType": "bytes",
+          "name": "_data",
+          "type": "bytes",
+          "notice": "The bytes-encoded data containing the input parameters for the installation as specified in the plugin's build metadata JSON file."
+        }
+      ],
+      "name": "prepareInstallation",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "plugin",
+          "type": "address"
+        },
+        {
+          "components": [
+            {
+              "internalType": "address[]",
+              "name": "helpers",
+              "type": "address[]"
+            },
+            {
+              "components": [
+                {
+                  "internalType": "enum PermissionLib.Operation",
+                  "name": "operation",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "address",
+                  "name": "where",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "who",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "condition",
+                  "type": "address"
+                },
+                {
+                  "internalType": "bytes32",
+                  "name": "permissionId",
+                  "type": "bytes32"
+                }
+              ],
+              "internalType": "struct PermissionLib.MultiTargetPermission[]",
+              "name": "permissions",
+              "type": "tuple[]"
+            }
+          ],
+          "internalType": "struct IPluginSetup.PreparedSetupData",
+          "name": "preparedSetupData",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Prepares the installation of a plugin."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_dao",
+          "type": "address",
+          "notice": "The address of the uninstalling DAO."
+        },
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "plugin",
+              "type": "address"
+            },
+            {
+              "internalType": "address[]",
+              "name": "currentHelpers",
+              "type": "address[]"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct IPluginSetup.SetupPayload",
+          "name": "_payload",
+          "type": "tuple",
+          "notice": "The relevant data necessary for the `prepareUninstallation`. See above."
+        }
+      ],
+      "name": "prepareUninstallation",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "enum PermissionLib.Operation",
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "internalType": "address",
+              "name": "where",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "who",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "condition",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "permissionId",
+              "type": "bytes32"
+            }
+          ],
+          "internalType": "struct PermissionLib.MultiTargetPermission[]",
+          "name": "permissions",
+          "type": "tuple[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Prepares the uninstallation of a plugin."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_dao",
+          "type": "address",
+          "notice": "The address of the updating DAO."
+        },
+        {
+          "internalType": "uint16",
+          "name": "_currentBuild",
+          "type": "uint16",
+          "notice": "The build number of the plugin to update from."
+        },
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "plugin",
+              "type": "address"
+            },
+            {
+              "internalType": "address[]",
+              "name": "currentHelpers",
+              "type": "address[]"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct IPluginSetup.SetupPayload",
+          "name": "_payload",
+          "type": "tuple",
+          "notice": "The relevant data necessary for the `prepareUpdate`. See above."
+        }
+      ],
+      "name": "prepareUpdate",
+      "outputs": [
+        {
+          "internalType": "bytes",
+          "name": "initData",
+          "type": "bytes"
+        },
+        {
+          "components": [
+            {
+              "internalType": "address[]",
+              "name": "helpers",
+              "type": "address[]"
+            },
+            {
+              "components": [
+                {
+                  "internalType": "enum PermissionLib.Operation",
+                  "name": "operation",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "address",
+                  "name": "where",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "who",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "condition",
+                  "type": "address"
+                },
+                {
+                  "internalType": "bytes32",
+                  "name": "permissionId",
+                  "type": "bytes32"
+                }
+              ],
+              "internalType": "struct PermissionLib.MultiTargetPermission[]",
+              "name": "permissions",
+              "type": "tuple[]"
+            }
+          ],
+          "internalType": "struct IPluginSetup.PreparedSetupData",
+          "name": "preparedSetupData",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Prepares the update of a plugin."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "_interfaceId",
+          "type": "bytes4",
+          "notice": "The ID of the interface."
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Checks if this or the parent contract supports an interface by its ID."
+    }
+  ],
+  "implAddress": "0xbD9C68950Ab6B7Ec9E3F493Ec701Dd587a056e2a",
+  "address": "0xB2CCCB4d7ec56F992219BCF4abe2E7F02003443e"
+}

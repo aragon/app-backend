@@ -1,0 +1,151 @@
+{
+  "contractName": "PluginRepoFactory",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "contract PluginRepoRegistry",
+          "name": "_pluginRepoRegistry",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_subdomain",
+          "type": "string",
+          "notice": "The plugin repository subdomain."
+        },
+        {
+          "internalType": "address",
+          "name": "_initialOwner",
+          "type": "address",
+          "notice": "The plugin maintainer address."
+        }
+      ],
+      "name": "createPluginRepo",
+      "outputs": [
+        {
+          "internalType": "contract PluginRepo",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Creates a plugin repository proxy pointing to the `pluginRepoBase` implementation and registers it in the Aragon plugin registry."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_subdomain",
+          "type": "string",
+          "notice": "The plugin repository subdomain."
+        },
+        {
+          "internalType": "address",
+          "name": "_pluginSetup",
+          "type": "address",
+          "notice": "The plugin factory contract associated with the plugin version."
+        },
+        {
+          "internalType": "address",
+          "name": "_maintainer",
+          "type": "address",
+          "notice": "The maintainer of the plugin repo. This address has permission to update metadata, upgrade the repo logic, and manage the repo permissions."
+        },
+        {
+          "internalType": "bytes",
+          "name": "_releaseMetadata",
+          "type": "bytes",
+          "notice": "The release metadata URI."
+        },
+        {
+          "internalType": "bytes",
+          "name": "_buildMetadata",
+          "type": "bytes",
+          "notice": "The build metadata URI."
+        }
+      ],
+      "name": "createPluginRepoWithFirstVersion",
+      "outputs": [
+        {
+          "internalType": "contract PluginRepo",
+          "name": "pluginRepo",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Creates and registers a `PluginRepo` with an ENS subdomain and publishes an initial version `1.1`."
+    },
+    {
+      "inputs": [],
+      "name": "pluginRepoBase",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "pluginRepoRegistry",
+      "outputs": [
+        {
+          "internalType": "contract PluginRepoRegistry",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "protocolVersion",
+      "outputs": [
+        {
+          "internalType": "uint8[3]",
+          "name": "",
+          "type": "uint8[3]"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function",
+      "notice": "Returns the protocol version at which the current contract was built. Use it to check for future upgrades that might be applicable."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "_interfaceId",
+          "type": "bytes4",
+          "notice": "The ID of the interface."
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Checks if this or the parent contract supports an interface by its ID."
+    }
+  ],
+  "implAddress": "0x07f49c49Ce2A99CF7C28F66673d406386BDD8Ff4",
+  "address": "0x07f49c49Ce2A99CF7C28F66673d406386BDD8Ff4"
+}

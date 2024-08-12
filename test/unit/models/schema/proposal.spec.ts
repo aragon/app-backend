@@ -297,7 +297,9 @@ describe('Model: Proposal', () => {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Proposal.findWithPagination({
-        extraParams: {},
+        extraParams: {
+          daoInfo: true,
+        },
         paginationParams: {},
       })
 

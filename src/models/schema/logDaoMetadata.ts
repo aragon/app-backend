@@ -115,4 +115,38 @@ export default class LogDaoMetadata extends Model {
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
   }
+
+  static async getMetadataAtBlockNumber(daoAddress: string, blockNumber: number, network: NetworksEnum) {
+    const response = await this.aggregate([
+      {
+        $match: {
+          daoAddress,
+          network,
+        },
+      },
+      {
+        $sort: {
+          blockNumber: -1,
+        },
+      },
+      {
+        $match: {
+          blockNumber: {
+            $lte: blockNumber,
+          },
+        },
+      },
+      {
+        $project: {
+          name: 1,
+          description: 1,
+          links: 1,
+          logo: '$avatar',
+        },
+      },
+      { $limit: 1 },
+    ])
+
+    return response[0] ?? {}
+  }
 }

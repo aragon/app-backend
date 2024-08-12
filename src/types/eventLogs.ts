@@ -10,10 +10,11 @@ export interface ILogInfo {
 }
 
 export interface IDecodedData {
+  parameters?: any
+  notice?: string
   contractName?: string
   functionName: any
   decoded: any
   textSignature: string
   type?: ProposalActionType
-  metadata?: any
 }

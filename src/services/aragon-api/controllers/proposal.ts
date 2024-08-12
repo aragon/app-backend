@@ -13,20 +13,10 @@ import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 
 const ProposalController = {
-  getProposalsWithPagination: async (
-    paginationParams: IPaginationParams = {},
-    extraParams: IProposalExtraParams = {},
-    pairParams: IPairParams = {},
-  ): Promise<IPaginatedResult<IProposalsResponse>> => {
-    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
-    extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
-    return await Models.Proposal.findWithPagination({ extraParams, paginationParams })
-  },
-
   getProposalById: async (id: string): Promise<IProposalsResponse> => {
     const proposal = await Models.Proposal.findByEntityId(id)
     assertExposable(proposal, ErrorKeyEnum.notFound)
-
+    proposal.executed = proposal.executed ? proposal.executed : { status: false }
     return proposal.filterKeys()
   },
 
@@ -36,8 +26,18 @@ const ProposalController = {
   ): Promise<IProposalsResponse> => {
     const proposal = await Models.Proposal.findByTransactionHash(transactionHash, network)
     assertExposable(proposal, ErrorKeyEnum.notFound)
-
+    proposal.executed = proposal.executed ? proposal.executed : { status: false }
     return proposal.filterKeys()
+  },
+
+  getProposalsWithPagination: async (
+    paginationParams: IPaginationParams = {},
+    extraParams: IProposalExtraParams = {},
+    pairParams: IPairParams = {},
+  ): Promise<IPaginatedResult<IProposalsResponse>> => {
+    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
+    extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+    return await Models.Proposal.findWithPagination({ extraParams, paginationParams })
   },
 }
 

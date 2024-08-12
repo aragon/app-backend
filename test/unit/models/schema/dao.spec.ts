@@ -415,7 +415,7 @@ describe('Model: Dao', () => {
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.hideDao).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(18)
+    expect(Object.keys(filterDao).length).to.eq(19)
   })
 
   it('should getDaoDetails', async () => {
