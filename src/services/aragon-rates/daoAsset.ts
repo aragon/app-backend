@@ -4,12 +4,12 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Asset from '@models/schema/asset'
-import { UtilsIndexer } from '@indexer/utils/indexer'
 import Web3Helper from '@helpers/web3'
 import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import { NetworkHelper } from '@helpers/network'
 import config from '@config'
 import utils from '@helpers/utils'
+import { TokenProxy } from '@modules/tokenProxy'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:DaoAssets' })
 
@@ -58,7 +58,7 @@ export const DaoAssets = {
           tokenAddress: utils.zeroAddress, // ETH native token
         }
 
-        await UtilsIndexer.saveAndGetToken(utils.zeroAddress, document.network)
+        await TokenProxy.saveAndGetToken(utils.zeroAddress, document.network)
 
         const existingEthAssetDb = await Models.Asset.findExistingLog({
           daoAddress: document.address,
@@ -88,7 +88,7 @@ export const DaoAssets = {
           .map(async (token: IAlchemyTokenBalance) => {
             let tokenDb: any = null
             if (token?.contractAddress) {
-              tokenDb = await UtilsIndexer.saveAndGetToken(token.contractAddress, document.network)
+              tokenDb = await TokenProxy.saveAndGetToken(token.contractAddress, document.network)
             } else {
               logger.error('Error Token balance missing contractAddress', llo({ token }))
             }

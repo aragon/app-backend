@@ -87,7 +87,7 @@ export const AggregatorVote = {
                 },
               },
             },
-            { $project: { tokenAddress: 1, daoAddress: 1 } },
+            { $project: { tokenAddress: 1, daoAddress: 1, network: 1 } },
           ],
           as: 'pluginDetails',
         },
@@ -96,10 +96,16 @@ export const AggregatorVote = {
       {
         $lookup: {
           from: 'token',
-          let: { tokenAddress: '$pluginDetails.tokenAddress' },
+          let: { tokenAddress: '$pluginDetails.tokenAddress', network: '$pluginDetails.network' },
           pipeline: [
-            { $match: { $expr: { $eq: ['$address', '$$tokenAddress'] } } },
-            { $project: { type: 1, address: 1, logo: 1, name: 1, decimals: 1, symbol: 1 } },
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ['$address', '$$tokenAddress'] }, { $eq: ['$network', '$$network'] }],
+                },
+              },
+            },
+            { $project: { type: 1, address: 1, logo: 1, name: 1, decimals: 1, symbol: 1, network: 1 } },
           ],
           as: 'tokenDetails',
         },

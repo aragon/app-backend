@@ -4,12 +4,12 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Proposal from '@models/schema/proposal'
 import Web3Helper from '@helpers/web3'
-import DecodeActions from '@helpers/decodeAction'
+import DecodeActions from '@helpers/decodeActions'
 import { NetworkHelper } from '@helpers/network'
 import { type NetworksEnum } from '@types'
 import config from '@config'
 import Covalent from '@helpers/covalent'
-import { UtilsIndexer } from '@indexer/utils/indexer'
+import { TokenProxy } from '@modules/tokenProxy'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorProposal' })
 
@@ -72,19 +72,14 @@ export const AggregatorProposal = {
       document.token = await AggregatorProposal._fetchTokenDetails(document)
     }
 
-    if (!existingLog?.actions.every((action: any) => action.inputData)) {
-      document.actions = await AggregatorProposal.parseActions(document.actions, document)
-    } else {
-      document.actions = existingLog.actions
-    }
+    document.actions = await AggregatorProposal.parseActions(document.actions, document)
+    document.metrics = await AggregatorProposal._getProposalMetrics(document.proposalId!, document.pluginAddress!)
 
     await DbTx.executeTxFn(async ({ session }) => {
       let logDb: any
       if (!existingLog) {
         logDb = await Models.Proposal.create(document, { session } as any)
       } else {
-        document.metrics = await AggregatorProposal._getProposalMetrics(document.proposalId!, document.pluginAddress!)
-
         logDb = await existingLog.update(document, { session })
       }
       await session.commitTransaction()
@@ -227,8 +222,22 @@ export const AggregatorProposal = {
       {
         $lookup: {
           from: 'setting',
-          let: { pluginAddr: '$pluginAddress' },
-          pipeline: [{ $match: { $expr: { $eq: ['$pluginAddress', '$$pluginAddr'] } } }],
+          let: { pluginAddr: '$pluginAddress', blockNumber: '$blockNumber' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$pluginAddress', '$$pluginAddr'] },
+                    { $lte: ['$fromBlockNumber', '$$blockNumber'] },
+                    {
+                      $or: [{ $gt: ['$toBlockNumber', '$blockNumber'] }, { $eq: ['$toBlockNumber', null] }],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
           as: 'pluginSettings',
         },
       },
@@ -240,29 +249,8 @@ export const AggregatorProposal = {
         },
       },
       {
-        $addFields: {
-          validSettings: {
-            $cond: {
-              if: {
-                $and: [
-                  { $lte: ['$pluginSettings.fromBlockNumber', '$blockNumber'] },
-                  {
-                    $or: [
-                      { $gt: ['$pluginSettings.toBlockNumber', '$blockNumber'] },
-                      { $eq: ['$pluginSettings.toBlockNumber', null] },
-                    ],
-                  },
-                ],
-              },
-              then: '$pluginSettings',
-              else: null,
-            },
-          },
-        },
-      },
-      {
         $match: {
-          validSettings: {
+          pluginSettings: {
             $ne: null,
           },
         },
@@ -271,13 +259,13 @@ export const AggregatorProposal = {
         $addFields: {
           settings: {
             $mergeObjects: [
-              '$validSettings.settings',
-              '$validSettings.settings.configs',
+              '$pluginSettings.settings',
+              '$pluginSettings.settings.configs',
               {
-                fromBlockNumber: '$validSettings.fromBlockNumber',
-                toBlockNumber: '$validSettings.toBlockNumber',
-                fromTxHash: '$validSettings.fromTxHash',
-                toTxHash: '$validSettings.toTxHash',
+                fromBlockNumber: '$pluginSettings.fromBlockNumber',
+                toBlockNumber: '$pluginSettings.toBlockNumber',
+                fromTxHash: '$pluginSettings.fromTxHash',
+                toTxHash: '$pluginSettings.toTxHash',
               },
             ],
           },
@@ -357,6 +345,7 @@ export const AggregatorProposal = {
           },
         },
       },
+      { $sort: { proposalId: 1 } },
     ]
   },
 
@@ -515,17 +504,20 @@ export const AggregatorProposal = {
       return alreadyFetched.token
     }
 
-    const token = await UtilsIndexer.saveAndGetToken(document.tokenAddress, document.network!)
+    const token = await TokenProxy.saveAndGetToken(document.tokenAddress, document.network!)
     if (token) {
-      const tokenInfo = await Covalent.getTokenInfo(document.tokenAddress, document.network!, document.blockNumber)
+      const totalSupply = await Covalent.getTokenTotalSupply(
+        document.tokenAddress,
+        document.network!,
+        document.blockNumber!,
+      )
 
       return {
         type: token.type,
         address: document.tokenAddress,
         name: token.name,
         symbol: token.symbol,
-        totalSupply: tokenInfo ? tokenInfo.totalSupply : '0',
-        holdersCount: tokenInfo ? tokenInfo.totalHolders : 0,
+        totalSupply,
         decimals: token.decimals,
         logo: token.logo,
       }

@@ -1,4 +1,4 @@
-import { type HexAddress } from '@src/types/networks'
+import { type HexAddress } from '@src/types/networks' // Token
 
 // Token
 export interface IContractMetadata {
@@ -101,4 +101,9 @@ export interface ITokenHoldersResponse {
   chain_name: string
   items: ITokenHolderResponse[]
   pagination: ITokenHoldersPaginationResponse
+}
+
+export interface ITokenMetrics {
+  totalSupply: string
+  totalHolders: number
 }

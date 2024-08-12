@@ -8,9 +8,9 @@ import { HexAddress, IAlchemyTokenBalance, ITokenType, NetworksEnum } from '@typ
 import Logger from '@logger'
 import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
-import { UtilsIndexer } from '@indexer/utils/indexer'
 import utils from '@helpers/utils'
 import logger from '@logger'
+import { TokenProxy } from '@modules/tokenProxy'
 
 describe('Indexer:Aggregator:Assets', () => {
   let sandbox: SinonSandbox
@@ -88,7 +88,7 @@ describe('Indexer:Aggregator:Assets', () => {
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
       const stubGetTokenBalances = sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
       const stubGetToken = sandbox
-        .stub(UtilsIndexer, 'saveAndGetToken')
+        .stub(TokenProxy, 'saveAndGetToken')
         .onCall(0)
         .resolves(fakeNativeToken as any)
         .onCall(1)
@@ -155,7 +155,7 @@ describe('Indexer:Aggregator:Assets', () => {
         amount: '150000',
       })
 
-      const saveAndGetTokenStub = sandbox.stub(UtilsIndexer, 'saveAndGetToken').resolves({
+      const saveAndGetTokenStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
         address: fakeTokenBalances[0].contractAddress,
       } as any)
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
