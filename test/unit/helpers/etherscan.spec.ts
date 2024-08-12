@@ -93,7 +93,7 @@ describe('Helpers: Etherscan', () => {
       const daoFactoryAddress = '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0'
       const axiosGetStub = sandbox.stub(axios, 'get').resolves({
         data: {
-          result: [],
+          result: [{ SourceCode: 'SourceCode', ContractName: 'ContractName', ABI: 'ABI' }],
         },
       })
       await EtherscanHelper.fetchContractSourceCode(daoFactoryAddress, NetworksEnum.ethereumSepolia)
