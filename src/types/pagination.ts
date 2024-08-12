@@ -12,7 +12,6 @@ export interface IVoteExtraParams {
   daoAddress?: HexAddress
   pluginAddress?: HexAddress
   tokenAddress?: HexAddress
-  proposalId?: number
   memberAddress?: HexAddress
   includeInfo?: boolean
 }
@@ -20,6 +19,7 @@ export interface IVoteExtraParams {
 export interface IPairParams {
   daoId?: string
   ens?: string
+  proposalId?: string
 }
 
 export interface IProposalExtraParams {

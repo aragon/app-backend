@@ -13,7 +13,6 @@ import { Model, type SaveOptions, Schema } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
-import { ProposalActionType } from '@src/types/proposalAction'
 
 const customName = 'Proposal'
 
@@ -24,36 +23,6 @@ class Resource {
   @prop({ type: () => String, default: null })
   public name!: string
 }
-
-class Action {
-  @prop({ type: () => String, default: null })
-  public to!: string
-
-  @prop({ type: () => String, default: null })
-  public data!: string
-
-  @prop({ type: () => String, default: null })
-  public value!: string
-
-  @prop({ type: () => String, default: null })
-  public functionName!: string
-
-  @prop({ type: () => String, default: null })
-  public textSignature!: string
-
-  @prop({ type: () => [Schema.Types.Mixed], default: null })
-  public decoded!: string | number | bigint | boolean | any
-
-  @prop({ type: () => String, default: null })
-  public contractName!: string | null
-
-  @prop({ type: () => String, enum: ProposalActionType, default: ProposalActionType.Unknown })
-  public type!: ProposalActionType
-
-  @prop({ type: () => [Schema.Types.Mixed], default: null })
-  public metadata!: any
-}
-
 class Media {
   @prop({ type: () => String, default: null })
   public header!: string
@@ -154,6 +123,9 @@ class Token {
 
   @prop({ type: () => String, default: 0 })
   public totalSupply!: string
+
+  @prop({ type: () => Number, default: 0 })
+  public holdersCount!: number
 }
 
 @modelOptions({
@@ -233,8 +205,8 @@ export default class Proposal extends Model {
   @prop({ type: () => Settings, _id: false })
   public settings!: Settings
 
-  @prop({ type: () => [Action], _id: false, default: [] })
-  public actions!: Action[]
+  @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
+  public actions!: any[]
 
   @prop({ type: () => Media, _id: false })
   public media!: Media

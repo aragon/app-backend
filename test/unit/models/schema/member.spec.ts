@@ -372,6 +372,26 @@ describe('Model: Member', () => {
       expect(pageSize).to.eq(10)
     })
 
+    it('should find findDaoOfMemberWithPagination with empty result', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Member.findDaoOfMemberWithPagination(
+        {
+          memberAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5408',
+        },
+        {
+          page: 2,
+        },
+      )
+
+      expect(data.length).to.eq(0)
+      expect(totalRecords).to.eq(0)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
     it('should find with pagination with pluginAddress', async () => {
       const {
         data,
@@ -398,7 +418,9 @@ describe('Model: Member', () => {
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Member.findActiveWithPagination({
         extraParams: { pluginAddress: '0x0000000000000000000000000000000000000000' },
-        paginationParams: {},
+        paginationParams: {
+          page: 2,
+        },
       })
 
       expect(spyUtils.calledOnce).to.be.true

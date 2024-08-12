@@ -60,6 +60,10 @@ export const AggregatorDao = {
         document.blockTimestamp = await Web3Helper.getBlockTimestamp(document.blockNumber!, document.network!)
       }
 
+      if (!existingLog || existingLog.daoVersion === null) {
+        document.daoVersion = await AggregatorDao.getDaoOsVersion(document.address!, document.network!)
+      }
+
       if (!existingLog) {
         logDb = await Models.Dao.create(document, { session } as any)
       } else {
@@ -70,6 +74,10 @@ export const AggregatorDao = {
       await session.endSession()
       logger.verbose(existingLog ? 'Update Aggregate Dao' : 'New Aggregate Dao', llo({ logId: logDb?.id }))
     })
+  },
+
+  getDaoOsVersion: async (daoAddress: string, network: NetworksEnum) => {
+    return Web3Helper.getDaoOsVersion(daoAddress, network)
   },
 
   query(networks: NetworksEnum[]) {
@@ -92,6 +100,14 @@ export const AggregatorDao = {
                   $eq: ['$$daoAddr', '$daoAddress'],
                 },
               },
+            },
+            {
+              $sort: {
+                tokenAddress: -1, // Sort to prioritize plugins with tokenAddress
+              },
+            },
+            {
+              $limit: 1, // Only return the top result after sorting
             },
           ],
           as: 'plugins',
