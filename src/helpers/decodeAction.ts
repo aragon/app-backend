@@ -42,6 +42,7 @@ import { IERC20MintableUpgradeable } from '@artifacts/IERC20MintableUpgradeable'
 import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { ERC1155 } from '@artifacts/ERC1155'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -249,11 +250,7 @@ class DecodeActions {
     }
   }
 
-  async _parseMultiSigSettingUpdateAction(
-    decodedData: IProposalActionInputData,
-    action: IRawAction,
-    document: Partial<Proposal>,
-  ) {
+  async _parseMultiSigSettingUpdateAction(decodedData: IProposalActionInputData, action: IRawAction) {
     if (decodedData.textSignature !== KnownActionSignature.UpdateMultiSigSettings) {
       return null
     }
@@ -263,10 +260,6 @@ class DecodeActions {
       type: ProposalActionType.UpdateMultiSigSettings,
       proposedSettings: {
         minApprovals: decodedData.parameters[0].value[1],
-      },
-
-      existingSettings: {
-        minApprovals: document.settings!.minApprovals,
       },
     }
   }
@@ -417,11 +410,16 @@ class DecodeActions {
 
           const parameters = fragment.inputs.map((input: any) => input.type).join(',')
           const textSignature = `${functionName}(${parameters})`
+
+          /**
+           * As the decoded data can be a nested array inside array when there is tuple as paramter
+           * JSON strigify circular will convert the big int to string as well.
+           */
           const paramsInfo = fragment.inputs.map((input: any, index: number) => ({
             name: input.name,
             type: input.type,
             value: Array.isArray(decodedFormatted[index])
-              ? decodedFormatted[index].map((val: any) => val.toString())
+              ? JSON.parse(Utils.JSONStringifyCircular(decodedFormatted[index]))
               : decodedFormatted[index],
           })) as IProposalActionInputDataParameter[]
 

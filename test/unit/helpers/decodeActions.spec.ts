@@ -604,9 +604,138 @@ describe('Helpers: DecodeActions', () => {
       expect(getContractSourceCode.calledOnce).to.be.true
       expect(parseNetspecStub.calledOnce).to.be.true
     })
+
+    it('should return null if no contract netspec is found', async () => {
+      const decodeActions = new DecodeActions()
+      const contractAddress = '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'
+      const network = NetworksEnum.ethereumMainnet
+
+      const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      const getContractSourceCode = sandbox.stub(Etherscan, 'fetchContractSourceCode').resolves(null)
+      const result = await decodeActions.parseContractNetspec('mint', contractAddress, network)
+      expect(result).to.be.null
+      expect(getImplementationAddressStub.calledOnce).to.be.true
+      expect(getContractSourceCode.calledOnce).to.be.true
+    })
   })
 
   describe('decodeAction', () => {
+    it('should _parseTokenVotingSettingUpdateAction', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'updateVotingSettings(tuple)',
+        function: 'updateVotingSettings',
+        contract: 'TokenVoting',
+        parameters: [
+          {
+            name: 'setting',
+            type: 'uint256',
+            value: 1n,
+          },
+          {
+            name: 'value',
+            type: 'uint256',
+            value: 2n,
+          },
+        ],
+      }
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x40c10f1900000000000000000000000x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+      }
+
+      const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action)
+      expect(result?.type).to.be.eq(ProposalActionType.UpdateVoteSettings)
+    })
+
+    it('should fails when the signature is not matched for _parseTokenVotingSettingUpdateAction', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'mock(tuple)',
+        function: 'mock',
+        contract: 'TokenVoting',
+        parameters: [
+          {
+            name: 'setting',
+            type: 'uint256',
+            value: 1n,
+          },
+          {
+            name: 'value',
+            type: 'uint256',
+            value: 2n,
+          },
+        ],
+      }
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x40c10f1900000000000000000000000x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+      }
+
+      const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action)
+      expect(result).to.be.null
+    })
+
+    it('should parse the multisign settings', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'updateMultisigSettings(tuple)',
+        function: 'updateMultisigSettings',
+        contract: 'Multisig',
+        parameters: [
+          {
+            name: 'setting',
+            type: 'uint256',
+            value: 1n,
+          },
+          {
+            name: 'value',
+            type: 'uint256',
+            value: 2n,
+          },
+        ],
+      }
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x40c10f1900000000000000000000000x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+      }
+
+      const result = await decodeActions._parseMultiSigSettingUpdateAction(baseAction, action)
+      expect(result?.type).to.be.eq(ProposalActionType.UpdateMultiSigSettings)
+    })
+
+    it('should fails when the signature is not matched for multisign settings', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'mock(tuple)',
+        function: 'mock',
+        contract: 'Multisig',
+        parameters: [
+          {
+            name: 'setting',
+            type: 'uint256',
+            value: 1n,
+          },
+          {
+            name: 'value',
+            type: 'uint256',
+            value: 2n,
+          },
+        ],
+      }
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x40c10f1900000000000000000000000x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+      }
+
+      const result = await decodeActions._parseMultiSigSettingUpdateAction(baseAction, action)
+      expect(result).to.be.null
+    })
+
     it('_parseTransferAction', async () => {
       const decodeActions = new DecodeActions()
 
@@ -650,6 +779,167 @@ describe('Helpers: DecodeActions', () => {
       expect(saveAndGetStub.calledOnce).to.be.true
     })
 
+    it('should return null when the signature is not correct for transfer', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'mock(address,uint256)',
+        function: 'mock',
+        contract: 'IERC20',
+        parameters: [
+          {
+            name: 'recipient',
+            type: 'address',
+            value: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          },
+          {
+            name: 'amount',
+            type: 'uint256',
+            value: 10n,
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 10n,
+        data: '0x',
+      }
+
+      const result = await decodeActions._parseTransferAction(baseAction, action, {} as any)
+
+      expect(result).to.be.null
+    })
+
+    it('should parse the transfer when the action is transferFrom', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'transferFrom(address,address,uint256)',
+        function: 'transferFrom',
+        contract: 'IERC20',
+        parameters: [
+          {
+            name: 'sender',
+            type: 'address',
+            value: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          },
+          {
+            name: 'recipient',
+            type: 'address',
+            value: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          },
+          {
+            name: 'amount',
+            type: 'uint256',
+            value: 10n,
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 10n,
+        data: '0x',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const saveAndGetStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: 'ERC20',
+      } as any)
+
+      const result = await decodeActions._parseTransferAction(baseAction, action, document as any)
+      expect(result?.type).to.be.eq(ProposalActionType.Transfer)
+      expect(saveAndGetStub.calledOnce).to.be.true
+    })
+
+    it('should parse the transfer when the action is safeTransfer From', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'safeTransferFrom(address,address,uint256)',
+        function: 'safeTransferFrom',
+        contract: 'IERC20',
+        parameters: [
+          {
+            name: 'sender',
+            type: 'address',
+            value: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          },
+          {
+            name: 'recipient',
+            type: 'address',
+            value: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          },
+          {
+            name: 'amount',
+            type: 'uint256',
+            value: 10n,
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 10n,
+        data: '0x',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const saveAndGetStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: 'ERC20',
+      } as any)
+
+      const result = await decodeActions._parseTransferAction(baseAction, action, document as any)
+      expect(result?.type).to.be.eq(ProposalActionType.Transfer)
+      expect(saveAndGetStub.calledOnce).to.be.true
+    })
+
+    it('should return null when the signature is not correct for add multisig', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'mock(address[])',
+        function: 'addAddresses',
+        contract: 'Multisig',
+        parameters: [
+          {
+            name: 'multisig',
+            type: 'address[]',
+            value: ['0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'],
+          },
+        ],
+      }
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x',
+      }
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+      const result = await decodeActions._parseAddMemberAction(baseAction, action, document as any)
+      expect(result).to.be.null
+    })
+
     it('_parse add multisig action', async () => {
       const decodeActions = new DecodeActions()
       const baseAction = {
@@ -674,8 +964,46 @@ describe('Helpers: DecodeActions', () => {
         to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         value: '0x40c10f19',
       }
+
+      const getMultiSigMemberAtBlockNumberStub = sandbox
+        .stub(Models.LogMember, 'getMultiSigMemberAtBlockNumber')
+        .resolves({
+          members: ['0x3949F15155D4b85d0159aB79cbf38DC51c41DD9E'],
+        })
+
       const result = await decodeActions._parseAddMemberAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.MultisigAddMembers)
+
+      expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
+    })
+
+    it('should return null when the signature is not correct for remove multisig', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'mock(address[])',
+        function: 'removeAddresses',
+        contract: 'Multisig',
+        parameters: [
+          {
+            name: 'multisig',
+            type: 'address[]',
+            value: ['0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'],
+          },
+        ],
+      }
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x',
+      }
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
+      expect(result).to.be.null
     })
 
     it('should parse _removeMemberAction', async () => {
@@ -702,8 +1030,52 @@ describe('Helpers: DecodeActions', () => {
         to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         value: '0x40c10f19',
       }
+
+      const getMultiSigMemberAtBlockNumberStub = sandbox
+        .stub(Models.LogMember, 'getMultiSigMemberAtBlockNumber')
+        .resolves({
+          members: ['0x3949F15155D4b85d0159aB79cbf38DC51c41DD9E'],
+        })
+
       const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.MultisigRemoveMembers)
+      expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
+    })
+
+    it('should return null when the signature is not correct for mint', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'mock(address,uint256)',
+        function: 'mint',
+        contract: 'IERC20Mint',
+        parameters: [
+          {
+            name: 'to',
+            type: 'address',
+            value: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          },
+          {
+            name: 'amount',
+            type: 'uint256',
+            value: 10n,
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc319700',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const result = await decodeActions._parseMintAction(baseAction, action, document as any)
+      expect(result).to.be.null
     })
 
     it('should parse _mintAction', async () => {
@@ -760,6 +1132,38 @@ describe('Helpers: DecodeActions', () => {
       expect(result!.holdersCount).to.be.eq(1)
     })
 
+    it('should retunr null if the signature is not correct for updateDaoMetadata', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'mockSig(bytes)',
+        function: 'setMetadata',
+        contract: 'DaoFactory',
+        parameters: [
+          {
+            name: 'metadata',
+            type: 'bytes',
+            value:
+              '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x00',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const result = await decodeActions._parseUpdateDaoMetadata(baseAction, action, document as any)
+      expect(result).to.be.null
+    })
+
     it('should parse _parseUpdateDaoMetadata', async () => {
       const decodeActions = new DecodeActions()
       const baseAction = {
@@ -801,6 +1205,116 @@ describe('Helpers: DecodeActions', () => {
       expect(stubExtractMetadataUri.calledOnce).to.be.true
       expect(ipfsFetchStubb.calledOnce).to.be.true
       expect(getMetadataAtBlockNumberStub.calledOnce).to.be.true
+    })
+
+    it('should return null if the hash is not correct when updating medatadata in dao', async () => {
+      const baseAction = {
+        textSignature: 'setMetadata(bytes)',
+        function: 'setMetadata',
+        contract: 'DaoFactory',
+        parameters: [
+          {
+            name: 'metadata',
+            type: 'bytes',
+            value:
+              '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x00',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(null)
+      const decodeActions = new DecodeActions()
+      const result = await decodeActions._parseUpdateDaoMetadata(baseAction, action, document as any)
+      expect(result).to.be.null
+      expect(stubExtractMetadataUri.calledOnce).to.be.true
+    })
+
+    it('should return null if the ipfs content is not valid', async () => {
+      const baseAction = {
+        textSignature: 'setMetadata(bytes)',
+        function: 'setMetadata',
+        contract: 'DaoFactory',
+        parameters: [
+          {
+            name: 'metadata',
+            type: 'bytes',
+            value:
+              '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x00',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('http://link')
+      const ipfsFetchStubb = sandbox.stub(Ipfs, 'fetchMetadata').resolves(null)
+      const decodeActions = new DecodeActions()
+
+      const result = await decodeActions._parseUpdateDaoMetadata(baseAction, action, document as any)
+
+      expect(result).to.be.null
+      expect(stubExtractMetadataUri.calledOnce).to.be.true
+      expect(ipfsFetchStubb.calledOnce).to.be.true
+    })
+
+    it('should return null if the metadata is not valid', async () => {
+      const baseAction = {
+        textSignature: 'setMetadata(bytes)',
+        function: 'setMetadata',
+        contract: 'DaoFactory',
+        parameters: [
+          {
+            name: 'metadata',
+            type: 'bytes',
+            value:
+              '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x00',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('http://link')
+      const ipfsFetchStubb = sandbox.stub(Ipfs, 'fetchMetadata').rejects(new Error('fake-error'))
+
+      const decodeActions = new DecodeActions()
+      const result = await decodeActions._parseUpdateDaoMetadata(baseAction, action, document as any)
+
+      expect(result).to.be.null
+      expect(stubExtractMetadataUri.calledOnce).to.be.true
+      expect(ipfsFetchStubb.calledOnce).to.be.true
     })
   })
 })
