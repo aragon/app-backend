@@ -497,11 +497,6 @@ class DecodeActions {
       { contractName: 'MajorityVotingBase', signatures: majorityVotingBaseSignatures, abi: MajorityVotingBase.abi },
       { contractName: 'DaoFactory', signatures: daoFactorySignatures, abi: DAOFactory.abi },
       { contractName: 'Multisig', signatures: multisigSignatures, abi: Multisig.abi },
-      {
-        contractName: 'IERC20MintableUpgradeable',
-        signatures: erc20MintableSignatures,
-        abi: IERC20MintableUpgradeable.abi,
-      },
       { contractName: 'ERC20', signatures: erc20Signatures, abi: ERC20.abi },
       { contractName: 'ERC721', signatures: erc721Signatures, abi: ERC721.abi },
       { contractName: 'ERC1155', signatures: erc1155Signatures, abi: ERC1155.abi },
@@ -513,6 +508,11 @@ class DecodeActions {
       { contractName: 'DAORegistry', signatures: daoRegistrySignatures, abi: DAORegistry.abi },
       { contractName: 'MultiSigSetup', signatures: multisigSetupSignatures, abi: MultiSigSetup.abi },
       { contractName: 'AddresslistVoting', signatures: addresslistVotingSignatures, abi: AddresslistVoting.abi },
+      {
+        contractName: 'IERC20MintableUpgradeable',
+        signatures: erc20MintableSignatures,
+        abi: IERC20MintableUpgradeable.abi,
+      },
     ]
   }
 
