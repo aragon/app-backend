@@ -446,7 +446,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": "{{host}}/daos/polygon-mainnet/0xb3f51172a4e87EaafD58a450dB140925F067E811"
+						"url": "{{host}}/daos/ethereum-sepolia/0x452d22f3324C239325dE422710d41B909642365b"
 					},
 					"response": [
 						{
