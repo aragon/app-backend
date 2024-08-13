@@ -13,6 +13,7 @@ import { PluginSetupProcessorHandler } from '@services/aragon-indexer/handlers/p
 import { MemberHandler } from '@services/aragon-indexer/handlers/memberHandler'
 import ProxyContractHelper from '@helpers/proxyContract'
 import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
+import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
 
 describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
@@ -137,6 +138,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const _metadataHandlerStub = sandbox.stub(DaoRegistryHandler, '_metadataHandler')
       const _pluginSetupStub = sandbox.stub(DaoRegistryHandler, '_pluginSetup')
       const _memberAddedStub = sandbox.stub(DaoRegistryHandler, '_memberAdded')
+      const _pluginSettingsStub = sandbox.stub(DaoRegistryHandler, '_pluginSettings')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -152,6 +154,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(_metadataHandlerStub.notCalled).to.be.true
       expect(_pluginSetupStub.notCalled).to.be.true
       expect(_memberAddedStub.notCalled).to.be.true
+      expect(_pluginSettingsStub.notCalled).to.be.true
     })
 
     it('should initiate new dao creation', async () => {
@@ -168,6 +171,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const metadataHandlerStub = sandbox.stub(DaoRegistryHandler, '_metadataHandler')
       const pluginSetupStub = sandbox.stub(DaoRegistryHandler, '_pluginSetup')
       const memberAddedStub = sandbox.stub(DaoRegistryHandler, '_memberAdded')
+      const pluginSettingStub = sandbox.stub(DaoRegistryHandler, '_pluginSettings')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -183,6 +187,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(metadataHandlerStub.calledOnce).to.be.true
       expect(pluginSetupStub.calledOnce).to.be.true
       expect(memberAddedStub.calledOnce).to.be.true
+      expect(pluginSettingStub.calledOnce).to.be.true
     })
   })
 
@@ -265,6 +270,102 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(findLogsByNameStub.calledTwice).to.be.true
       expect(installationPreparedStub.calledOnce).to.be.true
       expect(installationAppliedStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('_pluginSettings', () => {
+    it('should save plugin settings for multisig', async () => {
+      const findLogsByNameStub = sandbox.stub(Web3, 'findLogsByName')
+      findLogsByNameStub.onFirstCall().returns([
+        {
+          parsed: {
+            dao: '0x123',
+            plugin: '0x456',
+          },
+          txLog: {
+            transactionHash: '0x123',
+            address: '0x123',
+            topics: ['0x456'],
+            data: '0x789',
+            blockNumber: 1,
+          },
+        },
+      ] as any)
+      findLogsByNameStub.onSecondCall().returns([])
+
+      const fakeTx = {
+        logs: [
+          {
+            transactionHash: '0x123',
+            address: '0x123',
+            topics: ['0x456'],
+            data: '0x789',
+            blockNumber: 1,
+          },
+        ],
+      } as any
+
+      const votingSettingsUpdatedStub = sandbox.stub(PluginSettingHandler, 'votingSettingsUpdated')
+      const multisigSettingsUpdatedStub = sandbox.stub(PluginSettingHandler, 'multisigSettingsUpdated')
+
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 3,
+        transactionHash: '0x0123123',
+        address: '0x0123123',
+        eventName: 'test',
+      }
+
+      await DaoRegistryHandler._pluginSettings(fakeTx, logInfo)
+      expect(votingSettingsUpdatedStub.notCalled).to.be.true
+      expect(multisigSettingsUpdatedStub.calledOnce).to.be.true
+    })
+
+    it('should save plugin settings for voting', async () => {
+      const findLogsByNameStub = sandbox.stub(Web3, 'findLogsByName')
+      findLogsByNameStub.onFirstCall().returns([])
+      findLogsByNameStub.onSecondCall().returns([
+        {
+          parsed: {
+            dao: '0x123',
+            plugin: '0x456',
+          },
+          txLog: {
+            transactionHash: '0x123',
+            address: '0x123',
+            topics: ['0x456'],
+            data: '0x789',
+            blockNumber: 1,
+          },
+        },
+      ] as any)
+
+      const fakeTx = {
+        logs: [
+          {
+            transactionHash: '0x123',
+            address: '0x123',
+            topics: ['0x456'],
+            data: '0x789',
+            blockNumber: 1,
+          },
+        ],
+      } as any
+
+      const votingSettingsUpdatedStub = sandbox.stub(PluginSettingHandler, 'votingSettingsUpdated')
+      const multisigSettingsUpdatedStub = sandbox.stub(PluginSettingHandler, 'multisigSettingsUpdated')
+
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 3,
+        transactionHash: '0x0123123',
+        address: '0x0123123',
+        eventName: 'test',
+      }
+
+      await DaoRegistryHandler._pluginSettings(fakeTx, logInfo)
+      expect(votingSettingsUpdatedStub.calledOnce).to.be.true
+      expect(multisigSettingsUpdatedStub.notCalled).to.be.true
     })
   })
 
