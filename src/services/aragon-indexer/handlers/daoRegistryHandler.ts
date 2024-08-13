@@ -12,6 +12,7 @@ import Web3Helper from '@helpers/web3'
 import ProxyContractHelper from '@helpers/proxyContract'
 import { DAO } from '@artifacts/dao'
 import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
+import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
 
@@ -84,6 +85,29 @@ export const DaoRegistryHandler = {
      * Save the metadata logs that will create the metadata entry for the dao
      */
     await DaoRegistryHandler._metadataHandler(txReceipt, info)
+
+    /**
+     * Save the plugin settings logs that will create the plugin settings entry for the dao
+     * As settings can be identified in two ways, needed to check for both
+     */
+    await DaoRegistryHandler._pluginSettings(txReceipt, info)
+  },
+
+  _pluginSettings: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
+    const setting = Web3Helper.findLogsByName(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
+
+    if (setting?.length) {
+      const infoPluginSetup = Web3Helper.parseInfoLog(setting[0].txLog, 'MultisigSettingsUpdated', info.network)
+      await PluginSettingHandler.multisigSettingsUpdated(setting[0].parsed!, infoPluginSetup)
+      return
+    }
+
+    const votingSetting = Web3Helper.findLogsByName(txReceipt, 'VotingSettingsUpdated', GovernanceERC20.abi)
+
+    if (votingSetting?.length) {
+      const infoPluginSetup = Web3Helper.parseInfoLog(votingSetting[0].txLog, 'VotingSettingsUpdated', info.network)
+      await PluginSettingHandler.votingSettingsUpdated(votingSetting[0].parsed!, infoPluginSetup)
+    }
   },
 
   _metadataHandler: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
