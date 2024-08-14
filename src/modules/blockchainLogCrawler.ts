@@ -140,7 +140,10 @@ class BlockchainLogCrawler {
 
     // override when use log service
     if (this.logService) {
-      this.filter.fromBlock = await this.getServiceStartBlock()
+      const serviceFromBlock = await this.getServiceStartBlock()
+      if( !this.filter.fromBlock || serviceFromBlock > this.filter.fromBlock) {
+        this.filter.fromBlock = serviceFromBlock
+      }
       this.filter.toBlock = 'latest'
     }
 

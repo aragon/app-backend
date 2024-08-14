@@ -96,7 +96,10 @@ describe('Helpers: Etherscan', () => {
           result: [{ SourceCode: 'SourceCode', ContractName: 'ContractName', ABI: 'ABI' }],
         },
       })
-      await EtherscanHelper.fetchContractSourceCode(daoFactoryAddress, NetworksEnum.ethereumSepolia)
+      await EtherscanHelper.fetchContractSourceCode({
+        contractAddress: daoFactoryAddress,
+        network: NetworksEnum.ethereumSepolia,
+      })
       expect(axiosGetStub.calledOnce).to.be.true
 
       config.ETHERSCAN_API.ETHEREUM_SEPOLIA = {
@@ -113,7 +116,10 @@ describe('Helpers: Etherscan', () => {
         },
       })
       const loggerError = sandbox.stub(logger, 'error')
-      await EtherscanHelper.fetchContractSourceCode(daoFactoryAddress, NetworksEnum.ethereumSepolia)
+      await EtherscanHelper.fetchContractSourceCode({
+        contractAddress: daoFactoryAddress,
+        network: NetworksEnum.ethereumSepolia,
+      })
       expect(axiosGetStub.calledOnce).to.be.false
       expect(loggerError.calledOnce).to.be.true
     })
@@ -129,7 +135,10 @@ describe('Helpers: Etherscan', () => {
       sandbox.stub(axios, 'get').rejects(expectedError)
 
       const loggerStub = sandbox.stub(logger, 'error')
-      await EtherscanHelper.fetchContractSourceCode(daoFactoryAddress, NetworksEnum.ethereumSepolia)
+      await EtherscanHelper.fetchContractSourceCode({
+        contractAddress: daoFactoryAddress,
+        network: NetworksEnum.ethereumSepolia,
+      })
 
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.args[0]).to.include('Error in Etherscan API call')

@@ -131,7 +131,7 @@ export const DaoTransactions = {
         return
       }
 
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), daoRegistry.network)
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), daoRegistry.network) || undefined
 
       await DbTx.executeTxFn(async ({ session }) => {
         const rawTx: Partial<Transaction> = {

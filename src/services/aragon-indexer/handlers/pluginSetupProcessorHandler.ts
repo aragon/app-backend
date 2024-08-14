@@ -7,6 +7,7 @@ import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { TokenProxy } from '@modules/tokenProxy'
+import { AggregatorPlugin } from '@services/aragon-indexer/aggregator/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:pluginSetupProcessorHandler' })
 
@@ -27,7 +28,7 @@ export const PluginSetupProcessorHandler = {
       })
 
       if (!existingLog) {
-        await DbTx.executeTxFn(async ({ session }) => {
+        const logDb = await DbTx.executeTxFn(async ({ session }) => {
           const pluginLog = {
             event: IEventLogPluginType.InstallationApplied,
             network: info.network,
@@ -43,7 +44,11 @@ export const PluginSetupProcessorHandler = {
           await session.commitTransaction()
           await session.endSession()
           logger.verbose('New InstallationApplied', llo({ ...info, logId: logDb.id }))
+
+          return logDb
         })
+
+        await AggregatorPlugin.createPlugin(logDb)
       }
     } catch (error) {
       logger.error('Error InstallationApplied', llo({ ...info, error }))
@@ -130,7 +135,7 @@ export const PluginSetupProcessorHandler = {
       })
 
       if (!existingLog) {
-        await DbTx.executeTxFn(async ({ session }) => {
+        const logDb = await DbTx.executeTxFn(async ({ session }) => {
           const pluginLog = {
             event: IEventLogPluginType.UninstallationApplied,
             network: info.network,
@@ -145,7 +150,11 @@ export const PluginSetupProcessorHandler = {
           await session.commitTransaction()
           await session.endSession()
           logger.verbose('New UninstallationApplied', llo({ ...info, logId: logDb.id }))
+
+          return logDb
         })
+
+        await AggregatorPlugin.uninstallPlugin(logDb)
       }
     } catch (error) {
       logger.error('Error UninstallationApplied', llo({ ...info, error }))
@@ -211,7 +220,7 @@ export const PluginSetupProcessorHandler = {
       })
 
       if (!existingLog) {
-        await DbTx.executeTxFn(async ({ session }) => {
+        const logDb = await DbTx.executeTxFn(async ({ session }) => {
           const pluginLog = {
             event: IEventLogPluginType.UpdateApplied,
             network: info.network,
@@ -227,7 +236,11 @@ export const PluginSetupProcessorHandler = {
           await session.commitTransaction()
           await session.endSession()
           logger.verbose('New UpdateApplied', llo({ ...info, logId: logDb.id }))
+
+          return logDb
         })
+
+        await AggregatorPlugin.updatePlugin(logDb)
       }
     } catch (error) {
       logger.error('Error UpdateApplied', llo({ ...info, error }))

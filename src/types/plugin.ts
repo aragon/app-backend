@@ -5,9 +5,3 @@ export enum IPluginSubdomain {
   admin = 'admin',
   // subdaoPlugin = 'pattern-subdao-plugin',
 }
-
-export enum IPluginAction {
-  install = 'install',
-  update = 'update',
-  uninstall = 'uninstall',
-}

@@ -1,115 +1,29 @@
-import DBCrawler from '@models/utils/crawler'
-import { Models } from '@dbModels'
 import logger from '@logger'
-import DbTx from '@modules/dbTx'
-import type Member from '@models/schema/member'
-import { type Metrics } from '@models/schema/member'
-import { NetworkHelper } from '@helpers/network'
-import { type NetworksEnum } from '@types'
-import Web3Helper from '@helpers/web3'
-import config from '@config'
+import Member from '@models/schema/member'
+import LogMember from '@models/schema/logMember'
+import { Models } from '@dbModels'
 import EnsHelper from '@helpers/ens'
+import DbTx from '@modules/dbTx'
+import {HexAddress, IHistoryMember, IQueryGetMemberHistory, NetworksEnum} from '@types'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
+import MemberHistory from '@models/schema/memberHistory'
+import Web3Helper from "@helpers/web3";
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMembers' })
+const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorMember' })
 
-export const AggregatorMembers = {
-  batchSize: config.CRAWLER_CONFIG.MEMBER_BATCH_SIZE,
-  concurrency: config.CRAWLER_CONFIG.MEMBER_CONCURRENCY,
-
-  start: async () => {
-    const startTime = Date.now()
-    logger.verbose('Start AggregatorMembers', llo({ startTime }))
-
-    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
-    const crawler = new DBCrawler({
-      model: Models.LogMember,
-      onDocument: AggregatorMembers.onDocument,
-      onError: (error: any, document: any) => {
-        logger.error('Error AggregatorMembers', llo({ error, document }))
-      },
-      useAggregate: true,
-      aggregate: AggregatorMembers.query(
-        AggregatorMembers.queryVotingPowerMembers(supportedNetworks),
-        AggregatorMembers.queryMultisigMembers(supportedNetworks),
-      ),
-      batchSize: AggregatorMembers.batchSize,
-      concurrency: AggregatorMembers.concurrency,
-    })
-
-    await crawler.crawl()
-
-    const duration = Date.now() - startTime
-    logger.verbose(
-      'End AggregatorMembers',
-      llo({ lastTimeSync: crawler.crawlResult.lastCreatedAt, duration: `${duration}ms` }),
-    )
-  },
-
-  onDocument: async function (document: Partial<Member>) {
-    const existingLog = await Models.Member.findExistingLog({ address: document.address! })
-    document = await AggregatorMembers._getMemberData(document)
-
-    await DbTx.executeTxFn(async ({ session }) => {
-      let logDb: any
-
-      if (!existingLog) {
-        document.ens = await EnsHelper.getEnsWithUniversalResolver(document.address!)
-        logDb = await Models.Member.create(document, { session } as any)
-      } else {
-        document.ens = existingLog.ens // keep ens if it exists
-        logDb = await existingLog.update(document, { session })
-      }
-      await session.commitTransaction()
-      await session.endSession()
-      logger.verbose(existingLog ? 'Update Aggregate Member' : 'New Aggregate Member', llo({ logId: logDb?.id }))
-    })
-  },
-
-  query(votingPowerMembers: any, multisigMembers: any) {
-    return [
-      {
-        $facet: {
-          votingPowerMembers: [...votingPowerMembers],
-          multisigMembers: [...multisigMembers],
-        },
-      },
-      {
-        $project: {
-          allMembers: { $concatArrays: ['$votingPowerMembers', '$multisigMembers'] },
-        },
-      },
-      { $unwind: '$allMembers' },
-      { $replaceRoot: { newRoot: '$allMembers' } },
-      {
-        $group: {
-          _id: '$address',
-          history: { $push: '$history' },
-          ens: { $first: '$ens' },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          address: '$_id',
-          ens: 1,
-          history: {
-            $reduce: {
-              input: '$history',
-              initialValue: [],
-              in: { $concatArrays: ['$$value', '$$this'] },
-            },
-          },
-        },
-      },
-    ]
-  },
-
-  queryVotingPowerMembers(networks: NetworksEnum[]) {
-    return [
+export const AggregatorMember = {
+  async _queryGetMemberTokenVotingHistory({
+    memberAddress,
+  }: {
+    memberAddress: HexAddress
+  }): Promise<IQueryGetMemberHistory | undefined> {
+    const query = [
       {
         $match: {
-          ...(networks?.length > 0 && { network: { $in: networks } }),
-          event: 'DelegateChanged',
+          address: memberAddress,
+          event: {
+            $in: ['DelegateChanged', 'DelegateVotesChanged'],
+          },
         },
       },
       { $sort: { blockNumber: 1, transactionHash: 1 } },
@@ -129,26 +43,10 @@ export const AggregatorMembers = {
       {
         $unwind: '$events',
       },
-      {
-        $lookup: {
-          from: 'plugin',
-          let: { pluginAddress: '$events.pluginAddress', eventNetwork: '$events.network' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [{ $eq: ['$address', '$$pluginAddress'] }, { $eq: ['$network', '$$eventNetwork'] }],
-                },
-              },
-            },
-            { $project: { subdomain: 1, daoAddress: 1, pluginAddress: '$address' } },
-          ],
-          as: 'pluginDetails',
-        },
-      },
+      AggregationQueryHelper.plugin('$events.pluginAddress', '$events.network'),
       {
         $unwind: {
-          path: '$pluginDetails',
+          path: '$plugin',
           preserveNullAndEmptyArrays: true,
         },
       },
@@ -157,7 +55,7 @@ export const AggregatorMembers = {
           _id: '$address',
           events: {
             $push: {
-              $mergeObjects: ['$events', { $ifNull: ['$pluginDetails', {}] }],
+              $mergeObjects: ['$events', { $ifNull: ['$plugin', {}] }],
             },
           },
         },
@@ -207,13 +105,26 @@ export const AggregatorMembers = {
         },
       },
     ]
+
+    const history = await Models.LogMember.aggregate(query)
+
+    if (!history || history.length === 0) {
+      return
+    }
+
+    return history[0]
   },
 
-  queryMultisigMembers(networks: NetworksEnum[]) {
-    return [
+  async _queryGetMemberMultisigHistory({
+                                            memberAddress,
+                                          }: {
+    memberAddress: HexAddress
+  }): Promise<IQueryGetMemberHistory | undefined> {
+
+    const query = [
       {
         $match: {
-          ...(networks?.length > 0 && { network: { $in: networks } }),
+          address: memberAddress,
           event: { $in: ['MembersAdded', 'MembersRemoved'] },
         },
       },
@@ -230,41 +141,8 @@ export const AggregatorMembers = {
           events: { $push: '$$ROOT' },
         },
       },
-      {
-        $lookup: {
-          from: 'logPluginSetupProcessor',
-          localField: '_id.pluginAddress',
-          foreignField: 'pluginAddress',
-          pipeline: [
-            { $match: { event: 'InstallationPrepared' } },
-            { $project: { daoAddress: 1, pluginAddress: 1, pluginSetupRepo: 1 } },
-          ],
-          as: 'pluginInfo',
-        },
-      },
-      {
-        $lookup: {
-          from: 'logPluginRepo',
-          let: {
-            repoAddrs: '$pluginInfo.pluginSetupRepo',
-          },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $in: ['$pluginRepo', '$$repoAddrs'],
-                },
-              },
-            },
-            {
-              $project: {
-                subdomain: 1,
-              },
-            },
-          ],
-          as: 'pluginRepoInfo',
-        },
-      },
+      AggregationQueryHelper.logPluginSetupProcessor('$_id.pluginAddress', '$_id.network', 'pluginInfo'),
+      AggregationQueryHelper.logPluginRepo('$pluginInfo.pluginSetupRepo', '$pluginInfo.network', 'pluginRepoInfo'),
       {
         $project: {
           _id: 0,
@@ -363,8 +241,8 @@ export const AggregatorMembers = {
       },
       {
         $sort: {
-          'history.toTxHash': -1, // Sort by toTxHash, with non-null values coming first
-          'history.fromBlockNumber': 1, // Then sort by fromBlockNumber
+          'history.toTxHash': -1,
+          'history.fromBlockNumber': 1,
         },
       },
       {
@@ -381,71 +259,119 @@ export const AggregatorMembers = {
         },
       },
     ]
-  },
 
-  async _getMemberData(member: Partial<Member>) {
-    const metrics: Metrics = {
-      delegateReceivedCount: 0,
-      delegateSentCount: 0,
-      proposalCount: 0,
-      voteCount: 0,
+    const history = await Models.LogMember.aggregate(query)
+
+    if (!history || history.length === 0) {
+      return
     }
 
-    for (const activity of member.history!) {
-      if (activity.toBlockNumber === null && activity.tokenAddress) {
-        const [delegateReceivedCount, delegateSentCount, balance] = await Promise.all([
-          Models.Delegate.countDocuments({
-            toDelegate: member.address,
-            tokenAddress: activity.tokenAddress,
-          }),
-          Models.Delegate.countDocuments({
-            fromDelegate: member.address,
-            tokenAddress: activity.tokenAddress,
-          }),
-          Web3Helper.getERC20Balance(member.address!, activity.tokenAddress, activity.network),
-        ])
+    return history[0]
+  },
 
-        activity.tokenBalance = balance.toString()
-        metrics.delegateReceivedCount = delegateReceivedCount
-        metrics.delegateSentCount = delegateSentCount
+  createMember: async (memberLog: LogMember) => {
+    const existingLog = await Models.Member.findExistingLog({ address: memberLog.address })
+
+    if (existingLog) {
+      return existingLog
+    }
+
+    const document: Partial<Member> = {
+      address: memberLog.address,
+      ens: await EnsHelper.getEnsWithUniversalResolver(memberLog.address),
+      avatar: undefined, // TODO: find a way to get the avatar
+    }
+
+    const newMember = await DbTx.executeTxFn(async ({ session }) => {
+      const logDb = await Models.Member.create(document as any, { session } as any)
+      await session.commitTransaction()
+      await session.endSession()
+      logger.verbose('Create Member', llo({ logId: logDb?.id }))
+      return logDb
+    })
+
+    return newMember
+  },
+
+  memberHistory: async (memberAddress: string) => {
+
+    const [memberTokenVotingHistory, memberMultisigHistory] = await Promise.all([
+      AggregatorMember._queryGetMemberTokenVotingHistory({ memberAddress }),
+      AggregatorMember._queryGetMemberMultisigHistory({ memberAddress }),
+    ]);
+
+    const mergedHistory = [...memberMultisigHistory?.history || [], ...memberTokenVotingHistory?.history || []]
+
+    await Promise.all(mergedHistory.map(async h => {
+      const existingHistoryDb = await Models.MemberHistory.findExistingLog({
+        memberAddress: memberAddress,
+        fromTxHash: h.fromTxHash,
+        fromBlockNumber: h.fromBlockNumber,
+      })
+
+      if (!existingHistoryDb) {
+        await AggregatorMember.createHistory(memberAddress, h)
+      } else if (existingHistoryDb && existingHistoryDb.toBlockNumber !== h.toBlockNumber) {
+        await AggregatorMember.updateHistory(existingHistoryDb, h)
       }
-
-      if (!activity.fromBlockTimestamp) {
-        activity.fromBlockTimestamp = await Web3Helper.getBlockTimestamp(activity.fromBlockNumber, activity.network)
-      }
-
-      const proposalMetrics = await Models.LogProposal.getMemberProposalMetrics(member.address!, activity.pluginAddress)
-      metrics.proposalCount = proposalMetrics.proposalCount
-      metrics.voteCount = proposalMetrics.voteCount
-
-      activity.metrics = metrics
-    }
-
-    const memberActivityDates = await AggregatorMembers._getMemberActivityDates(member.address!)
-
-    member.firstActivity = memberActivityDates?.firstActivity
-    member.lastActivity = memberActivityDates?.lastActivity
-
-    return member
+    }))
   },
 
-  async _getMemberActivityDates(address: string) {
-    const activityResults = await Models.LogProposal.getMemberActivity(address)
-    let firstActivityTimestamp = 0
-    let lastActivityTimestamp = 0
-
-    if (activityResults) {
-      const [firstActivityTime, lastActivityTime] = await Promise.all([
-        Web3Helper.getBlockTimestamp(activityResults.firstActivity.blockNumber, activityResults.firstActivity.network),
-        Web3Helper.getBlockTimestamp(activityResults.lastActivity.blockNumber, activityResults.lastActivity.network),
-      ])
-      firstActivityTimestamp = firstActivityTime
-      lastActivityTimestamp = lastActivityTime
+  createHistory: async (memberAddress: string, h: IHistoryMember) => {
+    const document: Partial<MemberHistory> = {
+      network: h.network as NetworksEnum,
+      fromBlockNumber: h.fromBlockNumber,
+      fromBlockTimestamp: h.fromBlockNumber ? await Web3Helper.getBlockTimestamp(h.fromBlockNumber!, h.network! as NetworksEnum) || undefined : undefined,
+      toBlockNumber: h.toBlockNumber!,
+      toBlockTimestamp: h.toBlockNumber ? await Web3Helper.getBlockTimestamp(h.toBlockNumber!, h.network! as NetworksEnum) || undefined : undefined,
+      fromTxHash: h.fromTxHash,
+      toTxHash: h.toTxHash as HexAddress,
+      memberAddress,
+      daoAddress: h.daoAddress,
+      pluginAddress: h.pluginAddress,
+      pluginSubdomain: h.pluginSubdomain,
+      tokenAddress: h.tokenAddress,
+      votingPower: h.votingPower,
+      tokenBalance: '0', // TODO: fetch from covalent the token balance at block from/to number
+      delegateFromAddress: h.delegateFromAddress,
+      delegateToAddress: h.delegateToAddress,
     }
 
-    return {
-      firstActivity: firstActivityTimestamp,
-      lastActivity: lastActivityTimestamp,
-    }
+    const newMemberHistory = await DbTx.executeTxFn(async ({ session }) => {
+      const logDb = await Models.MemberHistory.create(document as any, { session } as any)
+      await session.commitTransaction()
+      await session.endSession()
+      logger.verbose('Create MemberHistory', llo({ logId: logDb?.id }))
+      return logDb
+    })
+
+    return newMemberHistory
   },
+
+  updateHistory: async (existingHistoryDb: MemberHistory, h: IHistoryMember) => {
+    const document: Partial<MemberHistory> = {
+      network: h.network as NetworksEnum,
+      fromBlockNumber: h.fromBlockNumber,
+      fromBlockTimestamp: h.fromBlockNumber && !existingHistoryDb.fromBlockTimestamp ? await Web3Helper.getBlockTimestamp(h.fromBlockNumber!, h.network! as NetworksEnum) || undefined : undefined,
+      toBlockNumber: h.toBlockNumber!,
+      toBlockTimestamp: h.toBlockNumber && !existingHistoryDb.toBlockNumber ? await Web3Helper.getBlockTimestamp(h.toBlockNumber!, h.network! as NetworksEnum) || undefined : undefined,
+      fromTxHash: h.fromTxHash,
+      toTxHash: h.toTxHash as HexAddress,
+      votingPower: h.votingPower,
+      tokenBalance: '0', // TODO: fetch from covalent the token balance at block from/to number
+      delegateFromAddress: h.delegateFromAddress,
+      delegateToAddress: h.delegateToAddress,
+    }
+
+    const updateMemberHistory = await DbTx.executeTxFn(async ({ session }) => {
+      const logDb = await existingHistoryDb.update(document as any, { session } as any)
+      await session.commitTransaction()
+      await session.endSession()
+      logger.verbose('Update MemberHistory', llo({ logId: logDb?.id }))
+      return logDb
+    })
+
+    return updateMemberHistory
+  },
+
 }

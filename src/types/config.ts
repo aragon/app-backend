@@ -1,4 +1,5 @@
 import { type NetworksEnum, type SupportedEnsNetworksEnum } from './networks'
+import {IEnumIndexerService} from "@src/types/services";
 
 export enum IEnumEnvironment {
   production = 'production',
@@ -15,6 +16,19 @@ export enum IEnumNodeEnv {
 export interface IEtherScanConfig {
   API_KEY: string
   API_URL: string
+}
+
+export interface IEventConfig {
+  event: string
+  handler: (event: any, info: any) => Promise<void>
+  enabled: boolean
+}
+
+export interface IIndexerConfig {
+  name: IEnumIndexerService
+  abi: any[]
+  listen: IEventConfig[]
+  enabled?: boolean
 }
 
 export interface IConfig {

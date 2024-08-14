@@ -1,20 +1,20 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
-  type ENS,
   HexAddress,
-  type IMemberIdParams,
+  type IMemberMetricIdParams,
+  NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 
-const customName = 'Member'
+const customName = 'MemberMetric'
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'member',
+    collection: 'memberMetric',
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -23,39 +23,63 @@ const customName = 'Member'
   },
 })
 @index({
-  address: 1,
-  ens: 1
+  network: 1,
+  memberAddress: 1,
+  daoAddress: 1,
+  pluginAddress: 1,
 })
-export default class Member extends Model {
+export default class MemberMetric extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
+  @prop({ type: () => String, enum: NetworksEnum, required: true })
+  public network!: NetworksEnum
+
   @prop({ type: () => String, required: true })
-  public address!: HexAddress
+  public memberAddress!: HexAddress
 
-  @prop({ type: () => String, default: null })
-  public ens!: ENS | null
+  @prop({ type: () => String, required: true })
+  public daoAddress!: HexAddress
 
-  @prop({ type: () => String, default: null })
-  public avatar!: string
+  @prop({ type: () => String, required: true })
+  public pluginAddress!: HexAddress
 
-  static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
+  @prop({ type: () => Number })
+  public delegateReceivedCount!: number
+
+  @prop({ type: () => Number })
+  public delegateSentCount!: number
+
+  @prop({ type: () => Number })
+  public voteCount!: number
+
+  @prop({ type: () => Number })
+  public proposalCount!: number
+
+  @prop({ type: () => Number, default: null })
+  public lastActivity?: number
+
+  @prop({ type: () => Number, default: null })
+  public firstActivity?: number
+
+  static async create(rawData: Partial<MemberMetric>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
       rawData.id = this.getEntityId({
-        address: rawData?.address!,
+        memberAddress: rawData?.memberAddress!,
+        pluginAddress: rawData?.pluginAddress!,
       })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(params: IMemberIdParams) {
-    const entityId = `${params.address}`
+  static getEntityId(params: IMemberMetricIdParams) {
+    const entityId = `${params.pluginAddress}-${params.memberAddress}`
     return entityId
   }
 
-  static async findExistingLog(params: IMemberIdParams, tOpts?: SaveOptions) {
+  static async findExistingLog(params: IMemberMetricIdParams, tOpts?: SaveOptions) {
     const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
@@ -64,15 +88,7 @@ export default class Member extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
-  static async findByEns(ens: ENS) {
-    return await this.findOne({ ens })
-  }
-
-  static async findByAddress(address: HexAddress) {
-    return await this.findOne({ address })
-  }
-
-  async update(params: Partial<Member>, tOpts?: SaveOptions) {
+  async update(params: Partial<MemberMetric>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {

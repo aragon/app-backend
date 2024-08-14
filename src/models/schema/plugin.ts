@@ -1,10 +1,41 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, IPluginAction, type IPluginIdParams, NetworksEnum } from '@types'
+import {HexAddress, type IPluginIdParams, IPluginStatus, NetworksEnum} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 
 const customName = 'Plugin'
+
+export class PluginPermission {
+  @prop({ type: () => Number, default: null })
+  public operation!: number
+
+  @prop({ type: () => String, default: null })
+  public where!: string
+
+  @prop({ type: () => String, default: null })
+  public who!: string
+
+  @prop({ type: () => String, default: null })
+  public condition!: string
+
+  @prop({ type: () => String, default: null })
+  public permissionId!: string
+}
+
+export class PluginUninstalled {
+  @prop({ type: () => Boolean, default: false })
+  public status!: boolean
+
+  @prop({ type: () => String, default: null })
+  public transactionHash!: HexAddress
+
+  @prop({ type: () => Number })
+  public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
+}
 
 @modelOptions({
   schemaOptions: {
@@ -34,17 +65,20 @@ export default class Plugin extends Model {
   @prop({ type: () => Number, required: true })
   public blockNumber!: number
 
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
+
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
-
-  @prop({ type: () => String, enum: IPluginAction, required: true })
-  public action!: IPluginAction
 
   @prop({ type: () => String, required: true })
   public address!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public implementationAddress!: HexAddress
+  public implementationAddress?: HexAddress
+
+  @prop({ type: () => String, enum: IPluginStatus, required: true })
+  public status!: IPluginStatus
 
   @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
@@ -53,10 +87,7 @@ export default class Plugin extends Model {
   public tokenAddress!: HexAddress // voting token address
 
   @prop({ type: () => String, default: null })
-  public pluginSetupRepoAddress!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public sender!: HexAddress
+  public pluginRepoAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
   public release!: string
@@ -67,13 +98,20 @@ export default class Plugin extends Model {
   @prop({ type: () => String, default: null })
   public subdomain!: string
 
+  @prop({ type: () => [PluginPermission], _id: false, default: [] })
+  public permissions!: PluginPermission[]
+
+  @prop({ type: () => PluginUninstalled, default: {} })
+  public uninstalled!: PluginUninstalled
+
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
-      assert(!!rawData.action, 'action is required')
+      assert(!!rawData.address, 'address is required')
+      assert(!!rawData.network, 'network is required')
       rawData.id = this.getEntityId({
         transactionHash: rawData?.transactionHash!,
-        action: rawData?.action as any,
+        address: rawData?.address as any,
         network: rawData?.network!,
       })
     }
@@ -82,7 +120,7 @@ export default class Plugin extends Model {
   }
 
   static getEntityId(params: IPluginIdParams) {
-    const entityId = `${params.transactionHash}-${params.action}-${params.network}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.address}`
     return entityId
   }
 

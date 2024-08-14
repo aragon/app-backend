@@ -15,6 +15,7 @@ import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
 import CovalentHelper from '@helpers/covalent'
+import EtherscanHelper from "@helpers/etherscan";
 
 const logMeta = logger.logMeta.bind(null, { service: 'modules:tokenProxy' })
 
@@ -38,12 +39,22 @@ export const TokenProxy = {
     const tokenTypeInfo = await TokenDetector.detectTokenType(parsedTokenAddress, network)
     const tokenMetrics = await TokenProxy.getTokenMetrics(tokenTypeInfo?.type!, parsedTokenAddress, network)
     const tokenRate = await RateModule.fetchRate(parsedTokenAddress, network)
+    const contractDeployInfo = await TokenProxy.getContractCreationInfo(parsedTokenAddress, network)
 
     const rawToken = TokenProxy.constructRawToken(parsedTokenAddress, tokenTypeInfo!, tokenMetrics, tokenRate, network)
     rawToken.lastUpdatedAt = dayjs.utc().toDate()
 
     if (TokenProxy.skipFetchToken(rawToken, tokenRate)) {
       rawToken.skipFetchRate = true
+    }
+
+    if(rawToken.type === ITokenType.unknown) {
+      rawToken.type = tokenRate.type
+    }
+
+    if(contractDeployInfo) {
+      rawToken.blockNumber = contractDeployInfo.blockNumber
+      rawToken.transactionHash = contractDeployInfo.txHash
     }
 
     const token = await DbTx.executeTxFn(
@@ -124,4 +135,26 @@ export const TokenProxy = {
       tokenRate.priceUsd === '0'
     )
   },
+
+  getContractCreationInfo: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<{txHash: HexAddress, address: HexAddress, blockNumber: number}> => {
+    const result = {
+      blockNumber: 0,
+      txHash: null,
+      address: tokenAddress,
+    }
+    const contractInfo = await EtherscanHelper.fetchContractCreation({
+      contractAddress: tokenAddress,
+      network,
+    }) as any
+
+    if (contractInfo && contractInfo.length > 0) {
+      result.txHash = contractInfo[0].txHash!
+      const txReceipt = await Web3Helper.getTransaction(contractInfo[0].txHash, network)
+
+      if(txReceipt) {
+        result.blockNumber = contractInfo[0].blockNumber
+      }
+    }
+    return result
+  }
 }

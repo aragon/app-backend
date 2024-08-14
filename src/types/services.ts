@@ -19,13 +19,17 @@ export enum IEnumTaskStatus {
 }
 
 export enum IEnumIndexerService {
-  daoLog = 'daoLog',
-  daoRegistryLog = 'daoRegistryLog',
-  memberLog = 'memberLog',
-  pluginRepoRegistryLog = 'pluginRepoRegistryLog',
-  pluginSettingLog = 'pluginSettingLog',
-  pluginSetupProcessorLog = 'pluginSetupProcessorLog',
-  proposalLog = 'proposalLog',
+  logDao = 'logDao',
+  logDaoRegistry = 'logDaoRegistry',
+  logMember = 'logMember',
+  logMemberGovernance = 'logMemberGovernance',
+  logPluginRepoRegistry = 'logPluginRepoRegistry',
+  logPluginSettingMultisig = 'logPluginSettingMultisig',
+  logPluginSettingTokenVoting = 'logPluginSettingTokenVoting',
+  logPluginSetupProcessor = 'logPluginSetupProcessor',
+  logProposal = 'logProposal',
+  logProposalMultisig = 'logProposalMultisig',
+  logMetadata = 'logMetadata',
   depositTxs = 'depositTxs',
   withdrawTxs = 'withdrawTxs',
 }

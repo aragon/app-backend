@@ -49,7 +49,7 @@ export default class LogDaoRegistry extends Model {
   public address!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public implementationAddress!: HexAddress
+  public implementationAddress?: HexAddress
 
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress

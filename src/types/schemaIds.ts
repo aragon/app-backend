@@ -2,7 +2,6 @@ import {
   type HexAddress,
   type IEventLogMember,
   type IEventLogPluginType,
-  type IPluginAction,
   type ITransactionCategory,
   type NetworksEnum,
 } from '@src/types/index'
@@ -23,6 +22,11 @@ export interface IAssetIdParams {
 export interface IConfigIndexerIdParams {
   network: NetworksEnum
   service: string
+}
+
+export interface IDaoMetricIdParams {
+  network: NetworksEnum
+  daoAddress: HexAddress
 }
 
 export interface IDaoIdParams {
@@ -81,14 +85,31 @@ export interface IDelegateIdParams {
   transactionHash: HexAddress
 }
 
+export interface IMemberMetricIdParams {
+  memberAddress: HexAddress
+  pluginAddress: HexAddress
+}
+
+export interface IMemberHistoryIdParams {
+  memberAddress: HexAddress
+  fromTxHash: HexAddress
+  fromBlockNumber: number
+}
+
 export interface IMemberIdParams {
   address: HexAddress
+}
+
+export enum IPluginStatus {
+  installed = 'installed',
+  deprecated = 'deprecated',
+  uninstalled = 'uninstalled',
 }
 
 export interface IPluginIdParams {
   network: NetworksEnum
   transactionHash: HexAddress
-  action: IPluginAction
+  address: HexAddress
 }
 
 export interface IProposalIdParams {

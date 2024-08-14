@@ -8,10 +8,14 @@ import { PluginSetupProcessorHandler } from '@services/aragon-indexer/handlers/p
 import { Multisig } from '@artifacts/Multisig'
 import { MemberHandler } from '@services/aragon-indexer/handlers/memberHandler'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+import { TokenVoting } from '@artifacts/TokenVoting'
 import Web3Helper from '@helpers/web3'
 import ProxyContractHelper from '@helpers/proxyContract'
 import { DAO } from '@artifacts/dao'
 import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
+import { AggregatorMember } from '@indexer/aggregator/member'
+import { AggregatorDao } from '@indexer/aggregator/dao'
+import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
 
@@ -25,24 +29,28 @@ export const DaoRegistryHandler = {
       })
 
       if (!existingLog) {
+        const implementationAddress = await ProxyContractHelper.getImplementationAddress(daoAddress, info.network)
+
+        const daoLog = {
+          network: info.network,
+          address: daoAddress,
+          creatorAddress: parsedEvent.args.creator,
+          subdomain: parsedEvent.args.subdomain,
+          blockNumber: info.blockNumber,
+          transactionHash: info.transactionHash,
+          implementationAddress: implementationAddress!,
+        }
+
         await DbTx.executeTxFn(async ({ session }) => {
-          const implementationAddress = await ProxyContractHelper.getImplementationAddress(daoAddress, info.network)
-
-          const daoLog = {
-            network: info.network,
-            address: daoAddress,
-            creatorAddress: parsedEvent.args.creator,
-            subdomain: parsedEvent.args.subdomain,
-            blockNumber: info.blockNumber,
-            transactionHash: info.transactionHash,
-            implementationAddress: implementationAddress!,
-          }
-
           const logDb = await Models.LogDaoRegistry.create(daoLog, { session } as any)
           await session.commitTransaction()
           await session.endSession()
           logger.verbose('New DaoRegister', llo({ ...info, logId: logDb.id }))
+
+          return logDb
         })
+        await AggregatorDao.createDao(daoLog)
+        await AggregatorMember.createMember({ address: parsedEvent.args.creator } as any)
 
         await DaoRegistryHandler.initiateNewDaoCreation(info)
       }
@@ -76,6 +84,12 @@ export const DaoRegistryHandler = {
     await DaoRegistryHandler._pluginSetup(txReceipt, info)
 
     /**
+     * Save the plugin settings logs that will create the plugin settings entry for the dao
+     * As settings can be identified in two ways, needed to check for both
+     */
+    await DaoRegistryHandler._pluginSettings(txReceipt, info)
+
+    /**
      * Save the member logs that will create the member entry for the dao
      */
     await DaoRegistryHandler._memberAdded(txReceipt, info)
@@ -99,26 +113,41 @@ export const DaoRegistryHandler = {
   },
 
   _pluginSetup: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
-    await Promise.all(
-      [IEventLogPluginType.InstallationPrepared, IEventLogPluginType.InstallationApplied].map(
-        async installationType => {
-          const pluginSetupLogs = Web3Helper.findLogsByName(txReceipt, installationType, PluginSetupProcessor.abi)
+    const installationTypes = [IEventLogPluginType.InstallationPrepared, IEventLogPluginType.InstallationApplied]
 
-          if (pluginSetupLogs.length === 0) {
-            logger.warn('PluginSetupProcessor not found', llo(info))
-            return
-          }
+    for (const installationType of installationTypes) {
+      const pluginSetupLogs = Web3Helper.findLogsByName(txReceipt, installationType, PluginSetupProcessor.abi)
 
-          const infoPluginSetup = Web3Helper.parseInfoLog(pluginSetupLogs[0].txLog, installationType, info.network)
+      if (pluginSetupLogs.length === 0) {
+        logger.warn('PluginSetupProcessor not found', llo(info))
+        continue
+      }
 
-          if (installationType === IEventLogPluginType.InstallationPrepared) {
-            await PluginSetupProcessorHandler.installationPrepared(pluginSetupLogs[0].parsed!, infoPluginSetup)
-          } else if (installationType === IEventLogPluginType.InstallationApplied) {
-            await PluginSetupProcessorHandler.installationApplied(pluginSetupLogs[0].parsed!, infoPluginSetup)
-          }
-        },
-      ),
-    )
+      const infoPluginSetup = Web3Helper.parseInfoLog(pluginSetupLogs[0].txLog, installationType, info.network)
+
+      if (installationType === IEventLogPluginType.InstallationPrepared) {
+        await PluginSetupProcessorHandler.installationPrepared(pluginSetupLogs[0].parsed!, infoPluginSetup)
+      } else if (installationType === IEventLogPluginType.InstallationApplied) {
+        await PluginSetupProcessorHandler.installationApplied(pluginSetupLogs[0].parsed!, infoPluginSetup)
+      }
+    }
+  },
+
+  _pluginSettings: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
+    const setting = Web3Helper.findLogsByName(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
+
+    if (setting?.length) {
+      const infoPluginSetup = Web3Helper.parseInfoLog(setting[0].txLog, 'MultisigSettingsUpdated', info.network)
+      await PluginSettingHandler.multisigSettingsUpdated(setting[0].parsed!, infoPluginSetup)
+      return
+    }
+
+    const votingSetting = Web3Helper.findLogsByName(txReceipt, 'VotingSettingsUpdated', TokenVoting.abi)
+
+    if (votingSetting?.length) {
+      const infoPluginSetup = Web3Helper.parseInfoLog(votingSetting[0].txLog, 'VotingSettingsUpdated', info.network)
+      await PluginSettingHandler.votingSettingsUpdated(votingSetting[0].parsed!, infoPluginSetup)
+    }
   },
 
   _memberAdded: async (txReceipt: TransactionReceipt, info: ILogInfo) => {

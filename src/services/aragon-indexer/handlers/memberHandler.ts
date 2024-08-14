@@ -5,6 +5,7 @@ import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import Web3Helper from '@helpers/web3'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+import { AggregatorMember } from '@indexer/aggregator/member'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:MemberHandler' })
 
@@ -20,6 +21,7 @@ export const MemberHandler = {
     const members = parsedEvent.args.members
     for (let index = 0; index < members.length; index++) {
       const member = members[index]
+
       const existingLog = await Models.LogMember.findExistingLog({
         network: info.network,
         transactionHash: info.transactionHash,
@@ -47,6 +49,9 @@ export const MemberHandler = {
 
           logger.verbose('New LogMembers Added', llo({ ...info, logId: daoMember.id }))
         })
+
+        await AggregatorMember.createMember({ address: member } as any)
+        // await AggregatorMember.memberHistory(member)
       }
     }
   },
@@ -89,6 +94,8 @@ export const MemberHandler = {
 
           logger.verbose('New LogMembers Removed', llo({ ...info, logId: daoMember.id }))
         })
+
+        // await AggregatorMember.memberHistory(member)
       }
     }
   },
@@ -153,6 +160,9 @@ export const MemberHandler = {
               }),
             )
           })
+
+          await AggregatorMember.createMember({ address: memberAddress } as any)
+          // await AggregatorMember.memberHistory(memberAddress)
         }
       }
     }

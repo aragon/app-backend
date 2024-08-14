@@ -14,55 +14,6 @@ import ModelUtils from '@models/utils/models'
 
 const customName = 'Setting'
 
-class Token {
-  @prop({ type: () => String, enum: NetworksEnum })
-  public network!: NetworksEnum
-
-  @prop({ type: () => String, enum: ITokenType, required: true })
-  public type!: ITokenType
-
-  @prop({ type: () => String, required: true })
-  public address!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public logo!: string
-
-  @prop({ type: () => String, default: null })
-  public name!: string
-
-  @prop({ type: () => String, default: null, uppercase: true })
-  public symbol!: string
-
-  @prop({ type: () => Number, default: 18 })
-  public decimals!: number
-
-  @prop({ type: () => String, default: '0' })
-  public totalSupply!: string
-}
-
-class Settings {
-  @prop({ type: () => Number })
-  public votingMode!: number
-
-  @prop({ type: () => Number })
-  public supportThreshold!: number
-
-  @prop({ type: () => Number })
-  public minParticipation!: number
-
-  @prop({ type: () => Number })
-  public minDuration!: number
-
-  @prop({ type: () => String })
-  public minProposerVotingPower!: string
-
-  @prop({ type: () => Number })
-  public minApprovals!: number
-
-  @prop({ type: () => Boolean })
-  public onlyListed!: boolean
-}
-
 @modelOptions({
   schemaOptions: {
     id: false,
@@ -88,16 +39,13 @@ export default class Setting extends Model {
   public network!: NetworksEnum
 
   @prop({ type: () => String, required: true })
-  public fromTxHash!: HexAddress
-
-  @prop({ type: () => String })
-  public toTxHash!: HexAddress
+  public transactionHash!: HexAddress
 
   @prop({ type: () => Number, required: true })
-  public fromBlockNumber!: number
+  public blockNumber!: number
 
   @prop({ type: () => Number })
-  public toBlockNumber?: number
+  public blockTimestamp!: number
 
   @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
@@ -111,11 +59,26 @@ export default class Setting extends Model {
   @prop({ type: () => String, default: null })
   public pluginSubdomain!: string
 
-  @prop({ type: () => Settings, _id: false })
-  public settings?: Settings
+  @prop({ type: () => Number })
+  public votingMode!: number
 
-  @prop({ type: () => Token, _id: false })
-  public token?: Token
+  @prop({ type: () => Number })
+  public supportThreshold!: number
+
+  @prop({ type: () => Number })
+  public minParticipation!: number
+
+  @prop({ type: () => Number })
+  public minDuration!: number
+
+  @prop({ type: () => String })
+  public minProposerVotingPower!: string
+
+  @prop({ type: () => Number })
+  public minApprovals!: number
+
+  @prop({ type: () => Boolean })
+  public onlyListed!: boolean
 
   static async create(rawData: Partial<Setting>, tOpts?: SaveOptions) {
     if (!rawData.id) {

@@ -19,9 +19,12 @@ import type Delegate from '@models/schema/delegate'
 import type Vote from '@models/schema/vote'
 import type TaskService from '@models/schema/taskService'
 import type TaskRun from '@models/schema/taskRun'
+import DaoMetric from "@models/schema/daoMetric";
+import MemberHistory from "@models/schema/memberHistory";
 
 export interface IMongoModel {
   Dao: typeof Dao
+  DaoMetric: typeof DaoMetric
   Token: typeof Token
   LogDaoRegistry: typeof LogDaoRegistry
   LogDaoMetadata: typeof LogDaoMetadata
@@ -32,6 +35,7 @@ export interface IMongoModel {
   LogPluginSetting: typeof LogPluginSetting
   LogMember: typeof LogMember
   Member: typeof Member
+  MemberHistory: typeof MemberHistory
   Plugin: typeof Plugin
   Setting: typeof Setting
   Asset: typeof Asset

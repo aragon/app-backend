@@ -8,6 +8,7 @@ import { DAOFactory } from '@artifacts/daoFactory'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import IPFSModule from '@modules/ipfs'
 import { DAO } from '@artifacts/dao'
+import { AggregatorDao } from '@indexer/aggregator/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:MetadataHandler' })
 
@@ -42,7 +43,7 @@ export const MetadataHandler = {
 
           const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 1 })
 
-          await DbTx.executeTxFn(async ({ session }) => {
+          const logDb = await DbTx.executeTxFn(async ({ session }) => {
             const logDaoMetadata = {
               network: info.network,
               metadataUri: metadataUri!,
@@ -61,7 +62,10 @@ export const MetadataHandler = {
             await session.commitTransaction()
             await session.endSession()
             logger.verbose('New DaoMetadata', llo({ ...info, logId: logDb.id }))
+            return logDb
           })
+
+          await AggregatorDao.updateDaoMetadata(logDb)
         }
       }
     } catch (error) {

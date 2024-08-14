@@ -9,6 +9,7 @@ import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import * as fs from 'fs'
 import Utils from '@helpers/utils'
 import ProviderModule from '@modules/provider'
+import {TokenProxy} from "@modules/tokenProxy";
 
 describe('Manual: Etherscan', () => {
   let sandbox: SinonSandbox
@@ -21,10 +22,24 @@ describe('Manual: Etherscan', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should fetchAllTransactions', async () => {
-    const daoFactoryAddress = '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0'
-    const response = await EtherscanHelper.fetchAllTransactions(daoFactoryAddress)
-    console.log(response) // eslint-disable-line no-console
+  it.only('should fetchAllTransactions', async () => {
+    await ProviderModule.connectToAllNetworks()
+    await Utils.wait(2000)
+
+    const a = await TokenProxy.getTokenCreationInfo('0x5B08305497fb3a087Fc582D45fcb648c98177c43', NetworksEnum.ethereumSepolia)
+    console.log(a)
+    const daoFactoryAddress = '0x5B08305497fb3a087Fc582D45fcb648c98177c43'
+    const response = await EtherscanHelper.fetchContractInfo({
+      contractAddress: daoFactoryAddress,
+      network: NetworksEnum.ethereumSepolia,
+    })
+    console.log(response.txHash) // eslint-disable-line no-console
+
+    const response2 = await EtherscanHelper.fetchContractSourceCode({
+      contractAddress: daoFactoryAddress,
+      network: NetworksEnum.ethereumSepolia,
+    })
+    console.log(response2) // eslint-disable-line no-console
   })
 
   it.skip('should save all the contracts in the file', async function () {
@@ -46,7 +61,10 @@ describe('Manual: Etherscan', () => {
         implementationAddress = contract
       }
 
-      const response = await EtherscanHelper.fetchContractSourceCode(contract, NetworksEnum.ethereumSepolia)
+      const response = await EtherscanHelper.fetchContractSourceCode({
+        contractAddress: contract,
+        network: NetworksEnum.ethereumSepolia,
+      })
       if (response) {
         const results = ContractNetspecHelper.parseNetspec(
           response.SourceCode,

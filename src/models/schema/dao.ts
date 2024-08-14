@@ -24,52 +24,6 @@ class Link {
   public url!: string
 }
 
-class Metrics {
-  @prop({ type: () => Number, default: 0 })
-  public proposalsCreated!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public proposalsExecuted!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public uniqueVoters!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public votes!: number
-
-  @prop({ type: () => Number, default: 0 })
-  public members!: number
-}
-
-class Plugin {
-  @prop({ type: () => String, default: null })
-  public transactionHash!: HexAddress
-
-  @prop({ type: () => Number })
-  public blockNumber!: number
-
-  @prop({ type: () => String, required: true })
-  public address!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public implementationAddress!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public tokenAddress!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public pluginSetupRepoAddress!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public release!: string
-
-  @prop({ type: () => String, default: null })
-  public build!: string
-
-  @prop({ type: () => String, default: null })
-  public subdomain!: string
-}
-
 @modelOptions({
   schemaOptions: {
     id: false,
@@ -87,7 +41,6 @@ class Plugin {
   blockNumber: 1,
   name: 1,
   creatorAddress: 1,
-  tvlUSD: 1,
 })
 export default class Dao extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -135,20 +88,11 @@ export default class Dao extends Model {
   @prop({ type: () => [Link], _id: false, default: [] })
   public links?: Link[]
 
-  @prop({ type: () => [Plugin], _id: false, default: [] })
-  public plugins?: Plugin[]
-
-  @prop({ type: () => Number, default: 0 })
-  public tvlUSD!: number
-
-  @prop({ type: () => Metrics, _id: false, default: {} })
-  public metrics?: Metrics
+  @prop({ type: () => String, default: null })
+  public version!: string
 
   @prop({ type: () => Boolean, default: false })
   public hideDao!: boolean
-
-  @prop({ type: () => String, default: null })
-  public daoVersion!: string
 
   static async create(rawData: Partial<Dao>, tOpts?: SaveOptions) {
     if (!rawData.id) {
