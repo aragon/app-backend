@@ -88,7 +88,7 @@ describe('Router: Setting', () => {
         network: undefined,
         daoAddress: undefined,
         pluginAddress: undefined,
-        onlyActive: false,
+        onlyActive: undefined,
       })
       expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
@@ -125,7 +125,7 @@ describe('Router: Setting', () => {
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
         ...filterParams,
-        ...{ daoAddress: undefined, pluginAddress: undefined, onlyActive: false },
+        ...{ daoAddress: undefined, pluginAddress: undefined, onlyActive: undefined },
       })
     })
   })
