@@ -107,7 +107,7 @@ describe('Router: Vote', () => {
         pluginAddress: undefined,
         memberAddress: undefined,
         tokenAddress: undefined,
-        includeInfo: false,
+        includeInfo: undefined,
       })
       expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
@@ -150,7 +150,7 @@ describe('Router: Vote', () => {
           pluginAddress: undefined,
           tokenAddress: undefined,
           network: undefined,
-          includeInfo: false,
+          includeInfo: undefined,
         },
       })
     })
