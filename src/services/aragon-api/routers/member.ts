@@ -17,7 +17,7 @@ const MemberRouter = {
   getMembersWithPagination: async function (ctx: RouterContext) {
     const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'fromBlockNumber' })
     const extraParams: IMemberExtraParams = {
-      onlyActive: ctx.query.onlyActive !== undefined && Boolean(ctx.query.onlyActive),
+      onlyActive: ctx.query.onlyActive === 'true' && Boolean(ctx.query.onlyActive),
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
@@ -50,7 +50,7 @@ const MemberRouter = {
       address: ctx.params.address,
     }
     const extraParams: IMemberExtraParams = {
-      onlyActive: ctx.query.onlyActive !== undefined && Boolean(ctx.query.onlyActive),
+      onlyActive: ctx.query.onlyActive === 'true' && Boolean(ctx.query.onlyActive),
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
