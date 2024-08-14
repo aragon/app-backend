@@ -3,6 +3,7 @@ import config from '@config'
 import logger from '@logger'
 import { type IDaoMetadata } from '@types'
 import utils from '@helpers/utils'
+import {retryRequest} from "@helpers/retryRequest";
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:PinataHelper' })
 
@@ -11,9 +12,12 @@ const PinataHelper = {
 
   async getData(cid: string) {
     try {
-      const response = await fetch(`${config.PINATA.GATEWAY_URI}/${cid}`, {
-        method: 'GET',
-      })
+
+      const response = await retryRequest(async () =>
+        fetch(`${config.PINATA.GATEWAY_URI}/${cid}`, {
+          method: 'GET',
+        }),
+      )
 
       const data = await response.json()
       return typeof data === 'string' ? JSON.parse(data) : data
