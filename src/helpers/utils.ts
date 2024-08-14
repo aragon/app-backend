@@ -248,6 +248,13 @@ const Utils = {
 
     return filteredValues.some(value => value !== undefined)
   },
+
+  parseBoolean: (value: any): boolean | undefined => {
+    if (value === undefined || value === 'undefined') {
+      return
+    }
+    return value === true || value === 'true'
+  },
 }
 
 export default Utils
