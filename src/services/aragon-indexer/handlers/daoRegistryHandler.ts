@@ -13,6 +13,7 @@ import ProxyContractHelper from '@helpers/proxyContract'
 import { DAO } from '@artifacts/dao'
 import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
 import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
+import { TokenVoting } from '@artifacts/TokenVoting'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
 
@@ -102,7 +103,7 @@ export const DaoRegistryHandler = {
       return
     }
 
-    const votingSetting = Web3Helper.findLogsByName(txReceipt, 'VotingSettingsUpdated', GovernanceERC20.abi)
+    const votingSetting = Web3Helper.findLogsByName(txReceipt, 'VotingSettingsUpdated', TokenVoting.abi)
 
     if (votingSetting?.length) {
       const infoPluginSetup = Web3Helper.parseInfoLog(votingSetting[0].txLog, 'VotingSettingsUpdated', info.network)
