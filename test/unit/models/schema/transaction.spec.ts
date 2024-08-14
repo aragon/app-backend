@@ -42,6 +42,8 @@ describe('Model: Transaction', () => {
         type: ITokenType.ERC20,
         logo: 'fake-logo',
         decimals: 18,
+        priceUsd: '0.1',
+        priceUpdatedAt: 1213123,
       },
     }
   })
@@ -80,6 +82,8 @@ describe('Model: Transaction', () => {
     expect(createdToken.token.type).to.eq(rawTransaction.token?.type)
     expect(createdToken.token.logo).to.eq(rawTransaction.token?.logo)
     expect(createdToken.token.decimals).to.eq(rawTransaction.token?.decimals)
+    expect(createdToken.token.priceUsd).to.eq(rawTransaction.token?.priceUsd)
+    expect(createdToken.token.priceUpdatedAt).to.eq(rawTransaction.token?.priceUpdatedAt)
   })
 
   it('Should getEntityId', async () => {

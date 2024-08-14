@@ -174,6 +174,8 @@ export const DaoTransactions = {
             type: token.type,
             logo: token.logo,
             decimals: token.decimals,
+            priceUsd: tokenRate.priceUsd,
+            priceUpdatedAt: blockTimestamp,
           }
         }
 
