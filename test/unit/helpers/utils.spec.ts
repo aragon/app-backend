@@ -599,4 +599,12 @@ describe('Helpers:Utils', () => {
     expect(Utils.hasPropsWithValuesExcludingNetwork({ test: undefined, network: 'test' })).to.be.false
     expect(Utils.hasPropsWithValuesExcludingNetwork({ test: 'test', network: undefined })).to.be.true
   })
+
+  it('parseBoolean', () => {
+    expect(Utils.parseBoolean(undefined)).to.be.undefined
+    expect(Utils.parseBoolean(true)).to.be.true
+    expect(Utils.parseBoolean('true')).to.be.true
+    expect(Utils.parseBoolean('false')).to.be.false
+    expect(Utils.parseBoolean(false)).to.be.false
+  })
 })
