@@ -47,6 +47,12 @@ class Token {
 
   @prop({ type: () => Number, default: 18 })
   public decimals!: number
+
+  @prop({ type: () => String, default: null })
+  public priceUsd!: string
+
+  @prop({ type: () => Number, default: 0 })
+  public priceUpdatedAt!: number
 }
 
 @modelOptions({
