@@ -1,29 +1,42 @@
 import logger from '@logger'
 import axios from 'axios'
 import config from '@config'
-import { type IEtherScanSource, type NetworksEnum } from '@types'
-import Utils from '@helpers/utils'
+import { type HexAddress, type IEtherScanSource, type NetworksEnum } from '@types'
+import { retryRequest } from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:EtherscanHelper' })
 
 const EtherscanHelper = {
-  axiosInstance: axios.create({
-    baseURL: 'https://api.etherscan.io/api', // Base URL for Etherscan API
-    headers: { 'Content-Type': 'application/json' },
-  }),
+  axiosInstance: (network: NetworksEnum) =>
+    axios.create({
+      baseURL: EtherscanHelper._parseNetworkToConfig(network).API_URL,
+      headers: { 'Content-Type': 'application/json' },
+    }),
 
-  _rpCall: async (params: object) => {
+  _parseNetworkToConfig: (network: NetworksEnum) => {
+    const networkConfigKey = network.replace('-', '_').toUpperCase()
+    const etherscanConfig = config.ETHERSCAN_API[networkConfigKey]
+    return etherscanConfig
+  },
+
+  _rpCall: async (params: object, network: NetworksEnum) => {
     try {
-      const response = await EtherscanHelper.axiosInstance.get('', { params })
-      return response.data.result
+      const response = await retryRequest(async () =>
+        BottleneckModule.getEtherScanLimiter(network)!.schedule(async () =>
+          EtherscanHelper.axiosInstance(network).get('', { params }),
+        ),
+      )
+
+      return response?.data?.result
     } catch (error) {
       logger.error('Error in Etherscan API call', llo({ error }))
       throw error
     }
   },
 
-  fetchAllTransactions: async (contractAddress: string, startBlock = 0, endBlock = 'latest') => {
-    const apiKey = config.ETHERSCAN.API_KEY
+  fetchAllTransactions: async ({ contractAddress, startBlock = 0, endBlock = 'latest', network }) => {
+    const apiKey = EtherscanHelper._parseNetworkToConfig(network).API_KEY
     const params = {
       module: 'account',
       action: 'txlist',
@@ -35,33 +48,46 @@ const EtherscanHelper = {
     }
 
     try {
-      return await EtherscanHelper._rpCall(params)
+      return await EtherscanHelper._rpCall(params, network)
     } catch (error) {
-      logger.error('Error in Etherscan API call', llo({ error }))
+      logger.error('Error fetchAllTransactions', llo({ error }))
       throw error
     }
   },
 
-  fetchContractSourceCode: async (contractAddress: string, network: NetworksEnum): Promise<IEtherScanSource | null> => {
-    const networkConfigKey = network.replace('-', '_').toUpperCase()
-    const etherscanConfig = config.ETHERSCAN_API[networkConfigKey]
-
-    if (!etherscanConfig?.API_KEY) {
-      logger.error('Etherscan API config not found', llo({ network }))
-      return null
+  fetchContractCreation: async ({
+    contractAddress,
+    network,
+  }): Promise<[{ address: HexAddress; txHash: HexAddress }] | []> => {
+    const apiKey = EtherscanHelper._parseNetworkToConfig(network).API_KEY
+    const params = {
+      module: 'contract',
+      action: 'getcontractcreation',
+      contractaddresses: contractAddress,
+      apikey: apiKey,
     }
 
-    const apiKey = etherscanConfig.API_KEY
-    const baseUrl =
-      etherscanConfig.API_URL +
-      `?module=contract&action=getsourcecode&address=${contractAddress.toLowerCase()}&apikey=${apiKey}`
-    await Utils.wait(1000)
     try {
-      const response = await axios.get(baseUrl)
-      const results = response.data.result[0]
-      return results.SourceCode ? response.data.result[0] : null
-    } catch (e) {
-      logger.error('Error in Etherscan API call', llo({ error: e }))
+      return await EtherscanHelper._rpCall(params, network)
+    } catch (error) {
+      logger.error('Error fetchAllTransactions', llo({ error }))
+      return []
+    }
+  },
+
+  fetchContractSourceCode: async ({ contractAddress, network }): Promise<IEtherScanSource | null> => {
+    const apiKey = EtherscanHelper._parseNetworkToConfig(network).API_KEY
+    const params = {
+      module: 'contract',
+      action: 'getsourcecode',
+      address: contractAddress,
+      apikey: apiKey,
+    }
+
+    try {
+      return await EtherscanHelper._rpCall(params, network)
+    } catch (error) {
+      logger.error('Error fetchContractSourceCode', llo({ error }))
       return null
     }
   },
