@@ -250,7 +250,7 @@ const Utils = {
   },
 
   parseBoolean: (value: any): boolean | undefined => {
-    if (value === undefined || value === 'undefined' || value === 'false') {
+    if (value === undefined || value === 'undefined') {
       return
     }
     return value === true || value === 'true'
