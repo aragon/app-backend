@@ -5,7 +5,7 @@ import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
 import { type Metrics } from '@models/schema/member'
 import { NetworkHelper } from '@helpers/network'
-import { type NetworksEnum } from '@types'
+import { type HexAddress, type NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import config from '@config'
 import EnsHelper from '@helpers/ens'
@@ -20,7 +20,6 @@ export const AggregatorMembers = {
     const startTime = Date.now()
     logger.verbose('Start AggregatorMembers', llo({ startTime }))
 
-    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
       model: Models.LogMember,
       onDocument: AggregatorMembers.onDocument,
@@ -28,10 +27,30 @@ export const AggregatorMembers = {
         logger.error('Error AggregatorMembers', llo({ error, document }))
       },
       useAggregate: true,
-      aggregate: AggregatorMembers.query(
-        AggregatorMembers.queryVotingPowerMembers(supportedNetworks),
-        AggregatorMembers.queryMultisigMembers(supportedNetworks),
-      ),
+      aggregate: (skip: number, limit: number) => {
+        return [
+          {
+            $match: {
+              address: '0x2dB75d8404144CD5918815A44B8ac3f4DB2a7FAf',
+            },
+          },
+          {
+            $group: {
+              _id: '$address',
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              address: '$_id',
+            },
+          },
+          {
+            $sort: { address: 1 },
+          },
+          ...DBCrawler.aggregatePagination(skip, limit),
+        ]
+      },
       batchSize: AggregatorMembers.batchSize,
       concurrency: AggregatorMembers.concurrency,
     })
@@ -45,24 +64,37 @@ export const AggregatorMembers = {
     )
   },
 
-  onDocument: async function (document: Partial<Member>) {
-    const existingLog = await Models.Member.findExistingLog({ address: document.address! })
-    document = await AggregatorMembers._getMemberData(document)
+  onDocument: async ({ address }: { address: HexAddress }) => {
+    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
 
-    await DbTx.executeTxFn(async ({ session }) => {
-      let logDb: any
+    const documents = await Models.LogMember.aggregate(
+      AggregatorMembers.query(
+        AggregatorMembers.queryVotingPowerMembers(supportedNetworks, address),
+        AggregatorMembers.queryMultisigMembers(supportedNetworks, address),
+      ),
+    )
 
-      if (!existingLog) {
-        document.ens = await EnsHelper.getEnsWithUniversalResolver(document.address!)
-        logDb = await Models.Member.create(document, { session } as any)
-      } else {
-        document.ens = existingLog.ens // keep ens if it exists
-        logDb = await existingLog.update(document, { session })
-      }
-      await session.commitTransaction()
-      await session.endSession()
-      logger.verbose(existingLog ? 'Update Aggregate Member' : 'New Aggregate Member', llo({ logId: logDb?.id }))
-    })
+    if (documents?.length > 0) {
+      let document = documents[0]
+
+      const existingLog = await Models.Member.findExistingLog({ address: document.address! })
+      document = await AggregatorMembers._getMemberData(document)
+
+      await DbTx.executeTxFn(async ({ session }) => {
+        let logDb: any
+
+        if (!existingLog) {
+          document.ens = await EnsHelper.getEnsWithUniversalResolver(document.address)
+          logDb = await Models.Member.create(document, { session } as any)
+        } else {
+          document.ens = existingLog.ens // keep ens if it exists
+          logDb = await existingLog.update(document, { session })
+        }
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose(existingLog ? 'Update Aggregate Member' : 'New Aggregate Member', llo({ logId: logDb?.id }))
+      })
+    }
   },
 
   query(votingPowerMembers: any, multisigMembers: any) {
@@ -104,10 +136,11 @@ export const AggregatorMembers = {
     ]
   },
 
-  queryVotingPowerMembers(networks: NetworksEnum[]) {
+  queryVotingPowerMembers(networks: NetworksEnum[], memberAddress: HexAddress) {
     return [
       {
         $match: {
+          address: memberAddress,
           ...(networks?.length > 0 && { network: { $in: networks } }),
           event: 'DelegateChanged',
         },
@@ -209,10 +242,11 @@ export const AggregatorMembers = {
     ]
   },
 
-  queryMultisigMembers(networks: NetworksEnum[]) {
+  queryMultisigMembers(networks: NetworksEnum[], memberAddress: HexAddress) {
     return [
       {
         $match: {
+          address: memberAddress,
           ...(networks?.length > 0 && { network: { $in: networks } }),
           event: { $in: ['MembersAdded', 'MembersRemoved'] },
         },
@@ -392,7 +426,7 @@ export const AggregatorMembers = {
     }
 
     for (const activity of member.history!) {
-      if (activity.toBlockNumber === null && activity.tokenAddress) {
+      if (activity.tokenAddress) {
         const [delegateReceivedCount, delegateSentCount, balance] = await Promise.all([
           Models.Delegate.countDocuments({
             toDelegate: member.address,

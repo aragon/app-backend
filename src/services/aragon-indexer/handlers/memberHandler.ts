@@ -93,6 +93,12 @@ export const MemberHandler = {
     }
   },
 
+  transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+    console.log(txReceipt)
+    console.log(parsedEvent)
+  },
+
   delegateChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
 

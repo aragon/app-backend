@@ -11,7 +11,7 @@ import { NetworkHelper } from '@helpers/network'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMember' })
 
 export const LogMember = {
-  events: ['MembersAdded', 'MembersRemoved', 'DelegateChanged'],
+  events: ['MembersAdded', 'MembersRemoved', 'DelegateChanged', 'DelegateVotesChanged'],
 
   start: async () => {
     await Promise.all(

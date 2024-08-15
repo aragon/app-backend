@@ -36,7 +36,7 @@ export const AggregatorProposal = {
         logger.error('Error AggregatorProposal', llo({ error, document }))
       },
       useAggregate: true,
-      aggregate: AggregatorProposal.query(supportedNetworks),
+      aggregate: (skip: number, limit: number) => AggregatorProposal.query(supportedNetworks, { skip, limit }),
       batchSize: AggregatorProposal.batchSize,
       concurrency: AggregatorProposal.concurrency,
     })
@@ -116,7 +116,7 @@ export const AggregatorProposal = {
     return actions
   },
 
-  query(networks: NetworksEnum[]) {
+  query(networks: NetworksEnum[], { skip, limit }: { skip: number; limit: number }) {
     return [
       {
         $match: {
@@ -162,6 +162,10 @@ export const AggregatorProposal = {
           metadataUri: 1,
         },
       },
+      {
+        $sort: { pluginAddress: 1 },
+      },
+      ...DBCrawler.aggregatePagination(skip, limit),
       {
         $lookup: {
           from: 'logPluginSetupProcessor',
