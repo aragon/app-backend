@@ -37,16 +37,16 @@ export class DaoHistory {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
-  @prop({ type: () => Number })
+  @prop({ type: () => Number, default: null })
   public fromBlockNumber!: number
 
-  @prop({ type: () => Number })
+  @prop({ type: () => Number, default: null })
   public toBlockNumber!: number
 
-  @prop({ type: () => String })
+  @prop({ type: () => String, default: null })
   public fromTxHash!: HexAddress
 
-  @prop({ type: () => String })
+  @prop({ type: () => String, default: null })
   public toTxHash!: HexAddress
 
   @prop({ type: () => String, required: true })
@@ -189,7 +189,6 @@ export default class Member extends Model {
         { $match: filter },
         { $unwind: '$history' },
         { $match: historyFilter },
-        { $sort: request.sort },
         {
           $group: {
             _id: '$_id',
@@ -198,9 +197,6 @@ export default class Member extends Model {
             history: { $push: '$history' },
           },
         },
-        { $sort: request.sort },
-        { $skip: request.skip },
-        { $limit: request.limit },
         {
           $project: {
             _id: 0,
@@ -209,6 +205,9 @@ export default class Member extends Model {
             history: 1,
           },
         },
+        { $sort: request.sort },
+        { $skip: request.skip },
+        { $limit: request.limit },
       ]),
       this.aggregate([
         { $match: filter },
@@ -353,18 +352,35 @@ export default class Member extends Model {
     const query = [
       { $match: filter },
       {
-        $unwind: '$history',
+        $project: {
+          address: 1,
+          ens: 1,
+          history: {
+            $filter: {
+              input: '$history',
+              as: 'item',
+              cond: {
+                $and: [
+                  ...(extraParams.pluginAddress ? [{ $eq: ['$$item.pluginAddress', extraParams.pluginAddress] }] : []),
+                  ...(extraParams.tokenAddress ? [{ $eq: ['$$item.tokenAddress', extraParams.tokenAddress] }] : []),
+                  ...(extraParams.daoAddress ? [{ $eq: ['$$item.daoAddress', extraParams.daoAddress] }] : []),
+                  ...(extraParams.network ? [{ $eq: ['$$item.network', extraParams.network] }] : []),
+                  {
+                    $or: [{ $eq: ['$$item.toBlockNumber', null] }, { $eq: ['$$item.toBlockNumber', undefined] }],
+                  },
+                ],
+              },
+            },
+          },
+        },
       },
       {
         $match: {
-          ...(extraParams.tokenAddress && { 'history.tokenAddress': extraParams.tokenAddress }),
-          ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
-          ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
-          ...(extraParams.network && { 'history.network': extraParams.network }),
-          $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+          'history.0': { $exists: true },
         },
       },
     ]
+
     const [data, totalRecords] = await Promise.all([
       this.aggregate([
         ...query,
@@ -372,23 +388,23 @@ export default class Member extends Model {
           $project: Utils.hasPropsWithValuesExcludingNetwork(extraParams)
             ? {
                 _id: 0,
-                address: '$address',
-                ens: '$ens',
-                network: '$history.network',
-                fromBlockNumber: '$history.fromBlockNumber',
-                fromTxHash: '$history.fromTxHash',
-                pluginAddress: '$history.pluginAddress',
-                pluginSubdomain: '$history.pluginSubdomain',
-                tokenAddress: '$history.tokenAddress',
-                daoAddress: '$history.daoAddress',
-                votingPower: '$history.votingPower',
-                tokenBalance: '$history.tokenBalance',
-                metrics: '$history.metrics',
+                address: 1,
+                ens: 1,
+                network: { $arrayElemAt: ['$history.network', 0] },
+                daoAddress: { $arrayElemAt: ['$history.daoAddress', 0] },
+                fromBlockNumber: { $arrayElemAt: ['$history.fromBlockNumber', 0] },
+                fromTxHash: { $arrayElemAt: ['$history.fromTxHash', 0] },
+                pluginAddress: { $arrayElemAt: ['$history.pluginAddress', 0] },
+                pluginSubdomain: { $arrayElemAt: ['$history.pluginSubdomain', 0] },
+                tokenAddress: { $arrayElemAt: ['$history.tokenAddress', 0] },
+                votingPower: { $arrayElemAt: ['$history.votingPower', 0] },
+                tokenBalance: { $arrayElemAt: ['$history.tokenBalance', 0] },
+                metrics: { $arrayElemAt: ['$history.metrics', 0] },
               }
             : {
                 _id: 0,
-                address: '$address',
-                ens: '$ens',
+                address: 1,
+                ens: 1,
               },
         },
         { $sort: request.sort },

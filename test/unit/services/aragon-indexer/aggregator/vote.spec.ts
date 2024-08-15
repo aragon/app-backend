@@ -133,7 +133,7 @@ describe('Indexer:Aggregator:Vote', () => {
   })
 
   it('should query', () => {
-    const pipeline = AggregatorVote.query([])
-    expect(pipeline.length).to.eq(7)
+    const pipeline = AggregatorVote.query([NetworksEnum.ethereumSepolia], { skip: 0, limit: 10 })
+    expect(pipeline.length).to.eq(10)
   })
 })

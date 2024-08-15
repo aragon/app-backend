@@ -26,7 +26,7 @@ export const AggregatorDao = {
         logger.error('Error AggregatorDao', llo({ error, document }))
       },
       useAggregate: true,
-      aggregate: AggregatorDao.query(supportedNetworks),
+      aggregate: (skip: number, limit: number) => AggregatorDao.query(supportedNetworks, { skip, limit }),
       batchSize: AggregatorDao.batchSize,
       concurrency: AggregatorDao.concurrency,
     })
@@ -80,8 +80,9 @@ export const AggregatorDao = {
     return Web3Helper.getDaoOsVersion(daoAddress, network)
   },
 
-  query(networks: NetworksEnum[]) {
+  query(networks: NetworksEnum[], { skip, limit }: { skip: number; limit: number }) {
     return [
+      ...DBCrawler.aggregatePagination(skip, limit),
       {
         $match: {
           ...(networks?.length > 0 && { network: { $in: networks } }),
