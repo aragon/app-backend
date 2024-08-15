@@ -18,6 +18,8 @@ import { RateModule } from '@modules/rates'
 import utils from '@helpers/utils'
 import config from '@config'
 import { TokenProxy } from '@modules/tokenProxy'
+import { DAO } from '@artifacts/dao'
+import { Multisig } from '@artifacts/Multisig'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:DaoTransactions' })
 
@@ -121,6 +123,32 @@ export const DaoTransactions = {
 
   saveTransaction: async (tx: IAlchemyTransferResponse, type: ITransactionType, daoRegistry: LogDaoRegistry) => {
     try {
+      const transactionReceipt = await Web3Helper.getTransactionReceipt(tx.hash, daoRegistry.network)
+      if (!transactionReceipt) {
+        return
+      }
+
+      /**
+       * If the transaction is a proposal execution
+       * We get two events from the DAO contract
+       * - Executed (The address when the proposal was executed is the DAO address)
+       * - ProposalExecuted (The proposalId is the topic of the log)
+       */
+
+      let daoAddress = daoRegistry.address
+      let proposalId: string | undefined
+
+      const proposalExecutionLog = Web3Helper.findLogsByName(transactionReceipt, 'Executed', DAO.abi)
+      if (proposalExecutionLog?.length) {
+        daoAddress = proposalExecutionLog[0].txLog.address
+
+        const proposalIdLog = Web3Helper.findLogsByName(transactionReceipt, 'ProposalExecuted', Multisig.abi)
+
+        if (proposalIdLog?.length) {
+          proposalId = BigInt(proposalIdLog[0].txLog.topics[1]).toString()
+        }
+      }
+
       const existingTxDb = await Models.Transaction.findExistingLog({
         transactionHash: tx.hash,
         category: tx.category,
@@ -140,7 +168,7 @@ export const DaoTransactions = {
           blockTimestamp,
           network: daoRegistry.network,
           type,
-          daoAddress: daoRegistry.address,
+          daoAddress,
           fromAddress: tx.from,
           toAddress: tx.to,
           value: tx.value?.toString(),
@@ -151,6 +179,7 @@ export const DaoTransactions = {
             value: w.value?.toString(),
           })),
           category: tx.category,
+          proposalId,
         }
 
         const tokenAddress = tx.rawContract?.address || utils.zeroAddress
