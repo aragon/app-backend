@@ -37,16 +37,16 @@ export class DaoHistory {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
-  @prop({ type: () => Number })
+  @prop({ type: () => Number, default: null })
   public fromBlockNumber!: number
 
-  @prop({ type: () => Number })
+  @prop({ type: () => Number, default: null })
   public toBlockNumber!: number
 
-  @prop({ type: () => String })
+  @prop({ type: () => String, default: null })
   public fromTxHash!: HexAddress
 
-  @prop({ type: () => String })
+  @prop({ type: () => String, default: null })
   public toTxHash!: HexAddress
 
   @prop({ type: () => String, required: true })
@@ -178,15 +178,7 @@ export default class Member extends Model {
       ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
       ...(extraParams.network && { 'history.network': extraParams.network }),
       ...(extraParams.onlyActive && {
-        $or: [
-          { 'history.toBlockNumber': null },
-          { 'history.toBlockNumber': { $exists: false } },
-          {
-            $expr: {
-              $gt: [{ $convert: { input: '$history.tokenBalance', to: 'long', onError: 0, onNull: 0 } }, 0],
-            },
-          },
-        ],
+        $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
       }),
     }
 
@@ -374,12 +366,7 @@ export default class Member extends Model {
                   ...(extraParams.daoAddress ? [{ $eq: ['$$item.daoAddress', extraParams.daoAddress] }] : []),
                   ...(extraParams.network ? [{ $eq: ['$$item.network', extraParams.network] }] : []),
                   {
-                    $or: [
-                      { $eq: ['$$item.toBlockNumber', null] },
-                      {
-                        $gt: [{ $convert: { input: '$$item.tokenBalance', to: 'long', onError: 0, onNull: 0 } }, 0],
-                      },
-                    ],
+                    $or: [{ $eq: ['$$item.toBlockNumber', null] }, { $eq: ['$$item.toBlockNumber', undefined] }],
                   },
                 ],
               },
@@ -463,15 +450,7 @@ export default class Member extends Model {
           ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
           ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
           ...(extraParams.network && { 'history.network': extraParams.network }),
-          $or: [
-            { 'history.toBlockNumber': null },
-            { 'history.toBlockNumber': { $exists: false } },
-            {
-              $expr: {
-                $gt: [{ $convert: { input: '$history.tokenBalance', to: 'long', onError: 0, onNull: 0 } }, 0],
-              },
-            },
-          ],
+          $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
         },
       },
       {
@@ -517,15 +496,7 @@ export default class Member extends Model {
       {
         $match: {
           ...(extraParams?.network && { 'history.network': extraParams.network }),
-          $or: [
-            { 'history.toBlockNumber': null },
-            { 'history.toBlockNumber': { $exists: false } },
-            {
-              $expr: {
-                $gt: [{ $convert: { input: '$history.tokenBalance', to: 'long', onError: 0, onNull: 0 } }, 0],
-              },
-            },
-          ],
+          $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
         },
       },
       {
