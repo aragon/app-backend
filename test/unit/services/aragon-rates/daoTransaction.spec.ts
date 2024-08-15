@@ -172,10 +172,22 @@ describe('Indexer:Aggregator:Transactions', () => {
           decimals: 18,
         }
 
+        const fakeLogs = [
+          {
+            address: daoRegistry.address,
+            data: '0x01',
+            topics: ['0x01', 1, '0x01', '0x01'],
+          },
+        ]
+
         const loggerStub = sandbox.stub(Logger, 'verbose')
         const stubToken = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves(expectedTransaction.token as any)
         const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
         const fetchRateStub = sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
+        const findTxReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+          logs: fakeLogs,
+        } as any)
+        const findLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
 
         await DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any)
 
@@ -184,6 +196,11 @@ describe('Indexer:Aggregator:Transactions', () => {
           category: tx.category,
           network: daoRegistry.network,
         })
+
+        expect(findTxReceiptStub.calledOnce).to.be.true
+        expect(findLogsByName.calledTwice).to.be.true
+
+        expect(existingTxDb.proposalId).to.be.eq('1')
 
         expect(loggerStub.calledOnce).to.be.true
         expect(loggerStub.calledOnceWith('New Transaction' as any)).to.be.true
