@@ -8,6 +8,7 @@ import { NetworksEnum } from '@types'
 import Logger from '@logger'
 import Web3Helper from '@helpers/web3'
 import EnsHelper from '@helpers/ens'
+import { NetworkHelper } from '@helpers/network'
 
 describe('Indexer:Aggregator:Member', () => {
   let sandbox: SinonSandbox
@@ -64,6 +65,13 @@ describe('Indexer:Aggregator:Member', () => {
 
   describe('onDocument', async () => {
     it('should call onDocument', async () => {
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns(
+        Object.values(NetworksEnum).map(networkName => ({
+          networkName,
+          provider: undefined as any,
+        })),
+      )
+
       const ens = 'leuts.eth'
       const document = {
         address: '0x123',
@@ -71,10 +79,12 @@ describe('Indexer:Aggregator:Member', () => {
       }
 
       const stubLogger = sandbox.stub(Logger, 'verbose')
+      const stubAgg = sandbox.stub(Models.LogMember, 'aggregate').resolves([document])
       const stubEns = sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves(ens)
       const getMemberDataStub = sandbox.stub(AggregatorMembers, '_getMemberData').resolves(document as any)
       await AggregatorMembers.onDocument(document as any)
 
+      expect(stubAgg.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(stubEns.calledOnceWith(document.address)).to.be.true
       expect(getMemberDataStub.calledOnce).to.be.true
@@ -103,6 +113,7 @@ describe('Indexer:Aggregator:Member', () => {
       const dbDoc = await Models.Member.create(rawDoc)
       const loggerSpy = sandbox.stub(Logger, 'verbose')
       sandbox.stub(AggregatorMembers, '_getMemberData').resolves(rawDoc as any)
+      const stubAgg = sandbox.stub(Models.LogMember, 'aggregate').resolves([rawDoc])
 
       rawDoc.history[0].delegateFromAddress = '0x011'
       rawDoc.history[0].tokenBalance = '200'
@@ -110,6 +121,7 @@ describe('Indexer:Aggregator:Member', () => {
 
       const updatedDoc = await dbDoc.reload()
 
+      expect(stubAgg.calledOnce).to.be.true
       expect(updatedDoc.ens).to.equal('test')
       expect(updatedDoc.history[0].delegateFromAddress).to.equal('0x011')
       expect(updatedDoc.history[0].tokenBalance).to.equal('200')
