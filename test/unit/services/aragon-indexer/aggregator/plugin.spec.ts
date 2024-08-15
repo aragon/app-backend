@@ -140,6 +140,6 @@ describe('Indexer:Aggregator:Plugin', () => {
 
   it('should use default date when none is provided', () => {
     const pipeline = AggregatorPlugin.query([NetworksEnum.ethereumMainnet])
-    expect(pipeline.length).to.equal(11)
+    expect(pipeline.length).to.equal(10)
   })
 })

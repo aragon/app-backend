@@ -25,7 +25,7 @@ describe('Indexer: LogMember', () => {
   })
 
   it('events', async () => {
-    expect(LogMember.events.length).to.eq(3)
+    expect(LogMember.events.length).to.eq(4)
   })
 
   describe('start', () => {
@@ -93,13 +93,15 @@ describe('Indexer: LogMember', () => {
         const loggerStub = sandbox.stub(logger, 'verbose')
         const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').returns(fakeEvent as any)
         const stubParseInfoLog = sandbox.stub(Web3Helper, 'parseInfoLog').returns(fakeInfo as any)
-        const stubProcessHandler = sandbox.stub(MemberHandler, Utils.lowercaseFirstLetter(event))
+        const process = event === 'DelegateVotesChanged' ? 'DelegateChanged' : event
+        const stubProcessHandler = sandbox.stub(MemberHandler, Utils.lowercaseFirstLetter(process))
 
         await LogMember.processLog(txLog as any, network)
 
         expect(stubParseLog.calledOnceWith(txLog)).to.be.true
         expect(stubParseInfoLog.calledOnceWith(txLog, fakeEvent.name, network)).to.be.true
-        expect(loggerStub.calledOnceWith(event as any)).to.be.true
+
+        expect(loggerStub.calledOnceWith(process as any)).to.be.true
         expect(stubProcessHandler.calledOnceWith(fakeEvent as any, fakeInfo)).to.be.true
 
         loggerStub.restore()

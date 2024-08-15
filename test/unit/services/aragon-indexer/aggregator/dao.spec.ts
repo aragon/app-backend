@@ -153,6 +153,6 @@ describe('Indexer:Aggregator:Dao', () => {
 
   it('should query', () => {
     const pipeline = AggregatorDao.query([NetworksEnum.baseMainnet], { skip: 0, limit: 10 })
-    expect(pipeline.length).to.eq(18)
+    expect(pipeline.length).to.eq(20)
   })
 })
