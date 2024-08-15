@@ -32,10 +32,6 @@ const IndexerService: IService = {
       [{ logPluginSetupProcessor: LogPluginSetupProcessor }, { logDao: LogDao }],
       [{ logProposal: LogProposal }, { logPluginSetting: LogPluginSetting }],
       [{ logMember: LogMember }],
-      // [{ logPluginRepoRegistry: LogPluginRepoRegistry }, { logDaoRegistry: LogDaoRegistry }],
-      // [{ logPluginSetupProcessor: LogPluginSetupProcessor }, { logDao: LogDao }],
-      // [{ logProposal: LogProposal }, { logPluginSetting: LogPluginSetting }],
-      // [{ logMember: LogMember }],
     ]
 
     // order is important

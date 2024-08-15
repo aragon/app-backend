@@ -93,12 +93,6 @@ export const MemberHandler = {
     }
   },
 
-  transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-    console.log(txReceipt)
-    console.log(parsedEvent)
-  },
-
   delegateChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
 
@@ -122,7 +116,7 @@ export const MemberHandler = {
 
         const existingLog = await Models.LogMember.findExistingLog({
           transactionHash: info.transactionHash,
-          event: parsedEvent.name,
+          event: 'DelegateChanged', // parsedEvent.name,
           address: memberAddress,
           network: info.network,
           pluginAddress: relatedPlugin.pluginAddress,
@@ -136,7 +130,7 @@ export const MemberHandler = {
               blockNumber: info.blockNumber,
               network: info.network,
               address: memberAddress,
-              event: parsedEvent.name,
+              event: 'DelegateChanged',
               tokenAddress: info.address,
               fromDelegate: parsedEvent.args.fromDelegate,
               toDelegate: parsedEvent.args.toDelegate,
