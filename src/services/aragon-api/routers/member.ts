@@ -15,7 +15,7 @@ import Utils from '@helpers/utils'
 
 const MemberRouter = {
   getMembersWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'fromBlockNumber' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'address' })
     const extraParams: IMemberExtraParams = {
       onlyActive: Utils.parseBoolean(ctx.query.onlyActive),
       network: ctx.query.network as NetworksEnum,
@@ -68,7 +68,7 @@ const MemberRouter = {
   },
 
   getActiveMembersWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'fromBlockNumber' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'address' })
     const extraParams: IActiveMemberExtraParams = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,

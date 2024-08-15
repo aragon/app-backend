@@ -38,10 +38,10 @@ export class Settings {
   @prop({ type: () => String, default: null })
   public toTxHash!: HexAddress
 
-  @prop({ type: () => Number })
+  @prop({ type: () => Number, default: null })
   public fromBlockNumber!: number
 
-  @prop({ type: () => Number })
+  @prop({ type: () => Number, default: null })
   public toBlockNumber!: number
 
   @prop({ type: () => Number })

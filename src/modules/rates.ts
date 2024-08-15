@@ -1,4 +1,4 @@
-import { type HexAddress, type ITokenRate, type NetworksEnum } from '@types'
+import { type HexAddress, type ITokenRate, ITokenType, type NetworksEnum } from '@types'
 import dayjs from '@helpers/dayjs'
 import CovalentHelper from '@helpers/covalent'
 
@@ -18,6 +18,7 @@ export const RateModule = {
       symbol: null,
       priceUsd: '0',
       priceChangeOnDayUsd: '0',
+      type: ITokenType.unknown,
       logo: null,
       lastUpdatedAt: null,
     }
@@ -31,6 +32,7 @@ export const RateModule = {
       tokenRate.symbol = token.symbol
       tokenRate.name = token.name
       tokenRate.logo = token.logo
+      tokenRate.type = token.type
       tokenRate.lastUpdatedAt = dayjs.utc().toDate()
     }
 

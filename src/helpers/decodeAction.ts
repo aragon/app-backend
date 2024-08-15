@@ -372,7 +372,10 @@ class DecodeActions {
 
     const contractDetails = await retryRequest(async () =>
       BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-        Etherscan.fetchContractSourceCode(implementationAddress!, network),
+        Etherscan.fetchContractSourceCode({
+          contractAddress: implementationAddress,
+          network,
+        }),
       ),
     )
 

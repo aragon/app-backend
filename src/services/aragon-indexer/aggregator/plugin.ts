@@ -26,7 +26,8 @@ export const AggregatorPlugin = {
         logger.error('Error AggregatorPlugin', llo({ error, document }))
       },
       useAggregate: true,
-      aggregate: AggregatorPlugin.query(supportedNetworks),
+      disablePagination: true,
+      aggregate: () => AggregatorPlugin.query(supportedNetworks),
       batchSize: AggregatorPlugin.batchSize,
       concurrency: AggregatorPlugin.concurrency,
     })
@@ -85,137 +86,210 @@ export const AggregatorPlugin = {
         },
       },
       {
+        $sort: {
+          preparedSetupId: 1,
+          event: 1,
+        },
+      },
+      {
         $group: {
-          _id: '$daoAddress',
-          prepared: {
+          _id: {
+            preparedSetupId: '$preparedSetupId',
+            network: '$network',
+          },
+          events: {
             $push: {
-              $cond: [
-                { $in: ['$event', ['InstallationPrepared', 'UpdatePrepared', 'UninstallationPrepared']] },
-                '$$ROOT',
-                null,
-              ],
+              eventType: '$event',
+              document: '$$ROOT',
             },
           },
-          applied: {
-            $push: {
-              $cond: [
-                { $in: ['$event', ['InstallationApplied', 'UpdateApplied', 'UninstallationApplied']] },
-                '$$ROOT',
-                null,
-              ],
-            },
+        },
+      },
+      {
+        $match: {
+          $expr: {
+            $gte: [{ $size: '$events' }, 2],
           },
         },
       },
       {
         $project: {
-          prepared: {
-            $filter: {
-              input: '$prepared',
-              as: 'item',
-              cond: { $ne: ['$$item', null] },
-            },
-          },
-          applied: {
-            $filter: {
-              input: '$applied',
-              as: 'item',
-              cond: { $ne: ['$$item', null] },
-            },
-          },
-        },
-      },
-      {
-        $match: {
-          $and: [{ 'prepared.0': { $exists: true } }, { 'applied.0': { $exists: true } }],
-        },
-      },
-      {
-        $unwind: '$prepared',
-      },
-      {
-        $unwind: '$applied',
-      },
-      {
-        $match: {
-          $expr: {
-            $or: [
-              { $eq: ['$prepared.preparedSetupId', '$applied.preparedSetupId'] },
-              {
-                $and: [
-                  { $eq: ['$prepared.event', 'InstallationPrepared'] },
-                  { $eq: ['$applied.event', 'InstallationApplied'] },
+          mergedEvent: {
+            $reduce: {
+              input: '$events.document',
+              initialValue: {},
+              in: {
+                $mergeObjects: [
+                  '$$value',
+                  {
+                    eventCombination: {
+                      $concat: [{ $ifNull: ['$$this.event', ''] }, '|', { $ifNull: ['$$value.event', ''] }],
+                    },
+                    event: '$$this.event',
+                    transactionHash: { $ifNull: ['$$this.transactionHash', '$$value.transactionHash'] },
+                    blockNumber: { $ifNull: ['$$this.blockNumber', '$$value.blockNumber'] },
+                    network: { $ifNull: ['$$this.network', '$$value.network'] },
+                    address: { $ifNull: ['$$this.pluginAddress', '$$value.pluginAddress'] },
+                    daoAddress: { $ifNull: ['$$this.daoAddress', '$$value.daoAddress'] },
+                    preparedSetupId: { $ifNull: ['$$this.preparedSetupId', '$$value.preparedSetupId'] },
+                    appliedSetupId: { $ifNull: ['$$this.appliedSetupId', '$$value.appliedSetupId'] },
+                    pluginSetupRepoAddress: { $ifNull: ['$$this.pluginSetupRepo', '$$value.pluginSetupRepo'] },
+                    sender: { $ifNull: ['$$this.sender', '$$value.sender'] },
+                    release: { $ifNull: ['$$this.release', '$$value.release'] },
+                    build: { $ifNull: ['$$this.build', '$$value.build'] },
+                    tokenAddress: { $ifNull: ['$$this.tokenAddress', '$$value.tokenAddress'] },
+                    permissions: {
+                      $cond: {
+                        if: {
+                          $or: [
+                            {
+                              $gt: [
+                                { $size: { $ifNull: ['$$this.permissions', []] } },
+                                { $size: { $ifNull: ['$$value.permissions', []] } },
+                              ],
+                            },
+                            { $eq: [{ $size: { $ifNull: ['$$value.permissions', []] } }, 0] },
+                          ],
+                        },
+                        then: '$$this.permissions',
+                        else: '$$value.permissions',
+                      },
+                    },
+                    action: {
+                      $switch: {
+                        branches: [
+                          {
+                            case: {
+                              $and: [
+                                { $in: ['InstallationPrepared', ['$$this.event']] },
+                                { $in: ['InstallationApplied', ['$$value.event']] },
+                              ],
+                            },
+                            then: 'install',
+                          },
+                          {
+                            case: {
+                              $and: [
+                                { $in: ['UpdatePrepared', ['$$this.event']] },
+                                { $in: ['UpdateApplied', ['$$value.event']] },
+                              ],
+                            },
+                            then: 'update',
+                          },
+                          {
+                            case: {
+                              $and: [
+                                { $in: ['UninstallationPrepared', ['$$this.event']] },
+                                { $in: ['UninstallationApplied', ['$$value.event']] },
+                              ],
+                            },
+                            then: 'uninstall',
+                          },
+                        ],
+                        default: null,
+                      },
+                    },
+                  },
                 ],
               },
-              {
-                $and: [{ $eq: ['$prepared.event', 'UpdatePrepared'] }, { $eq: ['$applied.event', 'UpdateApplied'] }],
-              },
-              {
-                $and: [
-                  { $eq: ['$prepared.event', 'UninstallationPrepared'] },
-                  { $eq: ['$applied.event', 'UninstallationApplied'] },
-                ],
-              },
-            ],
+            },
           },
+          eventType: { $arrayElemAt: ['$events.eventType', 1] },
         },
+      },
+      {
+        $replaceRoot: { newRoot: '$mergedEvent' },
+      },
+      {
+        $match: { action: { $ne: null } },
       },
       {
         $lookup: {
           from: 'logPluginRepo',
           let: {
-            repoAddr: '$prepared.pluginSetupRepo',
+            repoAddr: '$pluginSetupRepoAddress',
+            network: '$network',
           },
           pipeline: [
             {
               $match: {
                 $expr: {
-                  $eq: ['$pluginRepo', '$$repoAddr'],
+                  $and: [{ $eq: ['$pluginRepo', '$$repoAddr'] }, { $eq: ['$network', '$$network'] }],
                 },
               },
             },
-            {
-              $project: {
-                subdomain: 1,
-              },
-            },
           ],
-          as: 'pluginDetails',
+          as: 'pluginRepo',
         },
       },
       {
         $unwind: {
-          path: '$pluginDetails',
+          path: '$pluginRepo',
         },
       },
+
       {
         $project: {
-          _id: 0,
-          transactionHash: '$applied.transactionHash',
-          blockNumber: '$applied.blockNumber',
-          network: '$applied.network',
-          address: '$prepared.pluginAddress',
-          daoAddress: '$prepared.daoAddress',
-          tokenAddress: '$prepared.tokenAddress',
-          pluginSetupRepoAddress: '$prepared.pluginSetupRepo',
-          build: '$prepared.build',
-          release: '$prepared.release',
-          sender: '$prepared.sender',
-          subdomain: '$pluginDetails.subdomain',
-          action: {
-            $cond: [
-              { $eq: ['$prepared.event', 'InstallationPrepared'] },
-              'install',
-              {
-                $cond: [{ $eq: ['$prepared.event', 'UpdatePrepared'] }, 'update', 'uninstall'],
-              },
-            ],
-          },
+          action: 1,
+          transactionHash: 1,
+          blockNumber: 1,
+          network: 1,
+          address: 1,
+          daoAddress: 1,
+          tokenAddress: 1,
+          preparedSetupId: 1,
+          appliedSetupId: 1,
+          pluginSetupRepoAddress: 1,
+          sender: 1,
+          release: 1,
+          build: 1,
+          permissions: 1,
+          subdomain: '$pluginRepo.subdomain',
         },
       },
-      {
-        $sort: { blockNumber: 1 },
-      },
+
+      // uninstall
+      //        {
+      //            $group: {
+      //                _id: {
+      //                    address: "$address",
+      //                    network: "$network",
+      //                },
+      //                documents: { $push: "$$ROOT" },
+      //                hasUninstall: {
+      //                    $max: {
+      //                        $cond: [{ $eq: ["$action", "uninstall"] }, 1, 0],
+      //                    },
+      //                },
+      //                maxBlockNumber: { $max: "$blockNumber" },
+      //            },
+      //        },
+      //        {
+      //            $match: {
+      //                hasUninstall: 0, // Exclude groups that have an uninstall action
+      //            },
+      //        },
+      //        {
+      //            $project: {
+      //                document: {
+      //                    $filter: {
+      //                        input: "$documents",
+      //                        as: "doc",
+      //                        cond: {
+      //                            $eq: ["$$doc.blockNumber", "$maxBlockNumber"],
+      //                        },
+      //                    },
+      //                },
+      //            },
+      //        },
+      //        {
+      //            $unwind: "$document",
+      //        },
+      //        {
+      //            $replaceRoot: {
+      //                newRoot: "$document",
+      //            },
+      //        },
     ]
   },
 }

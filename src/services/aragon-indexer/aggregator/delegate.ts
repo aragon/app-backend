@@ -6,6 +6,7 @@ import type Delegate from '@models/schema/delegate'
 import { NetworkHelper } from '@helpers/network'
 import Web3Helper from '@helpers/web3'
 import config from '@config'
+import type { NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorDelegate' })
 
@@ -17,17 +18,15 @@ export const AggregatorDelegate = {
     const startTime = Date.now()
     logger.verbose('Start AggregatorDelegate', llo({ startTime }))
 
+    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
     const crawler = new DBCrawler({
       model: Models.LogMember,
       onDocument: AggregatorDelegate.onDocument,
       onError: (error: any, document: any) => {
         logger.error('Error AggregatorDelegate', llo({ error, document }))
       },
-      where: {
-        network: { $in: NetworkHelper.supportedNetworks().map(network => network.networkName) },
-      },
       useAggregate: true,
-      aggregate: AggregatorDelegate.query(),
+      aggregate: (skip: number, limit: number) => AggregatorDelegate.query(supportedNetworks, { skip, limit }),
       batchSize: AggregatorDelegate.batchSize,
       concurrency: AggregatorDelegate.concurrency,
     })
@@ -65,11 +64,18 @@ export const AggregatorDelegate = {
     })
   },
 
-  query() {
+  query(networks: NetworksEnum[], { skip, limit }: { skip: number; limit: number }) {
     return [
       {
-        $match: { event: 'DelegateChanged' },
+        $match: {
+          event: 'DelegateChanged',
+          ...(networks?.length > 0 && { network: { $in: networks } }),
+        },
       },
+      {
+        $sort: { blockNumber: 1 },
+      },
+      ...DBCrawler.aggregatePagination(skip, limit),
       {
         $lookup: {
           from: 'logPluginSetupProcessor',

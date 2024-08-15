@@ -208,16 +208,16 @@ describe('Model: Member', () => {
       expect(member1.address).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5408')
       expect(member1.history.length).to.eq(1)
       expect(member1.history[0].fromBlockNumber).to.eq(2000)
-      expect(member1.history[0].toBlockNumber).to.be.undefined
-      expect(member1.history[0].toTxHash).to.be.undefined
+      expect(member1.history[0].toBlockNumber).to.be.null
+      expect(member1.history[0].toTxHash).to.be.null
       expect(member1.history[0].tokenAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5402')
       expect(member1.history[0].daoAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5401')
       const member2 = data.find((member: any) => member.address === '0x17366cae2b9c6c3055e9e3c78936a69006be5404')
       expect(member2.address).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5404')
       expect(member2.history.length).to.eq(1)
       expect(member2.history[0].fromBlockNumber).to.eq(3000)
-      expect(member2.history[0].toBlockNumber).to.be.undefined
-      expect(member2.history[0].toTxHash).to.be.undefined
+      expect(member2.history[0].toBlockNumber).to.be.null
+      expect(member2.history[0].toTxHash).to.be.null
       expect(member2.history[0].tokenAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5402')
       expect(member2.history[0].daoAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5401')
     })

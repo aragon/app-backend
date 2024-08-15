@@ -9,6 +9,7 @@ export interface ITokenInfo {
 export interface ITokenRate {
   priceUsd: string
   priceChangeOnDayUsd: string
+  type: ITokenType
   logo: string
   decimals: number
   symbol: string
@@ -20,6 +21,7 @@ export interface ITokenRate {
 export interface IToken {
   address: HexAddress
   network: NetworksEnum
+  type: ITokenType
   logo: string
   name: string
   symbol: string

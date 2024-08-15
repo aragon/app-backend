@@ -90,13 +90,13 @@ export default class Setting extends Model {
   @prop({ type: () => String, required: true })
   public fromTxHash!: HexAddress
 
-  @prop({ type: () => String })
+  @prop({ type: () => String, default: null })
   public toTxHash!: HexAddress
 
   @prop({ type: () => Number, required: true })
   public fromBlockNumber!: number
 
-  @prop({ type: () => Number })
+  @prop({ type: () => Number, default: null })
   public toBlockNumber?: number
 
   @prop({ type: () => String, required: true })

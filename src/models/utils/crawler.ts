@@ -11,7 +11,8 @@ class DBCrawler {
   private readonly where: object
   private readonly stopOnError: boolean
   private readonly useAggregate: boolean
-  private readonly aggregate: object[]
+  private readonly disablePagination: boolean
+  private readonly aggregate: (skip: number | undefined, limit: number | undefined) => any[]
   private readonly select: string
   private readonly skip: number
   private readonly sort: string
@@ -66,6 +67,13 @@ class DBCrawler {
     this.stopOnError = opts.stopOnError
 
     /**
+     * @description disablePagination
+     * @param {disablePagination}
+     * @example true
+     */
+    this.disablePagination = opts.disablePagination
+
+    /**
      * @description useAggregate
      * @param {useAggregate}
      * @example true
@@ -77,7 +85,7 @@ class DBCrawler {
      * @param {aggregate}
      * @example [{$lookup: {from: 'subscriptions'}}]
      */
-    this.aggregate = opts.aggregate || []
+    this.aggregate = opts.aggregate
 
     /**
      * @description select document fields
@@ -91,7 +99,7 @@ class DBCrawler {
      * @param {skip}
      * @example 100
      */
-    this.skip = opts.skip || 0
+    this.skip = !this.disablePagination ? opts.skip || 0 : undefined
 
     /**
      * @description sort documents
@@ -136,29 +144,35 @@ class DBCrawler {
     )
   }
 
-  async _fetchNext(limit = 10, skip = 0): Promise<any> {
+  static aggregatePagination(skip: number | undefined, limit: number | undefined): object[] {
+    if (!skip && !limit) {
+      return []
+    }
+
+    return [{ $skip: skip }, { $limit: limit }]
+  }
+
+  async _fetchNext(limit: number | undefined, skip: number | undefined): Promise<any> {
     const where = this.where
     const select = this.select
     const populate = this.populate
     const useAggregate = this.useAggregate
-    const aggregate = this.aggregate
 
     if (useAggregate) {
-      const aggregateWithSkipLimit: any = [{ $skip: skip }, { $limit: limit }, ...aggregate]
-
-      const response = this.model.aggregate(aggregateWithSkipLimit)
-
+      const aggregatePipeline = this.aggregate(skip, limit)
+      const response = this.model.aggregate(aggregatePipeline)
       const documents = await response.exec()
-
-      if (skip === 0) {
-        this.nbTotal = documents.length
-      } else {
-        this.nbTotal += documents.length
-      }
-
       return documents
     } else {
-      let response = this.model.find(where).select(select).populate(populate).limit(limit).skip(skip)
+      let response = this.model.find(where).select(select).populate(populate)
+
+      if (limit && !this.disablePagination) {
+        response = response.limit(limit)
+      }
+
+      if (skip && !this.disablePagination) {
+        response = response.skip(skip)
+      }
 
       if (this.sort) {
         response = response.sort(this.sort)
@@ -203,13 +217,18 @@ class DBCrawler {
 
     if (!this.useAggregate) {
       this.nbTotal = await this.model.countDocuments(where)
+    } else {
+      // count with aggregation query
+      // const countAggregatePipeline = [...this.aggregate(undefined, undefined), { $count: 'totalRecords' }]
+      // const countResponse = await this.model.aggregate(countAggregatePipeline).exec()
+      // this.nbTotal = countResponse.length > 0 && countResponse[0]?.totalRecords ? countResponse[0].totalRecords : 0
     }
 
     this.crawlResult.nbTotal = this.nbTotal
 
     return await new Promise((resolve, reject) => {
-      const limit = this.batchSize
-      let skip = this.skip
+      const limit = this.disablePagination ? undefined : this.batchSize
+      let skip = this.disablePagination ? undefined : this.skip
 
       const fillQueue = async (): Promise<any> => {
         if (this.isOnError || !this.crawling) {
@@ -222,12 +241,16 @@ class DBCrawler {
             if (items?.length > 0) {
               // eslint-disable-next-line
               this.queue.push(items)
-              skip += limit
 
-              logger.silly(`Skip ${skip}`, llo({ skip }))
+              if (this.disablePagination) {
+                this.crawling = false
+                return resolve(this.crawlResult)
+              } else {
+                skip! += limit!
+              }
             } else {
               this.crawling = false
-              resolve(this.crawlResult)
+              return resolve(this.crawlResult)
             }
 
             return true
