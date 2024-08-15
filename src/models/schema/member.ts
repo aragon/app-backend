@@ -197,7 +197,6 @@ export default class Member extends Model {
         { $match: filter },
         { $unwind: '$history' },
         { $match: historyFilter },
-        { $sort: request.sort },
         {
           $group: {
             _id: '$_id',
@@ -206,9 +205,6 @@ export default class Member extends Model {
             history: { $push: '$history' },
           },
         },
-        { $sort: request.sort },
-        { $skip: request.skip },
-        { $limit: request.limit },
         {
           $project: {
             _id: 0,
@@ -217,6 +213,9 @@ export default class Member extends Model {
             history: 1,
           },
         },
+        { $sort: request.sort },
+        { $skip: request.skip },
+        { $limit: request.limit },
       ]),
       this.aggregate([
         { $match: filter },
