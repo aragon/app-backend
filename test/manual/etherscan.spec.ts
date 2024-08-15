@@ -23,7 +23,10 @@ describe('Manual: Etherscan', () => {
 
   it('should fetchAllTransactions', async () => {
     const daoFactoryAddress = '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0'
-    const response = await EtherscanHelper.fetchAllTransactions(daoFactoryAddress)
+    const response = await EtherscanHelper.fetchAllTransactions({
+      contractAddress: daoFactoryAddress,
+      network: NetworksEnum.ethereumMainnet,
+    })
     console.log(response) // eslint-disable-line no-console
   })
 
@@ -46,7 +49,10 @@ describe('Manual: Etherscan', () => {
         implementationAddress = contract
       }
 
-      const response = await EtherscanHelper.fetchContractSourceCode(contract, NetworksEnum.ethereumSepolia)
+      const response = await EtherscanHelper.fetchContractSourceCode({
+        contractAddress: contract,
+        network: NetworksEnum.ethereumSepolia,
+      })
       if (response) {
         const results = ContractNetspecHelper.parseNetspec(
           response.SourceCode,
