@@ -129,6 +129,6 @@ describe('Indexer:Aggregator:Delegate', () => {
 
   it('should query', () => {
     const pipeline = AggregatorDelegate.query([NetworksEnum.polygonMainnet], { skip: 0, limit: 10 })
-    expect(pipeline.length).to.eq(6)
+    expect(pipeline.length).to.eq(9)
   })
 })
