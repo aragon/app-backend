@@ -102,6 +102,9 @@ describe('Model/Utils: crawler', () => {
       model: mockModel,
       onDocument: () => {},
       useAggregate: true,
+      aggregate: (skip: number, limit: number) => {
+        return [...DBCrawler.aggregatePagination(skip, limit)]
+      },
       batchSize: 2,
       concurrency: 1,
     })
@@ -122,6 +125,7 @@ describe('Model/Utils: crawler', () => {
       model: mockModel,
       onDocument: () => {},
       useAggregate: true,
+      aggregate: () => [],
       batchSize: 2,
       concurrency: 1,
     })

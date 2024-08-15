@@ -26,7 +26,7 @@ export const AggregatorVote = {
         logger.error('Error AggregatorVote', llo({ error, document }))
       },
       useAggregate: true,
-      aggregate: AggregatorVote.query(supportedNetworks),
+      aggregate: (skip: number, limit: number) => AggregatorVote.query(supportedNetworks, { skip, limit }),
       batchSize: AggregatorVote.batchSize,
       concurrency: AggregatorVote.concurrency,
     })
@@ -66,7 +66,7 @@ export const AggregatorVote = {
     })
   },
 
-  query(networks: NetworksEnum[]) {
+  query(networks: NetworksEnum[], { skip, limit }: { skip: number; limit: number }) {
     return [
       {
         $match: {
@@ -75,6 +75,10 @@ export const AggregatorVote = {
         },
       },
       { $unwind: '$voteEvents' },
+      {
+        $sort: { 'voteEvents.blockNumber': 1 },
+      },
+      ...DBCrawler.aggregatePagination(skip, limit),
       {
         $lookup: {
           from: 'logPluginSetupProcessor',

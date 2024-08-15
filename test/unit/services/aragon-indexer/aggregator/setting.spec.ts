@@ -141,7 +141,7 @@ describe('Indexer:Aggregator:Setting', () => {
   })
 
   it('should query', () => {
-    const pipeline = AggregatorSetting.query([])
-    expect(pipeline.length).to.eq(11)
+    const pipeline = AggregatorSetting.query([NetworksEnum.polygonMainnet], { skip: 0, limit: 10 })
+    expect(pipeline.length).to.eq(14)
   })
 })

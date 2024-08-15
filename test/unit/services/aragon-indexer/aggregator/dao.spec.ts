@@ -7,6 +7,7 @@ import DBCrawler from '@models/utils/crawler'
 import Logger from '@logger'
 import { DaoList } from '@test/mock/fakeDao'
 import Web3Helper from '@helpers/web3'
+import { NetworksEnum } from '@types'
 
 describe('Indexer:Aggregator:Dao', () => {
   let sandbox: SinonSandbox
@@ -151,7 +152,7 @@ describe('Indexer:Aggregator:Dao', () => {
   })
 
   it('should query', () => {
-    const pipeline = AggregatorDao.query([])
+    const pipeline = AggregatorDao.query([NetworksEnum.baseMainnet], { skip: 0, limit: 10 })
     expect(pipeline.length).to.eq(18)
   })
 })

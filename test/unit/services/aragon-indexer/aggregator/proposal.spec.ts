@@ -421,7 +421,7 @@ describe('Indexer:Aggregator:Proposal', () => {
   })
 
   it('should use default date when none is provided', () => {
-    const pipeline = AggregatorProposal.query([])
+    const pipeline = AggregatorProposal.query([NetworksEnum.ethereumMainnet], { skip: 0, limit: 10 })
     expect(pipeline.length).to.equal(14)
   })
 

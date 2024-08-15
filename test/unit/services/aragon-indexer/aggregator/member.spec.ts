@@ -121,10 +121,10 @@ describe('Indexer:Aggregator:Member', () => {
     const pipeline = AggregatorMembers.query([], [])
     expect(pipeline.length).to.eq(6)
 
-    const pipeline2 = AggregatorMembers.queryVotingPowerMembers([])
+    const pipeline2 = AggregatorMembers.queryVotingPowerMembers([NetworksEnum.ethereumMainnet], '0x')
     expect(pipeline2.length).to.eq(9)
 
-    const pipeline3 = AggregatorMembers.queryMultisigMembers([])
+    const pipeline3 = AggregatorMembers.queryMultisigMembers([NetworksEnum.ethereumMainnet], '0x')
     expect(pipeline3.length).to.eq(13)
   })
 
