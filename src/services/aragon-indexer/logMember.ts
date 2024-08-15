@@ -73,6 +73,7 @@ export const LogMember = {
         await MemberHandler.membersRemoved(event, info)
         break
       case 'DelegateChanged':
+      case 'DelegateVotesChanged':
         logger.verbose('DelegateChanged', llo(info))
         await MemberHandler.delegateChanged(event, info)
         break
