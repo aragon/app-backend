@@ -40,6 +40,12 @@ const DaoController = {
   getDaosByMember: async (paginationParams: IPaginationParams = {}, extraParams: IDaoExtraParams = {}) => {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams.memberAddress = await PairDataModule.checkIFEns(extraParams.memberAddress!)
+    extraParams.excludedDao = extraParams.excludeDaoId
+      ? ((await PairDataModule.pairFromExtraParams({}, { daoId: extraParams.excludeDaoId })) as {
+          daoAddress: string
+          network: NetworksEnum
+        })
+      : undefined
 
     return await Models.Member.findDaoOfMemberWithPagination(extraParams, paginationParams)
   },
