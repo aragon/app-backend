@@ -44,18 +44,6 @@ const PairDataModule = {
     return searchStr
   },
 
-  resolveDaoAddressFromId: async (daoId: string) => {
-    if (daoId) {
-      const daoDb = await Models.Dao.findByEntityId(daoId)
-      if (daoDb) {
-        return {
-          address: daoDb.address,
-          network: daoDb.network,
-        }
-      }
-    }
-  },
-
   pairFromExtraParams: async <
     T extends {
       network?: NetworksEnum
