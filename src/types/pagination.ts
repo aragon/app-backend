@@ -41,13 +41,13 @@ export interface IDaoExtraParams {
   network?: NetworksEnum | undefined
   pluginAddress?: HexAddress | undefined
   memberAddress?: HexAddress | undefined
-  currentDao?:
+  excludedDao?:
     | undefined
     | {
         address: string
         network: NetworksEnum
       }
-  currentDaoId?: string | undefined
+  excludedDaoId?: string | undefined
 }
 
 export interface IMemberExtraParams {
