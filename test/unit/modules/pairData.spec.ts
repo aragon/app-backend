@@ -15,6 +15,7 @@ describe('Modules:PairDataModule', () => {
     sandbox = sinon.createSandbox()
 
     rawDao = {
+      id: 'eth-0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       network: NetworksEnum.ethereumMainnet,
       transactionHash: '0x0',
       blockNumber: 0,
@@ -167,6 +168,19 @@ describe('Modules:PairDataModule', () => {
       expect(findProposalStub.calledOnce).to.be.true
       expect(extraParams.pluginAddress).to.be.eq(rawDao.plugins![0].address)
       expect(extraParams.proposalId).to.be.eq(1)
+    })
+  })
+
+  describe('resolveDaoAddressFromId', () => {
+    it('should resolve dao address from id - found', async () => {
+      const daoDb = await Models.Dao.findByAddress(rawDao.address, rawDao.network)
+      const result = await PairDataModule.resolveDaoAddressFromId(daoDb.id)
+      expect(result).to.be.deep.eq({ address: daoDb.address, network: daoDb.network })
+    })
+
+    it('should resolve dao address from id - not found', async () => {
+      const result = await PairDataModule.resolveDaoAddressFromId('fake-id')
+      expect(result).to.be.undefined
     })
   })
 })
