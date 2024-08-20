@@ -15,7 +15,6 @@ describe('Modules:PairDataModule', () => {
     sandbox = sinon.createSandbox()
 
     rawDao = {
-      id: 'eth-0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       network: NetworksEnum.ethereumMainnet,
       transactionHash: '0x0',
       blockNumber: 0,
