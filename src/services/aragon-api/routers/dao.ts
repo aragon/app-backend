@@ -31,6 +31,7 @@ const DaoRouter = {
     const extraParams = {
       memberAddress: ctx.params.address,
       network: ctx.query.network,
+      excludeDaoId: ctx.query.excludeDaoId,
     }
 
     const anyInvalidParams = Utils.extractAdditionalParams({ ...paginationParams, ...extraParams }, ctx.query)
