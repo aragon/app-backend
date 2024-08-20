@@ -44,10 +44,10 @@ export interface IDaoExtraParams {
   excludedDao?:
     | undefined
     | {
-        address: string
+        daoAddress: string
         network: NetworksEnum
       }
-  excludedDaoId?: string | undefined
+  excludeDaoId?: string | undefined
 }
 
 export interface IMemberExtraParams {

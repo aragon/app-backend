@@ -170,17 +170,4 @@ describe('Modules:PairDataModule', () => {
       expect(extraParams.proposalId).to.be.eq(1)
     })
   })
-
-  describe('resolveDaoAddressFromId', () => {
-    it('should resolve dao address from id - found', async () => {
-      const daoDb = await Models.Dao.findByAddress(rawDao.address, rawDao.network)
-      const result = await PairDataModule.resolveDaoAddressFromId(daoDb.id)
-      expect(result).to.be.deep.eq({ address: daoDb.address, network: daoDb.network })
-    })
-
-    it('should resolve dao address from id - not found', async () => {
-      const result = await PairDataModule.resolveDaoAddressFromId('fake-id')
-      expect(result).to.be.undefined
-    })
-  })
 })

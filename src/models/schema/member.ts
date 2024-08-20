@@ -498,8 +498,12 @@ export default class Member extends Model {
           ...(extraParams?.network && { 'history.network': extraParams.network }),
           $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
           ...(extraParams?.excludedDao && {
-            'history.daoAddress': { $ne: extraParams.excludedDao.address },
-            'history.network': { $ne: extraParams.excludedDao.network },
+            $nor: [
+              {
+                'history.daoAddress': extraParams.excludedDao.daoAddress,
+                'history.network': extraParams.excludedDao.network,
+              },
+            ],
           }),
         },
       },
