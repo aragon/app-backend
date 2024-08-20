@@ -40,7 +40,7 @@ const DaoController = {
   getDaosByMember: async (paginationParams: IPaginationParams = {}, extraParams: IDaoExtraParams = {}) => {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams.memberAddress = await PairDataModule.checkIFEns(extraParams.memberAddress!)
-    extraParams.currentDao = await PairDataModule.resolveDaoAddressFromId(extraParams.currentDaoId!)
+    extraParams.excludedDao = await PairDataModule.resolveDaoAddressFromId(extraParams.excludedDaoId!)
     return await Models.Member.findDaoOfMemberWithPagination(extraParams, paginationParams)
   },
 }
