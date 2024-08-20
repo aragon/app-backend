@@ -497,6 +497,10 @@ export default class Member extends Model {
         $match: {
           ...(extraParams?.network && { 'history.network': extraParams.network }),
           $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
+          ...(extraParams?.currentDao && {
+            'history.daoAddress': { $ne: extraParams.currentDao.address },
+            'history.network': { $ne: extraParams.currentDao.address },
+          }),
         },
       },
       {
