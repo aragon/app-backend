@@ -99,7 +99,7 @@ class DecodeActions {
   }
 
   public async decodeData(action: IRawAction, document: Partial<Proposal>): Promise<IProposalAction | null> {
-    const decoded = (await this._decodeWithAbi(action)) || (await this._decodeFallback(action))
+    const decoded = (await this._decodeWithAbi(action)) || (await this._decodeFallback(action.data))
 
     if (!decoded) return null
 
@@ -331,9 +331,9 @@ class DecodeActions {
     }
   }
 
-  async _decodeFallback(action: IRawAction): Promise<IProposalActionInputData | null> {
+  async _decodeFallback(data: string): Promise<IProposalActionInputData | null> {
     try {
-      const dataHex = hexlify(action.data)
+      const dataHex = hexlify(data)
       const functionSelector = dataHex.substring(0, 10)
       const response = await FourByte.getSignatures(functionSelector)
 
@@ -344,7 +344,7 @@ class DecodeActions {
       const signatureInfo = response.results[response.results.length - 1]
 
       const iface = new Interface([`function ${signatureInfo.text_signature}`])
-      const decoded = iface.decodeFunctionData(signatureInfo.text_signature, action.data as any)
+      const decoded = iface.decodeFunctionData(signatureInfo.text_signature, data as any)
       const decodedFormatted = decoded.toArray().map((item: any) => (item instanceof BigInt ? item.toString() : item))
       const paramters = signatureInfo.text_signature.split('(')[1].split(')')[0]
       const parametersWithValue = paramters.split(',').map((item, index) => ({
