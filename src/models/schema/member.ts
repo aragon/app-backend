@@ -355,6 +355,8 @@ export default class Member extends Model {
         $project: {
           address: 1,
           ens: 1,
+          firstActivity: 1,
+          lastActivity: 1,
           history: {
             $filter: {
               input: '$history',
@@ -400,11 +402,15 @@ export default class Member extends Model {
                 votingPower: { $arrayElemAt: ['$history.votingPower', 0] },
                 tokenBalance: { $arrayElemAt: ['$history.tokenBalance', 0] },
                 metrics: { $arrayElemAt: ['$history.metrics', 0] },
+                firstActivity: 1,
+                lastActivity: 1,
               }
             : {
                 _id: 0,
                 address: 1,
                 ens: 1,
+                firstActivity: 1,
+                lastActivity: 1,
               },
         },
         { $sort: request.sort },
@@ -469,11 +475,15 @@ export default class Member extends Model {
               tokenBalance: '$history.tokenBalance',
               votingPower: '$history.votingPower',
               metrics: '$history.metrics',
+              firstActivity: '$firstActivity',
+              lastActivity: '$lastActivity',
             }
           : {
               _id: 0,
               address: '$address',
               ens: '$ens',
+              firstActivity: '$firstActivity',
+              lastActivity: '$lastActivity',
             },
       },
     ])
