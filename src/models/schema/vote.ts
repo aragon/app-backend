@@ -255,6 +255,9 @@ export default class Vote extends Model {
               },
               {
                 $project: {
+                  _id: 0,
+                  id: 1,
+                  proposalId: 1,
                   title: 1,
                   description: 1,
                   summary: 1,
