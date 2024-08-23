@@ -1,8 +1,9 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
-import config from '@config'
 import EnsHelper from '@helpers/ens'
+import Web3Helper from '@helpers/web3'
+import { NetworksEnum } from '@types'
 
 describe('Manual: Web3', () => {
   let sandbox: SinonSandbox
@@ -15,9 +16,19 @@ describe('Manual: Web3', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should get ens from address as viem way', async () => {
-    config.BLOCKCHAIN_NODES.ETHEREUM_MAINNET = ''
+  it('should getTokenBalanceAtBlock', async () => {
+    await ProviderModule.connectToAllNetworks()
 
+    const balance = await Web3Helper.getTokenBalanceAtBlock({
+      address: '0x4B32847160549dfFf886fAf7987660a8cF278C41',
+      tokenAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      blockNumber: 15963460,
+      network: NetworksEnum.ethereumMainnet,
+    })
+    console.log(balance)
+  })
+
+  it('should get ens from address as viem way', async () => {
     await ProviderModule.connectToAllNetworks()
 
     const testAddresses = [

@@ -9,6 +9,12 @@ export interface ILogInfo {
   eventName: string
 }
 
+export interface ILogAction {
+  to: string
+  value: string
+  data: string
+}
+
 export interface IDecodedData {
   parameters?: any
   notice?: string

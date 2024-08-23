@@ -6,8 +6,14 @@ export enum IPluginSubdomain {
   // subdaoPlugin = 'pattern-subdao-plugin',
 }
 
-export enum IPluginAction {
+export enum IPluginRawStatus {
   install = 'install',
   update = 'update',
   uninstall = 'uninstall',
+}
+
+export enum IPluginStatus {
+  installed = 'installed',
+  deprecated = 'deprecated',
+  uninstalled = 'uninstalled',
 }

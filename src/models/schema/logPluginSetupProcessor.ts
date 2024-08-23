@@ -1,10 +1,16 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, IEventLogPluginType, type ILogPluginSetupProcessorIdParams, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  ICollectionNames,
+  IEventLogPluginType,
+  type ILogPluginSetupProcessorIdParams,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 
-const customName = 'LogPluginSetupProcessor'
+const customName = ICollectionNames.LogPluginSetupProcessor
 
 class Permission {
   @prop({ type: () => Number, default: null })
@@ -27,7 +33,7 @@ class Permission {
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'logPluginSetupProcessor',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -111,11 +117,9 @@ export default class LogPluginSetupProcessor extends Model {
     return await this.findOne({ tokenAddress, network })
   }
 
-  static async findByPluginAddress(pluginAddress: HexAddress, network: NetworksEnum) {
-    return await this.findOne({
-      pluginAddress,
-      network,
-    })
+  static async findByPluginAddress(pluginAddress: HexAddress, network: NetworksEnum, event?: IEventLogPluginType) {
+    const params = { pluginAddress, network, ...(event && { event }) }
+    return await this.findOne(params)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {

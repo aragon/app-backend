@@ -56,7 +56,7 @@ describe('Modules:PairDataModule', () => {
           subdomain: 'test',
         },
       ],
-      hideDao: false,
+      isHidden: false,
     }
 
     rawMember = {

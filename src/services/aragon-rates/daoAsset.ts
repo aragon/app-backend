@@ -5,11 +5,11 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Asset from '@models/schema/asset'
 import Web3Helper from '@helpers/web3'
-import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import { NetworkHelper } from '@helpers/network'
 import config from '@config'
 import utils from '@helpers/utils'
-import { TokenProxy } from '@modules/tokenProxy'
+import { ProxyToken } from '@modules/proxyToken'
+import type Dao from '@models/schema/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:DaoAssets' })
 
@@ -22,7 +22,7 @@ export const DaoAssets = {
     logger.verbose('Start DaoAssets', llo({ startTime }))
 
     const crawler = new DBCrawler({
-      model: Models.LogDaoRegistry,
+      model: Models.Dao,
       onDocument: DaoAssets.onDocument,
       onError: (error: any, document: any) => {
         logger.error('Error DaoAssets', llo({ error, document }))
@@ -43,7 +43,7 @@ export const DaoAssets = {
     )
   },
 
-  onDocument: async (document: LogDaoRegistry) => {
+  onDocument: async (document: Dao) => {
     try {
       const [ethBalance, tokenBalances] = await Promise.all([
         Web3Helper.getBalance(document.address, document.network),
@@ -58,7 +58,7 @@ export const DaoAssets = {
           tokenAddress: utils.zeroAddress, // ETH native token
         }
 
-        await TokenProxy.saveAndGetToken(utils.zeroAddress, document.network)
+        await ProxyToken.saveAndGetToken(utils.zeroAddress, document.network)
 
         const existingEthAssetDb = await Models.Asset.findExistingLog({
           daoAddress: document.address,
@@ -88,7 +88,7 @@ export const DaoAssets = {
           .map(async (token: IAlchemyTokenBalance) => {
             let tokenDb: any = null
             if (token?.contractAddress) {
-              tokenDb = await TokenProxy.saveAndGetToken(token.contractAddress, document.network)
+              tokenDb = await ProxyToken.saveAndGetToken(token.contractAddress, document.network)
             } else {
               logger.error('Error Token balance missing contractAddress', llo({ token }))
             }

@@ -1,20 +1,12 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
-export interface IMemberProposalMetrics {
-  proposalCount: number
-  voteCount: number
+export enum IMetricAction {
+  increaseDelegateReceivedCount = 'increaseDelegateReceivedCount',
+  increaseDelegateSentCount = 'increaseDelegateSentCount',
+  increaseVoteCount = 'increaseVoteCount',
+  increaseProposalCount = 'increaseProposalCount',
 }
 
-export interface IMemberActivityMetrics {
-  firstActivity: {
-    blockNumber: number
-    network: NetworksEnum
-  }
-  lastActivity: {
-    blockNumber: number
-    network: NetworksEnum
-  }
-}
 export interface IMemberVoteMetrics {
   address: HexAddress
   firstActivity: number

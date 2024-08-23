@@ -96,6 +96,50 @@ describe('Model: Setting', () => {
     expect(foundLogPluginSetupProcessor?.id).to.eq(createdLogPluginSetupProcessor.id)
   })
 
+  it('Should correctly find the last setting by blockNumber', async () => {
+    const settings = [
+      { blockNumber: 1, pluginAddress: '0x' },
+      { blockNumber: 3, pluginAddress: '0x' },
+      { blockNumber: 8, pluginAddress: '0x' },
+      { blockNumber: 11, pluginAddress: '0x' },
+      { blockNumber: 15, pluginAddress: '0x' },
+    ]
+
+    await Models.Setting.insertMany(settings)
+
+    let result: any
+
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 1)
+    expect(result?.blockNumber).to.eq(1)
+
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 2)
+    expect(result?.blockNumber).to.eq(1)
+
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 3)
+    expect(result?.blockNumber).to.eq(3)
+
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 4)
+    expect(result?.blockNumber).to.eq(3)
+
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 5)
+    expect(result?.blockNumber).to.eq(3)
+
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 6)
+    expect(result?.blockNumber).to.eq(3)
+
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 7)
+    expect(result?.blockNumber).to.eq(3)
+
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 8)
+    expect(result?.blockNumber).to.eq(8)
+
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 9)
+    expect(result?.blockNumber).to.eq(8)
+
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 15)
+    expect(result?.blockNumber).to.eq(15)
+  })
+
   it('Should findByTransactionHash', async () => {
     const createdProposal = await Models.Setting.create(rawSetting)
     const foundProposal = await Models.Setting.findByTransactionHash(

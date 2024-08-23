@@ -1,16 +1,16 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type ILogPluginSettingIdParams, NetworksEnum } from '@types'
+import { HexAddress, ICollectionNames, type IPluginRepoIdParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 
-const customName = 'LogPluginSetting'
+const customName = ICollectionNames.PluginRepo
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'logPluginSetting',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -19,11 +19,9 @@ const customName = 'LogPluginSetting'
   },
 })
 @index({
-  network: 1,
-  blockNumber: 1,
-  pluginAddress: 1,
+  pluginRepo: 1,
 })
-export default class LogPluginSetting extends Model {
+export default class PluginRepo extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
@@ -33,52 +31,34 @@ export default class LogPluginSetting extends Model {
   @prop({ type: () => Number, required: true })
   public blockNumber!: number
 
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
+
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
   @prop({ type: () => String, required: true })
-  public pluginAddress!: HexAddress
+  public subdomain!: string
 
-  @prop({ type: () => Boolean })
-  public onlyListed!: boolean
+  @prop({ type: () => String, required: true })
+  public pluginRepo!: HexAddress
 
-  @prop({ type: () => Number })
-  public minApprovals!: number
-
-  @prop({ type: () => Number })
-  public votingMode!: number
-
-  @prop({ type: () => Number })
-  public supportThreshold!: number
-
-  @prop({ type: () => Number })
-  public minParticipation!: number
-
-  @prop({ type: () => Number })
-  public minDuration!: number
-
-  @prop({ type: () => Number })
-  public minProposerVotingPower!: number
-
-  static async create(rawData: Partial<LogPluginSetting>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<PluginRepo>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
-      assert(!!rawData.pluginAddress, 'pluginAddress is required')
-      rawData.id = this.getEntityId({
-        transactionHash: rawData?.transactionHash!,
-        pluginAddress: rawData?.pluginAddress!,
-      })
+      assert(!!rawData.pluginRepo, 'pluginRepo is required')
+      rawData.id = this.getEntityId({ transactionHash: rawData?.transactionHash!, pluginRepo: rawData?.pluginRepo! })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static getEntityId(params: ILogPluginSettingIdParams) {
-    const entityId = `${params.transactionHash}-${params.pluginAddress}`
+  static getEntityId(params: IPluginRepoIdParams) {
+    const entityId = `${params.transactionHash}-${params.pluginRepo}`
     return entityId
   }
 
-  static async findExistingLog(params: ILogPluginSettingIdParams, tOpts?: SaveOptions) {
+  static async findExistingLog(params: IPluginRepoIdParams, tOpts?: SaveOptions) {
     const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
@@ -87,7 +67,7 @@ export default class LogPluginSetting extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
-  async update(params: Partial<LogPluginSetting>, tOpts?: SaveOptions) {
+  async update(params: Partial<PluginRepo>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {

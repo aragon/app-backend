@@ -1,6 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
+  ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
   ITokenType,
@@ -16,7 +17,7 @@ import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
-const customName = 'Transaction'
+const customName = ICollectionNames.Transaction
 
 class ERC1155Metadata {
   @prop({ type: () => String, default: null })
@@ -59,7 +60,7 @@ class Token {
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'transaction',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -227,7 +228,7 @@ export default class Transaction extends Model {
       obj,
       '_id',
       '__v',
-      'hideDao',
+      'isHidden',
       'createdAt',
       'updatedAt',
       'daoAddress',

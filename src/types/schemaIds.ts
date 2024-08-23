@@ -1,9 +1,9 @@
 import {
   type HexAddress,
-  type IEventLogMember,
   type IEventLogPluginType,
-  type IPluginAction,
   type ITransactionCategory,
+  type ITransferSide,
+  type ITransferType,
   type NetworksEnum,
 } from '@src/types/index'
 
@@ -35,26 +35,12 @@ export interface ILogDaoMetadataIdParams {
   daoAddress: HexAddress
 }
 
-export interface ILogDaoRegistryIdParams {
-  transactionHash: HexAddress
-  address: HexAddress
-}
-
-export interface ILogMemberIdParams {
-  network: NetworksEnum
-  transactionHash: HexAddress
-  event: IEventLogMember
-  address: HexAddress
-  pluginAddress: HexAddress
-  txIndex: number
-}
-
-export interface ILogPluginRepoIdParams {
+export interface IPluginRepoIdParams {
   transactionHash: HexAddress
   pluginRepo: HexAddress
 }
 
-export interface ILogPluginSettingIdParams {
+export interface ISettingIdParams {
   transactionHash: HexAddress
   pluginAddress: HexAddress
 }
@@ -64,42 +50,39 @@ export interface ILogPluginSetupProcessorIdParams {
   event: IEventLogPluginType
 }
 
-export interface ILogProposalIdParams {
+export interface IMemberTransactionIdParams {
   transactionHash: HexAddress
-  pluginAddress: HexAddress
-  proposalId: number
-}
-
-export interface ILogProposalMetadataIdParams {
-  transactionHash: HexAddress
-  pluginAddress: HexAddress
-  proposalId: number
-}
-
-export interface IDelegateIdParams {
-  network: NetworksEnum
-  transactionHash: HexAddress
+  address: HexAddress
+  side: ITransferSide
+  type: ITransferType
 }
 
 export interface IMemberIdParams {
   address: HexAddress
 }
 
+export interface IMemberMetricsIdParams {
+  network: NetworksEnum
+  address: HexAddress
+  pluginAddress: HexAddress
+}
+
+export interface IMemberBalanceIdParams {
+  network: NetworksEnum
+  address: HexAddress
+  tokenAddress: HexAddress
+}
+
 export interface IPluginIdParams {
   network: NetworksEnum
   transactionHash: HexAddress
-  action: IPluginAction
+  address: HexAddress
 }
 
 export interface IProposalIdParams {
   transactionHash: HexAddress
   pluginAddress: HexAddress
   proposalId: number
-}
-
-export interface ISettingIdParams {
-  network: NetworksEnum
-  fromTxHash: HexAddress
 }
 
 export interface ITokenIdParams {

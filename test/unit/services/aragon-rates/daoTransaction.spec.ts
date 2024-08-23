@@ -6,14 +6,14 @@ import DBCrawler from '@models/utils/crawler'
 import Logger from '@logger'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
-import type LogDaoRegistry from '@models/schema/logDaoRegistry'
+import type Dao from '@models/schema/dao'
 import { fakeAlchemyTransfer } from '@test/mock/fakeAlchemyTransfer'
 import Web3Helper from '@helpers/web3'
 import { RateModule } from '@modules/rates'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
 import utils from '@helpers/utils'
-import { TokenProxy } from '@modules/tokenProxy'
+import { ProxyToken } from '@modules/proxyToken'
 
 describe('Indexer:Aggregator:Transactions', () => {
   let sandbox: sinon.SinonSandbox
@@ -72,7 +72,7 @@ describe('Indexer:Aggregator:Transactions', () => {
 
   describe('onDocument', async () => {
     it('should call onDocument and create deposit and withdraw transactions', async () => {
-      const daoRegistry: Partial<LogDaoRegistry> = {
+      const daoRegistry: Partial<Dao> = {
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         network: NetworksEnum.ethereumMainnet,
       }
@@ -108,7 +108,7 @@ describe('Indexer:Aggregator:Transactions', () => {
     })
 
     it('should call onDocument and fails', async () => {
-      const daoRegistry: Partial<LogDaoRegistry> = {
+      const daoRegistry: Partial<Dao> = {
         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
         network: NetworksEnum.ethereumMainnet,
       }
@@ -181,7 +181,7 @@ describe('Indexer:Aggregator:Transactions', () => {
         ]
 
         const loggerStub = sandbox.stub(Logger, 'verbose')
-        const stubToken = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves(expectedTransaction.token as any)
+        const stubToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(expectedTransaction.token as any)
         const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
         const fetchRateStub = sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
         const findTxReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({

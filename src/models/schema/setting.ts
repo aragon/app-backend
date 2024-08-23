@@ -1,10 +1,10 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
+  ICollectionNames,
   type IPaginationParams,
   type ISettingExtraParams,
   type ISettingIdParams,
-  ITokenType,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
@@ -12,62 +12,13 @@ import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
-const customName = 'Setting'
-
-class Token {
-  @prop({ type: () => String, enum: NetworksEnum })
-  public network!: NetworksEnum
-
-  @prop({ type: () => String, enum: ITokenType, required: true })
-  public type!: ITokenType
-
-  @prop({ type: () => String, required: true })
-  public address!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public logo!: string
-
-  @prop({ type: () => String, default: null })
-  public name!: string
-
-  @prop({ type: () => String, default: null, uppercase: true })
-  public symbol!: string
-
-  @prop({ type: () => Number, default: 18 })
-  public decimals!: number
-
-  @prop({ type: () => String, default: '0' })
-  public totalSupply!: string
-}
-
-class Settings {
-  @prop({ type: () => Number })
-  public votingMode!: number
-
-  @prop({ type: () => Number })
-  public supportThreshold!: number
-
-  @prop({ type: () => Number })
-  public minParticipation!: number
-
-  @prop({ type: () => Number })
-  public minDuration!: number
-
-  @prop({ type: () => String })
-  public minProposerVotingPower!: string
-
-  @prop({ type: () => Number })
-  public minApprovals!: number
-
-  @prop({ type: () => Boolean })
-  public onlyListed!: boolean
-}
+const customName = ICollectionNames.Setting
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'setting',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -84,51 +35,66 @@ export default class Setting extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
+  @prop({ type: () => String, required: true })
+  public transactionHash!: HexAddress
+
+  @prop({ type: () => Number, required: true })
+  public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
+
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
-  @prop({ type: () => String, required: true })
-  public fromTxHash!: HexAddress
-
   @prop({ type: () => String, default: null })
-  public toTxHash!: HexAddress
-
-  @prop({ type: () => Number, required: true })
-  public fromBlockNumber!: number
-
-  @prop({ type: () => Number, default: null })
-  public toBlockNumber?: number
-
-  @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
 
   @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
 
-  @prop({ type: () => String })
-  public tokenAddress!: HexAddress
-
   @prop({ type: () => String, default: null })
   public pluginSubdomain!: string
 
-  @prop({ type: () => Settings, _id: false })
-  public settings?: Settings
+  @prop({ type: () => String, default: null })
+  public tokenAddress!: HexAddress // voting token address
 
-  @prop({ type: () => Token, _id: false })
-  public token?: Token
+  @prop({ type: () => Boolean })
+  public onlyListed!: boolean
+
+  @prop({ type: () => Number })
+  public minApprovals!: number
+
+  @prop({ type: () => Number })
+  public votingMode!: number
+
+  @prop({ type: () => Number })
+  public supportThreshold!: number
+
+  @prop({ type: () => Number })
+  public minParticipation!: number
+
+  @prop({ type: () => Number })
+  public minDuration!: number
+
+  @prop({ type: () => String })
+  public minProposerVotingPower!: string
 
   static async create(rawData: Partial<Setting>, tOpts?: SaveOptions) {
     if (!rawData.id) {
-      assert(!!rawData.fromTxHash, 'fromTxHash is required')
-      assert(!!rawData.network, 'network is required')
-      rawData.id = this.getEntityId({ fromTxHash: rawData?.fromTxHash!, network: rawData?.network! })
+      assert(!!rawData.transactionHash, 'transactionHash is required')
+      assert(!!rawData.pluginAddress, 'pluginAddress is required')
+      rawData.id = this.getEntityId({
+        transactionHash: rawData?.transactionHash!,
+        pluginAddress: rawData?.pluginAddress!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
   static getEntityId(params: ISettingIdParams) {
-    const entityId = `${params.fromTxHash}-${params.network}`
+    const entityId = `${params.transactionHash}-${params.pluginAddress}`
     return entityId
   }
 
@@ -139,6 +105,15 @@ export default class Setting extends Model {
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ id: entityId }, tOpts)
+  }
+
+  static async findLastSettingByBlockNumber(pluginAddress: HexAddress, blockNumber: number) {
+    return await this.findOne({
+      pluginAddress,
+      blockNumber: { $lte: blockNumber },
+    })
+      .sort({ blockNumber: -1 })
+      .exec()
   }
 
   static async findActiveByDaoAddress(daoAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
@@ -210,13 +185,5 @@ export default class Setting extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
-  }
-
-  filterKeys() {
-    const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
-    filtered.settings = _.omit(filtered.settings, 'id', '_id', '__v')
-    filtered.token = filtered.token ? _.omit(filtered.token, 'id', '_id', '__v') : undefined
-    return filtered
   }
 }

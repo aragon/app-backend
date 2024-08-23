@@ -1,10 +1,10 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type ILogDaoMetadataIdParams, NetworksEnum } from '@types'
+import { HexAddress, ICollectionNames, type ILogDaoMetadataIdParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 
-const customName = 'LogDaoMetadata'
+const customName = ICollectionNames.LogDaoMetadata
 
 class Link {
   @prop({ type: () => String, default: null })
@@ -18,7 +18,7 @@ class Link {
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'logDaoMetadata',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
