@@ -57,7 +57,7 @@ describe('Controller: Dao', () => {
           subdomain: 'test',
         },
       ],
-      hideDao: false,
+      isHidden: false,
     }
     await Models.Dao.create(rawDao)
   })

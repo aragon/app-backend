@@ -2,6 +2,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   type ENS,
   HexAddress,
+  ICollectionNames,
   type IDaoExtraParams,
   type IDaoIdParams,
   type IDaoResponse,
@@ -14,7 +15,7 @@ import * as _ from 'lodash'
 import ModelUtils from '@models/utils/models'
 import { assert } from '@errors'
 
-const customName = 'Dao'
+const customName = ICollectionNames.Dao
 
 class Link {
   @prop({ type: () => String, default: null })
@@ -41,40 +42,11 @@ class Metrics {
   public members!: number
 }
 
-class Plugin {
-  @prop({ type: () => String, default: null })
-  public transactionHash!: HexAddress
-
-  @prop({ type: () => Number })
-  public blockNumber!: number
-
-  @prop({ type: () => String, required: true })
-  public address!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public implementationAddress!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public tokenAddress!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public pluginSetupRepoAddress!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public release!: string
-
-  @prop({ type: () => String, default: null })
-  public build!: string
-
-  @prop({ type: () => String, default: null })
-  public subdomain!: string
-}
-
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'dao',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -92,6 +64,12 @@ class Plugin {
 export default class Dao extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
+
+  @prop({ type: () => Boolean, default: false })
+  public isActive!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public isHidden!: boolean
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -135,20 +113,14 @@ export default class Dao extends Model {
   @prop({ type: () => [Link], _id: false, default: [] })
   public links?: Link[]
 
-  @prop({ type: () => [Plugin], _id: false, default: [] })
-  public plugins?: Plugin[]
+  @prop({ type: () => String, default: null })
+  public daoVersion!: string
 
   @prop({ type: () => Number, default: 0 })
   public tvlUSD!: number
 
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics?: Metrics
-
-  @prop({ type: () => Boolean, default: false })
-  public hideDao!: boolean
-
-  @prop({ type: () => String, default: null })
-  public daoVersion!: string
 
   static async create(rawData: Partial<Dao>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -209,7 +181,7 @@ export default class Dao extends Model {
       filter['plugins.address'] = extraParams.pluginAddress
     }
 
-    filter.hideDao = { $ne: true }
+    filter.isHidden = { $ne: true }
 
     const currentPage = request.skip / request.limit + 1
     const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
@@ -258,7 +230,7 @@ export default class Dao extends Model {
 
   filterKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'hideDao', 'createdAt', 'updatedAt')
+    const filtered = _.omit(obj, '_id', '__v', 'isHidden', 'createdAt', 'updatedAt')
     filtered.plugins = filtered.plugins.map((plugin: any) => _.omit(plugin, '_id', '__v'))
     return filtered
   }
@@ -272,7 +244,7 @@ export default class Dao extends Model {
       },
       {
         $lookup: {
-          from: 'token',
+          from: 'Token',
           let: { tokenAddresses: '$plugins.tokenAddress', network: '$network' },
           pipeline: [
             {
@@ -308,7 +280,7 @@ export default class Dao extends Model {
       },
       {
         $lookup: {
-          from: 'member',
+          from: 'Member',
           let: { daoAddr: '$address' },
           pipeline: [
             {

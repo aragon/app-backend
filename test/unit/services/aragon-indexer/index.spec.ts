@@ -2,21 +2,12 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import IndexerService from '@services/aragon-indexer/index'
-import { LogDao } from '@services/aragon-indexer/logDao'
-import { LogDaoRegistry } from '@services/aragon-indexer/logDaoRegistry'
-import { LogPluginRepoRegistry } from '@services/aragon-indexer/logPluginRepoRegistry'
-import { LogPluginSetupProcessor } from '@services/aragon-indexer/logPluginSetupProcessor'
-import { LogProposal } from '@services/aragon-indexer/logProposal'
 import config from '@config'
 import utils from '@helpers/utils'
 import { EnumConnection } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import logger from '@logger'
-import { LogPluginSetting } from '@services/aragon-indexer/logPluginSetting'
-import { LogMember } from '@services/aragon-indexer/logMember'
 import { AggregatorMembers } from '@services/aragon-indexer/aggregator/member'
-import { AggregatorPlugin } from '@services/aragon-indexer/aggregator/plugin'
-import { AggregatorSetting } from '@services/aragon-indexer/aggregator/setting'
 import { AggregatorDao } from '@services/aragon-indexer/aggregator/dao'
 import { AggregatorProposal } from '@indexer/aggregator/proposal'
 import { AggregatorDelegate } from '@indexer/aggregator/delegate'
@@ -43,16 +34,7 @@ describe('Indexer: index', () => {
     config.SERVICES.ARAGON_INDEXER.DAO_INTERVAL = 200
 
     const taskStubs = [
-      sandbox.stub(LogDao, 'start').resolves(),
-      sandbox.stub(LogDaoRegistry, 'start').resolves(),
-      sandbox.stub(LogPluginRepoRegistry, 'start').resolves(),
-      sandbox.stub(LogPluginSetupProcessor, 'start').resolves(),
-      sandbox.stub(LogProposal, 'start').resolves(),
-      sandbox.stub(LogPluginSetting, 'start').resolves(),
-      sandbox.stub(LogMember, 'start').resolves(),
       sandbox.stub(AggregatorMembers, 'start').resolves(),
-      sandbox.stub(AggregatorPlugin, 'start').resolves(),
-      sandbox.stub(AggregatorSetting, 'start').resolves(),
       sandbox.stub(AggregatorProposal, 'start').resolves(),
       sandbox.stub(AggregatorDelegate, 'start').resolves(),
       sandbox.stub(AggregatorDao, 'start').resolves(),

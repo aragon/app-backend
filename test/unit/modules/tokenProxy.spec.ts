@@ -4,14 +4,13 @@ import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { ITokenType, NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
-import Web3Helper from '@helpers/web3'
 import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
 import utils from '@helpers/utils'
-import { TokenProxy } from '@modules/tokenProxy'
+import { ProxyToken } from '@modules/proxyToken'
 
-describe('Modules: TokenProxy', () => {
+describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox
   let rawToken: Partial<Token>
 
@@ -52,7 +51,7 @@ describe('Modules: TokenProxy', () => {
         logo: null,
       } as any)
 
-      const stubTokenMetrics = sandbox.stub(TokenProxy, 'getTokenMetrics').resolves({
+      const stubTokenMetrics = sandbox.stub(ProxyToken, 'getTokenMetrics').resolves({
         totalHolders: 20,
         totalSupply: '1000',
       } as any)
@@ -61,7 +60,7 @@ describe('Modules: TokenProxy', () => {
         .stub(TokenDetector, 'detectTokenType')
         .resolves({ type: ITokenType.GovernanceERC20, implementationAddress: '0x456' } as any)
 
-      const token = await TokenProxy.saveAndGetToken(
+      const token = await ProxyToken.saveAndGetToken(
         '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
         NetworksEnum.ethereumMainnet,
       )
@@ -99,12 +98,12 @@ describe('Modules: TokenProxy', () => {
       const stubDetectTokenType = sandbox
         .stub(TokenDetector, 'detectTokenType')
         .resolves({ type: ITokenType.unknown } as any)
-      const stubTokenMetrics = sandbox.stub(TokenProxy, 'getTokenMetrics').resolves({
+      const stubTokenMetrics = sandbox.stub(ProxyToken, 'getTokenMetrics').resolves({
         totalHolders: 20,
         totalSupply: '2000',
       } as any)
 
-      const token = await TokenProxy.saveAndGetToken(
+      const token = await ProxyToken.saveAndGetToken(
         '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
         NetworksEnum.ethereumMainnet,
       )
@@ -121,7 +120,7 @@ describe('Modules: TokenProxy', () => {
     it('should return existing token if found', async () => {
       const stubDetect = sandbox.stub(TokenDetector, 'detectTokenType')
 
-      const result = await TokenProxy.saveAndGetToken(rawToken.address as any, rawToken.network as any)
+      const result = await ProxyToken.saveAndGetToken(rawToken.address as any, rawToken.network as any)
 
       expect(stubDetect.notCalled).to.be.true
       expect(result?.address).to.equal(rawToken.address)
@@ -129,7 +128,7 @@ describe('Modules: TokenProxy', () => {
 
     it('token not found', async () => {
       const stubFind = sandbox.stub(Models.Token, 'findExistingLog').resolves(true)
-      const token = await TokenProxy.saveAndGetToken(
+      const token = await ProxyToken.saveAndGetToken(
         '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
         NetworksEnum.ethereumMainnet,
       )
@@ -149,7 +148,7 @@ describe('Modules: TokenProxy', () => {
         priceUsd: '0',
       }
 
-      const result = TokenProxy.skipFetchToken(token as any, tokenRate as any)
+      const result = ProxyToken.skipFetchToken(token as any, tokenRate as any)
       expect(result).to.be.true
     })
 
@@ -162,7 +161,7 @@ describe('Modules: TokenProxy', () => {
         priceUsd: '1',
       }
 
-      const result = TokenProxy.skipFetchToken(token as any, tokenRate as any)
+      const result = ProxyToken.skipFetchToken(token as any, tokenRate as any)
       expect(result).to.be.false
     })
 
@@ -175,7 +174,7 @@ describe('Modules: TokenProxy', () => {
         priceUsd: '0',
       }
 
-      const result = TokenProxy.skipFetchToken(token as any, tokenRate as any)
+      const result = ProxyToken.skipFetchToken(token as any, tokenRate as any)
       expect(result).to.be.true
     })
 
@@ -188,7 +187,7 @@ describe('Modules: TokenProxy', () => {
         priceUsd: '0',
       }
 
-      const result = TokenProxy.skipFetchToken(token as any, tokenRate as any)
+      const result = ProxyToken.skipFetchToken(token as any, tokenRate as any)
       expect(result).to.be.true
     })
 
@@ -201,7 +200,7 @@ describe('Modules: TokenProxy', () => {
         priceUsd: '100',
       }
 
-      const result = TokenProxy.skipFetchToken(token as any, tokenRate as any)
+      const result = ProxyToken.skipFetchToken(token as any, tokenRate as any)
       expect(result).to.be.false
     })
   })

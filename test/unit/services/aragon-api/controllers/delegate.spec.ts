@@ -4,12 +4,12 @@ import { expect } from 'chai'
 import DelegateController from '@services/aragon-api/controllers/delegate'
 import { ITokenType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import Delegate from '@models/schema/delegate'
+import MemberTransaction from '@models/schema/memberTransaction'
 import PairDataModule from '@modules/pairData'
 
 describe('Controller: Delegate', () => {
   let sandbox: SinonSandbox
-  let rawDelegate: Partial<Delegate>
+  let rawDelegate: Partial<MemberTransaction>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()

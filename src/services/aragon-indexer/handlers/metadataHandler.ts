@@ -1,71 +1,63 @@
 import logger from '@logger'
 import { type ILogInfo } from '@types'
-import { Interface, type LogDescription } from 'ethers'
+import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
-import DbTx from '@modules/dbTx'
 import Web3Helper from '@helpers/web3'
-import { DAOFactory } from '@artifacts/daoFactory'
-import { TokenVoting } from '@artifacts/TokenVoting'
 import IPFSModule from '@modules/ipfs'
-import { DAO } from '@artifacts/dao'
+import type LogDaoMetadata from '@models/schema/logDaoMetadata'
+import DbOperations from '@models/utils/dbOperations'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:MetadataHandler' })
 
 export const MetadataHandler = {
-  contractInterfaces: {
-    DAOFactory: new Interface(DAOFactory.abi),
-    TokenVoting: new Interface(TokenVoting.abi),
-    DAO: new Interface(DAO.abi),
+  metadataSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const { address: daoAddress, transactionHash, network, blockNumber } = info
+
+    const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog({
+      transactionHash,
+      daoAddress,
+    })
+    if (existingDaoMetadata) return
+
+    const daoExists = await Models.Dao.findByAddress(daoAddress, network)
+    if (!daoExists) return
+
+    const metadataUri = Web3Helper.extractMetadataUri(parsedEvent.args.metadata)
+    const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 1 })
+
+    const logDaoMetadata = {
+      network,
+      metadataUri: metadataUri!,
+      daoAddress,
+      fetchedMetadata: !!ipfsMetadata,
+      blockNumber,
+      transactionHash,
+      name: ipfsMetadata?.name!,
+      description: ipfsMetadata?.description!,
+      avatar: ipfsMetadata?.avatar!,
+      links: ipfsMetadata?.links!,
+    }
+
+    const logDb = await DbOperations.createDocument(Models.LogDaoMetadata, logDaoMetadata, info, 'Metadata Set', llo)
+    if (logDb) {
+      await MetadataHandler._updateDaoMetadata(logDb)
+    }
   },
 
-  metadataSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    /**
-     * As the tx log can a transaction Object or transaction receipt,
-     * We need to properly extract the transaction hash and block number
-     *
-     * This situation occurs when its is called from the daoRegistryHandler,
-     * dao creation lifecycle
-     */
+  _updateDaoMetadata: async (metadataLog: LogDaoMetadata) => {
+    const dao = await Models.Dao.findExistingLog({
+      network: metadataLog.network,
+      address: metadataLog.daoAddress,
+    })
+    if (!dao || !metadataLog.fetchedMetadata) return
 
-    try {
-      const daoAddress = info.address
-
-      const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog({
-        transactionHash: info.transactionHash,
-        daoAddress,
-      })
-      if (!existingDaoMetadata) {
-        const isDaoExists = await Models.LogDaoRegistry.findByAddress(daoAddress, info.network)
-
-        if (isDaoExists) {
-          const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)
-
-          const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 1 })
-
-          await DbTx.executeTxFn(async ({ session }) => {
-            const logDaoMetadata = {
-              network: info.network,
-              metadataUri: metadataUri!,
-              daoAddress,
-              fetchedMetadata: !!ipfsMetadata,
-              blockNumber: info.blockNumber,
-              transactionHash: info.transactionHash,
-              name: ipfsMetadata?.name!,
-              description: ipfsMetadata?.description!,
-              avatar: ipfsMetadata?.avatar!,
-              links: ipfsMetadata?.links!,
-            }
-
-            const logDb = await Models.LogDaoMetadata.create(logDaoMetadata, { session } as any)
-
-            await session.commitTransaction()
-            await session.endSession()
-            logger.verbose('New DaoMetadata', llo({ ...info, logId: logDb.id }))
-          })
-        }
-      }
-    } catch (error) {
-      logger.error('Error DaoMetadata', llo({ ...info, error }))
+    const document = {
+      metadataIpfs: metadataLog.metadataUri,
+      name: metadataLog.name,
+      description: metadataLog.description,
+      avatar: metadataLog.avatar,
+      links: metadataLog.links,
     }
+    await DbOperations.updateDocument(dao, document, { logId: metadataLog.id }, 'Update Dao Metadata', llo)
   },
 }

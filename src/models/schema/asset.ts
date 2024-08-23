@@ -3,6 +3,7 @@ import {
   HexAddress,
   type IAssetExtraParams,
   type IAssetIdParams,
+  ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
   NetworksEnum,
@@ -12,13 +13,13 @@ import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
-const customName = 'Asset'
+const customName = ICollectionNames.Asset
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'asset',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -91,7 +92,7 @@ export default class Asset extends Model {
       },
       {
         $lookup: {
-          from: 'token',
+          from: 'Token',
           let: { tokenAddress: '$tokenAddress', network: '$network' },
           pipeline: [
             {
@@ -192,7 +193,7 @@ export default class Asset extends Model {
         { $match: filter },
         {
           $lookup: {
-            from: 'token',
+            from: 'Token',
             let: { tokenAddress: '$tokenAddress', network: '$network' },
             pipeline: [
               {

@@ -1,16 +1,16 @@
 import { modelOptions, prop } from '@typegoose/typegoose'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { type IConfigIndexerIdParams, NetworksEnum } from '@types'
+import { ICollectionNames, type IConfigIndexerIdParams, NetworksEnum } from '@types'
 import { assert } from '@errors'
 
-const customName = 'ConfigIndexer'
+const customName = ICollectionNames.ConfigIndexer
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'configIndexer',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },

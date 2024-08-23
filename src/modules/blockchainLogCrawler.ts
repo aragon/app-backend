@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { type Filter, type Log, type WebSocketProvider } from 'ethers'
-import { type IEnumIndexerService, NetworksEnum } from '@types'
+import { type IEnumIndexerService, type IEnumIndexerServiceStatic, NetworksEnum } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -19,7 +19,7 @@ class BlockchainLogCrawler {
   private readonly onError: (error: any, log?: Log) => void
   private readonly filter: Filter
   private readonly stopOnError: boolean
-  private readonly logService: IEnumIndexerService | null
+  private readonly logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
   private readonly originalBatchSize: number
   private batchSize: number
   private crawling: boolean
@@ -41,7 +41,7 @@ class BlockchainLogCrawler {
     onLog: (log: Log) => Promise<void>
     onError?: (error: Error, log?: Log) => void
     stopOnError?: boolean
-    logService?: IEnumIndexerService
+    logService?: IEnumIndexerService | IEnumIndexerServiceStatic | null
   }) {
     this.provider = ProviderModule.getProvider(opts.network)!
     if (!this.provider) {
@@ -152,7 +152,7 @@ class BlockchainLogCrawler {
       let toBlock = Math.min(currentBlock + this.batchSize - (this.runCount > 1 ? 1 : 0), latestBlock)
 
       // Handle topics: use chunks if there are topics, or pass empty for all logs
-      const topicChunks = utils.chunkArray(this.filter.topics, 4)
+      const topicChunks = utils.chunkArray(this.filter.topics, 6)
 
       for (const topics of topicChunks) {
         logger.silly(
@@ -180,7 +180,7 @@ class BlockchainLogCrawler {
                 }),
               ),
             )
-            await this.processLogs(logs)
+            await this.processLogs(logs.sort((a, b) => a.blockNumber - b.blockNumber))
             this.batchSize = this.originalBatchSize
             success = true
             break
@@ -233,6 +233,7 @@ class BlockchainLogCrawler {
         if (log.blockNumber) {
           this.crawlResult.lastSync = log?.blockNumber
         }
+        logger.verbose('Processing log', llo({ crawlResult: { ...this.crawlResult, ...{ totalLogs: logs.length } } }))
         if (this.logService && log.blockNumber) {
           await this.onSaveProgress(log.blockNumber)
         }
@@ -264,9 +265,14 @@ class BlockchainLogCrawler {
       network: this.crawlResult.network,
       service: this.logService!,
     })
-    return existingConfig
-      ? existingConfig.lastSync
-      : config.ARAGON_SUPPORTED_BLOCK[utils.networkToAragon(this.crawlResult.network)]
+
+    if (!existingConfig && (this.filter?.fromBlock as number) > 0) {
+      return this.filter.fromBlock
+    } else if (existingConfig) {
+      return existingConfig.lastSync
+    } else {
+      return config.ARAGON_SUPPORTED_BLOCK[utils.networkToAragon(this.crawlResult.network)]
+    }
   }
 
   async onSaveProgress(blockNumber: number) {

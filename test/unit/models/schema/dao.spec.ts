@@ -54,7 +54,7 @@ describe('Model: Dao', () => {
           subdomain: 'test',
         },
       ],
-      hideDao: false,
+      isHidden: false,
     }
   })
 
@@ -102,7 +102,7 @@ describe('Model: Dao', () => {
       expect(createdDao.plugins[0].release).to.eq(rawDao.plugins![0].release)
       expect(createdDao.plugins[0].build).to.eq(rawDao.plugins![0].build)
       expect(createdDao.plugins[0].subdomain).to.eq(rawDao.plugins![0].subdomain)
-      expect(createdDao.hideDao).to.eq(rawDao.hideDao)
+      expect(createdDao.isHidden).to.eq(rawDao.isHidden)
     })
   })
 
@@ -183,7 +183,7 @@ describe('Model: Dao', () => {
               address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1961',
             },
           ],
-          hideDao: false,
+          isHidden: false,
           txHash: '0x0',
         },
         {
@@ -207,7 +207,7 @@ describe('Model: Dao', () => {
               address: '0x0',
             },
           ],
-          hideDao: false,
+          isHidden: false,
           txHash: '0x0',
         },
         {
@@ -231,7 +231,7 @@ describe('Model: Dao', () => {
               address: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1962',
             },
           ],
-          hideDao: false,
+          isHidden: false,
           txHash: '0x0',
         },
       ]
@@ -293,7 +293,7 @@ describe('Model: Dao', () => {
             address: '0x0',
           },
         ],
-        hideDao: false,
+        isHidden: false,
         txHash: '0x0',
       } as any)
 
@@ -414,7 +414,7 @@ describe('Model: Dao', () => {
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
-    expect(filterDao.hideDao).to.be.undefined
+    expect(filterDao.isHidden).to.be.undefined
     expect(Object.keys(filterDao).length).to.eq(19)
   })
 
