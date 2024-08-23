@@ -1,12 +1,12 @@
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import {
   HexAddress,
+  ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
   type IProposalExtraParams,
   type IProposalIdParams,
   type IProposalsResponse,
-  ITokenType,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions, Schema } from 'mongoose'
@@ -14,7 +14,7 @@ import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
-const customName = 'Proposal'
+const customName = ICollectionNames.Proposal
 
 class Resource {
   @prop({ type: () => String, default: null })
@@ -23,6 +23,18 @@ class Resource {
   @prop({ type: () => String, default: null })
   public name!: string
 }
+
+class RawAction {
+  @prop({ type: () => String, default: null })
+  public to!: string
+
+  @prop({ type: () => String, default: null })
+  public value!: string
+
+  @prop({ type: () => String, default: null })
+  public data!: string
+}
+
 class Media {
   @prop({ type: () => String, default: null })
   public header!: string
@@ -31,18 +43,39 @@ class Media {
   public logo!: string
 }
 
-export class Settings {
-  @prop({ type: () => String, default: null })
-  public fromTxHash!: HexAddress
+class Settings {
+  @prop({ type: () => String, required: true })
+  public id!: string
+
+  @prop({ type: () => String, required: true })
+  public transactionHash!: HexAddress
+
+  @prop({ type: () => Number, required: true })
+  public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
+
+  @prop({ type: () => String, enum: NetworksEnum, required: true })
+  public network!: NetworksEnum
 
   @prop({ type: () => String, default: null })
-  public toTxHash!: HexAddress
+  public daoAddress!: HexAddress
 
-  @prop({ type: () => Number, default: null })
-  public fromBlockNumber!: number
+  @prop({ type: () => String, required: true })
+  public pluginAddress!: HexAddress
 
-  @prop({ type: () => Number, default: null })
-  public toBlockNumber!: number
+  @prop({ type: () => String, default: null })
+  public pluginSubdomain!: string
+
+  @prop({ type: () => String, default: null })
+  public tokenAddress!: HexAddress // voting token address
+
+  @prop({ type: () => Boolean })
+  public onlyListed!: boolean
+
+  @prop({ type: () => Number })
+  public minApprovals!: number
 
   @prop({ type: () => Number })
   public votingMode!: number
@@ -56,14 +89,8 @@ export class Settings {
   @prop({ type: () => Number })
   public minDuration!: number
 
-  @prop({ type: () => String })
-  public minProposerVotingPower!: string
-
   @prop({ type: () => Number })
-  public minApprovals!: number
-
-  @prop({ type: () => Boolean })
-  public onlyListed!: boolean
+  public minProposerVotingPower!: number
 }
 
 export class ProposalExecuted {
@@ -102,37 +129,19 @@ export class Metrics {
   public votesByOption!: VotesByOption[]
 }
 
-class Token {
-  @prop({ type: () => String, enum: ITokenType, required: true })
-  public type!: ITokenType
+class Snapshot {
+  @prop({ type: () => String })
+  public totalSupply?: string // totalSupply (only needed for token, rm from multisig)
 
-  @prop({ type: () => String, required: true })
-  public address!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public logo!: string
-
-  @prop({ type: () => String, default: null })
-  public name!: string
-
-  @prop({ type: () => String, default: null, uppercase: true })
-  public symbol!: string
-
-  @prop({ type: () => Number, default: 18 })
-  public decimals!: number
-
-  @prop({ type: () => String, default: 0 })
-  public totalSupply!: string
-
-  @prop({ type: () => Number, default: 0 })
-  public holdersCount!: number
+  @prop({ type: () => Number })
+  public membersCount?: number // memberCount (only needed for multisig, rm from token)
 }
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'proposal',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -181,6 +190,9 @@ export default class Proposal extends Model {
   @prop({ type: () => Number, required: true })
   public endDate!: number
 
+  @prop({ type: () => Boolean, default: false })
+  public approvalReached!: boolean
+
   @prop({ type: () => String, default: null })
   public metadataUri!: string
 
@@ -202,8 +214,8 @@ export default class Proposal extends Model {
   @prop({ type: () => ProposalExecuted, _id: false, default: {} })
   public executed!: ProposalExecuted
 
-  @prop({ type: () => Settings, _id: false })
-  public settings!: Settings
+  @prop({ type: () => [RawAction], _id: false, default: [] })
+  public rawActions!: RawAction[]
 
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
   public actions!: any[]
@@ -211,11 +223,14 @@ export default class Proposal extends Model {
   @prop({ type: () => Media, _id: false })
   public media!: Media
 
+  @prop({ type: () => Settings, _id: false, default: {} })
+  public settings!: Settings
+
+  @prop({ type: () => Snapshot, _id: false, default: {} })
+  public snapshot!: Snapshot
+
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics!: Metrics
-
-  @prop({ type: () => Token, _id: false, default: null })
-  public token!: Token
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -294,7 +309,7 @@ export default class Proposal extends Model {
         ...query,
         {
           $lookup: {
-            from: 'dao',
+            from: 'Dao',
             let: { daoAddresses: '$daoAddress' },
             pipeline: [
               {

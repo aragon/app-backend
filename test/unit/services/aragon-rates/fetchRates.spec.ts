@@ -7,7 +7,7 @@ import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import { RateModule } from '@modules/rates'
 import { ITokenType, NetworksEnum } from '@types'
-import { TokenProxy } from '@modules/tokenProxy'
+import { ProxyToken } from '@modules/proxyToken'
 
 describe('Rates: FetchRates', () => {
   let sandbox: SinonSandbox
@@ -55,7 +55,7 @@ describe('Rates: FetchRates', () => {
     const stubFetchRates = sandbox.stub(RateModule, 'fetchRate').resolves(fakeRate as any)
     const stubLogger = sandbox.stub(logger, 'verbose')
 
-    sandbox.stub(TokenProxy, 'skipFetchToken').returns(true)
+    sandbox.stub(ProxyToken, 'skipFetchToken').returns(true)
 
     const tokenDb = await Models.Token.create({
       network: NetworksEnum.ethereumMainnet,

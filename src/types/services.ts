@@ -19,13 +19,15 @@ export enum IEnumTaskStatus {
 }
 
 export enum IEnumIndexerService {
-  daoLog = 'daoLog',
-  daoRegistryLog = 'daoRegistryLog',
-  memberLog = 'memberLog',
-  pluginRepoRegistryLog = 'pluginRepoRegistryLog',
-  pluginSettingLog = 'pluginSettingLog',
-  pluginSetupProcessorLog = 'pluginSetupProcessorLog',
-  proposalLog = 'proposalLog',
+  logPluginRepoRegistry = 'logPluginRepoRegistry',
+  logDaoRegistry = 'logDaoRegistry',
+  logPluginSetupProcessor = 'logPluginSetupProcessor',
+  logMetadata = 'logMetadata',
+  logMultisig = 'logMultisig',
+  logTokenVoting = 'logTokenVoting',
+  logGovernanceErc20 = 'logGovernanceErc20',
   depositTxs = 'depositTxs',
   withdrawTxs = 'withdrawTxs',
 }
+
+export type IEnumIndexerServiceStatic = `${'Token' | 'TokenVoting' | 'Multisig'}-${string}-${string}`

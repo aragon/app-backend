@@ -36,7 +36,7 @@ describe('Indexer: MetadataHandler', () => {
         eventName: 'test',
       }
 
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves({
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({
         address: '0x123',
         network: NetworksEnum.ethereumMainnet,
       } as any)
@@ -69,7 +69,7 @@ describe('Indexer: MetadataHandler', () => {
         eventName: 'test',
       }
 
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves({
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({
         address: '0x123',
         network: NetworksEnum.ethereumMainnet,
       } as any)

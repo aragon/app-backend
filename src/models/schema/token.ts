@@ -1,6 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
+  ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
   type IToken,
@@ -15,13 +16,13 @@ import * as _ from 'lodash'
 import ModelUtils, { utcDateProp } from '@models/utils/models'
 import { assert } from '@errors'
 
-const customName = 'Token'
+const customName = ICollectionNames.Token
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'token',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -39,6 +40,15 @@ export default class Token extends Model {
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
+
+  @prop({ type: () => String, default: null })
+  public transactionHash!: HexAddress | null
+
+  @prop({ type: () => Number })
+  public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
 
   @prop({ type: () => String, enum: ITokenType, required: true })
   public type!: ITokenType

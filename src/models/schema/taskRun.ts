@@ -1,10 +1,10 @@
 import { modelOptions, prop } from '@typegoose/typegoose'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { IEnumTaskStatus } from '@types'
+import { ICollectionNames, IEnumTaskStatus } from '@types'
 import { v4 as uuidv4 } from 'uuid'
 
-const customName = 'TaskRun'
+const customName = ICollectionNames.TaskRun
 
 class Task {
   @prop({ type: () => String, required: true })
@@ -33,7 +33,7 @@ class Task {
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'taskRun',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },

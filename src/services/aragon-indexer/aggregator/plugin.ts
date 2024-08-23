@@ -1,87 +1,42 @@
-import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import DbTx from '@modules/dbTx'
-import type Plugin from '@models/schema/plugin'
-import { NetworkHelper } from '@helpers/network'
-import { type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  IEventLogPluginType,
+  IPluginRawStatus,
+  IPluginStatus,
+  type IQueryGetPlugin,
+  type NetworksEnum,
+} from '@types'
 import ProxyContractHelper from '@helpers/proxyContract'
-import config from '@config'
+import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
+import type Plugin from '@models/schema/plugin'
+import Web3Helper from '@helpers/web3'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
+import DbOperations from '@models/utils/dbOperations'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorPlugin' })
 
 export const AggregatorPlugin = {
-  batchSize: config.CRAWLER_CONFIG.DA0_PLUGIN_BATCH_SIZE,
-  concurrency: config.CRAWLER_CONFIG.DAO_PLUGIN_CONCURRENCY,
-
-  start: async () => {
-    const startTime = Date.now()
-    logger.verbose('Start AggregatorPlugin', llo({ startTime }))
-
-    const supportedNetworks = NetworkHelper.supportedNetworks().map(network => network.networkName)
-    const crawler = new DBCrawler({
-      model: Models.LogPluginSetupProcessor,
-      onDocument: AggregatorPlugin.onDocument,
-      onError: (error: any, document: any) => {
-        logger.error('Error AggregatorPlugin', llo({ error, document }))
-      },
-      useAggregate: true,
-      disablePagination: true,
-      aggregate: () => AggregatorPlugin.query(supportedNetworks),
-      batchSize: AggregatorPlugin.batchSize,
-      concurrency: AggregatorPlugin.concurrency,
-    })
-
-    await crawler.crawl()
-
-    const duration = Date.now() - startTime
-    logger.verbose(
-      'End AggregatorPlugin',
-      llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt, duration: `${duration}ms` }),
-    )
-  },
-
-  async onDocument(document: Partial<Plugin>) {
-    const existingLog = await Models.Plugin.findExistingLog({
-      transactionHash: document.transactionHash!,
-      action: document.action!,
-      network: document.network!,
-    })
-
-    await DbTx.executeTxFn(async ({ session }) => {
-      let logDb: any
-      if (!existingLog) {
-        const implementationAddress = await ProxyContractHelper.getImplementationAddress(
-          document.address!,
-          document.network!,
-        )
-        if (implementationAddress) {
-          document.implementationAddress = implementationAddress
-        }
-        logDb = await Models.Plugin.create(document as any, { session } as any)
-      } else {
-        logDb = await existingLog.update(document, { session })
-      }
-      await session.commitTransaction()
-      await session.endSession()
-      logger.verbose(existingLog ? 'Update Aggregate Plugin' : 'New Aggregate Plugin', llo({ logId: logDb?.id }))
-    })
-  },
-
-  query(networks: NetworksEnum[]) {
-    return [
+  async _queryGetPlugin({
+    daoAddress,
+    pluginAddress,
+    network,
+    events = [],
+  }: {
+    daoAddress: HexAddress
+    pluginAddress: HexAddress
+    network: NetworksEnum
+    events: IEventLogPluginType[]
+  }): Promise<IQueryGetPlugin | undefined> {
+    const query = [
       {
         $match: {
-          ...(networks?.length > 0 && { network: { $in: networks } }),
+          network,
+          daoAddress,
+          pluginAddress,
           event: {
-            $in: [
-              'InstallationPrepared',
-              'InstallationApplied',
-              'UpdatePrepared',
-              'UpdateApplied',
-              'UninstallationPrepared',
-              'UninstallationApplied',
-            ],
+            $in: events,
           },
         },
       },
@@ -126,8 +81,8 @@ export const AggregatorPlugin = {
                       $concat: [{ $ifNull: ['$$this.event', ''] }, '|', { $ifNull: ['$$value.event', ''] }],
                     },
                     event: '$$this.event',
-                    transactionHash: { $ifNull: ['$$this.transactionHash', '$$value.transactionHash'] },
-                    blockNumber: { $ifNull: ['$$this.blockNumber', '$$value.blockNumber'] },
+                    transactionHash: { $ifNull: ['$$value.transactionHash', '$$this.transactionHash'] },
+                    blockNumber: { $ifNull: ['$$value.blockNumber', '$$this.blockNumber'] },
                     network: { $ifNull: ['$$this.network', '$$value.network'] },
                     address: { $ifNull: ['$$this.pluginAddress', '$$value.pluginAddress'] },
                     daoAddress: { $ifNull: ['$$this.daoAddress', '$$value.daoAddress'] },
@@ -165,7 +120,7 @@ export const AggregatorPlugin = {
                                 { $in: ['InstallationApplied', ['$$value.event']] },
                               ],
                             },
-                            then: 'install',
+                            then: IPluginRawStatus.install,
                           },
                           {
                             case: {
@@ -174,7 +129,7 @@ export const AggregatorPlugin = {
                                 { $in: ['UpdateApplied', ['$$value.event']] },
                               ],
                             },
-                            then: 'update',
+                            then: IPluginRawStatus.update,
                           },
                           {
                             case: {
@@ -183,7 +138,7 @@ export const AggregatorPlugin = {
                                 { $in: ['UninstallationApplied', ['$$value.event']] },
                               ],
                             },
-                            then: 'uninstall',
+                            then: IPluginRawStatus.uninstall,
                           },
                         ],
                         default: null,
@@ -203,25 +158,7 @@ export const AggregatorPlugin = {
       {
         $match: { action: { $ne: null } },
       },
-      {
-        $lookup: {
-          from: 'logPluginRepo',
-          let: {
-            repoAddr: '$pluginSetupRepoAddress',
-            network: '$network',
-          },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [{ $eq: ['$pluginRepo', '$$repoAddr'] }, { $eq: ['$network', '$$network'] }],
-                },
-              },
-            },
-          ],
-          as: 'pluginRepo',
-        },
-      },
+      AggregationQueryHelper.pluginRepo('$pluginSetupRepoAddress', '$network'),
       {
         $unwind: {
           path: '$pluginRepo',
@@ -291,5 +228,152 @@ export const AggregatorPlugin = {
       //            },
       //        },
     ]
+    const plugins = await Models.LogPluginSetupProcessor.aggregate(query)
+
+    if (!plugins || plugins.length === 0) {
+      return
+    }
+
+    return plugins[0]
+  },
+
+  _createPlugin: async (plugin: IQueryGetPlugin): Promise<Plugin | undefined> => {
+    const existingLog = await Models.Plugin.findExistingLog({
+      network: plugin.network,
+      transactionHash: plugin.transactionHash,
+      address: plugin.address,
+    })
+
+    if (existingLog) {
+      return
+    }
+
+    const document: Partial<Plugin> = {
+      status: IPluginStatus.installed,
+      network: plugin.network,
+      blockNumber: plugin.blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(plugin.blockNumber, plugin.network)) || undefined,
+      transactionHash: plugin.transactionHash,
+      address: plugin.address,
+      daoAddress: plugin.daoAddress,
+      tokenAddress: plugin.tokenAddress,
+      pluginSetupRepoAddress: plugin.pluginSetupRepoAddress,
+      sender: plugin.sender,
+      release: plugin.release,
+      build: plugin.build,
+      permissions: plugin.permissions,
+      subdomain: plugin.subdomain,
+    }
+
+    const implementationAddress = await ProxyContractHelper.getImplementationAddress(plugin.address, plugin.network)
+    if (implementationAddress) {
+      document.implementationAddress = implementationAddress
+    }
+
+    const info = {
+      network: plugin.network,
+      transactionHash: plugin.transactionHash,
+      address: plugin.address,
+    }
+    return await DbOperations.createDocument(Models.Plugin, document, info, 'New Create Plugin', llo)
+  },
+
+  createPlugin: async (pluginLog: LogPluginSetupProcessor) => {
+    const plugin = await AggregatorPlugin._queryGetPlugin({
+      daoAddress: pluginLog.daoAddress,
+      pluginAddress: pluginLog.pluginAddress,
+      network: pluginLog.network,
+      ...{ events: [IEventLogPluginType.InstallationPrepared, IEventLogPluginType.InstallationApplied] },
+    })
+
+    if (!plugin) {
+      logger.warn('Create Plugin - event not found', llo({ pluginLog }))
+      return
+    }
+
+    const dao = await Models.Dao.findByAddress(plugin.daoAddress, plugin.network)
+    if (!dao) {
+      logger.warn('Create Plugin - dao not found', llo({ pluginLog }))
+      return
+    }
+
+    await AggregatorPlugin._createPlugin(plugin as any)
+  },
+
+  updatePlugin: async (pluginLog: LogPluginSetupProcessor) => {
+    const plugin = await AggregatorPlugin._queryGetPlugin({
+      ...pluginLog,
+      ...{ events: [IEventLogPluginType.UpdatePrepared, IEventLogPluginType.UpdateApplied] },
+    })
+
+    if (!plugin) {
+      logger.warn('Update Plugin event not found', llo({ pluginLog }))
+      return
+    }
+
+    const newPlugin = await AggregatorPlugin._createPlugin(plugin as any)
+
+    if (!newPlugin) return
+
+    // we should be able to find out the plugin that was updated
+    // newPlugin.release > actualPlugin.release | newPlugin.build > actualPlugin.build
+    const actualPlugin = await Models.Plugin.find({
+      network: pluginLog.network,
+      daoAddress: plugin.daoAddress,
+      pluginSetupRepoAddress: plugin.pluginSetupRepoAddress,
+      address: plugin.address,
+    })
+
+    if (!actualPlugin) return
+
+    const rawPlugin = {
+      status: IPluginStatus.deprecated,
+      uninstalled: {
+        status: true,
+        blockNumber: newPlugin.blockNumber,
+        blockTimestamp: newPlugin.blockTimestamp,
+        transactionHash: newPlugin.transactionHash,
+      },
+    }
+    return await DbOperations.updateDocument(actualPlugin, rawPlugin, { logId: actualPlugin.id }, 'Update plugin', llo)
+  },
+
+  uninstallPlugin: async (pluginLog: LogPluginSetupProcessor) => {
+    const plugin = await AggregatorPlugin._queryGetPlugin({
+      ...pluginLog,
+      ...{ events: [IEventLogPluginType.UninstallationPrepared, IEventLogPluginType.UninstallationApplied] },
+    })
+
+    if (!plugin) {
+      logger.warn('Uninstall Plugin event not found', llo({ pluginLog }))
+      return
+    }
+
+    const existingLog = await Models.Plugin.findExistingLog({
+      network: pluginLog.network,
+      transactionHash: plugin.transactionHash,
+      address: plugin.address,
+    })
+
+    if (!existingLog) return
+
+    const blockTimestamp = (await Web3Helper.getBlockTimestamp(plugin.blockNumber, plugin.network)) || undefined
+    const updatePlugin: Partial<Plugin> = {
+      status: IPluginStatus.uninstalled,
+      uninstalled: {
+        status: true,
+        transactionHash: plugin.transactionHash,
+        blockNumber: plugin.blockNumber,
+        blockTimestamp: blockTimestamp!,
+      },
+    }
+
+    return await DbOperations.updateDocument(
+      existingLog,
+      updatePlugin,
+      { logId: existingLog.id },
+      'Uninstall plugin',
+      llo,
+    )
   },
 }

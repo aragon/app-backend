@@ -9,13 +9,14 @@ import {
   NetworksEnum,
   ITokenType,
   type IMemberVoteMetrics,
+  ICollectionNames,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
-const customName = 'Vote'
+const customName = ICollectionNames.Vote
 
 class Token {
   @prop({ type: () => String, enum: NetworksEnum })
@@ -44,7 +45,7 @@ class Token {
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'vote',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -71,7 +72,7 @@ export default class Vote extends Model {
   public blockNumber!: number
 
   @prop({ type: () => Number })
-  public blockTimestamp!: number
+  public blockTimestamp?: number
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -84,6 +85,9 @@ export default class Vote extends Model {
 
   @prop({ type: () => String, required: true })
   public memberAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public tokenAddress!: HexAddress
 
   @prop({ type: () => Number })
   public proposalId!: number
@@ -126,6 +130,18 @@ export default class Vote extends Model {
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ id: entityId }, tOpts)
+  }
+
+  static async findVotes({
+    proposalId,
+    pluginAddress,
+    network,
+  }: {
+    proposalId: number
+    pluginAddress: HexAddress
+    network: NetworksEnum
+  }) {
+    return await this.find({ proposalId, pluginAddress, network })
   }
 
   static async findMemberActivity(memberAddress: HexAddress) {
@@ -243,7 +259,7 @@ export default class Vote extends Model {
         ...query,
         {
           $lookup: {
-            from: 'logProposalMetadata',
+            from: 'LogProposalMetadata',
             let: { pId: '$proposalId', pluginAddr: '$pluginAddress' },
             pipeline: [
               {

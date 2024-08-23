@@ -315,7 +315,8 @@ export function parseNetspec(SourceCode: any, ContractName: string, ABI: any): a
     if (action.type === 'function' && notices?.[action.name]) {
       action.notice = notices[action.name].tags.notice as string
       action.inputs.forEach(
-        input => (input.notice = (notices[action.name].tags['param'] as Record<string, string>)?.[input.name]),
+        (input: { notice: string; name: string | number }) =>
+          (input.notice = (notices[action.name].tags['param'] as Record<string, string>)?.[input.name]),
       )
     }
 

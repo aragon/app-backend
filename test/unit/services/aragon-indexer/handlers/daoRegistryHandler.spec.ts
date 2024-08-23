@@ -10,7 +10,7 @@ import { Models } from '@dbModels'
 import Web3 from '@helpers/web3'
 import Web3Helper from '@helpers/web3'
 import { PluginSetupProcessorHandler } from '@services/aragon-indexer/handlers/pluginSetupProcessorHandler'
-import { MemberHandler } from '@services/aragon-indexer/handlers/memberHandler'
+import { MultisigHandler } from '@indexer/handlers/multisigHandler'
 import ProxyContractHelper from '@helpers/proxyContract'
 import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
 import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
@@ -44,7 +44,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       }
 
       const initNewDaoStub = sandbox.stub(DaoRegistryHandler, 'initiateNewDaoCreation')
-      const findTxHashSpy = sandbox.spy(Models.LogDaoRegistry, 'findExistingLog')
+      const findTxHashSpy = sandbox.spy(Models.Dao, 'findExistingLog')
       const loggerStub = sandbox.stub(logger, 'verbose')
       const proxyUtils = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves('0x123')
 
@@ -58,8 +58,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
-      const savedDaoLog = await Models.LogDaoRegistry.findExistingLog({
-        transactionHash: logInfo.transactionHash,
+      const savedDaoLog = await Models.Dao.findExistingLog({
+        network: logInfo.network,
         address: fakeEvent.args.dao,
       })
       expect(!!savedDaoLog).to.be.true
@@ -90,11 +90,9 @@ describe('Indexer: DaoRegistryHandler', () => {
           subdomain: 'test',
         },
       }
-      const findTxHashStub = sandbox
-        .stub(Models.LogDaoRegistry, 'findExistingLog')
-        .resolves({ transactionHash: '0x00' })
+      const findTxHashStub = sandbox.stub(Models.Dao, 'findExistingLog').resolves({ transactionHash: '0x00' })
 
-      const createStub = sandbox.stub(Models.LogDaoRegistry, 'create')
+      const createStub = sandbox.stub(Models.Dao, 'create')
 
       await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
 
@@ -123,7 +121,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogDaoRegistry, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.Dao, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
@@ -390,7 +388,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         .onSecondCall()
         .returns([])
 
-      const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
+      const delegateChangedStub = sandbox.stub(MultisigHandler, 'delegateChanged')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -440,8 +438,8 @@ describe('Indexer: DaoRegistryHandler', () => {
           },
         ] as any)
 
-      const memberAddedStub = sandbox.stub(MemberHandler, 'membersAdded')
-      const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
+      const memberAddedStub = sandbox.stub(MultisigHandler, 'membersAdded')
+      const delegateChangedStub = sandbox.stub(MultisigHandler, 'delegateChanged')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -507,8 +505,8 @@ describe('Indexer: DaoRegistryHandler', () => {
           },
         ] as any)
 
-      const memberAddedStub = sandbox.stub(MemberHandler, 'membersAdded')
-      const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
+      const memberAddedStub = sandbox.stub(MultisigHandler, 'membersAdded')
+      const delegateChangedStub = sandbox.stub(MultisigHandler, 'delegateChanged')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,

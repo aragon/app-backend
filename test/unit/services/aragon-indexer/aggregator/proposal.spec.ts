@@ -3,136 +3,142 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { AggregatorProposal } from '@services/aragon-indexer/aggregator/proposal'
 import { Models } from '@dbModels'
-import DBCrawler from '@models/utils/crawler'
 import { ITokenType, NetworksEnum } from '@types'
 import Logger from '@logger'
 import DecodeActions from '@helpers/decodeAction'
 import Web3Helper from '@helpers/web3'
 import { ethers } from 'ethers'
 import CovalentHelper from '@helpers/covalent'
-import { TokenProxy } from '@modules/tokenProxy'
+import { ProxyToken } from '@modules/proxyToken'
+import LogProposalMetadata from '@models/schema/logProposalMetadata'
+import LogProposal from '@models/schema/logProposal'
+import Plugin from '@models/schema/plugin'
+import Covalent from '@helpers/covalent'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
+import { ProxyMember } from '@modules/proxyMember'
 
 describe('Indexer:Aggregator:Proposal', () => {
   let sandbox: SinonSandbox
+  let rawLogProposalMetadata: Partial<LogProposalMetadata>
+  let rawLogProposal: Partial<LogProposal>
+  let rawPlugin: Partial<Plugin>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+
+    rawLogProposalMetadata = {
+      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+      blockNumber: 3,
+      network: NetworksEnum.ethereumMainnet,
+      fetchedMetadata: true,
+      pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      proposalId: 1,
+      metadataUri: 'test-uri',
+      title: 'some-title',
+      summary: 'some-summary',
+      description: 'some-description',
+      resources: [],
+      media: {
+        header: 'some-header',
+        logo: 'some-logo',
+      },
+    }
+
+    rawLogProposal = {
+      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+      blockNumber: 3,
+      network: NetworksEnum.ethereumMainnet,
+      pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      proposalId: 1,
+      allowFailureMap: 0,
+      creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
+      startDate: 234234223,
+      endDate: 334234223,
+      metadataUri: 'some-uri',
+      actions: [
+        {
+          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          value: '0',
+          data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
+        },
+      ],
+      executed: {
+        status: true,
+        transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+        blockNumber: 3,
+      },
+    }
+
+    rawPlugin = {
+      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+      blockNumber: 3,
+      network: NetworksEnum.ethereumMainnet,
+      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
+      daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5402',
+      tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5403',
+      pluginSetupRepoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
+      sender: '0x17366cae2b9c6c3055e9e3c78936a69006be5405',
+      release: '1',
+      build: '2',
+      subdomain: 'dao.eth',
+    }
   })
 
   afterEach(async () => {
     sandbox?.restore()
   })
 
-  describe('start', async () => {
-    it('should start the AggregatorProposal', async () => {
+  describe('createProposal', async () => {
+    it('should createProposal', async () => {
+      const plugin = await Models.Plugin.create(rawPlugin)
+
+      // const parsedActions = [
+      //   {
+      //     to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+      //     data: '0x',
+      //     value: '0',
+      //     functionName: 'test',
+      //     textSignature: 'test(uint256,uint256)',
+      //     decoded: ['1', 1],
+      //     contractName: null,
+      //   },
+      // ]
+      // const _fetchTokenDetailsStub = sandbox.stub(AggregatorProposal, '_fetchTokenDetails').resolves({
+      //   address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+      //   name: 'MockToken',
+      //   type: ITokenType.ERC20,
+      // })
+
+      const stubParseActions = sandbox.stub(AggregatorProposal, '_parseActions').resolves(parsedActions)
       const stubLogger = sandbox.stub(Logger, 'verbose')
-      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl')
+      const spyGetMember = sandbox.spy(ProxyMember, 'saveAndGetMember')
+      const spyGetToken = sandbox.spy(ProxyToken, 'saveAndGetToken')
+      const stubCovalent = sandbox.stub(Covalent, 'getTokenInfo').resolves({
+        totalHolders: 2,
+      } as any)
+      const stubTotalSupply = sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves('100')
 
-      await AggregatorProposal.start()
-
-      expect(stubLogger.calledWith('End AggregatorProposal' as any)).to.be.true
-      expect(crawlerStub.calledOnce).to.be.true
-    })
-
-    it('should error the AggregatorProposal', async () => {
-      const stubLoggerError = sandbox.stub(Logger, 'error')
-      const stubLogger = sandbox.stub(Logger, 'verbose')
-      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
-        await this.onError(true)
+      const newProposal = await AggregatorProposal.createProposal({
+        logProposal: rawLogProposal,
+        logProposalMetadata: rawLogProposalMetadata,
       })
 
-      await AggregatorProposal.start()
-
-      expect(stubLogger.calledWith('End AggregatorProposal' as any)).to.be.true
-      expect(stubLoggerError.calledOnce).to.be.true
-      expect(crawlerStub.calledOnce).to.be.true
-    })
-  })
-
-  describe('onDocument', async () => {
-    it('should call onDocument', async () => {
-      const document = {
-        transactionHash: '0x90a26411d62d1ba9f7b82e3697e94ff1ae9b5cce89e3f594ebe57b897245d39e',
-        blockNumber: 16733645,
-        network: NetworksEnum.ethereumMainnet,
-        pluginAddress: '0xB85380977eC3435aeBc13e29b01AF990393bdED9',
-        proposalId: 0,
-        creatorAddress: '0xc1d60f584879f024299DA0F19Cdb47B931E35b53',
-        startDate: 1677672720,
-        endDate: 1677676920,
-        metadataUri: 'ipfs://QmVgY3QEEDypzjW8Udj1LECNDZTDNYkNZ5VNKTPYff1Vwz',
-        executed: {
-          status: true,
-          transactionHash: '0xe49a4a878ed2073e012249ef39960b9c9a21446f223e4e5a6ef0edc97831c37e',
-          blockNumber: 16733707,
-        },
-        tokenAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        settings: {
-          votingMode: 1,
-          supportThreshold: 500000,
-          minParticipation: 150000,
-          minDuration: 3600,
-          minProposerVotingPower: '5e+19',
-          fromBlockNumber: 16726558,
-          toBlockNumber: 16733707,
-          fromTxHash: '0xdcff8f4477f3b39529de62394883707a2468d46bff3eb5e99335f5c49ec41f81',
-          toTxHash: '0xe49a4a878ed2073e012249ef39960b9c9a21446f223e4e5a6ef0edc97831c37e',
-        },
-        daoAddress: '0x59447788F9dCf2df550F257F3692a07f05b922D7',
-        title: 'New Look!',
-        actions: [],
-        description:
-          '<p>Changing the following metadata on the DAO:<br><strong>Name - Feel the Breeze</strong></p><p><strong>Logo</strong></p>',
-        summary: 'Changing DAO metadata',
-        media: {
-          header: 'test',
-          logo: 'test-logo',
-        },
-      }
-
-      const parsedActions = [
-        {
-          to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
-          data: '0x',
-          value: '0',
-          functionName: 'test',
-          textSignature: 'test(uint256,uint256)',
-          decoded: ['1', 1],
-          contractName: null,
-        },
-      ]
-      const stubLogger = sandbox.stub(Logger, 'verbose')
-      const stubGetBlockTime = sandbox.stub(Web3Helper, 'getBlockTimestamp')
-      const stubParseActions = sandbox.stub(AggregatorProposal, 'parseActions').resolves(parsedActions)
-      const _getProposalMetricsStub = sandbox.stub(AggregatorProposal, '_getProposalMetrics').resolves({
-        totalVotes: 0,
-      })
-      const _fetchTokenDetailsStub = sandbox.stub(AggregatorProposal, '_fetchTokenDetails').resolves({
-        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        name: 'MockToken',
-        type: ITokenType.ERC20,
-      })
-      await AggregatorProposal.onDocument(document as any)
-
+      expect(stubParseActions.calledOnce).to.be.true
+      // expect(_getProposalMetricsStub.calledOnce).to.be.true
+      expect(spyGetMember.calledOnceWith(rawLogProposal.creatorAddress)).to.be.true
+      expect(spyGetToken.calledOnceWith(plugin.tokenAddress, plugin.network)).to.be.true
+      expect(stubTotalSupply.calledOnceWith(plugin.tokenAddress, plugin.network)).to.be.true
+      expect(stubCovalent.calledOnceWith(plugin.tokenAddress, plugin.network, plugin.blockNumber)).to.be.true
       expect(stubLogger.calledWith('New Aggregate Proposal' as any)).to.be.true
 
-      const member = await Models.Proposal.findExistingLog({
-        transactionHash: document.transactionHash,
-        pluginAddress: document.pluginAddress,
-        proposalId: document.proposalId,
-      })
-      expect(_getProposalMetricsStub.calledOnce).to.be.true
-      expect(stubGetBlockTime.calledTwice).to.be.true
-      expect(stubParseActions.calledOnce).to.be.true
-      expect(_fetchTokenDetailsStub.calledOnce).to.be.true
-
-      expect(member.id).to.exist
-      expect(member.transactionHash).to.eq(document.transactionHash)
-      expect(member.blockNumber).to.eq(document.blockNumber)
-      expect(member.network).to.eq(document.network)
-      expect(member.pluginAddress).to.eq(document.pluginAddress)
-      expect(member.proposalId).to.eq(document.proposalId)
-      expect(member.creatorAddress).to.eq(document.creatorAddress)
+      expect(newProposal.id).to.exist
+      expect(newProposal.transactionHash).to.eq(document.transactionHash)
+      expect(newProposal.blockNumber).to.eq(document.blockNumber)
+      expect(newProposal.network).to.eq(document.network)
+      expect(newProposal.pluginAddress).to.eq(document.pluginAddress)
+      expect(newProposal.proposalId).to.eq(document.proposalId)
+      expect(newProposal.creatorAddress).to.eq(document.creatorAddress)
       expect(member.startDate).to.eq(document.startDate)
       expect(member.endDate).to.eq(document.endDate)
       expect(member.metadataUri).to.eq(document.metadataUri)
@@ -268,7 +274,7 @@ describe('Indexer:Aggregator:Proposal', () => {
         },
       ]
 
-      sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
         name: 'MockToken',
         symbol: 'MOCK',
@@ -448,7 +454,7 @@ describe('Indexer:Aggregator:Proposal', () => {
       }
 
       const getTotalSupplyStub = sandbox.stub(CovalentHelper, 'getTokenTotalSupply').resolves('1000000000000000000000')
-      const getTokenDetailStub = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves(token as any)
+      const getTokenDetailStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(token as any)
       const findExistingStub = sandbox.stub(Models.Proposal, 'findByTransactionHash').resolves({
         aa: 'aa',
       })
