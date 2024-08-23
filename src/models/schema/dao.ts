@@ -27,6 +27,9 @@ class Link {
 
 class Metrics {
   @prop({ type: () => Number, default: 0 })
+  public tvlUSD!: number
+
+  @prop({ type: () => Number, default: 0 })
   public proposalsCreated!: number
 
   @prop({ type: () => Number, default: 0 })
@@ -115,9 +118,6 @@ export default class Dao extends Model {
 
   @prop({ type: () => String, default: null })
   public daoVersion!: string
-
-  @prop({ type: () => Number, default: 0 })
-  public tvlUSD!: number
 
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics?: Metrics
