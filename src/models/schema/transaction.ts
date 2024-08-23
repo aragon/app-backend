@@ -27,6 +27,14 @@ class ERC1155Metadata {
   public value!: string
 }
 
+class Snapshot { // transaction price at specific block
+  @prop({ type: () => String, default: null })
+  public priceUsd!: string
+
+  @prop({ type: () => Number, default: 0 })
+  public priceUpdatedAt!: number
+}
+
 class Token {
   @prop({ type: () => String, enum: NetworksEnum })
   public network!: NetworksEnum
@@ -49,11 +57,8 @@ class Token {
   @prop({ type: () => Number, default: 18 })
   public decimals!: number
 
-  @prop({ type: () => String, default: null })
-  public priceUsd!: string
-
-  @prop({ type: () => Number, default: 0 })
-  public priceUpdatedAt!: number
+  @prop({ type: () => Snapshot, _id: false, default: {} })
+  public snapshot!: Snapshot
 }
 
 @modelOptions({
@@ -107,6 +112,9 @@ export default class Transaction extends Model {
 
   @prop({ type: () => String, default: null })
   public tokenAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public pluginAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
   public daoAddress!: HexAddress

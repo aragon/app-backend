@@ -136,6 +136,7 @@ export const DaoTransactions = {
        */
 
       let daoAddress = dao.address
+      let pluginAddress: string | undefined
       let proposalId: string | undefined
 
       const proposalExecutionLog = Web3Helper.findLogsByName(transactionReceipt, 'Executed', DAO.abi)
@@ -143,6 +144,7 @@ export const DaoTransactions = {
         daoAddress = proposalExecutionLog[0].txLog.address
 
         const proposalIdLog = Web3Helper.findLogsByName(transactionReceipt, 'ProposalExecuted', Multisig.abi)
+        pluginAddress = proposalIdLog[0].txLog.address
 
         if (proposalIdLog?.length) {
           proposalId = BigInt(proposalIdLog[0].txLog.topics[1]).toString()
@@ -169,6 +171,7 @@ export const DaoTransactions = {
           network: dao.network,
           type,
           daoAddress,
+          pluginAddress,
           fromAddress: tx.from,
           toAddress: tx.to,
           value: tx.value?.toString(),
@@ -203,8 +206,10 @@ export const DaoTransactions = {
             type: token.type,
             logo: token.logo,
             decimals: token.decimals,
-            priceUsd: tokenRate.priceUsd,
-            priceUpdatedAt: blockTimestamp,
+            snapshot: {
+              priceUsd: tokenRate.priceUsd,
+              priceUpdatedAt: blockTimestamp,
+            }
           }
         }
 
