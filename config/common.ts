@@ -212,7 +212,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       TOKEN_RATES_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_CONCURRENCY', 1),
       DAO_TVL_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_TVL_BATCH_SIZE', 1000),
       DAO_TVL_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_TVL_CONCURRENCY', 1),
-      DAO_ASSETS_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_ASSETS_BATCH_SIZE', 1000),
+      DAO_ASSETS_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_ASSETS_BATCH_SIZE', 20),
       DAO_ASSETS_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_ASSETS_CONCURRENCY', 1),
       DAO_TRANSACTIONS_BATCH_SIZE: utils.configParser(
         sourceConfig,
