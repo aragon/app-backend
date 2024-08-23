@@ -2,14 +2,15 @@ import { modelOptions, prop } from '@typegoose/typegoose'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { v4 as uuidv4 } from 'uuid'
+import { ICollectionNames } from '@types'
 
-const customName = 'TaskService'
+const customName = ICollectionNames.TaskService
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'taskService',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },

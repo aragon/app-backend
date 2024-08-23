@@ -7,7 +7,7 @@ import { beforeEach } from 'mocha'
 import { PluginSetupProcessorHandler } from '@services/aragon-indexer/handlers/pluginSetupProcessorHandler'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
-import { TokenProxy } from '@modules/tokenProxy'
+import { ProxyToken } from '@modules/proxyToken'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -40,7 +40,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
-      const stubFindDao = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
 
@@ -84,7 +84,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
 
       const stubLogger = sandbox.stub(logger, 'warn')
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(false)
 
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
 
@@ -109,7 +109,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
 
@@ -161,7 +161,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
           parsed: { args: [tokenAddress] },
         },
       ] as any)
-      const stubToken = sandbox.stub(TokenProxy, 'saveAndGetToken').resolves({
+      const stubToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: tokenAddress,
         name: 'FakeToken',
         symbol: 'FTK',
@@ -170,7 +170,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         type: ITokenType.GovernanceERC20,
       } as any)
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
-      const stubFindDao = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
 
@@ -220,7 +220,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
 
       const stubLogger = sandbox.stub(logger, 'warn')
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(false)
 
       await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
 
@@ -245,7 +245,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
 
@@ -273,7 +273,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
-      const stubFindDao = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
 
@@ -316,7 +316,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
 
       const stubLogger = sandbox.stub(logger, 'warn')
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(false)
 
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
 
@@ -341,7 +341,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
 
@@ -385,7 +385,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
-      const stubFindDao = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, logInfo)
 
@@ -431,7 +431,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
 
       const stubLogger = sandbox.stub(logger, 'warn')
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(false)
 
       await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, logInfo)
 
@@ -456,7 +456,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, logInfo)
 
@@ -485,7 +485,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
-      const stubFindDao = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
 
@@ -529,7 +529,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
 
       const stubLogger = sandbox.stub(logger, 'warn')
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(false)
 
       await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
 
@@ -554,7 +554,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
 
@@ -600,7 +600,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
-      const stubFindDao = sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, logInfo)
 
@@ -646,7 +646,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
 
       const stubLogger = sandbox.stub(logger, 'warn')
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(false)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(false)
 
       await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, logInfo)
 
@@ -671,7 +671,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.LogDaoRegistry, 'findByAddress').resolves(true)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
       await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, logInfo)
 

@@ -27,6 +27,7 @@ import { ENSRegistry } from '@artifacts/ENSRegistry'
 import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
 import { DAO } from '@artifacts/dao'
+import { Multisig } from '@artifacts/Multisig'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -406,6 +407,50 @@ const Web3Helper = {
     }
   },
 
+  async getTokenBalanceAtBlock({
+    address,
+    tokenAddress,
+    blockNumber,
+    network,
+  }: {
+    address: HexAddress
+    tokenAddress: HexAddress
+    blockNumber: number
+    network: NetworksEnum
+  }): Promise<string> {
+    let params = {}
+    try {
+      const provider = ProviderModule.getProvider(network)!
+
+      const abi = ['function balanceOf(address account) view returns (uint256)']
+      const iface = new Interface(abi)
+
+      const data = iface.encodeFunctionData('balanceOf', [address])
+
+      params = [
+        {
+          to: tokenAddress,
+          data,
+        },
+        `0x${BigInt(blockNumber).toString(16)}`,
+      ]
+
+      const response = await retryRequest(async () =>
+        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () => provider.send('eth_call', params)),
+      )
+
+      const balance = iface.decodeFunctionResult('balanceOf', response)[0]
+
+      return balance.toString()
+    } catch (error) {
+      logger.error(
+        'Error getErc20BalanceAtBlock',
+        llo({ rawParams: { address, tokenAddress, blockNumber, network }, error, params }),
+      )
+      return '0'
+    }
+  },
+
   async getBalance(address: HexAddress, network: NetworksEnum): Promise<string> {
     try {
       const provider = ProviderModule.getProvider(network)!
@@ -600,6 +645,26 @@ const Web3Helper = {
     }
 
     return { txReceipt, events }
+  },
+
+  async getProposalMultisig(
+    pluginAddress: string,
+    network: NetworksEnum,
+  ): Promise<{
+    executed: boolean
+    approvals: bigint
+    allowFailureMap: bigint
+    parameters: { minApprovals: bigint; snapshotBlock: bigint; startDate: bigint; endDate: bigint }
+  } | null> {
+    const provider = ProviderModule.getProvider(network)!
+    const contract = new Contract(pluginAddress, Multisig.abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(pluginAddress)),
+      )
+    } catch (error) {
+      return null
+    }
   },
 
   async getERC20Balance(address: string, tokenAddress: string, network: NetworksEnum) {

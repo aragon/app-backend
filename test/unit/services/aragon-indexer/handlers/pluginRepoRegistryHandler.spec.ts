@@ -34,7 +34,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
         },
       }
 
-      const findTxHashSpy = sandbox.spy(Models.LogPluginRepo, 'findExistingLog')
+      const findTxHashSpy = sandbox.spy(Models.PluginRepo, 'findExistingLog')
       const loggerStub = sandbox.stub(logger, 'verbose')
 
       await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, logInfo)
@@ -48,7 +48,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
-      const savedPluginRepoLog = await Models.LogPluginRepo.findExistingLog({
+      const savedPluginRepoLog = await Models.PluginRepo.findExistingLog({
         transactionHash: logInfo.transactionHash,
         pluginRepo: fakeEvent.args.pluginRepo,
       })
@@ -77,7 +77,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
         },
       }
 
-      sandbox.stub(Models.LogPluginRepo, 'findExistingLog').rejects(new Error('error'))
+      sandbox.stub(Models.PluginRepo, 'findExistingLog').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, logInfo)

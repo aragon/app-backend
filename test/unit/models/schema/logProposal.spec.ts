@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { NetworksEnum } from '@types'
-import LogProposal, { Vote } from '@models/schema/logProposal'
+import LogProposal from '@models/schema/logProposal'
 import { Models } from '@dbModels'
 
 describe('Model: LogProposal', () => {
@@ -59,7 +59,6 @@ describe('Model: LogProposal', () => {
       expect(createdLogProposal.allowFailureMap).to.eq(rawLogProposal.allowFailureMap)
       expect(createdLogProposal.metadataUri).to.eq(rawLogProposal.metadataUri)
       expect(createdLogProposal.actions.length).to.eq(rawLogProposal.actions?.length)
-      expect(createdLogProposal.voteEvents.length).to.eq(rawLogProposal.voteEvents?.length)
       expect(createdLogProposal.executed.status).to.eq(rawLogProposal.executed?.status)
       expect(createdLogProposal.executed.transactionHash).to.eq(rawLogProposal.executed?.transactionHash)
       expect(createdLogProposal.executed.blockNumber).to.eq(rawLogProposal.executed?.blockNumber)
@@ -85,7 +84,6 @@ describe('Model: LogProposal', () => {
       expect(createdLogProposal.allowFailureMap).to.eq(rawLogProposal.allowFailureMap)
       expect(createdLogProposal.metadataUri).to.eq(rawLogProposal.metadataUri)
       expect(createdLogProposal.actions.length).to.eq(rawLogProposal.actions?.length)
-      expect(createdLogProposal.voteEvents.length).to.eq(rawLogProposal.voteEvents?.length)
       expect(createdLogProposal.executed.status).to.eq(rawLogProposal.executed?.status)
       expect(createdLogProposal.executed.transactionHash).to.eq(rawLogProposal.executed?.transactionHash)
       expect(createdLogProposal.executed.blockNumber).to.eq(rawLogProposal.executed?.blockNumber)
@@ -125,55 +123,6 @@ describe('Model: LogProposal', () => {
     const createdLogProposal = await Models.LogProposal.create(rawLogProposal)
     const foundLogProposal = await Models.LogProposal.findByEntityId(createdLogProposal.id)
     expect(foundLogProposal?.id).to.eq(createdLogProposal.id)
-  })
-
-  it('Should addVoteEvent when empty', async () => {
-    const proposal = await Models.LogProposal.create(rawLogProposal)
-    proposal.voteEvents = undefined
-
-    const vote: Vote = {
-      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-      blockNumber: 3,
-      proposalId: 1,
-      memberAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      voteOption: 2,
-      votingPower: '322',
-    }
-    const proposalDb = await proposal.addVoteEvent(vote)
-    const voteDb = await proposalDb.findVote(vote.transactionHash)
-
-    expect(proposalDb?.transactionHash).to.eq(rawLogProposal.transactionHash)
-
-    expect(voteDb?.transactionHash).to.eq(vote.transactionHash)
-    expect(voteDb?.blockNumber).to.eq(vote.blockNumber)
-    expect(voteDb?.proposalId).to.eq(vote.proposalId)
-    expect(voteDb?.memberAddress).to.eq(vote.memberAddress)
-    expect(voteDb?.voteOption).to.eq(vote.voteOption)
-    expect(voteDb?.votingPower).to.eq(vote.votingPower)
-  })
-
-  it('Should addVoteEvent/findVote', async () => {
-    const proposal = await Models.LogProposal.create(rawLogProposal)
-
-    const vote: Vote = {
-      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-      blockNumber: 3,
-      proposalId: 1,
-      memberAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      voteOption: 2,
-      votingPower: '322',
-    }
-    const proposalDb = await proposal.addVoteEvent(vote)
-    const voteDb = await proposalDb.findVote(vote.transactionHash)
-
-    expect(proposalDb?.transactionHash).to.eq(rawLogProposal.transactionHash)
-
-    expect(voteDb?.transactionHash).to.eq(vote.transactionHash)
-    expect(voteDb?.blockNumber).to.eq(vote.blockNumber)
-    expect(voteDb?.proposalId).to.eq(vote.proposalId)
-    expect(voteDb?.memberAddress).to.eq(vote.memberAddress)
-    expect(voteDb?.voteOption).to.eq(vote.voteOption)
-    expect(voteDb?.votingPower).to.eq(vote.votingPower)
   })
 
   it('Should findByProposalId', async () => {

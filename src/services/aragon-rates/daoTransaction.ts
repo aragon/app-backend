@@ -9,7 +9,7 @@ import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
-import type LogDaoRegistry from '@models/schema/logDaoRegistry'
+import type Dao from '@models/schema/dao'
 import type Transaction from '@models/schema/transaction'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import Web3Helper from '@helpers/web3'
@@ -17,7 +17,7 @@ import { NetworkHelper } from '@helpers/network'
 import { RateModule } from '@modules/rates'
 import utils from '@helpers/utils'
 import config from '@config'
-import { TokenProxy } from '@modules/tokenProxy'
+import { ProxyToken } from '@modules/proxyToken'
 import { DAO } from '@artifacts/dao'
 import { Multisig } from '@artifacts/Multisig'
 
@@ -37,8 +37,8 @@ export const DaoTransactions = {
     logger.verbose('Start DaoTransactions', llo({ startTime }))
 
     const crawler = new DBCrawler({
-      model: Models.LogDaoRegistry,
-      onDocument: async (daoRegistry: LogDaoRegistry) => DaoTransactions.onDocument(daoRegistry),
+      model: Models.Dao,
+      onDocument: async (dao: Dao) => DaoTransactions.onDocument(dao),
       onError: (error: any, document: any) => {
         logger.error('Error DaoTransactions', llo({ error, document }))
       },
@@ -78,21 +78,21 @@ export const DaoTransactions = {
     }
   },
 
-  onDocument: async (daoRegistry: LogDaoRegistry) => {
-    const category = DaoTransactions.getCategories(daoRegistry.network)
+  onDocument: async (dao: Dao) => {
+    const category = DaoTransactions.getCategories(dao.network)
     // txs to daoAddress
     const depositTxCrawler = new BlockchainTransferCrawler({
-      network: daoRegistry.network,
+      network: dao.network,
       filter: {
-        toAddress: daoRegistry.address,
+        toAddress: dao.address,
         category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) =>
-        DaoTransactions.saveTransaction(txLog, ITransactionType.deposit, daoRegistry),
+        DaoTransactions.saveTransaction(txLog, ITransactionType.deposit, dao),
       onError: async (error: any) => {
         logger.error(
           'Error deposit transfer',
-          llo({ error, type: ITransactionType.withdraw, daoId: daoRegistry.id, network: daoRegistry.network }),
+          llo({ error, type: ITransactionType.withdraw, daoId: dao.id, network: dao.network }),
         )
       },
       logService: IEnumIndexerService.depositTxs,
@@ -102,17 +102,17 @@ export const DaoTransactions = {
 
     // txs from daoAddress
     const withdrawTxCrawler = new BlockchainTransferCrawler({
-      network: daoRegistry.network,
+      network: dao.network,
       filter: {
-        fromAddress: daoRegistry.address,
+        fromAddress: dao.address,
         category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) =>
-        DaoTransactions.saveTransaction(txLog, ITransactionType.withdraw, daoRegistry),
+        DaoTransactions.saveTransaction(txLog, ITransactionType.withdraw, dao),
       onError: async (error: any) => {
         logger.error(
           'Error withdraw transfer',
-          llo({ error, type: ITransactionType.withdraw, daoId: daoRegistry.id, network: daoRegistry.network }),
+          llo({ error, type: ITransactionType.withdraw, daoId: dao.id, network: dao.network }),
         )
       },
       logService: IEnumIndexerService.withdrawTxs,
@@ -121,9 +121,9 @@ export const DaoTransactions = {
     await withdrawTxCrawler.crawl()
   },
 
-  saveTransaction: async (tx: IAlchemyTransferResponse, type: ITransactionType, daoRegistry: LogDaoRegistry) => {
+  saveTransaction: async (tx: IAlchemyTransferResponse, type: ITransactionType, dao: Dao) => {
     try {
-      const transactionReceipt = await Web3Helper.getTransactionReceipt(tx.hash, daoRegistry.network)
+      const transactionReceipt = await Web3Helper.getTransactionReceipt(tx.hash, dao.network)
       if (!transactionReceipt) {
         return
       }
@@ -135,7 +135,7 @@ export const DaoTransactions = {
        * - ProposalExecuted (The proposalId is the topic of the log)
        */
 
-      let daoAddress = daoRegistry.address
+      let daoAddress = dao.address
       let proposalId: string | undefined
 
       const proposalExecutionLog = Web3Helper.findLogsByName(transactionReceipt, 'Executed', DAO.abi)
@@ -152,21 +152,21 @@ export const DaoTransactions = {
       const existingTxDb = await Models.Transaction.findExistingLog({
         transactionHash: tx.hash,
         category: tx.category,
-        network: daoRegistry.network,
+        network: dao.network,
       })
 
       if (existingTxDb) {
         return
       }
 
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), daoRegistry.network)
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), dao.network)
 
       await DbTx.executeTxFn(async ({ session }) => {
         const rawTx: Partial<Transaction> = {
           transactionHash: tx.hash,
           blockNumber: Number(tx.blockNum),
           blockTimestamp,
-          network: daoRegistry.network,
+          network: dao.network,
           type,
           daoAddress,
           fromAddress: tx.from,
@@ -183,13 +183,13 @@ export const DaoTransactions = {
         }
 
         const tokenAddress = tx.rawContract?.address || utils.zeroAddress
-        const token = await TokenProxy.saveAndGetToken(tokenAddress, daoRegistry.network)
+        const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)
 
         if (token?.address) {
           rawTx.tokenAddress = token.address
           // historical price
           const daysDifference = utils.calculateDaysDifference(rawTx.blockTimestamp)
-          const tokenRate = await RateModule.fetchRate(token.address, daoRegistry.network, daysDifference)
+          const tokenRate = await RateModule.fetchRate(token.address, dao.network, daysDifference)
           rawTx.amountUsd = DaoTransactions.calculateAmountUsd(
             Number(rawTx.value || 0),
             Number(tokenRate.priceUsd || 0),
@@ -214,7 +214,7 @@ export const DaoTransactions = {
         logger.verbose('New Transaction', llo({ logId: logDb?.id }))
       })
     } catch (error) {
-      logger.error('Error Transaction', llo({ error, logId: daoRegistry.id }))
+      logger.error('Error Transaction', llo({ error, logId: dao.id }))
     }
   },
 

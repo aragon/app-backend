@@ -1,5 +1,6 @@
 import logger from '@logger'
 import Utils from '@helpers/utils'
+import { assert } from '@errors'
 
 const llo = logger.logMeta.bind(null, { service: 'RetryRequestHelper' })
 
@@ -15,10 +16,13 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
 
   while (retryCount < maxRetries) {
     try {
-      const response = await requestFunction()
+      const response: any = await requestFunction()
+      if (response?.data?.message === 'NOTOK') {
+        assert(false, 'Rate limit', { status: 429, description: 'Rate limit exceeded' })
+      }
       return response
     } catch (error: any) {
-      if (error?.response?.status === 429 || error?.info?.error?.code === 429) {
+      if (error?.status === 429 || error?.response?.status === 429 || error?.info?.error?.code === 429) {
         logger.warn('Rate limit exceeded, retrying...', llo({ retryCount, wait: retryDelay(retryCount) }))
         await Utils.wait(retryDelay(retryCount))
         retryCount++

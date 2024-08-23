@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { IPluginAction, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import { beforeEach } from 'mocha'
@@ -19,7 +19,6 @@ describe('Model: Plugin', () => {
       transactionHash,
       blockNumber: 3,
       network: NetworksEnum.ethereumMainnet,
-      action: IPluginAction.install,
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
       implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
       daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5402',
@@ -74,18 +73,18 @@ describe('Model: Plugin', () => {
   })
 
   it('Should getEntityId', async () => {
+    const address = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const action = IPluginAction.install
     const network = NetworksEnum.ethereumMainnet
-    const entityId = Models.Plugin.getEntityId({ transactionHash, action, network })
-    expect(entityId).to.eq(`${transactionHash}-${action}-${network}`)
+    const entityId = Models.Plugin.getEntityId({ transactionHash, address, network })
+    expect(entityId).to.eq(`${network}-${transactionHash}-${address}`)
   })
 
   it('Should findExistingLog', async () => {
     const createdLogPluginSetupProcessor = await Models.Plugin.create(rawPlugin)
     const foundLogPluginSetupProcessor = await Models.Plugin.findExistingLog({
       transactionHash: createdLogPluginSetupProcessor.transactionHash,
-      action: createdLogPluginSetupProcessor.action,
+      address: createdLogPluginSetupProcessor.address,
       network: createdLogPluginSetupProcessor.network,
     })
     expect(foundLogPluginSetupProcessor?.id).to.eq(createdLogPluginSetupProcessor.id)

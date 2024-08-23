@@ -27,7 +27,6 @@ const EtherscanHelper = {
           EtherscanHelper.axiosInstance(network).get('', { params }),
         ),
       )
-
       return response?.data?.result
     } catch (error) {
       logger.error('Error in Etherscan API call', llo({ error }))
@@ -68,9 +67,9 @@ const EtherscanHelper = {
     }
 
     try {
-      return await EtherscanHelper._rpCall(params, network)
+      const result = await EtherscanHelper._rpCall(params, network)
+      return result
     } catch (error) {
-      logger.error('Error fetchAllTransactions', llo({ error }))
       return []
     }
   },

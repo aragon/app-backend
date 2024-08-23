@@ -6,7 +6,7 @@ import {
   type IPaginationParams,
   type IPairParams,
 } from '@types'
-import type Delegate from '@models/schema/delegate'
+import type MemberTransaction from '@models/schema/memberTransaction'
 import PairDataModule from '@modules/pairData'
 
 const DelegateController = {
@@ -17,7 +17,7 @@ const DelegateController = {
   ): Promise<IPaginatedResult<IDelegatesResponse>> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
     const result = await Models.Delegate.findWithPagination({ extraParams, paginationParams })
-    result.data = result.data.map((delegate: Delegate) => delegate.filterKeys())
+    result.data = result.data.map((delegate: MemberTransaction) => delegate.filterKeys())
 
     return result
   },
