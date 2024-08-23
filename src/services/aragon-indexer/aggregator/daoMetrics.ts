@@ -1,4 +1,4 @@
-import { type HexAddress, type IAlchemyTokenBalance, type NetworksEnum } from '@types'
+import { type HexAddress, type IAlchemyTokenBalance } from '@types'
 import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -11,39 +11,79 @@ import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 import type Dao from '@models/schema/dao'
 
-const llo = logger.logMeta.bind(null, { service: 'rates:DaoAssets' })
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:AggregatorDaoMetrics' })
 
-export const DaoAssets = {
+export const AggregatorDaoMetrics = {
   batchSize: config.CRAWLER_CONFIG.DAO_ASSETS_BATCH_SIZE,
   concurrency: config.CRAWLER_CONFIG.DAO_ASSETS_CONCURRENCY,
 
-  start: async () => {
+  start: async ({ daoAddress }: { daoAddress: HexAddress }) => {
     const startTime = Date.now()
-    logger.verbose('Start DaoAssets', llo({ startTime }))
+    logger.verbose('Start DaoMetrics', llo({ startTime }))
 
     const crawler = new DBCrawler({
       model: Models.Dao,
-      onDocument: DaoAssets.onDocument,
+      onDocument: AggregatorDaoMetrics.onDocument,
       onError: (error: any, document: any) => {
-        logger.error('Error DaoAssets', llo({ error, document }))
+        logger.error('Error AggregatorDaoMetrics', llo({ error, document }))
       },
       where: {
+        address: daoAddress,
         network: { $in: NetworkHelper.supportedNetworks().map(network => network.networkName) },
       },
-      batchSize: DaoAssets.batchSize,
-      concurrency: DaoAssets.concurrency,
+      batchSize: AggregatorDaoMetrics.batchSize,
+      concurrency: AggregatorDaoMetrics.concurrency,
     })
 
     await crawler.crawl()
 
     const duration = Date.now() - startTime
     logger.verbose(
-      'End DaoAssets',
+      'End AggregatorDaoMetrics',
       llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt, duration: `${duration}ms` }),
     )
   },
 
   onDocument: async (document: Dao) => {
+    const [assets, proposalsCreated, proposalsExecuted, members, votes, uniqueVoters] = await Promise.all([
+      AggregatorDaoMetrics.assets(document),
+      Models.Proposal.countDocuments({ daoAddress: document.address, network: document.network }),
+      Models.Proposal.countDocuments({
+        daoAddress: document.address,
+        network: document.network,
+        'executed.status': true,
+      }),
+      Models.DaoMemberMapping.countDocuments({ daoAddress: document.address, network: document.network }),
+      Models.Vote.countDocuments({ daoAddress: document.address, network: document.network }),
+      AggregatorDaoMetrics.countUniqueMemberVotesByPlugin(document.address),
+    ])
+
+    const tvlUSD =
+      Number(assets?.ethBalance!) > 0 || assets?.tokenBalances?.length! > 0
+        ? await AggregatorDaoMetrics.getDaoTvl(document)
+        : 0
+
+    await DbTx.executeTxFn(async ({ session }) => {
+      const logDb = await document.update(
+        {
+          metrics: {
+            uniqueVoters,
+            tvlUSD,
+            proposalsCreated,
+            proposalsExecuted,
+            votes,
+            members,
+          },
+        },
+        { session },
+      )
+      await session.commitTransaction()
+      await session.endSession()
+      logger.verbose('Update Dao metrics', llo({ logId: logDb?.id }))
+    })
+  },
+
+  assets: async (document: Dao) => {
     try {
       const [ethBalance, tokenBalances] = await Promise.all([
         Web3Helper.getBalance(document.address, document.network),
@@ -55,7 +95,7 @@ export const DaoAssets = {
           amount: ethBalance,
           network: document.network,
           daoAddress: document.address,
-          tokenAddress: utils.zeroAddress, // ETH native token
+          tokenAddress: utils.zeroAddress, // native token
         }
 
         await ProxyToken.saveAndGetToken(utils.zeroAddress, document.network)
@@ -122,25 +162,38 @@ export const DaoAssets = {
           }),
       )
 
-      if (Number(ethBalance) > 0 || tokenBalances.length > 0) {
-        await DaoAssets.daoTvl(document.address, document.network)
-      }
+      return { ethBalance, tokenBalances }
     } catch (error) {
-      logger.error('Error DaoAssets', llo({ error, logId: document.id }))
+      logger.error('Error AggregatorDaoMetrics', llo({ error, logId: document.id }))
     }
   },
 
-  daoTvl: async (daoAddress: HexAddress, network: NetworksEnum) => {
-    const dao = await Models.Dao.findExistingLog({ address: daoAddress, network })
+  countUniqueMemberVotesByPlugin: async (daoAddress: HexAddress) => {
+    const results = await Models.Vote.aggregate([
+      {
+        $match: { daoAddress },
+      },
+      {
+        $group: {
+          _id: {
+            memberAddress: '$memberAddress',
+            pluginAddress: '$pluginAddress',
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          uniqueVotes: { $sum: 1 },
+        },
+      },
+    ])
 
-    if (dao) {
-      const response = await Models.Asset.getDaoTvl(daoAddress, network)
-      await DbTx.executeTxFn(async ({ session }) => {
-        const logDb = await dao.update({ tvlUSD: response.tvlUsd }, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('Update Dao tvlUSD', llo({ logId: logDb?.id }))
-      })
-    }
+    return results.length > 0 ? results[0].uniqueVotes : 0
+  },
+
+  getDaoTvl: async (document: Dao): Promise<number> => {
+    const response = await Models.Asset.getDaoTvl(document.address, document.network)
+    return Number(response?.tvlUsd || 0)
   },
 }

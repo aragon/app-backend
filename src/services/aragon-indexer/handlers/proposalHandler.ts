@@ -7,11 +7,12 @@ import type Vote from '@models/schema/vote'
 import Web3Helper from '@helpers/web3'
 import { ProxyMember } from '@modules/proxyMember'
 import { ProxyToken } from '@modules/proxyToken'
-import { AggregatorMetrics } from '@indexer/aggregator/metrics'
+import { AggregatorProposalMetrics } from '@indexer/aggregator/proposalMetrics'
 import type Proposal from '@models/schema/proposal'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import DbOperations from '@models/utils/dbOperations'
+import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:ProposalHandler' })
 
@@ -110,6 +111,9 @@ export const ProposalHandler = {
       pluginAddress,
       network: info.network,
     })
+    await AggregatorDaoMetrics.start({
+      daoAddress: newProposal?.daoAddress,
+    })
   },
 
   approved: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -148,10 +152,13 @@ export const ProposalHandler = {
       pluginAddress: info.address,
       network: info.network,
     })
-    await AggregatorMetrics.proposalMultisigMetrics({
+    await AggregatorProposalMetrics.proposalMultisigMetrics({
       proposalId,
       pluginAddress: info.address,
       network: info.network,
+    })
+    await AggregatorDaoMetrics.start({
+      daoAddress: proposal?.daoAddress,
     })
   },
 
@@ -209,6 +216,10 @@ export const ProposalHandler = {
       pluginAddress: info.address,
       network: info.network,
     })
+    await AggregatorDaoMetrics.start({
+      daoAddress: proposal?.daoAddress,
+    })
+
     // TODO: implement metrics for token voting
   },
 
@@ -222,7 +233,7 @@ export const ProposalHandler = {
       return
     }
 
-    if (proposal.executed) return
+    if (proposal?.executed?.status) return
 
     const rawUpdate = {
       executed: {
@@ -233,6 +244,11 @@ export const ProposalHandler = {
     }
 
     await DbOperations.updateDocument(proposal, rawUpdate, { logId: proposal.id }, 'Update proposalExecuted', llo)
+
+    await AggregatorDaoMetrics.start({
+      daoAddress: proposal?.daoAddress,
+    })
+
     // TODO: implement metrics for token voting
   },
 

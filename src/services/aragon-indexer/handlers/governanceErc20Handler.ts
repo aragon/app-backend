@@ -8,6 +8,7 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
+import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:GovernanceErc20Handler' })
 
@@ -25,7 +26,7 @@ export const GovernanceErc20Handler = {
     }
   },
 
-  // it trigger for each user the previous and new votingPower
+  // it triggers for each user the previous and new votingPower
   delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
     if (parsedEvent.args.delegate === utils.zeroAddress) {
       return
@@ -132,6 +133,10 @@ export const GovernanceErc20Handler = {
         })
       }
     }
+
+    await AggregatorDaoMetrics.start({
+      daoAddress: plugin?.daoAddress,
+    })
   },
 
   _outgoingTransfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -212,6 +217,10 @@ export const GovernanceErc20Handler = {
         network: info.network,
       })
     }
+
+    await AggregatorDaoMetrics.start({
+      daoAddress: plugin?.daoAddress,
+    })
   },
 
   _incomingTransfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -289,6 +298,10 @@ export const GovernanceErc20Handler = {
       daoAddress: plugin.daoAddress,
       pluginAddress: plugin.address,
       network: info.network,
+    })
+
+    await AggregatorDaoMetrics.start({
+      daoAddress: plugin?.daoAddress,
     })
   },
 

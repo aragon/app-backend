@@ -3,6 +3,7 @@ import { type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
+import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:MultisigHandler' })
 
@@ -25,6 +26,9 @@ export const MultisigHandler = {
         pluginAddress: address,
         network,
       })
+      await AggregatorDaoMetrics.start({
+        daoAddress: pluginExisted?.daoAddress,
+      })
     }
   },
 
@@ -45,6 +49,9 @@ export const MultisigHandler = {
         daoAddress: pluginExisted.daoAddress,
         pluginAddress: address,
         network,
+      })
+      await AggregatorDaoMetrics.start({
+        daoAddress: pluginExisted?.daoAddress,
       })
     }
   },
