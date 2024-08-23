@@ -45,6 +45,7 @@ import { ERC721 } from '@artifacts/ERC721'
 import { ERC1155 } from '@artifacts/ERC1155'
 import Utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
+import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -195,8 +196,8 @@ class DecodeActions {
         const member = await ProxyMember.saveAndGetMember(address)
         return { address: member.address, ens: member.ens, avatar: member.avatar }
       }),
-      currentMembers: currentMembers.map(async (address: HexAddress) => {
-        const member = await ProxyMember.saveAndGetMember(address)
+      currentMembers: currentMembers.map(async (memberInfo: DaoMemberMapping) => {
+        const member = await ProxyMember.saveAndGetMember(memberInfo.memberAddress)
         return { address: member.address, ens: member.ens, avatar: member.avatar }
       }),
     }
@@ -223,8 +224,8 @@ class DecodeActions {
         const member = await ProxyMember.saveAndGetMember(address)
         return { address: member.address, ens: member.ens, avatar: member.avatar }
       }),
-      currentMembers: currentMembers.map(async (address: HexAddress) => {
-        const member = await ProxyMember.saveAndGetMember(address)
+      currentMembers: currentMembers.map(async (memberInfo: DaoMemberMapping) => {
+        const member = await ProxyMember.saveAndGetMember(memberInfo.memberAddress)
         return { address: member.address, ens: member.ens, avatar: member.avatar }
       }),
     }
