@@ -27,7 +27,8 @@ class ERC1155Metadata {
   public value!: string
 }
 
-class Snapshot { // transaction price at specific block
+class Snapshot {
+  // transaction price at specific block
   @prop({ type: () => String, default: null })
   public priceUsd!: string
 

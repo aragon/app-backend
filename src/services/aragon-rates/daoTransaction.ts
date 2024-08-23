@@ -209,7 +209,7 @@ export const DaoTransactions = {
             snapshot: {
               priceUsd: tokenRate.priceUsd,
               priceUpdatedAt: blockTimestamp,
-            }
+            },
           }
         }
 
