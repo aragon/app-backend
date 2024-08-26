@@ -74,6 +74,9 @@ export default class Dao extends Model {
   @prop({ type: () => Boolean, default: false })
   public isHidden!: boolean
 
+  @prop({ type: () => Boolean, default: false })
+  public isSupported!: boolean
+
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
@@ -117,7 +120,7 @@ export default class Dao extends Model {
   public links?: Link[]
 
   @prop({ type: () => String, default: null })
-  public daoVersion!: string
+  public version!: string
 
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics?: Metrics
@@ -220,6 +223,26 @@ export default class Dao extends Model {
           }
         }
       })
+
+    return await this.save(tOpts)
+  }
+
+  async updateMetrics(
+    metrics: Partial<
+      Pick<Metrics, 'proposalsCreated' | 'proposalsExecuted' | 'uniqueVoters' | 'votes' | 'members' | 'tvlUSD'>
+    >,
+    tOpts?: SaveOptions,
+  ): Promise<Dao> {
+    if (!this.metrics) {
+      this.metrics = new Metrics()
+    }
+
+    // Update each provided metric
+    for (const [key, value] of Object.entries(metrics)) {
+      if (key in this.metrics && value !== undefined) {
+        ;(this.metrics as any)[key] = value
+      }
+    }
 
     return await this.save(tOpts)
   }

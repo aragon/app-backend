@@ -13,3 +13,9 @@ export interface IMemberVoteMetrics {
   lastActivity: number
   network: NetworksEnum
 }
+
+export interface IVoteAggregation {
+  type: number
+  totalVotes: number
+  totalVotingPower: bigint
+}

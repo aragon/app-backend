@@ -104,16 +104,21 @@ export const ProposalHandler = {
     }
 
     const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)
-    await ProposalHandler.parseActions(newProposal)
-    await ProxyMember.memberActivity(newProposal.creatorAddress, newProposal.blockNumber, newProposal.network)
-    await ProxyMember.updateMemberMetrics(IMetricAction.increaseProposalCount, {
-      memberAddress: newProposal.creatorAddress,
-      pluginAddress,
-      network: info.network,
-    })
-    await AggregatorDaoMetrics.start({
-      daoAddress: newProposal?.daoAddress,
-    })
+
+    // NOTE: improve scalability, use queue messages
+    await Promise.all([
+      ProposalHandler.parseActions(newProposal),
+      ProxyMember.memberActivity(newProposal.creatorAddress, newProposal.blockNumber, newProposal.network),
+      ProxyMember.updateMemberMetrics(IMetricAction.increaseProposalCount, {
+        memberAddress: newProposal.creatorAddress,
+        pluginAddress,
+        network: info.network,
+      }),
+      AggregatorDaoMetrics.start({
+        daoAddress: newProposal?.daoAddress,
+        network: newProposal?.network,
+      }),
+    ])
   },
 
   approved: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -146,20 +151,24 @@ export const ProposalHandler = {
 
     await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
 
-    await ProxyMember.memberActivity(parsedEvent.args.approver, info.blockNumber, info.network)
-    await ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
-      memberAddress: parsedEvent.args.approver,
-      pluginAddress: info.address,
-      network: info.network,
-    })
-    await AggregatorProposalMetrics.proposalMultisigMetrics({
-      proposalId,
-      pluginAddress: info.address,
-      network: info.network,
-    })
-    await AggregatorDaoMetrics.start({
-      daoAddress: proposal?.daoAddress,
-    })
+    // NOTE: improve scalability, use queue messages
+    await Promise.all([
+      ProxyMember.memberActivity(document.memberAddress!, info.blockNumber, info.network),
+      ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
+        memberAddress: document.memberAddress!,
+        pluginAddress: info.address,
+        network: info.network,
+      }),
+      AggregatorProposalMetrics.proposalMultisigMetrics({
+        proposalId,
+        pluginAddress: info.address,
+        network: info.network,
+      }),
+      AggregatorDaoMetrics.start({
+        daoAddress: proposal?.daoAddress,
+        network: proposal?.network,
+      }),
+    ])
   },
 
   voteCast: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -187,40 +196,36 @@ export const ProposalHandler = {
       daoAddress: proposal.daoAddress,
       pluginAddress: info.address,
       memberAddress: parsedEvent.args.voter,
-      tokenAddress: proposal.tokenAddress,
+      tokenAddress: proposal.settings.tokenAddress,
       proposalId: Number(parsedEvent.args.proposalId),
       voteOption: Number(parsedEvent.args.voteOption),
-      votingPower: parsedEvent.args.votingPower,
+      votingPower: parsedEvent.args.votingPower.toString(),
     }
 
-    if (proposal.tokenAddress) {
-      const token = await ProxyToken.saveAndGetToken(proposal.tokenAddress, proposal.network)
-      if (token) {
-        document.token = {
-          network: token.network,
-          type: token.type,
-          address: token.address,
-          name: token.name,
-          symbol: token.symbol,
-          decimals: token.decimals,
-          logo: token.logo,
-        }
-      }
+    if (proposal.settings.tokenAddress) {
+      await ProxyToken.saveAndGetToken(proposal.settings.tokenAddress, proposal.network)
     }
 
     await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - VoteCast', llo)
 
-    await ProxyMember.memberActivity(document.memberAddress!, info.blockNumber, info.network)
-    await ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
-      memberAddress: document.memberAddress!,
-      pluginAddress: info.address,
-      network: info.network,
-    })
-    await AggregatorDaoMetrics.start({
-      daoAddress: proposal?.daoAddress,
-    })
-
-    // TODO: implement metrics for token voting
+    // update all metrics
+    await Promise.all([
+      ProxyMember.memberActivity(document.memberAddress!, info.blockNumber, info.network),
+      ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
+        memberAddress: document.memberAddress!,
+        pluginAddress: info.address,
+        network: info.network,
+      }),
+      AggregatorProposalMetrics.proposalTokenVotingMetrics({
+        proposalId,
+        pluginAddress: info.address,
+        network: info.network,
+      }),
+      AggregatorDaoMetrics.start({
+        daoAddress: proposal?.daoAddress,
+        network: proposal?.network,
+      }),
+    ])
   },
 
   proposalExecuted: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -247,9 +252,8 @@ export const ProposalHandler = {
 
     await AggregatorDaoMetrics.start({
       daoAddress: proposal?.daoAddress,
+      network: proposal?.network,
     })
-
-    // TODO: implement metrics for token voting
   },
 
   fetchProposalMetadata: async (metadataUri: string): Promise<IProposalMetadata> => {

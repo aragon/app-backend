@@ -26,7 +26,6 @@ import BottleneckModule from '@modules/bottleneck'
 import { ENSRegistry } from '@artifacts/ENSRegistry'
 import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
-import { DAO } from '@artifacts/dao'
 import { Multisig } from '@artifacts/Multisig'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
@@ -681,15 +680,45 @@ const Web3Helper = {
 
   async getDaoOsVersion(address: HexAddress, network: NetworksEnum) {
     const provider = ProviderModule.getProvider(network)!
-    const contract = new Contract(address, DAO.abi, provider)
+    const contract = new Contract(
+      address,
+      [
+        {
+          inputs: [],
+          name: 'protocolVersion',
+          outputs: [
+            {
+              internalType: 'uint8',
+              name: 'major',
+              type: 'uint8',
+            },
+            {
+              internalType: 'uint8',
+              name: 'minor',
+              type: 'uint8',
+            },
+            {
+              internalType: 'uint8',
+              name: 'patch',
+              type: 'uint8',
+            },
+          ],
+          stateMutability: 'view',
+          type: 'function',
+        },
+      ],
+      provider,
+    )
+
+    let version: [number, number, number]
     try {
-      const version = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.protocolVersion(address)),
+      version = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.protocolVersion()),
       )
-      return version.join('.')
     } catch (error) {
-      return '0'
+      version = [1, 0, 0]
     }
+    return version.join('.')
   },
 }
 
