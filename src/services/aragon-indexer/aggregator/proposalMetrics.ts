@@ -85,7 +85,7 @@ export const AggregatorProposalMetrics = {
       approvalReached: votes.length >= proposal.settings.minApprovals,
       metrics: {
         totalVotes: votes.length,
-        missingVotes: votes.length - members.length,
+        missingVotes: members.length - votes.length,
         votesByOption: Object.entries(voteAggregation).map(([type, data]) => ({
           type,
           totalVotes: data.totalVotes,
