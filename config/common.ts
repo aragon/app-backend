@@ -181,51 +181,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     CRAWLER_CONFIG: {
-      // INDEXER
-      DA0_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_BATCH_SIZE', 1000),
-      DAO_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_CONCURRENCY', 1),
-      DA0_PLUGIN_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_PLUGIN_BATCH_SIZE', 1000),
-      DAO_PLUGIN_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_PLUGIN_CONCURRENCY', 1),
-      DA0_SETTING_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_SETTING_BATCH_SIZE', 1000),
-      DAO_SETTING_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_SETTING_CONCURRENCY', 1),
-      MEMBER_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_MEMBER_BATCH_SIZE', 1000),
-      MEMBER_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_MEMBER_CONCURRENCY', 1),
-      MEMBER_DELEGATE_BATCH_SIZE: utils.configParser(
-        sourceConfig,
-        'number',
-        'INDEXER_CONFIG_MEMBER_DELEGATE_BATCH_SIZE',
-        1000,
-      ),
-      MEMBER_DELEGATE_CONCURRENCY: utils.configParser(
-        sourceConfig,
-        'number',
-        'INDEXER_CONFIG_MEMBER_DELEGATE_CONCURRENCY',
-        1,
-      ),
-      PROPOSAL_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_PROPOSAL_BATCH_SIZE', 1000),
-      PROPOSAL_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_PROPOSAL_CONCURRENCY', 1),
-      VOTE_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_VOTE_BATCH_SIZE', 1000),
-      VOTE_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_VOTE_CONCURRENCY', 1),
-
       // RATES
       TOKEN_RATES_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_BATCH_SIZE', 1000),
       TOKEN_RATES_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_CONCURRENCY', 1),
-      DAO_TVL_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_TVL_BATCH_SIZE', 1000),
-      DAO_TVL_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_TVL_CONCURRENCY', 1),
-      DAO_ASSETS_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_ASSETS_BATCH_SIZE', 20),
-      DAO_ASSETS_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_ASSETS_CONCURRENCY', 1),
-      DAO_TRANSACTIONS_BATCH_SIZE: utils.configParser(
-        sourceConfig,
-        'number',
-        'INDEXER_CONFIG_DAO_TRANSACTIONS_BATCH_SIZE',
-        1000,
-      ),
-      DAO_TRANSACTIONS_CONCURRENCY: utils.configParser(
-        sourceConfig,
-        'number',
-        'INDEXER_CONFIG_DAO_TRANSACTIONS_CONCURRENCY',
-        1,
-      ),
     },
     ETHERSCAN_API: {
       ETHEREUM_MAINNET: {

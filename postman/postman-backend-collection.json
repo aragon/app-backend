@@ -55,7 +55,7 @@
                   "    data.forEach((dao, index) => {",
                   "        try {",
                   "            pm.expect(Object.keys(dao).length).to.equal(expectedDaoPropertyCount, `DAO ${index + 1}: Expected ${expectedDaoPropertyCount} properties but found ${Object.keys(dao).length}`);",
-                  "            pm.expect(dao).to.have.property(\"daoVersion\").that.satisfies(value => value === null || typeof value === \"string\", `DAO ${index + 1}: 'daoVersion' should be null or a string`);",
+                  "            pm.expect(dao).to.have.property(\"version\").that.satisfies(value => value === null || typeof value === \"string\", `DAO ${index + 1}: 'daoVersion' should be null or a string`);",
                   "            pm.expect(dao).to.have.property(\"id\").that.is.a(\"string\", `DAO ${index + 1}: 'id' should be a string`);",
                   "            pm.expect(dao).to.have.property(\"network\").that.is.a(\"string\", `DAO ${index + 1}: 'network' should be a string`);",
                   "            pm.expect(dao).to.have.property(\"transactionHash\").that.is.a(\"string\", `DAO ${index + 1}: 'transactionHash' should be a string`);",

@@ -22,11 +22,11 @@ export const PluginSettingHandler = {
       return
     }
 
-    if (!dao.isActive) {
+    if (!dao.isSupported) {
       const document = {
-        isActive: true,
+        isSupported: true,
       }
-      await DbOperations.updateDocument(dao, document, { logId: dao.id }, 'Dao Active - setting fetched', llo)
+      await DbOperations.updateDocument(dao, document, { logId: dao.id }, 'Dao Supported - setting fetched', llo)
     }
 
     if (plugin.tokenAddress) {

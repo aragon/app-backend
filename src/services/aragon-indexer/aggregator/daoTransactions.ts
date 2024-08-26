@@ -1,11 +1,11 @@
 import {
+  type HexAddress,
   type IAlchemyTransferResponse,
   IEnumIndexerService,
   ITransactionCategory,
   ITransactionType,
   NetworksEnum,
 } from '@types'
-import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
@@ -13,49 +13,28 @@ import type Dao from '@models/schema/dao'
 import type Transaction from '@models/schema/transaction'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import Web3Helper from '@helpers/web3'
-import { NetworkHelper } from '@helpers/network'
 import { RateModule } from '@modules/rates'
 import utils from '@helpers/utils'
-import config from '@config'
 import { ProxyToken } from '@modules/proxyToken'
 import { DAO } from '@artifacts/dao'
 import { Multisig } from '@artifacts/Multisig'
 
-const llo = logger.logMeta.bind(null, { service: 'rates:DaoTransactions' })
+const llo = logger.logMeta.bind(null, { service: 'rates:AggregatorDaoTransactions' })
 
 /**
- * The DaoTransactions uses the alchemy_getAssetTransfers to fetch DAO transfers.
+ * The AggregatorDaoTransactions uses the alchemy_getAssetTransfers to fetch DAO transfers.
  * Due to a low limit on the method, the service should run alone.
  */
-
-export const DaoTransactions = {
-  batchSize: config.CRAWLER_CONFIG.DAO_TRANSACTIONS_BATCH_SIZE,
-  concurrency: config.CRAWLER_CONFIG.DAO_TRANSACTIONS_CONCURRENCY,
-
-  start: async () => {
+export const AggregatorDaoTransactions = {
+  start: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
     const startTime = Date.now()
-    logger.verbose('Start DaoTransactions', llo({ startTime }))
+    logger.verbose('Start DaoMetrics', llo({ startTime }))
 
-    const crawler = new DBCrawler({
-      model: Models.Dao,
-      onDocument: async (dao: Dao) => DaoTransactions.onDocument(dao),
-      onError: (error: any, document: any) => {
-        logger.error('Error DaoTransactions', llo({ error, document }))
-      },
-      where: {
-        network: { $in: NetworkHelper.supportedNetworks().map(w => w.networkName) },
-      },
-      batchSize: DaoTransactions.batchSize,
-      concurrency: DaoTransactions.concurrency,
-    })
-
-    await crawler.crawl()
+    const daoDb = await Models.Dao.findByAddress(daoAddress, network)
+    await AggregatorDaoTransactions.onDocument(daoDb)
 
     const duration = Date.now() - startTime
-    logger.verbose(
-      'End DaoTransactions',
-      llo({ lastTimeSync: crawler.crawlResult?.lastCreatedAt, duration: `${duration}ms` }),
-    )
+    logger.verbose('End AggregatorDaoTransactions', llo({ daoId: daoDb.id, duration: `${duration}ms` }))
   },
 
   getCategories: (network: NetworksEnum) => {
@@ -79,7 +58,7 @@ export const DaoTransactions = {
   },
 
   onDocument: async (dao: Dao) => {
-    const category = DaoTransactions.getCategories(dao.network)
+    const category = AggregatorDaoTransactions.getCategories(dao.network)
     // txs to daoAddress
     const depositTxCrawler = new BlockchainTransferCrawler({
       network: dao.network,
@@ -88,7 +67,7 @@ export const DaoTransactions = {
         category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) =>
-        DaoTransactions.saveTransaction(txLog, ITransactionType.deposit, dao),
+        AggregatorDaoTransactions.saveTransaction(txLog, ITransactionType.deposit, dao),
       onError: async (error: any) => {
         logger.error(
           'Error deposit transfer',
@@ -108,7 +87,7 @@ export const DaoTransactions = {
         category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) =>
-        DaoTransactions.saveTransaction(txLog, ITransactionType.withdraw, dao),
+        AggregatorDaoTransactions.saveTransaction(txLog, ITransactionType.withdraw, dao),
       onError: async (error: any) => {
         logger.error(
           'Error withdraw transfer',
@@ -193,7 +172,7 @@ export const DaoTransactions = {
           // historical price
           const daysDifference = utils.calculateDaysDifference(rawTx.blockTimestamp)
           const tokenRate = await RateModule.fetchRate(token.address, dao.network, daysDifference)
-          rawTx.amountUsd = DaoTransactions.calculateAmountUsd(
+          rawTx.amountUsd = AggregatorDaoTransactions.calculateAmountUsd(
             Number(rawTx.value || 0),
             Number(tokenRate.priceUsd || 0),
           )

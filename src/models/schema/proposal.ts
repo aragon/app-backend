@@ -108,8 +108,8 @@ export class ProposalExecuted {
 }
 
 export class VotesByOption {
-  @prop({ type: () => Number, default: null })
-  public type!: number | null
+  @prop({ type: () => Number, required: true })
+  public type!: number
 
   @prop({ type: () => Number, default: 0 })
   public totalVotes!: number
@@ -125,7 +125,7 @@ export class Metrics {
   @prop({ type: () => Number, default: 0 })
   public missingVotes!: number
 
-  @prop({ type: () => [VotesByOption], _id: false, default: [] })
+  @prop({ type: () => [VotesByOption], _id: false })
   public votesByOption!: VotesByOption[]
 }
 
@@ -236,7 +236,7 @@ export default class Proposal extends Model {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
-      assert(!!(rawData?.proposalId! >= 0), 'proposalId is required')
+      assert(rawData?.proposalId! >= 0, 'proposalId is required')
       rawData.id = this.getEntityId({
         transactionHash: rawData?.transactionHash!,
         pluginAddress: rawData?.pluginAddress!,

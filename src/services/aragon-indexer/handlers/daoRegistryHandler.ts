@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { IEventLogMember, IEventLogPluginType, type ILogInfo } from '@types'
+import { type HexAddress, IEventLogMember, IEventLogPluginType, type ILogInfo } from '@types'
 import { type Log, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
@@ -16,6 +16,9 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 import { ProxyMember } from '@modules/proxyMember'
 import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
 import DbOperations from '@models/utils/dbOperations'
+import Utils from '@helpers/utils'
+import { AggregatorDaoAssets } from '@indexer/aggregator/daoAssets'
+import { AggregatorDaoTransactions } from '@indexer/aggregator/daoTransactions'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
 
@@ -37,18 +40,21 @@ export const DaoRegistryHandler = {
       network,
       transactionHash,
       blockNumber,
+      isActive: true,
+      isHidden: false,
+      isSupported: false,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
       address: daoAddress,
       implementationAddress: implementationAddress!,
       ens: isValid ? Web3Helper.parseSubdomainToEns(parsedEvent.args.subdomain) : null,
-      subdomain: parsedEvent.args.subdomain,
-      daoVersion: await Web3Helper.getDaoOsVersion(implementationAddress || daoAddress, network),
+      subdomain: Utils.validateString(parsedEvent.args.subdomain),
+      version: await Web3Helper.getDaoOsVersion(daoAddress, network),
       creatorAddress: parsedEvent.args.creator,
     }
 
     await DbOperations.createDocument(Models.Dao, document, info, 'New DaoRegistered', llo)
     await ProxyMember.saveAndGetMember(parsedEvent.args.creator)
-    await DaoRegistryHandler.initiateNewDaoCreation(info)
+    await DaoRegistryHandler.initiateNewDaoCreation(info, daoAddress)
   },
 
   /**
@@ -64,7 +70,7 @@ export const DaoRegistryHandler = {
    *
    */
 
-  initiateNewDaoCreation: async (info: ILogInfo) => {
+  initiateNewDaoCreation: async (info: ILogInfo, daoAddress: HexAddress) => {
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
     if (!txReceipt) {
       return
@@ -90,6 +96,12 @@ export const DaoRegistryHandler = {
      * As settings can be identified in two ways, needed to check for both
      */
     await DaoRegistryHandler._pluginSettings(txReceipt, info)
+
+    // fetch dao assets and transactions
+    Utils.setImmediateAsyncArray([
+      async () => AggregatorDaoAssets.start({ daoAddress, network: info.network }),
+      async () => AggregatorDaoTransactions.start({ daoAddress, network: info.network }),
+    ])
   },
 
   _pluginSettings: async (txReceipt: TransactionReceipt, info: ILogInfo) => {

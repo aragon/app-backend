@@ -54,7 +54,7 @@ export const ProxyToken = {
       rawToken.skipFetchRate = true
     }
 
-    if (rawToken.type === ITokenType.unknown) {
+    if (rawToken.type === ITokenType.unknown && tokenRate.type !== ITokenType.unknown) {
       rawToken.type = tokenRate.type
     }
 
@@ -123,7 +123,7 @@ export const ProxyToken = {
   ) => {
     return {
       ...tokenRate,
-      holders: tokenMetrics.totalHolders,
+      holders: tokenMetrics?.totalHolders,
       totalSupply: tokenMetrics.totalSupply,
       address: tokenAddress,
       type: tokenTypeInfo?.type,

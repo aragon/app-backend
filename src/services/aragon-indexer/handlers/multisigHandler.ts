@@ -28,6 +28,7 @@ export const MultisigHandler = {
       })
       await AggregatorDaoMetrics.start({
         daoAddress: pluginExisted?.daoAddress,
+        network: pluginExisted?.network,
       })
     }
   },
@@ -52,6 +53,7 @@ export const MultisigHandler = {
       })
       await AggregatorDaoMetrics.start({
         daoAddress: pluginExisted?.daoAddress,
+        network: pluginExisted?.network,
       })
     }
   },

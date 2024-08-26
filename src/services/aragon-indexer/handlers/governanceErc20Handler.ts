@@ -136,6 +136,7 @@ export const GovernanceErc20Handler = {
 
     await AggregatorDaoMetrics.start({
       daoAddress: plugin?.daoAddress,
+      network: plugin?.network,
     })
   },
 
@@ -220,6 +221,7 @@ export const GovernanceErc20Handler = {
 
     await AggregatorDaoMetrics.start({
       daoAddress: plugin?.daoAddress,
+      network: plugin?.network,
     })
   },
 
@@ -302,6 +304,7 @@ export const GovernanceErc20Handler = {
 
     await AggregatorDaoMetrics.start({
       daoAddress: plugin?.daoAddress,
+      network: plugin?.network,
     })
   },
 
