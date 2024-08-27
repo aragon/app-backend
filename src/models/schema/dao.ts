@@ -309,6 +309,7 @@ export default class Dao extends Model {
       },
       {
         $addFields: {
+          // Extract tokenAddress from the first plugin (if it exists)
           pluginTokenAddress: { $arrayElemAt: ['$plugin.tokenAddress', 0] },
         },
       },
@@ -339,8 +340,6 @@ export default class Dao extends Model {
                       address: 1,
                       ens: 1,
                       avatar: 1,
-                      lastActivity: 1,
-                      firstActivity: 1,
                     },
                   },
                 ],
@@ -420,8 +419,6 @@ export default class Dao extends Model {
                 address: '$$creator.info.address',
                 ens: '$$creator.info.ens',
                 avatar: '$$creator.info.avatar',
-                lastActivity: '$$creator.info.lastActivity',
-                firstActivity: '$$creator.info.firstActivity',
               },
             },
           },
@@ -433,8 +430,6 @@ export default class Dao extends Model {
                 address: '$$member.info.address',
                 ens: '$$member.info.ens',
                 avatar: '$$member.info.avatar',
-                lastActivity: '$$member.info.lastActivity',
-                firstActivity: '$$member.info.firstActivity',
                 votingPower: '$$member.memberBalance.votingPower',
                 balance: '$$member.memberBalance.amount',
               },
