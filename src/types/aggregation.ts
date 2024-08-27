@@ -19,6 +19,57 @@ export interface IQueryGetPlugin {
   subdomain: string
 }
 
+export interface IAggTokenParams {
+  address?: string
+  network: string
+}
+
+export interface IAggTokenProjectFields {
+  _id?: 0 | 1
+  id?: 0 | 1
+  network?: 1
+  transactionHash?: 1
+  blockNumber?: 1
+  type?: 1
+  address?: 1
+  implementationAddress?: 1
+  logo?: 1
+  skipFetchRate?: 1
+  name?: 1
+  symbol?: 1
+  decimals?: 1
+  holders?: 1
+  totalSupply?: 1
+  priceChangeOnDayUsd?: 1
+  priceUsd?: 1
+  lastUpdatedAt?: 1
+}
+
+export interface IAggSettingParams {
+  pluginAddress?: string
+  network: string
+}
+
+export interface IAggSettingProjectFields {
+  _id?: 0 | 1
+  id?: 0 | 1
+  transactionHash?: 1
+  blockNumber?: 1
+  blockTimestamp?: 1
+  network?: 1
+  daoAddress?: 1
+  pluginAddress?: 1
+  pluginSubdomain?: 1
+  tokenAddress?: 1
+  onlyListed?: 1
+  minApprovals?: 1
+  votingMode?: 1
+  supportThreshold?: 1
+  minParticipation?: 1
+  minDuration?: 1
+  minProposerVotingPower?: 1
+}
+
 export interface IAggMemberParams {
   memberAddress?: string
 }
@@ -26,8 +77,13 @@ export interface IAggMemberParams {
 export interface IAggPluginParams {
   daoAddress?: string
   pluginAddress?: string
-  network?: string
+  network: string
   status?: IPluginStatus
+}
+
+export interface IAggPluginInclude {
+  settings: boolean
+  token: boolean
 }
 
 export interface IAggPluginProjectFields {
@@ -59,7 +115,7 @@ export interface IAggMemberProjectFields {
 
 export interface IAggMemberBalanceParams {
   tokenAddress?: string
-  network?: string
+  network: string
   memberAddress?: string
 }
 
