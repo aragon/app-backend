@@ -263,98 +263,135 @@ export default class Dao extends Model {
       {
         $match: {
           address,
+          isHidden: { $ne: true },
+          isActive: { $eq: true },
         },
       },
       {
         $lookup: {
-          from: 'Token',
-          let: { tokenAddresses: '$plugins.tokenAddress', network: '$network' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [{ $eq: ['$address', '$$tokenAddresses'] }, { $eq: ['$network', '$$network'] }],
-                },
-              },
-            },
-            {
-              $project: {
-                network: 1,
-                address: 1,
-                type: 1,
-                logo: 1,
-                name: 1,
-                symbol: 1,
-                totalSupply: 1,
-                holders: 1,
-                decimals: 1,
-              },
-            },
-          ],
-          as: 'token',
-        },
-      },
-      {
-        $addFields: {
-          token: {
-            $arrayElemAt: ['$token', 0],
+          from: 'Plugin',
+          let: {
+            daoAddress: '$address',
+            network: '$network',
           },
-        },
-      },
-      {
-        $lookup: {
-          from: 'Member',
-          let: { daoAddr: '$address' },
           pipeline: [
             {
               $match: {
                 $expr: {
-                  $and: [
-                    {
-                      $in: ['$$daoAddr', '$history.daoAddress'],
-                    },
-                    {
-                      $in: [null, '$history.toBlockNumber'],
-                    },
-                  ],
+                  $and: [{ $eq: ['$$daoAddress', '$daoAddress'] }, { $eq: ['$$network', '$network'] }],
                 },
               },
             },
             {
-              $addFields: {
-                history: {
-                  $arrayElemAt: ['$history', 0],
-                },
-              },
-            },
-            {
-              $replaceRoot: {
-                newRoot: {
-                  $mergeObjects: [
-                    '$$ROOT',
-                    '$history',
-                    {
-                      memberAddress: '$address',
-                      memberId: '$id',
-                    },
-                  ],
-                },
-              },
+              $match: { status: 'installed' },
             },
             {
               $project: {
                 _id: 0,
-                address: 1,
-                ens: 1,
-                lastActvity: 1,
-                firstActivity: 1,
-                fromBlockNumber: 1,
-                fromTxHash: 1,
-                fromBlockTimestamp: 1,
+                transactionHash: 1,
+                blockNumber: 1,
+                blockTimestamp: 1,
                 network: 1,
+                address: 1,
+                implementationAddress: 1,
+                status: 1,
                 tokenAddress: 1,
-                votingPower: 1,
-                tokenBalance: 1,
+                release: 1,
+                build: 1,
+                subdomain: 1,
+                permissions: 1,
+                uninstalled: 1,
+              },
+            },
+          ],
+          as: 'plugin',
+        },
+      },
+      {
+        $addFields: {
+          pluginTokenAddress: { $arrayElemAt: ['$plugin.tokenAddress', 0] },
+        },
+      },
+      {
+        $lookup: {
+          from: 'DaoMemberMapping',
+          let: { daoAddr: '$address', network: '$network', pluginTokenAddress: '$pluginTokenAddress' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ['$$daoAddr', '$daoAddress'] }, { $eq: ['$$network', '$network'] }],
+                },
+              },
+            },
+            {
+              $lookup: {
+                from: 'Member',
+                let: { memberAddr: '$memberAddress' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: { $eq: ['$$memberAddr', '$address'] },
+                    },
+                  },
+                  {
+                    $project: {
+                      address: 1,
+                      ens: 1,
+                      avatar: 1,
+                      lastActivity: 1,
+                      firstActivity: 1,
+                    },
+                  },
+                ],
+                as: 'info',
+              },
+            },
+            {
+              $addFields: {
+                info: { $arrayElemAt: ['$info', 0] },
+              },
+            },
+            {
+              $lookup: {
+                from: 'MemberBalance',
+                let: {
+                  tokenAddress: '$$pluginTokenAddress',
+                  network: '$network',
+                  memberAddress: '$memberAddress',
+                },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ['$$tokenAddress', '$tokenAddress'] },
+                          { $eq: ['$$network', '$network'] },
+                          { $eq: ['$$memberAddress', '$address'] },
+                        ],
+                      },
+                    },
+                  },
+                  {
+                    $project: {
+                      _id: 0,
+                      amount: 1,
+                      votingPower: 1,
+                    },
+                  },
+                ],
+                as: 'memberBalance',
+              },
+            },
+            {
+              $addFields: {
+                memberBalance: {
+                  $cond: [
+                    { $gt: [{ $size: '$memberBalance' }, 0] },
+                    { $arrayElemAt: ['$memberBalance', 0] },
+                    { amount: null, votingPower: null },
+                  ],
+                },
               },
             },
           ],
@@ -362,9 +399,74 @@ export default class Dao extends Model {
         },
       },
       {
+        $addFields: {
+          creatorAddress: {
+            $let: {
+              vars: {
+                creator: {
+                  $arrayElemAt: [
+                    {
+                      $filter: {
+                        input: '$members',
+                        as: 'member',
+                        cond: { $eq: ['$$member.memberAddress', '$creatorAddress'] },
+                      },
+                    },
+                    0,
+                  ],
+                },
+              },
+              in: {
+                address: '$$creator.info.address',
+                ens: '$$creator.info.ens',
+                avatar: '$$creator.info.avatar',
+                lastActivity: '$$creator.info.lastActivity',
+                firstActivity: '$$creator.info.firstActivity',
+              },
+            },
+          },
+          members: {
+            $map: {
+              input: '$members',
+              as: 'member',
+              in: {
+                address: '$$member.info.address',
+                ens: '$$member.info.ens',
+                avatar: '$$member.info.avatar',
+                lastActivity: '$$member.info.lastActivity',
+                firstActivity: '$$member.info.firstActivity',
+                votingPower: '$$member.memberBalance.votingPower',
+                balance: '$$member.memberBalance.amount',
+              },
+            },
+          },
+        },
+      },
+      {
         $project: {
-          __v: 0,
           _id: 0,
+          id: 1,
+          isActive: 1,
+          isHidden: 1,
+          isSupported: 1,
+          network: 1,
+          transactionHash: 1,
+          blockNumber: 1,
+          blockTimestamp: 1,
+          address: 1,
+          implementationAddress: 1,
+          creatorAddress: 1,
+          ens: 1,
+          subdomain: 1,
+          metadataIpfs: 1,
+          name: 1,
+          description: 1,
+          avatar: 1,
+          version: 1,
+          metrics: 1,
+          links: 1,
+          plugin: 1,
+          members: 1,
         },
       },
     ]
