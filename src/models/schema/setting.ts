@@ -117,13 +117,16 @@ export default class Setting extends Model {
   }
 
   static async findActiveByDaoAddress(daoAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    const toBlockNumber = null
-    const toTxHash = null
-    return await this.findOne({ daoAddress, network, toBlockNumber, toTxHash }, tOpts)
+    return await this.findOne({
+      daoAddress,
+      network,
+    })
+      .sort({ blockNumber: -1 })
+      .exec()
   }
 
-  static async findByTransactionHash(fromTxHash: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    return await this.findOne({ fromTxHash, network }, tOpts)
+  static async findByTransactionHash(transactionHash: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return await this.findOne({ transactionHash, network }, tOpts)
   }
 
   static async findWithPagination({

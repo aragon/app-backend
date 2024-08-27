@@ -42,8 +42,8 @@ describe('Controller: Dao', () => {
         proposalsExecuted: 3,
         uniqueVoters: 100,
         votes: 500,
+        tvlUSD: 10000,
       },
-      tvlUSD: 10000,
       plugins: [
         {
           transactionHash: '0x0',

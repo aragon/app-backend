@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { expect } from 'chai'
-import { DaoTransactions } from '@rates/daoTransaction'
+import { AggregatorDaoTransactions } from '@services/aragon-indexer/aggregator/daoTransactions'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import Logger from '@logger'
@@ -29,12 +29,15 @@ describe('Indexer:Aggregator:Transactions', () => {
   describe('start', async () => {
     it('should start the AggregatorTransactions', async () => {
       const stubLogger = sandbox.stub(Logger, 'verbose')
-      const stubDaoTransactions = sandbox.stub(DaoTransactions, 'onDocument')
+      const stubDaoTransactions = sandbox.stub(AggregatorDaoTransactions, 'onDocument')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onDocument(true)
       })
 
-      await DaoTransactions.start()
+      await AggregatorDaoTransactions.start({
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0x01',
+      })
 
       expect(stubLogger.calledWith('End DaoTransactions' as any)).to.be.true
       expect(stubDaoTransactions.calledOnceWith(true as any)).to.be.true
@@ -48,7 +51,10 @@ describe('Indexer:Aggregator:Transactions', () => {
         await this.onError(true)
       })
 
-      await DaoTransactions.start()
+      await AggregatorDaoTransactions.start({
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0x01',
+      })
 
       expect(stubLogger.calledWith('End DaoTransactions' as any)).to.be.true
       expect(stubLoggerError.calledOnce).to.be.true
@@ -57,16 +63,16 @@ describe('Indexer:Aggregator:Transactions', () => {
   })
 
   it('should getCategories', async () => {
-    const result = DaoTransactions.getCategories(NetworksEnum.ethereumMainnet)
+    const result = AggregatorDaoTransactions.getCategories(NetworksEnum.ethereumMainnet)
     expect(result.length).to.eq(5)
 
-    const result2 = DaoTransactions.getCategories(NetworksEnum.arbitrumMainnet)
+    const result2 = AggregatorDaoTransactions.getCategories(NetworksEnum.arbitrumMainnet)
     expect(result2.length).to.eq(4)
 
-    const result3 = DaoTransactions.getCategories(NetworksEnum.baseMainnet)
+    const result3 = AggregatorDaoTransactions.getCategories(NetworksEnum.baseMainnet)
     expect(result3.length).to.eq(4)
 
-    const result4 = DaoTransactions.getCategories(NetworksEnum.zksyncSepolia)
+    const result4 = AggregatorDaoTransactions.getCategories(NetworksEnum.zksyncSepolia)
     expect(result4.length).to.eq(4)
   })
 
@@ -96,9 +102,9 @@ describe('Indexer:Aggregator:Transactions', () => {
       ) {
         await this.onTx(txLog)
       })
-      const saveTransactionStub = sandbox.stub(DaoTransactions, 'saveTransaction').resolves()
+      const saveTransactionStub = sandbox.stub(AggregatorDaoTransactions, 'saveTransaction').resolves()
 
-      await DaoTransactions.onDocument(daoRegistry as any)
+      await AggregatorDaoTransactions.onDocument(daoRegistry as any)
 
       expect(crawlStub.calledTwice).to.be.true
       expect(saveTransactionStub.calledTwice).to.be.true
@@ -134,7 +140,7 @@ describe('Indexer:Aggregator:Transactions', () => {
       })
       const stubLogger = sandbox.stub(Logger, 'error')
 
-      await DaoTransactions.onDocument(daoRegistry as any)
+      await AggregatorDaoTransactions.onDocument(daoRegistry as any)
 
       expect(crawlStub.calledTwice).to.be.true
       expect(stubLogger.calledTwice).to.be.true
@@ -189,7 +195,7 @@ describe('Indexer:Aggregator:Transactions', () => {
         } as any)
         const findLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
 
-        await DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any)
+        await AggregatorDaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any)
 
         const existingTxDb = await Models.Transaction.findExistingLog({
           transactionHash: tx.hash,
@@ -227,7 +233,11 @@ describe('Indexer:Aggregator:Transactions', () => {
 
       const stubCreate = sandbox.stub(Models.Transaction, 'create')
       sandbox.stub(Models.Transaction, 'findExistingLog').resolves(true)
-      const result = await DaoTransactions.saveTransaction(tx as any, ITransactionType.deposit, daoRegistry as any)
+      const result = await AggregatorDaoTransactions.saveTransaction(
+        tx as any,
+        ITransactionType.deposit,
+        daoRegistry as any,
+      )
 
       expect(result).to.be.undefined
       expect(stubCreate.notCalled).to.be.true
@@ -241,7 +251,7 @@ describe('Indexer:Aggregator:Transactions', () => {
 
       const stubLogger = sandbox.stub(Logger, 'error')
       sandbox.stub(Models.Transaction, 'findExistingLog').rejects(new Error('fake-error'))
-      await DaoTransactions.saveTransaction(tx as any, ITransactionType.deposit, daoRegistry as any)
+      await AggregatorDaoTransactions.saveTransaction(tx as any, ITransactionType.deposit, daoRegistry as any)
 
       expect(stubLogger.calledOnce).to.be.true
     })

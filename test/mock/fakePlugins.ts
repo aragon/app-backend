@@ -1,12 +1,14 @@
+import { IPluginStatus, NetworksEnum } from '@types'
+
 export const PluginList = [
   {
     transactionHash: '0x6f3e8a941b2140d72e402e35078fd459478222e146aa6d6bd6832d322de5dd71',
     blockNumber: 42368043,
     blockTimestamp: 1683363232,
-    network: 'polygon-mainnet',
+    network: NetworksEnum.polygonMainnet,
     address: '0xBf8dE4316E2778E26b12dad8906467b23BB9A293',
     implementationAddress: '0xEce3e18F5CC70214a6AAa25674444A63683478cE',
-    status: 'installed',
+    status: IPluginStatus.installed,
     daoAddress: '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA',
     tokenAddress: '0x03bD27B6FE4f0B3F2C2C9a4289cA2bfcE1DDE95c',
     pluginSetupRepoAddress: '0x0650EE961514C90D927F302b374d52344E8C62BF',
@@ -40,6 +42,8 @@ export const PluginList = [
     uninstalled: {
       status: false,
       transactionHash: null,
+      blockNumber: null,
+      blockTimestamp: null,
     },
     createdAt: '2024-08-15T22:58:04.751+0000',
     updatedAt: '2024-08-15T22:58:04.751+0000',

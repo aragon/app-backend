@@ -300,7 +300,7 @@ describe('Model: Vote', () => {
     expect(filterDao.token.id).to.be.undefined
     expect(filterDao.token._id).to.be.undefined
     expect(filterDao.token.address).to.exist
-    expect(Object.keys(filterDao).length).to.eq(11)
+    expect(Object.keys(filterDao).length).to.eq(12)
   })
 
   it('Should filterKeys without token', async () => {

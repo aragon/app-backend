@@ -1,10 +1,10 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { NetworksEnum } from '@types'
 import Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import { beforeEach } from 'mocha'
+import { PluginList } from '@test/mock/fakePlugins'
 
 describe('Model: Plugin', () => {
   let sandbox: SinonSandbox
@@ -12,22 +12,8 @@ describe('Model: Plugin', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-
-    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-
     rawPlugin = {
-      transactionHash,
-      blockNumber: 3,
-      network: NetworksEnum.ethereumMainnet,
-      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5401',
-      daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5402',
-      tokenAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5403',
-      pluginSetupRepoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
-      sender: '0x17366cae2b9c6c3055e9e3c78936a69006be5405',
-      release: '1',
-      build: '2',
-      subdomain: 'dao.eth',
+      ...PluginList[0],
     }
   })
 
@@ -37,70 +23,119 @@ describe('Model: Plugin', () => {
 
   describe('Create Plugin', async () => {
     it('Should create Plugin', async () => {
-      rawPlugin.id = Models.Plugin.getEntityId({
-        network: rawPlugin.network!,
+      const entityId = Models.Plugin.getEntityId({
         transactionHash: rawPlugin.transactionHash!,
-        action: rawPlugin.action!,
+        address: rawPlugin.address,
+        network: rawPlugin.network,
       })
-      const createdLogDao = await Models.Plugin.create(rawPlugin)
+      const plugin = await Models.Plugin.create(rawPlugin)
+      expect(plugin.id).to.equal(entityId)
+      expect(plugin.transactionHash).to.equal(rawPlugin.transactionHash)
+      expect(plugin.address).to.equal(rawPlugin.address)
+      expect(plugin.network).to.equal(rawPlugin.network)
+    })
 
-      expect(createdLogDao.id).to.eq(rawPlugin.id)
-      expect(createdLogDao.transactionHash).to.eq(rawPlugin.transactionHash)
-      expect(createdLogDao.blockNumber).to.eq(rawPlugin.blockNumber)
-      expect(createdLogDao.network).to.eq(rawPlugin.network)
-      expect(createdLogDao.action).to.eq(rawPlugin.action)
-      expect(createdLogDao.address).to.eq(rawPlugin.address)
-      expect(createdLogDao.implementationAddress).to.eq(rawPlugin.implementationAddress)
-      expect(createdLogDao.daoAddress).to.eq(rawPlugin.daoAddress)
-      expect(createdLogDao.tokenAddress).to.eq(rawPlugin.tokenAddress)
-      expect(createdLogDao.pluginSetupRepoAddress).to.eq(rawPlugin.pluginSetupRepoAddress)
-      expect(createdLogDao.sender).to.eq(rawPlugin.sender)
-      expect(createdLogDao.release).to.eq(rawPlugin.release)
-      expect(createdLogDao.build).to.eq(rawPlugin.build)
-      expect(createdLogDao.subdomain).to.eq(rawPlugin.subdomain)
+    it('should save without plugin id present', async () => {
+      const entityId = Models.Plugin.getEntityId({
+        transactionHash: rawPlugin.transactionHash!,
+        address: rawPlugin.address,
+        network: rawPlugin.network,
+      })
+
+      rawPlugin.id = entityId
+      const getEntityIdSpy = sandbox.spy(Models.Plugin, 'getEntityId')
+      await Models.Plugin.create(rawPlugin)
+      expect(getEntityIdSpy.called).to.be.false
+    })
+
+    it('should fail when address is not present', async () => {
+      await expect(
+        Models.Plugin.create({
+          transactionHash: rawPlugin.transactionHash,
+          network: rawPlugin.network,
+        }),
+      ).to.be.rejectedWith('address is required')
+    })
+
+    it('should fail when network is not present', async () => {
+      await expect(
+        Models.Plugin.create({
+          transactionHash: rawPlugin.transactionHash,
+          address: rawPlugin.address,
+        }),
+      ).to.be.rejectedWith('network is required')
+    })
+
+    it('should fail when transactionHash is not present', async () => {
+      await expect(
+        Models.Plugin.create({
+          address: rawPlugin.address,
+          network: rawPlugin.network,
+        }),
+      ).to.be.rejectedWith('transactionHash is required')
     })
   })
 
-  it('Should update Plugin', async () => {
-    const createdLogDao = await Models.Plugin.create(rawPlugin)
-    expect(createdLogDao.plugin).to.eq(rawPlugin.plugin)
-
-    await createdLogDao.update({
-      pluginSetupRepoAddress: '0x00',
+  it('should get entity id', async () => {
+    const entityId = Models.Plugin.getEntityId({
+      transactionHash: rawPlugin.transactionHash!,
+      address: rawPlugin.address,
+      network: rawPlugin.network,
     })
-
-    expect(createdLogDao.pluginSetupRepoAddress).to.eq('0x00')
+    expect(entityId).to.equal(`${rawPlugin.network}-${rawPlugin.transactionHash}-${rawPlugin.address}`)
   })
 
-  it('Should getEntityId', async () => {
-    const address = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const network = NetworksEnum.ethereumMainnet
-    const entityId = Models.Plugin.getEntityId({ transactionHash, address, network })
-    expect(entityId).to.eq(`${network}-${transactionHash}-${address}`)
-  })
-
-  it('Should findExistingLog', async () => {
-    const createdLogPluginSetupProcessor = await Models.Plugin.create(rawPlugin)
-    const foundLogPluginSetupProcessor = await Models.Plugin.findExistingLog({
-      transactionHash: createdLogPluginSetupProcessor.transactionHash,
-      address: createdLogPluginSetupProcessor.address,
-      network: createdLogPluginSetupProcessor.network,
+  it('should find existing log', async () => {
+    const plugin = await Models.Plugin.create(rawPlugin)
+    const foundPlugin = await Models.Plugin.findExistingLog({
+      network: rawPlugin.network,
+      transactionHash: rawPlugin.transactionHash!,
+      address: rawPlugin.address,
     })
-    expect(foundLogPluginSetupProcessor?.id).to.eq(createdLogPluginSetupProcessor.id)
+    expect(foundPlugin.network).to.be.eq(plugin.network)
+    expect(foundPlugin.transactionHash).to.be.eq(plugin.transactionHash)
+    expect(foundPlugin.address).to.be.eq(plugin.address)
   })
 
-  it('Should findByEntityId', async () => {
-    const createdLogPluginSetupProcessor = await Models.Plugin.create(rawPlugin)
-    const foundLogPluginSetupProcessor = await Models.Plugin.findByEntityId(createdLogPluginSetupProcessor.id)
-    expect(foundLogPluginSetupProcessor?.id).to.eq(createdLogPluginSetupProcessor.id)
+  it('should find by entityId', async () => {
+    const plugin = await Models.Plugin.create(rawPlugin)
+    const foundPlugin = await Models.Plugin.findByEntityId(plugin.id)
+    expect(foundPlugin.network).to.be.eq(plugin.network)
+    expect(foundPlugin.transactionHash).to.be.eq(plugin.transactionHash)
+    expect(foundPlugin.address).to.be.eq(plugin.address)
   })
 
-  it('Should reload', async () => {
-    const createdLogDao = await Models.Plugin.create(rawPlugin)
-    await createdLogDao.reload()
+  it('should find by address', async () => {
+    const plugin = await Models.Plugin.create(rawPlugin)
+    const foundPlugin = await Models.Plugin.findByAddress(plugin.address, plugin.network)
+    expect(foundPlugin.network).to.be.eq(plugin.network)
+    expect(foundPlugin.transactionHash).to.be.eq(plugin.transactionHash)
+    expect(foundPlugin.address).to.be.eq(plugin.address)
+  })
 
-    expect(createdLogDao.daoAddress).to.eq(rawPlugin.daoAddress)
+  it('should findActivePluginByTokenAddress', async () => {
+    const plugin = await Models.Plugin.create(rawPlugin)
+    const foundPlugin = await Models.Plugin.findActivePluginByTokenAddress(plugin.tokenAddress, plugin.network)
+    expect(foundPlugin.network).to.be.eq(plugin.network)
+    expect(foundPlugin.transactionHash).to.be.eq(plugin.transactionHash)
+    expect(foundPlugin.address).to.be.eq(plugin.address)
+  })
+
+  it('should update plugin', async () => {
+    const plugin = await Models.Plugin.create(rawPlugin)
+    const updatedPlugin = await plugin.update({
+      id: plugin.id,
+      status: 'uninstalled',
+    })
+    expect(updatedPlugin.status).to.be.eq('uninstalled')
+  })
+
+  it('should reload plugin', async () => {
+    const plugin = await Models.Plugin.create(rawPlugin)
+    const reloadedPlugin = await plugin.reload()
+    expect(reloadedPlugin.network).to.be.eq(plugin.network)
+    expect(reloadedPlugin.transactionHash).to.be.eq(plugin.transactionHash)
+    expect(reloadedPlugin.address).to.be.eq(plugin.address)
   })
 
   it('Should filterKeys of plugin', async () => {
@@ -112,12 +147,6 @@ describe('Model: Plugin', () => {
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.updatedAt).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(14)
-  })
-
-  it('should findByAddress', async () => {
-    const createdPlugin = await Models.Plugin.create(rawPlugin)
-    const foundPlugin = await Models.Plugin.findByAddress(createdPlugin.address)
-    expect(foundPlugin?.address).to.eq(createdPlugin.address)
+    expect(Object.keys(filterDao).length).to.eq(17)
   })
 })
