@@ -74,9 +74,6 @@ export default class Dao extends Model {
   @prop({ type: () => Boolean, default: false })
   public isHidden!: boolean
 
-  @prop({ type: () => Boolean, default: false })
-  public isSupported!: boolean
-
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
@@ -120,7 +117,7 @@ export default class Dao extends Model {
   public links?: Link[]
 
   @prop({ type: () => String, default: null })
-  public version!: string
+  public daoVersion!: string
 
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics?: Metrics
@@ -180,16 +177,72 @@ export default class Dao extends Model {
       ...dynamicFilter,
     }
 
+    filter.isHidden = { $ne: true }
+    filter.isActive = { $eq: true }
+
+    const query: any = [
+      {
+        $match: filter,
+      },
+    ]
+
     if (extraParams.pluginAddress) {
-      filter['plugins.address'] = extraParams.pluginAddress
+      query.push({
+        $lookup: {
+          from: 'Plugin',
+          let: { daoAddress: '$address', daoNetwork: '$network' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$daoAddress', '$$daoAddress'] },
+                    { $eq: ['$address', extraParams.pluginAddress] },
+                    {
+                      $eq: ['$network', '$$daoNetwork'],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'plugin',
+        },
+      })
+
+      query.push({
+        $match: {
+          $expr: {
+            $gte: [{ $size: '$plugin' }, 1],
+          },
+        },
+      })
     }
 
-    filter.isHidden = { $ne: true }
-
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
 
-    const totalPages = Math.ceil(totalRecords / request.limit)
+    const aggQuery = [
+      ...query,
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+      {
+        $project: {
+          _id: 0,
+          __v: 0,
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+    ]
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery),
+      this.aggregate([...query, { $count: 'totalRecords' }]),
+    ])
+
+    const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
+    const totalPages = Math.ceil(_totalRecords / request.limit)
 
     if (currentPage > totalPages) {
       return ModelUtils.paginateEmptyResponse(request.limit)
@@ -200,7 +253,7 @@ export default class Dao extends Model {
         page: currentPage,
         pageSize: request.limit,
         totalPages,
-        totalRecords,
+        totalRecords: _totalRecords,
       },
       data: data as any,
     }
@@ -253,9 +306,7 @@ export default class Dao extends Model {
 
   filterKeys() {
     const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'isHidden', 'createdAt', 'updatedAt')
-    filtered.plugins = filtered.plugins.map((plugin: any) => _.omit(plugin, '_id', '__v'))
-    return filtered
+    return _.omit(obj, '_id', '__v', 'isHidden', 'createdAt', 'updatedAt', 'isActive')
   }
 
   static async getDaoDetails(address: HexAddress) {

@@ -42,8 +42,10 @@ describe('Model: Transaction', () => {
         type: ITokenType.ERC20,
         logo: 'fake-logo',
         decimals: 18,
-        priceUsd: '0.1',
-        priceUpdatedAt: 1213123,
+        snapshot: {
+          priceUpdatedAt: 0,
+          priceUsd: '0',
+        },
       },
     }
   })
@@ -82,8 +84,8 @@ describe('Model: Transaction', () => {
     expect(createdToken.token.type).to.eq(rawTransaction.token?.type)
     expect(createdToken.token.logo).to.eq(rawTransaction.token?.logo)
     expect(createdToken.token.decimals).to.eq(rawTransaction.token?.decimals)
-    expect(createdToken.token.priceUsd).to.eq(rawTransaction.token?.priceUsd)
-    expect(createdToken.token.priceUpdatedAt).to.eq(rawTransaction.token?.priceUpdatedAt)
+    expect(createdToken.token.snapshot.priceUsd).to.eq(rawTransaction.token?.snapshot.priceUsd)
+    expect(createdToken.token.snapshot.priceUpdatedAt).to.eq(rawTransaction.token?.snapshot.priceUpdatedAt)
   })
 
   it('Should getEntityId', async () => {
@@ -292,7 +294,7 @@ describe('Model: Transaction', () => {
     expect(filterDao.daoAddress).to.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.token._id).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(15)
+    expect(Object.keys(filterDao).length).to.eq(16)
   })
 
   it('Should filterKeys without token', async () => {
