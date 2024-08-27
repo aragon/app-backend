@@ -5,6 +5,8 @@ import { HexAddress, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Asset from '@models/schema/asset'
 import ModelUtils from '@models/utils/models'
+import { FakeAsset } from '@test/mock/fakeAsset'
+import { FakeToken } from '@test/mock/fakeToken'
 
 describe('Model: Asset', () => {
   let sandbox: SinonSandbox
@@ -173,9 +175,15 @@ describe('Model: Asset', () => {
     expect(createdAsset.tokenAddress).to.eq(rawAsset.tokenAddress)
   })
 
-  it('Should getDaoTvl', async () => {
-    sandbox.stub(Models.Asset, 'aggregate').resolves([{ tvlUsd: 10 }])
-    const result = await Models.Asset.getDaoTvl('0x', NetworksEnum.ethereumMainnet)
-    expect(result.tvlUsd).to.eq(10)
+  it('Should getDaoTvl with mock data', async () => {
+    await Models.Asset.create(FakeAsset)
+    await Models.Token.create(FakeToken)
+
+    const result = await Models.Asset.getDaoTvl(FakeAsset.daoAddress, NetworksEnum.polygonMainnet)
+
+    expect(result.tvlUsd).to.be.exist
+    expect(result.tvlUsd.toString()).to.be.eq('8125101180.00')
+    expect(result.daoAddress).to.be.eq(FakeAsset.daoAddress)
+    expect(result.network).to.be.eq(FakeAsset.network)
   })
 })

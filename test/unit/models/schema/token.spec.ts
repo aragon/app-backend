@@ -206,6 +206,6 @@ describe('Model: Token', () => {
     expect(filterToken.__v).to.be.undefined
     expect(filterToken.createdAt).to.be.undefined
     expect(filterToken.updatedAt).to.be.undefined
-    expect(Object.keys(filterToken).length).to.eq(14)
+    expect(Object.keys(filterToken).length).to.eq(15)
   })
 })

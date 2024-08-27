@@ -75,8 +75,8 @@ export default class MemberMetrics extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
-  static async findByAddress(tokenAddress: HexAddress, network: NetworksEnum) {
-    return await this.findOne({ tokenAddress, network })
+  static async findByAddress(address: HexAddress, network: NetworksEnum) {
+    return await this.findOne({ address, network })
   }
 
   static async getOrCreateMemberMetrics({

@@ -8,12 +8,14 @@ import {
   type IDaoResponse,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginStatus,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import ModelUtils from '@models/utils/models'
 import { assert } from '@errors'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Dao
 
@@ -180,16 +182,74 @@ export default class Dao extends Model {
       ...dynamicFilter,
     }
 
+    filter.isHidden = { $ne: true }
+    filter.isActive = { $eq: true }
+
+    const query: any = [
+      {
+        $match: filter,
+      },
+      AggregationQueryHelper.plugin(
+        {
+          pluginAddress: extraParams.pluginAddress || undefined,
+          daoAddress: '$address',
+          network: '$network',
+          status: IPluginStatus.installed,
+        },
+        'plugin',
+        {
+          _id: 0,
+          transactionHash: 1,
+          blockNumber: 1,
+          blockTimestamp: 1,
+          network: 1,
+          address: 1,
+          implementationAddress: 1,
+          status: 1,
+          tokenAddress: 1,
+          release: 1,
+          build: 1,
+          subdomain: 1,
+          // permissions: 1,
+          // uninstalled: 1,
+        },
+      ),
+    ]
+
     if (extraParams.pluginAddress) {
-      filter['plugins.address'] = extraParams.pluginAddress
+      query.push({
+        $match: {
+          $expr: {
+            $gte: [{ $size: '$plugin' }, 1],
+          },
+        },
+      })
     }
 
-    filter.isHidden = { $ne: true }
-
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
 
-    const totalPages = Math.ceil(totalRecords / request.limit)
+    const aggQuery = [
+      ...query,
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+      {
+        $project: {
+          _id: 0,
+          __v: 0,
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+    ]
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery),
+      this.aggregate([...query, { $count: 'totalRecords' }]),
+    ])
+
+    const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
+    const totalPages = Math.ceil(_totalRecords / request.limit)
 
     if (currentPage > totalPages) {
       return ModelUtils.paginateEmptyResponse(request.limit)
@@ -200,64 +260,13 @@ export default class Dao extends Model {
         page: currentPage,
         pageSize: request.limit,
         totalPages,
-        totalRecords,
+        totalRecords: _totalRecords,
       },
       data: data as any,
     }
   }
 
-  async update(params: Partial<Dao>, tOpts?: SaveOptions) {
-    Object.entries(params)
-      .filter(([key]) => key !== 'id')
-      .forEach(([key, value]) => {
-        if (this.schema.tree[key]) {
-          if (!this.schema.tree[key].required || this.schema.tree[key].required) {
-            const parsedObj = this.toObject()
-            if (!_.isEqual(parsedObj[key], value)) {
-              this[key] = value
-
-              if (key === 'address' || key === 'network') {
-                this['id'] = `${this.network}-${this.address}`
-              }
-            }
-          }
-        }
-      })
-
-    return await this.save(tOpts)
-  }
-
-  async updateMetrics(
-    metrics: Partial<
-      Pick<Metrics, 'proposalsCreated' | 'proposalsExecuted' | 'uniqueVoters' | 'votes' | 'members' | 'tvlUSD'>
-    >,
-    tOpts?: SaveOptions,
-  ): Promise<Dao> {
-    if (!this.metrics) {
-      this.metrics = new Metrics()
-    }
-
-    // Update each provided metric
-    for (const [key, value] of Object.entries(metrics)) {
-      if (key in this.metrics && value !== undefined) {
-        ;(this.metrics as any)[key] = value
-      }
-    }
-
-    return await this.save(tOpts)
-  }
-
-  async reload(tOpts?: SaveOptions) {
-    return await this.model(customName).findById(this._id, tOpts)
-  }
-
-  filterKeys() {
-    const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'isHidden', 'createdAt', 'updatedAt')
-    filtered.plugins = filtered.plugins.map((plugin: any) => _.omit(plugin, '_id', '__v'))
-    return filtered
-  }
-
+  // INFO: for multiple plugins we cannot extract the voting power and balance of the members
   static async getDaoDetails(address: HexAddress) {
     const query = [
       {
@@ -267,46 +276,30 @@ export default class Dao extends Model {
           isActive: { $eq: true },
         },
       },
-      {
-        $lookup: {
-          from: 'Plugin',
-          let: {
-            daoAddress: '$address',
-            network: '$network',
-          },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [{ $eq: ['$$daoAddress', '$daoAddress'] }, { $eq: ['$$network', '$network'] }],
-                },
-              },
-            },
-            {
-              $match: { status: 'installed' },
-            },
-            {
-              $project: {
-                _id: 0,
-                transactionHash: 1,
-                blockNumber: 1,
-                blockTimestamp: 1,
-                network: 1,
-                address: 1,
-                implementationAddress: 1,
-                status: 1,
-                tokenAddress: 1,
-                release: 1,
-                build: 1,
-                subdomain: 1,
-                permissions: 1,
-                uninstalled: 1,
-              },
-            },
-          ],
-          as: 'plugin',
+      AggregationQueryHelper.plugin(
+        {
+          daoAddress: '$address',
+          network: '$network',
+          status: IPluginStatus.installed,
         },
-      },
+        'plugin',
+        {
+          _id: 0,
+          transactionHash: 1,
+          blockNumber: 1,
+          blockTimestamp: 1,
+          // network: 1,
+          address: 1,
+          implementationAddress: 1,
+          status: 1,
+          tokenAddress: 1,
+          release: 1,
+          build: 1,
+          subdomain: 1,
+          // permissions: 1,
+          // uninstalled: 1,
+        },
+      ),
       {
         $addFields: {
           // Extract tokenAddress from the first plugin (if it exists)
@@ -325,63 +318,35 @@ export default class Dao extends Model {
                 },
               },
             },
-            {
-              $lookup: {
-                from: 'Member',
-                let: { memberAddr: '$memberAddress' },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: { $eq: ['$$memberAddr', '$address'] },
-                    },
-                  },
-                  {
-                    $project: {
-                      address: 1,
-                      ens: 1,
-                      avatar: 1,
-                    },
-                  },
-                ],
-                as: 'info',
+
+            AggregationQueryHelper.member(
+              {
+                memberAddress: '$memberAddress',
               },
-            },
+              'info',
+              {
+                address: 1,
+                ens: 1,
+                avatar: 1,
+              },
+            ),
             {
               $addFields: {
                 info: { $arrayElemAt: ['$info', 0] },
               },
             },
-            {
-              $lookup: {
-                from: 'MemberBalance',
-                let: {
-                  tokenAddress: '$$pluginTokenAddress',
-                  network: '$network',
-                  memberAddress: '$memberAddress',
-                },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: {
-                        $and: [
-                          { $eq: ['$$tokenAddress', '$tokenAddress'] },
-                          { $eq: ['$$network', '$network'] },
-                          { $eq: ['$$memberAddress', '$address'] },
-                        ],
-                      },
-                    },
-                  },
-                  {
-                    $project: {
-                      _id: 0,
-                      amount: 1,
-                      votingPower: 1,
-                    },
-                  },
-                ],
-                as: 'memberBalance',
+            AggregationQueryHelper.memberBalance(
+              {
+                tokenAddress: '$$pluginTokenAddress',
+                network: '$network',
+                memberAddress: '$memberAddress',
               },
-            },
+              'memberBalance',
+              {
+                amount: 1,
+                votingPower: 1,
+              },
+            ),
             {
               $addFields: {
                 memberBalance: {
@@ -468,5 +433,54 @@ export default class Dao extends Model {
 
     const results = await this.aggregate(query)
     return results[0]
+  }
+
+  async update(params: Partial<Dao>, tOpts?: SaveOptions) {
+    Object.entries(params)
+      .filter(([key]) => key !== 'id')
+      .forEach(([key, value]) => {
+        if (this.schema.tree[key]) {
+          if (!this.schema.tree[key].required || this.schema.tree[key].required) {
+            const parsedObj = this.toObject()
+            if (!_.isEqual(parsedObj[key], value)) {
+              this[key] = value
+
+              if (key === 'address' || key === 'network') {
+                this['id'] = `${this.network}-${this.address}`
+              }
+            }
+          }
+        }
+      })
+
+    return await this.save(tOpts)
+  }
+
+  async updateMetrics(
+    metrics: Partial<
+      Pick<Metrics, 'proposalsCreated' | 'proposalsExecuted' | 'uniqueVoters' | 'votes' | 'members' | 'tvlUSD'>
+    >,
+    tOpts?: SaveOptions,
+  ): Promise<Dao> {
+    if (!this.metrics) {
+      this.metrics = new Metrics()
+    }
+
+    for (const [key, value] of Object.entries(metrics)) {
+      if (key in this.metrics && value !== undefined) {
+        ;(this.metrics as any)[key] = value
+      }
+    }
+
+    return await this.save(tOpts)
+  }
+
+  async reload(tOpts?: SaveOptions) {
+    return await this.model(customName).findById(this._id, tOpts)
+  }
+
+  filterKeys() {
+    const obj = this.toObject()
+    return _.omit(obj, '_id', '__v', 'isHidden', 'createdAt', 'updatedAt', 'isActive')
   }
 }
