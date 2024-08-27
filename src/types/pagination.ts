@@ -1,6 +1,7 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import type { ITransactionCategory } from '@src/types/alchemy'
 import { type ITokenType } from '@src/types/token'
+import { type ITransferSide, type ITransferType } from '@src/types/transfer'
 
 export interface ITokenExtraParams {
   network?: NetworksEnum
@@ -58,6 +59,9 @@ export interface IMemberExtraParams {
 }
 
 export interface IDelegateExtraParams {
+  type?: ITransferType
+  side?: ITransferSide
+  excludeZeroAddress?: boolean
   memberAddress?: HexAddress
   daoAddress?: HexAddress
   pluginAddress?: HexAddress

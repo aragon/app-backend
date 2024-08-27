@@ -2,7 +2,11 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
+  type IDelegateExtraParams,
+  type IDelegatesResponse,
   type IMemberTransactionIdParams,
+  type IPaginatedResult,
+  type IPaginationParams,
   ITransferSide,
   ITransferType,
   NetworksEnum,
@@ -10,6 +14,9 @@ import {
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
+import utils from '@helpers/utils'
 
 const customName = ICollectionNames.MemberTransaction
 
@@ -110,6 +117,144 @@ export default class MemberTransaction extends Model {
 
   static async findByAddress(address: HexAddress, network: NetworksEnum) {
     return await this.findOne({ address, network })
+  }
+
+  static async findWithPagination({
+    extraParams = {},
+    paginationParams = {},
+  }: {
+    extraParams?: IDelegateExtraParams
+    paginationParams?: IPaginationParams
+  }): Promise<IPaginatedResult<IDelegatesResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, ['transactionHash', 'tokenAddress', 'network', 'from', 'to']),
+    }
+
+    if (extraParams.memberAddress) {
+      filter['$or'] = [{ from: extraParams.memberAddress }, { to: extraParams.memberAddress }]
+    }
+
+    const andConditions: any[] = []
+    if (extraParams.side) {
+      andConditions.push({ side: extraParams.side })
+    }
+    if (extraParams.type) {
+      andConditions.push({ type: extraParams.type })
+    }
+    if (extraParams.excludeZeroAddress) {
+      andConditions.push({
+        from: { $ne: utils.zeroAddress },
+      })
+      andConditions.push({
+        to: { $ne: utils.zeroAddress },
+      })
+    }
+    if (andConditions.length) {
+      filter['$and'] = andConditions
+    }
+
+    const currentPage = request.skip / request.limit + 1
+
+    const query = [
+      { $match: filter },
+      AggregationQueryHelper.daoMemberMapping(
+        {
+          memberAddress: '$address',
+          daoAddress: extraParams.daoAddress,
+          pluginAddress: extraParams.pluginAddress,
+          tokenAddress: extraParams.tokenAddress,
+          network: extraParams.network,
+        },
+        'daoMappings',
+      ),
+      {
+        $match: {
+          daoMappings: { $ne: [] },
+        },
+      },
+      {
+        $unwind: '$daoMappings',
+      },
+      AggregationQueryHelper.token({ address: '$tokenAddress', network: '$network' }, 'token', {
+        _id: 0,
+        network: 1,
+        address: 1,
+        symbol: 1,
+        name: 1,
+        decimals: 1,
+        logo: 1,
+        type: 1,
+      }),
+      {
+        $addFields: {
+          token: { $arrayElemAt: ['$token', 0] },
+        },
+      },
+      {
+        $group: {
+          _id: '$_id',
+          network: { $first: '$network' },
+          transactionHash: { $first: '$transactionHash' },
+          blockNumber: { $first: '$blockNumber' },
+          blockTimestamp: { $first: '$blockTimestamp' },
+          tokenAddress: { $first: '$tokenAddress' },
+          address: { $first: '$address' },
+          from: { $first: '$from' },
+          to: { $first: '$to' },
+          side: { $first: '$side' },
+          type: { $first: '$type' },
+          amount: { $first: '$amount' },
+          memberBalance: { $first: '$memberBalance' },
+          memberVotingPower: { $first: '$memberVotingPower' },
+          token: { $first: '$token' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          network: 1,
+          transactionHash: 1,
+          blockNumber: 1,
+          blockTimestamp: 1,
+          // tokenAddress: 1,
+          address: 1,
+          from: 1,
+          to: 1,
+          side: 1,
+          type: 1,
+          amount: 1,
+          memberBalance: 1,
+          memberVotingPower: 1,
+          token: 1,
+        },
+      },
+    ]
+
+    const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery),
+      this.aggregate([...query, { $count: 'totalRecords' }]).then(results =>
+        results[0] ? results[0].totalRecords : 0,
+      ),
+    ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data: data as any,
+    }
   }
 
   async update(params: Partial<MemberTransaction>, tOpts?: SaveOptions) {

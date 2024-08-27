@@ -2,7 +2,14 @@ import Router, { type RouterContext } from '@koa/router'
 import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import DelegateController from '@api/controllers/delegate'
-import { type HexAddress, type IDelegateExtraParams, type IPairParams, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IDelegateExtraParams,
+  type IPairParams,
+  type ITransferSide,
+  type ITransferType,
+  type NetworksEnum,
+} from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import DelegateSchema from '@api/routers/schema/delegate'
 import Utils from '@helpers/utils'
@@ -16,6 +23,9 @@ const DelegateRouter = {
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
+      type: ctx.query.type as ITransferType,
+      side: ctx.query.side as ITransferSide,
+      excludeZeroAddress: Utils.parseBoolean(ctx.query.excludeZeroAddress),
     }
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
