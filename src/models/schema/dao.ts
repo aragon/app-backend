@@ -199,19 +199,16 @@ export default class Dao extends Model {
         'plugin',
         {
           _id: 0,
-          transactionHash: 1,
-          blockNumber: 1,
-          blockTimestamp: 1,
-          network: 1,
           address: 1,
           implementationAddress: 1,
-          status: 1,
-          tokenAddress: 1,
+          // status: 1,
           release: 1,
           build: 1,
           subdomain: 1,
-          // permissions: 1,
-          // uninstalled: 1,
+        },
+        {
+          settings: true,
+          token: true,
         },
       ),
     ]
@@ -288,17 +285,15 @@ export default class Dao extends Model {
           transactionHash: 1,
           blockNumber: 1,
           blockTimestamp: 1,
-          // network: 1,
           address: 1,
           implementationAddress: 1,
           status: 1,
-          tokenAddress: 1,
+          // tokenAddress: 1,
           release: 1,
           build: 1,
           subdomain: 1,
-          // permissions: 1,
-          // uninstalled: 1,
         },
+        { settings: true, token: true },
       ),
       {
         $addFields: {
@@ -477,10 +472,5 @@ export default class Dao extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
-  }
-
-  filterKeys() {
-    const obj = this.toObject()
-    return _.omit(obj, '_id', '__v', 'isHidden', 'createdAt', 'updatedAt', 'isActive')
   }
 }

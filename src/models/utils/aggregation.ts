@@ -4,8 +4,13 @@ import {
   type IAggMemberBalanceProjectFields,
   type IAggMemberParams,
   type IAggMemberProjectFields,
+  type IAggPluginInclude,
   type IAggPluginParams,
   type IAggPluginProjectFields,
+  type IAggSettingParams,
+  type IAggSettingProjectFields,
+  type IAggTokenParams,
+  type IAggTokenProjectFields,
 } from '@types'
 
 export const AggregationQueryHelper = {
@@ -35,6 +40,7 @@ export const AggregationQueryHelper = {
     { daoAddress, pluginAddress, network, status }: IAggPluginParams,
     as: string = 'plugin',
     project?: IAggPluginProjectFields,
+    includeSubDocuments?: IAggPluginInclude,
   ) => {
     const letVariables: any = {}
     const matchConditions: any[] = []
@@ -45,8 +51,8 @@ export const AggregationQueryHelper = {
     }
 
     if (network) {
-      letVariables.eventNetwork = network
-      matchConditions.push({ $eq: ['$network', '$$eventNetwork'] })
+      letVariables.network = network
+      matchConditions.push({ $eq: ['$network', '$$network'] })
     }
 
     if (daoAddress) {
@@ -71,6 +77,158 @@ export const AggregationQueryHelper = {
       })
     }
 
+    if (includeSubDocuments?.settings) {
+      pipeline.push(
+        AggregationQueryHelper.setting({ pluginAddress: '$address', network: '$$network' }, 'settings', {
+          _id: 0,
+          onlyListed: 1,
+          minApprovals: 1,
+          votingMode: 1,
+          supportThreshold: 1,
+          minParticipation: 1,
+          minDuration: 1,
+          minProposerVotingPower: 1,
+        }),
+        // Fetch token only if settings are included and plugin has tokenAddress
+        AggregationQueryHelper.token({ address: '$tokenAddress', network: '$$network' }, 'token', {
+          _id: 0,
+          network: 1,
+          address: 1,
+          symbol: 1,
+          name: 1,
+          decimals: 1,
+          logo: 1,
+          type: 1,
+          totalSupply: 1,
+        }),
+        {
+          $addFields: {
+            settings: {
+              $cond: {
+                if: { $gt: [{ $size: '$settings' }, 0] },
+                then: {
+                  $mergeObjects: [
+                    { $arrayElemAt: ['$settings', 0] },
+                    {
+                      $cond: [
+                        { $ne: ['$tokenAddress', null] }, // Check if tokenAddress is not null
+                        { token: { $arrayElemAt: ['$token', 0] } }, // Add token info
+                        null, // No token info if tokenAddress is null
+                      ],
+                    },
+                  ],
+                },
+                else: null,
+              },
+            },
+          },
+        },
+      )
+    }
+
+    // if (includeSubDocuments?.settings) {
+    //   pipeline.push(
+    //     AggregationQueryHelper.token({ address: '$tokenAddress', network: '$$network' }, 'token', {
+    //       _id: 0,
+    //       network: 1,
+    //       address: 1,
+    //       symbol: 1,
+    //       name: 1,
+    //       decimals: 1,
+    //       logo: 1,
+    //       type: 1,
+    //       totalSupply: 1,
+    //     }),
+    //   )
+    //
+    //   pipeline.push(
+    //     AggregationQueryHelper.setting({ pluginAddress: '$address', network: '$$network' }, 'settings', {
+    //       _id: 0,
+    //       votingMode: 1,
+    //       supportThreshold: 1,
+    //       minParticipation: 1,
+    //       minDuration: 1,
+    //       minProposerVotingPower: 1,
+    //     }),
+    //     {
+    //       $addFields: {
+    //         settings: {
+    //           $cond: {
+    //             if: { $gt: [{ $size: '$settings' }, 0] },
+    //             then: {
+    //               $mergeObjects: [
+    //                 { $arrayElemAt: ['$settings', 0] },
+    //                 { token: includeSubDocuments?.token ? { $arrayElemAt: ['$token', 0] } : null },
+    //               ],
+    //             },
+    //             else: null,
+    //           },
+    //         },
+    //       },
+    //     },
+    //   )
+    // }
+
+    if (project) {
+      pipeline.push({
+        $project: {
+          ...project,
+          settings: includeSubDocuments?.settings ? 1 : 0,
+        },
+      })
+    }
+
+    return {
+      $lookup: {
+        from: 'Plugin',
+        let: letVariables,
+        pipeline,
+        as,
+      },
+    }
+  },
+
+  setting: (
+    { pluginAddress, network }: IAggSettingParams,
+    as: string = 'setting',
+    project?: IAggSettingProjectFields,
+  ) => {
+    const letVariables: any = {}
+    const matchConditions: any[] = []
+
+    if (pluginAddress) {
+      letVariables.pluginAddress = pluginAddress
+      matchConditions.push({ $eq: ['$pluginAddress', '$$pluginAddress'] })
+    }
+
+    if (network) {
+      letVariables.network = network
+      matchConditions.push({ $eq: ['$network', '$$network'] })
+    }
+
+    const pipeline: any[] = []
+
+    if (matchConditions.length > 0) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $and: matchConditions,
+          },
+        },
+      })
+    }
+
+    pipeline.push(
+      {
+        $sort: {
+          blockNumber: -1,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    )
+
     if (project) {
       pipeline.push({
         $project: project,
@@ -79,7 +237,49 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: 'Plugin',
+        from: 'Setting',
+        let: letVariables,
+        pipeline,
+        as,
+      },
+    }
+  },
+
+  token: ({ address, network }: IAggTokenParams, as: string = 'token', project?: IAggTokenProjectFields) => {
+    const letVariables: any = {}
+    const matchConditions: any[] = []
+
+    if (address) {
+      letVariables.address = address
+      matchConditions.push({ $eq: ['$address', '$$address'] })
+    }
+
+    if (network) {
+      letVariables.network = network
+      matchConditions.push({ $eq: ['$network', '$$network'] })
+    }
+
+    const pipeline: any[] = []
+
+    if (matchConditions.length > 0) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $and: matchConditions,
+          },
+        },
+      })
+    }
+
+    if (project) {
+      pipeline.push({
+        $project: project,
+      })
+    }
+
+    return {
+      $lookup: {
+        from: 'Token',
         let: letVariables,
         pipeline,
         as,
