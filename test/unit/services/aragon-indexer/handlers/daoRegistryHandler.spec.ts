@@ -146,7 +146,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         eventName: 'test',
       }
 
-      await DaoRegistryHandler.initiateNewDaoCreation(logInfo)
+      await DaoRegistryHandler.initiateNewDaoCreation(logInfo, '0x00')
 
       expect(web3Stub.calledOnce).to.be.true
       expect(_metadataHandlerStub.notCalled).to.be.true
@@ -179,7 +179,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         eventName: 'test',
       }
 
-      await DaoRegistryHandler.initiateNewDaoCreation(logInfo)
+      await DaoRegistryHandler.initiateNewDaoCreation(logInfo, '0x00')
 
       expect(web3Stub.calledOnce).to.be.true
       expect(metadataHandlerStub.calledOnce).to.be.true
@@ -388,7 +388,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         .onSecondCall()
         .returns([])
 
-      const delegateChangedStub = sandbox.stub(MultisigHandler, 'delegateChanged')
+      const delegateChangedStub = sandbox.stub(MultisigHandler, 'membersRemoved')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -439,7 +439,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         ] as any)
 
       const memberAddedStub = sandbox.stub(MultisigHandler, 'membersAdded')
-      const delegateChangedStub = sandbox.stub(MultisigHandler, 'delegateChanged')
+      const delegateChangedStub = sandbox.stub(MultisigHandler, 'membersRemoved')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -506,7 +506,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         ] as any)
 
       const memberAddedStub = sandbox.stub(MultisigHandler, 'membersAdded')
-      const delegateChangedStub = sandbox.stub(MultisigHandler, 'delegateChanged')
+      const delegateChangedStub = sandbox.stub(MultisigHandler, 'membersRemoved')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,

@@ -98,13 +98,13 @@ export class ProposalExecuted {
   public status!: boolean
 
   @prop({ type: () => String, default: null })
-  public transactionHash!: HexAddress
+  public transactionHash!: HexAddress | null
 
-  @prop({ type: () => Number })
-  public blockNumber!: number
+  @prop({ type: () => Number, default: null })
+  public blockNumber!: number | null
 
-  @prop({ type: () => Number })
-  public blockTimestamp!: number
+  @prop({ type: () => Number, default: null })
+  public blockTimestamp!: number | null
 }
 
 export class VotesByOption {

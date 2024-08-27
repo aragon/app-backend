@@ -42,8 +42,10 @@ describe('Controller: Transaction', () => {
         type: ITokenType.ERC20,
         decimals: 18,
         logo: 'fake-logo',
-        priceUsd: '0',
-        priceUpdatedAt: 1,
+        snapshot: {
+          priceUsd: '0',
+          priceUpdatedAt: 1,
+        },
       },
     }
     await Models.Transaction.create(rawTransaction)

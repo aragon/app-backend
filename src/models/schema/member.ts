@@ -90,18 +90,6 @@ export default class Member extends Model {
     return await this.save(tOpts)
   }
 
-  // async getTokenBalance(params: {tokenAddress: HexAddress, network: NetworksEnum}, tOpts?: SaveOptions) {
-  //   return await this.model(ICollectionNames.MemberBalance).getOrCreateTokenBalance({address: this.address, tokenAddress: params.tokenAddress, network: params.network}, tOpts)
-  // }
-  //
-  // async getPluginMetrics(params: {pluginAddress: HexAddress, network: NetworksEnum}, tOpts?: SaveOptions) {
-  //   return await this.model(ICollectionNames.MemberMetrics).getOrCreateMemberMetrics({address: this.address, pluginAddress: params.pluginAddress, network: params.network}, tOpts)
-  // }
-  //
-  // async addToDao(params: {pluginAddress: HexAddress, network: NetworksEnum}, tOpts?: SaveOptions) {
-  //   return await this.model(ICollectionNames.DaoMemberMapping).getOrCreateMemberMetrics({address: this.address, pluginAddress: params.pluginAddress, network: params.network}, tOpts)
-  // }
-
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
   }
