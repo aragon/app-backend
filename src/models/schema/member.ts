@@ -100,19 +100,6 @@ export default class Member extends Model {
     }
 
     const currentPage = request.skip / request.limit + 1
-    const match: any = []
-    if (extraParams.daoAddress) {
-      match.push({ 'daoMappings.daoAddress': extraParams.daoAddress })
-    }
-    if (extraParams.pluginAddress) {
-      match.push({ 'daoMappings.pluginAddress': extraParams.pluginAddress })
-    }
-    if (extraParams.tokenAddress) {
-      match.push({ 'daoMappings.tokenAddress': extraParams.tokenAddress })
-    }
-    if (extraParams.network) {
-      match.push({ 'daoMappings.network': extraParams.network })
-    }
 
     const query = [
       { $match: filter },
