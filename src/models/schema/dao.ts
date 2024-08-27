@@ -6,6 +6,7 @@ import {
   type IDaoExtraParams,
   type IDaoIdParams,
   type IDaoResponse,
+  type IMembersResponse,
   type IPaginatedResult,
   type IPaginationParams,
   IPluginStatus,
@@ -427,7 +428,7 @@ export default class Dao extends Model {
     ]
 
     const results = await this.aggregate(query)
-    return results[0]
+    return results?.[0] as IMembersResponse
   }
 
   static async findDaosByMemberWithPagination(extraParams?: IDaoExtraParams, paginationParams?: IPaginationParams) {

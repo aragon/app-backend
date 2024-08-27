@@ -3,6 +3,8 @@ import {
   type IAggDaoMemberMappingParams,
   type IAggMemberBalanceParams,
   type IAggMemberBalanceProjectFields,
+  type IAggMemberMetricsParams,
+  type IAggMemberMetricsProjectFields,
   type IAggMemberParams,
   type IAggMemberProjectFields,
   type IAggPluginInclude,
@@ -111,11 +113,7 @@ export const AggregationQueryHelper = {
                   $mergeObjects: [
                     { $arrayElemAt: ['$settings', 0] },
                     {
-                      $cond: [
-                        { $ne: ['$tokenAddress', null] }, // Check if tokenAddress is not null
-                        { token: { $arrayElemAt: ['$token', 0] } }, // Add token info
-                        null, // No token info if tokenAddress is null
-                      ],
+                      $cond: [{ $ne: ['$tokenAddress', null] }, { token: { $arrayElemAt: ['$token', 0] } }, null],
                     },
                   ],
                 },
@@ -127,55 +125,17 @@ export const AggregationQueryHelper = {
       )
     }
 
-    // if (includeSubDocuments?.settings) {
-    //   pipeline.push(
-    //     AggregationQueryHelper.token({ address: '$tokenAddress', network: '$$network' }, 'token', {
-    //       _id: 0,
-    //       network: 1,
-    //       address: 1,
-    //       symbol: 1,
-    //       name: 1,
-    //       decimals: 1,
-    //       logo: 1,
-    //       type: 1,
-    //       totalSupply: 1,
-    //     }),
-    //   )
-    //
-    //   pipeline.push(
-    //     AggregationQueryHelper.setting({ pluginAddress: '$address', network: '$$network' }, 'settings', {
-    //       _id: 0,
-    //       votingMode: 1,
-    //       supportThreshold: 1,
-    //       minParticipation: 1,
-    //       minDuration: 1,
-    //       minProposerVotingPower: 1,
-    //     }),
-    //     {
-    //       $addFields: {
-    //         settings: {
-    //           $cond: {
-    //             if: { $gt: [{ $size: '$settings' }, 0] },
-    //             then: {
-    //               $mergeObjects: [
-    //                 { $arrayElemAt: ['$settings', 0] },
-    //                 { token: includeSubDocuments?.token ? { $arrayElemAt: ['$token', 0] } : null },
-    //               ],
-    //             },
-    //             else: null,
-    //           },
-    //         },
-    //       },
-    //     },
-    //   )
-    // }
-
     if (project) {
+      const projectStage: any = {
+        ...project,
+      }
+
+      if (includeSubDocuments?.settings) {
+        projectStage.settings = 1
+      }
+
       pipeline.push({
-        $project: {
-          ...project,
-          settings: includeSubDocuments?.settings ? 1 : 0,
-        },
+        $project: projectStage,
       })
     }
 
@@ -247,7 +207,7 @@ export const AggregationQueryHelper = {
   },
 
   daoMemberMapping: (
-    { memberAddress, daoAddress, pluginAddress, network }: IAggDaoMemberMappingParams,
+    { tokenAddress, memberAddress, daoAddress, pluginAddress, network }: IAggDaoMemberMappingParams,
     as: string = 'memberMapping',
   ) => {
     const letVariables: any = {}
@@ -256,6 +216,11 @@ export const AggregationQueryHelper = {
     if (pluginAddress) {
       letVariables.pluginAddress = pluginAddress
       matchConditions.push({ $eq: ['$pluginAddress', '$$pluginAddress'] })
+    }
+
+    if (tokenAddress) {
+      letVariables.tokenAddress = tokenAddress
+      matchConditions.push({ $eq: ['$tokenAddress', '$$tokenAddress'] })
     }
 
     if (daoAddress) {
@@ -290,6 +255,7 @@ export const AggregationQueryHelper = {
         daoAddress: 1,
         memberAddress: 1,
         pluginAddress: 1,
+        tokenAddress: 1,
         network: 1,
       },
     })
@@ -450,6 +416,57 @@ export const AggregationQueryHelper = {
     return {
       $lookup: {
         from: 'MemberBalance',
+        let: letVariables,
+        pipeline,
+        as,
+      },
+    }
+  },
+
+  memberMetrics: (
+    { pluginAddress, network, memberAddress }: IAggMemberMetricsParams,
+    as: string = 'memberMetrics',
+    project?: IAggMemberMetricsProjectFields,
+  ) => {
+    const letVariables: any = {}
+    const matchConditions: any[] = []
+
+    if (pluginAddress) {
+      letVariables.pluginAddress = pluginAddress
+      matchConditions.push({ $eq: ['$$pluginAddress', '$pluginAddress'] })
+    }
+
+    if (network) {
+      letVariables.network = network
+      matchConditions.push({ $eq: ['$$network', '$network'] })
+    }
+
+    if (memberAddress) {
+      letVariables.memberAddress = memberAddress
+      matchConditions.push({ $eq: ['$$memberAddress', '$address'] })
+    }
+
+    const pipeline: any[] = []
+
+    if (matchConditions.length > 0) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $and: matchConditions,
+          },
+        },
+      })
+    }
+
+    if (project) {
+      pipeline.push({
+        $project: project,
+      })
+    }
+
+    return {
+      $lookup: {
+        from: 'MemberMetrics',
         let: letVariables,
         pipeline,
         as,
