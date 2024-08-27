@@ -53,6 +53,8 @@ export interface IAggMemberProjectFields {
   address?: 1
   ens?: 1
   avatar?: 1
+  firstActivity?: 1
+  lastActivity?: 1
 }
 
 export interface IAggMemberBalanceParams {
