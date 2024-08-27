@@ -24,11 +24,8 @@ export const AggregatorDaoAssets = {
   },
 
   onDocument: async (document: Dao) => {
-    const assets = await AggregatorDaoAssets.assets(document)
-    if (Number(assets?.ethBalance!) > 0 || assets?.tokenBalances?.length! > 0) {
-      // update metrics
-      await AggregatorDaoMetrics.start({ daoAddress: document.address, network: document.network })
-    }
+    await AggregatorDaoAssets.assets(document)
+    await AggregatorDaoMetrics.start({ daoAddress: document.address, network: document.network })
   },
 
   assets: async (document: Dao) => {
