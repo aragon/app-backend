@@ -225,7 +225,7 @@ describe('Controller: Dao', () => {
 
   describe('getDaosByMember', () => {
     it('should get daos by member', async () => {
-      const findStub = sandbox.stub(Models.Member, 'findDaoOfMemberWithPagination').resolves([true])
+      const findStub = sandbox.stub(Models.Dao, 'findDaosByMemberWithPagination').resolves([true])
       const checkIFEnsStub = sandbox
         .stub(PairDataModule, 'checkIFEns')
         .resolves('0x17366cae2b9c6c3055e9e3c78936a69006be5409')

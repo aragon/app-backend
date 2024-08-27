@@ -45,6 +45,13 @@ export interface IAggTokenProjectFields {
   lastUpdatedAt?: 1
 }
 
+export interface IAggDaoMemberMappingParams {
+  memberAddress?: string
+  daoAddress?: string
+  pluginAddress?: string
+  network?: string
+}
+
 export interface IAggSettingParams {
   pluginAddress?: string
   network: string

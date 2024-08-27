@@ -1,5 +1,6 @@
 import {
   type HexAddress,
+  type IAggDaoMemberMappingParams,
   type IAggMemberBalanceParams,
   type IAggMemberBalanceProjectFields,
   type IAggMemberParams,
@@ -238,6 +239,64 @@ export const AggregationQueryHelper = {
     return {
       $lookup: {
         from: 'Setting',
+        let: letVariables,
+        pipeline,
+        as,
+      },
+    }
+  },
+
+  daoMemberMapping: (
+    { memberAddress, daoAddress, pluginAddress, network }: IAggDaoMemberMappingParams,
+    as: string = 'memberMapping',
+  ) => {
+    const letVariables: any = {}
+    const matchConditions: any[] = []
+
+    if (pluginAddress) {
+      letVariables.pluginAddress = pluginAddress
+      matchConditions.push({ $eq: ['$pluginAddress', '$$pluginAddress'] })
+    }
+
+    if (daoAddress) {
+      letVariables.daoAddress = daoAddress
+      matchConditions.push({ $eq: ['$daoAddress', '$$daoAddress'] })
+    }
+
+    if (memberAddress) {
+      letVariables.memberAddress = memberAddress
+      matchConditions.push({ $eq: ['$memberAddress', '$$memberAddress'] })
+    }
+
+    if (network) {
+      letVariables.network = network
+      matchConditions.push({ $eq: ['$network', '$$network'] })
+    }
+
+    const pipeline: any[] = []
+
+    if (matchConditions.length > 0) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $and: matchConditions,
+          },
+        },
+      })
+    }
+
+    pipeline.push({
+      $project: {
+        daoAddress: 1,
+        memberAddress: 1,
+        pluginAddress: 1,
+        network: 1,
+      },
+    })
+
+    return {
+      $lookup: {
+        from: 'DaoMemberMapping',
         let: letVariables,
         pipeline,
         as,
