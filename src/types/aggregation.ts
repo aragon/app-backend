@@ -46,6 +46,7 @@ export interface IAggTokenProjectFields {
 }
 
 export interface IAggDaoMemberMappingParams {
+  tokenAddress?: string
   memberAddress?: string
   daoAddress?: string
   pluginAddress?: string
@@ -84,7 +85,7 @@ export interface IAggMemberParams {
 export interface IAggPluginParams {
   daoAddress?: string
   pluginAddress?: string
-  network: string
+  network: string | undefined
   status?: IPluginStatus
 }
 
@@ -129,4 +130,18 @@ export interface IAggMemberBalanceParams {
 export interface IAggMemberBalanceProjectFields {
   amount?: 1
   votingPower?: 1
+}
+
+export interface IAggMemberMetricsParams {
+  network?: string
+  memberAddress?: string
+  pluginAddress?: string
+}
+
+export interface IAggMemberMetricsProjectFields {
+  _id?: 0 | 1
+  delegateReceivedCount?: 1
+  delegateSentCount?: 1
+  voteCount?: 1
+  proposalCount?: 1
 }

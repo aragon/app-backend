@@ -4,7 +4,6 @@ import { NetworksEnum } from '@types'
 
 const MemberSchema = {
   getExtraParams: Joi.object({
-    onlyActive: Joi.boolean().optional(),
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .optional(),
@@ -19,15 +18,6 @@ const MemberSchema = {
 
   getMemberByAddress: Joi.object({
     address: ValidationSchema.joiAddress.required(),
-  }),
-
-  getActiveMembersExtraParams: Joi.object({
-    network: Joi.string()
-      .valid(...Object.values(NetworksEnum))
-      .optional(),
-    daoAddress: ValidationSchema.joiAddress.optional(),
-    pluginAddress: ValidationSchema.joiAddress.optional(),
-    tokenAddress: ValidationSchema.joiAddress.optional(),
   }),
 }
 
