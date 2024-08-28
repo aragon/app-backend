@@ -113,10 +113,6 @@ export default class Token extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
-  static async findByTokenAddress(address: HexAddress) {
-    return await this.findOne({ address })
-  }
-
   static async findByTokenAddressAndNetwork(address: HexAddress, network: NetworksEnum) {
     return await this.findOne({ address, network })
   }
