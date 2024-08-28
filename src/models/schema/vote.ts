@@ -1,45 +1,21 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
+  ICollectionNames,
+  type IPaginatedResult,
+  type IPaginationParams,
   type IVoteExtraParams,
   type IVoteIdParams,
   type IVoteResponse,
-  type IPaginatedResult,
-  type IPaginationParams,
   NetworksEnum,
-  ITokenType,
-  type IMemberVoteMetrics,
-  ICollectionNames,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Vote
-
-class Token {
-  @prop({ type: () => String, enum: NetworksEnum })
-  public network!: NetworksEnum
-
-  @prop({ type: () => String, enum: ITokenType, required: true })
-  public type!: ITokenType
-
-  @prop({ type: () => String, required: true })
-  public address!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public logo!: string
-
-  @prop({ type: () => String, default: null })
-  public name!: string
-
-  @prop({ type: () => String, default: null, uppercase: true })
-  public symbol!: string
-
-  @prop({ type: () => Number, default: 18 })
-  public decimals!: number
-}
 
 @modelOptions({
   schemaOptions: {
@@ -59,7 +35,6 @@ class Token {
   daoAddress: 1,
   pluginAddress: 1,
   memberAddress: 1,
-  'token.address': 1,
 })
 export default class Vote extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -91,9 +66,6 @@ export default class Vote extends Model {
 
   @prop({ type: () => Number })
   public proposalId!: number
-
-  @prop({ type: () => Token, _id: false, default: null })
-  public token?: Token
 
   @prop({ type: () => Number })
   public voteOption?: number
@@ -144,86 +116,6 @@ export default class Vote extends Model {
     return await this.find({ proposalId, pluginAddress, network })
   }
 
-  static async findMemberActivity(memberAddress: HexAddress) {
-    const metrics = await this.aggregate([
-      {
-        $facet: {
-          votes: [
-            {
-              $match: {
-                memberAddress,
-              },
-            },
-            {
-              $group: {
-                _id: { memberAddress: '$memberAddress', network: '$network' },
-                firstActivity: { $min: '$blockNumber' },
-                lastActivity: { $max: '$blockNumber' },
-              },
-            },
-            {
-              $project: {
-                address: '$_id.memberAddress',
-                network: '$_id.network',
-                firstActivity: 1,
-                lastActivity: 1,
-              },
-            },
-          ],
-          proposals: [
-            {
-              $match: {
-                creatorAddress: memberAddress,
-              },
-            },
-            {
-              $group: {
-                _id: { creatorAddress: '$creatorAddress', network: '$network' },
-                firstActivity: { $min: '$blockNumber' },
-                lastActivity: { $max: '$blockNumber' },
-              },
-            },
-            {
-              $project: {
-                address: '$_id.creatorAddress',
-                network: '$_id.network',
-                firstActivity: 1,
-                lastActivity: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $project: {
-          activities: {
-            $concatArrays: ['$votes', '$proposals'],
-          },
-        },
-      },
-      {
-        $unwind: '$activities',
-      },
-      {
-        $group: {
-          _id: { address: '$activities.address', network: '$activities.network' },
-          firstActivity: { $min: '$activities.firstActivity' },
-          lastActivity: { $max: '$activities.lastActivity' },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          address: '$_id.address',
-          network: '$_id.network',
-          firstActivity: 1,
-          lastActivity: 1,
-        },
-      },
-    ])
-    return metrics?.[0] as IMemberVoteMetrics
-  }
-
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
@@ -234,7 +126,7 @@ export default class Vote extends Model {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
       Object.entries(extraParams).filter(
-        ([key, value]) => value !== undefined && key !== 'tokenAddress' && key !== 'includeInfo',
+        ([key, value]) => key !== 'includeInfo' && value !== undefined, // Exclude keys with undefined values
       ),
     )
 
@@ -243,29 +135,38 @@ export default class Vote extends Model {
       ...dynamicFilter,
     }
 
-    if (extraParams.tokenAddress) {
-      filter['token.address'] = extraParams.tokenAddress
-    }
-
-    // make the aggregation query better
-    let query: any = [
+    const query: any = [
       {
         $match: filter,
+      },
+      AggregationQueryHelper.token({ address: '$tokenAddress', network: '$network' }, 'token', {
+        _id: 0,
+        network: 1,
+        address: 1,
+        symbol: 1,
+        name: 1,
+        decimals: 1,
+        logo: 1,
+        type: 1,
+      }),
+      {
+        $addFields: {
+          token: { $arrayElemAt: ['$token', 0] },
+        },
       },
     ]
 
     if (extraParams.includeInfo) {
-      query = [
-        ...query,
+      query.push(
         {
           $lookup: {
-            from: 'LogProposalMetadata',
-            let: { pId: '$proposalId', pluginAddr: '$pluginAddress' },
+            from: 'Proposal',
+            let: { proposalId: '$proposalId', pluginAddress: '$pluginAddress' },
             pipeline: [
               {
                 $match: {
                   $expr: {
-                    $and: [{ $eq: ['$proposalId', '$$pId'] }, { $eq: ['$pluginAddress', '$$pluginAddr'] }],
+                    $and: [{ $eq: ['$proposalId', '$$proposalId'] }, { $eq: ['$pluginAddress', '$$pluginAddress'] }],
                   },
                 },
               },
@@ -288,26 +189,26 @@ export default class Vote extends Model {
         },
         {
           $addFields: {
-            proposalInfo: {
-              $arrayElemAt: ['$proposalDetails', 0],
-            },
+            proposalInfo: { $arrayElemAt: ['$proposalDetails', 0] },
           },
         },
-      ]
+      )
     }
 
-    query = [
-      ...query,
-      {
-        $project: {
-          createdAt: 0,
-          updatedAt: 0,
-          __v: 0,
-          _id: 0,
-          proposalDetails: 0,
-        },
+    query.push({
+      $project: {
+        _id: 0,
+        transactionHash: 1,
+        blockNumber: 1,
+        blockTimestamp: 1,
+        network: 1,
+        memberAddress: 1,
+        proposalId: 1,
+        votingPower: 1,
+        token: 1,
+        proposalInfo: 1,
       },
-    ]
+    })
 
     const currentPage = request.skip / request.limit + 1
     const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
@@ -354,12 +255,5 @@ export default class Vote extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
-  }
-
-  filterKeys() {
-    const obj = this.toObject()
-    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
-    filtered.token = filtered.token ? _.omit(filtered.token, 'id', '_id', '__v') : undefined
-    return filtered
   }
 }
