@@ -1601,7 +1601,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{host}}/votes?proposalId=<string>&includeInfo=true",
+							"raw": "{{host}}/votes?includeInfo=true",
 							"host": [
 								"{{host}}"
 							],
@@ -1687,11 +1687,13 @@
 								},
 								{
 									"key": "proposalId",
-									"value": "<string>"
+									"value": "<string>",
+									"disabled": true
 								},
 								{
 									"key": "includeInfo",
-									"value": "true"
+									"value": "true",
+									"type": "text"
 								}
 							]
 						}
