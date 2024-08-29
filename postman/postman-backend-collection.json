@@ -2506,7 +2506,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{host}}/proposals",
+							"raw": "{{host}}/proposals?daoInfo=true",
 							"host": [
 								"{{host}}"
 							],
@@ -2586,8 +2586,7 @@
 								},
 								{
 									"key": "daoInfo",
-									"value": "true",
-									"disabled": true
+									"value": "true"
 								}
 							]
 						}
