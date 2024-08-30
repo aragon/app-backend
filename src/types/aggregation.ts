@@ -1,5 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
-import { type IPluginRawStatus, type IPluginStatus } from '@src/types/plugin'
+import { type IPluginRawStatus, type IPluginStatus, type ISettingStatus } from '@src/types/plugin'
 
 export interface IQueryGetPlugin {
   transactionHash: HexAddress
@@ -22,6 +22,34 @@ export interface IQueryGetPlugin {
 export interface IAggTokenParams {
   address?: string
   network: string
+}
+
+export interface IAggDaoParams {
+  address: string
+  network: string
+}
+
+export interface IAggDaoProjectFields {
+  _id?: 0 | 1
+  id?: 0 | 1
+  isActive?: 1
+  isSupported?: 1
+  network?: 1
+  transactionHash?: 1
+  blockNumber?: 1
+  blockTimestamp?: 1
+  address?: 1
+  implementationAddress?: 1
+  creatorAddress?: 1
+  ens?: 1
+  subdomain?: 1
+  metadataIpfs?: 1
+  name?: 1
+  description?: 1
+  avatar?: 1
+  version?: 1
+  metrics?: 1
+  links?: 1
 }
 
 export interface IAggTokenProjectFields {
@@ -55,6 +83,7 @@ export interface IAggDaoMemberMappingParams {
 
 export interface IAggSettingParams {
   pluginAddress?: string
+  status?: ISettingStatus
   network: string
 }
 

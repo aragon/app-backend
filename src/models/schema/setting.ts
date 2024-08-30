@@ -5,6 +5,7 @@ import {
   type IPaginationParams,
   type ISettingExtraParams,
   type ISettingIdParams,
+  ISettingStatus,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
@@ -28,8 +29,7 @@ const customName = ICollectionNames.Setting
 })
 @index({
   pluginAddress: 1,
-  fromBlockNumber: 1,
-  toBlockNumber: 1,
+  blockNumber: 1,
 })
 export default class Setting extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -42,10 +42,16 @@ export default class Setting extends Model {
   public blockNumber!: number
 
   @prop({ type: () => Number })
+  public inactiveAtBlockNumber!: number
+
+  @prop({ type: () => Number })
   public blockTimestamp!: number
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
+
+  @prop({ type: () => String, enum: ISettingStatus, required: true })
+  public status!: ISettingStatus
 
   @prop({ type: () => String, default: null })
   public daoAddress!: HexAddress
@@ -107,6 +113,33 @@ export default class Setting extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
+  static async findActive({
+    daoAddress,
+    pluginAddress,
+    network,
+  }: {
+    pluginAddress: HexAddress
+    daoAddress: HexAddress
+    network: NetworksEnum
+  }) {
+    const params: any = {
+      status: ISettingStatus.active,
+    }
+
+    if (daoAddress) {
+      params.daoAddress = daoAddress
+    }
+
+    if (pluginAddress) {
+      params.pluginAddress = pluginAddress
+    }
+
+    if (network) {
+      params.network = network
+    }
+    return await this.findOne(params).exec()
+  }
+
   static async findLastSettingByBlockNumber(pluginAddress: HexAddress, blockNumber: number) {
     return await this.findOne({
       pluginAddress,
@@ -114,19 +147,6 @@ export default class Setting extends Model {
     })
       .sort({ blockNumber: -1 })
       .exec()
-  }
-
-  static async findActiveByDaoAddress(daoAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    return await this.findOne({
-      daoAddress,
-      network,
-    })
-      .sort({ blockNumber: -1 })
-      .exec()
-  }
-
-  static async findByTransactionHash(transactionHash: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    return await this.findOne({ transactionHash, network }, tOpts)
   }
 
   static async findWithPagination({
@@ -137,23 +157,29 @@ export default class Setting extends Model {
     paginationParams?: IPaginationParams
   }) {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(([key, value]) => value !== undefined && key !== 'onlyActive'),
-    )
+    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([_, value]) => value !== undefined))
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['pluginAddress', 'daoAddress', 'network']),
       ...dynamicFilter,
     }
 
-    // only filter active setting in dao
-    if (extraParams.onlyActive) {
-      filter['$or'] = [{ toBlockNumber: null }, { toBlockNumber: { $exists: false } }]
-    }
+    const query: any = [
+      {
+        $match: filter,
+      },
+    ]
 
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
+    const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
 
-    const totalPages = Math.ceil(totalRecords / request.limit)
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery),
+      this.aggregate([...query, { $count: 'totalRecords' }]),
+    ])
+
+    const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
+
+    const totalPages = Math.ceil(_totalRecords / request.limit)
 
     if (currentPage > totalPages) {
       return ModelUtils.paginateEmptyResponse(request.limit)

@@ -212,6 +212,36 @@ export default class Dao extends Model {
           token: true,
         },
       ),
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$creatorAddress',
+        },
+        'creator',
+      ),
+      {
+        $addFields: {
+          creator: {
+            $cond: {
+              if: { $gt: [{ $size: '$creator' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$creator.address', 0] },
+                ens: { $arrayElemAt: ['$creator.ens', 0] },
+                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
+              },
+              else: {
+                address: '$creatorAddress',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          creatorAddress: '$$REMOVE',
+        },
+      },
     ]
 
     if (extraParams.pluginAddress) {
@@ -235,6 +265,8 @@ export default class Dao extends Model {
         $project: {
           _id: 0,
           __v: 0,
+          isActive: 0,
+          isHidden: 0,
           createdAt: 0,
           updatedAt: 0,
         },
@@ -274,6 +306,36 @@ export default class Dao extends Model {
           isActive: { $eq: true },
         },
       },
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$creatorAddress',
+        },
+        'creator',
+      ),
+      {
+        $addFields: {
+          creator: {
+            $cond: {
+              if: { $gt: [{ $size: '$creator' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$creator.address', 0] },
+                ens: { $arrayElemAt: ['$creator.ens', 0] },
+                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
+              },
+              else: {
+                address: '$creatorAddress',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          creatorAddress: '$$REMOVE',
+        },
+      },
       AggregationQueryHelper.plugin(
         {
           daoAddress: '$address',
@@ -298,7 +360,6 @@ export default class Dao extends Model {
       ),
       {
         $addFields: {
-          // Extract tokenAddress from the first plugin (if it exists)
           pluginTokenAddress: { $arrayElemAt: ['$plugin.tokenAddress', 0] },
         },
       },
@@ -314,7 +375,6 @@ export default class Dao extends Model {
                 },
               },
             },
-
             AggregationQueryHelper.member(
               {
                 memberAddress: '$memberAddress',
@@ -360,29 +420,6 @@ export default class Dao extends Model {
       },
       {
         $addFields: {
-          creatorAddress: {
-            $let: {
-              vars: {
-                creator: {
-                  $arrayElemAt: [
-                    {
-                      $filter: {
-                        input: '$members',
-                        as: 'member',
-                        cond: { $eq: ['$$member.memberAddress', '$creatorAddress'] },
-                      },
-                    },
-                    0,
-                  ],
-                },
-              },
-              in: {
-                address: '$$creator.info.address',
-                ens: '$$creator.info.ens',
-                avatar: '$$creator.info.avatar',
-              },
-            },
-          },
           members: {
             $map: {
               input: '$members',
@@ -402,8 +439,6 @@ export default class Dao extends Model {
         $project: {
           _id: 0,
           id: 1,
-          isActive: 1,
-          isHidden: 1,
           isSupported: 1,
           network: 1,
           transactionHash: 1,
@@ -411,7 +446,7 @@ export default class Dao extends Model {
           blockTimestamp: 1,
           address: 1,
           implementationAddress: 1,
-          creatorAddress: 1,
+          creator: 1,
           ens: 1,
           subdomain: 1,
           metadataIpfs: 1,
@@ -453,6 +488,8 @@ export default class Dao extends Model {
         $project: {
           createdAt: 0,
           updatedAt: 0,
+          isHidden: 0,
+          isActive: 0,
           __v: 0,
           _id: 0,
           memberMapping: 0,
@@ -472,6 +509,36 @@ export default class Dao extends Model {
             },
           ]
         : []),
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$creatorAddress',
+        },
+        'creator',
+      ),
+      {
+        $addFields: {
+          creator: {
+            $cond: {
+              if: { $gt: [{ $size: '$creator' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$creator.address', 0] },
+                ens: { $arrayElemAt: ['$creator.ens', 0] },
+                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
+              },
+              else: {
+                address: '$creatorAddress',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          creatorAddress: '$$REMOVE',
+        },
+      },
       AggregationQueryHelper.plugin(
         {
           daoAddress: '$address',

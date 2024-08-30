@@ -44,7 +44,7 @@ export const PluginSetupProcessorHandler = {
     const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
 
     if (!existingDao) {
-      logger.warn('Dao not found', llo({ ...info, parsedEvent }))
+      logger.warn('Dao not found', llo({ ...info, daoAddress }))
       return
     }
 
@@ -80,7 +80,7 @@ export const PluginSetupProcessorHandler = {
     const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
 
     if (!existingDao) {
-      logger.warn('Dao not found', llo({ ...info, parsedEvent }))
+      logger.warn('Dao not found', llo({ ...info, daoAddress }))
       return
     }
 
@@ -135,7 +135,7 @@ export const PluginSetupProcessorHandler = {
     const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
 
     if (!existingDao) {
-      logger.warn('Dao not found', llo({ ...info, parsedEvent }))
+      logger.warn('Dao not found', llo({ ...info, daoAddress }))
       return
     }
 
@@ -170,7 +170,7 @@ export const PluginSetupProcessorHandler = {
     const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
 
     if (!existingDao) {
-      logger.warn('Dao not found', llo({ ...info, parsedEvent }))
+      logger.warn('Dao not found', llo({ ...info, daoAddress }))
       return
     }
 
@@ -209,7 +209,7 @@ export const PluginSetupProcessorHandler = {
     const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
 
     if (!existingDao) {
-      logger.warn('Dao not found', llo({ ...info, parsedEvent }))
+      logger.warn('Dao not found', llo({ ...info, daoAddress }))
       return
     }
 
@@ -245,7 +245,7 @@ export const PluginSetupProcessorHandler = {
     const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
 
     if (!existingDao) {
-      logger.warn('Dao not found', llo({ ...info, parsedEvent }))
+      logger.warn('Dao not found', llo({ ...info, daoAddress }))
       return
     }
 

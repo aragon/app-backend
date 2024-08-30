@@ -11,7 +11,7 @@ export interface IVoteIdParams {
   network: NetworksEnum
   transactionHash: HexAddress
   pluginAddress: HexAddress
-  proposalId: number
+  proposalIndex: number
 }
 
 export interface IAssetIdParams {
@@ -82,7 +82,7 @@ export interface IPluginIdParams {
 export interface IProposalIdParams {
   transactionHash: HexAddress
   pluginAddress: HexAddress
-  proposalId: number
+  proposalIndex: number
 }
 
 export interface ITokenIdParams {

@@ -130,7 +130,7 @@ export default class Transaction extends Model {
   public erc1155Metadata!: ERC1155Metadata[]
 
   @prop({ type: () => String, default: null })
-  public proposalId!: string
+  public proposalIndex!: number
 
   @prop({ type: () => Token, _id: false, default: null })
   public token?: Token
@@ -192,6 +192,13 @@ export default class Transaction extends Model {
     }
 
     const currentPage = request.skip / request.limit + 1
+
+    // const query: any = [
+    //   {
+    //     $match: filter,
+    //   },
+    // ]
+
     const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
 
     const totalPages = Math.ceil(totalRecords / request.limit)

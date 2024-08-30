@@ -10,7 +10,6 @@ import {
   type ISettingResponse,
   type NetworksEnum,
 } from '@types'
-import type Setting from '@models/schema/setting'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 
@@ -22,7 +21,6 @@ const SettingController = {
   ): Promise<IPaginatedResult<ISettingResponse>> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
     const result = await Models.Setting.findWithPagination({ extraParams, paginationParams })
-    result.data = result.data.map((setting: Setting) => setting.filterKeys())
 
     return result
   },
@@ -35,7 +33,7 @@ const SettingController = {
   },
 
   getActiveSettingByDaoAddress: async (daoAddress: HexAddress, network: NetworksEnum): Promise<IProposalsResponse> => {
-    const setting = await Models.Setting.findActiveByDaoAddress(daoAddress, network)
+    const setting = await Models.Setting.findActive({ daoAddress, network })
     assertExposable(setting, ErrorKeyEnum.notFound)
 
     return setting.filterKeys()

@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo } from '@types'
+import { type ILogInfo, ISettingStatus, ITokenType } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
@@ -22,17 +22,30 @@ export const PluginSettingHandler = {
       return
     }
 
-    if (!dao.isSupported) {
-      const document = {
-        isSupported: true,
-      }
-      await DbOperations.updateDocument(dao, document, { logId: dao.id }, 'Dao Supported - setting fetched', llo)
-    }
-
     if (plugin.tokenAddress) {
-      await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
-      await Promise.all([LogGovernanceErc20.start(plugin), LogTokenVoting.start(plugin)])
+      const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
+      if (token?.type === ITokenType.GovernanceERC20) {
+        if (!dao.isSupported) {
+          await DbOperations.updateDocument(
+            dao,
+            { isSupported: true },
+            { logId: dao.id },
+            'Dao Supported - setting fetched',
+            llo,
+          )
+        }
+        await Promise.all([LogGovernanceErc20.start(plugin), LogTokenVoting.start(plugin)])
+      }
     } else {
+      if (!dao.isSupported) {
+        await DbOperations.updateDocument(
+          dao,
+          { isSupported: true },
+          { logId: dao.id },
+          'Dao Supported - setting fetched',
+          llo,
+        )
+      }
       await Promise.all([LogMultisig.start(plugin)])
     }
   },
@@ -53,10 +66,16 @@ export const PluginSettingHandler = {
 
     if (existingLog) return
 
+    const activePluginSetting = await Models.Setting.findActive({
+      network: info.network,
+      pluginAddress,
+    })
+
     const settingLog = {
       blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
       transactionHash,
+      status: ISettingStatus.active,
       daoAddress: relatedPlugin.daoAddress,
       pluginAddress,
       pluginSubdomain: relatedPlugin.subdomain,
@@ -69,7 +88,21 @@ export const PluginSettingHandler = {
       minProposerVotingPower: parsedEvent.args.minProposerVotingPower.toString(),
     }
 
-    await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - votingSettingsUpdated', llo)
+    await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - tokenVotingSettingsUpdated', llo)
+
+    if (activePluginSetting) {
+      await DbOperations.updateDocument(
+        activePluginSetting,
+        {
+          inactiveAtBlockNumber: blockNumber,
+          status: ISettingStatus.inactive,
+        },
+        { logId: activePluginSetting.id },
+        'Update tokenVoting inactive plugin',
+        llo,
+      )
+    }
+
     await PluginSettingHandler.syncPluginData(relatedPlugin)
   },
 
@@ -89,10 +122,16 @@ export const PluginSettingHandler = {
 
     if (existingLog) return
 
+    const activePluginSetting = await Models.Setting.findActive({
+      network: info.network,
+      pluginAddress,
+    })
+
     const settingLog = {
       blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
       transactionHash,
+      status: ISettingStatus.active,
       daoAddress: relatedPlugin.daoAddress,
       pluginAddress,
       pluginSubdomain: relatedPlugin.subdomain,
@@ -102,6 +141,20 @@ export const PluginSettingHandler = {
     }
 
     await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - multisigSettingsUpdated', llo)
+
+    if (activePluginSetting) {
+      await DbOperations.updateDocument(
+        activePluginSetting,
+        {
+          inactiveAtBlockNumber: blockNumber,
+          status: ISettingStatus.inactive,
+        },
+        { logId: activePluginSetting.id },
+        'Update multisig inactive plugin',
+        llo,
+      )
+    }
+
     await PluginSettingHandler.syncPluginData(relatedPlugin)
   },
 }

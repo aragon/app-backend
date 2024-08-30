@@ -12,6 +12,7 @@ import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Asset
 
@@ -99,22 +100,25 @@ export default class Asset extends Model {
     const [data, totalRecords] = await Promise.all([
       this.aggregate([
         { $match: filter },
-        {
-          $lookup: {
-            from: 'Token',
-            let: { tokenAddress: '$tokenAddress', network: '$network' },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [{ $eq: ['$address', '$$tokenAddress'] }, { $eq: ['$network', '$$network'] }],
-                  },
-                },
-              },
-            ],
-            as: 'tokenDetails',
+        AggregationQueryHelper.token(
+          {
+            network: '$network',
+            address: '$tokenAddress',
           },
-        },
+          'tokenDetails',
+          {
+            _id: 0,
+            network: 1,
+            address: 1,
+            symbol: 1,
+            name: 1,
+            type: 1,
+            logo: 1,
+            decimals: 1,
+            priceChangeOnDayUsd: 1,
+            priceUsd: 1,
+          },
+        ),
         {
           $unwind: {
             path: '$tokenDetails',
@@ -123,17 +127,6 @@ export default class Asset extends Model {
         },
         {
           $addFields: {
-            token: {
-              network: '$tokenDetails.network',
-              address: { $ifNull: ['$tokenDetails.address', '$tokenAddress'] },
-              symbol: '$tokenDetails.symbol',
-              name: '$tokenDetails.name',
-              type: '$tokenDetails.type',
-              logo: '$tokenDetails.logo',
-              decimals: '$tokenDetails.decimals',
-              priceChangeOnDayUsd: '$tokenDetails.priceChangeOnDayUsd',
-              priceUsd: '$tokenDetails.priceUsd',
-            },
             amountUsd: {
               $cond: {
                 if: {
@@ -153,14 +146,51 @@ export default class Asset extends Model {
         { $sort: request.sort },
         { $skip: request.skip },
         { $limit: request.limit },
+        AggregationQueryHelper.dao(
+          {
+            network: '$network',
+            address: '$daoAddress',
+          },
+          'daoInfo',
+          {
+            _id: 1,
+            address: 1,
+            ens: 1,
+            avatar: 1,
+          },
+        ),
+        {
+          $addFields: {
+            dao: {
+              $cond: {
+                if: { $gt: [{ $size: '$daoInfo' }, 0] },
+                then: {
+                  address: { $arrayElemAt: ['$daoInfo.address', 0] },
+                  ens: { $arrayElemAt: ['$daoInfo.ens', 0] },
+                  avatar: { $arrayElemAt: ['$daoInfo.avatar', 0] },
+                },
+                else: {
+                  address: '$daoAddress',
+                  ens: null,
+                  avatar: null,
+                },
+              },
+            },
+          },
+        },
+        {
+          $addFields: {
+            daoInfo: '$$REMOVE',
+          },
+        },
         {
           $project: {
             _id: 0,
             network: 1,
-            daoAddress: 1,
-            tokenAddress: 1,
+            dao: 1,
+            // tokenAddress: 1,
             amount: 1,
-            token: 1,
+            token: '$tokenDetails',
             amountUsd: { $toString: '$amountUsd' },
           },
         },
@@ -182,6 +212,92 @@ export default class Asset extends Model {
         totalRecords,
       },
       data,
+    }
+  }
+
+  static async getDaoTvl(daoAddress: HexAddress, network: NetworksEnum) {
+    const response = await this.aggregate([
+      {
+        $match: { daoAddress, network },
+      },
+      AggregationQueryHelper.token(
+        {
+          network: '$network',
+          address: '$tokenAddress',
+        },
+        'rate',
+        {
+          _id: 0,
+          network: 1,
+          address: 1,
+          symbol: 1,
+          name: 1,
+          type: 1,
+          logo: 1,
+          decimals: 1,
+          priceUsd: 1,
+        },
+      ),
+      {
+        $unwind: {
+          path: '$rate',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          priceUsd: {
+            $ifNull: [{ $toDecimal: '$rate.priceUsd' }, 0],
+          },
+          decimals: {
+            $ifNull: [{ $toInt: '$rate.decimals' }, 18],
+          },
+          amountBigInt: { $toDecimal: '$amount' },
+        },
+      },
+      {
+        $addFields: {
+          normalizedAmount: {
+            $divide: ['$amountBigInt', { $pow: [10, '$decimals'] }],
+          },
+        },
+      },
+      {
+        $addFields: {
+          totalValueUsd: {
+            $multiply: ['$priceUsd', '$normalizedAmount'],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: '$daoAddress',
+          totalValueUsd: {
+            $sum: '$totalValueUsd',
+          },
+          dao: { $first: '$$ROOT' },
+        },
+      },
+      {
+        $addFields: {
+          totalValueUsdRounded: {
+            $round: ['$totalValueUsd', 2],
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: '$dao.daoAddress',
+          network: '$dao.network',
+          tvlUsd: '$totalValueUsdRounded',
+        },
+      },
+    ])
+    return {
+      tvlUsd: response[0]?.tvlUsd || 0,
+      daoAddress,
+      network,
     }
   }
 

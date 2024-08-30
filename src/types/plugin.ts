@@ -17,3 +17,8 @@ export enum IPluginStatus {
   deprecated = 'deprecated',
   uninstalled = 'uninstalled',
 }
+
+export enum ISettingStatus {
+  active = 'active',
+  inactive = 'inactive',
+}

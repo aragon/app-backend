@@ -128,7 +128,14 @@ export default class MemberTransaction extends Model {
   }): Promise<IPaginatedResult<IDelegatesResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const filter = {
-      ...ModelUtils.createFilter(paginationParams, ['transactionHash', 'tokenAddress', 'network', 'from', 'to']),
+      ...ModelUtils.createFilter(paginationParams, [
+        'transactionHash',
+        'tokenAddress',
+        'network',
+        'address',
+        'from',
+        'to',
+      ]),
     }
 
     if (extraParams.memberAddress) {
@@ -156,6 +163,7 @@ export default class MemberTransaction extends Model {
 
     const currentPage = request.skip / request.limit + 1
 
+    // TODO: from/to could also be a dao
     const query = [
       { $match: filter },
       AggregationQueryHelper.daoMemberMapping(
@@ -210,6 +218,77 @@ export default class MemberTransaction extends Model {
           token: { $first: '$token' },
         },
       },
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$from',
+        },
+        'fromInfo',
+        {
+          address: 1,
+          ens: 1,
+          avatar: 1,
+        },
+      ),
+      {
+        $addFields: {
+          from: {
+            $cond: {
+              if: { $gt: [{ $size: '$fromInfo' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$fromInfo.address', 0] },
+                ens: { $arrayElemAt: ['$fromInfo.ens', 0] },
+                avatar: { $arrayElemAt: ['$fromInfo.avatar', 0] },
+              },
+              else: {
+                address: '$from',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          fromInfo: '$$REMOVE',
+        },
+      },
+
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$to',
+        },
+        'toInfo',
+        {
+          address: 1,
+          ens: 1,
+          avatar: 1,
+        },
+      ),
+      {
+        $addFields: {
+          to: {
+            $cond: {
+              if: { $gt: [{ $size: '$toInfo' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$toInfo.address', 0] },
+                ens: { $arrayElemAt: ['$toInfo.ens', 0] },
+                avatar: { $arrayElemAt: ['$toInfo.avatar', 0] },
+              },
+              else: {
+                address: '$to',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          toInfo: '$$REMOVE',
+        },
+      },
       {
         $project: {
           _id: 0,
@@ -218,7 +297,7 @@ export default class MemberTransaction extends Model {
           blockNumber: 1,
           blockTimestamp: 1,
           // tokenAddress: 1,
-          address: 1,
+          // address: 1,
           from: 1,
           to: 1,
           side: 1,

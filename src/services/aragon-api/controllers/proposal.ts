@@ -5,8 +5,6 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IProposalExtraParams,
-  type NetworksEnum,
-  type HexAddress,
   type IPairParams,
 } from '@types'
 import { assertExposable } from '@errors'
@@ -14,20 +12,9 @@ import PairDataModule from '@modules/pairData'
 
 const ProposalController = {
   getProposalById: async (id: string): Promise<IProposalsResponse> => {
-    const proposal = await Models.Proposal.findByEntityId(id)
+    const proposal = await Models.Proposal.findWithEntityId(id)
     assertExposable(proposal, ErrorKeyEnum.notFound)
-    proposal.executed = proposal.executed ? proposal.executed : { status: false }
-    return proposal.filterKeys()
-  },
-
-  getProposalByTransactionHash: async (
-    transactionHash: HexAddress,
-    network: NetworksEnum,
-  ): Promise<IProposalsResponse> => {
-    const proposal = await Models.Proposal.findByTransactionHash(transactionHash, network)
-    assertExposable(proposal, ErrorKeyEnum.notFound)
-    proposal.executed = proposal.executed ? proposal.executed : { status: false }
-    return proposal.filterKeys()
+    return proposal
   },
 
   getProposalsWithPagination: async (
