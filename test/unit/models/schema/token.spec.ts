@@ -86,12 +86,6 @@ describe('Model: Token', () => {
     expect(createdToken.address).to.eq('0x162433c934aA74ba147E05150B1206b2C922f71d')
   })
 
-  it('Should find Token by address', async () => {
-    const createdToken = await Models.Token.create(rawToken)
-    const token = await Models.Token.findByTokenAddress(createdToken.address)
-    expect(token?.address).to.eq(createdToken.address)
-  })
-
   it('Should find Token by address and networks', async () => {
     const createdToken = await Models.Token.create(rawToken)
     const token = await Models.Token.findByTokenAddressAndNetwork(

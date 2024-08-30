@@ -2,16 +2,8 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import IndexerService from '@services/aragon-indexer/index'
-import config from '@config'
-import utils from '@helpers/utils'
-import { EnumConnection } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import logger from '@logger'
-// import { AggregatorMembers } from '@services/aragon-indexer/aggregator/member'
-// import { AggregatorDao } from '@services/aragon-indexer/aggregator/dao'
-// import { AggregatorProposal } from '@indexer/aggregator/proposal'
-// import { AggregatorDelegate } from '@indexer/aggregator/delegate'
-// import { AggregatorVote } from '@indexer/aggregator/vote'
 
 describe('Indexer: index', () => {
   let sandbox: SinonSandbox
@@ -24,55 +16,57 @@ describe('Indexer: index', () => {
     sandbox?.restore()
   })
 
-  it('Should start, schedule tasks, and stop', async () => {
-    let schedulerStub = sandbox.createStubInstance(TaskSchedulerState)
-    sandbox.stub(TaskSchedulerState, 'getInstance').returns(schedulerStub)
+  it('should start the indexer service', async () => {
+    const runCrawlersInOrderStub = sandbox.stub(IndexerService, 'runCrawlersInOrder')
+    const startRealtimeListenersStub = sandbox.stub(IndexerService, 'startRealtimeListeners')
 
-    expect(IndexerService.NEED_CONNECTIONS).to.deep.equal([EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN])
-
-    const configBk = config.SERVICES.ARAGON_INDEXER.DAO_INTERVAL
-    config.SERVICES.ARAGON_INDEXER.DAO_INTERVAL = 200
-
-    // const taskStubs = [
-    //   sandbox.stub(AggregatorMembers, 'start').resolves(),
-    //   sandbox.stub(AggregatorProposal, 'start').resolves(),
-    //   sandbox.stub(AggregatorDelegate, 'start').resolves(),
-    //   sandbox.stub(AggregatorDao, 'start').resolves(),
-    //   sandbox.stub(AggregatorVote, 'start').resolves(),
-    // ]
+    const loggerStub = sandbox.stub(logger, 'info')
 
     await IndexerService.start()
-    await utils.wait(100)
 
-    expect(schedulerStub.startTask.calledOnce).to.be.true
-    const taskOptions = schedulerStub.startTask.firstCall.args[1]
+    expect(runCrawlersInOrderStub.calledOnce).to.be.true
+    expect(startRealtimeListenersStub.calledOnce).to.be.true
+    expect(loggerStub.calledTwice).to.be.true
+  })
 
-    // Simulate the task execution
-    for (const taskGroup of taskOptions.fn()) {
-      for (const task of taskGroup) {
-        const taskName = Object.keys(task)[0]
-        await task[taskName].start()
-      }
-    }
-
-    // expect(taskStubs.every(stub => stub.calledOnce)).to.be.true
+  it('should the indexer service', async () => {
+    const scheduler = TaskSchedulerState.getInstance()
+    const stopTaskStub = sandbox.stub(scheduler, 'stopTask')
+    const loggerStub = sandbox.stub(logger, 'info')
 
     await IndexerService.stop()
 
-    expect(schedulerStub.stopTask.calledOnce).to.be.true
-
-    config.SERVICES.ARAGON_INDEXER.DAO_INTERVAL = configBk
+    expect(stopTaskStub.calledOnce).to.be.true
+    expect(loggerStub.calledOnce).to.be.true
   })
 
-  it('Should handle errors and call onError', async () => {
-    const stubLoggerError = sandbox.stub(logger, 'error')
+  it('should initialize event listeners', async () => {
+    const networks = [{ networkName: 'mainnet' }]
+    const eventListeners = IndexerService.initializeEventListeners(networks)
 
-    sandbox.stub(TaskSchedulerState.prototype, 'startTask').callsFake((_: string, options: any): any => {
-      options?.onError(new Error('Task error'))
-    })
+    expect(eventListeners.length).to.eq(7)
+  })
 
-    await IndexerService.start()
+  it('should run crawlers in order', async () => {
+    const eventListeners = [
+      { name: 'proposal', start: sandbox.stub().resolves(true), listen: [{ enableHistorical: true }] },
+    ]
+    const orderedServices = [['proposal']]
 
-    expect(stubLoggerError.calledOnceWith('IndexerService task error' as any)).to.be.true
+    await IndexerService.runCrawlersInOrder(eventListeners as any, orderedServices as any)
+
+    expect(eventListeners[0].start.calledOnce).to.be.true
+  })
+
+  it('should start real-time listeners', async () => {
+    const eventListeners = [
+      { name: 'proposal', start: sandbox.stub().resolves(true), listen: [{ enableRealtime: true }] },
+      { name: 'vote', start: sandbox.stub().resolves(true), listen: [{ enableRealtime: false }] },
+    ]
+
+    await IndexerService.startRealtimeListeners(eventListeners as any)
+
+    expect(eventListeners[0].start.calledOnce).to.be.true
+    expect(eventListeners[1].start.notCalled).to.be.true
   })
 })

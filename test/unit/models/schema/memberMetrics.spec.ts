@@ -105,10 +105,7 @@ describe('Model: MemberMetrics', () => {
 
   it('Should findByAddress', async () => {
     const createdMemberMetrics = await Models.MemberMetrics.create(rawMemberMetrics)
-    const member = await Models.MemberMetrics.findByAddress(
-      createdMemberMetrics.pluginAddress,
-      createdMemberMetrics.network,
-    )
+    const member = await Models.MemberMetrics.findByAddress(createdMemberMetrics.address, createdMemberMetrics.network)
     expect(member?.address).to.eq(createdMemberMetrics.address)
   })
 

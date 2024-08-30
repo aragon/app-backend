@@ -14,6 +14,7 @@ import Etherscan from '@helpers/etherscan'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import Ipfs from '@modules/ipfs'
 import { Models } from '@dbModels'
+import { ProxyMember } from '@modules/proxyMember'
 
 describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
@@ -134,6 +135,26 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
+      // findByTokenAddressAndNetwork
+      const findTokenStub = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: 'ERC20',
+      } as any)
+
+      const saveAndGetMemberStub = sandbox.stub(ProxyMember, 'saveAndGetMember').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        ens: 'userEns.eth',
+        avatar: 'ERC20',
+      } as any)
+
+      const findByAddressDaoStub = sandbox.stub(Models.Dao, 'findByAddress').resolves({
+        ens: 'daoEns.eth',
+      } as any)
+
       const result = await decodeActions.decodeTransfer(action, document as any)
 
       expect(result?.inputData.function).to.eq('NativeTransfer')
@@ -143,6 +164,9 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.amount).to.eq(action.value)
       expect(result?.type).to.be.eq(ProposalActionType.Transfer)
       expect(result?.inputData.contract).to.be.eq('NativeToken')
+      expect(findTokenStub.calledOnce).to.be.true
+      expect(saveAndGetMemberStub.calledOnce).to.be.true
+      expect(findByAddressDaoStub.calledOnce).to.be.true
     })
 
     it('Should not decodeData if not native', async () => {
@@ -966,15 +990,19 @@ describe('Helpers: DecodeActions', () => {
       }
 
       const getMultiSigMemberAtBlockNumberStub = sandbox
-        .stub(Models.LogMember, 'getMultiSigMemberAtBlockNumber')
-        .resolves({
-          members: ['0x3949F15155D4b85d0159aB79cbf38DC51c41DD9E'],
-        })
+        .stub(Models.DaoMemberMapping, 'findAllMembersOfPlugin')
+        .resolves([{ memberAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9E' }])
+
+      const saveAndGetMemberStub = sandbox.stub(ProxyMember, 'saveAndGetMember').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        ens: 'abc.eth',
+      } as any)
 
       const result = await decodeActions._parseAddMemberAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.MultisigAddMembers)
 
       expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
+      expect(saveAndGetMemberStub.callCount).to.be.eq(2)
     })
 
     it('should return null when the signature is not correct for remove multisig', async () => {
@@ -1032,14 +1060,18 @@ describe('Helpers: DecodeActions', () => {
       }
 
       const getMultiSigMemberAtBlockNumberStub = sandbox
-        .stub(Models.LogMember, 'getMultiSigMemberAtBlockNumber')
-        .resolves({
-          members: ['0x3949F15155D4b85d0159aB79cbf38DC51c41DD9E'],
-        })
+        .stub(Models.DaoMemberMapping, 'findAllMembersOfPlugin')
+        .resolves([{ memberAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9E' }])
+
+      const saveAndGetMemberStub = sandbox.stub(ProxyMember, 'saveAndGetMember').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        ens: 'abc.eth',
+      } as any)
 
       const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.MultisigRemoveMembers)
       expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
+      expect(saveAndGetMemberStub.calledTwice).to.be.true
     })
 
     it('should return null when the signature is not correct for mint', async () => {

@@ -19,21 +19,13 @@ describe('Model: Vote', () => {
       pluginAddress: '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D2F',
       proposalId: 3,
       memberAddress: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
+      tokenAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
       voteOption: 2,
       votingPower: '4000000000000000000',
       transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd22d',
       blockTimestamp: 1219577223,
       blockNumber: 4879275,
       daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3804',
-      token: {
-        network: NetworksEnum.ethereumSepolia,
-        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        type: ITokenType.GovernanceERC20,
-        logo: 'https://logos.covalenthq.com/tokens/11155111/0x3949f15155d4b85d0159ab79cbf38dc51c41dd9f.png',
-        name: 'T5673',
-        decimals: 18,
-        symbol: 'T5673',
-      },
     }
   })
 
@@ -51,12 +43,6 @@ describe('Model: Vote', () => {
       })
       const vote = await Models.Vote.create(rawVote)
       expect(vote.id).to.eq(entityId)
-      expect(vote.token.decimals).to.eq(rawVote.token?.decimals)
-      expect(vote.token.logo).to.eq(rawVote.token?.logo)
-      expect(vote.token.type).to.eq(rawVote.token?.type)
-      expect(vote.token.name).to.eq(rawVote.token?.name)
-      expect(vote.token.symbol).to.eq(rawVote.token?.symbol)
-      expect(vote.token.address).to.eq(rawVote.token?.address)
       expect(vote.transactionHash).to.eq(rawVote.transactionHash)
       expect(vote.blockNumber).to.eq(rawVote.blockNumber)
       expect(vote.blockTimestamp).to.eq(rawVote.blockTimestamp)
@@ -160,15 +146,7 @@ describe('Model: Vote', () => {
           blockTimestamp: 1219577223,
           blockNumber: 4879275,
           daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3800',
-          token: {
-            network: NetworksEnum.ethereumSepolia,
-            address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-            type: ITokenType.GovernanceERC20,
-            logo: 'https://logos.covalenthq.com/tokens/11155111/0x3949f15155d4b85d0159ab79cbf38dc51c41dd9f.png',
-            name: 'T5673',
-            decimals: 18,
-            symbol: 'T5673',
-          },
+          tokenAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         },
         {
           network: NetworksEnum.ethereumSepolia,
@@ -181,15 +159,7 @@ describe('Model: Vote', () => {
           blockTimestamp: 1219577223,
           blockNumber: 4879275,
           daoAddress: '0xDb8a4b71D328F4B883Ea891a038519Afe07F3801',
-          token: {
-            network: NetworksEnum.ethereumSepolia,
-            address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-            type: ITokenType.GovernanceERC20,
-            logo: 'https://logos.covalenthq.com/tokens/11155111/0x3949f15155d4b85d0159ab79cbf38dc51c41dd9f.png',
-            name: 'T5673',
-            decimals: 18,
-            symbol: 'T5673',
-          },
+          tokenAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         },
       ]
 
@@ -286,38 +256,5 @@ describe('Model: Vote', () => {
     await createdLogDao.reload()
 
     expect(createdLogDao.memberAddress).to.eq(rawVote.memberAddress)
-  })
-
-  it('Should filterKeys', async () => {
-    const createdDao = await Models.Vote.create(rawVote)
-    const filterDao = createdDao.filterKeys()
-
-    expect(filterDao.id).to.be.undefined
-    expect(filterDao._id).to.be.undefined
-    expect(filterDao.__v).to.be.undefined
-    expect(filterDao.createdAt).to.be.undefined
-    expect(filterDao.updatedAt).to.be.undefined
-    expect(filterDao.token.id).to.be.undefined
-    expect(filterDao.token._id).to.be.undefined
-    expect(filterDao.token.address).to.exist
-    expect(Object.keys(filterDao).length).to.eq(12)
-  })
-
-  it('Should filterKeys without token', async () => {
-    const createdWithoutToken = await Models.Vote.create({ ...rawVote, ...{ token: undefined } })
-    const withoutToken = createdWithoutToken.filterKeys()
-    expect(withoutToken.token).to.be.undefined
-  })
-
-  it('should findMemberActivity', async () => {
-    const aggStub = sandbox.stub(Models.Vote, 'aggregate').resolves([
-      {
-        xx: 'yy',
-      },
-    ])
-
-    const result = await Models.Vote.findMemberActivity('0x123')
-    expect(result).to.deep.eq({ xx: 'yy' })
-    expect(aggStub.calledOnce).to.be.true
   })
 })
