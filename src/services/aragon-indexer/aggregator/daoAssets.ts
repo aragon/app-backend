@@ -71,16 +71,15 @@ export const AggregatorDaoAssets = {
         tokenBalances
           .filter(token => Number(token.tokenBalance) > 0)
           .map(async (token: IAlchemyTokenBalance) => {
-            let tokenDb: any = null
             if (token?.contractAddress) {
-              tokenDb = await ProxyToken.saveAndGetToken(token.contractAddress, document.network)
+              await ProxyToken.saveAndGetToken(token.contractAddress, document.network)
             } else {
               logger.error('Error Token balance missing contractAddress', llo({ token }))
             }
 
             const existingAssetDb = await Models.Asset.findExistingLog({
               daoAddress: document.address,
-              tokenAddress: tokenDb?.address,
+              tokenAddress: token.contractAddress,
               network: document.network,
             })
 
@@ -88,7 +87,7 @@ export const AggregatorDaoAssets = {
               amount: token.tokenBalance,
               network: document.network,
               daoAddress: document.address,
-              tokenAddress: tokenDb?.address,
+              tokenAddress: token.contractAddress,
             }
 
             await DbTx.executeTxFn(async ({ session }) => {

@@ -28,10 +28,13 @@ class BlockchainLogCrawler {
   private shutdown: boolean
   public readonly crawlResult: {
     network: NetworksEnum
+    fromBlock: number
+    toBlock: number
     nbSuccess: number
     nbError: number
     nbTotal: number
     lastSync: number
+    logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
   }
 
   constructor(opts: {
@@ -67,7 +70,10 @@ class BlockchainLogCrawler {
     this.logService = opts.logService ?? null
 
     this.crawlResult = {
+      fromBlock: 0,
+      toBlock: 0,
       network: opts.network,
+      logService: this.logService,
       lastSync: 0,
       nbSuccess: 0,
       nbError: 0,
@@ -155,18 +161,6 @@ class BlockchainLogCrawler {
       const topicChunks = utils.chunkArray(this.filter.topics, 6)
 
       for (const topics of topicChunks) {
-        logger.silly(
-          'Querying logs for topic chunk',
-          llo({
-            network: this.crawlResult.network,
-            initBlock: this.fromBlock,
-            endBlock: this.toBlock,
-            fromBlock: currentBlock,
-            toBlock,
-            topics,
-          }),
-        )
-
         let success = false
         while (!success) {
           try {
@@ -180,6 +174,9 @@ class BlockchainLogCrawler {
                 }),
               ),
             )
+            this.crawlResult.fromBlock = currentBlock
+            this.crawlResult.toBlock = toBlock
+            this.crawlResult.nbTotal += logs.length
             await this.processLogs(logs.sort((a, b) => a.blockNumber - b.blockNumber))
             this.batchSize = this.originalBatchSize
             success = true
@@ -233,7 +230,7 @@ class BlockchainLogCrawler {
         if (log.blockNumber) {
           this.crawlResult.lastSync = log?.blockNumber
         }
-        logger.verbose('Processing log', llo({ crawlResult: { ...this.crawlResult, ...{ totalLogs: logs.length } } }))
+        logger.verbose('Processing log', llo({ crawlResult: this.crawlResult }))
         if (this.logService && log.blockNumber) {
           await this.onSaveProgress(log.blockNumber)
         }

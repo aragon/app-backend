@@ -7,22 +7,22 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:AggregatorProp
 
 export const AggregatorProposalMetrics = {
   proposalMultisigMetrics: async ({
-    proposalId,
+    proposalIndex,
     pluginAddress,
     network,
   }: {
-    proposalId: number
+    proposalIndex: number
     pluginAddress: string
     network: string
   }) => {
-    const proposal = await Models.Proposal.findByProposalId(proposalId, pluginAddress, network)
+    const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, pluginAddress, network)
 
     if (!proposal) {
-      logger.warn('Proposal not found - multisig metrics ', llo({ proposalId, pluginAddress, network }))
+      logger.warn('Proposal not found - multisig metrics ', llo({ proposalIndex, pluginAddress, network }))
       return
     }
 
-    const votes = await Models.Vote.findVotes({ proposalId, pluginAddress, network })
+    const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network })
 
     const rawMetrics = {
       approvalReached: votes.length >= proposal.settings.minApprovals,
@@ -41,22 +41,22 @@ export const AggregatorProposalMetrics = {
   },
 
   proposalTokenVotingMetrics: async ({
-    proposalId,
+    proposalIndex,
     pluginAddress,
     network,
   }: {
-    proposalId: number
+    proposalIndex: number
     pluginAddress: string
     network: string
   }) => {
-    const proposal = await Models.Proposal.findByProposalId(proposalId, pluginAddress, network)
+    const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, pluginAddress, network)
 
     if (!proposal) {
-      logger.warn('Proposal not found - tokenVoting metrics ', llo({ proposalId, pluginAddress, network }))
+      logger.warn('Proposal not found - tokenVoting metrics ', llo({ proposalIndex, pluginAddress, network }))
       return
     }
 
-    const votes = await Models.Vote.findVotes({ proposalId, pluginAddress, network })
+    const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network })
     const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
       pluginAddress,
       network,
@@ -85,7 +85,7 @@ export const AggregatorProposalMetrics = {
       approvalReached: votes.length >= proposal.settings.minApprovals,
       metrics: {
         totalVotes: votes.length,
-        missingVotes: members.length - votes.length,
+        missingVotes: members.length - votes.length, // TODO: here we need to get the member at the block numbers
         votesByOption: Object.entries(voteAggregation).map(([type, data]) => ({
           type,
           totalVotes: data.totalVotes,

@@ -27,11 +27,11 @@ export const ProposalHandler = {
     }
 
     const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
-    const proposalId = Number(parsedEvent.args.proposalId)
+    const proposalIndex = Number(parsedEvent.args.proposalId)
     const existingLog = await Models.Proposal.findExistingLog({
       transactionHash: info.transactionHash,
       pluginAddress,
-      proposalId,
+      proposalIndex,
     })
     if (existingLog) return
 
@@ -52,7 +52,7 @@ export const ProposalHandler = {
       pluginAddress,
       pluginSubdomain: relatedPlugin.subdomain,
       creatorAddress: parsedEvent.args.creator,
-      proposalId,
+      proposalIndex,
       startDate: Number(parsedEvent.args.startDate),
       endDate: Number(parsedEvent.args.endDate),
       allowFailureMap: Number(parsedEvent.args.allowFailureMap),
@@ -105,7 +105,6 @@ export const ProposalHandler = {
 
     const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)
 
-    // NOTE: improve scalability, use queue messages
     await Promise.all([
       ProposalHandler.parseActions(newProposal),
       ProxyMember.memberActivity(newProposal.creatorAddress, newProposal.blockNumber, newProposal.network),
@@ -122,8 +121,8 @@ export const ProposalHandler = {
   },
 
   approved: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const proposalId = Number(parsedEvent.args.proposalId)
-    const proposal = await Models.Proposal.findByProposalId(proposalId, info.address, info.network)
+    const proposalIndex = Number(parsedEvent.args.proposalId)
+    const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
 
     if (!proposal) {
       logger.warn('Approved - Proposal not found', llo(info))
@@ -134,7 +133,7 @@ export const ProposalHandler = {
       network: info.network,
       transactionHash: info.transactionHash,
       pluginAddress: info.address,
-      proposalId,
+      proposalIndex,
     })
     if (existingLog) return
 
@@ -146,7 +145,7 @@ export const ProposalHandler = {
       daoAddress: proposal?.daoAddress,
       pluginAddress: info.address,
       memberAddress: parsedEvent.args.approver,
-      proposalId: Number(parsedEvent.args.proposalId),
+      proposalIndex: Number(parsedEvent.args.proposalId),
     }
 
     await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
@@ -160,7 +159,7 @@ export const ProposalHandler = {
         network: info.network,
       }),
       AggregatorProposalMetrics.proposalMultisigMetrics({
-        proposalId,
+        proposalIndex,
         pluginAddress: info.address,
         network: info.network,
       }),
@@ -172,8 +171,8 @@ export const ProposalHandler = {
   },
 
   voteCast: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const proposalId = Number(parsedEvent.args.proposalId)
-    const proposal = await Models.Proposal.findByProposalId(proposalId, info.address, info.network)
+    const proposalIndex = Number(parsedEvent.args.proposalId)
+    const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
 
     if (!proposal) {
       logger.warn('VoteCast - Proposal not found', llo(info))
@@ -184,7 +183,7 @@ export const ProposalHandler = {
       network: info.network,
       transactionHash: info.transactionHash,
       pluginAddress: info.address,
-      proposalId,
+      proposalIndex,
     })
     if (existingLog) return
 
@@ -197,7 +196,7 @@ export const ProposalHandler = {
       pluginAddress: info.address,
       memberAddress: parsedEvent.args.voter,
       tokenAddress: proposal.settings.tokenAddress,
-      proposalId: Number(parsedEvent.args.proposalId),
+      proposalIndex: Number(parsedEvent.args.proposalId),
       voteOption: Number(parsedEvent.args.voteOption),
       votingPower: parsedEvent.args.votingPower.toString(),
     }
@@ -217,7 +216,7 @@ export const ProposalHandler = {
         network: info.network,
       }),
       AggregatorProposalMetrics.proposalTokenVotingMetrics({
-        proposalId,
+        proposalIndex,
         pluginAddress: info.address,
         network: info.network,
       }),
@@ -230,9 +229,9 @@ export const ProposalHandler = {
 
   proposalExecuted: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const parsedParams = {
-      proposalId: Number(parsedEvent.args.proposalId),
+      proposalIndex: Number(parsedEvent.args.proposalId),
     }
-    const proposal = await Models.Proposal.findByProposalId(parsedParams.proposalId, info.address, info.network)
+    const proposal = await Models.Proposal.findByProposalIndex(parsedParams.proposalIndex, info.address, info.network)
     if (!proposal) {
       logger.warn('proposal not found', llo({ ...info, parsedEvent }))
       return
@@ -267,27 +266,27 @@ export const ProposalHandler = {
       return []
     }
 
-    const decodeActions = new DecodeActions()
-    const parsedActions = proposal.rawActions
-    const rawActions = await Promise.all(
-      parsedActions.map(async (action: any) => {
-        let decodeData: any
-
-        if (action.data?.length >= 10) {
-          decodeData = await decodeActions.decodeData(action, proposal)
-        } else {
-          decodeData = await decodeActions.decodeTransfer(action, proposal)
-        }
-
-        if (decodeData) {
-          return decodeData
-        }
-
-        return []
-      }),
-    )
-
     try {
+      const decodeActions = new DecodeActions()
+      const parsedActions = proposal.rawActions
+      const rawActions = await Promise.all(
+        parsedActions.map(async (action: any) => {
+          let decodeData: any
+
+          if (action.data?.length >= 10) {
+            decodeData = await decodeActions.decodeData(action, proposal)
+          } else {
+            decodeData = await decodeActions.decodeTransfer(action, proposal)
+          }
+
+          if (decodeData) {
+            return decodeData
+          }
+
+          return []
+        }),
+      )
+
       return await DbOperations.updateDocument(
         proposal,
         { actions: rawActions },

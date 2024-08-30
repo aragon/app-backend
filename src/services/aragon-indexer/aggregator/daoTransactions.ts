@@ -111,12 +111,12 @@ export const AggregatorDaoTransactions = {
        * If the transaction is a proposal execution
        * We get two events from the DAO contract
        * - Executed (The address when the proposal was executed is the DAO address)
-       * - ProposalExecuted (The proposalId is the topic of the log)
+       * - ProposalExecuted (The proposalIndex is the topic of the log)
        */
 
       let daoAddress = dao.address
       let pluginAddress: string | undefined
-      let proposalId: string | undefined
+      let proposalIndex: number | undefined
 
       const proposalExecutionLog = Web3Helper.findLogsByName(transactionReceipt, 'Executed', DAO.abi)
       if (proposalExecutionLog?.length) {
@@ -126,7 +126,7 @@ export const AggregatorDaoTransactions = {
         pluginAddress = proposalIdLog[0].txLog.address
 
         if (proposalIdLog?.length) {
-          proposalId = BigInt(proposalIdLog[0].txLog.topics[1]).toString()
+          proposalIndex = Number(proposalIdLog[0].txLog.topics[1])
         }
       }
 
@@ -161,7 +161,7 @@ export const AggregatorDaoTransactions = {
             value: w.value?.toString(),
           })),
           category: tx.category,
-          proposalId,
+          proposalIndex,
         }
 
         const tokenAddress = tx.rawContract?.address || utils.zeroAddress

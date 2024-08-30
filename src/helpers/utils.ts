@@ -270,6 +270,13 @@ const Utils = {
     }
     return value === true || value === 'true'
   },
+
+  parseNumber: (value: any): number | undefined => {
+    if (value === undefined || value === 'undefined') {
+      return
+    }
+    return Number(value)
+  },
 }
 
 export default Utils

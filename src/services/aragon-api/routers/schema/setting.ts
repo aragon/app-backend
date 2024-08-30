@@ -4,7 +4,6 @@ import { NetworksEnum } from '@types'
 
 const SettingSchema = {
   getExtraParams: Joi.object({
-    onlyActive: Joi.boolean().optional(),
     daoAddress: ValidationSchema.joiAddress.optional(),
     pluginAddress: ValidationSchema.joiAddress.optional(),
     network: Joi.string()

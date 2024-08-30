@@ -65,7 +65,7 @@ export default class Vote extends Model {
   public tokenAddress!: HexAddress
 
   @prop({ type: () => Number })
-  public proposalId!: number
+  public proposalIndex!: number
 
   @prop({ type: () => Number })
   public voteOption?: number
@@ -78,12 +78,12 @@ export default class Vote extends Model {
       assert(!!rawData.network, 'pluginAddress is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
-      assert(!!rawData.proposalId || rawData.proposalId === 0, 'proposalId is required')
+      assert(!!rawData.proposalIndex || rawData.proposalIndex === 0, 'proposalIndex is required')
       rawData.id = this.getEntityId({
         network: rawData?.network!,
         transactionHash: rawData?.transactionHash!,
         pluginAddress: rawData?.pluginAddress!,
-        proposalId: rawData?.proposalId!,
+        proposalIndex: rawData?.proposalIndex!,
       })
     }
     const data = new this(rawData)
@@ -91,7 +91,7 @@ export default class Vote extends Model {
   }
 
   static getEntityId(params: IVoteIdParams) {
-    const entityId = `${params.network}-${params.transactionHash}-${params.pluginAddress}-${params.proposalId}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.pluginAddress}-${params.proposalIndex}`
     return entityId
   }
 
@@ -105,15 +105,15 @@ export default class Vote extends Model {
   }
 
   static async findVotes({
-    proposalId,
+    proposalIndex,
     pluginAddress,
     network,
   }: {
-    proposalId: number
+    proposalIndex: number
     pluginAddress: HexAddress
     network: NetworksEnum
   }) {
-    return await this.find({ proposalId, pluginAddress, network })
+    return await this.find({ proposalIndex, pluginAddress, network })
   }
 
   static async findWithPagination({
@@ -154,6 +154,41 @@ export default class Vote extends Model {
           token: { $arrayElemAt: ['$token', 0] },
         },
       },
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$memberAddress',
+        },
+        'memberAddressInfo',
+        {
+          address: 1,
+          ens: 1,
+          avatar: 1,
+        },
+      ),
+      {
+        $addFields: {
+          memberAddress: {
+            $cond: {
+              if: { $gt: [{ $size: '$memberAddressInfo' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$memberAddressInfo.address', 0] },
+                ens: { $arrayElemAt: ['$memberAddressInfo.ens', 0] },
+                avatar: { $arrayElemAt: ['$memberAddressInfo.avatar', 0] },
+              },
+              else: {
+                address: '$memberAddress',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          memberAddressInfo: '$$REMOVE',
+        },
+      },
     ]
 
     if (extraParams.includeInfo) {
@@ -161,12 +196,15 @@ export default class Vote extends Model {
         {
           $lookup: {
             from: 'Proposal',
-            let: { proposalId: '$proposalId', pluginAddress: '$pluginAddress' },
+            let: { proposalIndex: '$proposalIndex', pluginAddress: '$pluginAddress' },
             pipeline: [
               {
                 $match: {
                   $expr: {
-                    $and: [{ $eq: ['$proposalId', '$$proposalId'] }, { $eq: ['$pluginAddress', '$$pluginAddress'] }],
+                    $and: [
+                      { $eq: ['$proposalIndex', '$$proposalIndex'] },
+                      { $eq: ['$pluginAddress', '$$pluginAddress'] },
+                    ],
                   },
                 },
               },
@@ -174,7 +212,8 @@ export default class Vote extends Model {
                 $project: {
                   _id: 0,
                   id: 1,
-                  proposalId: 1,
+                  transactionHash: 1,
+                  proposalIndex: 1,
                   title: 1,
                   description: 1,
                   summary: 1,
@@ -189,7 +228,7 @@ export default class Vote extends Model {
         },
         {
           $addFields: {
-            proposalInfo: { $arrayElemAt: ['$proposalDetails', 0] },
+            proposal: { $arrayElemAt: ['$proposalDetails', 0] },
           },
         },
       )
@@ -203,10 +242,10 @@ export default class Vote extends Model {
         blockTimestamp: 1,
         network: 1,
         memberAddress: 1,
-        proposalId: 1,
+        proposalIndex: 0,
         votingPower: 1,
         token: 1,
-        proposalInfo: 1,
+        proposal: 1,
       },
     })
 

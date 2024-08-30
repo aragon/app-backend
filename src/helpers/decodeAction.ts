@@ -28,14 +28,14 @@ import {
   AddresslistVoting,
   DAO,
   DAOFactory,
+  DAORegistry,
   GoveranceERC20,
   Multisig,
-  TokenVoting,
   MultiSigSetup,
   PluginRepo,
   PluginRepoFactory,
   PluginRepoRegistry,
-  DAORegistry,
+  TokenVoting,
 } from '@src/aragonContracts'
 
 import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
@@ -335,14 +335,7 @@ class DecodeActions {
       sender: { address: metadata.from },
       receiver: { address: metadata.to },
       amount: metadata.value,
-      token: {
-        name: metadata.token.name,
-        symbol: metadata.token.symbol,
-        decimals: metadata.token.decimals,
-        logo: metadata.token.logo,
-        priceUsd: metadata.token.priceUsd,
-        address: metadata.token.address,
-      },
+      token: metadata.token,
     }
   }
 
