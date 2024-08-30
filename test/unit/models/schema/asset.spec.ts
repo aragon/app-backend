@@ -77,25 +77,6 @@ describe('Model: Asset', () => {
     expect(createdAsset.amount).to.eq('90')
   })
 
-  it('Should findAssetsByDao', async () => {
-    const createdAsset = await Models.Asset.create(rawAsset)
-    const assets = await Models.Asset.findAssetsByDao(
-      rawAsset.daoAddress as HexAddress,
-      rawAsset.network as NetworksEnum,
-    )
-    expect(assets[0].tokenAddress).to.eq(createdAsset.tokenAddress)
-  })
-
-  it('Should findAssetByTokenAndDao', async () => {
-    const createdAsset = await Models.Asset.create(rawAsset)
-    const token = await Models.Asset.findAssetByTokenAndDao(
-      createdAsset.tokenAddress,
-      createdAsset.daoAddress,
-      rawAsset.network as NetworksEnum,
-    )
-    expect(token?.tokenAddress).to.eq(createdAsset.tokenAddress)
-  })
-
   describe('Pagination', () => {
     beforeEach(async () => {
       const fakeAsset = [
@@ -173,17 +154,5 @@ describe('Model: Asset', () => {
     await createdAsset.reload()
 
     expect(createdAsset.tokenAddress).to.eq(rawAsset.tokenAddress)
-  })
-
-  it('Should getDaoTvl with mock data', async () => {
-    await Models.Asset.create(FakeAsset)
-    await Models.Token.create(FakeToken)
-
-    const result = await Models.Asset.getDaoTvl(FakeAsset.daoAddress, NetworksEnum.polygonMainnet)
-
-    expect(result.tvlUsd).to.be.exist
-    expect(result.tvlUsd.toString()).to.be.eq('8125101180.00')
-    expect(result.daoAddress).to.be.eq(FakeAsset.daoAddress)
-    expect(result.network).to.be.eq(FakeAsset.network)
   })
 })

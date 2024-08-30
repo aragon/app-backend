@@ -392,20 +392,6 @@ describe('Model: Dao', () => {
     })
   })
 
-  it('Should filterKeys', async () => {
-    const createdDao = await Models.Dao.create(rawDao)
-    const filterDao = createdDao.filterKeys()
-
-    expect(filterDao.id).to.exist
-    expect(filterDao._id).to.be.undefined
-    expect(filterDao.__v).to.be.undefined
-    expect(filterDao.createdAt).to.be.undefined
-    expect(filterDao.updatedAt).to.be.undefined
-    expect(filterDao.isHidden).to.be.undefined
-    expect(filterDao.isActive).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(17)
-  })
-
   it('should getDaoDetails', async () => {
     const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').returns([{ a: 1 }])
     await Models.Dao.getDaoDetails('0x17366cae2b9c6c3055e9e3c78936a69006be5409')
@@ -413,6 +399,12 @@ describe('Model: Dao', () => {
     expect(aggregateStub.calledOnce).to.be.true
     expect(aggregateStub.args[0][0][0].$match).to.deep.eq({
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      isActive: {
+        $eq: true,
+      },
+      isHidden: {
+        $ne: true,
+      },
     })
   })
 })

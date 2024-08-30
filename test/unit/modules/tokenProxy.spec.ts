@@ -9,6 +9,7 @@ import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
 import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
+import logger from '@logger'
 
 describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox
@@ -51,6 +52,8 @@ describe('Modules: ProxyToken', () => {
         logo: null,
       } as any)
 
+      sandbox.stub(logger, 'verbose')
+
       const stubTokenMetrics = sandbox.stub(ProxyToken, 'getTokenMetrics').resolves({
         totalHolders: 20,
         totalSupply: '1000',
@@ -60,10 +63,18 @@ describe('Modules: ProxyToken', () => {
         .stub(TokenDetector, 'detectTokenType')
         .resolves({ type: ITokenType.GovernanceERC20, implementationAddress: '0x456' } as any)
 
+      const getContractCreationInfoStub = sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
+        txHash: '0x123',
+        blockNumber: 100,
+        address: '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
+      })
+
       const token = await ProxyToken.saveAndGetToken(
         '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
         NetworksEnum.ethereumMainnet,
       )
+
+      expect(getContractCreationInfoStub.calledOnce).to.be.true
 
       expect(stubRate.calledOnceWith('0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564', NetworksEnum.ethereumMainnet)).to.be
         .true
@@ -91,9 +102,11 @@ describe('Modules: ProxyToken', () => {
         decimals: 18,
         symbol: 'TKN',
         logo: null,
+        type: ITokenType.unknown,
         priceUsd: '1',
         priceChangeOnDayUsd: '0.1',
       } as any)
+      sandbox.stub(logger, 'verbose')
       const stubFind = sandbox.stub(Models.Token, 'findExistingLog').resolves(null)
       const stubDetectTokenType = sandbox
         .stub(TokenDetector, 'detectTokenType')
@@ -102,7 +115,11 @@ describe('Modules: ProxyToken', () => {
         totalHolders: 20,
         totalSupply: '2000',
       } as any)
-
+      const getContractCreationInfoStub = sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
+        txHash: '0x123',
+        blockNumber: 100,
+        address: '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
+      })
       const token = await ProxyToken.saveAndGetToken(
         '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
         NetworksEnum.ethereumMainnet,
@@ -115,6 +132,7 @@ describe('Modules: ProxyToken', () => {
       expect(stubTokenMetrics.calledOnce).to.be.true
       expect(token!.type).to.eq(ITokenType.unknown)
       expect(token!.skipFetchRate).to.eq(false)
+      expect(getContractCreationInfoStub.calledOnce).to.be.true
     })
 
     it('should return existing token if found', async () => {
