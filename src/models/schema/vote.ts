@@ -158,7 +158,7 @@ export default class Vote extends Model {
         {
           memberAddress: '$memberAddress',
         },
-        'memberAddressInfo',
+        'member',
         {
           address: 1,
           ens: 1,
@@ -167,13 +167,13 @@ export default class Vote extends Model {
       ),
       {
         $addFields: {
-          memberAddress: {
+          member: {
             $cond: {
-              if: { $gt: [{ $size: '$memberAddressInfo' }, 0] },
+              if: { $gt: [{ $size: '$member' }, 0] },
               then: {
-                address: { $arrayElemAt: ['$memberAddressInfo.address', 0] },
-                ens: { $arrayElemAt: ['$memberAddressInfo.ens', 0] },
-                avatar: { $arrayElemAt: ['$memberAddressInfo.avatar', 0] },
+                address: { $arrayElemAt: ['$member.address', 0] },
+                ens: { $arrayElemAt: ['$member.ens', 0] },
+                avatar: { $arrayElemAt: ['$member.avatar', 0] },
               },
               else: {
                 address: '$memberAddress',
@@ -186,7 +186,7 @@ export default class Vote extends Model {
       },
       {
         $addFields: {
-          memberAddressInfo: '$$REMOVE',
+          memberAddress: '$$REMOVE',
         },
       },
     ]
@@ -241,8 +241,8 @@ export default class Vote extends Model {
         blockNumber: 1,
         blockTimestamp: 1,
         network: 1,
-        memberAddress: 1,
-        proposalIndex: 0,
+        member: 1,
+        proposalIndex: 1,
         votingPower: 1,
         token: 1,
         proposal: 1,
