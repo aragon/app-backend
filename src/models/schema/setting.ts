@@ -118,8 +118,8 @@ export default class Setting extends Model {
     pluginAddress,
     network,
   }: {
-    pluginAddress: HexAddress
-    daoAddress: HexAddress
+    pluginAddress?: HexAddress
+    daoAddress?: HexAddress
     network: NetworksEnum
   }) {
     const params: any = {
