@@ -4,10 +4,14 @@ import { expect } from 'chai'
 import logger from '@logger'
 import { IEventLogPluginType, ITokenType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
-import { PluginSetupProcessorHandler } from '@services/aragon-indexer/handlers/pluginSetupProcessorHandler'
+import {
+  IPluginActionType,
+  PluginSetupProcessorHandler,
+} from '@services/aragon-indexer/handlers/pluginSetupProcessorHandler'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
+import { AggregatorPlugin } from '@services/aragon-indexer/aggregator/plugin'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -17,6 +21,39 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
   afterEach(async () => {
     sandbox?.restore()
+  })
+
+  describe('aggregateLog', () => {
+    it('should aggregateLog', async () => {
+      const logDb = {
+        transactionHash: '0x123',
+        event: IEventLogPluginType.InstallationApplied,
+      }
+
+      const createPluginSpy = sandbox.stub(AggregatorPlugin, 'createPlugin')
+      const updatePluginSpy = sandbox.stub(AggregatorPlugin, 'updatePlugin')
+      const uninstallPluginSpy = sandbox.stub(AggregatorPlugin, 'uninstallPlugin')
+
+      await PluginSetupProcessorHandler.aggregateLog(IPluginActionType.installed, logDb as any)
+      expect(createPluginSpy.calledOnce).to.be.true
+
+      await PluginSetupProcessorHandler.aggregateLog(IPluginActionType.updated, logDb as any)
+      expect(updatePluginSpy.calledOnce).to.be.true
+
+      await PluginSetupProcessorHandler.aggregateLog(IPluginActionType.uninstalled, logDb as any)
+      expect(uninstallPluginSpy.calledOnce).to.be.true
+    })
+
+    it('should throw error', async () => {
+      const logDb = {
+        transactionHash: '0x123',
+        event: IEventLogPluginType.InstallationApplied,
+      }
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      await PluginSetupProcessorHandler.aggregateLog('invalid' as any, logDb as any)
+      expect(stubLogger.calledOnce).to.be.true
+    })
   })
 
   describe('installationApplied', () => {

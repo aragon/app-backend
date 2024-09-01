@@ -1,9 +1,10 @@
-import { NetworksEnum } from '@types'
+import { ISettingStatus, NetworksEnum } from '@types'
 export const fakeSettings = {
   transactionHash: '0x6796a9641df93d7902c073eaa8b45019c27e53fb3872f761a2d0a3005da4cd41',
   blockNumber: 40941779,
   blockTimestamp: 1680186182,
   network: NetworksEnum.polygonMainnet,
+  status: ISettingStatus.active,
   daoAddress: '0x19E246564b3264fed309D3D004f807D5887e5521',
   pluginAddress: '0x9d5586b4B048Ba9fa847Ae5F169352dc080b3eb3',
   pluginSubdomain: 'token-voting',

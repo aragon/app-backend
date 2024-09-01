@@ -38,10 +38,10 @@ class RawAction {
 
 class Media {
   @prop({ type: () => String, default: null })
-  public header!: string
+  public header!: string | null
 
   @prop({ type: () => String, default: null })
-  public logo!: string
+  public logo!: string | null
 }
 
 class Settings {

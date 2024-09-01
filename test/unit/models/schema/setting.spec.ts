@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import Setting from '@models/schema/setting'
 import { Models } from '@dbModels'
 import { fakeSettings } from '@test/mock/fakeSettings'
-import { NetworksEnum } from '@types'
+import { ISettingStatus, NetworksEnum } from '@types'
 
 describe('Model: Setting', () => {
   let sandbox: SinonSandbox
@@ -34,7 +34,7 @@ describe('Model: Setting', () => {
       expect(createdSettings.network).to.eq(rawSetting.network)
       expect(createdSettings.transactionHash).to.eq(rawSetting.transactionHash)
       expect(createdSettings.blockNumber).to.eq(rawSetting.blockNumber)
-
+      expect(createdSettings.status).to.eq(rawSetting.status)
       expect(createdSettings.votingMode).to.eq(rawSetting.votingMode)
       expect(createdSettings.supportThreshold).to.eq(rawSetting.supportThreshold)
       expect(createdSettings.minParticipation).to.eq(rawSetting.minParticipation)
@@ -65,13 +65,82 @@ describe('Model: Setting', () => {
     expect(foundSettingDb?.id).to.eq(settingDb.id)
   })
 
+  it('Should correctly find the active Settings', async () => {
+    const settings = [
+      {
+        id: 'xx',
+        blockNumber: 1,
+        pluginAddress: '0xaa',
+        daoAddress: '0xdd',
+        network: NetworksEnum.polygonMainnet,
+        transactionHash: '0x',
+        status: ISettingStatus.active,
+      },
+      {
+        id: 'xx1',
+        blockNumber: 3,
+        pluginAddress: '0xaa',
+        daoAddress: '0xdd',
+        network: NetworksEnum.polygonMainnet,
+        transactionHash: '0x',
+        status: ISettingStatus.inactive,
+      },
+    ]
+
+    await Models.Setting.insertMany(settings)
+
+    const activeSetting = await Models.Setting.findActive({
+      daoAddress: '0xdd',
+      pluginAddress: '0xaa',
+      network: NetworksEnum.polygonMainnet,
+    })
+
+    expect(activeSetting?.id).to.eq('xx')
+    expect(activeSetting?.status).to.eq(ISettingStatus.active)
+  })
+
   it('Should correctly find the last setting by blockNumber', async () => {
     const settings = [
-      { id: 'xx', blockNumber: 1, pluginAddress: '0x', network: NetworksEnum.polygonMainnet, transactionHash: '0x' },
-      { id: 'xx1', blockNumber: 3, pluginAddress: '0x', network: NetworksEnum.polygonMainnet, transactionHash: '0x' },
-      { id: 'xx2', blockNumber: 8, pluginAddress: '0x', network: NetworksEnum.polygonMainnet, transactionHash: '0x' },
-      { id: 'xx3', blockNumber: 11, pluginAddress: '0x', network: NetworksEnum.polygonMainnet, transactionHash: '0x' },
-      { id: 'xx4', blockNumber: 15, pluginAddress: '0x', network: NetworksEnum.polygonMainnet, transactionHash: '0x' },
+      {
+        id: 'xx',
+        blockNumber: 1,
+        pluginAddress: '0x',
+        network: NetworksEnum.polygonMainnet,
+        transactionHash: '0x',
+        status: ISettingStatus.active,
+      },
+      {
+        id: 'xx1',
+        blockNumber: 3,
+        pluginAddress: '0x',
+        network: NetworksEnum.polygonMainnet,
+        transactionHash: '0x',
+        status: ISettingStatus.inactive,
+      },
+      {
+        id: 'xx2',
+        blockNumber: 8,
+        pluginAddress: '0x',
+        network: NetworksEnum.polygonMainnet,
+        transactionHash: '0x',
+        status: ISettingStatus.inactive,
+      },
+      {
+        id: 'xx3',
+        blockNumber: 11,
+        pluginAddress: '0x',
+        network: NetworksEnum.polygonMainnet,
+        transactionHash: '0x',
+        status: ISettingStatus.inactive,
+      },
+      {
+        id: 'xx4',
+        blockNumber: 15,
+        pluginAddress: '0x',
+        network: NetworksEnum.polygonMainnet,
+        transactionHash: '0x',
+        status: ISettingStatus.inactive,
+      },
     ]
 
     await Models.Setting.insertMany(settings)
@@ -109,15 +178,6 @@ describe('Model: Setting', () => {
     expect(result?.blockNumber).to.eq(15)
   })
 
-  it('Should findByTransactionHash', async () => {
-    const createdProposal = await Models.Setting.create(rawSetting)
-    const foundProposal = await Models.Setting.findByTransactionHash(
-      createdProposal.transactionHash,
-      createdProposal.network,
-    )
-    expect(foundProposal?.id).to.eq(createdProposal.id)
-  })
-
   it('Should update Setting', async () => {
     const createdLogDao = await Models.Setting.create(rawSetting)
     expect(createdLogDao.pluginAddress).to.eq(rawSetting.pluginAddress)
@@ -134,5 +194,63 @@ describe('Model: Setting', () => {
     await createdLogDao.reload()
 
     expect(createdLogDao.fromTxHash).to.eq(rawSetting.fromTxHash)
+  })
+
+  describe('findWithPagination', () => {
+    beforeEach(async () => {
+      await Models.Setting.create(rawSetting)
+    })
+
+    it('Should find all settings with pagination', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Setting.findWithPagination({
+        extraParams: {},
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(1)
+      expect(totalRecords).to.eq(1)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
+    it('should find the settings by daoAddress', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Setting.findWithPagination({
+        extraParams: {
+          daoAddress: rawSetting.daoAddress,
+        },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(1)
+      expect(totalRecords).to.eq(1)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
+    it('should not find the settings by daoAddress', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Setting.findWithPagination({
+        extraParams: {
+          daoAddress: '0xBeB63a356',
+        },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(0)
+      expect(totalRecords).to.eq(0)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
   })
 })

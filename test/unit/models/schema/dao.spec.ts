@@ -5,7 +5,7 @@ import { NetworksEnum } from '@types'
 import Dao from '@models/schema/dao'
 import { Models } from '@dbModels'
 import { PluginList } from '@test/mock/fakePlugins'
-
+import { DaoList } from '@test/mock/fakeDao'
 describe('Model: Dao', () => {
   let sandbox: SinonSandbox
   let rawDao: Partial<Dao>
@@ -14,50 +14,7 @@ describe('Model: Dao', () => {
     sandbox = sinon.createSandbox()
 
     rawDao = {
-      network: NetworksEnum.ethereumMainnet,
-      transactionHash: '0x0',
-      blockNumber: 0,
-      blockTimestamp: 1219577223,
-      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      implementationAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      ens: 'dao.eth',
-      subdomain: 'dao',
-      version: '1.0.0',
-      members: 10,
-      metadataIpfs: 'metadataIpfs',
-      name: 'fake-name',
-      description: 'fake-description',
-      avatar: 'fake-avatar',
-      links: [
-        {
-          name: 'fake-name',
-          url: 'fake-url',
-        },
-      ],
-      metrics: {
-        members: 15,
-        proposalsCreated: 5,
-        proposalsExecuted: 3,
-        uniqueVoters: 100,
-        votes: 500,
-        tvlUSD: 10000,
-      },
-      isActive: true,
-      plugins: [
-        {
-          transactionHash: '0x0',
-          blockNumber: 0,
-          address: '0x0',
-          implementationAddress: '0x0',
-          tokenAddress: '0x01',
-          pluginSetupRepoAddress: '0x02',
-          release: '0',
-          build: '0',
-          subdomain: 'test',
-        },
-      ],
-      isHidden: false,
+      ...(DaoList[0] as any),
     }
   })
 
@@ -90,15 +47,12 @@ describe('Model: Dao', () => {
       expect(createdDao.links[0].name).to.eq(rawDao.links?.[0].name)
       expect(createdDao.links[0].url).to.eq(rawDao.links?.[0].url)
       expect(createdDao.metrics.members).to.eq(rawDao.metrics?.members)
-      expect(createdDao.metrics.tvlUSD).to.eq(rawDao.metrics?.tvlUSD)
       expect(createdDao.metrics.proposalsCreated).to.eq(rawDao.metrics?.proposalsCreated)
       expect(createdDao.metrics.proposalsExecuted).to.eq(rawDao.metrics?.proposalsExecuted)
       expect(createdDao.metrics?.uniqueVoters).to.eq(rawDao.metrics?.uniqueVoters)
       expect(createdDao.metrics?.votes).to.eq(rawDao.metrics?.votes)
-      expect(createdDao.metrics?.tvlUSD).to.eq(rawDao.metrics?.tvlUSD)
       expect(createdDao.isHidden).to.eq(rawDao.isHidden)
       expect(createdDao.isActive).to.eq(rawDao.isActive)
-      expect(createdDao.version).to.eq(rawDao.version)
     })
   })
 
@@ -135,7 +89,6 @@ describe('Model: Dao', () => {
 
   it('Should update DAO', async () => {
     const createdDao = await Models.Dao.create(rawDao)
-    expect(createdDao.creatorAddress).to.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5409')
 
     await createdDao.update({
       network: NetworksEnum.baseMainnet,

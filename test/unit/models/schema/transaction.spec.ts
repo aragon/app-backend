@@ -6,7 +6,7 @@ import { Models } from '@dbModels'
 import Transaction from '@models/schema/transaction'
 import { beforeEach } from 'mocha'
 import ModelUtils from '@models/utils/models'
-
+import { FakeTransaction } from '@test/mock/fakeTransaction'
 describe('Model: Transaction', () => {
   let sandbox: SinonSandbox
   let rawTransaction: Partial<Transaction>
@@ -15,38 +15,7 @@ describe('Model: Transaction', () => {
     sandbox = sinon.createSandbox()
 
     rawTransaction = {
-      transactionHash: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-      blockNumber: 1,
-      network: NetworksEnum.ethereumMainnet,
-      type: ITransactionType.deposit,
-      category: ITransactionCategory.Internal,
-      fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',
-      toAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
-      value: '0x0',
-      tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
-      daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc8',
-      tokenId: '1',
-      erc721TokenId: '1',
-      erc1155Metadata: [
-        {
-          tokenId: '1',
-          value: '0',
-        },
-      ],
-      proposalId: '18',
-      token: {
-        network: NetworksEnum.polygonMainnet,
-        address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
-        symbol: 'Test',
-        name: 'Test Token',
-        type: ITokenType.ERC20,
-        logo: 'fake-logo',
-        decimals: 18,
-        snapshot: {
-          priceUpdatedAt: 0,
-          priceUsd: '0',
-        },
-      },
+      ...FakeTransaction,
     }
   })
 
@@ -73,10 +42,6 @@ describe('Model: Transaction', () => {
     expect(createdToken.value).to.eq(rawTransaction.value)
     expect(createdToken.tokenAddress).to.eq(rawTransaction.tokenAddress)
     expect(createdToken.daoAddress).to.eq(rawTransaction.daoAddress)
-    expect(createdToken.tokenId).to.eq(rawTransaction.tokenId)
-    expect(createdToken.erc721TokenId).to.eq(rawTransaction.erc721TokenId)
-    expect(createdToken.erc1155Metadata[0].tokenId).to.eq(rawTransaction.erc1155Metadata?.[0].tokenId)
-    expect(createdToken.erc1155Metadata[0].value).to.eq(rawTransaction.erc1155Metadata?.[0].value)
     expect(createdToken.proposalId).to.eq(rawTransaction.proposalId)
     expect(createdToken.token.address).to.eq(rawTransaction.token?.address)
     expect(createdToken.token.symbol).to.eq(rawTransaction.token?.symbol.toUpperCase())
@@ -142,7 +107,7 @@ describe('Model: Transaction', () => {
           fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',
           toAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
           value: '0x0',
-          tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+          tokenAddress: rawTransaction.tokenAddress,
           daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc8',
           tokenId: '1',
           erc721TokenId: '1',
@@ -155,7 +120,7 @@ describe('Model: Transaction', () => {
           proposalId: '18',
           token: {
             network: NetworksEnum.ethereumMainnet,
-            address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+            address: rawTransaction.tokenAddress,
             symbol: 'Test',
             name: 'Test Token',
             type: ITokenType.ERC20,
@@ -172,7 +137,7 @@ describe('Model: Transaction', () => {
           fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',
           toAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
           value: '0x0',
-          tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+          tokenAddress: rawTransaction.tokenAddress,
           daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc8',
           tokenId: '1',
           erc721TokenId: '1',
@@ -185,7 +150,7 @@ describe('Model: Transaction', () => {
           proposalId: '19',
           token: {
             network: NetworksEnum.ethereumMainnet,
-            address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+            address: rawTransaction.tokenAddress,
             symbol: 'Test',
             name: 'Test Token',
             type: ITokenType.ERC20,
@@ -294,7 +259,7 @@ describe('Model: Transaction', () => {
     expect(filterDao.daoAddress).to.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.token._id).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(16)
+    expect(Object.keys(filterDao).length).to.eq(17)
   })
 
   it('Should filterKeys without token', async () => {

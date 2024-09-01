@@ -2,6 +2,7 @@ import { NetworksEnum } from '@types'
 
 export const DaoList = [
   {
+    isActive: true,
     network: NetworksEnum.ethereumMainnet,
     transactionHash: '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9c',
     blockNumber: 1677529415,
@@ -15,7 +16,12 @@ export const DaoList = [
     name: 'management',
     description: 'management',
     avatar: null,
-    links: [],
+    links: [
+      {
+        name: 'Website',
+        url: 'https://management.com/',
+      },
+    ],
     tvlUSD: 0,
     metrics: {
       members: 15,
@@ -28,6 +34,7 @@ export const DaoList = [
     createdAt: '2023-02-27T20:23:35.000Z',
   },
   {
+    isActive: true,
     network: NetworksEnum.ethereumMainnet,
     transactionHash: '0xf982eeb27979afda22ba06613e52bf0e164a56a9d8d949b19878830097987303',
     blockNumber: 1677697751,
@@ -64,6 +71,7 @@ export const DaoList = [
     createdAt: '2023-03-01T19:09:11.000Z',
   },
   {
+    isActive: true,
     network: NetworksEnum.ethereumMainnet,
     transactionHash: '0x8c325e119c9728b60094a13cdc76a06a3821364259596dc968b60c31010e4988',
     blockNumber: 1677589847,
