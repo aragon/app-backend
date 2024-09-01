@@ -190,7 +190,7 @@ export default class Setting extends Model {
         page: currentPage,
         pageSize: request.limit,
         totalPages,
-        totalRecords,
+        totalRecords: _totalRecords,
       },
       data,
     }

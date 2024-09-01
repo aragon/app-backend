@@ -231,22 +231,4 @@ describe('Controller: Proposal', () => {
       await expect(ProposalController.getProposalById(proposalId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
     })
   })
-
-  describe('getProposalByTransactionHash', () => {
-    it('should get by TransactionHash', async () => {
-      const proposal = await ProposalController.getProposalByTransactionHash(
-        proposalDb.transactionHash as any,
-        proposalDb.network,
-      )
-      expect(proposal.id).to.eq(proposalDb.id)
-    })
-
-    it('should fail to get by TransactionHash', async () => {
-      sandbox.stub(Models.Proposal, 'findByTransactionHash').resolves(null)
-      const transactionHash = '0x02324' as any
-      await expect(
-        ProposalController.getProposalByTransactionHash(transactionHash, proposalDb.network),
-      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
-    })
-  })
 })

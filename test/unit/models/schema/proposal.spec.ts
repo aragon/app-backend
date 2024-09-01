@@ -31,7 +31,7 @@ describe('Model: Proposal', () => {
       rawProposalMultisig.id = Models.Proposal.getEntityId({
         transactionHash: rawProposalMultisig.transactionHash!,
         pluginAddress: rawProposalMultisig.pluginAddress!,
-        proposalId: rawProposalMultisig.proposalId!,
+        proposalIndex: rawProposalMultisig.proposalIndex!,
       })
       const createdProposal = await Models.Proposal.create(rawProposalMultisig)
       expect(createdProposal.id).to.eq(rawProposalMultisig.id)
@@ -39,7 +39,7 @@ describe('Model: Proposal', () => {
       expect(createdProposal.blockNumber).to.eq(rawProposalMultisig.blockNumber)
       expect(createdProposal.network).to.eq(rawProposalMultisig.network)
       expect(createdProposal.pluginAddress).to.eq(rawProposalMultisig.pluginAddress)
-      expect(createdProposal.proposalId).to.eq(rawProposalMultisig.proposalId)
+      expect(createdProposal.proposalIndex).to.eq(rawProposalMultisig.proposalIndex)
       expect(createdProposal.creatorAddress).to.eq(rawProposalMultisig.creatorAddress)
       expect(createdProposal.startDate).to.eq(rawProposalMultisig.startDate)
       expect(createdProposal.endDate).to.eq(rawProposalMultisig.endDate)
@@ -49,7 +49,7 @@ describe('Model: Proposal', () => {
       rawProposalTokenVoting.id = Models.Proposal.getEntityId({
         transactionHash: rawProposalTokenVoting.transactionHash!,
         pluginAddress: rawProposalTokenVoting.pluginAddress!,
-        proposalId: rawProposalTokenVoting.proposalId!,
+        proposalIndex: rawProposalTokenVoting.proposalIndex!,
       })
 
       const createdProposal = await Models.Proposal.create(rawProposalTokenVoting)
@@ -58,7 +58,7 @@ describe('Model: Proposal', () => {
       expect(createdProposal.blockNumber).to.eq(rawProposalTokenVoting.blockNumber)
       expect(createdProposal.network).to.eq(rawProposalTokenVoting.network)
       expect(createdProposal.pluginAddress).to.eq(rawProposalTokenVoting.pluginAddress)
-      expect(createdProposal.proposalId).to.eq(rawProposalTokenVoting.proposalId)
+      expect(createdProposal.proposalIndex).to.eq(rawProposalTokenVoting.proposalIndex)
       expect(createdProposal.creatorAddress).to.eq(rawProposalTokenVoting.creatorAddress)
       expect(createdProposal.startDate).to.eq(rawProposalTokenVoting.startDate)
       expect(createdProposal.endDate).to.eq(rawProposalTokenVoting.endDate)
@@ -67,49 +67,40 @@ describe('Model: Proposal', () => {
 
   it('Should update Proposal', async () => {
     const createdProposal = await Models.Proposal.create(rawProposalMultisig)
-    expect(createdProposal.proposalId).to.eq(rawProposalMultisig.proposalId)
+    expect(createdProposal.proposalIndex).to.eq(rawProposalMultisig.proposalIndex)
 
     await createdProposal.update({
-      proposalId: 2,
+      proposalIndex: 2,
     })
 
-    expect(createdProposal.proposalId).to.eq(2)
+    expect(createdProposal.proposalIndex).to.eq(2)
   })
 
   it('Should getEntityId', async () => {
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const pluginAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
-    const proposalId = 1
-    const entityId = Models.Proposal.getEntityId({ transactionHash, pluginAddress, proposalId })
-    expect(entityId).to.eq(`${transactionHash}-${pluginAddress}-${proposalId}`)
+    const proposalIndex = 1
+    const entityId = Models.Proposal.getEntityId({ transactionHash, pluginAddress, proposalIndex })
+    expect(entityId).to.eq(`${transactionHash}-${pluginAddress}-${proposalIndex}`)
   })
 
   it('Should update Proposal', async () => {
     const createdProposal = await Models.Proposal.create(rawProposalMultisig)
-    expect(createdProposal.proposalId).to.eq(rawProposalMultisig.proposalId)
+    expect(createdProposal.proposalIndex).to.eq(rawProposalMultisig.proposalIndex)
 
     await createdProposal.update({
-      proposalId: 2,
+      proposalIndex: 2,
     })
 
-    expect(createdProposal.proposalId).to.eq(2)
+    expect(createdProposal.proposalIndex).to.eq(2)
   })
 
   it('Should getEntityId', async () => {
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const pluginAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
-    const proposalId = 1
-    const entityId = Models.Proposal.getEntityId({ transactionHash, pluginAddress, proposalId })
-    expect(entityId).to.eq(`${transactionHash}-${pluginAddress}-${proposalId}`)
-  })
-
-  it('Should findByTransactionHash', async () => {
-    const createdProposal = await Models.Proposal.create(rawProposalMultisig)
-    const foundProposal = await Models.Proposal.findByTransactionHash(
-      createdProposal.transactionHash,
-      createdProposal.network,
-    )
-    expect(foundProposal?.id).to.eq(createdProposal.id)
+    const proposalIndex = 1
+    const entityId = Models.Proposal.getEntityId({ transactionHash, pluginAddress, proposalIndex })
+    expect(entityId).to.eq(`${transactionHash}-${pluginAddress}-${proposalIndex}`)
   })
 
   it('Should findExistingLog', async () => {
@@ -117,7 +108,7 @@ describe('Model: Proposal', () => {
     const foundProposal = await Models.Proposal.findExistingLog({
       transactionHash: createdProposal.transactionHash,
       pluginAddress: createdProposal.pluginAddress,
-      proposalId: createdProposal.proposalId,
+      proposalIndex: createdProposal.proposalIndex,
     })
     expect(foundProposal?.id).to.eq(createdProposal.id)
   })
@@ -130,8 +121,8 @@ describe('Model: Proposal', () => {
 
   it('Should findByProposalId', async () => {
     const createdProposal = await Models.Proposal.create(rawProposalMultisig)
-    const Proposal = await Models.Proposal.findByProposalId(
-      createdProposal.proposalId,
+    const Proposal = await Models.Proposal.findByProposalIndex(
+      createdProposal.proposalIndex,
       createdProposal.pluginAddress,
       createdProposal.network,
     )
@@ -218,7 +209,7 @@ describe('Model: Proposal', () => {
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Proposal.findWithPagination({
         extraParams: {
-          daoAddress: '0x19E246564b3264fed309D3D004f807D5887e5521',
+          daoAddress: '0x19E246564b3264fed309D3D004f807D5887e5522',
           pluginAddress: '0x9d5586b4B048Ba9fa847Ae5F169352dc080b3eb3',
         },
         paginationParams: {},
@@ -231,16 +222,22 @@ describe('Model: Proposal', () => {
     })
   })
 
-  it('should filter keys', async () => {
-    const createdProposal = await Models.Proposal.create(rawProposalMultisig)
-    const filterProposal = createdProposal.filterKeys()
+  describe('findWithEntityId', () => {
+    beforeEach(async () => {
+      await Promise.all(ProposalList.map(proposalListItem => Models.Proposal.create(proposalListItem)))
+    })
 
-    expect(filterProposal.id).to.exist
-    expect(filterProposal._id).to.be.undefined
-    expect(filterProposal.__v).to.be.undefined
-    expect(filterProposal.createdAt).to.be.undefined
-    expect(filterProposal.updatedAt).to.be.undefined
-    expect(filterProposal.executed.status).to.be.true
-    expect(Object.keys(filterProposal).length).to.eq(26)
+    it('Should find with entityId', async () => {
+      const entityId = Models.Proposal.getEntityId({
+        transactionHash: ProposalList[0].transactionHash!,
+        pluginAddress: ProposalList[0].pluginAddress!,
+        proposalIndex: ProposalList[0].proposalIndex!,
+      })
+
+      const proposal = await Models.Proposal.findWithEntityId(entityId)
+      expect(proposal.creator).to.be.exist
+      expect(proposal.creator.address).to.be.eq(ProposalList[0].creatorAddress)
+      expect(proposal?.id).to.eq(entityId)
+    })
   })
 })

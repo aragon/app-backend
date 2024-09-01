@@ -121,16 +121,16 @@ export default class Transaction extends Model {
   public daoAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public tokenId!: string
+  public tokenId!: string | null
 
   @prop({ type: () => String, default: null })
-  public erc721TokenId!: string
+  public erc721TokenId!: string | null
 
   @prop({ type: () => [ERC1155Metadata], _id: false, default: [] })
   public erc1155Metadata!: ERC1155Metadata[]
 
   @prop({ type: () => String, default: null })
-  public proposalIndex!: number
+  public proposalIndex!: number | null
 
   @prop({ type: () => Token, _id: false, default: null })
   public token?: Token
@@ -192,12 +192,6 @@ export default class Transaction extends Model {
     }
 
     const currentPage = request.skip / request.limit + 1
-
-    // const query: any = [
-    //   {
-    //     $match: filter,
-    //   },
-    // ]
 
     const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
 

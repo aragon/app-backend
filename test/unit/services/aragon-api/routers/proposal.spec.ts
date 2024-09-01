@@ -152,23 +152,4 @@ describe('Router: Proposal', () => {
     expect(stubCtrl.calledOnce).to.be.true
     expect(stubCtrl.calledWith(getAddress(params.id) as any)).to.be.true
   })
-
-  it('Should getProposalByTransactionHash', async () => {
-    const params = {
-      network: NetworksEnum.baseMainnet,
-      transactionHash: '0xdcff8f4477f3b39529de62394883707a2468d46bff3eb5e99335f5c49ec41f81',
-    }
-
-    const stubCtrl = sandbox.stub(ProposalController, 'getProposalByTransactionHash').returns(true as any)
-
-    const ctx: any = {
-      params,
-    }
-
-    await ProposalRouter.getProposalByTransactionHash(ctx)
-
-    expect(ctx.body).to.eq(true)
-    expect(stubCtrl.calledOnce).to.be.true
-    expect(stubCtrl.calledWith(params.transactionHash, params.network)).to.be.true
-  })
 })
