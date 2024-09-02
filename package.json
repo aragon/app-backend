@@ -24,6 +24,7 @@
     "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 97 --branches 83 --functions 96 --lines 97",
     "docker:dependencies": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica",
     "docker:services": "docker-compose up --build -d service-aragon-api service-aragon-indexer service-aragon-rates",
+    "wait:rabbitmq": "bash test/lib/scripts/waitUp.sh rabbitmq 5672",
     "wait:db": "bash test/lib/scripts/waitUp.sh mongo1 27017 && bash test/lib/scripts/waitUp.sh mongo2 27017 && bash test/lib/scripts/waitUp.sh mongo3 27017"
   },
   "repository": {
