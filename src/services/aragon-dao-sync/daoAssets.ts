@@ -9,22 +9,22 @@ import { ProxyToken } from '@modules/proxyToken'
 import type Dao from '@models/schema/dao'
 import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:AggregatorDaoAssets' })
+const llo = logger.logMeta.bind(null, { service: 'service:dao-sync:DaoAssets' })
 
-export const AggregatorDaoAssets = {
+export const DaoAssets = {
   start: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
     const startTime = Date.now()
     logger.verbose('Start DaoMetrics', llo({ startTime }))
 
     const daoDb = await Models.Dao.findByAddress(daoAddress, network)
-    await AggregatorDaoAssets.onDocument(daoDb)
+    await DaoAssets.onDocument(daoDb)
 
     const duration = Date.now() - startTime
-    logger.verbose('End AggregatorDaoAssets', llo({ daoId: daoDb.id, duration: `${duration}ms` }))
+    logger.verbose('End DaoAssets', llo({ daoId: daoDb.id, duration: `${duration}ms` }))
   },
 
   onDocument: async (document: Dao) => {
-    await AggregatorDaoAssets.assets(document)
+    await DaoAssets.assets(document)
     await AggregatorDaoMetrics.start({ daoAddress: document.address, network: document.network })
   },
 
@@ -108,7 +108,7 @@ export const AggregatorDaoAssets = {
 
       return { ethBalance, tokenBalances }
     } catch (error) {
-      logger.error('Error AggregatorDaoAssets', llo({ error, logId: document.id }))
+      logger.error('Error DaoAssets', llo({ error, logId: document.id }))
     }
   },
 }

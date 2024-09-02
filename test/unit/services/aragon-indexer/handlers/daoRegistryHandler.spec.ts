@@ -15,8 +15,8 @@ import ProxyContractHelper from '@helpers/proxyContract'
 import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
 import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
 import { ProxyMember } from '@modules/proxyMember'
-import { AggregatorDaoAssets } from '@indexer/aggregator/daoAssets'
-import { AggregatorDaoTransactions } from '@indexer/aggregator/daoTransactions'
+import { DaoAssets } from '@services/aragon-dao-sync/daoAssets'
+import { DaoTransactions } from '@services/aragon-dao-sync/daoTransactions'
 import Utils from '@helpers/utils'
 import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
 
@@ -163,8 +163,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const memberAddedStub = sandbox.stub(DaoRegistryHandler, '_memberAdded')
       const pluginSettingStub = sandbox.stub(DaoRegistryHandler, '_pluginSettings')
 
-      const aggDaoAssetsStartStub = sandbox.stub(AggregatorDaoAssets, 'start')
-      const aggDaoTxStartStub = sandbox.stub(AggregatorDaoTransactions, 'start')
+      const aggDaoAssetsStartStub = sandbox.stub(DaoAssets, 'start')
+      const aggDaoTxStartStub = sandbox.stub(DaoTransactions, 'start')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,

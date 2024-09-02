@@ -14,7 +14,7 @@ export interface IExtendedService extends IService {
 }
 
 const IndexerService: IExtendedService = {
-  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
+  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   start: async function () {
     logger.info('IndexerService service sync start', llo({}))

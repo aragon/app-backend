@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type HexAddress, IEventLogMember, IEventLogPluginType, type ILogInfo } from '@types'
+import { EnumQueueName, type HexAddress, IEventLogMember, IEventLogPluginType, type ILogInfo } from '@types'
 import { type Log, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
@@ -17,8 +17,7 @@ import { ProxyMember } from '@modules/proxyMember'
 import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
 import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
-import { AggregatorDaoAssets } from '@indexer/aggregator/daoAssets'
-import { AggregatorDaoTransactions } from '@indexer/aggregator/daoTransactions'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
 
@@ -97,10 +96,15 @@ export const DaoRegistryHandler = {
      */
     await DaoRegistryHandler._pluginSettings(txReceipt, info)
 
-    // TODO: use messaging queue
     await Promise.all([
-      AggregatorDaoAssets.start({ daoAddress, network: info.network }),
-      AggregatorDaoTransactions.start({ daoAddress, network: info.network }),
+      RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
+        id: daoAddress,
+        params: { address: daoAddress, network: info.network },
+      }),
+      RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
+        id: daoAddress,
+        params: { address: daoAddress, network: info.network },
+      }),
     ])
   },
 
