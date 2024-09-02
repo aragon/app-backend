@@ -96,10 +96,11 @@ export const DaoRegistryHandler = {
      * As settings can be identified in two ways, needed to check for both
      */
     await DaoRegistryHandler._pluginSettings(txReceipt, info)
-    // fetch dao assets and transactions
-    Utils.setImmediateAsyncArray([
-      async () => AggregatorDaoAssets.start({ daoAddress, network: info.network }),
-      async () => AggregatorDaoTransactions.start({ daoAddress, network: info.network }),
+
+    // TODO: use messaging queue
+    await Promise.all([
+      AggregatorDaoAssets.start({ daoAddress, network: info.network }),
+      AggregatorDaoTransactions.start({ daoAddress, network: info.network }),
     ])
   },
 
