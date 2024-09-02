@@ -2,27 +2,33 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import AssetController from '@services/aragon-api/controllers/asset'
-import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Asset from '@models/schema/asset'
+import Token from '@models/schema/token'
 import PairDataModule from '@modules/pairData'
+import { FakeAsset } from '@test/mock/fakeAsset'
+import { FakeToken } from '@test/mock/fakeToken'
 
 describe('Controller: Asset', () => {
   let sandbox: SinonSandbox
   let rawAsset: Partial<Asset>
+  let rawToken: Partial<Token>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
     rawAsset = {
-      network: NetworksEnum.ethereumMainnet,
-      daoAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-      tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
-      amount: '32423423',
-      amountUsd: '100',
+      ...FakeAsset,
     }
 
-    await Models.Asset.create(rawAsset)
+    rawToken = {
+      ...(FakeToken as any),
+    }
+
+    rawToken.address = FakeAsset.tokenAddress
+
+    await Models.Asset.create(FakeAsset)
+    await Models.Token.create(FakeToken)
   })
 
   afterEach(() => {
@@ -63,11 +69,15 @@ describe('Controller: Asset', () => {
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].network).to.eq(rawAsset.network)
-      expect(response.data[0].daoAddress).to.eq(rawAsset.daoAddress)
-      expect(response.data[0].tokenAddress).to.eq(rawAsset.tokenAddress)
-      expect(response.data[0].amount).to.eq(rawAsset.amount)
-      expect(response.data[0].token).to.exist
+      const responseData = response.data[0] as any
+      expect(responseData.network).to.eq(rawAsset.network)
+      expect(responseData.amount).to.eq(rawAsset.amount)
+      expect(responseData.token).to.be.exist
+      expect(responseData.token.address).to.be.eq(rawAsset.tokenAddress)
+      expect(responseData.token.name).to.be.eq(rawToken.name)
+      expect(responseData.token.symbol).to.be.eq(rawToken.symbol)
+      expect(responseData.dao).to.be.exist
+      expect(responseData.dao.address).to.be.eq(rawAsset.daoAddress)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -106,11 +116,15 @@ describe('Controller: Asset', () => {
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].network).to.eq(rawAsset.network)
-      expect(response.data[0].daoAddress).to.eq(rawAsset.daoAddress)
-      expect(response.data[0].tokenAddress).to.eq(rawAsset.tokenAddress)
-      expect(response.data[0].amount).to.eq(rawAsset.amount)
-      expect(response.data[0].token).to.exist
+      const responseData = response.data[0] as any
+      expect(responseData.network).to.eq(rawAsset.network)
+      expect(responseData.amount).to.eq(rawAsset.amount)
+      expect(responseData.token).to.be.exist
+      expect(responseData.token.address).to.be.eq(rawAsset.tokenAddress)
+      expect(responseData.token.name).to.be.eq(rawToken.name)
+      expect(responseData.token.symbol).to.be.eq(rawToken.symbol)
+      expect(responseData.dao).to.be.exist
+      expect(responseData.dao.address).to.be.eq(rawAsset.daoAddress)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -156,11 +170,15 @@ describe('Controller: Asset', () => {
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].network).to.eq(rawAsset.network)
-      expect(response.data[0].daoAddress).to.eq(rawAsset.daoAddress)
-      expect(response.data[0].tokenAddress).to.eq(rawAsset.tokenAddress)
-      expect(response.data[0].amount).to.eq(rawAsset.amount)
-      expect(response.data[0].token).to.exist
+      const responseData = response.data[0] as any
+      expect(responseData.network).to.eq(rawAsset.network)
+      expect(responseData.amount).to.eq(rawAsset.amount)
+      expect(responseData.token).to.be.exist
+      expect(responseData.token.address).to.be.eq(rawAsset.tokenAddress)
+      expect(responseData.token.name).to.be.eq(rawToken.name)
+      expect(responseData.token.symbol).to.be.eq(rawToken.symbol)
+      expect(responseData.dao).to.be.exist
+      expect(responseData.dao.address).to.be.eq(rawAsset.daoAddress)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)

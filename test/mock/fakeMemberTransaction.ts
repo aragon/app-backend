@@ -3,11 +3,11 @@ import { ITransferSide, ITransferType, NetworksEnum } from '@types'
 export const fakeMemberTransactions = [
   {
     network: NetworksEnum.polygonMainnet,
-    transactionHash: '0x6796a9641df93d7902c073eaa8b45019c27e53fb3872f761a2d0a3005da4cd41',
+    transactionHash: '0x6796a9641df93d7902c073eaa8b45019c27e53fb3872f761a2d0a3005da4cd42',
     blockNumber: 40941779,
     tokenAddress: '0x613ef3f5959688c3b422A545906F844b6f8c8F35',
     address: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
-    from: '0x0000000000000000000000000000000000000000',
+    from: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C32',
     to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
     side: ITransferSide.incoming,
     type: ITransferType.delegate,
