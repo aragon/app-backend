@@ -52,6 +52,9 @@ export interface IConfig {
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
   DEFAULT_CURRENCY: string
+  RABBITMQ: {
+    URI: string
+  }
   NODE_CONFIG: {
     MAX_RECONNECT_ATTEMPTS: number
     RECONNECT_INTERVAL: number
