@@ -46,6 +46,12 @@ export default class MemberMetrics extends Model {
   @prop({ type: () => Number, default: 0 })
   public proposalCount!: number
 
+  @prop({ type: () => Number, default: null })
+  public lastActivity?: number
+
+  @prop({ type: () => Number, default: null })
+  public firstActivity?: number
+
   static async create(rawData: Partial<MemberMetrics>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')

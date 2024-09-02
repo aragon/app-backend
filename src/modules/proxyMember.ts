@@ -37,12 +37,28 @@ export const ProxyMember = {
     return memberDb
   },
 
-  memberActivity: async (memberAddress: HexAddress, blockNumber: number, network: NetworksEnum): Promise<Member> => {
+  memberActivity: async ({
+    memberAddress,
+    pluginAddress,
+    blockNumber,
+    network,
+  }: {
+    memberAddress: HexAddress
+    pluginAddress: HexAddress
+    blockNumber: number
+    network: NetworksEnum
+  }): Promise<Member> => {
     return await DbTx.executeTxFn(async ({ session }) => {
       const [member, blockTimestamp] = await Promise.all([
         ProxyMember.saveAndGetMember(memberAddress),
         Web3Helper.getBlockTimestamp(blockNumber, network),
       ])
+
+      const memberMetrics = await Models.MemberMetrics.getOrCreateMemberMetrics({
+        address: member.address,
+        pluginAddress,
+        network,
+      })
 
       // Update member activity
       const updateFields: Partial<Member> = {
@@ -53,7 +69,7 @@ export const ProxyMember = {
         updateFields.firstActivity = blockTimestamp
       }
 
-      await member.update(updateFields, { session })
+      await memberMetrics.update(updateFields, { session })
 
       await session.commitTransaction()
       session.endSession()
