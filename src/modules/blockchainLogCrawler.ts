@@ -52,8 +52,8 @@ class BlockchainLogCrawler {
       fromBlock: opts.filter.fromBlock || 0,
       toBlock: opts.filter.toBlock || 'latest',
     }
-    this.fromBlock = opts.filter.fromBlock as any
-    this.toBlock = opts.filter.toBlock as any
+    this.fromBlock = opts.filter.fromBlock
+    this.toBlock = opts.filter.toBlock
     this.batchSize = opts.batchSize || this.calculateBatchSize(opts.network)
     this.originalBatchSize = this.batchSize
     this.onLog = opts.onLog

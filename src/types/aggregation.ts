@@ -146,8 +146,6 @@ export interface IAggMemberProjectFields {
   address?: 1
   ens?: 1
   avatar?: 1
-  firstActivity?: 1
-  lastActivity?: 1
 }
 
 export interface IAggMemberBalanceParams {
@@ -169,6 +167,8 @@ export interface IAggMemberMetricsParams {
 
 export interface IAggMemberMetricsProjectFields {
   _id?: 0 | 1
+  lastActivity?: 1
+  firstActivity?: 1
   delegateReceivedCount?: 1
   delegateSentCount?: 1
   voteCount?: 1

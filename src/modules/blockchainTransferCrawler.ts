@@ -3,7 +3,8 @@ import { type WebSocketProvider } from 'ethers'
 import {
   type IAlchemyTransferOptions,
   type IAlchemyTransferResponse,
-  type IEnumIndexerService, type IEnumIndexerServiceStatic,
+  type IEnumIndexerService,
+  type IEnumIndexerServiceStatic,
   NetworksEnum,
 } from '@types'
 import BottleneckModule from '@modules/bottleneck'
@@ -12,7 +13,7 @@ import { Models } from '@dbModels'
 import config from '@config'
 import DbTx from '@modules/dbTx'
 import utils from '@helpers/utils'
-import ProviderModule from "@modules/provider";
+import ProviderModule from '@modules/provider'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainTransferCrawler' })
 

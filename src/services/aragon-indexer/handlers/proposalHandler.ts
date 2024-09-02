@@ -107,7 +107,12 @@ export const ProposalHandler = {
 
     await Promise.all([
       ProposalHandler.parseActions(newProposal),
-      ProxyMember.memberActivity(newProposal.creatorAddress, newProposal.blockNumber, newProposal.network),
+      ProxyMember.memberActivity({
+        memberAddress: newProposal.creatorAddress,
+        pluginAddress: relatedPlugin.address,
+        network: newProposal.network,
+        blockNumber: newProposal.blockNumber,
+      }),
       ProxyMember.updateMemberMetrics(IMetricAction.increaseProposalCount, {
         memberAddress: newProposal.creatorAddress,
         pluginAddress,
@@ -152,7 +157,12 @@ export const ProposalHandler = {
 
     // NOTE: improve scalability, use queue messages
     await Promise.all([
-      ProxyMember.memberActivity(document.memberAddress!, info.blockNumber, info.network),
+      ProxyMember.memberActivity({
+        memberAddress: document.memberAddress!,
+        pluginAddress: info.address,
+        network: info.network,
+        blockNumber: info.blockNumber,
+      }),
       ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
         memberAddress: document.memberAddress!,
         pluginAddress: info.address,
@@ -209,7 +219,12 @@ export const ProposalHandler = {
 
     // update all metrics
     await Promise.all([
-      ProxyMember.memberActivity(document.memberAddress!, info.blockNumber, info.network),
+      ProxyMember.memberActivity({
+        memberAddress: document.creatorAddress,
+        pluginAddress: info.address,
+        network: info.network,
+        blockNumber: info.blockNumber,
+      }),
       ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
         memberAddress: document.memberAddress!,
         pluginAddress: info.address,

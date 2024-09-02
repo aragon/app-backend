@@ -48,12 +48,6 @@ export default class Member extends Model {
   @prop({ type: () => String, default: null })
   public avatar!: string
 
-  @prop({ type: () => Number, default: null })
-  public lastActivity?: number
-
-  @prop({ type: () => Number, default: null })
-  public firstActivity?: number
-
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
@@ -127,8 +121,6 @@ export default class Member extends Model {
           address: { $first: '$address' },
           ens: { $first: '$ens' },
           avatar: { $first: '$avatar' },
-          lastActivity: { $first: '$lastActivity' },
-          firstActivity: { $first: '$firstActivity' },
         },
       },
       {
@@ -137,8 +129,6 @@ export default class Member extends Model {
           address: 1,
           ens: 1,
           avatar: 1,
-          lastActivity: 1,
-          firstActivity: 1,
         },
       },
     ]
@@ -236,6 +226,8 @@ export default class Member extends Model {
           'memberMetrics',
           {
             _id: 0,
+            lastActivity: 1,
+            firstActivity: 1,
             delegateReceivedCount: 1,
             delegateSentCount: 1,
             voteCount: 1,
@@ -251,35 +243,11 @@ export default class Member extends Model {
         address: 1,
         ens: 1,
         avatar: 1,
-        lastActivity: 1,
-        firstActivity: 1,
         tokenBalance: '$memberBalance.amount',
         votingPower: '$memberBalance.votingPower',
         metrics: '$memberMetrics',
       },
     })
-
-    // {
-    //   "address": "0xff486Df0bc6bc294D0d9B6C798FC8bD83c8A4B3b",
-    //   "ens": null,
-    //   "network": "polygon-mainnet",
-    //   "fromBlockNumber": 51336069,
-    //   "fromTxHash": "0xd1234573d244a6cd335b0a8c198202d33627ad686ca4aa1ae18efeada3a35aae",
-    //   "pluginAddress": "0x84891a70C878B455aCdEB3d9A3653967375Cc7ca",
-    //   "pluginSubdomain": "token-voting",
-    //   "tokenAddress": "0x6a9E95e038fD66E4Dc16872F196E2Fdb984e0651",
-    //   "daoAddress": "0x245751C08c09049D1CE56CCd33Be6ABFa168CBA1",
-    //   "tokenBalance": "1000000000000000000",
-    //   "votingPower": "1000000000000000000",
-    //   "metrics": {
-    //   "delegateReceivedCount": 1,
-    //     "delegateSentCount": 0,
-    //     "voteCount": 0,
-    //     "proposalCount": 0
-    // },
-    //   "firstActivity": 0,
-    //   "lastActivity": 0
-    // }
 
     const member = await this.aggregate(query)
     return member?.[0] as IMembersResponse
