@@ -33,7 +33,7 @@ module.exports = {
       autorestart: true,
       env: {
         INSTANCE_ID: 'aragon-dao-sync',
-        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-indexer') }).parsed,
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-dao-sync') }).parsed,
       },
     },
     {
