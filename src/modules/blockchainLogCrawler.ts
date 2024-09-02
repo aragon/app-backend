@@ -14,7 +14,6 @@ const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' 
 class BlockchainLogCrawler {
   private readonly fromBlock: number | string
   private readonly toBlock: number | string
-  private readonly provider: WebSocketProvider
   private readonly onLog: (log: Log) => Promise<void>
   private readonly onError: (error: any, log?: Log) => void
   private readonly filter: Filter
@@ -46,18 +45,13 @@ class BlockchainLogCrawler {
     stopOnError?: boolean
     logService?: IEnumIndexerService | IEnumIndexerServiceStatic | null
   }) {
-    this.provider = ProviderModule.getProvider(opts.network)!
-    if (!this.provider) {
-      throw new Error('Provider not configured for network: ' + opts.network)
-    }
-
     this.filter = {
       ...opts.filter,
       fromBlock: opts.filter.fromBlock || 0,
       toBlock: opts.filter.toBlock || 'latest',
     }
-    this.fromBlock = this.filter.fromBlock as any
-    this.toBlock = this.filter.toBlock as any
+    this.fromBlock = opts.filter.fromBlock as any
+    this.toBlock = opts.filter.toBlock as any
     this.batchSize = opts.batchSize || this.calculateBatchSize(opts.network)
     this.originalBatchSize = this.batchSize
     this.onLog = opts.onLog
@@ -115,7 +109,7 @@ class BlockchainLogCrawler {
       try {
         return await retryRequest(async () =>
           BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
-            this.provider.getBlockNumber(),
+            this.getProvider().getBlockNumber(),
           ),
         )
       } catch (error) {
@@ -166,7 +160,7 @@ class BlockchainLogCrawler {
           try {
             const logs = await retryRequest(async () =>
               BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
-                this.provider.getLogs({
+                this.getProvider().getLogs({
                   address: this.filter.address,
                   topics: [topics],
                   fromBlock: currentBlock,
@@ -295,6 +289,10 @@ class BlockchainLogCrawler {
       await session.commitTransaction()
       await session.endSession()
     })
+  }
+
+  getProvider(): WebSocketProvider {
+    return ProviderModule.getProvider(this.crawlResult.network)!
   }
 }
 
