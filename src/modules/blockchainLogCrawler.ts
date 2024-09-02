@@ -12,6 +12,7 @@ import { retryRequest } from '@helpers/retryRequest'
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' })
 
 class BlockchainLogCrawler {
+  private readonly network: NetworksEnum
   private readonly fromBlock: number | string
   private readonly toBlock: number | string
   private readonly onLog: (log: Log) => Promise<void>
@@ -45,6 +46,7 @@ class BlockchainLogCrawler {
     stopOnError?: boolean
     logService?: IEnumIndexerService | IEnumIndexerServiceStatic | null
   }) {
+    this.network = opts.network
     this.filter = {
       ...opts.filter,
       fromBlock: opts.filter.fromBlock || 0,
@@ -251,6 +253,10 @@ class BlockchainLogCrawler {
     return messages.some(msg => error.message?.includes(msg))
   }
 
+  getProvider(): WebSocketProvider {
+    return ProviderModule.getProvider(this.network)!
+  }
+
   async getServiceStartBlock() {
     const existingConfig = await Models.ConfigIndexer.findExistingLog({
       network: this.crawlResult.network,
@@ -289,10 +295,6 @@ class BlockchainLogCrawler {
       await session.commitTransaction()
       await session.endSession()
     })
-  }
-
-  getProvider(): WebSocketProvider {
-    return ProviderModule.getProvider(this.crawlResult.network)!
   }
 }
 
