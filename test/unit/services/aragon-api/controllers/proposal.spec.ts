@@ -2,44 +2,55 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ProposalController from '@services/aragon-api/controllers/proposal'
-import { ErrorKeyEnum, NetworksEnum } from '@types'
+import { ErrorKeyEnum } from '@types'
 import { Models } from '@dbModels'
 import Proposal from '@models/schema/proposal'
 import PairDataModule from '@modules/pairData'
+import Token from '@models/schema/token'
+import Member from '@models/schema/member'
+import DaoMemberMapping from '@models/schema/daoMemberMapping'
+import { FakeToken } from '@test/mock/fakeToken'
+import { ProposalList } from '@test/mock/fakeProposal'
+import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
+import { FakeMember } from '@test/mock/fakeMember'
 
 describe('Controller: Proposal', () => {
   let sandbox: SinonSandbox
+
+  let rawToken: Partial<Token>
   let rawProposal: Partial<Proposal>
-  let proposalDb: Proposal
+  let rawMember: Partial<Member>
+  let rawDaoMemberMappings: Partial<DaoMemberMapping>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    rawToken = {
+      ...(FakeToken as any),
+    }
 
     rawProposal = {
-      transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-      blockNumber: 3,
-      network: NetworksEnum.ethereumMainnet,
-      daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      title: 'Fractal batch payment',
-      description: 'test desc',
-      summary: 'Batch payment was initiated via Fractal platform, please approve',
-      proposalId: 0,
-      allowFailureMap: 0,
-      creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
-      startDate: 234234223,
-      endDate: 334234223,
-      metadataUri: 'some-uri',
-      actions: [],
-      voteEvents: [],
-      executed: {
-        status: true,
-        transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-        blockNumber: 3,
-        blockTimestamp: 234234234,
+      ...(ProposalList[0] as any),
+      daoAddress: FakeDaoMemberMappings[0].daoAddress,
+      settings: {
+        ...(ProposalList[0].settings as any),
+        tokenAddress: FakeToken.address,
       },
     }
-    proposalDb = await Models.Proposal.create(rawProposal)
+
+    rawMember = {
+      ...(FakeMember as any),
+    }
+
+    rawDaoMemberMappings = {
+      ...(FakeDaoMemberMappings[0] as any),
+    }
+
+    await Promise.all([
+      Models.Token.create(rawToken),
+      Models.Proposal.create(rawProposal),
+      Models.Member.create(rawMember),
+      Models.DaoMemberMapping.create(rawDaoMemberMappings),
+    ])
   })
 
   afterEach(() => {
@@ -57,10 +68,10 @@ describe('Controller: Proposal', () => {
       }
 
       const filterParams: any = {
-        network: rawProposal.daos?.[0].network,
-        daoAddress: rawProposal.daos?.[0].daoAddress,
-        pluginAddress: rawProposal.daos?.[0].pluginAddress,
-        creatorAddress: rawProposal.daos?.[0].creatorAddress,
+        network: rawProposal.network,
+        daoAddress: rawProposal.daoAddress,
+        pluginAddress: rawProposal.pluginAddress,
+        creatorAddress: rawProposal.creatorAddress,
       }
 
       const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
@@ -153,11 +164,11 @@ describe('Controller: Proposal', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawProposal.daos?.[0].network}-${rawProposal.daos?.[0].daoAddress}`,
+        daoId: `${rawProposal.network}-${rawProposal.daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
-        daoAddress: rawProposal.daos?.[0].daoAddress,
-        network: rawProposal.daos?.[0].network,
+        daoAddress: rawProposal.daoAddress,
+        network: rawProposal.network,
       })
       const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
 
@@ -167,8 +178,8 @@ describe('Controller: Proposal', () => {
       expect(
         spyReq.calledWith({
           extraParams: {
-            daoAddress: rawProposal.daos?.[0].daoAddress,
-            network: rawProposal.daos?.[0].network,
+            daoAddress: rawProposal.daoAddress,
+            network: rawProposal.network,
           },
           paginationParams: {
             search: '',
@@ -207,7 +218,7 @@ describe('Controller: Proposal', () => {
 
       const filterParams: any = {}
       const pairParams: any = {
-        daoId: `${rawProposal.daos?.[0].network}-${rawProposal.daos?.[0].daoAddress}`,
+        daoId: `${rawProposal.network}-${rawProposal.daoAddress}`,
       }
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
       const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
@@ -221,8 +232,14 @@ describe('Controller: Proposal', () => {
 
   describe('getProposalById', () => {
     it('should getProposalById', async () => {
-      const proposal = await ProposalController.getProposalById(proposalDb.id)
-      expect(proposal.id).to.eq(proposalDb.id)
+      const proposalDbId = await Models.Proposal.getEntityId({
+        transactionHash: rawProposal.transactionHash,
+        pluginAddress: rawProposal.pluginAddress,
+        proposalIndex: rawProposal.proposalIndex,
+      })
+
+      const proposal = await ProposalController.getProposalById(proposalDbId)
+      expect(proposal.id).to.eq(proposalDbId)
     })
 
     it('should fail to getProposalById', async () => {

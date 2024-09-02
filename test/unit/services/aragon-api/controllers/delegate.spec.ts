@@ -2,40 +2,62 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DelegateController from '@services/aragon-api/controllers/delegate'
-import { ITokenType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import MemberTransaction from '@models/schema/memberTransaction'
 import PairDataModule from '@modules/pairData'
+import { fakeMemberTransactions } from '@test/mock/fakeMemberTransaction'
+import { FakeToken } from '@test/mock/fakeToken'
+import { FakeMember } from '@test/mock/fakeMember'
+import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
+import { DaoList } from '@test/mock/fakeDao'
+import Token from '@models/schema/token'
+import Member from '@models/schema/member'
+import type DaoMemberMapping from '@models/schema/daoMemberMapping'
+import Dao from '@models/schema/dao'
 
 describe('Controller: Delegate', () => {
   let sandbox: SinonSandbox
-  let rawDelegate: Partial<MemberTransaction>
+  let rawMemberTx: Partial<MemberTransaction>
+  let rawToken: Partial<Token>
+  let rawMember1: Partial<Member>
+  let rawMember2: Partial<Member>
+  let rawDaoMappings1: Partial<DaoMemberMapping>
+  let rawDaoMappings2: Partial<DaoMemberMapping>
+  let rawDao: Partial<Dao>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    rawDelegate = {
-      transactionHash: '0x23cb0c69d2047aa825de386100e8c4509ac66b6b0b7afa1b54ec22b26cab875b',
-      blockNumber: 48130742,
-      network: NetworksEnum.polygonMainnet,
-      tokenAddress: '0x9707e0FD480e02Dee8836Cf7878d61D7b630fB99',
-      fromDelegate: '0x0000000000000000000000000000000000000000',
-      toDelegate: '0x00004FE6931BFB16820DB9aAAA2467A59f33ffe4',
-      pluginAddress: '0x59Aa10590c99Cd0A3b4c7050c7279A8133a759e4',
-      daoAddress: '0x5f39E3c3CcDf02D028C97b9d04365AFDE8432AED',
-      amount: '101192000000000000',
-      token: {
-        network: NetworksEnum.polygonMainnet,
-        type: ITokenType.GovernanceERC20,
-        address: '0x5B08305497fb3a087Fc582D45fcb648c98177c43',
-        logo: 'https://logos.covalenthq.com/tokens/11155111/0x5b08305497fb3a087fc582d45fcb648c98177c43.png',
-        name: 'Sepolia Avalanche',
-        decimals: 18,
-        symbol: 'SAVL',
-      },
+    rawMemberTx = { ...fakeMemberTransactions[0] }
+    rawToken = { ...(FakeToken as any), address: rawMemberTx.tokenAddress }
+    rawMember1 = { ...(FakeMember as any), address: rawMemberTx.from, id: rawMemberTx.from, ens: 'from.eth' }
+    rawMember2 = { ...(FakeMember as any), address: rawMemberTx.to, id: rawMemberTx.to, ens: 'rcv.eth' }
+
+    rawDaoMappings1 = {
+      ...FakeDaoMemberMappings[0],
+      tokenAddress: rawMemberTx.tokenAddress,
+      memberAddress: rawMember1.address,
     }
 
-    await Models.Delegate.create(rawDelegate)
+    rawDaoMappings2 = {
+      ...FakeDaoMemberMappings[0],
+      tokenAddress: rawMemberTx.tokenAddress,
+      memberAddress: rawMember2.address,
+    }
+
+    rawDao = {
+      ...(DaoList[0] as any),
+      address: rawDaoMappings1.daoAddress,
+    }
+
+    await Promise.all([
+      Models.Member.create(rawMember1),
+      Models.Member.create(rawMember2),
+      Models.DaoMemberMapping.create(rawDaoMappings1),
+      Models.DaoMemberMapping.create(rawDaoMappings2),
+      Models.Token.create(rawToken),
+      Models.MemberTransaction.create(rawMemberTx),
+    ])
   })
 
   afterEach(() => {
@@ -43,7 +65,7 @@ describe('Controller: Delegate', () => {
   })
 
   describe('getDelegateWithPagination', () => {
-    it('should get delegate with pagination - all params', async () => {
+    it('should get delegate with pagination - no params', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -52,14 +74,9 @@ describe('Controller: Delegate', () => {
         sort: 'createdAt',
       }
 
-      const filterParams: any = {
-        memberAddress: rawDelegate.fromDelegate,
-        pluginAddress: rawDelegate.pluginAddress,
-        daoAddress: rawDelegate.daoAddress,
-        tokenAddress: rawDelegate.tokenAddress,
-      }
+      const filterParams: any = {}
 
-      const spyReq = sandbox.spy(Models.Delegate, 'findWithPagination')
+      const spyReq = sandbox.spy(Models.MemberTransaction, 'findWithPagination')
 
       const response = await DelegateController.getDelegateWithPagination(paginationParams, filterParams)
 
@@ -78,139 +95,95 @@ describe('Controller: Delegate', () => {
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].network).to.eq(rawDelegate.network)
-      expect(response.data[0].blockNumber).to.eq(rawDelegate.blockNumber)
-      expect(response.data[0].transactionHash).to.eq(rawDelegate.transactionHash)
-      expect(response.data[0].fromDelegate).to.eq(rawDelegate.fromDelegate)
-      expect(response.data[0].toDelegate).to.eq(rawDelegate.toDelegate)
-      expect(response.data[0].tokenAddress).to.eq(rawDelegate.tokenAddress)
-      expect(response.data[0].pluginAddress).to.eq(rawDelegate.pluginAddress)
-      expect(response.data[0].daoAddress).to.eq(rawDelegate.daoAddress)
-      expect(response.data[0].tokenAddress).to.eq(rawDelegate.tokenAddress)
-      expect(response.data[0].amount).to.eq(rawDelegate.amount)
-      expect(response.data[0].token.type).to.eq(rawDelegate.token?.type)
-      expect(response.data[0].token.address).to.eq(rawDelegate.token?.address)
-      expect(response.data[0].token.decimals).to.eq(rawDelegate.token?.decimals)
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
+      expect(response.data[0].network).to.eq(rawMemberTx.network)
+      expect(response.data[0].blockNumber).to.eq(rawMemberTx.blockNumber)
+      expect(response.data[0].transactionHash).to.eq(rawMemberTx.transactionHash)
+      expect(response.data[0].from.address).to.eq(rawMemberTx.from)
+      expect(response.data[0].to.address).to.eq(rawMemberTx.to)
+      expect(response.data[0].token.address).to.eq(rawMemberTx.tokenAddress)
+      expect(response.data[0].side).to.be.eq(rawMemberTx.side)
+      expect(response.data[0].type).to.be.eq(rawMemberTx.type)
     })
+  })
 
-    it('should get delegate no params', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
+  it('should get delegate with pagination - all params', async () => {
+    const paginationParams = {
+      search: '',
+      pageSize: 10,
+      page: 1,
+      order: 'asc',
+      sort: 'createdAt',
+    }
 
-      const filterParams: any = {}
+    const filterParams: any = {
+      network: rawMemberTx.network,
+      daoAddress: rawDaoMappings1.daoAddress,
+      pluginAddress: rawDaoMappings1.pluginAddress,
+      tokenAddress: rawMemberTx.tokenAddress,
+    }
 
-      const spyReq = sandbox.spy(Models.Delegate, 'findWithPagination')
+    const pairParams: any = {
+      daoId: `${rawMemberTx.network}-${rawDaoMappings1.daoAddress}`,
+    }
 
-      const response = await DelegateController.getDelegateWithPagination(paginationParams, filterParams)
+    const pairFromExtraParamsSpy = sandbox.spy(PairDataModule, 'pairFromExtraParams')
 
-      expect(spyReq.calledOnce).to.be.true
-      expect(
-        spyReq.calledWith({
-          extraParams: filterParams,
-          paginationParams: {
-            search: '',
-            pageSize: 10,
-            page: 1,
-            order: 'asc',
-            sort: 'createdAt',
-          },
-        }),
-      ).to.be.true
+    const spyReq = sandbox.spy(Models.MemberTransaction, 'findWithPagination')
 
-      expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].network).to.eq(rawDelegate.network)
-      expect(response.data[0].blockNumber).to.eq(rawDelegate.blockNumber)
-      expect(response.data[0].transactionHash).to.eq(rawDelegate.transactionHash)
-      expect(response.data[0].fromDelegate).to.eq(rawDelegate.fromDelegate)
-      expect(response.data[0].toDelegate).to.eq(rawDelegate.toDelegate)
-      expect(response.data[0].tokenAddress).to.eq(rawDelegate.tokenAddress)
-      expect(response.data[0].pluginAddress).to.eq(rawDelegate.pluginAddress)
-      expect(response.data[0].daoAddress).to.eq(rawDelegate.daoAddress)
-      expect(response.data[0].tokenAddress).to.eq(rawDelegate.tokenAddress)
-      expect(response.data[0].amount).to.eq(rawDelegate.amount)
-      expect(response.data[0].token.type).to.eq(rawDelegate.token?.type)
-      expect(response.data[0].token.address).to.eq(rawDelegate.token?.address)
-      expect(response.data[0].token.decimals).to.eq(rawDelegate.token?.decimals)
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
-    })
+    const response = await DelegateController.getDelegateWithPagination(paginationParams, filterParams, pairParams)
 
-    it('should get delegate with pagination - daoId', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
+    expect(spyReq.calledOnce).to.be.true
+    expect(pairFromExtraParamsSpy.calledOnce).to.be.true
+    expect(
+      spyReq.calledWith({
+        extraParams: {
+          daoAddress: rawDaoMappings1.daoAddress,
+          network: rawMemberTx.network,
+          tokenAddress: rawMemberTx.tokenAddress,
+          pluginAddress: rawDaoMappings1.pluginAddress,
+        },
+        paginationParams: {
+          search: '',
+          pageSize: 10,
+          page: 1,
+          order: 'asc',
+          sort: 'createdAt',
+        },
+      }),
+    ).to.be.true
 
-      const filterParams: any = {}
-      const pairParams: any = {
-        daoId: `${rawDelegate.network}-${rawDelegate.daoAddress}`,
-      }
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
-        daoAddress: rawDelegate.daoAddress,
-        network: rawDelegate.network,
-      })
-      const spyReq = sandbox.spy(Models.Delegate, 'findWithPagination')
+    expect(response).to.have.property('data').with.lengthOf(1)
+    expect(response.data[0].network).to.eq(rawMemberTx.network)
+    expect(response.metadata.page).to.eq(1)
+    expect(response.metadata.totalPages).to.eq(1)
+    expect(response.metadata.totalRecords).to.eq(1)
+    expect(response.data[0].from.address).to.eq(rawMemberTx.from)
+    expect(response.data[0].to.address).to.eq(rawMemberTx.to)
+    expect(response.data[0].token.address).to.eq(rawMemberTx.tokenAddress)
+    expect(response.data[0].side).to.be.eq(rawMemberTx.side)
+    expect(response.data[0].type).to.be.eq(rawMemberTx.type)
+  })
 
-      const response = await DelegateController.getDelegateWithPagination(paginationParams, filterParams, pairParams)
+  it('should get delegate with pagination - daoId not found', async () => {
+    const paginationParams = {
+      search: '',
+      pageSize: 10,
+      page: 1,
+      order: 'asc',
+      sort: 'createdAt',
+    }
 
-      expect(spyReq.calledOnce).to.be.true
-      expect(
-        spyReq.calledWith({
-          extraParams: {
-            daoAddress: rawDelegate.daoAddress,
-            network: rawDelegate.network,
-          },
-          paginationParams: {
-            search: '',
-            pageSize: 10,
-            page: 1,
-            order: 'asc',
-            sort: 'createdAt',
-          },
-        }),
-      ).to.be.true
+    const filterParams: any = {}
+    const pairParams: any = {
+      daoId: `${rawMemberTx.network}-${rawDaoMappings1.daoAddress}`,
+    }
+    sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
 
-      expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].network).to.eq(rawDelegate.network)
-      expect(response.data[0].daoAddress).to.eq(rawDelegate.daoAddress)
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
-    })
+    const spyReq = sandbox.spy(Models.MemberTransaction, 'findWithPagination')
 
-    it('should get delegate with pagination - daoId not found', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
+    const response = await DelegateController.getDelegateWithPagination(paginationParams, filterParams, pairParams)
 
-      const filterParams: any = {}
-      const pairParams: any = {
-        daoId: `${rawDelegate.network}-${rawDelegate.daoAddress}`,
-      }
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
-
-      const spyReq = sandbox.spy(Models.Delegate, 'findWithPagination')
-
-      const response = await DelegateController.getDelegateWithPagination(paginationParams, filterParams, pairParams)
-
-      expect(spyReq.calledOnce).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(1)
-    })
+    expect(spyReq.calledOnce).to.be.true
+    expect(response).to.have.property('data').with.lengthOf(1)
   })
 })

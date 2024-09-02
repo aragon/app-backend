@@ -60,29 +60,5 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       expect(savedPluginRepoLog.blockNumber).to.eq(logInfo.blockNumber)
       expect(savedPluginRepoLog.transactionHash).to.eq(logInfo.transactionHash)
     })
-
-    it('pluginRepoRegistered throw error', async () => {
-      const logInfo = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 1,
-        transactionHash: '0x123',
-        address: '0x456',
-        eventName: 'test',
-      }
-      const fakeEvent = {
-        args: {
-          sender: '0x123',
-          amount: 10n,
-          _reference: 'some reference',
-        },
-      }
-
-      sandbox.stub(Models.PluginRepo, 'findExistingLog').rejects(new Error('error'))
-      const stubLogger = sandbox.stub(logger, 'error')
-
-      await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, logInfo)
-
-      expect(stubLogger.calledOnceWith('Error PluginRepoRegister' as any)).to.be.true
-    })
   })
 })

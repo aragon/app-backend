@@ -35,8 +35,7 @@ const SettingController = {
   getActiveSettingByDaoAddress: async (daoAddress: HexAddress, network: NetworksEnum): Promise<IProposalsResponse> => {
     const setting = await Models.Setting.findActive({ daoAddress, network })
     assertExposable(setting, ErrorKeyEnum.notFound)
-
-    return setting.filterKeys()
+    return setting
   },
 }
 
