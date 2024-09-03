@@ -7,7 +7,7 @@ export const createProviderProxy = (initialProvider: IWebSocketProvider) => {
   let currentProvider = initialProvider
 
   const isConnectionOpen = () => {
-    return currentProvider.websocket && currentProvider.websocket.readyState === IWebSocketStatus.OPEN
+    return currentProvider?.websocket && currentProvider?.websocket?.readyState === IWebSocketStatus.OPEN
   }
 
   const waitForConnection = async () => {
