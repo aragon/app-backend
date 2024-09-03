@@ -105,14 +105,15 @@ export const ProposalHandler = {
 
     const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)
 
+    await ProxyMember.memberActivity({
+      memberAddress: newProposal.creatorAddress,
+      pluginAddress: relatedPlugin.address,
+      network: newProposal.network,
+      blockNumber: newProposal.blockNumber,
+    })
+
     await Promise.all([
       ProposalHandler.parseActions(newProposal),
-      ProxyMember.memberActivity({
-        memberAddress: newProposal.creatorAddress,
-        pluginAddress: relatedPlugin.address,
-        network: newProposal.network,
-        blockNumber: newProposal.blockNumber,
-      }),
       ProxyMember.updateMemberMetrics(IMetricAction.increaseProposalCount, {
         memberAddress: newProposal.creatorAddress,
         pluginAddress,
@@ -155,14 +156,15 @@ export const ProposalHandler = {
 
     await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
 
+    await ProxyMember.memberActivity({
+      memberAddress: document.memberAddress!,
+      pluginAddress: info.address,
+      network: info.network,
+      blockNumber: info.blockNumber,
+    })
+
     // NOTE: improve scalability, use queue messages
     await Promise.all([
-      ProxyMember.memberActivity({
-        memberAddress: document.memberAddress!,
-        pluginAddress: info.address,
-        network: info.network,
-        blockNumber: info.blockNumber,
-      }),
       ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
         memberAddress: document.memberAddress!,
         pluginAddress: info.address,
