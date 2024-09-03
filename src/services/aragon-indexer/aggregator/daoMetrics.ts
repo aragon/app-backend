@@ -12,6 +12,7 @@ export const AggregatorDaoMetrics = {
     logger.verbose('Start DaoMetrics', llo({ startTime }))
 
     const daoDb = await Models.Dao.findByAddress(daoAddress, network)
+    if (!daoDb) return
     await AggregatorDaoMetrics.onDocument(daoDb)
 
     const duration = Date.now() - startTime

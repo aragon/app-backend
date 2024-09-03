@@ -28,7 +28,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:dao-sync:DaoTransactio
 export const DaoTransactions = {
   start: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
     const startTime = Date.now()
-    logger.verbose('Start DaoMetrics', llo({ startTime }))
+    logger.verbose('Start DaoTransactions', llo({ startTime }))
 
     const daoDb = await Models.Dao.findByAddress(daoAddress, network)
     if (!daoDb) return
