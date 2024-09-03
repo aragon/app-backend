@@ -103,7 +103,7 @@ export const DaoRegistryHandler = {
     /**
      * Save the member logs that will create the member entry for the dao
      */
-    await DaoRegistryHandler._memberAdded(txReceipt, info)
+    // await DaoRegistryHandler._memberAdded(txReceipt, info)
 
     await Promise.all([
       RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
