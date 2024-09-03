@@ -19,7 +19,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import { DAO } from '@artifacts/dao'
 import { Multisig } from '@artifacts/Multisig'
 
-const llo = logger.logMeta.bind(null, { service: 'service:dao-sync:DaoTransactions' })
+const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
 
 /**
  * The DaoTransactions uses the alchemy_getAssetTransfers to fetch DAO transfers.

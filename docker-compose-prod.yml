@@ -21,12 +21,12 @@ services:
       - ./.env
     command: bash -c 'yarn service:aragon-indexer'
 
-  service-aragon-dao-sync:
+  service-aragon-dao:
     build:
       context: ./
     env_file:
       - ./.env
-    command: bash -c 'yarn service:aragon-dao-sync'
+    command: bash -c 'yarn service:aragon-dao'
 
   service-aragon-rates:
     build:

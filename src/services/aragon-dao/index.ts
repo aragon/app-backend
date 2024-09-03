@@ -1,10 +1,11 @@
 import logger from '@logger'
 import { EnumConnection, EnumQueueName, type IService } from '@types'
 import { RabbitMQHelper } from '@helpers/redditMQ'
-import { DaoAssets } from '@services/aragon-dao-sync/daoAssets'
-import { DaoTransactions } from '@services/aragon-dao-sync/daoTransactions'
+import { DaoAssets } from '@services/aragon-dao/daoAssets'
+import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
+import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 
-const llo = logger.logMeta.bind(null, { service: 'service:DaoSyncService' })
+const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
 const DaoSyncService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
@@ -22,6 +23,13 @@ const DaoSyncService: IService = {
 
       await DaoTransactions.start({ daoAddress: address, network })
       logger.verbose('process dao.assets', llo({ id: job.id }))
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.daoMetrics, 10, async job => {
+      const { address, network } = job.params
+
+      await DaoMetrics.start({ daoAddress: address, network })
+      logger.verbose('process dao.metrics', llo({ id: job.id }))
     })
 
     logger.info('DaoSyncService service started', llo({}))

@@ -26,14 +26,14 @@ module.exports = {
       },
     },
     {
-      name: 'aragon-dao-sync',
+      name: 'aragon-dao',
       cwd: path.resolve(__dirname, ''),
       script: 'yarn',
-      args: 'service:aragon-dao-sync',
+      args: 'service:aragon-dao',
       autorestart: true,
       env: {
-        INSTANCE_ID: 'aragon-dao-sync',
-        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-dao-sync') }).parsed,
+        INSTANCE_ID: 'aragon-dao',
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-dao') }).parsed,
       },
     },
     {

@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { AggregatorDaoMetrics } from '@services/aragon-indexer/aggregator/daoMetrics'
+// import { AggregatorDaoMetrics } from '@services/aragon-indexer/aggregator/daoMetrics'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import Logger from '@logger'

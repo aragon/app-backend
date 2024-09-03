@@ -4,24 +4,24 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Dao from '@models/schema/dao'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:AggregatorDaoMetrics' })
+const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoMetrics' })
 
-export const AggregatorDaoMetrics = {
+export const DaoMetrics = {
   start: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
     const startTime = Date.now()
     logger.verbose('Start DaoMetrics', llo({ startTime }))
 
     const daoDb = await Models.Dao.findByAddress(daoAddress, network)
     if (!daoDb) return
-    await AggregatorDaoMetrics.onDocument(daoDb)
+    await DaoMetrics.onDocument(daoDb)
 
     const duration = Date.now() - startTime
-    logger.verbose('End AggregatorDaoMetrics', llo({ daoId: daoDb.id, duration: `${duration}ms` }))
+    logger.verbose('End DaoMetrics', llo({ daoId: daoDb.id, duration: `${duration}ms` }))
   },
 
   onDocument: async (document: Dao) => {
     const [tvlUSD, proposalsCreated, proposalsExecuted, members, votes, uniqueVoters] = await Promise.all([
-      AggregatorDaoMetrics.getDaoTvl(document),
+      DaoMetrics.getDaoTvl(document),
       Models.Proposal.countDocuments({ daoAddress: document.address, network: document.network }),
       Models.Proposal.countDocuments({
         daoAddress: document.address,
@@ -30,7 +30,7 @@ export const AggregatorDaoMetrics = {
       }),
       Models.DaoMemberMapping.countDocuments({ daoAddress: document.address, network: document.network }),
       Models.Vote.countDocuments({ daoAddress: document.address, network: document.network }),
-      AggregatorDaoMetrics.countUniqueMemberVotesByPlugin(document.address),
+      DaoMetrics.countUniqueMemberVotesByPlugin(document.address),
     ])
 
     await DbTx.executeTxFn(async ({ session }) => {

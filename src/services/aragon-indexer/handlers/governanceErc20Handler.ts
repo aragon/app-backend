@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { IEventLogMember, type ILogInfo, IMetricAction, ITransferSide, ITransferType } from '@types'
+import { EnumQueueName, IEventLogMember, type ILogInfo, IMetricAction, ITransferSide, ITransferType } from '@types'
 import utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
@@ -8,8 +8,8 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
-import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
 import type Plugin from '@models/schema/plugin'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:GovernanceErc20Handler' })
 
@@ -138,9 +138,10 @@ export const GovernanceErc20Handler = {
       }
     }
 
-    await AggregatorDaoMetrics.start({
-      daoAddress: plugin?.daoAddress,
-      network: plugin?.network,
+    // Dao metrics
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: plugin.daoAddress,
+      params: { address: plugin.daoAddress, network: plugin.network },
     })
   },
 
@@ -226,9 +227,10 @@ export const GovernanceErc20Handler = {
       })
     }
 
-    await AggregatorDaoMetrics.start({
-      daoAddress: plugin.daoAddress,
-      network: plugin.network,
+    // Dao metrics
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: plugin.daoAddress,
+      params: { address: plugin.daoAddress, network: plugin.network },
     })
   },
 
@@ -312,9 +314,10 @@ export const GovernanceErc20Handler = {
       network: info.network,
     })
 
-    await AggregatorDaoMetrics.start({
-      daoAddress: plugin.daoAddress,
-      network: plugin.network,
+    // Dao metrics
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: plugin.daoAddress,
+      params: { address: plugin.daoAddress, network: plugin.network },
     })
   },
 
