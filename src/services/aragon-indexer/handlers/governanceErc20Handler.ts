@@ -94,7 +94,7 @@ export const GovernanceErc20Handler = {
       return logDb
     })
 
-    const plugin = await Models.Plugin.findActivePluginByTokenAddress(info.address, info.network)
+    const plugin = await Models.Plugin.findByAddress(info.address, info.network)
 
     if (!plugin) {
       logger.error('Plugin not found - delegateVoteChanged member metrics not updated', llo({ info }))
