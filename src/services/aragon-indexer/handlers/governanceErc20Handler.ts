@@ -15,7 +15,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:GovernanceErc2
 
 export const GovernanceErc20Handler = {
   // is trigger once for all user - (from user increase balance and 1 user decrease balance)
-  transfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin) => {
+  transfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
     // outgoing transfer
     if (parsedEvent.args.from !== utils.zeroAddress) {
       await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info, plugin)
@@ -28,7 +28,7 @@ export const GovernanceErc20Handler = {
   },
 
   // it triggers for each user the previous and new votingPower
-  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin) => {
+  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
     if (parsedEvent.args.delegate === utils.zeroAddress) {
       return
     }
@@ -95,6 +95,15 @@ export const GovernanceErc20Handler = {
       return logDb
     })
 
+    if (!plugin) {
+      plugin = await Models.Plugin.findActivePluginByTokenAddress(info.address, info.network)
+    }
+
+    if (!plugin) {
+      logger.error('Plugin not found - delegateVoteChanged member metrics not updated', llo({ info }))
+      return
+    }
+
     if (side === ITransferSide.incoming) {
       await ProxyMember.updateMemberMetrics(IMetricAction.increaseDelegateReceivedCount, {
         memberAddress: member.address,
@@ -130,12 +139,12 @@ export const GovernanceErc20Handler = {
     }
 
     await AggregatorDaoMetrics.start({
-      daoAddress: plugin.daoAddress,
-      network: plugin.network,
+      daoAddress: plugin?.daoAddress,
+      network: plugin?.network,
     })
   },
 
-  _outgoingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin) => {
+  _outgoingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
     const member = await ProxyMember.saveAndGetMember(parsedEvent.args.from)
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
@@ -199,6 +208,15 @@ export const GovernanceErc20Handler = {
       return logDb
     })
 
+    if (!plugin) {
+      plugin = await Models.Plugin.findActivePluginByTokenAddress(info.address, info.network)
+    }
+
+    if (!plugin) {
+      logger.error('Plugin not found - incoming member metrics not updated', llo({ info }))
+      return
+    }
+
     if (BigInt(memberTransaction.memberBalance) === 0n && memberTransaction.votingPower === 0n) {
       await ProxyMember.removeFromDao({
         memberAddress: member?.address,
@@ -214,7 +232,7 @@ export const GovernanceErc20Handler = {
     })
   },
 
-  _incomingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin) => {
+  _incomingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
     const member = await ProxyMember.saveAndGetMember(parsedEvent.args.to)
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
@@ -277,6 +295,15 @@ export const GovernanceErc20Handler = {
       logger.verbose('Transfer incoming - tokenTransfer', llo({ logId: logDb?.id, info }))
       return logDb
     })
+
+    if (!plugin) {
+      plugin = await Models.Plugin.findActivePluginByTokenAddress(info.address, info.network)
+    }
+
+    if (!plugin) {
+      logger.error('Plugin not found - incoming member metrics not updated', llo({ info }))
+      return
+    }
 
     await ProxyMember.addToDao({
       memberAddress: member?.address,
