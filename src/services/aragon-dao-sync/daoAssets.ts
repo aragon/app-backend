@@ -17,6 +17,7 @@ export const DaoAssets = {
     logger.verbose('Start DaoMetrics', llo({ startTime }))
 
     const daoDb = await Models.Dao.findByAddress(daoAddress, network)
+    if (!daoDb) return
     await DaoAssets.onDocument(daoDb)
 
     const duration = Date.now() - startTime

@@ -31,6 +31,7 @@ export const DaoTransactions = {
     logger.verbose('Start DaoMetrics', llo({ startTime }))
 
     const daoDb = await Models.Dao.findByAddress(daoAddress, network)
+    if (!daoDb) return
     await DaoTransactions.onDocument(daoDb)
 
     const duration = Date.now() - startTime

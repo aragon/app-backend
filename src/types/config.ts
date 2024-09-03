@@ -20,7 +20,7 @@ export interface IEtherScanConfig {
 
 export interface IEventConfig {
   event: string
-  handler: (event: any, info: any) => Promise<void>
+  handler: (event: any, info: any) => Promise<any>
   enableHistorical?: boolean
   enableRealtime?: boolean
 }

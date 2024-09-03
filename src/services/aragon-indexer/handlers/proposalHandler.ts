@@ -163,7 +163,6 @@ export const ProposalHandler = {
       blockNumber: info.blockNumber,
     })
 
-    // NOTE: improve scalability, use queue messages
     await Promise.all([
       ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
         memberAddress: document.memberAddress!,
