@@ -220,7 +220,7 @@ export const ProposalHandler = {
     // update all metrics
     await Promise.all([
       ProxyMember.memberActivity({
-        memberAddress: document.creatorAddress,
+        memberAddress: document.memberAddress!,
         pluginAddress: info.address,
         network: info.network,
         blockNumber: info.blockNumber,
