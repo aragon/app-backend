@@ -95,27 +95,27 @@ class BlockchainLogCrawler {
       arbitrum: 3,
       base: 12,
       polygon: 2,
-    };
+    }
 
     // Seconds in 4 months (assuming 30 days per month)
     const days = 30 * 4
-    const secondsInMonth = days * 24 * 3600;
+    const secondsInMonth = days * 24 * 3600
 
     switch (network) {
       case NetworksEnum.zksyncMainnet:
       case NetworksEnum.zksyncSepolia:
-        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.zkSync);
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.zkSync)
       case NetworksEnum.ethereumMainnet:
       case NetworksEnum.ethereumSepolia:
-        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.ethereum);
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.ethereum)
       case NetworksEnum.arbitrumMainnet:
-        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.arbitrum);
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.arbitrum)
       case NetworksEnum.baseMainnet:
-        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.base);
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.base)
       case NetworksEnum.polygonMainnet:
-        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.polygon);
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.polygon)
       default:
-        throw new Error(`Unsupported network: ${network}`);
+        throw new Error(`Unsupported network: ${network}`)
     }
   }
 
@@ -214,7 +214,19 @@ class BlockchainLogCrawler {
 
       if (this.shutdown) break
 
-      await this.processLogs(allLogs.sort((a, b) => a.blockNumber - b.blockNumber))
+      if (allLogs.length > 1) {
+        console.log('allLogs', allLogs)
+      }
+      await this.processLogs(
+        allLogs.sort((a, b) => {
+          // First, sort by blockNumber in ascending order
+          if (a.blockNumber !== b.blockNumber) {
+            return a.blockNumber - b.blockNumber
+          }
+          // If blockNumbers are the same, sort by transactionIndex in ascending order
+          return a.transactionIndex - b.transactionIndex
+        }),
+      )
 
       if (this.logService) {
         await this.onSaveProgress(toBlock)
