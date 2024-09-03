@@ -61,6 +61,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
@@ -86,6 +88,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
@@ -111,6 +115,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     it('should create new log installationApplied', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 2,
+        logIndex: 2,
         blockNumber: 1,
         transactionHash: '0x123',
         address: '0x456',
@@ -138,11 +144,16 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
 
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
+        network: logInfo.network,
         transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
         event: IEventLogPluginType.InstallationApplied,
       })
 
       expect(existingLog.transactionHash).to.eq(logInfo.transactionHash)
+      expect(existingLog.transactionIndex).to.eq(logInfo.transactionIndex)
+      expect(existingLog.logIndex).to.eq(logInfo.logIndex)
       expect(existingLog.blockNumber).to.eq(logInfo.blockNumber)
       expect(existingLog.network).to.eq(logInfo.network)
       expect(existingLog.event).to.eq(IEventLogPluginType.InstallationApplied)
@@ -158,6 +169,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 5,
+        logIndex: 5,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
@@ -212,7 +225,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindDao.calledOnce).to.be.true
       expect(
         findTxSpy.calledWith({
+          network: logInfo.network,
           transactionHash: logInfo.transactionHash,
+          transactionIndex: logInfo.transactionIndex,
+          logIndex: logInfo.logIndex,
           event: IEventLogPluginType.InstallationPrepared,
         }),
       ).to.be.true
@@ -221,7 +237,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(logsStub.calledOnce).to.be.true
 
       const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog({
+        network: logInfo.network,
         transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
         event: IEventLogPluginType.InstallationPrepared,
       })
       expect(stubToken.calledOnce).to.be.true
@@ -242,6 +261,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
@@ -266,6 +287,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
@@ -311,6 +334,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
@@ -335,14 +360,20 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindDao.calledOnce).to.be.true
       expect(
         findTxSpy.calledWith({
+          network: logInfo.network,
           transactionHash: logInfo.transactionHash,
+          transactionIndex: logInfo.transactionIndex,
+          logIndex: logInfo.logIndex,
           event: IEventLogPluginType.UninstallationApplied,
         }),
       ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
       const pluginDb = await Models.LogPluginSetupProcessor.findExistingLog({
+        network: logInfo.network,
         transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
         event: IEventLogPluginType.UninstallationApplied,
       })
       expect(pluginDb.transactionHash).to.eq(logInfo.transactionHash)
@@ -360,6 +391,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
@@ -386,6 +419,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
@@ -424,17 +459,25 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindDao.calledOnce).to.be.true
       expect(
         findTxSpy.calledWith({
+          network: logInfo.network,
           transactionHash: logInfo.transactionHash,
+          transactionIndex: logInfo.transactionIndex,
+          logIndex: logInfo.logIndex,
           event: IEventLogPluginType.UninstallationPrepared,
         }),
       ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
       const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog({
+        network: logInfo.network,
         transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
         event: IEventLogPluginType.UninstallationPrepared,
       })
       expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
+      expect(daoMetadataDB.transactionIndex).to.eq(logInfo.transactionIndex)
+      expect(daoMetadataDB.logIndex).to.eq(logInfo.logIndex)
       expect(daoMetadataDB.blockNumber).to.eq(logInfo.blockNumber)
       expect(daoMetadataDB.network).to.eq(logInfo.network)
       expect(daoMetadataDB.event).to.eq(IEventLogPluginType.UninstallationPrepared)
@@ -450,6 +493,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
@@ -476,6 +521,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
@@ -500,14 +547,20 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindDao.calledOnce).to.be.true
       expect(
         findTxSpy.calledWith({
+          network: logInfo.network,
           transactionHash: logInfo.transactionHash,
+          transactionIndex: logInfo.transactionIndex,
+          logIndex: logInfo.logIndex,
           event: IEventLogPluginType.UpdateApplied,
         }),
       ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
       const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog({
+        network: logInfo.network,
         transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
         event: IEventLogPluginType.UpdateApplied,
       })
       expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
@@ -526,6 +579,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
@@ -552,6 +607,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
@@ -592,14 +649,20 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindDao.calledOnce).to.be.true
       expect(
         findTxSpy.calledWith({
+          network: logInfo.network,
           transactionHash: logInfo.transactionHash,
+          transactionIndex: logInfo.transactionIndex,
+          logIndex: logInfo.logIndex,
           event: IEventLogPluginType.UpdatePrepared,
         }),
       ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
 
       const daoMetadataDB = await Models.LogPluginSetupProcessor.findExistingLog({
+        network: logInfo.network,
         transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
         event: IEventLogPluginType.UpdatePrepared,
       })
       expect(daoMetadataDB.transactionHash).to.eq(logInfo.transactionHash)
@@ -618,6 +681,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',

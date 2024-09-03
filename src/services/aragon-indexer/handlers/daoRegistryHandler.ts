@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { EnumQueueName, type HexAddress, IEventLogMember, IEventLogPluginType, type ILogInfo, ITokenType } from '@types'
+import { EnumQueueName, type HexAddress, IEventLogMember, IEventLogPluginType, type ILogInfo } from '@types'
 import { type Log, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
@@ -19,10 +19,10 @@ import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Plugin from '@models/schema/plugin'
-import { ProxyToken } from '@modules/proxyToken'
 import { LogGovernanceErc20 } from '@indexer/logGovernanceErc20'
 import { LogTokenVoting } from '@indexer/logTokenVoting'
 import { LogMultisig } from '@indexer/logMultisig'
+import type Dao from '@models/schema/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
 
@@ -92,19 +92,23 @@ export const DaoRegistryHandler = {
 
     /**
      * Save the plugin settings logs that will create the plugin settings entry for the dao
-     * As settings can be identified in two ways, needed to check for both
+     * It return the plugin if the setting are saved successfully
      */
     const plugin = await DaoRegistryHandler._pluginSettings(txReceipt, info)
 
     if (plugin) {
-      await DaoRegistryHandler._updateDaoAndSyncPluginData(plugin)
+      // update the dao as supported
+      await DaoRegistryHandler._updateSupportedDao(plugin)
+
+      // TODO: add to the queue
+      if (plugin.tokenAddress) {
+        await Promise.all([LogGovernanceErc20.start(plugin), LogTokenVoting.start(plugin)])
+      } else {
+        await Promise.all([LogMultisig.start(plugin)])
+      }
     }
 
-    /**
-     * Save the member logs that will create the member entry for the dao
-     */
-    // await DaoRegistryHandler._memberAdded(txReceipt, info)
-
+    // always get dao transactions and assets
     await Promise.all([
       RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
         id: daoAddress,
@@ -192,7 +196,7 @@ export const DaoRegistryHandler = {
     }
   },
 
-  _updateDaoAndSyncPluginData: async (plugin: Plugin) => {
+  _updateSupportedDao: async (plugin: Plugin): Promise<Dao | undefined> => {
     if (!plugin) return
 
     const dao = await Models.Dao.findByAddress(plugin.daoAddress, plugin.network)
@@ -201,31 +205,16 @@ export const DaoRegistryHandler = {
       return
     }
 
-    if (plugin.tokenAddress) {
-      const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
-      if (token?.type === ITokenType.GovernanceERC20) {
-        if (!dao.isSupported) {
-          await DbOperations.updateDocument(
-            dao,
-            { isSupported: true },
-            { logId: dao.id },
-            'Dao Supported - setting fetched',
-            llo,
-          )
-        }
-        await Promise.all([LogGovernanceErc20.start(plugin), LogTokenVoting.start(plugin)])
-      }
-    } else {
-      if (!dao.isSupported) {
-        await DbOperations.updateDocument(
-          dao,
-          { isSupported: true },
-          { logId: dao.id },
-          'Dao Supported - setting fetched',
-          llo,
-        )
-      }
-      await Promise.all([LogMultisig.start(plugin)])
+    if (!dao.isSupported) {
+      await DbOperations.updateDocument(
+        dao,
+        { isSupported: true },
+        { logId: dao.id },
+        'Dao Supported - setting fetched',
+        llo,
+      )
     }
+
+    return dao
   },
 }

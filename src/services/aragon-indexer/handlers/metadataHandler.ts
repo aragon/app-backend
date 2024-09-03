@@ -11,10 +11,13 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:MetadataHandle
 
 export const MetadataHandler = {
   metadataSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const { address: daoAddress, transactionHash, network, blockNumber } = info
+    const { address: daoAddress, transactionHash, network, blockNumber, transactionIndex, logIndex } = info
 
     const existingDaoMetadata = await Models.LogDaoMetadata.findExistingLog({
+      network,
       transactionHash,
+      transactionIndex,
+      logIndex,
       daoAddress,
     })
     if (existingDaoMetadata) return
@@ -27,11 +30,13 @@ export const MetadataHandler = {
 
     const logDaoMetadata = {
       network,
+      transactionHash,
+      transactionIndex,
+      logIndex,
       metadataUri: metadataUri!,
       daoAddress,
       fetchedMetadata: !!ipfsMetadata,
       blockNumber,
-      transactionHash,
       name: ipfsMetadata?.name!,
       description: ipfsMetadata?.description!,
       avatar: ipfsMetadata?.avatar!,

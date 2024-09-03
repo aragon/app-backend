@@ -47,7 +47,7 @@ export const LogGovernanceErc20 = {
     )
   },
 
-  processLog: async (txLog: Log, network: NetworksEnum, plugin: Plugin) => {
+  processLog: async (txLog: Log, network: NetworksEnum, plugin?: Plugin) => {
     const iFace = new Interface(GovernanceERC20.abi)
     const event = Web3Helper.parseLog(txLog, iFace)
     if (!event) {

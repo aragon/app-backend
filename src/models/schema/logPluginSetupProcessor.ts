@@ -58,6 +58,12 @@ export default class LogPluginSetupProcessor extends Model {
   public transactionHash!: HexAddress
 
   @prop({ type: () => Number, required: true })
+  public transactionIndex!: number
+
+  @prop({ type: () => Number, required: true })
+  public logIndex!: number
+
+  @prop({ type: () => Number, required: true })
   public blockNumber!: number
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
@@ -95,16 +101,25 @@ export default class LogPluginSetupProcessor extends Model {
 
   static async create(rawData: Partial<LogPluginSetupProcessor>, tOpts?: SaveOptions) {
     if (!rawData.id) {
+      assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
+      assert(!!rawData.transactionIndex || rawData.transactionIndex === 0, 'transactionIndex is required')
+      assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
       assert(!!rawData.event, 'event is required')
-      rawData.id = this.getEntityId({ transactionHash: rawData?.transactionHash!, event: rawData?.event as any })
+      rawData.id = this.getEntityId({
+        network: rawData?.network!,
+        transactionHash: rawData?.transactionHash!,
+        transactionIndex: rawData?.transactionIndex!,
+        logIndex: rawData?.logIndex!,
+        event: rawData?.event as any,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
   static getEntityId(params: ILogPluginSetupProcessorIdParams) {
-    const entityId = `${params.transactionHash}-${params.event}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.event}`
     return entityId
   }
 

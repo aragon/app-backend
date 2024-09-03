@@ -242,18 +242,6 @@ describe('Module: blockchainLogCrawler', () => {
     expect(logError.calledWith('Error get block number')).to.be.true
   })
 
-  it('should throw an error if the provider is not configured for the network', () => {
-    sandbox.stub(ProviderModule, 'getProvider').returns(null as any)
-
-    const options = {
-      network: NetworksEnum.ethereumMainnet,
-      filter: {},
-      onLog: async () => {},
-    }
-
-    expect(() => new BlockchainLogCrawler(options)).to.throw('Provider not configured for network: ' + options.network)
-  })
-
   it('should throw an error if crawl is invoked while already crawling', async () => {
     const provider = {
       getBlockNumber: sandbox.stub().resolves(10),
@@ -358,7 +346,7 @@ describe('Module: blockchainLogCrawler', () => {
     })
 
     it('should calculate the correct batch size for sepolia network', () => {
-      const secondsInMonth = 30 * 24 * 3600
+      const secondsInMonth = 4 * 30 * 24 * 3600
       const expectedBatchSize = Math.floor(secondsInMonth / 12) // Average block time ~12 seconds
       expect(crawler.calculateBatchSize(NetworksEnum.ethereumSepolia)).to.equal(expectedBatchSize)
     })

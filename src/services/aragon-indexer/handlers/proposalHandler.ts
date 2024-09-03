@@ -138,14 +138,16 @@ export const ProposalHandler = {
     const existingLog = await Models.Vote.findExistingLog({
       network: info.network,
       transactionHash: info.transactionHash,
-      pluginAddress: info.address,
-      proposalIndex,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
     })
     if (existingLog) return
 
     const document: Partial<Vote> = {
       network: info.network,
       transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
       blockNumber: info.blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
       daoAddress: proposal?.daoAddress,
@@ -193,14 +195,16 @@ export const ProposalHandler = {
     const existingLog = await Models.Vote.findExistingLog({
       network: info.network,
       transactionHash: info.transactionHash,
-      pluginAddress: info.address,
-      proposalIndex,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
     })
     if (existingLog) return
 
     const document: Partial<Vote> = {
       network: info.network,
       transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
       blockNumber: info.blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
       daoAddress: proposal.daoAddress,
@@ -218,14 +222,15 @@ export const ProposalHandler = {
 
     await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - VoteCast', llo)
 
+    await ProxyMember.memberActivity({
+      memberAddress: document.memberAddress!,
+      pluginAddress: info.address,
+      network: info.network,
+      blockNumber: info.blockNumber,
+    })
+
     // update all metrics
     await Promise.all([
-      ProxyMember.memberActivity({
-        memberAddress: document.memberAddress!,
-        pluginAddress: info.address,
-        network: info.network,
-        blockNumber: info.blockNumber,
-      }),
       ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
         memberAddress: document.memberAddress!,
         pluginAddress: info.address,

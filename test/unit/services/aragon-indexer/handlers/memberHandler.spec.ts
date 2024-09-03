@@ -63,6 +63,8 @@
 //       const logInfo = {
 //         network: NetworksEnum.ethereumMainnet,
 //         blockNumber: 3,
+// transactionIndex: 1,
+//   logIndex: 1,
 //         transactionHash: '0x0123123',
 //         address: plugin.pluginAddress,
 //         eventName: 'MembersAdded',
@@ -114,6 +116,8 @@
 //       const logInfo = {
 //         network: NetworksEnum.ethereumMainnet,
 //         blockNumber: 3,
+// transactionIndex: 1,
+//   logIndex: 1,
 //         transactionHash: '0x0123123',
 //         address: plugin.pluginAddress,
 //         eventName: 'test',
@@ -141,6 +145,8 @@
 //       const logInfo = {
 //         network: NetworksEnum.ethereumMainnet,
 //         blockNumber: 3,
+// transactionIndex: 1,
+//   logIndex: 1,
 //         transactionHash: '0x0123123',
 //         address: plugin.pluginAddress,
 //         eventName: 'test',
