@@ -1,4 +1,4 @@
-import { Interface, type Log } from 'ethers'
+import { Interface, type Log, type WebSocketProvider } from 'ethers'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -6,6 +6,7 @@ import { type IEnumIndexerService, type IIndexerConfig, type IEventConfig, type 
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 
 class EventListener {
+  public network: NetworksEnum
   public name: IEnumIndexerService
   public abi: any[]
   public listen: IEventConfig[]
@@ -17,7 +18,7 @@ class EventListener {
     this.abi = config.abi
     this.listen = config.listen
     this.networkName = config.networkName
-    this.provider = ProviderModule.getProvider(config.networkName)
+    this.network = config.networkName
   }
 
   private getEventTopics() {
@@ -59,7 +60,7 @@ class EventListener {
 
   private listenToEvents(filter: any) {
     try {
-      this.provider.on(filter, async (txLog: Log) => this.processLog(txLog))
+      this.getProvider().on(filter, async (txLog: Log) => this.processLog(txLog))
       logger.verbose(`Start ${this.name} real-time listening`, { networkName: this.networkName })
     } catch (error) {
       logger.error(`Error in ${this.name} real-time listening`, { error, networkName: this.networkName })
@@ -91,6 +92,10 @@ class EventListener {
       error,
       network: this.networkName,
     })
+  }
+
+  private getProvider(): WebSocketProvider {
+    return ProviderModule.getProvider(this.network)!
   }
 }
 

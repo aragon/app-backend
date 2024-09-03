@@ -17,7 +17,7 @@ const IndexerService: IExtendedService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   start: async function () {
-    logger.info('IndexerService service sync start', llo({}))
+    logger.info('IndexerService started', llo({}))
 
     const networks = NetworkHelper.supportedNetworks() // Ensure async/await is used
 
@@ -31,9 +31,10 @@ const IndexerService: IExtendedService = {
     const eventListeners: EventListener[] = IndexerService.initializeEventListeners(networks)
 
     await this.runCrawlersInOrder(eventListeners, orderedServices)
-    await this.startRealtimeListeners(eventListeners)
 
-    logger.info('IndexerService service sync end', llo({}))
+    logger.info('IndexerService historical logs end', llo({}))
+
+    await this.startRealtimeListeners(eventListeners)
   },
 
   async stop() {
