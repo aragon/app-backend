@@ -9,25 +9,26 @@ import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
+import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:GovernanceErc20Handler' })
 
 export const GovernanceErc20Handler = {
   // is trigger once for all user - (from user increase balance and 1 user decrease balance)
-  transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  transfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin) => {
     // outgoing transfer
     if (parsedEvent.args.from !== utils.zeroAddress) {
-      await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info)
+      await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info, plugin)
     }
 
     // incoming transfer
     if (parsedEvent.args.to !== utils.zeroAddress) {
-      await GovernanceErc20Handler._incomingTransfer(parsedEvent, info)
+      await GovernanceErc20Handler._incomingTransfer(parsedEvent, info, plugin)
     }
   },
 
   // it triggers for each user the previous and new votingPower
-  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin) => {
     if (parsedEvent.args.delegate === utils.zeroAddress) {
       return
     }
@@ -94,13 +95,6 @@ export const GovernanceErc20Handler = {
       return logDb
     })
 
-    const plugin = await Models.Plugin.findByAddress(info.address, info.network)
-
-    if (!plugin) {
-      logger.error('Plugin not found - delegateVoteChanged member metrics not updated', llo({ info }))
-      return
-    }
-
     if (side === ITransferSide.incoming) {
       await ProxyMember.updateMemberMetrics(IMetricAction.increaseDelegateReceivedCount, {
         memberAddress: member.address,
@@ -136,12 +130,12 @@ export const GovernanceErc20Handler = {
     }
 
     await AggregatorDaoMetrics.start({
-      daoAddress: plugin?.daoAddress,
-      network: plugin?.network,
+      daoAddress: plugin.daoAddress,
+      network: plugin.network,
     })
   },
 
-  _outgoingTransfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  _outgoingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin) => {
     const member = await ProxyMember.saveAndGetMember(parsedEvent.args.from)
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
@@ -205,13 +199,6 @@ export const GovernanceErc20Handler = {
       return logDb
     })
 
-    const plugin = await Models.Plugin.findActivePluginByTokenAddress(info.address, info.network)
-
-    if (!plugin) {
-      logger.error('Plugin not found - incoming member metrics not updated', llo({ info }))
-      return
-    }
-
     if (BigInt(memberTransaction.memberBalance) === 0n && memberTransaction.votingPower === 0n) {
       await ProxyMember.removeFromDao({
         memberAddress: member?.address,
@@ -222,12 +209,12 @@ export const GovernanceErc20Handler = {
     }
 
     await AggregatorDaoMetrics.start({
-      daoAddress: plugin?.daoAddress,
-      network: plugin?.network,
+      daoAddress: plugin.daoAddress,
+      network: plugin.network,
     })
   },
 
-  _incomingTransfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  _incomingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin) => {
     const member = await ProxyMember.saveAndGetMember(parsedEvent.args.to)
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
@@ -291,13 +278,6 @@ export const GovernanceErc20Handler = {
       return logDb
     })
 
-    const plugin = await Models.Plugin.findActivePluginByTokenAddress(info.address, info.network)
-
-    if (!plugin) {
-      logger.error('Plugin not found - incoming member metrics not updated', llo({ info }))
-      return
-    }
-
     await ProxyMember.addToDao({
       memberAddress: member?.address,
       daoAddress: plugin.daoAddress,
@@ -306,8 +286,8 @@ export const GovernanceErc20Handler = {
     })
 
     await AggregatorDaoMetrics.start({
-      daoAddress: plugin?.daoAddress,
-      network: plugin?.network,
+      daoAddress: plugin.daoAddress,
+      network: plugin.network,
     })
   },
 
