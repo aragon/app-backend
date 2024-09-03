@@ -3,9 +3,9 @@ import { Models } from '@dbModels'
 import DbOperations from '@models/utils/dbOperations'
 import { type IVoteAggregation } from '@types'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:AggregatorProposalMetrics' })
+const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:ProposalMetrics' })
 
-export const AggregatorProposalMetrics = {
+export const ProposalMetrics = {
   proposalMultisigMetrics: async ({
     proposalIndex,
     pluginAddress,

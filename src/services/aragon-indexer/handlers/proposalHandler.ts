@@ -7,7 +7,6 @@ import type Vote from '@models/schema/vote'
 import Web3Helper from '@helpers/web3'
 import { ProxyMember } from '@modules/proxyMember'
 import { ProxyToken } from '@modules/proxyToken'
-import { AggregatorProposalMetrics } from '@indexer/aggregator/proposalMetrics'
 import type Proposal from '@models/schema/proposal'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
@@ -172,10 +171,10 @@ export const ProposalHandler = {
         pluginAddress: info.address,
         network: info.network,
       }),
-      AggregatorProposalMetrics.proposalMultisigMetrics({
-        proposalIndex,
-        pluginAddress: info.address,
-        network: info.network,
+      // Proposal metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
+        id: `${proposalIndex}-${info.address}`,
+        params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
       }),
       // Dao metrics
       RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
@@ -238,10 +237,10 @@ export const ProposalHandler = {
         pluginAddress: info.address,
         network: info.network,
       }),
-      AggregatorProposalMetrics.proposalTokenVotingMetrics({
-        proposalIndex,
-        pluginAddress: info.address,
-        network: info.network,
+      // Proposal metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+        id: `${proposalIndex}-${info.address}`,
+        params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
       }),
       // Dao metrics
       RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
