@@ -66,7 +66,7 @@ const ProviderModule = {
   ) {
     const handleOpen = async () => {
       logger.info(`WebSocket connected successfully to ${network}`)
-      provider.websocket.removeEventListener('open', handleOpen)
+      // provider.websocket.removeEventListener('open', handleOpen)
       if (resolve) resolve(provider)
     }
 
@@ -75,7 +75,7 @@ const ProviderModule = {
         `WebSocket connection closed unexpectedly for ${network}. Attempting to reconnect...`,
         llo({ network }),
       )
-      provider.websocket.removeEventListener('close', handleClose)
+      // provider.websocket.removeEventListener('close', handleClose)
       await ProviderModule.reconnectToNetwork(network, nodeUrl)
     }
 
