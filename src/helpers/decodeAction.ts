@@ -148,6 +148,11 @@ class DecodeActions {
     }
 
     const receiver = decodedData.parameters[0].value
+    const member = await ProxyMember.saveAndGetMember(receiver)
+
+    if (!member) {
+      logger.error('Missing member', llo({ member, receiver, decodedData }))
+    }
 
     const [currentBalance, tokenInfo, token] = await Promise.all([
       Web3Helper.getERC20Balance(receiver, action.to, document.network!),
@@ -155,14 +160,12 @@ class DecodeActions {
       ProxyToken.saveAndGetToken(action.to, document.network!),
     ])
 
-    const member = await ProxyMember.saveAndGetMember(receiver)
-
     return {
       inputData: decodedData,
       type: ProposalActionType.Mint,
       receivers: {
         address: receiver,
-        ens: member.ens,
+        ens: member?.ens,
         currentBalance: currentBalance.toString(),
         newBalance: decodedData.parameters[1].value.toString(),
       },
