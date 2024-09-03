@@ -15,9 +15,9 @@ import Web3Helper from '@helpers/web3'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:AggregatorPlugin' })
+const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:PluginHandler' })
 
-export const AggregatorPlugin = {
+export const PluginHandler = {
   async _queryGetPlugin({
     daoAddress,
     pluginAddress,
@@ -279,7 +279,7 @@ export const AggregatorPlugin = {
   },
 
   createPlugin: async (pluginLog: LogPluginSetupProcessor) => {
-    const plugin = await AggregatorPlugin._queryGetPlugin({
+    const plugin = await PluginHandler._queryGetPlugin({
       daoAddress: pluginLog.daoAddress,
       pluginAddress: pluginLog.pluginAddress,
       network: pluginLog.network,
@@ -297,11 +297,11 @@ export const AggregatorPlugin = {
       return
     }
 
-    await AggregatorPlugin._createPlugin(plugin as any)
+    await PluginHandler._createPlugin(plugin as any)
   },
 
   updatePlugin: async (pluginLog: LogPluginSetupProcessor) => {
-    const plugin = await AggregatorPlugin._queryGetPlugin({
+    const plugin = await PluginHandler._queryGetPlugin({
       ...pluginLog,
       ...{ events: [IEventLogPluginType.UpdatePrepared, IEventLogPluginType.UpdateApplied] },
     })
@@ -311,7 +311,7 @@ export const AggregatorPlugin = {
       return
     }
 
-    const newPlugin = await AggregatorPlugin._createPlugin(plugin as any)
+    const newPlugin = await PluginHandler._createPlugin(plugin as any)
 
     if (!newPlugin) return
 
@@ -339,7 +339,7 @@ export const AggregatorPlugin = {
   },
 
   uninstallPlugin: async (pluginLog: LogPluginSetupProcessor) => {
-    const plugin = await AggregatorPlugin._queryGetPlugin({
+    const plugin = await PluginHandler._queryGetPlugin({
       ...pluginLog,
       ...{ events: [IEventLogPluginType.UninstallationPrepared, IEventLogPluginType.UninstallationApplied] },
     })

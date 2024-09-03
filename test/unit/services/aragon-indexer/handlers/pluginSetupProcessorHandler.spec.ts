@@ -11,7 +11,7 @@ import {
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
-import { AggregatorPlugin } from '@services/aragon-indexer/aggregator/plugin'
+import { PluginHandler } from '@indexer/handlers/pluginHandler'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -30,17 +30,17 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         event: IEventLogPluginType.InstallationApplied,
       }
 
-      const createPluginSpy = sandbox.stub(AggregatorPlugin, 'createPlugin')
-      const updatePluginSpy = sandbox.stub(AggregatorPlugin, 'updatePlugin')
-      const uninstallPluginSpy = sandbox.stub(AggregatorPlugin, 'uninstallPlugin')
+      const createPluginSpy = sandbox.stub(PluginHandler, 'createPlugin')
+      const updatePluginSpy = sandbox.stub(PluginHandler, 'updatePlugin')
+      const uninstallPluginSpy = sandbox.stub(PluginHandler, 'uninstallPlugin')
 
-      await PluginSetupProcessorHandler.aggregateLog(IPluginActionType.installed, logDb as any)
+      await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.installed, logDb as any)
       expect(createPluginSpy.calledOnce).to.be.true
 
-      await PluginSetupProcessorHandler.aggregateLog(IPluginActionType.updated, logDb as any)
+      await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.updated, logDb as any)
       expect(updatePluginSpy.calledOnce).to.be.true
 
-      await PluginSetupProcessorHandler.aggregateLog(IPluginActionType.uninstalled, logDb as any)
+      await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb as any)
       expect(uninstallPluginSpy.calledOnce).to.be.true
     })
 
@@ -51,7 +51,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await PluginSetupProcessorHandler.aggregateLog('invalid' as any, logDb as any)
+      await PluginSetupProcessorHandler.pluginHandler('invalid' as any, logDb as any)
       expect(stubLogger.calledOnce).to.be.true
     })
   })
@@ -134,7 +134,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const stubFindExistingLog = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
-      const PluginSetupProcessorHandlerAggLogStub = sandbox.stub(PluginSetupProcessorHandler, 'aggregateLog')
+      const PluginSetupProcessorHandlerAggLogStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
 
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
 
@@ -353,7 +353,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
 
-      const PluginSetupProcessorHandlerAggLogStub = sandbox.stub(PluginSetupProcessorHandler, 'aggregateLog')
+      const PluginSetupProcessorHandlerAggLogStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
 
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
 
@@ -540,7 +540,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
-      const PluginSetupProcessorHandlerAggLogStub = sandbox.stub(PluginSetupProcessorHandler, 'aggregateLog')
+      const PluginSetupProcessorHandlerAggLogStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
 
       await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
 
