@@ -6,7 +6,7 @@ import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { ProxyToken } from '@modules/proxyToken'
-import { AggregatorPlugin } from '@services/aragon-indexer/aggregator/plugin'
+import { PluginHandler } from '@indexer/handlers/pluginHandler'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import DbOperations from '@models/utils/dbOperations'
 
@@ -19,18 +19,18 @@ export enum IPluginActionType {
 }
 
 export const PluginSetupProcessorHandler = {
-  aggregateLog: async (action: IPluginActionType, logDb: LogPluginSetupProcessor) => {
+  pluginHandler: async (action: IPluginActionType, logDb: LogPluginSetupProcessor) => {
     switch (action) {
       case IPluginActionType.installed: {
-        await AggregatorPlugin.createPlugin(logDb)
+        await PluginHandler.createPlugin(logDb)
         break
       }
       case IPluginActionType.updated: {
-        await AggregatorPlugin.updatePlugin(logDb)
+        await PluginHandler.updatePlugin(logDb)
         break
       }
       case IPluginActionType.uninstalled: {
-        await AggregatorPlugin.uninstallPlugin(logDb)
+        await PluginHandler.uninstallPlugin(logDb)
         break
       }
       default: {
@@ -77,7 +77,7 @@ export const PluginSetupProcessorHandler = {
       'New InstallationApplied',
       llo,
     )
-    await PluginSetupProcessorHandler.aggregateLog(IPluginActionType.installed, logDb)
+    await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.installed, logDb)
   },
 
   installationPrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -177,7 +177,7 @@ export const PluginSetupProcessorHandler = {
       'New UninstallationApplied',
       llo,
     )
-    await PluginSetupProcessorHandler.aggregateLog(IPluginActionType.uninstalled, logDb)
+    await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
   },
 
   uninstallationPrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -262,7 +262,7 @@ export const PluginSetupProcessorHandler = {
       'New UpdateApplied',
       llo,
     )
-    await PluginSetupProcessorHandler.aggregateLog(IPluginActionType.updated, logDb)
+    await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.updated, logDb)
   },
 
   updatePrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
