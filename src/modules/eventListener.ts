@@ -58,8 +58,13 @@ class EventListener {
   }
 
   private listenToEvents(filter: any) {
-    this.provider.on(filter, async (txLog: Log) => this.processLog(txLog))
-    logger.verbose(`Start ${this.name} real-time listening`, { networkName: this.networkName })
+    try {
+      this.provider.on(filter, async (txLog: Log) => this.processLog(txLog))
+      logger.verbose(`Start ${this.name} real-time listening`, { networkName: this.networkName })
+    } catch (error) {
+      logger.error(`Error in ${this.name} real-time listening`, { error, networkName: this.networkName })
+      throw error
+    }
   }
 
   private async processLog(txLog: Log) {

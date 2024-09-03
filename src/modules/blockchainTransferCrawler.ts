@@ -138,17 +138,6 @@ class BlockchainTransferCrawler {
       this.runCount++
       let toBlock = Math.min(currentBlock + this.batchSize - (this.runCount > 1 ? 1 : 0), latestBlock)
 
-      logger.silly(
-        'Querying logs for topic chunk',
-        llo({
-          network: this.crawlResult.network,
-          initBlock: this.fromBlock,
-          endBlock: this.toBlock,
-          fromBlock: currentBlock,
-          toBlock,
-        }),
-      )
-
       let success = false
       while (!success) {
         try {
