@@ -88,21 +88,34 @@ class BlockchainLogCrawler {
   }
 
   calculateBatchSize(network: NetworksEnum): number {
-    // TODO: check the block size for each network
-    const secondsInMonth = 30 * 24 * 3600
+    // Constants for block times in seconds for different networks
+    const BLOCK_TIME_SECONDS = {
+      ethereum: 12,
+      zkSync: 15,
+      arbitrum: 3,
+      base: 12,
+      polygon: 2,
+    };
+
+    // Seconds in 4 months (assuming 30 days per month)
+    const days = 30 * 4
+    const secondsInMonth = days * 24 * 3600;
+
     switch (network) {
       case NetworksEnum.zksyncMainnet:
       case NetworksEnum.zksyncSepolia:
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.zkSync);
       case NetworksEnum.ethereumMainnet:
-      case NetworksEnum.arbitrumMainnet:
-      case NetworksEnum.baseMainnet:
-        return Math.floor(secondsInMonth / 14) // Average block time ~14 seconds
-      case NetworksEnum.polygonMainnet:
-        return Math.floor(secondsInMonth / 2) // Average block time ~2 seconds
       case NetworksEnum.ethereumSepolia:
-        return Math.floor(secondsInMonth / 12) // Average block time ~12 seconds
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.ethereum);
+      case NetworksEnum.arbitrumMainnet:
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.arbitrum);
+      case NetworksEnum.baseMainnet:
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.base);
+      case NetworksEnum.polygonMainnet:
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.polygon);
       default:
-        throw new Error(`Unsupported network: ${network}`)
+        throw new Error(`Unsupported network: ${network}`);
     }
   }
 
@@ -154,7 +167,8 @@ class BlockchainLogCrawler {
       let toBlock = Math.min(currentBlock + this.batchSize - (this.runCount > 1 ? 1 : 0), latestBlock)
 
       // Handle topics: use chunks if there are topics, or pass empty for all logs
-      const topicChunks = utils.chunkArray(this.filter.topics, 6)
+      const topicChunks = utils.chunkArray(this.filter.topics, 4)
+      let allLogs: Log[] = []
 
       for (const topics of topicChunks) {
         let success = false
@@ -170,10 +184,11 @@ class BlockchainLogCrawler {
                 }),
               ),
             )
+
+            allLogs = allLogs.concat(logs) // Collect logs from this chunk
             this.crawlResult.fromBlock = currentBlock
             this.crawlResult.toBlock = toBlock
             this.crawlResult.nbTotal += logs.length
-            await this.processLogs(logs.sort((a, b) => a.blockNumber - b.blockNumber))
             this.batchSize = this.originalBatchSize
             success = true
             break
@@ -196,6 +211,10 @@ class BlockchainLogCrawler {
         }
         if (this.shutdown) break
       }
+
+      if (this.shutdown) break
+
+      await this.processLogs(allLogs.sort((a, b) => a.blockNumber - b.blockNumber))
 
       if (this.logService) {
         await this.onSaveProgress(toBlock)
