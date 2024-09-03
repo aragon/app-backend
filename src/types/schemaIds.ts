@@ -10,8 +10,8 @@ import {
 export interface IVoteIdParams {
   network: NetworksEnum
   transactionHash: HexAddress
-  pluginAddress: HexAddress
-  proposalIndex: number
+  transactionIndex: number
+  logIndex: number
 }
 
 export interface IAssetIdParams {
@@ -31,7 +31,10 @@ export interface IDaoIdParams {
 }
 
 export interface ILogDaoMetadataIdParams {
+  network: NetworksEnum
   transactionHash: HexAddress
+  transactionIndex: number
+  logIndex: number
   daoAddress: HexAddress
 }
 
@@ -46,7 +49,10 @@ export interface ISettingIdParams {
 }
 
 export interface ILogPluginSetupProcessorIdParams {
+  network: NetworksEnum
   transactionHash: HexAddress
+  transactionIndex: number
+  logIndex: number
   event: IEventLogPluginType
 }
 

@@ -33,6 +33,8 @@ describe('GovernanceErc20Handler', () => {
       const logInfo = {
         network: NetworksEnum.polygonMainnet,
         blockNumber: 12313123,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: utils.zeroAddress,
         address: utils.zeroAddress,
         eventName: 'DelegateVotesChanged',
@@ -54,6 +56,8 @@ describe('GovernanceErc20Handler', () => {
       const logInfo = {
         network: NetworksEnum.polygonMainnet,
         blockNumber: 12313123,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x123213213213213',
         address: '0x12ba12bac',
         eventName: 'DelegateVotesChanged',
@@ -83,6 +87,8 @@ describe('GovernanceErc20Handler', () => {
       const logInfo = {
         network: NetworksEnum.polygonMainnet,
         blockNumber: 12313123,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x123213213213213',
         address: '0x12ba12bac',
         eventName: 'DelegateVotesChanged',

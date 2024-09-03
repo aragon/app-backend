@@ -37,6 +37,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -95,6 +97,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -133,6 +137,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -169,6 +175,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -219,6 +227,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -267,6 +277,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -318,6 +330,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -365,6 +379,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -402,6 +418,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -454,6 +472,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -522,6 +542,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -537,6 +559,8 @@ describe('Indexer: DaoRegistryHandler', () => {
         address: '0x123',
         blockNumber: 1,
         transactionHash: '0x123',
+        transactionIndex: 1,
+        logIndex: 1,
         eventName: 'MembersAdded',
       } as any)
       expect(delegateVotesChangedStub.calledOnce).to.be.true
@@ -567,6 +591,8 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 1,
+        logIndex: 1,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -595,6 +621,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
