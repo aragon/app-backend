@@ -214,9 +214,6 @@ class BlockchainLogCrawler {
 
       if (this.shutdown) break
 
-      if (allLogs.length > 1) {
-        console.log('allLogs', allLogs)
-      }
       await this.processLogs(
         allLogs.sort((a, b) => {
           // First, sort by blockNumber in ascending order
@@ -224,7 +221,11 @@ class BlockchainLogCrawler {
             return a.blockNumber - b.blockNumber
           }
           // If blockNumbers are the same, sort by transactionIndex in ascending order
-          return a.transactionIndex - b.transactionIndex
+          if (a.transactionIndex !== b.transactionIndex) {
+            return a.transactionIndex - b.transactionIndex
+          }
+          // If both blockNumber and transactionIndex are the same, sort by index in ascending order
+          return a.index - b.index
         }),
       )
 
