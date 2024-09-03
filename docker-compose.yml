@@ -30,7 +30,7 @@ services:
       - ./docker.env
     command: bash -c 'yarn wait:db & wait && yarn service:aragon-indexer'
 
-  service-aragon-dao-sync:
+  service-aragon-dao:
     build:
       context: ./
     depends_on:
@@ -40,7 +40,7 @@ services:
       - rabbitmq
     env_file:
       - ./docker.env
-    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-dao-sync'
+    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-dao'
 
   service-aragon-rates:
     build:

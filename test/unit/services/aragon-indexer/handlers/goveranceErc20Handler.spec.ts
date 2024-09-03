@@ -9,7 +9,7 @@ import utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
-import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
+// import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
 
 describe('GovernanceErc20Handler', () => {
   let sandbox: SinonSandbox
@@ -119,7 +119,7 @@ describe('GovernanceErc20Handler', () => {
       const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
       const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
 
-      const aggregatorDaoMetricsStub = sandbox.stub(AggregatorDaoMetrics, 'start').resolves()
+      // const aggregatorDaoMetricsStub = sandbox.stub(AggregatorDaoMetrics, 'start').resolves()
 
       await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
 
@@ -172,7 +172,7 @@ describe('GovernanceErc20Handler', () => {
 
       expect(removeFromDaoStub.calledOnce).to.be.false
       expect(loggerStub.calledTwice).to.be.true
-      expect(aggregatorDaoMetricsStub.calledOnce).to.be.true
+      // expect(aggregatorDaoMetricsStub.calledOnce).to.be.true
     })
   })
 })

@@ -7,9 +7,9 @@ import Web3Helper from '@helpers/web3'
 import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 import type Dao from '@models/schema/dao'
-import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
+import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 
-const llo = logger.logMeta.bind(null, { service: 'service:dao-sync:DaoAssets' })
+const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
 export const DaoAssets = {
   start: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
@@ -26,7 +26,7 @@ export const DaoAssets = {
 
   onDocument: async (document: Dao) => {
     await DaoAssets.assets(document)
-    await AggregatorDaoMetrics.start({ daoAddress: document.address, network: document.network })
+    await DaoMetrics.start({ daoAddress: document.address, network: document.network })
   },
 
   assets: async (document: Dao) => {

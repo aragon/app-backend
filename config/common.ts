@@ -25,7 +25,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     NODE_CONFIG: {
       MAX_RECONNECT_ATTEMPTS: utils.configParser(sourceConfig, 'number', 'NODE_CONFIG_MAX_RECONNECT_ATTEMPTS', 10),
-      RECONNECT_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODE_CONFIG_RECONNECT_INTERVAL', 5000),
+      RECONNECT_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODE_CONFIG_RECONNECT_INTERVAL', 100),
     },
 
     ARAGON_SUPPORTED_BLOCK: {

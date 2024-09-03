@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo, IMetricAction, type IProposalMetadata, type IRawAction } from '@types'
+import { EnumQueueName, type ILogInfo, IMetricAction, type IProposalMetadata, type IRawAction } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
@@ -12,7 +12,7 @@ import type Proposal from '@models/schema/proposal'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import DbOperations from '@models/utils/dbOperations'
-import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:ProposalHandler' })
 
@@ -119,9 +119,10 @@ export const ProposalHandler = {
         pluginAddress,
         network: info.network,
       }),
-      AggregatorDaoMetrics.start({
-        daoAddress: newProposal?.daoAddress,
-        network: newProposal?.network,
+      // Dao metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: newProposal.daoAddress,
+        params: { address: newProposal.daoAddress, network: newProposal.network },
       }),
     ])
   },
@@ -176,9 +177,10 @@ export const ProposalHandler = {
         pluginAddress: info.address,
         network: info.network,
       }),
-      AggregatorDaoMetrics.start({
-        daoAddress: proposal?.daoAddress,
-        network: proposal?.network,
+      // Dao metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: proposal.daoAddress,
+        params: { address: proposal.daoAddress, network: proposal.network },
       }),
     ])
   },
@@ -241,9 +243,10 @@ export const ProposalHandler = {
         pluginAddress: info.address,
         network: info.network,
       }),
-      AggregatorDaoMetrics.start({
-        daoAddress: proposal?.daoAddress,
-        network: proposal?.network,
+      // Dao metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: proposal.daoAddress,
+        params: { address: proposal.daoAddress, network: proposal.network },
       }),
     ])
   },
@@ -270,9 +273,10 @@ export const ProposalHandler = {
 
     await DbOperations.updateDocument(proposal, rawUpdate, { logId: proposal.id }, 'Update proposalExecuted', llo)
 
-    await AggregatorDaoMetrics.start({
-      daoAddress: proposal?.daoAddress,
-      network: proposal?.network,
+    // Dao metrics
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: proposal.daoAddress,
+      params: { address: proposal.daoAddress, network: proposal.network },
     })
   },
 

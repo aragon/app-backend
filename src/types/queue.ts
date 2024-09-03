@@ -3,6 +3,7 @@ import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 export enum EnumQueueName {
   daoTransactions = 'dao.transactions',
   daoAssets = 'dao.assets',
+  daoMetrics = 'dao.metrics',
 }
 
 export interface IQueueDao {
