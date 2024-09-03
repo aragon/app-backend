@@ -4,6 +4,7 @@ import config from '@config'
 import logger from '@logger'
 import { assert } from '@errors'
 import { createProviderProxy } from '@modules/proxyProvider'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
@@ -66,7 +67,6 @@ const ProviderModule = {
   ) {
     const handleOpen = async () => {
       logger.info(`WebSocket connected successfully to ${network}`)
-      // provider.websocket.removeEventListener('open', handleOpen)
       if (resolve) resolve(provider)
     }
 
@@ -75,13 +75,11 @@ const ProviderModule = {
         `WebSocket connection closed unexpectedly for ${network}. Attempting to reconnect...`,
         llo({ network }),
       )
-      // provider.websocket.removeEventListener('close', handleClose)
       await ProviderModule.reconnectToNetwork(network, nodeUrl)
     }
 
     const handleError = (error: any) => {
       logger.error('WebSocket error', llo({ network, error }))
-      provider.websocket.removeEventListener('error', handleError)
       if (reject) reject(error)
     }
 
@@ -96,23 +94,18 @@ const ProviderModule = {
       return
     }
     const delay = config.NODE_CONFIG.RECONNECT_INTERVAL * Math.pow(2, attempt)
-    return new Promise((resolve, reject) => {
-      setTimeout(async () => {
-        try {
-          logger.info(`Reconnecting to ${network}... Attempt ${attempt + 1}`, llo({ network, attempt: attempt + 1 }))
-          await ProviderModule.connectToNetwork(network, nodeUrl)
-          resolve()
-        } catch (error) {
-          logger.error(
-            `Reconnection attempt ${attempt + 1} failed for ${network}`,
-            llo({ error, network, attempt: attempt + 1 }),
-          )
-          await ProviderModule.reconnectToNetwork(network, nodeUrl, attempt + 1)
-            .then(resolve)
-            .catch(reject)
-        }
-      }, delay)
-    })
+    await Utils.wait(delay)
+
+    try {
+      logger.info(`Reconnecting to ${network}... Attempt ${attempt + 1}`, llo({ network, attempt: attempt + 1 }))
+      await ProviderModule.connectToNetwork(network, nodeUrl)
+    } catch (error) {
+      logger.error(
+        `Reconnection attempt ${attempt + 1} failed for ${network}`,
+        llo({ error, network, attempt: attempt + 1 }),
+      )
+      await ProviderModule.reconnectToNetwork(network, nodeUrl, attempt + 1)
+    }
   },
 
   async closeAllNetworks() {

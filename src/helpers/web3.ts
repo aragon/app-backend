@@ -249,7 +249,7 @@ const Web3Helper = {
       blockNumber: txLog.blockNumber,
       transactionHash: txLog.transactionHash || txLog.hash,
       transactionIndex: txLog.transactionIndex,
-      logIndex: txLog.logIndex,
+      logIndex: txLog.index,
       eventName,
     }
   },
