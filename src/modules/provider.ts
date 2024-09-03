@@ -11,6 +11,7 @@ const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 const ProviderModule = {
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   providerProxies: {} as Record<string, IWebSocketProvider>,
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   reconnectAttempts: {} as Record<string, number>,
   networksMap: {
     ETHEREUM_MAINNET: NetworksEnum.ethereumMainnet,
