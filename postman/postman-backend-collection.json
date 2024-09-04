@@ -2336,7 +2336,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{host}}/assets",
+							"raw": "{{host}}/assets?daoId=ethereum-sepolia-0xeCDd40AF7b7434C974851798063B5ed243D4c648",
 							"host": [
 								"{{host}}"
 							],
@@ -2406,21 +2406,20 @@
 								},
 								{
 									"key": "daoId",
-									"value": "<daoId>",
-									"disabled": true
+									"value": "ethereum-sepolia-0xeCDd40AF7b7434C974851798063B5ed243D4c648"
 								}
 							]
 						}
 					},
 					"response": [
 						{
-							"id": "61a47b0f-c676-4d0d-ac6b-caf234308b5a",
-							"name": "get assets with dao id",
+							"id": "9fb38586-717d-423c-8b58-5599dd456b00",
+							"name": "get assets with daoId",
 							"originalRequest": {
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{host}}/assets?order=desc&sort=amountUsd&daoId=ethereum-sepolia-0x452d22f3324C239325dE422710d41B909642365b",
+									"raw": "{{host}}/assets?daoId=ethereum-sepolia-0xeCDd40AF7b7434C974851798063B5ed243D4c648",
 									"host": [
 										"{{host}}"
 									],
@@ -2430,44 +2429,67 @@
 									"query": [
 										{
 											"key": "search",
-											"value": "0xDDfa944A93ec63c73dF500d282D0c2De741aD752",
-											"description": "Search by: permalink | daoAddress || creatorAddress || txHash || name || ens",
+											"value": "<string>",
 											"disabled": true
 										},
 										{
 											"key": "page",
-											"value": "1",
-											"description": "Total Result per page",
+											"value": "<number>",
 											"disabled": true
 										},
 										{
 											"key": "pageSize",
-											"value": "10",
-											"description": "Sort asc | desc",
+											"value": "<number>",
 											"disabled": true
 										},
 										{
 											"key": "order",
-											"value": "desc",
-											"description": "any property returned by the data object"
-										},
-										{
-											"key": "sort",
-											"value": "amountUsd"
-										},
-										{
-											"key": "network",
-											"value": "mainnet",
+											"value": "<string>",
 											"disabled": true
 										},
 										{
-											"key": "daoAddress",
-											"value": "0xf3b4B314425251AfAA068E1e2c92D7e06D75a6F4",
+											"key": "sort",
+											"value": "<string>",
+											"disabled": true
+										},
+										{
+											"key": "startDateProp",
+											"value": "<string>",
+											"disabled": true
+										},
+										{
+											"key": "endDateProp",
+											"value": "<string>",
+											"disabled": true
+										},
+										{
+											"key": "startDate",
+											"value": "<Date | timestamp>",
+											"disabled": true
+										},
+										{
+											"key": "endDate",
+											"value": "<Date | timestamp>",
+											"disabled": true
+										},
+										{
+											"key": "network",
+											"value": "<Network>",
+											"disabled": true
+										},
+										{
+											"key": "address",
+											"value": "<string>",
+											"disabled": true
+										},
+										{
+											"key": "tokenAddress",
+											"value": "<string>",
 											"disabled": true
 										},
 										{
 											"key": "daoId",
-											"value": "ethereum-sepolia-0x452d22f3324C239325dE422710d41B909642365b"
+											"value": "ethereum-sepolia-0xeCDd40AF7b7434C974851798063B5ed243D4c648"
 										}
 									]
 								}
@@ -2478,7 +2500,7 @@
 							"header": [
 								{
 									"key": "X-Correlation-Id",
-									"value": "c31a4b0e-49b0-459d-95c2-e1a7ca189d78"
+									"value": "db3b4748-3a66-49df-9cf0-54512e08f71b"
 								},
 								{
 									"key": "Access-Control-Allow-Origin",
@@ -2514,11 +2536,11 @@
 								},
 								{
 									"key": "Content-Length",
-									"value": "554"
+									"value": "454"
 								},
 								{
 									"key": "Date",
-									"value": "Mon, 24 Jun 2024 15:20:05 GMT"
+									"value": "Wed, 04 Sep 2024 13:26:16 GMT"
 								},
 								{
 									"key": "Connection",
@@ -2531,627 +2553,157 @@
 							],
 							"cookie": [],
 							"responseTime": null,
-							"body": "{\n    \"metadata\": {\n        \"page\": 1,\n        \"pageSize\": 10,\n        \"totalPages\": 1,\n        \"totalRecords\": 1\n    },\n    \"data\": [\n        {\n            \"network\": \"ethereum-sepolia\",\n            \"daoAddress\": \"0x452d22f3324C239325dE422710d41B909642365b\",\n            \"tokenAddress\": \"0x2902b792af43ea1481569bc35b62a31bb2c20e95\",\n            \"amount\": \"40000000000000000000000\",\n            \"token\": {\n                \"address\": \"0x2902b792af43ea1481569bc35b62a31bb2c20e95\",\n                \"symbol\": \"FREE\",\n                \"name\": \"FREEthereum\",\n                \"type\": \"ERC20\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/11155111/0x2902b792af43ea1481569bc35b62a31bb2c20e95.png\",\n                \"decimals\": 18,\n                \"priceChangeOnDayUsd\": \"0\",\n                \"priceUsd\": \"0\"\n            },\n            \"amountUsd\": \"0E+4\"\n        }\n    ]\n}"
+							"body": "{\n    \"metadata\": {\n        \"page\": 1,\n        \"pageSize\": 10,\n        \"totalPages\": 1,\n        \"totalRecords\": 1\n    },\n    \"data\": [\n        {\n            \"network\": \"ethereum-sepolia\",\n            \"amount\": \"490\",\n            \"token\": {\n                \"network\": \"ethereum-sepolia\",\n                \"type\": \"ERC20\",\n                \"address\": \"0x0EB81B98823507B9cc9eCE5F4c242c7A7cCFF157\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/11155111/0x0eb81b98823507b9cc9ece5f4c242c7a7ccff157.png\",\n                \"name\": \"Bermuda DAO Voting Token\",\n                \"symbol\": \"BDVT\",\n                \"decimals\": 0,\n                \"priceChangeOnDayUsd\": \"0\",\n                \"priceUsd\": \"0\"\n            },\n            \"amountUsd\": \"0\"\n        }\n    ]\n}"
+						},
+						{
+							"id": "ec1e0ebf-af7d-472a-88f7-06cfbba8cfa7",
+							"name": "get assets",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{host}}/assets",
+									"host": [
+										"{{host}}"
+									],
+									"path": [
+										"assets"
+									],
+									"query": [
+										{
+											"key": "search",
+											"value": "<string>",
+											"disabled": true
+										},
+										{
+											"key": "page",
+											"value": "<number>",
+											"disabled": true
+										},
+										{
+											"key": "pageSize",
+											"value": "<number>",
+											"disabled": true
+										},
+										{
+											"key": "order",
+											"value": "<string>",
+											"disabled": true
+										},
+										{
+											"key": "sort",
+											"value": "<string>",
+											"disabled": true
+										},
+										{
+											"key": "startDateProp",
+											"value": "<string>",
+											"disabled": true
+										},
+										{
+											"key": "endDateProp",
+											"value": "<string>",
+											"disabled": true
+										},
+										{
+											"key": "startDate",
+											"value": "<Date | timestamp>",
+											"disabled": true
+										},
+										{
+											"key": "endDate",
+											"value": "<Date | timestamp>",
+											"disabled": true
+										},
+										{
+											"key": "network",
+											"value": "<Network>",
+											"disabled": true
+										},
+										{
+											"key": "address",
+											"value": "<string>",
+											"disabled": true
+										},
+										{
+											"key": "tokenAddress",
+											"value": "<string>",
+											"disabled": true
+										},
+										{
+											"key": "daoId",
+											"value": "ethereum-sepolia-0xeCDd40AF7b7434C974851798063B5ed243D4c648",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "X-Correlation-Id",
+									"value": "090ac9f0-1f98-4e58-a707-710c2f1f791b"
+								},
+								{
+									"key": "Access-Control-Allow-Origin",
+									"value": "*"
+								},
+								{
+									"key": "referrer-policy",
+									"value": "no-referrer"
+								},
+								{
+									"key": "x-content-type-options",
+									"value": "nosniff"
+								},
+								{
+									"key": "x-frame-options",
+									"value": "DENY"
+								},
+								{
+									"key": "content-security-policy",
+									"value": "default-src 'self' https:"
+								},
+								{
+									"key": "x-xss-protection",
+									"value": "1; mode=block"
+								},
+								{
+									"key": "strict-transport-security",
+									"value": "max-age=2592000; includeSubDomains"
+								},
+								{
+									"key": "Content-Type",
+									"value": "application/json; charset=utf-8"
+								},
+								{
+									"key": "Content-Length",
+									"value": "4986"
+								},
+								{
+									"key": "Date",
+									"value": "Wed, 04 Sep 2024 13:27:07 GMT"
+								},
+								{
+									"key": "Connection",
+									"value": "keep-alive"
+								},
+								{
+									"key": "Keep-Alive",
+									"value": "timeout=5"
+								}
+							],
+							"cookie": [],
+							"responseTime": null,
+							"body": "{\n    \"metadata\": {\n        \"page\": 1,\n        \"pageSize\": 10,\n        \"totalPages\": 25,\n        \"totalRecords\": 245\n    },\n    \"data\": [\n        {\n            \"network\": \"ethereum-sepolia\",\n            \"amount\": \"490\",\n            \"dao\": {\n                \"address\": \"0xeCDd40AF7b7434C974851798063B5ed243D4c648\",\n                \"ens\": null,\n                \"avatar\": null\n            },\n            \"token\": {\n                \"network\": \"ethereum-sepolia\",\n                \"type\": \"ERC20\",\n                \"address\": \"0x0EB81B98823507B9cc9eCE5F4c242c7A7cCFF157\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/11155111/0x0eb81b98823507b9cc9ece5f4c242c7a7ccff157.png\",\n                \"name\": \"Bermuda DAO Voting Token\",\n                \"symbol\": \"BDVT\",\n                \"decimals\": 0,\n                \"priceChangeOnDayUsd\": \"0\",\n                \"priceUsd\": \"0\"\n            },\n            \"amountUsd\": \"0\"\n        },\n        {\n            \"network\": \"ethereum-sepolia\",\n            \"amount\": \"4203927853881278536000\",\n            \"dao\": {\n                \"address\": \"0xFBB66BC799308435eD2a0e0C0ac3ad1D46749B7b\",\n                \"ens\": null,\n                \"avatar\": \"ipfs://QmdLj2ccWEiXKgCzoPzRiY8XSAck1Xm6UgRUYL7hgmSBZ6\"\n            },\n            \"token\": {\n                \"network\": \"ethereum-sepolia\",\n                \"type\": \"ERC20\",\n                \"address\": \"0x23Ca3002706b71a440860E3cf8ff64679A00C9d7\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/11155111/0x23ca3002706b71a440860e3cf8ff64679a00c9d7.png\",\n                \"name\": \"Nation3\",\n                \"symbol\": \"NATION\",\n                \"decimals\": 18,\n                \"priceChangeOnDayUsd\": \"0\",\n                \"priceUsd\": \"0\"\n            },\n            \"amountUsd\": \"0E-15\"\n        },\n        {\n            \"network\": \"ethereum-sepolia\",\n            \"amount\": \"95222800000000000\",\n            \"dao\": {\n                \"address\": \"0x817d99807042a08fBC63c792d5B6429639a5061c\",\n                \"ens\": null,\n                \"avatar\": \"ipfs://QmP6wxmyzpvRkv8b1T4wv43o3ckzww2WmN9aDk4du1cvCQ\"\n            },\n            \"token\": {\n                \"network\": \"ethereum-sepolia\",\n                \"type\": \"native\",\n                \"address\": \"0x0000000000000000000000000000000000000000\",\n                \"logo\": \"https://www.datocms-assets.com/86369/1669619533-ethereum.png\",\n                \"name\": \"Ether\",\n                \"symbol\": \"ETH\",\n                \"decimals\": 18,\n                \"priceChangeOnDayUsd\": \"0\",\n                \"priceUsd\": \"0\"\n            },\n            \"amountUsd\": \"0E-7\"\n        },\n        {\n            \"network\": \"ethereum-sepolia\",\n            \"amount\": \"5200000000000000000000\",\n            \"dao\": {\n                \"address\": \"0x5B98a0c38d3684644A9Ada0baaeAae452aE3267B\",\n                \"ens\": null,\n                \"avatar\": \"ipfs://QmVFTRW1KkaKAZXuFqNaU4HUkoEgND3hQ42549VKtPkEDv\"\n            },\n            \"token\": {\n                \"network\": \"ethereum-sepolia\",\n                \"type\": \"ERC20\",\n                \"address\": \"0xdc1a36bc15d5255Bb7061ec78e735e5C4dA4Ce5e\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/11155111/0xdc1a36bc15d5255bb7061ec78e735e5c4da4ce5e.png\",\n                \"name\": \"DAI Coin\",\n                \"symbol\": \"DAI\",\n                \"decimals\": 18,\n                \"priceChangeOnDayUsd\": \"0\",\n                \"priceUsd\": \"0\"\n            },\n            \"amountUsd\": \"0E+2\"\n        },\n        {\n            \"network\": \"ethereum-sepolia\",\n            \"amount\": \"9900000000000000\",\n            \"dao\": {\n                \"address\": \"0xECd8D882E7a42477352cc57F0003b0Ed237c9362\",\n                \"ens\": null,\n                \"avatar\": null\n            },\n            \"token\": {\n                \"network\": \"ethereum-sepolia\",\n                \"type\": \"native\",\n                \"address\": \"0x0000000000000000000000000000000000000000\",\n                \"logo\": \"https://www.datocms-assets.com/86369/1669619533-ethereum.png\",\n                \"name\": \"Ether\",\n                \"symbol\": \"ETH\",\n                \"decimals\": 18,\n                \"priceChangeOnDayUsd\": \"0\",\n                \"priceUsd\": \"0\"\n            },\n            \"amountUsd\": \"0.0000\"\n        },\n        {\n            \"network\": \"ethereum-sepolia\",\n            \"amount\": \"122110000000000000\",\n            \"dao\": {\n                \"address\": \"0x8285136DBB030658Deb29Ac7C172Ff83122ebEB2\",\n                \"ens\": null,\n                \"avatar\": \"ipfs://QmXmWTdRigoEsmSnTJ6NKjqG3hrxAqF8kMsYxDcy2ujxqm\"\n            },\n            \"token\": {\n                \"network\": \"ethereum-sepolia\",\n                \"type\": \"native\",\n                \"address\": \"0x0000000000000000000000000000000000000000\",\n                \"logo\": \"https://www.datocms-assets.com/86369/1669619533-ethereum.png\",\n                \"name\": \"Ether\",\n                \"symbol\": \"ETH\",\n                \"decimals\": 18,\n                \"priceChangeOnDayUsd\": \"0\",\n                \"priceUsd\": \"0\"\n            },\n            \"amountUsd\": \"0.00000\"\n        },\n        {\n            \"network\": \"ethereum-sepolia\",\n            \"amount\": \"10000000000000000000\",\n            \"dao\": {\n                \"address\": \"0xD818C26403121D97e5FA667C23d3267ec8EF81F3\",\n                \"ens\": null,\n                \"avatar\": \"ipfs://Qmaf6hJmhizLdqEWDGL6agJY6PaN7jAAHzNcbu5ZLPFkSJ\"\n            },\n            \"token\": {\n                \"network\": \"ethereum-sepolia\",\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x5B08305497fb3a087Fc582D45fcb648c98177c43\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/11155111/0x5b08305497fb3a087fc582d45fcb648c98177c43.png\",\n                \"name\": \"Sepolia Avalanche\",\n                \"symbol\": \"SAVL\",\n                \"decimals\": 18,\n                \"priceChangeOnDayUsd\": \"0\",\n                \"priceUsd\": \"0\"\n            },\n            \"amountUsd\": \"0E+1\"\n        },\n        {\n            \"network\": \"ethereum-sepolia\",\n            \"amount\": \"50000000000000000\",\n            \"dao\": {\n                \"address\": \"0xD818C26403121D97e5FA667C23d3267ec8EF81F3\",\n                \"ens\": null,\n                \"avatar\": \"ipfs://Qmaf6hJmhizLdqEWDGL6agJY6PaN7jAAHzNcbu5ZLPFkSJ\"\n            },\n            \"token\": {\n                \"network\": \"ethereum-sepolia\",\n                \"type\": \"native\",\n                \"address\": \"0x0000000000000000000000000000000000000000\",\n                \"logo\": \"https://www.datocms-assets.com/86369/1669619533-ethereum.png\",\n                \"name\": \"Ether\",\n                \"symbol\": \"ETH\",\n                \"decimals\": 18,\n                \"priceChangeOnDayUsd\": \"0\",\n                \"priceUsd\": \"0\"\n            },\n            \"amountUsd\": \"0.00\"\n        },\n        {\n            \"network\": \"ethereum-sepolia\",\n            \"amount\": \"9576000000000000\",\n            \"dao\": {\n                \"address\": \"0xfB9E648d3d15C66FD523A44Ac053408e9aA316E6\",\n                \"ens\": null,\n                \"avatar\": \"ipfs://QmP6wxmyzpvRkv8b1T4wv43o3ckzww2WmN9aDk4du1cvCQ\"\n            },\n            \"token\": {\n                \"network\": \"ethereum-sepolia\",\n                \"type\": \"native\",\n                \"address\": \"0x0000000000000000000000000000000000000000\",\n                \"logo\": \"https://www.datocms-assets.com/86369/1669619533-ethereum.png\",\n                \"name\": \"Ether\",\n                \"symbol\": \"ETH\",\n                \"decimals\": 18,\n                \"priceChangeOnDayUsd\": \"0\",\n                \"priceUsd\": \"0\"\n            },\n            \"amountUsd\": \"0.000000\"\n        },\n        {\n            \"network\": \"ethereum-sepolia\",\n            \"amount\": \"212208842301297441\",\n            \"dao\": {\n                \"address\": \"0x5B98a0c38d3684644A9Ada0baaeAae452aE3267B\",\n                \"ens\": null,\n                \"avatar\": \"ipfs://QmVFTRW1KkaKAZXuFqNaU4HUkoEgND3hQ42549VKtPkEDv\"\n            },\n            \"token\": {\n                \"network\": \"ethereum-sepolia\",\n                \"type\": \"native\",\n                \"address\": \"0x0000000000000000000000000000000000000000\",\n                \"logo\": \"https://www.datocms-assets.com/86369/1669619533-ethereum.png\",\n                \"name\": \"Ether\",\n                \"symbol\": \"ETH\",\n                \"decimals\": 18,\n                \"priceChangeOnDayUsd\": \"0\",\n                \"priceUsd\": \"0\"\n            },\n            \"amountUsd\": \"0E-18\"\n        }\n    ]\n}"
 						}
 					]
 				}
 			],
 			"id": "9a22d3dd-a754-4f08-9013-ec6f3e4cdf89",
 			"description": "This endpoint retrieves a list of DAOs assets."
-		},
-		{
-			"name": "Settings",
-			"item": [
-				{
-					"name": "get settings",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "b355ab82-213a-4c92-b4c5-66aaa78e9603",
-								"exec": [
-									"pm.test(\"Response status code is 200\", function () {",
-									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
-									"});",
-									"",
-									"pm.test(\"Response time is less than 6000ms\", function () {",
-									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
-									"});",
-									"",
-									"pm.test(\"Response has data array\", function () {",
-									"    const jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.property(\"data\").that.is.an(\"array\", \"Expected response to have a 'data' property that is an array\");",
-									"});",
-									"",
-									"pm.test(\"Each Settings object has correct properties and types\", function () {",
-									"    const data = pm.response.json().data;",
-									"    const expectedSettingsPropertyCount = 12; // id, network, fromTxHash, toTxHash, fromBlockNumber, toBlockNumber, daoAddress, pluginAddress, pluginSubdomain, settings, tokenAddress, token (optional)",
-									"",
-									"    data.forEach((settings, index) => {",
-									"        try {",
-									"            const actualPropertyCount = Object.keys(settings).length;",
-									"            const hasToken = settings.hasOwnProperty(\"token\");",
-									"            pm.expect(actualPropertyCount).to.equal(expectedSettingsPropertyCount - (hasToken ? 0 : 1), `Settings ${index + 1}: Expected ${expectedSettingsPropertyCount - (hasToken ? 0 : 1)} properties but found ${actualPropertyCount}`);",
-									"            ",
-									"            pm.expect(settings).to.have.property(\"id\").that.is.a(\"string\", `Settings ${index + 1}: 'id' should be a string`);",
-									"            pm.expect(settings).to.have.property(\"network\").that.is.a(\"string\", `Settings ${index + 1}: 'network' should be a string`);",
-									"            pm.expect(settings).to.have.property(\"fromTxHash\").that.is.a(\"string\", `Settings ${index + 1}: 'fromTxHash' should be a string`);",
-									"            pm.expect(settings).to.have.property(\"toTxHash\").that.satisfies(value => value === null || typeof value === \"string\", `Settings ${index + 1}: 'toTxHash' should be null or a string`);",
-									"            pm.expect(settings).to.have.property(\"fromBlockNumber\").that.is.a(\"number\", `Settings ${index + 1}: 'fromBlockNumber' should be a number`);",
-									"            pm.expect(settings).to.have.property(\"toBlockNumber\").that.satisfies(value => value === null || typeof value === \"number\", `Settings ${index + 1}: 'toBlockNumber' should be null or a number`);",
-									"            pm.expect(settings).to.have.property(\"daoAddress\").that.is.a(\"string\", `Settings ${index + 1}: 'daoAddress' should be a string`);",
-									"            pm.expect(settings).to.have.property(\"pluginAddress\").that.is.a(\"string\", `Settings ${index + 1}: 'pluginAddress' should be a string`);",
-									"            pm.expect(settings).to.have.property(\"pluginSubdomain\").that.is.a(\"string\", `Settings ${index + 1}: 'pluginSubdomain' should be a string`);",
-									"            pm.expect(settings).to.have.property(\"settings\").that.is.an(\"object\", `Settings ${index + 1}: 'settings' should be an object`);",
-									"            pm.expect(settings).to.have.property(\"tokenAddress\").that.satisfies(value => value === null || typeof value === \"string\", `Settings ${index + 1}: 'tokenAddress' should be null or a string`);",
-									"",
-									"            const pluginSettings = settings.settings;",
-									"",
-									"            if (settings.pluginSubdomain === \"multisig\" || settings.pluginSubdomain === \"multisigplugin\") {",
-									"                pm.expect(pluginSettings).to.have.property(\"minApprovals\").that.is.a(\"number\", `Settings ${index + 1}: 'settings.minApprovals' should be a number`);",
-									"                pm.expect(pluginSettings).to.have.property(\"onlyListed\").that.is.a(\"boolean\", `Settings ${index + 1}: 'settings.onlyListed' should be a boolean`);",
-									"            } else {",
-									"                pm.expect(pluginSettings).to.have.property(\"votingMode\").that.is.a(\"number\", `Settings ${index + 1}: 'settings.votingMode' should be a number`);",
-									"                pm.expect(pluginSettings).to.have.property(\"supportThreshold\").that.is.a(\"number\", `Settings ${index + 1}: 'settings.supportThreshold' should be a number`);",
-									"                pm.expect(pluginSettings).to.have.property(\"minParticipation\").that.is.a(\"number\", `Settings ${index + 1}: 'settings.minParticipation' should be a number`);",
-									"                pm.expect(pluginSettings).to.have.property(\"minDuration\").that.is.a(\"number\", `Settings ${index + 1}: 'settings.minDuration' should be a number`);",
-									"                pm.expect(pluginSettings).to.have.property(\"minProposerVotingPower\").that.is.a(\"string\", `Settings ${index + 1}: 'settings.minProposerVotingPower' should be a string`);",
-									"            }",
-									"",
-									"            if (hasToken) {",
-									"                const token = settings.token;",
-									"                pm.expect(token).to.have.property(\"network\").that.is.a(\"string\", `Settings ${index + 1}: 'token.network' should be a string`);",
-									"                pm.expect(token).to.have.property(\"type\").that.is.a(\"string\", `Settings ${index + 1}: 'token.type' should be a string`);",
-									"                pm.expect(token).to.have.property(\"address\").that.is.a(\"string\", `Settings ${index + 1}: 'token.address' should be a string`);",
-									"                pm.expect(token).to.have.property(\"logo\").that.satisfies(value => value === null || typeof value === \"string\", `Settings ${index + 1}: 'token.logo' should be null or a string`);",
-									"                pm.expect(token).to.have.property(\"name\").that.is.a(\"string\", `Settings ${index + 1}: 'token.name' should be a string`);",
-									"                pm.expect(token).to.have.property(\"symbol\").that.is.a(\"string\", `Settings ${index + 1}: 'token.symbol' should be a string`);",
-									"                pm.expect(token).to.have.property(\"decimals\").that.is.a(\"number\", `Settings ${index + 1}: 'token.decimals' should be a number`);",
-									"                pm.expect(token).to.have.property(\"totalSupply\").that.is.a(\"string\", `Settings ${index + 1}: 'token.totalSupply' should be a string`);",
-									"            }",
-									"        } catch (e) {",
-									"            console.error(`Error in Settings ${index + 1}: ${e.message}`, settings);",
-									"            throw new Error(`Settings ${index + 1}: Check the console for more details. ${e.message}`);",
-									"        }",
-									"    });",
-									"});",
-									""
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"id": "234e20d7-a47e-4b49-a2f3-953b7a6de908",
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{host}}/settings",
-							"host": [
-								"{{host}}"
-							],
-							"path": [
-								"settings"
-							],
-							"query": [
-								{
-									"key": "search",
-									"value": "<string>",
-									"disabled": true
-								},
-								{
-									"key": "page",
-									"value": "<number>",
-									"disabled": true
-								},
-								{
-									"key": "pageSize",
-									"value": "<number>",
-									"disabled": true
-								},
-								{
-									"key": "order",
-									"value": "<string>",
-									"disabled": true
-								},
-								{
-									"key": "sort",
-									"value": "<string>",
-									"disabled": true
-								},
-								{
-									"key": "startDateProp",
-									"value": "<string>",
-									"disabled": true
-								},
-								{
-									"key": "endDateProp",
-									"value": "<string>",
-									"disabled": true
-								},
-								{
-									"key": "startDate",
-									"value": "<Date | timestamp>",
-									"disabled": true
-								},
-								{
-									"key": "endDate",
-									"value": "<Date | timestamp>",
-									"disabled": true
-								},
-								{
-									"key": "onlyActive",
-									"value": "<boolean>",
-									"disabled": true
-								},
-								{
-									"key": "network",
-									"value": "<Network>",
-									"disabled": true
-								},
-								{
-									"key": "daoAddress",
-									"value": "<string>",
-									"disabled": true
-								},
-								{
-									"key": "pluginAddress",
-									"value": "<string>",
-									"disabled": true
-								},
-								{
-									"key": "daoId",
-									"value": "<daoId>",
-									"disabled": true
-								}
-							]
-						}
-					},
-					"response": [
-						{
-							"id": "618c61c7-2a7e-4f91-915e-ceb9a0cdead6",
-							"name": "get settings",
-							"originalRequest": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{host}}/settings",
-									"host": [
-										"{{host}}"
-									],
-									"path": [
-										"settings"
-									],
-									"query": [
-										{
-											"key": "search",
-											"value": "0xDDfa944A93ec63c73dF500d282D0c2De741aD752",
-											"description": "Search by: permalink | daoAddress || creatorAddress || txHash || name || ens",
-											"disabled": true
-										},
-										{
-											"key": "page",
-											"value": "1",
-											"description": "Total Result per page",
-											"disabled": true
-										},
-										{
-											"key": "pageSize",
-											"value": "10",
-											"description": "Sort asc | desc",
-											"disabled": true
-										},
-										{
-											"key": "order",
-											"value": "desc",
-											"description": "any property returned by the data object",
-											"disabled": true
-										},
-										{
-											"key": "sort",
-											"value": "createdAt",
-											"disabled": true
-										},
-										{
-											"key": "onlyActive",
-											"value": "true",
-											"description": "Only active settings",
-											"disabled": true
-										},
-										{
-											"key": "network",
-											"value": "mainnet",
-											"disabled": true
-										},
-										{
-											"key": "daoAddress",
-											"value": "0xf3b4B314425251AfAA068E1e2c92D7e06D75a6F4",
-											"disabled": true
-										},
-										{
-											"key": "pluginAddress",
-											"value": "0x9C71365C9e548A7da11665C190dC3EEf0348340b",
-											"description": "Plugin Address",
-											"disabled": true
-										},
-										{
-											"key": "daoId",
-											"value": "ethereum-sepolia-0x452d22f3324C239325dE422710d41B909642365b",
-											"disabled": true
-										}
-									]
-								}
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "X-Correlation-Id",
-									"value": "3eaf5a5f-76d2-404d-804c-1599ebd8d703"
-								},
-								{
-									"key": "Access-Control-Allow-Origin",
-									"value": "*"
-								},
-								{
-									"key": "referrer-policy",
-									"value": "no-referrer"
-								},
-								{
-									"key": "x-content-type-options",
-									"value": "nosniff"
-								},
-								{
-									"key": "x-frame-options",
-									"value": "DENY"
-								},
-								{
-									"key": "content-security-policy",
-									"value": "default-src 'self' https:"
-								},
-								{
-									"key": "x-xss-protection",
-									"value": "1; mode=block"
-								},
-								{
-									"key": "strict-transport-security",
-									"value": "max-age=2592000; includeSubDomains"
-								},
-								{
-									"key": "Content-Type",
-									"value": "application/json; charset=utf-8"
-								},
-								{
-									"key": "Content-Length",
-									"value": "6527"
-								},
-								{
-									"key": "Date",
-									"value": "Mon, 24 Jun 2024 15:20:42 GMT"
-								},
-								{
-									"key": "Connection",
-									"value": "keep-alive"
-								},
-								{
-									"key": "Keep-Alive",
-									"value": "timeout=5"
-								}
-							],
-							"cookie": [],
-							"responseTime": null,
-							"body": "{\n    \"metadata\": {\n        \"page\": 1,\n        \"pageSize\": 10,\n        \"totalPages\": 572,\n        \"totalRecords\": 5711\n    },\n    \"data\": [\n        {\n            \"id\": \"0x67970a98874ea439d89992b82cd71058066da9b6761e3f8c877619ae8abb5dd1-ethereum-sepolia\",\n            \"network\": \"ethereum-sepolia\",\n            \"fromTxHash\": \"0x67970a98874ea439d89992b82cd71058066da9b6761e3f8c877619ae8abb5dd1\",\n            \"toTxHash\": null,\n            \"fromBlockNumber\": 5479486,\n            \"toBlockNumber\": null,\n            \"daoAddress\": \"0x987687e9F9823F27e1b0FBdaA9aAA9831e7D1073\",\n            \"pluginAddress\": \"0x03e703ebe80eb62A51BeC4dC90394c5E4F933D3A\",\n            \"pluginSubdomain\": \"token-voting\",\n            \"settings\": {\n                \"votingMode\": 1,\n                \"supportThreshold\": 500000,\n                \"minParticipation\": 150000,\n                \"minDuration\": 86400,\n                \"minProposerVotingPower\": \"1\"\n            },\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0xD4d00d7ae7Cb7f70155A777D8D6d58ef2E867967\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/11155111/0xd4d00d7ae7cb7f70155a777d8d6d58ef2e867967.png\",\n                \"name\": \"Governance VanityTron.io\",\n                \"symbol\": \"GVANITYTRON.IO\",\n                \"decimals\": 0\n            }\n        },\n        {\n            \"id\": \"0x12ca456c96a578b4a5fd29f9a25348ce3c8192518b607ca2eb6b3966e38f629e-ethereum-sepolia\",\n            \"network\": \"ethereum-sepolia\",\n            \"fromTxHash\": \"0x12ca456c96a578b4a5fd29f9a25348ce3c8192518b607ca2eb6b3966e38f629e\",\n            \"toTxHash\": null,\n            \"fromBlockNumber\": 5721472,\n            \"toBlockNumber\": null,\n            \"daoAddress\": \"0xBe26Cd45eAe8a55e76118a62977593f26B923f0b\",\n            \"pluginAddress\": \"0x046fC741015f860862e04A15EafF51079862c83A\",\n            \"pluginSubdomain\": \"token-voting\",\n            \"settings\": {\n                \"votingMode\": 2,\n                \"supportThreshold\": 500000,\n                \"minParticipation\": 150000,\n                \"minDuration\": 172800,\n                \"minProposerVotingPower\": \"1e+19\"\n            },\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x1edE6567E41b2564c08EbEBaFf7f95ED64e0011A\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/11155111/0x1ede6567e41b2564c08ebebaff7f95ed64e0011a.png\",\n                \"name\": \"comander\",\n                \"symbol\": \"CMD\",\n                \"decimals\": 18\n            }\n        },\n        {\n            \"id\": \"0x5d7ba82eb2d72a265687b9804b72ba8b8c637f2d7a2f7c9eeffe7cafd5baea70-ethereum-sepolia\",\n            \"network\": \"ethereum-sepolia\",\n            \"fromTxHash\": \"0x5d7ba82eb2d72a265687b9804b72ba8b8c637f2d7a2f7c9eeffe7cafd5baea70\",\n            \"toTxHash\": null,\n            \"fromBlockNumber\": 5507353,\n            \"toBlockNumber\": null,\n            \"daoAddress\": \"0x7207388E886F247ae6BE1a3d6494E55947bA61D7\",\n            \"pluginAddress\": \"0x01239b4E29691BB81F9BAdF8525Ae744Cc7B83C1\",\n            \"pluginSubdomain\": \"token-voting\",\n            \"settings\": {\n                \"votingMode\": 1,\n                \"supportThreshold\": 530000,\n                \"minParticipation\": 150000,\n                \"minDuration\": 86400,\n                \"minProposerVotingPower\": \"1e+18\"\n            },\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x94Dc415a67974713aC04d97471B2B7D53efD2b63\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/11155111/0x94dc415a67974713ac04d97471b2b7d53efd2b63.png\",\n                \"name\": \"MintCoin\",\n                \"symbol\": \"MNT\",\n                \"decimals\": 18\n            }\n        },\n        {\n            \"id\": \"0x62cb6df69c69a52f9f5f735a5d384716f8a3599f9df9322041fb8623ea374c30-ethereum-sepolia\",\n            \"network\": \"ethereum-sepolia\",\n            \"fromTxHash\": \"0x62cb6df69c69a52f9f5f735a5d384716f8a3599f9df9322041fb8623ea374c30\",\n            \"toTxHash\": null,\n            \"fromBlockNumber\": 5486480,\n            \"toBlockNumber\": null,\n            \"daoAddress\": \"0xE951F3Ce0dDC97F015baD3B3811181f651C1cB12\",\n            \"pluginAddress\": \"0x03083925B56D80f6C3E2BbDD0e18277bd8D12c5E\",\n            \"pluginSubdomain\": \"multisig\",\n            \"settings\": {\n                \"minApprovals\": 1,\n                \"onlyListed\": true\n            },\n            \"token\": null\n        },\n        {\n            \"id\": \"0xe1501e9847d53dd99d245101bd2cdfa94c193ccc01c0a114974d360c2467011a-ethereum-sepolia\",\n            \"network\": \"ethereum-sepolia\",\n            \"fromTxHash\": \"0xe1501e9847d53dd99d245101bd2cdfa94c193ccc01c0a114974d360c2467011a\",\n            \"toTxHash\": null,\n            \"fromBlockNumber\": 5636517,\n            \"toBlockNumber\": null,\n            \"daoAddress\": \"0x79c1DE9a709760BA1c5c8Df3e0bC27Af005c5a5a\",\n            \"pluginAddress\": \"0x01851729dF7E28Ceef6788eae11Fb064226aD8D9\",\n            \"pluginSubdomain\": \"token-voting\",\n            \"settings\": {\n                \"votingMode\": 1,\n                \"supportThreshold\": 560000,\n                \"minParticipation\": 150000,\n                \"minDuration\": 86400,\n                \"minProposerVotingPower\": \"1e+18\"\n            },\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x91F2a2ad4844854733CCB58A32741810206763EF\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/11155111/0x91f2a2ad4844854733ccb58a32741810206763ef.png\",\n                \"name\": \"POPCOIN\",\n                \"symbol\": \"PPC\",\n                \"decimals\": 18\n            }\n        },\n        {\n            \"id\": \"0x479895832d63de2535a9570abef46e157b501c1c7dae27cd039b031c862ea440-ethereum-sepolia\",\n            \"network\": \"ethereum-sepolia\",\n            \"fromTxHash\": \"0x479895832d63de2535a9570abef46e157b501c1c7dae27cd039b031c862ea440\",\n            \"toTxHash\": null,\n            \"fromBlockNumber\": 5273526,\n            \"toBlockNumber\": null,\n            \"daoAddress\": \"0x26630Be0B43D0628885C00578d5F33AE4135f06B\",\n            \"pluginAddress\": \"0x010127A0bB7aC31E7FA653490ac7830E95164528\",\n            \"pluginSubdomain\": \"token-voting\",\n            \"settings\": {\n                \"votingMode\": 2,\n                \"supportThreshold\": 500000,\n                \"minParticipation\": 200000,\n                \"minDuration\": 3600,\n                \"minProposerVotingPower\": \"1e+18\"\n            },\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x1CcB00696e8AEcA0bd0842Fb687Ae05570f9c0f0\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/11155111/0x1ccb00696e8aeca0bd0842fb687ae05570f9c0f0.png\",\n                \"name\": \"ParaDAO Token\",\n                \"symbol\": \"PARAD\",\n                \"decimals\": 18\n            }\n        },\n        {\n            \"id\": \"0xd84c8ec61e7f71048d0b6ed143659455531b3599f42a15f20b4508b31276a088-ethereum-sepolia\",\n            \"network\": \"ethereum-sepolia\",\n            \"fromTxHash\": \"0xd84c8ec61e7f71048d0b6ed143659455531b3599f42a15f20b4508b31276a088\",\n            \"toTxHash\": null,\n            \"fromBlockNumber\": 5963813,\n            \"toBlockNumber\": null,\n            \"daoAddress\": \"0x827d8bc8293D29Dfa070776167e3e5187A8F3205\",\n            \"pluginAddress\": \"0x00470abAE886871a03c72cFbBb89A927330fbCe2\",\n            \"pluginSubdomain\": \"token-voting\",\n            \"settings\": {\n                \"votingMode\": 1,\n                \"supportThreshold\": 990000,\n                \"minParticipation\": 1000000,\n                \"minDuration\": 86400,\n                \"minProposerVotingPower\": \"1\"\n            },\n            \"token\": null\n        },\n        {\n            \"id\": \"0x52d297b7b3951cd9b69c6702924a0cd220f0ae3fe6a65f628002c9e213a00328-ethereum-sepolia\",\n            \"network\": \"ethereum-sepolia\",\n            \"fromTxHash\": \"0x52d297b7b3951cd9b69c6702924a0cd220f0ae3fe6a65f628002c9e213a00328\",\n            \"toTxHash\": null,\n            \"fromBlockNumber\": 5394134,\n            \"toBlockNumber\": null,\n            \"daoAddress\": \"0x98A090c34b18A11d354006DF9a037ece16022971\",\n            \"pluginAddress\": \"0x000b8e335bF9310fa7A417d45d18aBF31Ab0702F\",\n            \"pluginSubdomain\": \"multisig\",\n            \"settings\": {\n                \"minApprovals\": 1,\n                \"onlyListed\": true\n            },\n            \"token\": null\n        },\n        {\n            \"id\": \"0x537cda329bb9f738ef6fd0875c5e7104999b8bb079b3341eed9cbcae0efd8f91-ethereum-sepolia\",\n            \"network\": \"ethereum-sepolia\",\n            \"fromTxHash\": \"0x537cda329bb9f738ef6fd0875c5e7104999b8bb079b3341eed9cbcae0efd8f91\",\n            \"toTxHash\": null,\n            \"fromBlockNumber\": 5715945,\n            \"toBlockNumber\": null,\n            \"daoAddress\": \"0xDD57805be8D8aD22272d69F43036e764CBc1bfd1\",\n            \"pluginAddress\": \"0x00eAaB0a73d8a601fa5bbe03Abd04330F900bbDc\",\n            \"pluginSubdomain\": \"multisig\",\n            \"settings\": {\n                \"minApprovals\": 1,\n                \"onlyListed\": true\n            },\n            \"token\": null\n        },\n        {\n            \"id\": \"0x3991312479dee1dbffcc6e8c6ef999267a53918329373ae3d777aa4f835ba0c1-ethereum-sepolia\",\n            \"network\": \"ethereum-sepolia\",\n            \"fromTxHash\": \"0x3991312479dee1dbffcc6e8c6ef999267a53918329373ae3d777aa4f835ba0c1\",\n            \"toTxHash\": null,\n            \"fromBlockNumber\": 6072306,\n            \"toBlockNumber\": null,\n            \"daoAddress\": \"0x74E511e2c5A0a4c673bb517591739982A8B6B025\",\n            \"pluginAddress\": \"0x018e3E39AA236D9E43Dd465ed0E38cBAE769e4d3\",\n            \"pluginSubdomain\": \"multisig\",\n            \"settings\": {\n                \"minApprovals\": 1,\n                \"onlyListed\": true\n            },\n            \"token\": null\n        }\n    ]\n}"
-						},
-						{
-							"id": "256ffc98-f4f3-40b8-a6be-affbabe2c215",
-							"name": "get settings with daoId",
-							"originalRequest": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{host}}/settings?daoId=ethereum-sepolia-0x452d22f3324C239325dE422710d41B909642365b",
-									"host": [
-										"{{host}}"
-									],
-									"path": [
-										"settings"
-									],
-									"query": [
-										{
-											"key": "search",
-											"value": "0xDDfa944A93ec63c73dF500d282D0c2De741aD752",
-											"description": "Search by: permalink | daoAddress || creatorAddress || txHash || name || ens",
-											"disabled": true
-										},
-										{
-											"key": "page",
-											"value": "1",
-											"description": "Total Result per page",
-											"disabled": true
-										},
-										{
-											"key": "pageSize",
-											"value": "10",
-											"description": "Sort asc | desc",
-											"disabled": true
-										},
-										{
-											"key": "order",
-											"value": "desc",
-											"description": "any property returned by the data object",
-											"disabled": true
-										},
-										{
-											"key": "sort",
-											"value": "createdAt",
-											"disabled": true
-										},
-										{
-											"key": "onlyActive",
-											"value": "true",
-											"description": "Only active settings",
-											"disabled": true
-										},
-										{
-											"key": "network",
-											"value": "mainnet",
-											"disabled": true
-										},
-										{
-											"key": "daoAddress",
-											"value": "0xf3b4B314425251AfAA068E1e2c92D7e06D75a6F4",
-											"disabled": true
-										},
-										{
-											"key": "pluginAddress",
-											"value": "0x9C71365C9e548A7da11665C190dC3EEf0348340b",
-											"description": "Plugin Address",
-											"disabled": true
-										},
-										{
-											"key": "daoId",
-											"value": "ethereum-sepolia-0x452d22f3324C239325dE422710d41B909642365b"
-										}
-									]
-								}
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "X-Correlation-Id",
-									"value": "fc9e7b40-be89-4acb-b79f-2e92f18fe787"
-								},
-								{
-									"key": "Access-Control-Allow-Origin",
-									"value": "*"
-								},
-								{
-									"key": "referrer-policy",
-									"value": "no-referrer"
-								},
-								{
-									"key": "x-content-type-options",
-									"value": "nosniff"
-								},
-								{
-									"key": "x-frame-options",
-									"value": "DENY"
-								},
-								{
-									"key": "content-security-policy",
-									"value": "default-src 'self' https:"
-								},
-								{
-									"key": "x-xss-protection",
-									"value": "1; mode=block"
-								},
-								{
-									"key": "strict-transport-security",
-									"value": "max-age=2592000; includeSubDomains"
-								},
-								{
-									"key": "Content-Type",
-									"value": "application/json; charset=utf-8"
-								},
-								{
-									"key": "Content-Length",
-									"value": "554"
-								},
-								{
-									"key": "Date",
-									"value": "Mon, 24 Jun 2024 15:20:52 GMT"
-								},
-								{
-									"key": "Connection",
-									"value": "keep-alive"
-								},
-								{
-									"key": "Keep-Alive",
-									"value": "timeout=5"
-								}
-							],
-							"cookie": [],
-							"responseTime": null,
-							"body": "{\n    \"metadata\": {\n        \"page\": 1,\n        \"pageSize\": 10,\n        \"totalPages\": 1,\n        \"totalRecords\": 1\n    },\n    \"data\": [\n        {\n            \"id\": \"0xd7f0f55f3d2a5acefbc3179b069b5b2214e7bbf6eb73388ef3b01c17ba4becbd-ethereum-sepolia\",\n            \"network\": \"ethereum-sepolia\",\n            \"fromTxHash\": \"0xd7f0f55f3d2a5acefbc3179b069b5b2214e7bbf6eb73388ef3b01c17ba4becbd\",\n            \"toTxHash\": null,\n            \"fromBlockNumber\": 6140718,\n            \"toBlockNumber\": null,\n            \"daoAddress\": \"0x452d22f3324C239325dE422710d41B909642365b\",\n            \"pluginAddress\": \"0x62a01A3FD2b0f65B8C25C8CaF4B2e3F560367481\",\n            \"pluginSubdomain\": \"multisig\",\n            \"settings\": {\n                \"minApprovals\": 1,\n                \"onlyListed\": true\n            },\n            \"token\": null\n        }\n    ]\n}"
-						}
-					]
-				},
-				{
-					"name": "get active setting by daoId",
-					"id": "1085aa89-42be-4e35-bc18-097bbf5ad02f",
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": "{{host}}/settings/active/ethereum-sepolia-0x452d22f3324C239325dE422710d41B909642365b"
-					},
-					"response": [
-						{
-							"id": "95841d78-4644-4fe3-a35f-7505058ae189",
-							"name": "get setting by transactionHash",
-							"originalRequest": {
-								"method": "GET",
-								"header": [],
-								"url": "{{host}}/settings/active/ethereum-sepolia-0x452d22f3324C239325dE422710d41B909642365b"
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "X-Correlation-Id",
-									"value": "236ec73b-c414-4c1b-bfff-73aa6e5758e4"
-								},
-								{
-									"key": "Access-Control-Allow-Origin",
-									"value": "*"
-								},
-								{
-									"key": "referrer-policy",
-									"value": "no-referrer"
-								},
-								{
-									"key": "x-content-type-options",
-									"value": "nosniff"
-								},
-								{
-									"key": "x-frame-options",
-									"value": "DENY"
-								},
-								{
-									"key": "content-security-policy",
-									"value": "default-src 'self' https:"
-								},
-								{
-									"key": "x-xss-protection",
-									"value": "1; mode=block"
-								},
-								{
-									"key": "strict-transport-security",
-									"value": "max-age=2592000; includeSubDomains"
-								},
-								{
-									"key": "Content-Type",
-									"value": "application/json; charset=utf-8"
-								},
-								{
-									"key": "Content-Length",
-									"value": "462"
-								},
-								{
-									"key": "Date",
-									"value": "Thu, 20 Jun 2024 13:44:04 GMT"
-								},
-								{
-									"key": "Connection",
-									"value": "keep-alive"
-								},
-								{
-									"key": "Keep-Alive",
-									"value": "timeout=5"
-								}
-							],
-							"cookie": [],
-							"responseTime": null,
-							"body": "{\n    \"id\": \"0xd7f0f55f3d2a5acefbc3179b069b5b2214e7bbf6eb73388ef3b01c17ba4becbd-ethereum-sepolia\",\n    \"network\": \"ethereum-sepolia\",\n    \"fromTxHash\": \"0xd7f0f55f3d2a5acefbc3179b069b5b2214e7bbf6eb73388ef3b01c17ba4becbd\",\n    \"toTxHash\": null,\n    \"fromBlockNumber\": 6140718,\n    \"toBlockNumber\": null,\n    \"daoAddress\": \"0x452d22f3324C239325dE422710d41B909642365b\",\n    \"pluginAddress\": \"0x62a01A3FD2b0f65B8C25C8CaF4B2e3F560367481\",\n    \"pluginSubdomain\": \"multisig\",\n    \"settings\": {\n        \"minApprovals\": 1,\n        \"onlyListed\": true\n    }\n}"
-						}
-					]
-				},
-				{
-					"name": "get active setting by daoAddress Copy",
-					"id": "eff13029-a61f-4104-bfcf-ed967aa20656",
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": "{{host}}/settings/active/ethereum-sepolia/0x987687e9F9823F27e1b0FBdaA9aAA9831e7D1073"
-					},
-					"response": [
-						{
-							"id": "d4075445-e47e-4c1d-a1e3-15565edd9590",
-							"name": "get active setting by daoAddress Copy",
-							"originalRequest": {
-								"method": "GET",
-								"header": [],
-								"url": "{{host}}/settings/active/ethereum-sepolia/0x987687e9F9823F27e1b0FBdaA9aAA9831e7D1073"
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "X-Correlation-Id",
-									"value": "04305819-5191-4339-a887-f2afce65b619"
-								},
-								{
-									"key": "Access-Control-Allow-Origin",
-									"value": "*"
-								},
-								{
-									"key": "referrer-policy",
-									"value": "no-referrer"
-								},
-								{
-									"key": "x-content-type-options",
-									"value": "nosniff"
-								},
-								{
-									"key": "x-frame-options",
-									"value": "DENY"
-								},
-								{
-									"key": "content-security-policy",
-									"value": "default-src 'self' https:"
-								},
-								{
-									"key": "x-xss-protection",
-									"value": "1; mode=block"
-								},
-								{
-									"key": "strict-transport-security",
-									"value": "max-age=2592000; includeSubDomains"
-								},
-								{
-									"key": "Content-Type",
-									"value": "application/json; charset=utf-8"
-								},
-								{
-									"key": "Content-Length",
-									"value": "811"
-								},
-								{
-									"key": "Date",
-									"value": "Mon, 24 Jun 2024 15:22:16 GMT"
-								},
-								{
-									"key": "Connection",
-									"value": "keep-alive"
-								},
-								{
-									"key": "Keep-Alive",
-									"value": "timeout=5"
-								}
-							],
-							"cookie": [],
-							"responseTime": null,
-							"body": "{\n    \"id\": \"0x67970a98874ea439d89992b82cd71058066da9b6761e3f8c877619ae8abb5dd1-ethereum-sepolia\",\n    \"network\": \"ethereum-sepolia\",\n    \"fromTxHash\": \"0x67970a98874ea439d89992b82cd71058066da9b6761e3f8c877619ae8abb5dd1\",\n    \"toTxHash\": null,\n    \"fromBlockNumber\": 5479486,\n    \"toBlockNumber\": null,\n    \"daoAddress\": \"0x987687e9F9823F27e1b0FBdaA9aAA9831e7D1073\",\n    \"pluginAddress\": \"0x03e703ebe80eb62A51BeC4dC90394c5E4F933D3A\",\n    \"pluginSubdomain\": \"token-voting\",\n    \"settings\": {\n        \"votingMode\": 1,\n        \"supportThreshold\": 500000,\n        \"minParticipation\": 150000,\n        \"minDuration\": 86400,\n        \"minProposerVotingPower\": \"1\"\n    },\n    \"token\": {\n        \"type\": \"GovernanceERC20\",\n        \"address\": \"0xD4d00d7ae7Cb7f70155A777D8D6d58ef2E867967\",\n        \"logo\": \"https://logos.covalenthq.com/tokens/11155111/0xd4d00d7ae7cb7f70155a777d8d6d58ef2e867967.png\",\n        \"name\": \"Governance VanityTron.io\",\n        \"symbol\": \"GVANITYTRON.IO\",\n        \"decimals\": 0\n    }\n}"
-						}
-					]
-				}
-			],
-			"id": "2f920704-8425-4514-b389-0f94aa4b8e66",
-			"description": "This endpoint retrieves a list of DAOs settings."
 		},
 		{
 			"name": "Transactions",
