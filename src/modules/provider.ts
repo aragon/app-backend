@@ -69,7 +69,7 @@ const ProviderModule = {
   ) {
     const handleOpen = async () => {
       ProviderModule.reconnectAttempts[network] = 0
-      logger.info(`WebSocket connected successfully to ${network}`)
+      logger.info(`WebSocket connected to ${network}`)
       if (resolve) resolve(provider)
     }
 
@@ -91,7 +91,7 @@ const ProviderModule = {
 
   async reconnectToNetwork(network: NetworksEnum, nodeUrl: string, attempt = 0, reject: any): Promise<void> {
     if (attempt >= config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS) {
-      logger.error(`Max reconnect attempts reached for ${network}`, llo({ network }))
+      logger.error(`Max reconnect attempts reached`, llo({ network, attempt }))
       return reject(new Error(`Max reconnect attempts reached for ${network}`))
     }
     const delay = config.NODE_CONFIG.RECONNECT_INTERVAL * Math.pow(2, attempt)
@@ -107,7 +107,7 @@ const ProviderModule = {
       const provider = ProviderModule.providerProxies[network]
       if (provider) {
         await provider.destroy()
-        logger.info(`WebSocket connection closed for ${network}`, llo({ network }))
+        logger.info(`WebSocket connection closed`, llo({ network }))
       }
     })
   },
