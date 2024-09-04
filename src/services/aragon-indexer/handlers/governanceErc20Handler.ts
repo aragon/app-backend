@@ -221,7 +221,7 @@ export const GovernanceErc20Handler = {
 
     if (BigInt(memberTransaction.memberBalance) === 0n && memberTransaction.votingPower === 0n) {
       await ProxyMember.removeFromDao({
-        memberAddress: memberAddress,
+        memberAddress,
         daoAddress: plugin.daoAddress,
         pluginAddress: plugin.address,
         network: info.network,
@@ -310,7 +310,7 @@ export const GovernanceErc20Handler = {
     }
 
     await ProxyMember.addToDao({
-      memberAddress: memberAddress,
+      memberAddress,
       daoAddress: plugin.daoAddress,
       pluginAddress: plugin.address,
       network: info.network,
