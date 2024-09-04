@@ -89,6 +89,7 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "@types/amqplib": "^0.10.5",
     "@types/async": "^3.2.24",
     "@types/chai": "^4.3.6",
     "@types/chai-as-promised": "^7.1.8",
