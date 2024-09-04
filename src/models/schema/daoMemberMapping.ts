@@ -53,15 +53,17 @@ export default class DaoMemberMapping extends Model {
     return await data.save(tOpts)
   }
 
-  static async findDaosByMemberWithPagination(extraParams?: IDaoExtraParams, paginationParams?: IPaginationParams) {
+  static async findDaosByMemberWithPagination({
+    extraParams,
+    paginationParams,
+  }: {
+    extraParams?: IDaoExtraParams
+    paginationParams?: IPaginationParams
+  }) {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const currentPage = request.skip / request.limit + 1
 
     const filter: any[] = []
-
-    if (extraParams?.address) {
-      filter.push({ $eq: ['$daoAddress', extraParams?.address] })
-    }
 
     if (extraParams?.memberAddress) {
       filter.push({ $eq: ['$memberAddress', extraParams?.memberAddress] })
