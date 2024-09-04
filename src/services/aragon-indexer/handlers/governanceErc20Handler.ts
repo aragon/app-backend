@@ -146,11 +146,12 @@ export const GovernanceErc20Handler = {
   },
 
   _outgoingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
-    const member = await ProxyMember.saveAndGetMember(parsedEvent.args.from)
+    const memberAddress = parsedEvent.args.from
+    await ProxyMember.saveAndGetMember(parsedEvent.args.from)
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
       transactionHash: info.transactionHash,
-      address: member?.address,
+      address: memberAddress,
       type: ITransferType.tokenTransfer,
       side: ITransferSide.outgoing,
     })
@@ -161,7 +162,7 @@ export const GovernanceErc20Handler = {
     }
 
     let tokenBalance = await ProxyMember.getBalances({
-      address: parsedEvent.args.from,
+      address: memberAddress,
       tokenAddress: info.address,
       network: info.network,
     })
@@ -185,7 +186,7 @@ export const GovernanceErc20Handler = {
           transactionHash: info.transactionHash,
           blockNumber: info.blockNumber,
           blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
-          address: member?.address,
+          address: memberAddress,
           type: ITransferType.tokenTransfer,
           side: ITransferSide.outgoing,
           from: parsedEvent.args.from,
@@ -194,7 +195,7 @@ export const GovernanceErc20Handler = {
           tokenAddress: info.address,
           memberBalance: tokenBalance.amount,
           memberVotingPower: await GovernanceErc20Helper.getPastVotes(
-            member?.address,
+            memberAddress,
             info.address,
             info.blockNumber,
             info.network,
@@ -220,7 +221,7 @@ export const GovernanceErc20Handler = {
 
     if (BigInt(memberTransaction.memberBalance) === 0n && memberTransaction.votingPower === 0n) {
       await ProxyMember.removeFromDao({
-        memberAddress: member?.address,
+        memberAddress: memberAddress,
         daoAddress: plugin.daoAddress,
         pluginAddress: plugin.address,
         network: info.network,
@@ -235,11 +236,12 @@ export const GovernanceErc20Handler = {
   },
 
   _incomingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
-    const member = await ProxyMember.saveAndGetMember(parsedEvent.args.to)
+    const memberAddress = parsedEvent.args.to
+    await ProxyMember.saveAndGetMember(parsedEvent.args.to)
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
       transactionHash: info.transactionHash,
-      address: member?.address,
+      address: memberAddress,
       type: ITransferType.tokenTransfer,
       side: ITransferSide.incoming,
     })
@@ -250,7 +252,7 @@ export const GovernanceErc20Handler = {
     }
 
     let tokenBalance = await ProxyMember.getBalances({
-      address: parsedEvent.args.to,
+      address: memberAddress,
       tokenAddress: info.address,
       network: info.network,
     })
@@ -274,7 +276,7 @@ export const GovernanceErc20Handler = {
           transactionHash: info.transactionHash,
           blockNumber: info.blockNumber,
           blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
-          address: member?.address,
+          address: memberAddress,
           side: ITransferSide.incoming,
           type: ITransferType.tokenTransfer,
           from: parsedEvent.args.from,
@@ -283,7 +285,7 @@ export const GovernanceErc20Handler = {
           tokenAddress: info.address,
           memberBalance: tokenBalance.amount,
           memberVotingPower: await GovernanceErc20Helper.getPastVotes(
-            member?.address,
+            memberAddress,
             info.address,
             info.blockNumber,
             info.network,
@@ -308,7 +310,7 @@ export const GovernanceErc20Handler = {
     }
 
     await ProxyMember.addToDao({
-      memberAddress: member?.address,
+      memberAddress: memberAddress,
       daoAddress: plugin.daoAddress,
       pluginAddress: plugin.address,
       network: info.network,
