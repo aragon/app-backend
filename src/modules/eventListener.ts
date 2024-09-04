@@ -13,6 +13,7 @@ class EventListener {
   public abi: any[]
   public listen: IEventConfig[]
   public networkName: NetworksEnum
+  private listeningActive: boolean = false
 
   constructor(config: Omit<IIndexerConfig, 'network'> & { networkName: NetworksEnum }) {
     this.name = config.name
@@ -42,7 +43,18 @@ class EventListener {
     }
     if (listen) {
       this.listenToEvents(filter)
+      this.handleReconnections(filter)
     }
+  }
+
+  private handleReconnections(filter: any) {
+    this.listeningActive = true
+    ProviderModule.eventEmitter.on('reconnected', () => {
+      if (this.listeningActive) {
+        this.listenToEvents(filter)
+        logger.info('Resubscribed to events', llo({ network: this.networkName }))
+      }
+    })
   }
 
   private async crawl(filter: any) {
