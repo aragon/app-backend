@@ -1417,7 +1417,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{host}}/delegates?page=8&pageSize=100",
+							"raw": "{{host}}/delegates?address=0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
 							"host": [
 								"{{host}}"
 							],
@@ -1430,16 +1430,6 @@
 									"value": "<string>",
 									"type": "text",
 									"disabled": true
-								},
-								{
-									"key": "page",
-									"value": "8",
-									"type": "text"
-								},
-								{
-									"key": "pageSize",
-									"value": "100",
-									"type": "text"
 								},
 								{
 									"key": "order",
@@ -1485,10 +1475,9 @@
 								},
 								{
 									"key": "address",
-									"value": "<string>",
+									"value": "0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
 									"description": "Member Address",
-									"type": "text",
-									"disabled": true
+									"type": "text"
 								},
 								{
 									"key": "tokenAddress",
@@ -1511,6 +1500,16 @@
 									"key": "daoId",
 									"value": "<daoId>",
 									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "page",
+									"value": "8",
+									"disabled": true
+								},
+								{
+									"key": "pageSize",
+									"value": "100",
 									"disabled": true
 								}
 							]
