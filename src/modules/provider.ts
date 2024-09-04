@@ -5,6 +5,8 @@ import logger from '@logger'
 import { assert } from '@errors'
 import { createProviderProxy } from '@modules/proxyProvider'
 import Utils from '@helpers/utils'
+import EventEmitter from 'events'
+const providerEventEmitter = new EventEmitter()
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
@@ -13,6 +15,7 @@ const ProviderModule = {
   providerProxies: {} as Record<string, IWebSocketProvider>,
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   reconnectAttempts: {} as Record<string, number>,
+  eventEmitter: providerEventEmitter,
   networksMap: {
     ETHEREUM_MAINNET: NetworksEnum.ethereumMainnet,
     ETHEREUM_SEPOLIA: NetworksEnum.ethereumSepolia,
@@ -91,7 +94,7 @@ const ProviderModule = {
 
   async reconnectToNetwork(network: NetworksEnum, nodeUrl: string, attempt = 0, reject: any): Promise<void> {
     if (attempt >= config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS) {
-      logger.error(`Max reconnect attempts reached`, llo({ network, attempt }))
+      logger.error('Max reconnect attempts reached', llo({ network, attempt }))
       return reject(new Error(`Max reconnect attempts reached for ${network}`))
     }
     const delay = config.NODE_CONFIG.RECONNECT_INTERVAL * Math.pow(2, attempt)
@@ -107,7 +110,7 @@ const ProviderModule = {
       const provider = ProviderModule.providerProxies[network]
       if (provider) {
         await provider.destroy()
-        logger.info(`WebSocket connection closed`, llo({ network }))
+        logger.info('WebSocket connection closed', llo({ network }))
       }
     })
   },
