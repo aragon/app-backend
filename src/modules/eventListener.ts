@@ -2,7 +2,7 @@ import { Interface, type Log, type WebSocketProvider } from 'ethers'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import { type IEnumIndexerService, type IIndexerConfig, type IEventConfig, type NetworksEnum } from '@types'
+import { type IEnumIndexerService, type IEventConfig, type IIndexerConfig, type NetworksEnum } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 
 class EventListener {
@@ -59,12 +59,35 @@ class EventListener {
   }
 
   private listenToEvents(filter: any) {
+    const topics = filter.topics || []
+    if (topics.length > 0) {
+      this.subscribeWithTopics(filter, topics)
+    } else {
+      this.subscribeWithoutTopics(filter)
+    }
+  }
+
+  private subscribeWithTopics(filter: any, topics: string[]) {
+    const maxTopicsPerBatch = 4
+
+    for (let i = 0; i < topics.length; i += maxTopicsPerBatch) {
+      const topicSubset = topics.slice(i, i + maxTopicsPerBatch)
+      const modifiedFilter = { ...filter, topics: topicSubset }
+
+      this.setupSubscription(modifiedFilter, `Subscribed to topics: ${topicSubset}`)
+    }
+  }
+
+  private subscribeWithoutTopics(filter: any) {
+    this.setupSubscription(filter, 'Start real-time listening')
+  }
+
+  private setupSubscription(filter: any, successMessage: string) {
     try {
       this.getProvider().on(filter, async (txLog: Log) => this.processLog(txLog))
-      logger.verbose(`Start ${this.name} real-time listening`, { networkName: this.networkName })
+      logger.verbose(successMessage, { networkName: this.networkName })
     } catch (error) {
-      logger.error(`Error in ${this.name} real-time listening`, { error, networkName: this.networkName })
-      throw error
+      logger.error('Event listener error', { error, name: this.name, network: this.networkName })
     }
   }
 
