@@ -5,13 +5,14 @@ import logger from '@logger'
 import { type IEnumIndexerService, type IEventConfig, type IIndexerConfig, type NetworksEnum } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 
+const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
+
 class EventListener {
   public network: NetworksEnum
   public name: IEnumIndexerService
   public abi: any[]
   public listen: IEventConfig[]
   public networkName: NetworksEnum
-  private readonly provider: any
 
   constructor(config: Omit<IIndexerConfig, 'network'> & { networkName: NetworksEnum }) {
     this.name = config.name
@@ -74,20 +75,20 @@ class EventListener {
       const topicSubset = topics.slice(i, i + maxTopicsPerBatch)
       const modifiedFilter = { ...filter, topics: topicSubset }
 
-      this.setupSubscription(modifiedFilter, `Subscribed to topics: ${topicSubset}`)
+      this.setupSubscription(modifiedFilter)
     }
   }
 
   private subscribeWithoutTopics(filter: any) {
-    this.setupSubscription(filter, 'Start real-time listening')
+    this.setupSubscription(filter)
   }
 
-  private setupSubscription(filter: any, successMessage: string) {
+  private setupSubscription(filter: any) {
     try {
       this.getProvider().on(filter, async (txLog: Log) => this.processLog(txLog))
-      logger.verbose(successMessage, { networkName: this.networkName })
+      logger.verbose('Start real-time listening', llo({ networkName: this.networkName, filter }))
     } catch (error) {
-      logger.error('Event listener error', { error, name: this.name, network: this.networkName })
+      logger.error('Event listener error', llo({ error, name: this.name, network: this.networkName }))
     }
   }
 
@@ -111,10 +112,13 @@ class EventListener {
   }
 
   private async processError(error: any) {
-    logger.error(`Error in ${this.name}`, {
-      error,
-      network: this.networkName,
-    })
+    logger.error(
+      `Error in ${this.name}`,
+      llo({
+        error,
+        network: this.networkName,
+      }),
+    )
   }
 
   private getProvider(): WebSocketProvider {
