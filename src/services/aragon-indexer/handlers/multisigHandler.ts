@@ -1,9 +1,9 @@
 import logger from '@logger'
-import { type ILogInfo } from '@types'
+import { EnumQueueName, type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
-import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:MultisigHandler' })
 
@@ -20,16 +20,19 @@ export const MultisigHandler = {
 
     const { members } = parsedEvent.args
     for (const memberAddress of members) {
-      await ProxyMember.addToDao({
-        memberAddress,
-        daoAddress: pluginExisted.daoAddress,
-        pluginAddress: address,
-        network,
-      })
-      await AggregatorDaoMetrics.start({
-        daoAddress: pluginExisted?.daoAddress,
-        network: pluginExisted?.network,
-      })
+      await Promise.all([
+        ProxyMember.addToDao({
+          memberAddress,
+          daoAddress: pluginExisted.daoAddress,
+          pluginAddress: address,
+          network,
+        }),
+        // Dao metrics
+        RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: pluginExisted.daoAddress,
+          params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
+        }),
+      ])
     }
   },
 
@@ -45,16 +48,19 @@ export const MultisigHandler = {
 
     const { members } = parsedEvent.args
     for (const memberAddress of members) {
-      await ProxyMember.removeFromDao({
-        memberAddress,
-        daoAddress: pluginExisted.daoAddress,
-        pluginAddress: address,
-        network,
-      })
-      await AggregatorDaoMetrics.start({
-        daoAddress: pluginExisted?.daoAddress,
-        network: pluginExisted?.network,
-      })
+      await Promise.all([
+        ProxyMember.removeFromDao({
+          memberAddress,
+          daoAddress: pluginExisted.daoAddress,
+          pluginAddress: address,
+          network,
+        }),
+        // Dao metrics
+        RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: pluginExisted.daoAddress,
+          params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
+        }),
+      ])
     }
   },
 }

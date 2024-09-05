@@ -164,7 +164,7 @@ describe('Module: provider', () => {
 
       Object.keys(fakeProviders).forEach(network => {
         expect(fakeProviders[network].destroy.calledOnce).to.be.true
-        expect(loggerInfoStub.calledWith(`WebSocket connection closed for ${network}` as any)).to.be.true
+        expect(loggerInfoStub.calledWith(`WebSocket connection closed` as any)).to.be.true
       })
 
       config.BLOCKCHAIN_NODES = backupConfig
@@ -181,7 +181,7 @@ describe('Module: provider', () => {
       ProviderModule.attachEventListeners(mockProvider, NetworksEnum.ethereumMainnet, 'wss://mock-url', mockResolve)
 
       mockWebSocket.onopen()
-      expect(stubLoggerInfo.calledOnceWith(`WebSocket connected successfully to ethereum-mainnet` as any)).to.be.true
+      expect(stubLoggerInfo.calledOnceWith(`WebSocket connected to ethereum-mainnet` as any)).to.be.true
       expect(mockResolve.calledOnce).to.be.true
     })
 
@@ -196,7 +196,7 @@ describe('Module: provider', () => {
       mockWebSocket.onclose()
       expect(
         stubLoggerError.calledOnceWith(
-          `WebSocket connection closed unexpectedly for ethereum-mainnet. Attempting to reconnect...` as any,
+          `WebSocket connection closed for ethereum-mainnet. Attempting to reconnect...` as any,
         ),
       ).to.be.true
       expect(stubReconnect.calledOnce).to.be.true
@@ -205,7 +205,6 @@ describe('Module: provider', () => {
     it('should attach error event listener and reject on error', () => {
       const mockWebSocket = new MockWebSocket()
       const mockProvider = { websocket: mockWebSocket } as any
-      const mockReject = sandbox.stub()
       const stubLoggerError = sandbox.stub(Logger, 'error')
 
       ProviderModule.attachEventListeners(
@@ -213,12 +212,12 @@ describe('Module: provider', () => {
         NetworksEnum.ethereumMainnet,
         'wss://mock-url',
         undefined,
-        mockReject,
+        undefined,
       )
 
       const error = new Error('test error')
       mockWebSocket.onerror(error)
-      expect(mockReject.calledOnceWith(error)).to.be.true
+      expect(stubLoggerError.calledOnceWith('WebSocket error' as any)).to.be.true
     })
   })
 
@@ -235,7 +234,7 @@ describe('Module: provider', () => {
       const stubLoggerInfo = sandbox.stub(Logger, 'info')
       const stubLoggerError = sandbox.stub(Logger, 'error')
 
-      await ProviderModule.reconnectToNetwork(network, nodeUrl, 0)
+      await ProviderModule.reconnectToNetwork(network, nodeUrl, 0, undefined)
 
       expect(stubConnect.calledOnce).to.be.true
       expect(stubLoggerInfo.calledWith(`Reconnecting to ${network}... Attempt 1` as any)).to.be.true
@@ -266,7 +265,7 @@ describe('Module: provider', () => {
       const stubLoggerInfo = sandbox.stub(Logger, 'info')
       const stubLoggerError = sandbox.stub(Logger, 'error')
 
-      await ProviderModule.reconnectToNetwork(network, nodeUrl, 0)
+      await ProviderModule.reconnectToNetwork(network, nodeUrl, 0, undefined)
 
       expect(stubLoggerInfo.calledWith(`Reconnecting to ${network}... Attempt 1` as any)).to.be.true
       expect(stubLoggerInfo.calledWith(`Reconnecting to ${network}... Attempt 2` as any)).to.be.true
@@ -287,11 +286,13 @@ describe('Module: provider', () => {
       const stubConnect = sandbox.stub(ProviderModule, 'connectToNetwork').rejects(new Error('connection error'))
       const stubReconnect = sandbox.stub(ProviderModule, 'reconnectToNetwork').callThrough()
       const stubLoggerError = sandbox.stub(Logger, 'error')
+      const stubReject = sandbox.stub().rejects()
 
-      await ProviderModule.reconnectToNetwork(network, nodeUrl, 1)
+      await ProviderModule.reconnectToNetwork(network, nodeUrl, 1, stubReject)
 
       expect(stubConnect.notCalled).to.be.true
       expect(stubReconnect.calledOnce).to.be.true
+      expect(stubReject.calledOnce).to.be.true
       expect(stubLoggerError.calledWith(`Max reconnect attempts reached for ${network}` as any)).to.be.true
 
       config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS = maxAttempts

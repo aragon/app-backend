@@ -26,7 +26,7 @@ export interface IAggTokenParams {
 
 export interface IAggDaoParams {
   address: string
-  network: string
+  network?: string
 }
 
 export interface IAggDaoProjectFields {

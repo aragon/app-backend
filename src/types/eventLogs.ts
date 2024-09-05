@@ -4,6 +4,8 @@ import { type ProposalActionType } from '@src/types/proposalAction'
 export interface ILogInfo {
   network: NetworksEnum
   blockNumber: number
+  transactionIndex: number
+  logIndex: number
   transactionHash: HexAddress
   address: HexAddress
   eventName: string

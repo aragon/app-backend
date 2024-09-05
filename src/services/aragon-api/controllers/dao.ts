@@ -45,7 +45,7 @@ const DaoController = {
         })
       : undefined
 
-    return await Models.Dao.findDaosByMemberWithPagination(extraParams, paginationParams)
+    return await Models.DaoMemberMapping.findDaosByMemberWithPagination({ extraParams, paginationParams })
   },
 }
 

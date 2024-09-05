@@ -33,6 +33,8 @@ describe('Indexer: MetadataHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -67,6 +69,8 @@ describe('Indexer: MetadataHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -102,6 +106,8 @@ describe('Indexer: MetadataHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',

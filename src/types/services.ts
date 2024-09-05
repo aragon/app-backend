@@ -1,6 +1,7 @@
 export enum EnumConnection {
   MONGODB = 'MONGODB',
   BLOCKCHAIN = 'BLOCKCHAIN',
+  RABBITMQ = 'RABBITMQ',
 }
 
 export interface IService {

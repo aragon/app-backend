@@ -7,25 +7,26 @@ import Web3Helper from '@helpers/web3'
 import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 import type Dao from '@models/schema/dao'
-import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
+import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:AggregatorDaoAssets' })
+const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
-export const AggregatorDaoAssets = {
+export const DaoAssets = {
   start: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
     const startTime = Date.now()
-    logger.verbose('Start DaoMetrics', llo({ startTime }))
+    logger.verbose('Start DaoAssets', llo({ startTime }))
 
     const daoDb = await Models.Dao.findByAddress(daoAddress, network)
-    await AggregatorDaoAssets.onDocument(daoDb)
+    if (!daoDb) return
+    await DaoAssets.onDocument(daoDb)
 
     const duration = Date.now() - startTime
-    logger.verbose('End AggregatorDaoAssets', llo({ daoId: daoDb.id, duration: `${duration}ms` }))
+    logger.verbose('End DaoAssets', llo({ daoId: daoDb.id, duration: `${duration}ms` }))
   },
 
   onDocument: async (document: Dao) => {
-    await AggregatorDaoAssets.assets(document)
-    await AggregatorDaoMetrics.start({ daoAddress: document.address, network: document.network })
+    await DaoAssets.assets(document)
+    await DaoMetrics.start({ daoAddress: document.address, network: document.network })
   },
 
   assets: async (document: Dao) => {
@@ -108,7 +109,7 @@ export const AggregatorDaoAssets = {
 
       return { ethBalance, tokenBalances }
     } catch (error) {
-      logger.error('Error AggregatorDaoAssets', llo({ error, logId: document.id }))
+      logger.error('Error DaoAssets', llo({ error, logId: document.id }))
     }
   },
 }

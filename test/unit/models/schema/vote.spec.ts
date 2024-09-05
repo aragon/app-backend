@@ -29,12 +29,14 @@ describe('Model: Vote', () => {
       const entityId = Models.Vote.getEntityId({
         network: rawVote.network!,
         transactionHash: rawVote.transactionHash!,
-        pluginAddress: rawVote.pluginAddress!,
-        proposalIndex: rawVote.proposalIndex!,
+        transactionIndex: rawVote.transactionIndex!,
+        logIndex: rawVote.logIndex!,
       })
       const vote = await Models.Vote.create(rawVote)
       expect(vote.id).to.eq(entityId)
       expect(vote.transactionHash).to.eq(rawVote.transactionHash)
+      expect(vote.transactionIndex).to.eq(rawVote.transactionIndex)
+      expect(vote.logIndex).to.eq(rawVote.logIndex)
       expect(vote.blockNumber).to.eq(rawVote.blockNumber)
       expect(vote.blockTimestamp).to.eq(rawVote.blockTimestamp)
       expect(vote.voteOption).to.eq(rawVote.voteOption)
@@ -55,11 +57,11 @@ describe('Model: Vote', () => {
       const entityId = Models.Vote.getEntityId({
         network: rawVote.network!,
         transactionHash: rawVote.transactionHash!,
-        pluginAddress: rawVote.pluginAddress!,
-        proposalIndex: rawVote.proposalIndex!,
+        transactionIndex: rawVote.transactionIndex!,
+        logIndex: rawVote.logIndex!,
       })
       expect(entityId).to.eq(
-        `${rawVote.network}-${rawVote.transactionHash}-${rawVote.pluginAddress}-${rawVote.proposalIndex}`,
+        `${rawVote.network}-${rawVote.transactionHash}-${rawVote.transactionIndex}-${rawVote.logIndex}`,
       )
     })
 
@@ -68,8 +70,8 @@ describe('Model: Vote', () => {
       const foundVote = await Models.Vote.findExistingLog({
         network: rawVote.network!,
         transactionHash: rawVote.transactionHash!,
-        pluginAddress: rawVote.pluginAddress!,
-        proposalIndex: rawVote.proposalIndex!,
+        transactionIndex: rawVote.transactionIndex!,
+        logIndex: rawVote.logIndex!,
       })
       expect(foundVote?.id).to.eq(createdVote.id)
     })
@@ -84,15 +86,15 @@ describe('Model: Vote', () => {
   it('Should getEntityId', async () => {
     const network = NetworksEnum.ethereumSepolia
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
-    const pluginAddress = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1960'
-    const proposalIndex = 1
+    const transactionIndex = 1
+    const logIndex = 1
     const entityId = Models.Vote.getEntityId({
       network,
       transactionHash,
-      pluginAddress,
-      proposalIndex,
+      transactionIndex,
+      logIndex,
     })
-    expect(entityId).to.eq(`${network}-${transactionHash}-${pluginAddress}-${proposalIndex}`)
+    expect(entityId).to.eq(`${network}-${transactionHash}-${transactionIndex}-${logIndex}`)
   })
 
   it('Should findExistingLog', async () => {
@@ -100,8 +102,8 @@ describe('Model: Vote', () => {
     const foundLogDao = await Models.Vote.findExistingLog({
       network: rawVote.network!,
       transactionHash: rawVote.transactionHash!,
-      pluginAddress: rawVote.pluginAddress!,
-      proposalIndex: rawVote.proposalIndex!,
+      transactionIndex: rawVote.transactionIndex!,
+      logIndex: rawVote.logIndex!,
     })
     expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
@@ -118,6 +120,8 @@ describe('Model: Vote', () => {
         {
           network: NetworksEnum.ethereumSepolia,
           pluginAddress: '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D2F',
+          transactionIndex: 0,
+          logIndex: 0,
           proposalIndex: 3,
           memberAddress: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
           transactionHash: '0x2cfefef4716452284b5c3152d3cc112d1512c9c2faf5e67347d6d4d2c03bd22d',
@@ -129,6 +133,8 @@ describe('Model: Vote', () => {
         {
           network: NetworksEnum.ethereumSepolia,
           pluginAddress: '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D20',
+          transactionIndex: 0,
+          logIndex: 1,
           proposalIndex: 3,
           memberAddress: '0x284803C34A3F049f787E2562e6F8C084bdBC3193',
           voteOption: 2,
@@ -142,6 +148,8 @@ describe('Model: Vote', () => {
         {
           network: NetworksEnum.ethereumSepolia,
           pluginAddress: '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D21',
+          transactionIndex: 0,
+          logIndex: 2,
           proposalIndex: 3,
           memberAddress: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
           voteOption: 2,

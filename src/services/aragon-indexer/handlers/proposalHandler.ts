@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo, IMetricAction, type IProposalMetadata, type IRawAction } from '@types'
+import { EnumQueueName, type ILogInfo, IMetricAction, type IProposalMetadata, type IRawAction } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
@@ -7,12 +7,11 @@ import type Vote from '@models/schema/vote'
 import Web3Helper from '@helpers/web3'
 import { ProxyMember } from '@modules/proxyMember'
 import { ProxyToken } from '@modules/proxyToken'
-import { AggregatorProposalMetrics } from '@indexer/aggregator/proposalMetrics'
 import type Proposal from '@models/schema/proposal'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import DbOperations from '@models/utils/dbOperations'
-import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:ProposalHandler' })
 
@@ -105,22 +104,24 @@ export const ProposalHandler = {
 
     const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)
 
+    await ProxyMember.memberActivity({
+      memberAddress: newProposal.creatorAddress,
+      pluginAddress: relatedPlugin.address,
+      network: newProposal.network,
+      blockNumber: newProposal.blockNumber,
+    })
+
     await Promise.all([
       ProposalHandler.parseActions(newProposal),
-      ProxyMember.memberActivity({
-        memberAddress: newProposal.creatorAddress,
-        pluginAddress: relatedPlugin.address,
-        network: newProposal.network,
-        blockNumber: newProposal.blockNumber,
-      }),
       ProxyMember.updateMemberMetrics(IMetricAction.increaseProposalCount, {
         memberAddress: newProposal.creatorAddress,
         pluginAddress,
         network: info.network,
       }),
-      AggregatorDaoMetrics.start({
-        daoAddress: newProposal?.daoAddress,
-        network: newProposal?.network,
+      // Dao metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: newProposal.daoAddress,
+        params: { address: newProposal.daoAddress, network: newProposal.network },
       }),
     ])
   },
@@ -137,14 +138,16 @@ export const ProposalHandler = {
     const existingLog = await Models.Vote.findExistingLog({
       network: info.network,
       transactionHash: info.transactionHash,
-      pluginAddress: info.address,
-      proposalIndex,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
     })
     if (existingLog) return
 
     const document: Partial<Vote> = {
       network: info.network,
       transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
       blockNumber: info.blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
       daoAddress: proposal?.daoAddress,
@@ -155,27 +158,28 @@ export const ProposalHandler = {
 
     await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
 
-    // NOTE: improve scalability, use queue messages
+    await ProxyMember.memberActivity({
+      memberAddress: document.memberAddress!,
+      pluginAddress: info.address,
+      network: info.network,
+      blockNumber: info.blockNumber,
+    })
+
     await Promise.all([
-      ProxyMember.memberActivity({
-        memberAddress: document.memberAddress!,
-        pluginAddress: info.address,
-        network: info.network,
-        blockNumber: info.blockNumber,
-      }),
       ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
         memberAddress: document.memberAddress!,
         pluginAddress: info.address,
         network: info.network,
       }),
-      AggregatorProposalMetrics.proposalMultisigMetrics({
-        proposalIndex,
-        pluginAddress: info.address,
-        network: info.network,
+      // Proposal metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
+        id: `${proposalIndex}-${info.address}`,
+        params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
       }),
-      AggregatorDaoMetrics.start({
-        daoAddress: proposal?.daoAddress,
-        network: proposal?.network,
+      // Dao metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: proposal.daoAddress,
+        params: { address: proposal.daoAddress, network: proposal.network },
       }),
     ])
   },
@@ -192,14 +196,16 @@ export const ProposalHandler = {
     const existingLog = await Models.Vote.findExistingLog({
       network: info.network,
       transactionHash: info.transactionHash,
-      pluginAddress: info.address,
-      proposalIndex,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
     })
     if (existingLog) return
 
     const document: Partial<Vote> = {
       network: info.network,
       transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
       blockNumber: info.blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
       daoAddress: proposal.daoAddress,
@@ -217,27 +223,29 @@ export const ProposalHandler = {
 
     await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - VoteCast', llo)
 
+    await ProxyMember.memberActivity({
+      memberAddress: document.memberAddress!,
+      pluginAddress: info.address,
+      network: info.network,
+      blockNumber: info.blockNumber,
+    })
+
     // update all metrics
     await Promise.all([
-      ProxyMember.memberActivity({
-        memberAddress: document.creatorAddress,
-        pluginAddress: info.address,
-        network: info.network,
-        blockNumber: info.blockNumber,
-      }),
       ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
         memberAddress: document.memberAddress!,
         pluginAddress: info.address,
         network: info.network,
       }),
-      AggregatorProposalMetrics.proposalTokenVotingMetrics({
-        proposalIndex,
-        pluginAddress: info.address,
-        network: info.network,
+      // Proposal metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+        id: `${proposalIndex}-${info.address}`,
+        params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
       }),
-      AggregatorDaoMetrics.start({
-        daoAddress: proposal?.daoAddress,
-        network: proposal?.network,
+      // Dao metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: proposal.daoAddress,
+        params: { address: proposal.daoAddress, network: proposal.network },
       }),
     ])
   },
@@ -264,9 +272,10 @@ export const ProposalHandler = {
 
     await DbOperations.updateDocument(proposal, rawUpdate, { logId: proposal.id }, 'Update proposalExecuted', llo)
 
-    await AggregatorDaoMetrics.start({
-      daoAddress: proposal?.daoAddress,
-      network: proposal?.network,
+    // Dao metrics
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: proposal.daoAddress,
+      params: { address: proposal.daoAddress, network: proposal.network },
     })
   },
 

@@ -248,6 +248,8 @@ const Web3Helper = {
       address: txLog.address,
       blockNumber: txLog.blockNumber,
       transactionHash: txLog.transactionHash || txLog.hash,
+      transactionIndex: txLog.transactionIndex,
+      logIndex: txLog.index,
       eventName,
     }
   },
