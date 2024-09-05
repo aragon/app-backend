@@ -9,13 +9,14 @@ import EventEmitter from 'events'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
-const providerEventEmitter = new EventEmitter()
+const eventEmitter = new EventEmitter()
+eventEmitter.setMaxListeners(20)
 
 const ProviderModule = {
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   providerProxies: {} as Record<string, IProviderProxy>,
 
-  eventEmitter: providerEventEmitter,
+  eventEmitter,
   networksMap: {
     ETHEREUM_MAINNET: NetworksEnum.ethereumMainnet,
     ETHEREUM_SEPOLIA: NetworksEnum.ethereumSepolia,
