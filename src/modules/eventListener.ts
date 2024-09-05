@@ -52,7 +52,6 @@ class EventListener {
   }
 
   private handleReconnections(filter: any) {
-    this.listeningActive = true
     ProviderModule.eventEmitter.on('connected', network => {
       if (this.listeningActive && network === this.networkName) {
         this.listenToEvents(filter)
@@ -103,6 +102,7 @@ class EventListener {
     try {
       this.getProvider().on(filter, async (txLog: Log) => this.processLog(txLog))
       logger.verbose('Start real-time listening', llo({ networkName: this.networkName, filter }))
+      this.listeningActive = true
     } catch (error) {
       logger.error('Event listener error', llo({ error, name: this.name, network: this.networkName }))
     }
