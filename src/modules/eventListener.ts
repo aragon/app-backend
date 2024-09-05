@@ -49,10 +49,10 @@ class EventListener {
 
   private handleReconnections(filter: any) {
     this.listeningActive = true
-    ProviderModule.eventEmitter.on('connected', () => {
-      if (this.listeningActive) {
+    ProviderModule.eventEmitter.on('connected', network => {
+      if (this.listeningActive && network === this.networkName) {
         this.listenToEvents(filter)
-        logger.info('Resubscribed to events', llo({ network: this.networkName }))
+        logger.info('Resubscribed to events', llo({ filter, network: this.networkName }))
       }
     })
   }
