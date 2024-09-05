@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { IEventLogMember, type ILogInfo, IMetricAction, ITransferSide, ITransferType } from '@types'
+import { EnumQueueName, IEventLogMember, type ILogInfo, IMetricAction, ITransferSide, ITransferType } from '@types'
 import utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
@@ -8,26 +8,27 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
-import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
+import type Plugin from '@models/schema/plugin'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:GovernanceErc20Handler' })
 
 export const GovernanceErc20Handler = {
   // is trigger once for all user - (from user increase balance and 1 user decrease balance)
-  transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  transfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
     // outgoing transfer
     if (parsedEvent.args.from !== utils.zeroAddress) {
-      await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info)
+      await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info, plugin)
     }
 
     // incoming transfer
     if (parsedEvent.args.to !== utils.zeroAddress) {
-      await GovernanceErc20Handler._incomingTransfer(parsedEvent, info)
+      await GovernanceErc20Handler._incomingTransfer(parsedEvent, info, plugin)
     }
   },
 
   // it triggers for each user the previous and new votingPower
-  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
     if (parsedEvent.args.delegate === utils.zeroAddress) {
       return
     }
@@ -94,7 +95,9 @@ export const GovernanceErc20Handler = {
       return logDb
     })
 
-    const plugin = await Models.Plugin.findActivePluginByTokenAddress(info.address, info.network)
+    if (!plugin) {
+      plugin = await Models.Plugin.findActivePluginByTokenAddress(info.address, info.network)
+    }
 
     if (!plugin) {
       logger.error('Plugin not found - delegateVoteChanged member metrics not updated', llo({ info }))
@@ -135,18 +138,20 @@ export const GovernanceErc20Handler = {
       }
     }
 
-    await AggregatorDaoMetrics.start({
-      daoAddress: plugin?.daoAddress,
-      network: plugin?.network,
+    // Dao metrics
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: plugin.daoAddress,
+      params: { address: plugin.daoAddress, network: plugin.network },
     })
   },
 
-  _outgoingTransfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const member = await ProxyMember.saveAndGetMember(parsedEvent.args.from)
+  _outgoingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
+    const memberAddress = parsedEvent.args.from
+    await ProxyMember.saveAndGetMember(parsedEvent.args.from)
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
       transactionHash: info.transactionHash,
-      address: member?.address,
+      address: memberAddress,
       type: ITransferType.tokenTransfer,
       side: ITransferSide.outgoing,
     })
@@ -157,7 +162,7 @@ export const GovernanceErc20Handler = {
     }
 
     let tokenBalance = await ProxyMember.getBalances({
-      address: parsedEvent.args.from,
+      address: memberAddress,
       tokenAddress: info.address,
       network: info.network,
     })
@@ -181,7 +186,7 @@ export const GovernanceErc20Handler = {
           transactionHash: info.transactionHash,
           blockNumber: info.blockNumber,
           blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
-          address: member?.address,
+          address: memberAddress,
           type: ITransferType.tokenTransfer,
           side: ITransferSide.outgoing,
           from: parsedEvent.args.from,
@@ -190,7 +195,7 @@ export const GovernanceErc20Handler = {
           tokenAddress: info.address,
           memberBalance: tokenBalance.amount,
           memberVotingPower: await GovernanceErc20Helper.getPastVotes(
-            member?.address,
+            memberAddress,
             info.address,
             info.blockNumber,
             info.network,
@@ -205,7 +210,9 @@ export const GovernanceErc20Handler = {
       return logDb
     })
 
-    const plugin = await Models.Plugin.findActivePluginByTokenAddress(info.address, info.network)
+    if (!plugin) {
+      plugin = await Models.Plugin.findActivePluginByTokenAddress(info.address, info.network)
+    }
 
     if (!plugin) {
       logger.error('Plugin not found - incoming member metrics not updated', llo({ info }))
@@ -214,25 +221,27 @@ export const GovernanceErc20Handler = {
 
     if (BigInt(memberTransaction.memberBalance) === 0n && memberTransaction.votingPower === 0n) {
       await ProxyMember.removeFromDao({
-        memberAddress: member?.address,
+        memberAddress,
         daoAddress: plugin.daoAddress,
         pluginAddress: plugin.address,
         network: info.network,
       })
     }
 
-    await AggregatorDaoMetrics.start({
-      daoAddress: plugin?.daoAddress,
-      network: plugin?.network,
+    // Dao metrics
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: plugin.daoAddress,
+      params: { address: plugin.daoAddress, network: plugin.network },
     })
   },
 
-  _incomingTransfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const member = await ProxyMember.saveAndGetMember(parsedEvent.args.to)
+  _incomingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
+    const memberAddress = parsedEvent.args.to
+    await ProxyMember.saveAndGetMember(parsedEvent.args.to)
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
       transactionHash: info.transactionHash,
-      address: member?.address,
+      address: memberAddress,
       type: ITransferType.tokenTransfer,
       side: ITransferSide.incoming,
     })
@@ -243,7 +252,7 @@ export const GovernanceErc20Handler = {
     }
 
     let tokenBalance = await ProxyMember.getBalances({
-      address: parsedEvent.args.to,
+      address: memberAddress,
       tokenAddress: info.address,
       network: info.network,
     })
@@ -267,7 +276,7 @@ export const GovernanceErc20Handler = {
           transactionHash: info.transactionHash,
           blockNumber: info.blockNumber,
           blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
-          address: member?.address,
+          address: memberAddress,
           side: ITransferSide.incoming,
           type: ITransferType.tokenTransfer,
           from: parsedEvent.args.from,
@@ -276,7 +285,7 @@ export const GovernanceErc20Handler = {
           tokenAddress: info.address,
           memberBalance: tokenBalance.amount,
           memberVotingPower: await GovernanceErc20Helper.getPastVotes(
-            member?.address,
+            memberAddress,
             info.address,
             info.blockNumber,
             info.network,
@@ -291,7 +300,9 @@ export const GovernanceErc20Handler = {
       return logDb
     })
 
-    const plugin = await Models.Plugin.findActivePluginByTokenAddress(info.address, info.network)
+    if (!plugin) {
+      plugin = await Models.Plugin.findActivePluginByTokenAddress(info.address, info.network)
+    }
 
     if (!plugin) {
       logger.error('Plugin not found - incoming member metrics not updated', llo({ info }))
@@ -299,15 +310,16 @@ export const GovernanceErc20Handler = {
     }
 
     await ProxyMember.addToDao({
-      memberAddress: member?.address,
+      memberAddress,
       daoAddress: plugin.daoAddress,
       pluginAddress: plugin.address,
       network: info.network,
     })
 
-    await AggregatorDaoMetrics.start({
-      daoAddress: plugin?.daoAddress,
-      network: plugin?.network,
+    // Dao metrics
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: plugin.daoAddress,
+      params: { address: plugin.daoAddress, network: plugin.network },
     })
   },
 

@@ -1,7 +1,16 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, ICollectionNames, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  ICollectionNames,
+  type IDaoExtraParams,
+  type IPaginationParams,
+  IPluginStatus,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
+import ModelUtils from '@models/utils/models'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.DaoMemberMapping
 
@@ -42,6 +51,157 @@ export default class DaoMemberMapping extends Model {
   static async create(rawData: Partial<DaoMemberMapping>, tOpts?: SaveOptions) {
     const data = new this(rawData)
     return await data.save(tOpts)
+  }
+
+  static async findDaosByMemberWithPagination({
+    extraParams,
+    paginationParams,
+  }: {
+    extraParams?: IDaoExtraParams
+    paginationParams?: IPaginationParams
+  }) {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const currentPage = request.skip / request.limit + 1
+
+    const filter: any[] = []
+
+    if (extraParams?.memberAddress) {
+      filter.push({ $eq: ['$memberAddress', extraParams?.memberAddress] })
+    }
+
+    if (extraParams?.network) {
+      filter.push({ $eq: ['$network', extraParams?.network] })
+    }
+
+    const query = [
+      {
+        $match: {
+          $expr: {
+            $and: filter,
+          },
+        },
+      },
+      {
+        $project: {
+          daoAddress: 1,
+          _id: 0,
+        },
+      },
+      AggregationQueryHelper.dao(
+        {
+          address: '$daoAddress',
+        },
+        'daoDetails',
+      ),
+      {
+        $unwind: {
+          path: '$daoDetails',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $replaceRoot: {
+          newRoot: '$daoDetails',
+        },
+      },
+      {
+        $project: {
+          createdAt: 0,
+          updatedAt: 0,
+          isHidden: 0,
+          isActive: 0,
+          __v: 0,
+          _id: 0,
+        },
+      },
+      ...(extraParams?.excludedDao?.daoAddress && extraParams?.excludedDao?.network
+        ? [
+            {
+              $match: {
+                $nor: [
+                  {
+                    address: extraParams.excludedDao.daoAddress,
+                    network: extraParams.excludedDao.network,
+                  },
+                ],
+              },
+            },
+          ]
+        : []),
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$creatorAddress',
+        },
+        'creator',
+      ),
+      {
+        $addFields: {
+          creator: {
+            $cond: {
+              if: { $gt: [{ $size: '$creator' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$creator.address', 0] },
+                ens: { $arrayElemAt: ['$creator.ens', 0] },
+                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
+              },
+              else: {
+                address: '$creatorAddress',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          creatorAddress: '$$REMOVE',
+        },
+      },
+      AggregationQueryHelper.plugin(
+        {
+          daoAddress: '$address',
+          network: '$network',
+          status: IPluginStatus.installed,
+        },
+        'plugin',
+        {
+          _id: 0,
+          address: 1,
+          implementationAddress: 1,
+          // status: 1,
+          release: 1,
+          build: 1,
+          subdomain: 1,
+        },
+        {
+          settings: true,
+          token: true,
+        },
+      ),
+    ]
+
+    const [result, totalRecords] = await Promise.all([
+      this.aggregate([...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]),
+      this.aggregate([...query, { $count: 'totalRecords' }]),
+    ])
+
+    const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
+    const totalPages = Math.ceil(_totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords: _totalRecords,
+      },
+      data: result as any,
+    }
   }
 
   static async findMapping(

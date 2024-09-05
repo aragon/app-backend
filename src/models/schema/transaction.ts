@@ -237,16 +237,24 @@ export default class Transaction extends Model {
     const filtered = _.omit(
       obj,
       '_id',
+      'id',
       '__v',
       'isHidden',
       'createdAt',
       'updatedAt',
+      'pluginAddress',
       'daoAddress',
       'tokenAddress',
       'createdAt',
       'updatedAt',
     )
     filtered.token = filtered.token ? _.omit(filtered.token, '_id', '__v') : undefined
+
+    if (this.token?.snapshot) {
+      filtered.token.historicalPriceUsd = filtered.token.snapshot.priceUsd
+      filtered.token.snapshot = undefined
+    }
+
     return filtered
   }
 }

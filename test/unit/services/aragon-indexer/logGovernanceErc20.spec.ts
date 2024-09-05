@@ -61,6 +61,8 @@ describe('Indexer: LogGovernanceErc20', () => {
       const fakeLogInfo = {
         network: network,
         blockNumber: 123213,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x1234567890123456789012345678901234567890',
         address: '0x1234567890123456789012345678901234567890',
         eventName: 'Transfer',
@@ -93,6 +95,8 @@ describe('Indexer: LogGovernanceErc20', () => {
       const fakeLogInfo = {
         network: network,
         blockNumber: 123213,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x1234567890123456789012345678901234567890',
         address: '0x1234567890123456789012345678901234567890',
         eventName: 'DelegateVotesChanged',
@@ -125,6 +129,8 @@ describe('Indexer: LogGovernanceErc20', () => {
       const fakeLogInfo = {
         network: network,
         blockNumber: 123213,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x1234567890123456789012345678901234567890',
         address: '0x1234567890123456789012345678901234567890',
         eventName: 'Unknown',

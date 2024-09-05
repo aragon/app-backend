@@ -16,6 +16,7 @@ import { ProposalHandler } from '@indexer/handlers/proposalHandler'
 import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
 
 const IndexerEventConfig: IIndexerConfig[] = [
+  // historical and realtime on startup
   {
     name: IEnumIndexerService.logPluginRepoRegistry,
     abi: PluginRepoRegistry.abi,
@@ -98,6 +99,8 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
     enabled: true,
   },
+
+  // only realtime on startup
   {
     name: IEnumIndexerService.logMultisig,
     abi: Multisig.abi,

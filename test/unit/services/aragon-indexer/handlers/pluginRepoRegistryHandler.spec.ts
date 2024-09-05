@@ -22,6 +22,8 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',

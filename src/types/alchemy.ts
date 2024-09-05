@@ -1,6 +1,11 @@
 import { type HexAddress } from '@src/types/networks'
 import { type WebSocketProvider } from 'ethers'
 
+export interface IProviderProxy {
+  provider: IWebSocketProvider
+  reconnectAttempts: number
+}
+
 export interface IWebSocketProvider extends WebSocketProvider {
   updateProvider: (newProvider: WebSocketProvider) => void
   websocket: WebSocket | any

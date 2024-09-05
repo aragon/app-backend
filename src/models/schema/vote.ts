@@ -44,6 +44,12 @@ export default class Vote extends Model {
   public transactionHash!: HexAddress
 
   @prop({ type: () => Number, required: true })
+  public transactionIndex!: number
+
+  @prop({ type: () => Number, required: true })
+  public logIndex!: number
+
+  @prop({ type: () => Number, required: true })
   public blockNumber!: number
 
   @prop({ type: () => Number })
@@ -77,13 +83,13 @@ export default class Vote extends Model {
     if (!rawData.id) {
       assert(!!rawData.network, 'pluginAddress is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
-      assert(!!rawData.pluginAddress, 'pluginAddress is required')
-      assert(!!rawData.proposalIndex || rawData.proposalIndex === 0, 'proposalIndex is required')
+      assert(!!rawData.transactionIndex || rawData.transactionIndex === 0, 'transactionIndex is required')
+      assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
       rawData.id = this.getEntityId({
         network: rawData?.network!,
         transactionHash: rawData?.transactionHash!,
-        pluginAddress: rawData?.pluginAddress!,
-        proposalIndex: rawData?.proposalIndex!,
+        transactionIndex: rawData?.transactionIndex!,
+        logIndex: rawData?.logIndex!,
       })
     }
     const data = new this(rawData)
@@ -91,7 +97,7 @@ export default class Vote extends Model {
   }
 
   static getEntityId(params: IVoteIdParams) {
-    const entityId = `${params.network}-${params.transactionHash}-${params.pluginAddress}-${params.proposalIndex}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}`
     return entityId
   }
 

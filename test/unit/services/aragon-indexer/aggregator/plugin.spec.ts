@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { AggregatorPlugin } from '@services/aragon-indexer/aggregator/plugin'
+import { PluginHandler } from '@indexer/handlers/pluginHandler'
 import { Models } from '@dbModels'
 import { IEventLogPluginType, IPluginRawStatus } from '@types'
 import { ListLogPluginSetupProcessor } from '@test/mock/fakeLogPluginSetupProcessor'
@@ -23,7 +23,7 @@ describe('Indexer:Aggregator:Plugin', () => {
     const eventInstallationPrepared = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[0])
     const eventInstallationApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[1])
 
-    const plugin = await AggregatorPlugin._queryGetPlugin({
+    const plugin = await PluginHandler._queryGetPlugin({
       daoAddress: eventInstallationPrepared.daoAddress,
       pluginAddress: eventInstallationPrepared.pluginAddress,
       network: eventInstallationPrepared.network,

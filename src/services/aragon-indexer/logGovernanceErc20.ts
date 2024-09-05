@@ -31,7 +31,7 @@ export const LogGovernanceErc20 = {
     const crawler = new BlockchainLogCrawler({
       network: plugin.network,
       filter,
-      onLog: async (txLog: Log) => LogGovernanceErc20.processLog(txLog, plugin.network),
+      onLog: async (txLog: Log) => LogGovernanceErc20.processLog(txLog, plugin.network, plugin),
       onError: async (error: any) => LogGovernanceErc20.processError(error, plugin.network),
       logService: `Token-${plugin.network}-${plugin.tokenAddress}`,
       stopOnError: true,
@@ -47,7 +47,7 @@ export const LogGovernanceErc20 = {
     )
   },
 
-  processLog: async (txLog: Log, network: NetworksEnum) => {
+  processLog: async (txLog: Log, network: NetworksEnum, plugin?: Plugin) => {
     const iFace = new Interface(GovernanceERC20.abi)
     const event = Web3Helper.parseLog(txLog, iFace)
     if (!event) {
@@ -59,11 +59,11 @@ export const LogGovernanceErc20 = {
     switch (event.name) {
       case 'Transfer':
         logger.verbose('Transfer', llo(info))
-        await GovernanceErc20Handler.transfer(event, info)
+        await GovernanceErc20Handler.transfer(event, info, plugin)
         break
       case 'DelegateVotesChanged':
         logger.verbose('DelegateVotesChanged', llo(info))
-        await GovernanceErc20Handler.delegateVotesChanged(event, info)
+        await GovernanceErc20Handler.delegateVotesChanged(event, info, plugin)
         break
       default:
         logger.error('Unhandled event', llo(info))

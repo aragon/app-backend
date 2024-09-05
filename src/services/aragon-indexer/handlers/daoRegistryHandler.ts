@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type HexAddress, IEventLogMember, IEventLogPluginType, type ILogInfo } from '@types'
+import { EnumQueueName, type HexAddress, IEventLogMember, IEventLogPluginType, type ILogInfo } from '@types'
 import { type Log, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
@@ -17,8 +17,12 @@ import { ProxyMember } from '@modules/proxyMember'
 import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
 import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
-import { AggregatorDaoAssets } from '@indexer/aggregator/daoAssets'
-import { AggregatorDaoTransactions } from '@indexer/aggregator/daoTransactions'
+import { RabbitMQHelper } from '@helpers/redditMQ'
+import type Plugin from '@models/schema/plugin'
+import { LogGovernanceErc20 } from '@indexer/logGovernanceErc20'
+import { LogTokenVoting } from '@indexer/logTokenVoting'
+import { LogMultisig } from '@indexer/logMultisig'
+import type Dao from '@models/schema/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
 
@@ -52,9 +56,9 @@ export const DaoRegistryHandler = {
       creatorAddress: parsedEvent.args.creator,
     }
 
-    await DbOperations.createDocument(Models.Dao, document, info, 'New DaoRegistered', llo)
+    const dao = await DbOperations.createDocument(Models.Dao, document, info, 'New DaoRegistered', llo)
     await ProxyMember.saveAndGetMember(parsedEvent.args.creator)
-    await DaoRegistryHandler.initiateNewDaoCreation(info, daoAddress)
+    await DaoRegistryHandler.initiateNewDaoCreation(info, dao.address)
   },
 
   /**
@@ -77,48 +81,44 @@ export const DaoRegistryHandler = {
     }
 
     /**
-     * Save the plugin Setup Processor logs that will create the plugin entry for the dao
-     */
-    await DaoRegistryHandler._pluginSetup(txReceipt, info)
-
-    /**
-     * Save the member logs that will create the member entry for the dao
-     */
-    await DaoRegistryHandler._memberAdded(txReceipt, info)
-
-    /**
      * Save the metadata logs that will create the metadata entry for the dao
      */
     await DaoRegistryHandler._metadataHandler(txReceipt, info)
 
     /**
-     * Save the plugin settings logs that will create the plugin settings entry for the dao
-     * As settings can be identified in two ways, needed to check for both
+     * Save the plugin Setup Processor logs that will create the plugin entry for the dao
      */
-    await DaoRegistryHandler._pluginSettings(txReceipt, info)
+    await DaoRegistryHandler._pluginSetup(txReceipt, info)
 
-    // TODO: use messaging queue
+    /**
+     * Save the plugin settings logs that will create the plugin settings entry for the dao
+     * It return the plugin if the setting are saved successfully
+     */
+    const plugin = await DaoRegistryHandler._pluginSettings(txReceipt, info)
+
+    if (plugin) {
+      // update the dao as supported
+      await DaoRegistryHandler._updateSupportedDao(plugin)
+
+      // TODO: add to the queue
+      if (plugin.tokenAddress) {
+        await Promise.all([LogGovernanceErc20.start(plugin), LogTokenVoting.start(plugin)])
+      } else {
+        await Promise.all([LogMultisig.start(plugin)])
+      }
+    }
+
+    // always get dao transactions and assets
     await Promise.all([
-      AggregatorDaoAssets.start({ daoAddress, network: info.network }),
-      AggregatorDaoTransactions.start({ daoAddress, network: info.network }),
+      RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
+        id: daoAddress,
+        params: { address: daoAddress, network: info.network },
+      }),
+      RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
+        id: daoAddress,
+        params: { address: daoAddress, network: info.network },
+      }),
     ])
-  },
-
-  _pluginSettings: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
-    const setting = Web3Helper.findLogsByName(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
-
-    if (setting?.length) {
-      const infoPluginSetup = Web3Helper.parseInfoLog(setting[0].txLog, 'MultisigSettingsUpdated', info.network)
-      await PluginSettingHandler.multisigSettingsUpdated(setting[0].parsed!, infoPluginSetup)
-      return
-    }
-
-    const votingSetting = Web3Helper.findLogsByName(txReceipt, 'VotingSettingsUpdated', TokenVoting.abi)
-
-    if (votingSetting?.length) {
-      const infoPluginSetup = Web3Helper.parseInfoLog(votingSetting[0].txLog, 'VotingSettingsUpdated', info.network)
-      await PluginSettingHandler.votingSettingsUpdated(votingSetting[0].parsed!, infoPluginSetup)
-    }
   },
 
   _metadataHandler: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
@@ -154,6 +154,22 @@ export const DaoRegistryHandler = {
     }
   },
 
+  _pluginSettings: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
+    const setting = Web3Helper.findLogsByName(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
+
+    if (setting?.length) {
+      const infoPluginSetup = Web3Helper.parseInfoLog(setting[0].txLog, 'MultisigSettingsUpdated', info.network)
+      return await PluginSettingHandler.multisigSettingsUpdated(setting[0].parsed!, infoPluginSetup)
+    }
+
+    const votingSetting = Web3Helper.findLogsByName(txReceipt, 'VotingSettingsUpdated', TokenVoting.abi)
+
+    if (votingSetting?.length) {
+      const infoPluginSetup = Web3Helper.parseInfoLog(votingSetting[0].txLog, 'VotingSettingsUpdated', info.network)
+      return await PluginSettingHandler.votingSettingsUpdated(votingSetting[0].parsed!, infoPluginSetup)
+    }
+  },
+
   _memberAdded: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
     const memberAddedLogs = Web3Helper.findLogsByName(txReceipt, IEventLogMember.MembersAdded, Multisig.abi)
     if (memberAddedLogs.length > 0) {
@@ -178,5 +194,27 @@ export const DaoRegistryHandler = {
         }),
       )
     }
+  },
+
+  _updateSupportedDao: async (plugin: Plugin): Promise<Dao | undefined> => {
+    if (!plugin) return
+
+    const dao = await Models.Dao.findByAddress(plugin.daoAddress, plugin.network)
+    if (!dao) {
+      logger.error('Dao not found', llo({ logId: plugin.id }))
+      return
+    }
+
+    if (!dao.isSupported) {
+      await DbOperations.updateDocument(
+        dao,
+        { isSupported: true },
+        { logId: dao.id },
+        'Dao Supported - setting fetched',
+        llo,
+      )
+    }
+
+    return dao
   },
 }
