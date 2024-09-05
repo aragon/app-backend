@@ -1,4 +1,4 @@
-import { type IWebSocketProvider, NetworksEnum } from '@types'
+import { type IWebSocketProvider, NetworksEnum, type IProviderProxy } from '@types'
 import { WebSocketProvider } from 'ethers'
 import config from '@config'
 import logger from '@logger'
@@ -6,15 +6,15 @@ import { assert } from '@errors'
 import { createProviderProxy } from '@modules/proxyProvider'
 import Utils from '@helpers/utils'
 import EventEmitter from 'events'
-const providerEventEmitter = new EventEmitter()
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
+const providerEventEmitter = new EventEmitter()
+
 const ProviderModule = {
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-  providerProxies: {} as Record<string, IWebSocketProvider>,
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-  reconnectAttempts: {} as Record<string, number>,
+  providerProxies: {} as Record<string, IProviderProxy>,
+
   eventEmitter: providerEventEmitter,
   networksMap: {
     ETHEREUM_MAINNET: NetworksEnum.ethereumMainnet,
@@ -51,9 +51,12 @@ const ProviderModule = {
         const provider = new WebSocketProvider(nodeUrl) as IWebSocketProvider
 
         if (!ProviderModule.providerProxies[network]) {
-          ProviderModule.providerProxies[network] = createProviderProxy(provider)
+          ProviderModule.providerProxies[network] = {
+            provider: createProviderProxy(provider),
+            reconnectAttempts: 0,
+          }
         } else {
-          ProviderModule.providerProxies[network].updateProvider(provider)
+          ProviderModule.providerProxies[network].provider.updateProvider(provider)
         }
         ProviderModule.attachEventListeners(provider, network, nodeUrl, resolve, reject)
       } catch (error) {
@@ -71,14 +74,15 @@ const ProviderModule = {
     reject?: any,
   ) {
     const handleOpen = async () => {
-      ProviderModule.reconnectAttempts[network] = 0
+      ProviderModule.providerProxies[network].reconnectAttempts = 0
       logger.info(`WebSocket connected to ${network}`)
+      ProviderModule.eventEmitter.emit('connected', network)
       if (resolve) resolve(provider)
     }
 
     const handleClose = async () => {
-      const attempts = (ProviderModule.reconnectAttempts[network] || 0) + 1
-      ProviderModule.reconnectAttempts[network] = attempts
+      const attempts = ProviderModule.providerProxies[network].reconnectAttempts + 1
+      ProviderModule.providerProxies[network].reconnectAttempts = attempts
       logger.error(`WebSocket connection closed for ${network}. Attempting to reconnect...`, llo({ network, attempts }))
       await ProviderModule.reconnectToNetwork(network, nodeUrl, attempts, reject)
     }
@@ -107,7 +111,7 @@ const ProviderModule = {
   async closeAllNetworks() {
     const networks = Object.values(NetworksEnum)
     networks.map(async network => {
-      const provider = ProviderModule.providerProxies[network]
+      const provider = ProviderModule.providerProxies[network].provider
       if (provider) {
         await provider.destroy()
         logger.info('WebSocket connection closed', llo({ network }))
@@ -116,7 +120,7 @@ const ProviderModule = {
   },
 
   getProvider(network: NetworksEnum): IWebSocketProvider | undefined {
-    return ProviderModule.providerProxies[network]
+    return ProviderModule.providerProxies[network]?.provider
   },
 }
 
