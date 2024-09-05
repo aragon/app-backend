@@ -14,7 +14,7 @@ export const LogTokenVoting = {
   events: ['VoteCast', 'ProposalCreated', 'ProposalExecuted', 'VotingSettingsUpdated'],
 
   start: async (plugin: Plugin) => {
-    logger.verbose('Start LogTokenVoting', llo({ network: plugin.network }))
+    logger.verbose('Start LogTokenVoting', llo({ network: plugin.network, pluginAddress: plugin.address }))
 
     const governanceTopics = TokenVoting.abi
       .filter((item: any) => item.type && LogTokenVoting.events.includes(item.name))
