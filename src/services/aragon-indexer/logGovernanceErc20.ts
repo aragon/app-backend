@@ -14,7 +14,7 @@ export const LogGovernanceErc20 = {
   events: ['Transfer', 'DelegateVotesChanged'],
 
   start: async (plugin: Plugin) => {
-    logger.verbose('Start LogGovernanceErc20', llo({ network: plugin.network }))
+    logger.verbose('Start LogGovernanceErc20', llo({ network: plugin.network, pluginAddress: plugin.tokenAddress }))
 
     const tokenDb = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
 
