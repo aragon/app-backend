@@ -12,6 +12,7 @@ import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import DbOperations from '@models/utils/dbOperations'
 import { RabbitMQHelper } from '@helpers/redditMQ'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:ProposalHandler' })
 
@@ -221,8 +222,43 @@ export const ProposalHandler = {
       await ProxyToken.saveAndGetToken(proposal.settings.tokenAddress, proposal.network)
     }
 
-    await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - VoteCast', llo)
+    // find existing voting
+    const existingMemberVote = await Models.Vote.findVoteOnPlugin({
+      network: info.network,
+      pluginAddress: info.address,
+      memberAddress: parsedEvent.args.voter,
+    })
+    const isExistingVote = !!existingMemberVote
 
+    // handle replace vote and persist the previous vote by transactionHash
+    if (isExistingVote) {
+      document.replacedTransactionHash = existingMemberVote.transactionHash
+    }
+
+    await DbTx.executeTxFn(async ({ session }) => {
+      const logId = await Models.Vote.create(document, { session })
+
+      if (isExistingVote) {
+        await existingMemberVote.deleteOne({ session })
+      }
+
+      await session.commitTransaction()
+      await session.endSession()
+
+      const logName = existingMemberVote ? 'Replace Vote - VoteCast' : 'New Vote - VoteCast'
+      logger.verbose(`Created new document - ${logName}`, llo({ ...info, documentId: logId.id }))
+    })
+
+    if (!isExistingVote) {
+      // only increase vote count if it's a new vote
+      await ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
+        memberAddress: document.memberAddress!,
+        pluginAddress: info.address,
+        network: info.network,
+      })
+    }
+
+    // always update memberActivity
     await ProxyMember.memberActivity({
       memberAddress: document.memberAddress!,
       pluginAddress: info.address,
@@ -230,13 +266,7 @@ export const ProposalHandler = {
       blockNumber: info.blockNumber,
     })
 
-    // update all metrics
     await Promise.all([
-      ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
-        memberAddress: document.memberAddress!,
-        pluginAddress: info.address,
-        network: info.network,
-      }),
       // Proposal metrics
       RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
         id: `${proposalIndex}-${info.address}`,
