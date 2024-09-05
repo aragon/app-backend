@@ -14,6 +14,7 @@ class EventListener {
   public listen: IEventConfig[]
   public networkName: NetworksEnum
   private listeningActive: boolean = false
+  private eventEmitterSetup: boolean = false
 
   constructor(config: Omit<IIndexerConfig, 'network'> & { networkName: NetworksEnum }) {
     this.name = config.name
@@ -43,7 +44,10 @@ class EventListener {
     }
     if (listen) {
       this.listenToEvents(filter)
-      this.handleReconnections(filter)
+      if (!this.eventEmitterSetup) {
+        this.handleReconnections(filter);
+        this.eventEmitterSetup = true;
+      }
     }
   }
 
