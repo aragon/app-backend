@@ -45,8 +45,8 @@ class EventListener {
     if (listen) {
       this.listenToEvents(filter)
       if (!this.eventEmitterSetup) {
-        this.handleReconnections(filter);
-        this.eventEmitterSetup = true;
+        this.handleReconnections(filter)
+        this.eventEmitterSetup = true
       }
     }
   }

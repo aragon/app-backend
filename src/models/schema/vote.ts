@@ -79,6 +79,9 @@ export default class Vote extends Model {
   @prop({ type: () => String, default: null })
   public votingPower?: string
 
+  @prop({ type: () => String, default: null })
+  public replacedTransactionHash!: HexAddress
+
   static async create(rawData: Partial<Vote>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'pluginAddress is required')
@@ -120,6 +123,18 @@ export default class Vote extends Model {
     network: NetworksEnum
   }) {
     return await this.find({ proposalIndex, pluginAddress, network })
+  }
+
+  static async findVoteOnPlugin({
+    memberAddress,
+    pluginAddress,
+    network,
+  }: {
+    memberAddress: HexAddress
+    pluginAddress: HexAddress
+    network: NetworksEnum
+  }) {
+    return await this.findOne({ memberAddress, pluginAddress, network })
   }
 
   static async findWithPagination({
