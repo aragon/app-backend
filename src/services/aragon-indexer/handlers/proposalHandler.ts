@@ -296,6 +296,7 @@ export const ProposalHandler = {
       executed: {
         status: true,
         blockNumber: info.blockNumber,
+        transactionHash: info.transactionHash,
         blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
       },
     }
