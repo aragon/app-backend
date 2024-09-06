@@ -4,6 +4,7 @@ import { type WebSocketProvider } from 'ethers'
 export interface IProviderProxy {
   provider: IWebSocketProvider
   reconnectAttempts: number
+  subscriptions: any
 }
 
 export interface IWebSocketProvider extends WebSocketProvider {
