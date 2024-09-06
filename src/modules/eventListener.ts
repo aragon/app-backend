@@ -1,4 +1,4 @@
-import { Interface, type Log, type WebSocketProvider } from 'ethers'
+import { Interface, type Log } from 'ethers'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -13,8 +13,6 @@ class EventListener {
   public abi: any[]
   public listen: IEventConfig[]
   public networkName: NetworksEnum
-  private listeningActive: boolean = false
-  private eventEmitterSetup: boolean = false
 
   constructor(config: Omit<IIndexerConfig, 'network'> & { networkName: NetworksEnum }) {
     this.name = config.name
@@ -44,20 +42,7 @@ class EventListener {
     }
     if (listen) {
       this.listenToEvents(filter)
-      if (!this.eventEmitterSetup) {
-        this.handleReconnections(filter)
-        this.eventEmitterSetup = true
-      }
     }
-  }
-
-  private handleReconnections(filter: any) {
-    ProviderModule.eventEmitter.on('connected', network => {
-      if (this.listeningActive && network === this.networkName) {
-        this.listenToEvents(filter)
-        logger.info('Resubscribed to events', llo({ filter, network: this.networkName }))
-      }
-    })
   }
 
   private async crawl(filter: any) {
@@ -100,9 +85,8 @@ class EventListener {
 
   private setupSubscription(filter: any) {
     try {
-      this.getProvider().on(filter, async (txLog: Log) => this.processLog(txLog))
+      ProviderModule.subscribeToEvent(this.networkName, filter, (txLog: Log) => this.processLog(txLog))
       logger.verbose('Start real-time listening', llo({ networkName: this.networkName, filter }))
-      this.listeningActive = true
     } catch (error) {
       logger.error('Event listener error', llo({ error, name: this.name, network: this.networkName }))
     }
@@ -135,10 +119,6 @@ class EventListener {
         network: this.networkName,
       }),
     )
-  }
-
-  private getProvider(): WebSocketProvider {
-    return ProviderModule.getProvider(this.network)!
   }
 }
 
