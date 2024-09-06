@@ -82,10 +82,11 @@ export const ProposalMetrics = {
     )
 
     const rawMetrics = {
+      // TODO: add this feature to know if approvalReached
       approvalReached: votes.length >= proposal.settings.minApprovals,
       metrics: {
         totalVotes: votes.length,
-        missingVotes: members.length - votes.length, // TODO: here we need to get the member at the block numbers
+        missingVotes: members.length - votes.length,
         votesByOption: Object.entries(voteAggregation).map(([type, data]) => ({
           type,
           totalVotes: data.totalVotes,
