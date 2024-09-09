@@ -122,6 +122,7 @@ const ProviderModule = {
     const provider = ProviderModule.providerProxies[network].provider
     if (ProviderModule.providerProxies[network].subscriptions.length > 0) {
       ProviderModule.providerProxies[network].subscriptions.forEach((subscription: { filter: any; listener: any }) => {
+        logger.verbose('resubscribe events', llo({ network, filter: subscription.filter }))
         provider.on(subscription.filter, subscription.listener)
       })
     }
