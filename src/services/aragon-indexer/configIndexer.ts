@@ -129,6 +129,18 @@ const IndexerEventConfig: IIndexerConfig[] = [
         enableHistorical: false,
         enableRealtime: true,
       },
+      {
+        event: 'ProposalCreated',
+        handler: ProposalHandler.proposalCreated,
+        enableHistorical: false,
+        enableRealtime: true,
+      },
+      {
+        event: 'ProposalExecuted',
+        handler: ProposalHandler.proposalExecuted,
+        enableHistorical: false,
+        enableRealtime: true,
+      },
     ],
     enabled: true,
   },
