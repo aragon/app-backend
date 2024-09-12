@@ -93,18 +93,23 @@ export const DaoRegistryHandler = {
      * Save the plugin settings logs that will create the plugin settings entry for the dao
      * It return the plugin if the setting are saved successfully
      */
-    const plugin = await DaoRegistryHandler._pluginSettings(txReceipt, info)
+    const plugins = await DaoRegistryHandler._pluginSettings(txReceipt, info)
 
-    if (plugin) {
-      // update the dao as supported
-      await DaoRegistryHandler._updateSupportedDao(plugin)
+    // TODO: handle dao with multiple plugins
+    if (plugins.length === 1) {
+      await Promise.all(
+        plugins.map(async plugin => {
+          // update the dao as supported
+          await DaoRegistryHandler._updateSupportedDao(plugin)
 
-      // TODO: add to the queue
-      if (plugin.tokenAddress) {
-        await LogTokenVoting.start(plugin)
-      } else {
-        await LogMultisig.start(plugin)
-      }
+          // TODO: add to the queue
+          if (plugin.tokenAddress) {
+            await LogTokenVoting.start(plugin)
+          } else {
+            await LogMultisig.start(plugin)
+          }
+        }),
+      )
     }
 
     // always get dao transactions and assets
@@ -157,11 +162,13 @@ export const DaoRegistryHandler = {
 
   _pluginSettings: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
     const multisigSettings = Web3Helper.findLogsByName(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
+    const plugins: Plugin[] = []
 
     if (multisigSettings?.length > 0) {
       for (const multisigSetting of multisigSettings) {
         const infoPluginSetup = Web3Helper.parseInfoLog(multisigSetting.txLog, 'MultisigSettingsUpdated', info.network)
-        return await PluginSettingHandler.multisigSettingsUpdated(multisigSetting.parsed!, infoPluginSetup)
+        const plugin = await PluginSettingHandler.multisigSettingsUpdated(multisigSetting.parsed!, infoPluginSetup)
+        if (plugin) plugins.push(plugin)
       }
     }
 
@@ -170,9 +177,12 @@ export const DaoRegistryHandler = {
     if (votingSettings?.length > 0) {
       for (const votingSetting of votingSettings) {
         const infoPluginSetup = Web3Helper.parseInfoLog(votingSetting.txLog, 'VotingSettingsUpdated', info.network)
-        return await PluginSettingHandler.votingSettingsUpdated(votingSetting.parsed!, infoPluginSetup)
+        const plugin = await PluginSettingHandler.votingSettingsUpdated(votingSetting.parsed!, infoPluginSetup)
+        if (plugin) plugins.push(plugin)
       }
     }
+
+    return plugins
   },
 
   _memberAdded: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
