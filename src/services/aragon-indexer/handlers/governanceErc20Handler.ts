@@ -38,10 +38,10 @@ export const GovernanceErc20Handler = {
       parsedEvent.args.previousBalance < parsedEvent.args.newBalance ? ITransferSide.incoming : ITransferSide.outgoing
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
+      network: info.network,
       transactionHash: info.transactionHash,
-      address: member?.address,
-      type: ITransferType.delegate,
-      side,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
     })
 
     if (existingLog) return
@@ -69,6 +69,8 @@ export const GovernanceErc20Handler = {
         {
           network: info.network,
           transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
           blockNumber: info.blockNumber,
           blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
           address: member?.address,
@@ -150,10 +152,10 @@ export const GovernanceErc20Handler = {
     await ProxyMember.saveAndGetMember(parsedEvent.args.from)
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
+      network: info.network,
       transactionHash: info.transactionHash,
-      address: memberAddress,
-      type: ITransferType.tokenTransfer,
-      side: ITransferSide.outgoing,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
     })
 
     if (existingLog) {
@@ -184,6 +186,8 @@ export const GovernanceErc20Handler = {
         {
           network: info.network,
           transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
           blockNumber: info.blockNumber,
           blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
           address: memberAddress,
@@ -240,10 +244,10 @@ export const GovernanceErc20Handler = {
     await ProxyMember.saveAndGetMember(parsedEvent.args.to)
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
+      network: info.network,
       transactionHash: info.transactionHash,
-      address: memberAddress,
-      type: ITransferType.tokenTransfer,
-      side: ITransferSide.incoming,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
     })
 
     if (existingLog) {
@@ -274,6 +278,8 @@ export const GovernanceErc20Handler = {
         {
           network: info.network,
           transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
           blockNumber: info.blockNumber,
           blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
           address: memberAddress,

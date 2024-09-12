@@ -129,18 +129,19 @@ const IndexerEventConfig: IIndexerConfig[] = [
         enableHistorical: false,
         enableRealtime: true,
       },
-      {
-        event: 'ProposalCreated',
-        handler: ProposalHandler.proposalCreated,
-        enableHistorical: false,
-        enableRealtime: true,
-      },
-      {
-        event: 'ProposalExecuted',
-        handler: ProposalHandler.proposalExecuted,
-        enableHistorical: false,
-        enableRealtime: true,
-      },
+      // those events will be handled by the plugin logTokenVoting as they have some interface
+      // {
+      //   event: 'ProposalCreated',
+      //   handler: ProposalHandler.proposalCreated,
+      //   enableHistorical: false,
+      //   enableRealtime: true,
+      // },
+      // {
+      //   event: 'ProposalExecuted',
+      //   handler: ProposalHandler.proposalExecuted,
+      //   enableHistorical: false,
+      //   enableRealtime: true,
+      // },
     ],
     enabled: true,
   },

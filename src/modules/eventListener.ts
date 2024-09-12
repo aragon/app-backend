@@ -73,7 +73,7 @@ class EventListener {
 
     for (let i = 0; i < topics.length; i += maxTopicsPerBatch) {
       const topicSubset = topics.slice(i, i + maxTopicsPerBatch)
-      const modifiedFilter = { ...filter, topics: topicSubset }
+      const modifiedFilter = { ...filter, topics: [topicSubset] }
 
       this.setupSubscription(modifiedFilter)
     }
@@ -85,7 +85,7 @@ class EventListener {
 
   private setupSubscription(filter: any) {
     try {
-      ProviderModule.subscribeToEvent(this.networkName, filter, (txLog: Log) => this.processLog(txLog))
+      ProviderModule.subscribeToEvent(this.networkName, filter, this.processLog.bind(this))
       logger.verbose('Start real-time listening', llo({ networkName: this.networkName, filter }))
     } catch (error) {
       logger.error('Event listener error', llo({ error, name: this.name, network: this.networkName }))

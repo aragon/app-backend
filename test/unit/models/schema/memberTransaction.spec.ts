@@ -99,10 +99,10 @@ describe('Model: Member Transaction', () => {
 
   it('Should getEntityId', async () => {
     const entityId = Models.MemberTransaction.getEntityId({
+      network: rawMemberDelegationTx.network!,
       transactionHash: rawMemberTransferTx.transactionHash!,
-      address: rawMemberTransferTx.address!,
-      side: rawMemberTransferTx.side!,
-      type: rawMemberTransferTx.type!,
+      transactionIndex: rawMemberTransferTx.transactionIndex!,
+      logIndex: rawMemberTransferTx.logIndex!,
     })
     const memberDb = await Models.MemberTransaction.create(rawMemberTransferTx)
     expect(entityId).to.eq(memberDb.id)
@@ -111,10 +111,10 @@ describe('Model: Member Transaction', () => {
   it('Should findExistingLog', async () => {
     const entityDb = await Models.MemberTransaction.create(rawMemberDelegationTx)
     const foundedEntityDb = await Models.MemberTransaction.findExistingLog({
+      network: rawMemberDelegationTx.network!,
       transactionHash: rawMemberDelegationTx.transactionHash!,
-      address: rawMemberDelegationTx.address!,
-      side: rawMemberDelegationTx.side!,
-      type: rawMemberDelegationTx.type!,
+      transactionIndex: rawMemberDelegationTx.transactionIndex!,
+      logIndex: rawMemberDelegationTx.logIndex!,
     })
     expect(foundedEntityDb?.id).to.eq(entityDb.id)
   })
