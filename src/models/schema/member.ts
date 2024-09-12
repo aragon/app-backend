@@ -95,7 +95,7 @@ export default class Member extends Model {
 
     const currentPage = request.skip / request.limit + 1
 
-    const query = [
+    const query: any = [
       { $match: filter },
       AggregationQueryHelper.daoMemberMapping(
         {
@@ -123,15 +123,100 @@ export default class Member extends Model {
           avatar: { $first: '$avatar' },
         },
       },
-      {
+      // {
+      //   $project: {
+      //     _id: 0,
+      //     address: 1,
+      //     ens: 1,
+      //     avatar: 1,
+      //   },
+      // },
+    ]
+
+    if (Utils.hasPropsWithValuesExcludingNetwork(extraParams)) {
+      query.push(
+        AggregationQueryHelper.plugin(
+          {
+            daoAddress: extraParams.daoAddress,
+            pluginAddress: extraParams.pluginAddress,
+            network: extraParams.network,
+            status: IPluginStatus.installed,
+          },
+          'plugin',
+          {
+            _id: 0,
+            network: 1,
+            tokenAddress: 1,
+            address: 1,
+          },
+        ),
+        {
+          $addFields: {
+            daoPlugin: { $arrayElemAt: ['$plugin', 0] },
+          },
+        },
+        AggregationQueryHelper.memberBalance(
+          {
+            tokenAddress: '$daoPlugin.tokenAddress',
+            network: '$daoPlugin.network',
+            memberAddress: '$address',
+          },
+          'memberBalance',
+          {
+            amount: 1,
+            votingPower: 1,
+          },
+        ),
+        {
+          $addFields: {
+            memberBalance: {
+              $cond: [
+                { $gt: [{ $size: '$memberBalance' }, 0] },
+                { $arrayElemAt: ['$memberBalance', 0] },
+                { amount: null, votingPower: null },
+              ],
+            },
+          },
+        },
+        AggregationQueryHelper.memberMetrics(
+          {
+            pluginAddress: '$daoPlugin.address',
+            network: '$daoPlugin.network',
+            memberAddress: '$address',
+          },
+          'memberMetrics',
+          {
+            _id: 0,
+            lastActivity: 1,
+            firstActivity: 1,
+            delegateReceivedCount: 1,
+            delegateSentCount: 1,
+            voteCount: 1,
+            proposalCount: 1,
+          },
+        ),
+        {
+          $project: {
+            _id: 0,
+            address: 1,
+            ens: 1,
+            avatar: 1,
+            tokenBalance: '$memberBalance.amount',
+            votingPower: '$memberBalance.votingPower',
+            metrics: '$memberMetrics',
+          },
+        },
+      )
+    } else {
+      query.push({
         $project: {
           _id: 0,
           address: 1,
           ens: 1,
           avatar: 1,
         },
-      },
-    ]
+      })
+    }
 
     const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
 
