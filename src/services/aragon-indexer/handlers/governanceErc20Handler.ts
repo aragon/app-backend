@@ -45,7 +45,10 @@ export const GovernanceErc20Handler = {
       address: member.address,
     })
 
-    if (existingLog) return
+    if (existingLog) {
+      logger.error('DelegateVotesChanged - already processed', llo({ info }))
+      return
+    }
 
     let tokenBalance = await ProxyMember.getBalances({
       address: parsedEvent.args.delegate,
@@ -161,7 +164,7 @@ export const GovernanceErc20Handler = {
     })
 
     if (existingLog) {
-      logger.error('DelegateVotesChanged - outgoing transfer already processed', llo({ info }))
+      logger.error('Transfer - outgoing transfer already processed', llo({ info }))
       return
     }
 
@@ -254,7 +257,7 @@ export const GovernanceErc20Handler = {
     })
 
     if (existingLog) {
-      logger.error('DelegateVotesChanged - incoming transfer already processed', llo({ info }))
+      logger.error('Transfer - incoming transfer already processed', llo({ info }))
       return
     }
 
