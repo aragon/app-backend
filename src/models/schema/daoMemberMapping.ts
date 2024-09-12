@@ -164,7 +164,7 @@ export default class DaoMemberMapping extends Model {
           network: '$network',
           status: IPluginStatus.installed,
         },
-        'plugin',
+        'plugins',
         {
           _id: 0,
           address: 1,

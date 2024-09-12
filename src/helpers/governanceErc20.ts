@@ -14,7 +14,7 @@ const GovernanceErc20Helper = {
     tokenAddress: HexAddress,
     blockNumber: number,
     network: NetworksEnum,
-  ): Promise<HexAddress | false> {
+  ): Promise<string> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
@@ -24,8 +24,8 @@ const GovernanceErc20Helper = {
         ),
       )
     } catch (error) {
-      logger.warn('Error getting past votes', llo({ memberAddress, tokenAddress, blockNumber, network }))
-      return false
+      logger.error('Error getting past votes', llo({ memberAddress, tokenAddress, blockNumber, network }))
+      return '0'
     }
   },
 
@@ -33,7 +33,7 @@ const GovernanceErc20Helper = {
     memberAddress: HexAddress,
     tokenAddress: HexAddress,
     network: NetworksEnum,
-  ): Promise<HexAddress | false> {
+  ): Promise<string> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
@@ -41,8 +41,8 @@ const GovernanceErc20Helper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getVotes(memberAddress)),
       )
     } catch (error) {
-      logger.warn('Error getting votes', llo({ memberAddress, tokenAddress, network }))
-      return false
+      logger.error('Error getting votes', llo({ memberAddress, tokenAddress, network }))
+      return '0'
     }
   },
 
@@ -50,7 +50,7 @@ const GovernanceErc20Helper = {
     blockNumber: number,
     tokenAddress: HexAddress,
     network: NetworksEnum,
-  ): Promise<HexAddress | false> {
+  ): Promise<string> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
@@ -59,7 +59,7 @@ const GovernanceErc20Helper = {
       )
     } catch (error) {
       logger.warn('Error getting pastTotalSupply', llo({ blockNumber, tokenAddress, network }))
-      return false
+      return '0'
     }
   },
 
@@ -67,7 +67,7 @@ const GovernanceErc20Helper = {
     memberAddress: HexAddress,
     tokenAddress: HexAddress,
     network: NetworksEnum,
-  ): Promise<HexAddress | false> {
+  ): Promise<string> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
@@ -76,7 +76,7 @@ const GovernanceErc20Helper = {
       )
     } catch (error) {
       logger.warn('Error getting delegates', llo({ memberAddress, tokenAddress, network }))
-      return false
+      return '0'
     }
   },
 }

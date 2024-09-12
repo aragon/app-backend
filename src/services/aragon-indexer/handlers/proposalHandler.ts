@@ -86,12 +86,11 @@ export const ProposalHandler = {
 
     if (relatedPlugin.tokenAddress) {
       document.snapshot = {
-        totalSupply:
-          (await GovernanceErc20Helper.getPastTotalSupply(
-            info.blockNumber,
-            relatedPlugin.tokenAddress,
-            relatedPlugin.network,
-          )) || '0',
+        totalSupply: await GovernanceErc20Helper.getPastTotalSupply(
+          info.blockNumber,
+          relatedPlugin.tokenAddress,
+          relatedPlugin.network,
+        )
       }
     } else {
       const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
