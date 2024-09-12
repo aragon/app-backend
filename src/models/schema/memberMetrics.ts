@@ -85,24 +85,6 @@ export default class MemberMetrics extends Model {
     return await this.findOne({ address, network })
   }
 
-  static async getOrCreateMemberMetrics({
-    address,
-    pluginAddress,
-    network,
-  }: {
-    address: HexAddress
-    pluginAddress: HexAddress
-    network: NetworksEnum
-  }) {
-    const metrics = await this.findOne({ address, pluginAddress, network })
-
-    if (!metrics) {
-      return await this.create({ address, pluginAddress, network })
-    }
-
-    return metrics
-  }
-
   async update(params: Partial<MemberMetrics>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
