@@ -37,6 +37,25 @@ export const ProxyMember = {
     return memberDb
   },
 
+  getMemberMetrics: async ({
+    address,
+    pluginAddress,
+    network,
+  }: {
+    address: HexAddress
+    pluginAddress: HexAddress
+    network: NetworksEnum
+  }) => {
+    const metrics = await Models.MemberMetrics.findOne({ address, pluginAddress, network })
+
+    if (!metrics) {
+      const data = { address, pluginAddress, network }
+      return await DbOperations.createDocument(Models.MemberMetrics, data, data, 'New Member metrics', llo)
+    }
+
+    return metrics
+  },
+
   memberActivity: async ({
     memberAddress,
     pluginAddress,
@@ -49,16 +68,15 @@ export const ProxyMember = {
     network: NetworksEnum
   }): Promise<Member> => {
     return await DbTx.executeTxFn(async ({ session }) => {
-      const [member, blockTimestamp] = await Promise.all([
+      const [member, memberMetrics, blockTimestamp] = await Promise.all([
         ProxyMember.saveAndGetMember(memberAddress),
+        ProxyMember.getMemberMetrics({
+          address: memberAddress,
+          pluginAddress,
+          network,
+        }),
         Web3Helper.getBlockTimestamp(blockNumber, network),
       ])
-
-      const memberMetrics = await Models.MemberMetrics.getOrCreateMemberMetrics({
-        address: member.address,
-        pluginAddress,
-        network,
-      })
 
       // Update member activity
       const updateFields: Partial<Member> = {
@@ -92,7 +110,7 @@ export const ProxyMember = {
       network: NetworksEnum
     },
   ): Promise<Member> => {
-    const metrics = await Models.MemberMetrics.getOrCreateMemberMetrics({
+    const metrics = await ProxyMember.getMemberMetrics({
       address: memberAddress,
       pluginAddress,
       network,

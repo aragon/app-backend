@@ -16,12 +16,12 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:GovernanceErc2
 export const GovernanceErc20Handler = {
   // is trigger once for all user - (from user increase balance and 1 user decrease balance)
   transfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
-    // outgoing transfer
+    // outgoing transfer for 'from' user
     if (parsedEvent.args.from !== utils.zeroAddress) {
       await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info, plugin)
     }
 
-    // incoming transfer
+    // incoming transfer for 'to' user
     if (parsedEvent.args.to !== utils.zeroAddress) {
       await GovernanceErc20Handler._incomingTransfer(parsedEvent, info, plugin)
     }
@@ -42,6 +42,7 @@ export const GovernanceErc20Handler = {
       transactionHash: info.transactionHash,
       transactionIndex: info.transactionIndex,
       logIndex: info.logIndex,
+      address: member.address,
     })
 
     if (existingLog) return
@@ -73,7 +74,7 @@ export const GovernanceErc20Handler = {
           logIndex: info.logIndex,
           blockNumber: info.blockNumber,
           blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
-          address: member?.address,
+          address: member.address,
           type: ITransferType.delegate,
           side,
           from,
@@ -81,7 +82,7 @@ export const GovernanceErc20Handler = {
           amount: BigInt(parsedEvent.args.value || 0).toString(),
           tokenAddress: info.address,
           memberBalance: await Web3Helper.getTokenBalanceAtBlock({
-            address: member?.address,
+            address: member.address,
             tokenAddress: info.address,
             blockNumber: info.blockNumber,
             network: info.network,
@@ -156,6 +157,7 @@ export const GovernanceErc20Handler = {
       transactionHash: info.transactionHash,
       transactionIndex: info.transactionIndex,
       logIndex: info.logIndex,
+      address: memberAddress,
     })
 
     if (existingLog) {
@@ -248,6 +250,7 @@ export const GovernanceErc20Handler = {
       transactionHash: info.transactionHash,
       transactionIndex: info.transactionIndex,
       logIndex: info.logIndex,
+      address: memberAddress,
     })
 
     if (existingLog) {

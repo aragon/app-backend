@@ -96,11 +96,13 @@ export default class MemberTransaction extends Model {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.transactionIndex || rawData.transactionIndex === 0, 'transactionIndex is required')
       assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
+      assert(!!rawData.address, 'address is required')
       rawData.id = this.getEntityId({
         network: rawData?.network!,
         transactionHash: rawData?.transactionHash!,
         transactionIndex: rawData?.transactionIndex!,
         logIndex: rawData?.logIndex!,
+        address: rawData?.address!,
       })
     }
     const data = new this(rawData)
@@ -108,7 +110,7 @@ export default class MemberTransaction extends Model {
   }
 
   static getEntityId(params: IMemberTransactionIdParams) {
-    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.address}`
     return entityId
   }
 

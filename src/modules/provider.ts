@@ -81,6 +81,9 @@ const ProviderModule = {
         const value = Reflect.get(target, prop, receiver)
 
         if (typeof value === 'function') {
+          // if (!ProviderModule.isConnectionOpen(network)) {
+          //   await ProviderModule.waitForConnection(network)
+          // }
           return value.bind(provider)
         }
         return value

@@ -61,6 +61,7 @@ export interface IMemberTransactionIdParams {
   transactionHash: HexAddress
   transactionIndex: number
   logIndex: number
+  address: HexAddress
 }
 
 export interface IMemberIdParams {
