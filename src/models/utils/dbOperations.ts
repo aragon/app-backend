@@ -13,6 +13,7 @@ class DbOperations {
       } catch (error) {
         logger.error(`Failed to create document - ${logMsg}`, llo({ ...info, error }))
         throw error
+        // TODO: if already exists query and return
       }
     })
   }
@@ -30,6 +31,10 @@ class DbOperations {
         throw error
       }
     })
+  }
+
+  isDuplicateCollection(error: any) {
+    return error.message.includes('E11000 duplicate key error collection')
   }
 }
 

@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { Interface, type Log } from 'ethers'
+import { ethers, Interface, type Log } from 'ethers'
 import { type NetworksEnum } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import Web3Helper from '@helpers/web3'
@@ -7,30 +7,37 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 import type Plugin from '@models/schema/plugin'
 import { ProposalHandler } from '@indexer/handlers/proposalHandler'
 import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
+import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
 export const LogTokenVoting = {
-  events: ['VoteCast', 'ProposalCreated', 'ProposalExecuted', 'VotingSettingsUpdated'],
+  eventsTokenVoting: ['VoteCast', 'ProposalCreated', 'ProposalExecuted', 'VotingSettingsUpdated'],
+  eventsGovernanceErc20: ['Transfer', 'DelegateVotesChanged'],
 
   start: async (plugin: Plugin) => {
     logger.verbose('Start LogTokenVoting', llo({ network: plugin.network, pluginAddress: plugin.address }))
 
-    const governanceTopics = TokenVoting.abi
-      .filter((item: any) => item.type && LogTokenVoting.events.includes(item.name))
+    const tokenVotingTopics = TokenVoting.abi
+      .filter((item: any) => item.type && LogTokenVoting.eventsTokenVoting.includes(item.name))
       .map((event: any) => new Interface(TokenVoting.abi).getEvent(event.name)?.topicHash)
+
+    const governanceErc20Topics = GovernanceERC20.abi
+      .filter((item: any) => item.type && LogTokenVoting.eventsGovernanceErc20.includes(item.name))
+      .map((event: any) => new Interface(GovernanceERC20.abi).getEvent(event.name)?.topicHash)
 
     const filter = {
       address: plugin.address,
       fromBlock: plugin?.blockNumber || 0,
-      topics: [...governanceTopics],
+      topics: [...governanceErc20Topics, ...tokenVotingTopics],
     }
 
     const crawler = new BlockchainLogCrawler({
       network: plugin.network,
       filter,
-      onLog: async (txLog: Log) => LogTokenVoting.processLog(txLog, plugin.network),
-      onError: async (error: any) => LogTokenVoting.processError(error, plugin.network),
+      onLog: async (txLog: Log) => LogTokenVoting.processLog(txLog, plugin.network, plugin),
+      onError: async (error: any) => LogTokenVoting.processError(error, plugin.network, plugin),
       logService: `TokenVoting-${plugin.network}-${plugin.tokenAddress}`,
       stopOnError: true,
     })
@@ -42,9 +49,19 @@ export const LogTokenVoting = {
     )
   },
 
-  processLog: async (txLog: Log, network: NetworksEnum) => {
-    const iFace = new Interface(TokenVoting.abi)
+  getInterface(topic: string) {
+    const eventsOfGovernanceErc20 = [
+      ethers.id('Transfer(address,address,uint256)'),
+      ethers.id('DelegateVotesChanged(address,uint256,uint256)'),
+    ]
+
+    return eventsOfGovernanceErc20.includes(topic) ? new Interface(GovernanceERC20.abi) : new Interface(TokenVoting.abi)
+  },
+
+  processLog: async (txLog: Log, network: NetworksEnum, plugin?: Plugin) => {
+    const iFace = LogTokenVoting.getInterface(txLog.topics[0])
     const event = Web3Helper.parseLog(txLog, iFace)
+
     if (!event) {
       return
     }
@@ -68,18 +85,27 @@ export const LogTokenVoting = {
         logger.verbose('VotingSettingsUpdated', llo(info))
         await PluginSettingHandler.votingSettingsUpdated(event, info)
         break
+      case 'Transfer':
+        logger.verbose('Transfer', llo(info))
+        await GovernanceErc20Handler.transfer(event, info, plugin)
+        break
+      case 'DelegateVotesChanged':
+        logger.verbose('DelegateVotesChanged', llo(info))
+        await GovernanceErc20Handler.delegateVotesChanged(event, info, plugin)
+        break
       default:
         logger.error('Unhandled event', llo(info))
         break
     }
   },
 
-  processError: async (error: any, network: NetworksEnum) => {
+  processError: async (error: any, network: NetworksEnum, plugin: Plugin) => {
     logger.error(
       'Error LogTokenVoting',
       llo({
         error,
         network,
+        plugin,
       }),
     )
   },

@@ -90,7 +90,7 @@ export const ProposalHandler = {
           info.blockNumber,
           relatedPlugin.tokenAddress,
           relatedPlugin.network,
-        )
+        ),
       }
     } else {
       const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
