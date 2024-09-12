@@ -79,13 +79,15 @@ const DbTx = {
       try {
         return await retryFn()
       } catch (error) {
-        return await DbTx.handleTxError(error, retryFn, ++i)
+        const index = i++
+        logger.error('atomic transaction retry', llo({ error, index }))
+        return await DbTx.handleTxError(error, retryFn, index)
       }
     } else if (DbTx.isErrorNotSupported(error)) {
-      logger.warn('mongodb atomic transaction not supported error', llo({ error }))
-
+      logger.error('error atomic transaction not supported', llo({ error, index: i }))
       throw error
     } else {
+      logger.error('error after all retry', llo({ error, index: i }))
       throw error
     }
   },
