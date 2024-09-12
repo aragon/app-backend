@@ -55,7 +55,11 @@ const GovernanceErc20Helper = {
     }
   },
 
-  async getDelegates(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<HexAddress | false> {
+  async getDelegates(
+    memberAddress: HexAddress,
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<HexAddress | false> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
