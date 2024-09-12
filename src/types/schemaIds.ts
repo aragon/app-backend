@@ -37,8 +37,10 @@ export interface ILogDaoMetadataIdParams {
 }
 
 export interface IPluginRepoIdParams {
+  network: NetworksEnum
   transactionHash: HexAddress
-  pluginRepo: HexAddress
+  transactionIndex: number
+  logIndex: number
 }
 
 export interface ISettingIdParams {

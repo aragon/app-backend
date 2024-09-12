@@ -51,8 +51,10 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       expect(loggerStub.calledOnce).to.be.true
 
       const savedPluginRepoLog = await Models.PluginRepo.findExistingLog({
+        network: logInfo.network,
         transactionHash: logInfo.transactionHash,
-        pluginRepo: fakeEvent.args.pluginRepo,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
       })
       expect(!!savedPluginRepoLog).to.be.true
 
@@ -61,6 +63,8 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       expect(savedPluginRepoLog.subdomain).to.eq(fakeEvent.args.subdomain)
       expect(savedPluginRepoLog.blockNumber).to.eq(logInfo.blockNumber)
       expect(savedPluginRepoLog.transactionHash).to.eq(logInfo.transactionHash)
+      expect(savedPluginRepoLog.transactionIndex).to.eq(logInfo.transactionIndex)
+      expect(savedPluginRepoLog.logIndex).to.eq(logInfo.logIndex)
     })
   })
 })
