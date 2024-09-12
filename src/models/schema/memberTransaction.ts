@@ -49,6 +49,12 @@ export default class MemberTransaction extends Model {
   @prop({ type: () => String, default: null })
   public transactionHash!: HexAddress
 
+  @prop({ type: () => Number, required: true })
+  public transactionIndex!: number
+
+  @prop({ type: () => Number, required: true })
+  public logIndex!: number
+
   @prop({ type: () => Number })
   public blockNumber!: number
 
@@ -86,15 +92,15 @@ export default class MemberTransaction extends Model {
 
   static async create(rawData: Partial<MemberTransaction>, tOpts?: SaveOptions) {
     if (!rawData.id) {
+      assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
-      assert(!!rawData.address, 'address is required')
-      assert(!!rawData.side, 'side is required')
-      assert(!!rawData.type, 'type is required')
+      assert(!!rawData.transactionIndex || rawData.transactionIndex === 0, 'transactionIndex is required')
+      assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
       rawData.id = this.getEntityId({
+        network: rawData?.network!,
         transactionHash: rawData?.transactionHash!,
-        address: rawData?.address!,
-        side: rawData?.side!,
-        type: rawData?.type!,
+        transactionIndex: rawData?.transactionIndex!,
+        logIndex: rawData?.logIndex!,
       })
     }
     const data = new this(rawData)
@@ -102,7 +108,7 @@ export default class MemberTransaction extends Model {
   }
 
   static getEntityId(params: IMemberTransactionIdParams) {
-    const entityId = `${params.transactionHash}-${params.address}-${params.type}-${params.side}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}`
     return entityId
   }
 

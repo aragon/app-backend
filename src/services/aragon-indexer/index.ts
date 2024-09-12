@@ -30,11 +30,13 @@ const IndexerService: IExtendedService = {
 
     const eventListeners: EventListener[] = IndexerService.initializeEventListeners(networks)
 
-    await this.runCrawlersInOrder(eventListeners, orderedServices)
+    // fetch historical data
+    await IndexerService.runCrawlersInOrder(eventListeners, orderedServices)
 
     logger.info('IndexerService historical logs end', llo({}))
 
-    await this.startRealtimeListeners(eventListeners)
+    // fetch realtime data
+    await IndexerService.startRealtimeListeners(eventListeners)
   },
 
   async stop() {

@@ -2,8 +2,6 @@ import {
   type HexAddress,
   type IEventLogPluginType,
   type ITransactionCategory,
-  type ITransferSide,
-  type ITransferType,
   type NetworksEnum,
 } from '@src/types/index'
 
@@ -57,10 +55,10 @@ export interface ILogPluginSetupProcessorIdParams {
 }
 
 export interface IMemberTransactionIdParams {
+  network: NetworksEnum
   transactionHash: HexAddress
-  address: HexAddress
-  side: ITransferSide
-  type: ITransferType
+  transactionIndex: number
+  logIndex: number
 }
 
 export interface IMemberIdParams {

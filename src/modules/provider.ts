@@ -52,7 +52,7 @@ const ProviderModule = {
         ProviderModule.providerProxies[network].reconnectAttempts = 0
       })
       provider.websocket.addEventListener('error', (error: any) =>
-        logger.info(`WebSocket error`, llo({ network, error })),
+        logger.info('WebSocket error', llo({ network, error })),
       )
       provider.websocket.addEventListener('close', () => {
         const attempts = ProviderModule.providerProxies[network].reconnectAttempts + 1
@@ -99,7 +99,7 @@ const ProviderModule = {
     const networks = Object.values(NetworksEnum)
     for (const network of networks) {
       const provider = ProviderModule.providerProxies[network]?.provider
-      if (provider && provider.destroy) {
+      if (provider?.destroy) {
         await provider.destroy()
         logger.info(`WebSocket connection closed for ${network}`, llo({ network }))
       }
