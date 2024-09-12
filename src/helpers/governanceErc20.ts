@@ -29,11 +29,7 @@ const GovernanceErc20Helper = {
     }
   },
 
-  async getVotes(
-    memberAddress: HexAddress,
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<string> {
+  async getVotes(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
@@ -46,11 +42,7 @@ const GovernanceErc20Helper = {
     }
   },
 
-  async getPastTotalSupply(
-    blockNumber: number,
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<string> {
+  async getPastTotalSupply(blockNumber: number, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
@@ -63,11 +55,7 @@ const GovernanceErc20Helper = {
     }
   },
 
-  async getDelegates(
-    memberAddress: HexAddress,
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<string> {
+  async getDelegates(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<HexAddress | false> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
@@ -76,7 +64,7 @@ const GovernanceErc20Helper = {
       )
     } catch (error) {
       logger.warn('Error getting delegates', llo({ memberAddress, tokenAddress, network }))
-      return '0'
+      return false
     }
   },
 }

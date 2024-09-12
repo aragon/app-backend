@@ -19,7 +19,6 @@ import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Plugin from '@models/schema/plugin'
-import { LogGovernanceErc20 } from '@indexer/logGovernanceErc20'
 import { LogTokenVoting } from '@indexer/logTokenVoting'
 import { LogMultisig } from '@indexer/logMultisig'
 import type Dao from '@models/schema/dao'
@@ -102,9 +101,9 @@ export const DaoRegistryHandler = {
 
       // TODO: add to the queue
       if (plugin.tokenAddress) {
-        await Promise.all([LogGovernanceErc20.start(plugin), LogTokenVoting.start(plugin)])
+        await LogTokenVoting.start(plugin)
       } else {
-        await Promise.all([LogMultisig.start(plugin)])
+        await LogMultisig.start(plugin)
       }
     }
 
@@ -144,29 +143,35 @@ export const DaoRegistryHandler = {
         continue
       }
 
-      const infoPluginSetup = Web3Helper.parseInfoLog(pluginSetupLogs[0].txLog, installationType, info.network)
+      for (const pluginSetupLog of pluginSetupLogs) {
+        const infoPluginSetup = Web3Helper.parseInfoLog(pluginSetupLog.txLog, installationType, info.network)
 
-      if (installationType === IEventLogPluginType.InstallationPrepared) {
-        await PluginSetupProcessorHandler.installationPrepared(pluginSetupLogs[0].parsed!, infoPluginSetup)
-      } else if (installationType === IEventLogPluginType.InstallationApplied) {
-        await PluginSetupProcessorHandler.installationApplied(pluginSetupLogs[0].parsed!, infoPluginSetup)
+        if (installationType === IEventLogPluginType.InstallationPrepared) {
+          await PluginSetupProcessorHandler.installationPrepared(pluginSetupLog.parsed!, infoPluginSetup)
+        } else if (installationType === IEventLogPluginType.InstallationApplied) {
+          await PluginSetupProcessorHandler.installationApplied(pluginSetupLog.parsed!, infoPluginSetup)
+        }
       }
     }
   },
 
   _pluginSettings: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
-    const setting = Web3Helper.findLogsByName(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
+    const multisigSettings = Web3Helper.findLogsByName(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
 
-    if (setting?.length) {
-      const infoPluginSetup = Web3Helper.parseInfoLog(setting[0].txLog, 'MultisigSettingsUpdated', info.network)
-      return await PluginSettingHandler.multisigSettingsUpdated(setting[0].parsed!, infoPluginSetup)
+    if (multisigSettings?.length > 0) {
+      for (const multisigSetting of multisigSettings) {
+        const infoPluginSetup = Web3Helper.parseInfoLog(multisigSetting.txLog, 'MultisigSettingsUpdated', info.network)
+        return await PluginSettingHandler.multisigSettingsUpdated(multisigSetting.parsed!, infoPluginSetup)
+      }
     }
 
-    const votingSetting = Web3Helper.findLogsByName(txReceipt, 'VotingSettingsUpdated', TokenVoting.abi)
+    const votingSettings = Web3Helper.findLogsByName(txReceipt, 'VotingSettingsUpdated', TokenVoting.abi)
 
-    if (votingSetting?.length) {
-      const infoPluginSetup = Web3Helper.parseInfoLog(votingSetting[0].txLog, 'VotingSettingsUpdated', info.network)
-      return await PluginSettingHandler.votingSettingsUpdated(votingSetting[0].parsed!, infoPluginSetup)
+    if (votingSettings?.length > 0) {
+      for (const votingSetting of votingSettings) {
+        const infoPluginSetup = Web3Helper.parseInfoLog(votingSetting.txLog, 'VotingSettingsUpdated', info.network)
+        return await PluginSettingHandler.votingSettingsUpdated(votingSetting.parsed!, infoPluginSetup)
+      }
     }
   },
 
