@@ -29,6 +29,12 @@ export default class PluginRepo extends Model {
   public transactionHash!: HexAddress
 
   @prop({ type: () => Number, required: true })
+  public transactionIndex!: number
+
+  @prop({ type: () => Number, required: true })
+  public logIndex!: number
+
+  @prop({ type: () => Number, required: true })
   public blockNumber!: number
 
   @prop({ type: () => Number })
@@ -45,16 +51,23 @@ export default class PluginRepo extends Model {
 
   static async create(rawData: Partial<PluginRepo>, tOpts?: SaveOptions) {
     if (!rawData.id) {
+      assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
-      assert(!!rawData.pluginRepo, 'pluginRepo is required')
-      rawData.id = this.getEntityId({ transactionHash: rawData?.transactionHash!, pluginRepo: rawData?.pluginRepo! })
+      assert(!!rawData.transactionIndex || rawData.transactionIndex === 0, 'transactionIndex is required')
+      assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
+      rawData.id = this.getEntityId({
+        network: rawData?.network!,
+        transactionHash: rawData?.transactionHash!,
+        transactionIndex: rawData?.transactionIndex!,
+        logIndex: rawData?.logIndex!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
   static getEntityId(params: IPluginRepoIdParams) {
-    const entityId = `${params.transactionHash}-${params.pluginRepo}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}`
     return entityId
   }
 

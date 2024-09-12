@@ -24,19 +24,25 @@ describe('Model: Plugin Repo', () => {
   describe('Create Plugin Repo', async () => {
     it('Should create Plugin', async () => {
       const entityId = Models.PluginRepo.getEntityId({
+        network: rawPluginRepo.network!,
         transactionHash: rawPluginRepo.transactionHash!,
-        pluginRepo: rawPluginRepo.pluginRepo,
+        transactionIndex: rawPluginRepo.transactionIndex!,
+        logIndex: rawPluginRepo.logIndex!,
       })
       const plugin = await Models.PluginRepo.create(rawPluginRepo)
       expect(plugin.id).to.equal(entityId)
+      expect(plugin.network).to.equal(rawPluginRepo.network)
       expect(plugin.transactionHash).to.equal(rawPluginRepo.transactionHash)
-      expect(plugin.pluginRepo).to.equal(rawPluginRepo.pluginRepo)
+      expect(plugin.transactionIndex).to.equal(rawPluginRepo.transactionIndex)
+      expect(plugin.logIndex).to.equal(rawPluginRepo.logIndex)
     })
 
     it('should save without plugin id present', async () => {
       const entityId = Models.PluginRepo.getEntityId({
+        network: rawPluginRepo.network!,
         transactionHash: rawPluginRepo.transactionHash!,
-        pluginRepo: rawPluginRepo.pluginRepo,
+        transactionIndex: rawPluginRepo.transactionIndex!,
+        logIndex: rawPluginRepo.logIndex!,
       })
 
       rawPluginRepo.id = entityId
@@ -64,20 +70,28 @@ describe('Model: Plugin Repo', () => {
 
   it('should get entity id', async () => {
     const entityId = Models.PluginRepo.getEntityId({
+      network: rawPluginRepo.network!,
       transactionHash: rawPluginRepo.transactionHash!,
-      pluginRepo: rawPluginRepo.pluginRepo,
+      transactionIndex: rawPluginRepo.transactionIndex!,
+      logIndex: rawPluginRepo.logIndex!,
     })
-    expect(entityId).to.equal(`${rawPluginRepo.transactionHash}-${rawPluginRepo.pluginRepo}`)
+    expect(entityId).to.equal(
+      `${rawPluginRepo.network}-${rawPluginRepo.transactionHash}-${rawPluginRepo.transactionIndex}-${rawPluginRepo.logIndex}`,
+    )
   })
 
   it('should find existing log', async () => {
     const pluginRepo = await Models.PluginRepo.create(rawPluginRepo)
     const foundPluginRepo = await Models.PluginRepo.findExistingLog({
+      network: rawPluginRepo.network!,
       transactionHash: rawPluginRepo.transactionHash!,
-      pluginRepo: rawPluginRepo.pluginRepo,
+      transactionIndex: rawPluginRepo.transactionIndex,
+      logIndex: rawPluginRepo.logIndex,
     })
-    expect(foundPluginRepo.pluginRepo).to.be.eq(pluginRepo.pluginRepo)
+    expect(foundPluginRepo.network).to.be.eq(pluginRepo.network)
     expect(foundPluginRepo.transactionHash).to.be.eq(pluginRepo.transactionHash)
+    expect(foundPluginRepo.transactionIndex).to.be.eq(pluginRepo.transactionIndex)
+    expect(foundPluginRepo.logIndex).to.be.eq(pluginRepo.logIndex)
   })
 
   it('should find by entityId', async () => {

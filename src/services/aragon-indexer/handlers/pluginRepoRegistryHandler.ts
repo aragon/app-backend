@@ -12,18 +12,22 @@ export const PluginRepoRegistryHandler = {
   pluginRepoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const pluginRepo = parsedEvent.args.pluginRepo
     const existingLog = await Models.PluginRepo.findExistingLog({
+      network: info.network,
       transactionHash: info.transactionHash,
-      pluginRepo,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
     })
     if (existingLog) return
 
     const document: Partial<PluginRepo> = {
       network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
       blockNumber: info.blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
       subdomain: parsedEvent.args.subdomain,
       pluginRepo,
-      transactionHash: info.transactionHash,
     }
 
     await DbOperations.createDocument(Models.PluginRepo, document, info, 'New PluginRepo', llo)
