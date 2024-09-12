@@ -197,7 +197,7 @@ export default class Dao extends Model {
           network: '$network',
           status: IPluginStatus.installed,
         },
-        'plugin',
+        'plugins',
         {
           _id: 0,
           address: 1,
@@ -248,7 +248,7 @@ export default class Dao extends Model {
       query.push({
         $match: {
           $expr: {
-            $gte: [{ $size: '$plugin' }, 1],
+            $gte: [{ $size: '$plugins' }, 1],
           },
         },
       })
@@ -342,7 +342,7 @@ export default class Dao extends Model {
           network: '$network',
           status: IPluginStatus.installed,
         },
-        'plugin',
+        'plugins',
         {
           _id: 0,
           transactionHash: 1,
@@ -456,7 +456,7 @@ export default class Dao extends Model {
           version: 1,
           metrics: 1,
           links: 1,
-          plugin: 1,
+          plugins: 1,
           members: 1,
         },
       },

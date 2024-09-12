@@ -25,7 +25,7 @@ export const ProxyMember = {
 
     const memberDb = await DbTx.executeTxFn(
       async ({ session }) => {
-        const logDb = await Models.Member.create(rawMember, { session } as any)
+        const logDb = await Models.Member.create(rawMember, { session })
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('New Member', llo({ logId: logDb.id }))
