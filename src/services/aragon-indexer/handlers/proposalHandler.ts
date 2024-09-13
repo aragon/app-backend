@@ -300,7 +300,7 @@ export const ProposalHandler = {
       },
     }
 
-    await DbOperations.updateDocument(proposal, rawUpdate, { logId: proposal.id }, 'Update proposalExecuted', llo)
+    await DbOperations.updateDocument(proposal, rawUpdate, { logId: proposal.id, info }, 'Update proposalExecuted', llo)
 
     // Dao metrics
     await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
