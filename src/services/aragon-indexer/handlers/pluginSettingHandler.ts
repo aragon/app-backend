@@ -56,7 +56,7 @@ export const PluginSettingHandler = {
           inactiveAtBlockNumber: blockNumber,
           status: ISettingStatus.inactive,
         },
-        { logId: activePluginSetting.id },
+        { logId: activePluginSetting.id, info },
         'Update tokenVoting inactive plugin',
         llo,
       )
@@ -108,7 +108,7 @@ export const PluginSettingHandler = {
           inactiveAtBlockNumber: blockNumber,
           status: ISettingStatus.inactive,
         },
-        { logId: activePluginSetting.id },
+        { logId: activePluginSetting.id, info },
         'Update multisig inactive plugin',
         llo,
       )

@@ -28,7 +28,10 @@ export const ProposalMetrics = {
       approvalReached: votes.length >= proposal.settings.minApprovals,
       metrics: {
         totalVotes: votes.length,
-        missingVotes: votes.length - proposal.settings.minApprovals,
+        missingVotes:
+          votes.length >= proposal.settings.minApprovals
+            ? votes.length - proposal.settings.minApprovals
+            : proposal.settings.minApprovals - votes.length,
       },
     }
     return await DbOperations.updateDocument(
@@ -86,7 +89,7 @@ export const ProposalMetrics = {
       approvalReached: votes.length >= proposal.settings.minApprovals,
       metrics: {
         totalVotes: votes.length,
-        missingVotes: members.length - votes.length,
+        missingVotes: votes.length >= members.length ? votes.length - members.length : members.length - votes.length,
         votesByOption: Object.entries(voteAggregation).map(([type, data]) => ({
           type,
           totalVotes: data.totalVotes,
