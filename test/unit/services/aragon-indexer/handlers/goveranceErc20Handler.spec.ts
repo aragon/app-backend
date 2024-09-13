@@ -63,7 +63,7 @@ describe('GovernanceErc20Handler', () => {
         eventName: 'DelegateVotesChanged',
       }
 
-      const saveAndGetMemberStub = sandbox.stub(ProxyMember, 'saveAndGetMember').resolves({
+      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
         address: '0x123',
       } as any)
 
@@ -71,7 +71,7 @@ describe('GovernanceErc20Handler', () => {
 
       const response = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
       expect(response).to.be.undefined
-      expect(saveAndGetMemberStub.calledOnce).to.be.true
+      expect(createMemberStub.calledOnce).to.be.true
       expect(existingLogStub.calledOnce).to.be.true
     })
 
@@ -94,7 +94,7 @@ describe('GovernanceErc20Handler', () => {
         eventName: 'DelegateVotesChanged',
       }
       const loggerStub = sandbox.stub(Logger, 'verbose')
-      const saveAndGetMemberStub = sandbox.stub(ProxyMember, 'saveAndGetMember').resolves({
+      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
         address: '0x123',
       } as any)
       const existingLogSpy = sandbox.spy(Models.MemberTransaction, 'findExistingLog')
@@ -115,7 +115,7 @@ describe('GovernanceErc20Handler', () => {
         network: NetworksEnum.polygonMainnet,
       } as any)
 
-      const updateMemberMetricsStub = sandbox.stub(ProxyMember, 'updateMemberMetrics').resolves()
+      const updateMetricsByActionStub = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
       const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
       const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
 
@@ -123,8 +123,8 @@ describe('GovernanceErc20Handler', () => {
 
       await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
 
-      expect(saveAndGetMemberStub.calledOnce).to.be.true
-      expect(saveAndGetMemberStub.calledWith(fakeLog.args.delegate)).to.be.true
+      expect(createMemberStub.calledOnce).to.be.true
+      expect(createMemberStub.calledWith(fakeLog.args.delegate)).to.be.true
 
       expect(existingLogSpy.calledOnce).to.be.true
       expect(
@@ -151,9 +151,9 @@ describe('GovernanceErc20Handler', () => {
       ).to.be.true
       expect(findActivePluginStub.calledOnce).to.be.true
       expect(findActivePluginStub.calledWith(logInfo.address, logInfo.network)).to.be.true
-      expect(updateMemberMetricsStub.calledOnce).to.be.true
+      expect(updateMetricsByActionStub.calledOnce).to.be.true
       expect(
-        updateMemberMetricsStub.calledWith(IMetricAction.increaseDelegateReceivedCount, {
+        updateMetricsByActionStub.calledWith(IMetricAction.increaseDelegateReceivedCount, {
           memberAddress: fakeLog.args.delegate,
           pluginAddress: '0xPluginAddress',
           network: logInfo.network,

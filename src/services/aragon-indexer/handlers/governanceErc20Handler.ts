@@ -45,7 +45,7 @@ export const GovernanceErc20Handler = {
       return
     }
 
-    const member = await ProxyMember.saveAndGetMember(parsedEvent.args.delegate)
+    const member = await ProxyMember.createMember(parsedEvent.args.delegate)
     const side =
       parsedEvent.args.previousBalance < parsedEvent.args.newBalance ? ITransferSide.incoming : ITransferSide.outgoing
 
@@ -114,13 +114,13 @@ export const GovernanceErc20Handler = {
     })
 
     if (side === ITransferSide.incoming) {
-      await ProxyMember.updateMemberMetrics(IMetricAction.increaseDelegateReceivedCount, {
+      await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
         memberAddress: member.address,
         pluginAddress: plugin.address,
         network: info.network,
       })
     } else {
-      await ProxyMember.updateMemberMetrics(IMetricAction.increaseDelegateSentCount, {
+      await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
         memberAddress: member.address,
         pluginAddress: plugin.address,
         network: info.network,
@@ -156,7 +156,7 @@ export const GovernanceErc20Handler = {
 
   _outgoingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin) => {
     const memberAddress = parsedEvent.args.from
-    await ProxyMember.saveAndGetMember(parsedEvent.args.from)
+    await ProxyMember.createMember(parsedEvent.args.from)
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
       network: info.network,
@@ -240,7 +240,7 @@ export const GovernanceErc20Handler = {
 
   _incomingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin) => {
     const memberAddress = parsedEvent.args.to
-    await ProxyMember.saveAndGetMember(parsedEvent.args.to)
+    await ProxyMember.createMember(parsedEvent.args.to)
 
     const existingLog = await Models.MemberTransaction.findExistingLog({
       network: info.network,

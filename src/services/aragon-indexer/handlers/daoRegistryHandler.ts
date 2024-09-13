@@ -56,7 +56,7 @@ export const DaoRegistryHandler = {
     }
 
     const dao = await DbOperations.createDocument(Models.Dao, document, info, 'New DaoRegistered', llo)
-    await ProxyMember.saveAndGetMember(parsedEvent.args.creator)
+    await ProxyMember.createMember(parsedEvent.args.creator)
     await DaoRegistryHandler.initiateNewDaoCreation(info, dao.address)
   },
 
