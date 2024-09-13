@@ -104,7 +104,7 @@ export const ProposalHandler = {
 
     const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)
 
-    await ProxyMember.memberActivity({
+    await ProxyMember.updateActivity({
       memberAddress: newProposal.creatorAddress,
       pluginAddress: relatedPlugin.address,
       network: newProposal.network,
@@ -113,7 +113,7 @@ export const ProposalHandler = {
 
     await Promise.all([
       ProposalHandler.parseActions(newProposal),
-      ProxyMember.updateMemberMetrics(IMetricAction.increaseProposalCount, {
+      ProxyMember.updateMetricsByAction(IMetricAction.increaseProposalCount, {
         memberAddress: newProposal.creatorAddress,
         pluginAddress,
         network: info.network,
@@ -158,7 +158,7 @@ export const ProposalHandler = {
 
     await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
 
-    await ProxyMember.memberActivity({
+    await ProxyMember.updateActivity({
       memberAddress: document.memberAddress!,
       pluginAddress: info.address,
       network: info.network,
@@ -166,7 +166,7 @@ export const ProposalHandler = {
     })
 
     await Promise.all([
-      ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
+      ProxyMember.updateMetricsByAction(IMetricAction.increaseVoteCount, {
         memberAddress: document.memberAddress!,
         pluginAddress: info.address,
         network: info.network,
@@ -250,15 +250,15 @@ export const ProposalHandler = {
 
     if (!isExistingVote) {
       // only increase vote count if it's a new vote
-      await ProxyMember.updateMemberMetrics(IMetricAction.increaseVoteCount, {
+      await ProxyMember.updateMetricsByAction(IMetricAction.increaseVoteCount, {
         memberAddress: document.memberAddress!,
         pluginAddress: info.address,
         network: info.network,
       })
     }
 
-    // always update memberActivity
-    await ProxyMember.memberActivity({
+    // always update updateActivity
+    await ProxyMember.updateActivity({
       memberAddress: document.memberAddress!,
       pluginAddress: info.address,
       network: info.network,

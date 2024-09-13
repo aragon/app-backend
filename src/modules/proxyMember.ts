@@ -10,34 +10,23 @@ import DbOperations from '@models/utils/dbOperations'
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyMember' })
 
 export const ProxyMember = {
-  saveAndGetMember: async (memberAddress: HexAddress): Promise<Member> => {
+  createMember: async (memberAddress: HexAddress): Promise<Member> => {
     const parsedMemberAddress = Web3Helper.parseAddress(memberAddress) || memberAddress
     const existingMember = await Models.Member.findExistingLog({ address: parsedMemberAddress })
 
-    if (existingMember) {
-      return existingMember
+    if (!existingMember) {
+      const rawMember = {
+        address: memberAddress,
+        ens: await EnsHelper.getEnsWithUniversalResolver(memberAddress),
+      }
+
+      return await DbOperations.createDocument(Models.Member, rawMember, rawMember, 'New Member', llo)
     }
 
-    const rawMember = {
-      address: memberAddress,
-      ens: await EnsHelper.getEnsWithUniversalResolver(memberAddress),
-    }
-
-    const memberDb = await DbTx.executeTxFn(
-      async ({ session }) => {
-        const logDb = await Models.Member.create(rawMember, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('New Member', llo({ logId: logDb.id }))
-        return logDb
-      },
-      { stopRetry: true },
-    )
-
-    return memberDb
+    return existingMember
   },
 
-  getMemberMetrics: async ({
+  createMetrics: async ({
     address,
     pluginAddress,
     network,
@@ -56,7 +45,26 @@ export const ProxyMember = {
     return metrics
   },
 
-  memberActivity: async ({
+  getBalances: async ({
+    address,
+    tokenAddress,
+    network,
+  }: {
+    address: HexAddress
+    tokenAddress: HexAddress
+    network: NetworksEnum
+  }) => {
+    const token = await Models.MemberBalance.findByAddressAndToken({ address, tokenAddress, network })
+
+    if (!token) {
+      const data = { address, tokenAddress, network }
+      return await DbOperations.createDocument(Models.MemberBalance, data, data, 'New Member balance', llo)
+    }
+
+    return token
+  },
+
+  updateActivity: async ({
     memberAddress,
     pluginAddress,
     blockNumber,
@@ -68,8 +76,8 @@ export const ProxyMember = {
     network: NetworksEnum
   }): Promise<Member> => {
     const [member, memberMetrics, blockTimestamp] = await Promise.all([
-      ProxyMember.saveAndGetMember(memberAddress),
-      ProxyMember.getMemberMetrics({
+      ProxyMember.createMember(memberAddress),
+      ProxyMember.createMetrics({
         address: memberAddress,
         pluginAddress,
         network,
@@ -77,28 +85,24 @@ export const ProxyMember = {
       Web3Helper.getBlockTimestamp(blockNumber, network),
     ])
 
-    return await DbTx.executeTxFn(async ({ session }) => {
-      // Update member activity
-      const updateFields: Partial<Member> = {
-        lastActivity: blockTimestamp,
-      }
+    const updateFields: Partial<Member> = {
+      lastActivity: blockTimestamp,
+    }
 
-      if (!member.firstActivity) {
-        updateFields.firstActivity = blockTimestamp
-      }
+    if (!member.firstActivity) {
+      updateFields.firstActivity = blockTimestamp
+    }
 
-      await memberMetrics.update(updateFields, { session })
-
-      await session.commitTransaction()
-      session.endSession()
-
-      logger.verbose('Member activity updated', { logId: member.id })
-
-      return member
-    })
+    return await DbOperations.updateDocument(
+      memberMetrics,
+      updateFields,
+      { logId: member.id },
+      'Update Member activity',
+      llo,
+    )
   },
 
-  updateMemberMetrics: async (
+  updateMetricsByAction: async (
     metricAction: IMetricAction,
     {
       memberAddress,
@@ -110,7 +114,7 @@ export const ProxyMember = {
       network: NetworksEnum
     },
   ): Promise<Member> => {
-    const metrics = await ProxyMember.getMemberMetrics({
+    const metrics = await ProxyMember.createMetrics({
       address: memberAddress,
       pluginAddress,
       network,
@@ -129,7 +133,6 @@ export const ProxyMember = {
       const updatedMetrics = await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await metricUpdateFn.call(metrics, 1, { session })
         await session.commitTransaction()
-        await session.endSession()
         logger.verbose('Updated Member DAO metrics', { logId: logDb.id })
         return logDb
       })
@@ -140,26 +143,13 @@ export const ProxyMember = {
     return metrics
   },
 
-  getBalances: async ({
-    address,
-    tokenAddress,
-    network,
-  }: {
-    address: HexAddress
-    tokenAddress: HexAddress
-    network: NetworksEnum
-  }) => {
-    const tokenBalance = await Models.MemberBalance.getOrCreateTokenBalance({ address, tokenAddress, network })
-    return tokenBalance
-  },
-
   addToDao: async (params: {
     memberAddress: HexAddress
     daoAddress: HexAddress
     pluginAddress: HexAddress
     network: NetworksEnum
   }): Promise<Member> => {
-    const member = await ProxyMember.saveAndGetMember(params.memberAddress)
+    const member = await ProxyMember.createMember(params.memberAddress)
 
     const queryParams = {
       memberAddress: member.address,
@@ -190,7 +180,7 @@ export const ProxyMember = {
     pluginAddress: HexAddress
     network: NetworksEnum
   }): Promise<Member> => {
-    const member = await ProxyMember.saveAndGetMember(params.memberAddress)
+    const member = await ProxyMember.createMember(params.memberAddress)
 
     const queryParams = {
       memberAddress: member.address,
@@ -204,7 +194,6 @@ export const ProxyMember = {
       await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await existingDao.removeSelf({ session })
         await session.commitTransaction()
-        await session.endSession()
         logger.verbose('Remove DaoMemberMapping', llo({ logId: logDb.id }))
       })
     }

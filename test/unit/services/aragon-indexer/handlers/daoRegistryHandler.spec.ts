@@ -59,7 +59,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const subdomainExistsStub = sandbox.stub(Web3Helper, 'subdomainExists').resolves(true)
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1123213)
       const getDaoOsVersionStub = sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('1.0.0')
-      const saveAndGetMemberStub = sandbox.stub(ProxyMember, 'saveAndGetMember').resolves()
+      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves()
 
       await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
 
@@ -90,7 +90,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(subdomainExistsStub.calledWith(fakeEvent.args.subdomain, network)).to.be.true
       expect(getBlockTimestampStub.calledWith(logInfo.blockNumber, network)).to.be.true
       expect(getDaoOsVersionStub.calledWith(fakeEvent.args.dao, network)).to.be.true
-      expect(saveAndGetMemberStub.calledWith(fakeEvent.args.creator)).to.be.true
+      expect(createMemberStub.calledWith(fakeEvent.args.creator)).to.be.true
     })
 
     it('should not process existing dao registered', async () => {

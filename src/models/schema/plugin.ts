@@ -77,6 +77,9 @@ export default class Plugin extends Model {
   @prop({ type: () => String, default: null })
   public implementationAddress?: HexAddress
 
+  // @prop({ type: () => String, default: null })
+  // public parentPlugin?: HexAddress
+
   @prop({ type: () => String, enum: IPluginStatus, required: true })
   public status!: IPluginStatus
 
@@ -168,11 +171,5 @@ export default class Plugin extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
-  }
-
-  filterKeys() {
-    const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
-    return filtered
   }
 }

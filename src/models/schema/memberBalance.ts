@@ -79,22 +79,8 @@ export default class MemberBalance extends Model {
     return await this.findOne({ tokenAddress, network })
   }
 
-  static async getOrCreateTokenBalance({
-    address,
-    tokenAddress,
-    network,
-  }: {
-    address: HexAddress
-    tokenAddress: HexAddress
-    network: NetworksEnum
-  }) {
-    const token = await this.findOne({ address, tokenAddress, network })
-
-    if (!token) {
-      return await this.create({ address, tokenAddress, network })
-    }
-
-    return token
+  static async findByAddressAndToken(address: HexAddress, tokenAddress: HexAddress, network: NetworksEnum) {
+    return await this.findOne({ address, tokenAddress, network })
   }
 
   async update(params: Partial<MemberBalance>, tOpts?: SaveOptions) {
