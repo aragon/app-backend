@@ -44,7 +44,7 @@ const PinataHelper = {
       const data = await this.pinata.pinJSONToIPFS(body, options)
       return data.IpfsHash
     } catch (error) {
-      logger.error('Failed to upload and pin metadata', llo({ error }))
+      logger.error('Failed to upload and pin metadata', llo({ error, metadata }))
       return null
     }
   },
