@@ -24,7 +24,7 @@ const GovernanceErc20Helper = {
         ),
       )
     } catch (error) {
-      logger.error('Error getting past votes', llo({ memberAddress, tokenAddress, blockNumber, network }))
+      logger.error('Error getting past votes', llo({ memberAddress, tokenAddress, blockNumber, network, error }))
       return '0'
     }
   },
@@ -37,7 +37,7 @@ const GovernanceErc20Helper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getVotes(memberAddress)),
       )
     } catch (error) {
-      logger.error('Error getting votes', llo({ memberAddress, tokenAddress, network }))
+      logger.error('Error getting votes', llo({ memberAddress, tokenAddress, network, error }))
       return '0'
     }
   },
@@ -50,7 +50,7 @@ const GovernanceErc20Helper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getPastTotalSupply(blockNumber)),
       )
     } catch (error) {
-      logger.warn('Error getting pastTotalSupply', llo({ blockNumber, tokenAddress, network }))
+      logger.warn('Error getting pastTotalSupply', llo({ blockNumber, tokenAddress, network, error }))
       return '0'
     }
   },
@@ -67,7 +67,7 @@ const GovernanceErc20Helper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.delegates(memberAddress)),
       )
     } catch (error) {
-      logger.warn('Error getting delegates', llo({ memberAddress, tokenAddress, network }))
+      logger.error('Error getting delegates', llo({ memberAddress, tokenAddress, network, error }))
       return false
     }
   },
