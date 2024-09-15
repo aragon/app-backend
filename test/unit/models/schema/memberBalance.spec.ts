@@ -122,27 +122,6 @@ describe('Model: MemberBalance', () => {
     expect(createdLogDao.address).to.eq(rawMemberBalance.address)
   })
 
-  describe('getOrCreateTokenBalance', () => {
-    it('should get or create token balance when already exist', async () => {
-      const createdMember = await Models.MemberBalance.create(rawMemberBalance)
-      const member = await Models.MemberBalance.getOrCreateTokenBalance({
-        address: createdMember.address,
-        tokenAddress: createdMember.tokenAddress,
-        network: createdMember.network,
-      })
-      expect(member?.address).to.eq(createdMember.address)
-    })
-
-    it('should get or create token balance when not exist', async () => {
-      const member = await Models.MemberBalance.getOrCreateTokenBalance({
-        address: rawMemberBalance.address,
-        tokenAddress: rawMemberBalance.tokenAddress,
-        network: rawMemberBalance.network,
-      } as any)
-      expect(member?.address).to.eq(rawMemberBalance.address)
-    })
-  })
-
   it('should increase the balance', async () => {
     rawMemberBalance.amount = '0'
     const createdMember = await Models.MemberBalance.create(rawMemberBalance)

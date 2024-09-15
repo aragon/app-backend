@@ -183,7 +183,7 @@ describe('Controller: Dao', () => {
 
   describe('getDaosByMember', () => {
     it('should get daos by member', async () => {
-      const findStub = sandbox.stub(Models.Dao, 'findDaosByMemberWithPagination').resolves([true])
+      const findStub = sandbox.stub(Models.DaoMemberMapping, 'findDaosByMemberWithPagination').resolves([true])
       const checkIFEnsStub = sandbox
         .stub(PairDataModule, 'checkIFEns')
         .resolves('0x17366cae2b9c6c3055e9e3c78936a69006be5409')
@@ -201,7 +201,7 @@ describe('Controller: Dao', () => {
       await DaoController.getDaosByMember(paginationParams, filterParams)
       expect(checkIFEnsStub.calledOnce).to.be.true
       expect(findStub.calledOnce).to.be.true
-      expect(findStub.args[0][0]?.memberAddress).to.be.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5409')
+      expect(findStub.args[0][0]?.extraParams.memberAddress).to.be.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5409')
     })
   })
 })

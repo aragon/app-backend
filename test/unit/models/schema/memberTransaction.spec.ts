@@ -30,9 +30,10 @@ describe('Model: Member Transaction', () => {
     it('should create new entry of member balance', async () => {
       const entityId = Models.MemberTransaction.getEntityId({
         transactionHash: rawMemberDelegationTx.transactionHash!,
+        network: rawMemberDelegationTx.network,
+        transactionIndex: rawMemberDelegationTx.transactionIndex!,
+        logIndex: rawMemberDelegationTx.logIndex!,
         address: rawMemberDelegationTx.address!,
-        side: rawMemberDelegationTx.side!,
-        type: rawMemberDelegationTx.type!,
       })
 
       const MemberMetrics = await Models.MemberTransaction.create(rawMemberDelegationTx)
@@ -46,9 +47,10 @@ describe('Model: Member Transaction', () => {
     it('should save without asset if id present', async () => {
       const entityId = Models.MemberTransaction.getEntityId({
         transactionHash: rawMemberDelegationTx.transactionHash!,
+        network: rawMemberDelegationTx.network,
+        transactionIndex: rawMemberDelegationTx.transactionIndex!,
+        logIndex: rawMemberDelegationTx.logIndex!,
         address: rawMemberDelegationTx.address!,
-        side: rawMemberDelegationTx.side!,
-        type: rawMemberDelegationTx.type!,
       })
 
       rawMemberDelegationTx.id = entityId
@@ -62,6 +64,8 @@ describe('Model: Member Transaction', () => {
         Models.MemberTransaction.create({
           network: rawMemberDelegationTx.network,
           transactionHash: rawMemberDelegationTx.transactionHash,
+          transactionIndex: rawMemberDelegationTx.transactionIndex,
+          logIndex: rawMemberDelegationTx.logIndex,
         }),
       ).to.be.rejectedWith('address is required')
     })
@@ -70,30 +74,33 @@ describe('Model: Member Transaction', () => {
       await expect(
         Models.MemberTransaction.create({
           network: rawMemberDelegationTx.network,
+          transactionIndex: rawMemberDelegationTx.transactionIndex,
+          logIndex: rawMemberDelegationTx.logIndex,
           address: rawMemberDelegationTx.address,
         }),
       ).to.be.rejectedWith('transactionHash is required')
     })
 
-    it('should fail if side is not present', async () => {
+    it('should fail if transaction index is not present', async () => {
       await expect(
         Models.MemberTransaction.create({
           network: rawMemberDelegationTx.network,
           address: rawMemberDelegationTx.address,
           transactionHash: rawMemberDelegationTx.transactionHash,
+          logIndex: rawMemberDelegationTx.logIndex,
         }),
-      ).to.be.rejectedWith('side is required')
+      ).to.be.rejectedWith('transactionIndex is required')
     })
 
-    it('should fail if type is not present', async () => {
+    it('should fail if log index is not present', async () => {
       await expect(
         Models.MemberTransaction.create({
           network: rawMemberDelegationTx.network,
           address: rawMemberDelegationTx.address,
           transactionHash: rawMemberDelegationTx.transactionHash,
-          side: rawMemberDelegationTx.side,
+          transactionIndex: rawMemberDelegationTx.transactionIndex,
         }),
-      ).to.be.rejectedWith('type is required')
+      ).to.be.rejectedWith('logIndex is required')
     })
   })
 
@@ -103,6 +110,7 @@ describe('Model: Member Transaction', () => {
       transactionHash: rawMemberTransferTx.transactionHash!,
       transactionIndex: rawMemberTransferTx.transactionIndex!,
       logIndex: rawMemberTransferTx.logIndex!,
+      address: rawMemberTransferTx.address!,
     })
     const memberDb = await Models.MemberTransaction.create(rawMemberTransferTx)
     expect(entityId).to.eq(memberDb.id)
@@ -115,6 +123,7 @@ describe('Model: Member Transaction', () => {
       transactionHash: rawMemberDelegationTx.transactionHash!,
       transactionIndex: rawMemberDelegationTx.transactionIndex!,
       logIndex: rawMemberDelegationTx.logIndex!,
+      address: rawMemberTransferTx.address!,
     })
     expect(foundedEntityDb?.id).to.eq(entityDb.id)
   })

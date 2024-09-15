@@ -6,6 +6,7 @@ import { NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { PluginRepoRegistryHandler } from '@services/aragon-indexer/handlers/pluginRepoRegistryHandler'
 import { Models } from '@dbModels'
+import Web3Helper from '@helpers/web3'
 
 describe('Indexer: PluginRepoRegistryHandler', () => {
   let sandbox: SinonSandbox
@@ -38,14 +39,17 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
 
       const findTxHashSpy = sandbox.spy(Models.PluginRepo, 'findExistingLog')
       const loggerStub = sandbox.stub(logger, 'verbose')
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1123213)
 
       await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, logInfo)
 
       expect(findTxHashSpy.calledOnce).to.be.true
       expect(
         findTxHashSpy.calledWith({
+          network: logInfo.network,
+          logIndex: logInfo.logIndex,
+          transactionIndex: logInfo.transactionIndex,
           transactionHash: logInfo.transactionHash,
-          pluginRepo: fakeEvent.args.pluginRepo,
         }),
       ).to.be.true
       expect(loggerStub.calledOnce).to.be.true
@@ -58,6 +62,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       })
       expect(!!savedPluginRepoLog).to.be.true
 
+      expect(getBlockTimestampStub.calledOnce).to.eq(true)
       expect(savedPluginRepoLog.network).to.eq(logInfo.network)
       expect(savedPluginRepoLog.pluginRepo).to.eq(fakeEvent.args.pluginRepo)
       expect(savedPluginRepoLog.subdomain).to.eq(fakeEvent.args.subdomain)

@@ -2,6 +2,8 @@ import { NetworksEnum } from '@types'
 export const FakePluginRepo = {
   transactionHash: '0xa46c19f2b6475d97f7ba05df83666e88890016a3cb8f9075ac72871b67d4f9f5',
   blockNumber: 40833335,
+  transactionIndex: 1,
+  logIndex: 0,
   blockTimestamp: 1679939602,
   network: NetworksEnum.polygonMainnet,
   subdomain: 'address-list-voting',
