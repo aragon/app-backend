@@ -187,8 +187,7 @@ export default class Asset extends Model {
           $project: {
             _id: 0,
             network: 1,
-            dao: extraParams.daoAddress ? '$$REMOVE' : 1,
-            // tokenAddress: 1,
+            dao: !extraParams.daoAddress ? '$$REMOVE' : 1,
             amount: 1,
             token: '$tokenDetails',
             amountUsd: { $toString: '$amountUsd' },

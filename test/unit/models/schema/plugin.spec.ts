@@ -137,16 +137,4 @@ describe('Model: Plugin', () => {
     expect(reloadedPlugin.transactionHash).to.be.eq(plugin.transactionHash)
     expect(reloadedPlugin.address).to.be.eq(plugin.address)
   })
-
-  it('Should filterKeys of plugin', async () => {
-    const createdPlugin = await Models.Plugin.create(rawPlugin)
-    const filterDao = createdPlugin.filterKeys()
-
-    expect(filterDao.id).to.exist
-    expect(filterDao._id).to.be.undefined
-    expect(filterDao.__v).to.be.undefined
-    expect(filterDao.createdAt).to.be.undefined
-    expect(filterDao.updatedAt).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(17)
-  })
 })

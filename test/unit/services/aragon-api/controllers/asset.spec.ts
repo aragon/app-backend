@@ -8,11 +8,14 @@ import Token from '@models/schema/token'
 import PairDataModule from '@modules/pairData'
 import { FakeAsset } from '@test/mock/fakeAsset'
 import { FakeToken } from '@test/mock/fakeToken'
+import Dao from '@models/schema/dao'
+import { DaoList } from '@test/mock/fakeDao'
 
 describe('Controller: Asset', () => {
   let sandbox: SinonSandbox
   let rawAsset: Partial<Asset>
   let rawToken: Partial<Token>
+  let fakeDao: Partial<Dao>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -25,10 +28,16 @@ describe('Controller: Asset', () => {
       ...(FakeToken as any),
     }
 
+    fakeDao = {
+      ...(DaoList[0] as any),
+      address: FakeAsset.daoAddress,
+    }
+
     rawToken.address = FakeAsset.tokenAddress
 
     await Models.Asset.create(FakeAsset)
     await Models.Token.create(FakeToken)
+    await Models.Dao.create(fakeDao)
   })
 
   afterEach(() => {
@@ -123,8 +132,7 @@ describe('Controller: Asset', () => {
       expect(responseData.token.address).to.be.eq(rawAsset.tokenAddress)
       expect(responseData.token.name).to.be.eq(rawToken.name)
       expect(responseData.token.symbol).to.be.eq(rawToken.symbol)
-      expect(responseData.dao).to.be.exist
-      expect(responseData.dao.address).to.be.eq(rawAsset.daoAddress)
+      expect(responseData.dao).to.be.undefined
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -177,8 +185,7 @@ describe('Controller: Asset', () => {
       expect(responseData.token.address).to.be.eq(rawAsset.tokenAddress)
       expect(responseData.token.name).to.be.eq(rawToken.name)
       expect(responseData.token.symbol).to.be.eq(rawToken.symbol)
-      expect(responseData.dao).to.be.exist
-      expect(responseData.dao.address).to.be.eq(rawAsset.daoAddress)
+      expect(responseData.dao).to.be.undefined
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)

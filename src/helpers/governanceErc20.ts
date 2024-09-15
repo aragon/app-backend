@@ -50,7 +50,7 @@ const GovernanceErc20Helper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getPastTotalSupply(blockNumber)),
       )
     } catch (error) {
-      logger.warn('Error getting pastTotalSupply', llo({ blockNumber, tokenAddress, network, error }))
+      logger.error('Error getting pastTotalSupply', llo({ blockNumber, tokenAddress, network, error }))
       return '0'
     }
   },
@@ -68,7 +68,7 @@ const GovernanceErc20Helper = {
       )
     } catch (error) {
       logger.error('Error getting delegates', llo({ memberAddress, tokenAddress, network, error }))
-      return false
+      return '0'
     }
   },
 }

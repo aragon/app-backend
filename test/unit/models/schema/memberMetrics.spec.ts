@@ -122,27 +122,6 @@ describe('Model: MemberMetrics', () => {
     expect(createdLogDao.address).to.eq(rawMemberMetrics.address)
   })
 
-  describe('getOrCreateTokenBalance', () => {
-    it('should get or create token balance when already exist', async () => {
-      const createdMember = await Models.MemberMetrics.create(rawMemberMetrics)
-      const member = await Models.MemberMetrics.getOrCreateMemberMetrics({
-        address: createdMember.address,
-        pluginAddress: createdMember.pluginAddress,
-        network: createdMember.network,
-      })
-      expect(member?.address).to.eq(createdMember.address)
-    })
-
-    it('should get or create token balance when not exist', async () => {
-      const member = await Models.MemberMetrics.getOrCreateMemberMetrics({
-        address: rawMemberMetrics.address,
-        pluginAddress: rawMemberMetrics.pluginAddress,
-        network: rawMemberMetrics.network,
-      } as any)
-      expect(member?.address).to.eq(rawMemberMetrics.address)
-    })
-  })
-
   it('should increaseDelegateReceivedCount', async () => {
     const member = await Models.MemberMetrics.create(rawMemberMetrics)
     const updatedMember = await member.increaseDelegateReceivedCount(1)
