@@ -10,6 +10,9 @@ import Token from '@models/schema/token'
 import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 import logger from '@logger'
+import CovalentHelper from '@helpers/covalent'
+import Etherscan from '@helpers/etherscan'
+import Web3Helper from '@helpers/web3'
 
 describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox
@@ -144,6 +147,20 @@ describe('Modules: ProxyToken', () => {
       expect(result?.address).to.equal(rawToken.address)
     })
 
+    it('should return existing token if found and update the token metrics as well', async () => {
+      const stubDetect = sandbox.stub(TokenDetector, 'detectTokenType')
+      sandbox.stub(Models.Token, 'findExistingLog').resolves({
+        ...rawToken,
+        holders: 20,
+      } as any)
+
+      const updateTokenMetricsStub = sandbox.stub(ProxyToken, 'updateTokenMetrics').resolves(true as any)
+      await ProxyToken.saveAndGetToken(rawToken.address as any, rawToken.network as any, true)
+
+      expect(updateTokenMetricsStub.calledOnce).to.be.true
+      expect(stubDetect.notCalled).to.be.true
+    })
+
     it('token not found', async () => {
       const stubFind = sandbox.stub(Models.Token, 'findExistingLog').resolves(true)
       const token = await ProxyToken.saveAndGetToken(
@@ -220,6 +237,75 @@ describe('Modules: ProxyToken', () => {
 
       const result = ProxyToken.skipFetchToken(token as any, tokenRate as any)
       expect(result).to.be.false
+    })
+  })
+
+  describe('updateTokenMetrics', () => {
+    it('should update token metrics', async () => {
+      const token = await Models.Token.findByTokenAddressAndNetwork(rawToken.address as any, rawToken.network as any)
+      const getTokenMetricsStub = sandbox.stub(ProxyToken, 'getTokenMetrics').resolves({
+        totalHolders: 20,
+        totalSupply: '1000',
+      } as any)
+
+      const verboseStub = sandbox.stub(logger, 'verbose')
+
+      const fetchRateStub = sandbox.stub(RateModule, 'fetchRate').resolves({
+        priceUsd: '1',
+        priceChangeOnDayUsd: '0.1',
+      } as any)
+
+      const result = await ProxyToken.updateTokenMetrics(token, rawToken.address!, rawToken.network!)
+      expect(result.holders).to.be.eq(20)
+      expect(result.totalSupply).to.be.eq('1000')
+      expect(result.priceUsd).to.be.eq('1')
+      expect(result.priceChangeOnDayUsd).to.be.eq('0.1')
+      expect(getTokenMetricsStub.calledOnce).to.be.true
+      expect(fetchRateStub.calledOnce).to.be.true
+      expect(verboseStub.calledOnce).to.be.true
+      expect(verboseStub.calledWith('Updated Token Metrics' as any)).to.be.true
+    })
+
+    it('should get the token metrics for native', async () => {
+      const tokenType = ITokenType.native
+
+      const result = await ProxyToken.getTokenMetrics(tokenType, rawToken.address as any, rawToken.network as any)
+
+      expect(result).to.be.deep.eq({ totalHolders: 0, totalSupply: '0' })
+    })
+
+    it('should get the token metrics for ERC20', async () => {
+      const tokenType = ITokenType.ERC20
+      const getTokenInfoStub = sandbox.stub(CovalentHelper, 'getTokenInfo').resolves({
+        totalHolders: 20,
+        totalSupply: '1000',
+      } as any)
+
+      const result = await ProxyToken.getTokenMetrics(tokenType, rawToken.address as any, rawToken.network as any)
+
+      expect(result).to.be.deep.eq({ totalHolders: 20, totalSupply: '1000' })
+      expect(getTokenInfoStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('getContractCreationInfo', () => {
+    it('should return contract creation info', async () => {
+      const etherScanStub = sandbox.stub(Etherscan, 'fetchContractCreation').resolves([
+        {
+          txHash: '0x123',
+          address: rawToken.address!,
+        },
+      ])
+      const web3GetTxStub = sandbox.stub(Web3Helper, 'getTransaction').resolves({
+        blockNumber: 123123213,
+      } as any)
+
+      const result = await ProxyToken.getContractCreationInfo(rawToken.address as any, rawToken.network as any)
+
+      expect(etherScanStub.calledOnce).to.be.true
+      expect(web3GetTxStub.calledOnce).to.be.true
+      expect(result.txHash).to.be.eq('0x123')
+      expect(result.blockNumber).to.be.eq(123123213)
     })
   })
 })
