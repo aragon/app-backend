@@ -141,5 +141,25 @@ describe('Model: DaoMemberMappings', () => {
       expect(data[0].network).to.eq(fakeDaoMemberMapping.network)
       expect(data[0].address).to.be.eq(fakeDaoMemberMapping.daoAddress)
     })
+
+    it('should return empty array if no daos found', async () => {
+      const foundLogDao = await Models.DaoMemberMapping.findDaosByMemberWithPagination({
+        extraParams: {
+          memberAddress: '0x00',
+          network: '1',
+        },
+        paginationParams: {},
+      } as any)
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = foundLogDao
+
+      expect(data.length).to.eq(0)
+      expect(totalRecords).to.eq(0)
+      expect(page).to.eq(1)
+      expect(pageSize).to.eq(10)
+      expect(totalPages).to.eq(1)
+    })
   })
 })

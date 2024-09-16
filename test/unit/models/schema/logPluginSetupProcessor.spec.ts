@@ -179,4 +179,14 @@ describe('Model: LogPluginSetupProcessor', () => {
 
     expect(createdLogDao.daoAddress).to.eq(rawLogPluginSetupProcessor.daoAddress)
   })
+
+  it('should findByPluginAddress', async () => {
+    const createdPlugin = await Models.LogPluginSetupProcessor.create(rawLogPluginSetupProcessor)
+    const foundLogDao = await Models.LogPluginSetupProcessor.findByPluginAddress(
+      createdPlugin.pluginAddress,
+      createdPlugin.network,
+      createdPlugin.event,
+    )
+    expect(foundLogDao?.pluginAddress).to.eq(rawLogPluginSetupProcessor.pluginAddress)
+  })
 })
