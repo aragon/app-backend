@@ -50,7 +50,7 @@
 									"    pm.expect(jsonData).to.have.property(\"data\").that.is.an(\"array\", \"Expected response to have a 'data' property that is an array\");",
 									"});",
 									"",
-									"pm.test(\"Each object has correct properties and types\", function () {",
+									"pm.test(\"Each dao object has correct properties and types\", function () {",
 									"  const data = pm.response.json().data;",
 									"  const expectedPropertyCount = 19;",
 									"",
