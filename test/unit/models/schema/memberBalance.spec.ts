@@ -150,4 +150,14 @@ describe('Model: MemberBalance', () => {
     const member = await createdMember.updateVotingPower('1000', 1232323)
     expect(member?.votingPower).to.eq('1000')
   })
+
+  it('should find by findByAddressAndToken', async () => {
+    const createdMember = await Models.MemberBalance.create(rawMemberBalance)
+    const member = await Models.MemberBalance.findByAddressAndToken(
+      createdMember.address,
+      createdMember.tokenAddress,
+      createdMember.network,
+    )
+    expect(member?.address).to.eq(createdMember.address)
+  })
 })
