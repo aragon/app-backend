@@ -27,6 +27,7 @@ import { ENSRegistry } from '@artifacts/ENSRegistry'
 import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
 import { Multisig } from '@artifacts/Multisig'
+import { ProxyToken } from '@modules/proxyToken'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -462,7 +463,8 @@ const Web3Helper = {
         ),
       )
 
-      return BigInt(response).toString()
+      const token = await ProxyToken.saveAndGetToken(address, network)
+      return BigInt(response).toLocaleString('en', { maximumFractionDigits: token?.decimals || (0 as any) })
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
       return '0'
@@ -483,7 +485,9 @@ const Web3Helper = {
         ?.map((token: any) => {
           const result: IAlchemyTokenBalance = {
             contractAddress: Web3Helper.parseAddress(token.contractAddress) || token.contractAddress,
-            tokenBalance: BigInt(token.tokenBalance).toString(),
+            tokenBalance: BigInt(token.tokenBalance).toLocaleString('en', {
+              maximumFractionDigits: token?.decimals || 0,
+            }),
           }
           return result
         })
