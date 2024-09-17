@@ -4,12 +4,14 @@ import config from '@config'
 import logger from '@logger'
 import { assert } from '@errors'
 import Utils from '@helpers/utils'
+import EventEmitter from 'events'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
+const ProviderEvents = new EventEmitter()
+
 const ProviderModule = {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-  providerProxies: {} as Record<string, IProviderProxy>,
+  providerProxies: {} satisfies Record<string, IProviderProxy>,
   networksMap: {
     ETHEREUM_MAINNET: NetworksEnum.ethereumMainnet,
     ETHEREUM_SEPOLIA: NetworksEnum.ethereumSepolia,
@@ -41,19 +43,32 @@ const ProviderModule = {
 
   async connectToNetwork(network: NetworksEnum, nodeUrl: string) {
     try {
+      const existingProxy = ProviderModule.providerProxies[network]
+      const existingSubscriptions = existingProxy?.subscriptions || []
+
+      // Create a new provider with a custom WebSocket class for testing
       const provider = new WebSocketProvider(nodeUrl) as IWebSocketProvider
+
+      // Update provider proxy while preserving existing properties
       ProviderModule.providerProxies[network] = {
+        ...existingProxy,
         provider,
         reconnectAttempts: 0,
-        subscriptions: [],
+        subscriptions: existingSubscriptions,
       }
+
+      // Add event listeners for the provider's WebSocket
       provider.websocket.addEventListener('open', () => {
-        logger.info(`WebSocket connected to ${network}`)
+        logger.info(`WebSocket connected to ${network}`, llo({ network }))
         ProviderModule.providerProxies[network].reconnectAttempts = 0
+        ProviderModule.resubscribeEvents(network)
+        ProviderEvents.emit('reconnected', network)
       })
-      provider.websocket.addEventListener('error', (error: any) =>
-        logger.info('WebSocket error', llo({ network, error })),
-      )
+
+      provider.websocket.addEventListener('error', (error: any) => {
+        logger.error('WebSocket error', llo({ network, error }))
+      })
+
       provider.websocket.addEventListener('close', () => {
         const attempts = ProviderModule.providerProxies[network].reconnectAttempts + 1
         ProviderModule.providerProxies[network].reconnectAttempts = attempts
@@ -61,9 +76,18 @@ const ProviderModule = {
           `WebSocket connection closed for ${network}. Attempting to reconnect...`,
           llo({ network, attempts }),
         )
-        ProviderModule.reconnectToNetwork(network, nodeUrl, attempts)
+        ProviderModule.reconnectToNetwork(network, nodeUrl, attempts).catch(error => {
+          logger.error('Reconnection failed', llo({ network, error }))
+        })
       })
-      ProviderModule.resubscribeEvents(network)
+
+      // // Simulate disconnection after 5 seconds for testing purposes
+      // // if (config.NODE_CONFIG.SIMULATE_DISCONNECT) {
+      // setTimeout(() => {
+      //   provider.websocket.close()
+      //   logger.info('Programmatically closed WebSocket connection for testing', llo({ network }))
+      // }, 1000 * 60) // Adjust the delay as needed
+      // // }
     } catch (error) {
       logger.error('Failed to create WebSocketProvider', llo({ network, error }))
       throw error
@@ -81,10 +105,12 @@ const ProviderModule = {
         const value = Reflect.get(target, prop, receiver)
 
         if (typeof value === 'function') {
-          // if (!ProviderModule.isConnectionOpen(network)) {
-          //   await ProviderModule.waitForConnection(network)
-          // }
-          return value.bind(provider)
+          return async (...args: any[]) => {
+            if (!ProviderModule.isConnectionOpen(network)) {
+              await ProviderModule.waitForConnection(network)
+            }
+            return value.apply(target, args)
+          }
         }
         return value
       },
@@ -92,19 +118,39 @@ const ProviderModule = {
   },
 
   subscribeToEvent(network: NetworksEnum, filter: any, listener: any) {
-    ProviderModule.providerProxies[network].subscriptions.push({ filter, listener })
+    const providerProxy = ProviderModule.providerProxies[network]
+    if (!providerProxy) {
+      throw new Error(`Provider for network ${network} is not available`)
+    }
 
-    const provider = ProviderModule.providerProxies[network].provider
-    provider.on(filter, listener)
+    // Wrap the listener to handle errors and prevent duplication
+    const wrappedListener = async (...args: any[]) => {
+      try {
+        await listener(...args)
+      } catch (error) {
+        logger.error('Error in event listener', llo({ network, error }))
+        // Handle error appropriately
+      }
+    }
+
+    // Store the wrapped listener
+    providerProxy.subscriptions.push({ filter, listener: wrappedListener })
+
+    const provider = providerProxy.provider
+    provider.on(filter, wrappedListener)
   },
 
   async closeAllNetworks() {
-    const networks = Object.values(NetworksEnum)
-    for (const network of networks) {
-      const provider = ProviderModule.providerProxies[network]?.provider
-      if (provider?.destroy) {
-        await provider.destroy()
-        logger.info(`WebSocket connection closed for ${network}`, llo({ network }))
+    for (const network in ProviderModule.providerProxies) {
+      const providerProxy = ProviderModule.providerProxies[network]
+      const provider = providerProxy.provider
+      if (provider) {
+        provider.removeAllListeners()
+        if (provider.destroy) {
+          await provider.destroy()
+        }
+        delete ProviderModule.providerProxies[network]
+        logger.info(`WebSocket connection closed and cleaned up for ${network}`, llo({ network }))
       }
     }
   },
@@ -114,33 +160,40 @@ const ProviderModule = {
       logger.error('Max reconnect attempts reached', llo({ network, attempt }))
       throw new Error(`Max reconnect attempts reached for ${network}`)
     }
+
     const delay = config.NODE_CONFIG.RECONNECT_INTERVAL * Math.pow(2, attempt)
+
+    logger.info(
+      `Reconnecting to ${network} after ${delay}ms... Attempt ${attempt + 1}`,
+      llo({ network, attempt: attempt + 1, delay }),
+    )
+
     await Utils.wait(delay)
 
-    logger.info(`Reconnecting to ${network}... Attempt ${attempt + 1}`, llo({ network, attempt: attempt + 1 }))
     await ProviderModule.connectToNetwork(network, nodeUrl)
   },
 
   resubscribeEvents(network: NetworksEnum) {
-    const provider = ProviderModule.providerProxies[network].provider
-    if (ProviderModule.providerProxies[network].subscriptions.length > 0) {
-      ProviderModule.providerProxies[network].subscriptions.forEach((subscription: { filter: any; listener: any }) => {
-        logger.verbose('resubscribe events', llo({ network, filter: subscription.filter }))
-        provider.on(subscription.filter, subscription.listener)
+    const providerProxy = ProviderModule.providerProxies[network]
+    const provider = providerProxy.provider
+    if (providerProxy.subscriptions.length > 0) {
+      providerProxy.subscriptions.forEach((subscription: { filter: any; listener: any }) => {
+        logger.verbose('Resubscribing to events', llo({ network, filter: subscription.filter }))
+        provider.removeListener(subscription.filter, subscription.listener) // Remove existing listener
+        provider.on(subscription.filter, subscription.listener) // Add listener
       })
     }
   },
 
   isConnectionOpen(network: NetworksEnum) {
-    return (
-      ProviderModule.providerProxies[network].provider?.websocket &&
-      ProviderModule.providerProxies[network].provider?.websocket?.readyState === IWebSocketStatus.OPEN
-    )
+    const provider = ProviderModule.providerProxies[network]?.provider
+    return provider?.websocket && provider.websocket.readyState === IWebSocketStatus.OPEN
   },
 
   async waitForConnection(network: NetworksEnum) {
     while (!ProviderModule.isConnectionOpen(network)) {
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      logger.debug('Waiting for connection to open', llo({ network }))
+      await Utils.wait(1000)
     }
   },
 }
