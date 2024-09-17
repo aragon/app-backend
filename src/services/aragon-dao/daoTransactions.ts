@@ -156,7 +156,7 @@ export const DaoTransactions = {
           pluginAddress,
           fromAddress: tx.from,
           toAddress: tx.to,
-          value: tx.value?.toLocaleString('en', { maximumFractionDigits: token?.decimals || 0 }),
+          value: (BigInt(tx.value || 0) / BigInt(10 ** (token?.decimals || 0))).toString(),
           tokenId: tx.tokenId ? BigInt(tx.tokenId).toString() : undefined,
           erc721TokenId: tx.erc721TokenId ? BigInt(tx.erc721TokenId).toString() : undefined,
           erc1155Metadata: tx.erc1155Metadata?.map(w => ({

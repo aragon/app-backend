@@ -464,7 +464,7 @@ const Web3Helper = {
       )
 
       const token = await ProxyToken.saveAndGetToken(address, network)
-      return BigInt(response).toLocaleString('en', { maximumFractionDigits: token?.decimals || (0 as any) })
+      return (BigInt(response || 0) / BigInt(10 ** (token?.decimals || 0))).toString()
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
       return '0'
@@ -485,9 +485,7 @@ const Web3Helper = {
         ?.map((token: any) => {
           const result: IAlchemyTokenBalance = {
             contractAddress: Web3Helper.parseAddress(token.contractAddress) || token.contractAddress,
-            tokenBalance: BigInt(token.tokenBalance).toLocaleString('en', {
-              maximumFractionDigits: token?.decimals || 0,
-            }),
+            tokenBalance: (BigInt(token.tokenBalance) / BigInt(10 ** (token?.decimals || 0))).toString(),
           }
           return result
         })
