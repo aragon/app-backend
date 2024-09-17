@@ -153,11 +153,11 @@ describe('Model: MemberBalance', () => {
 
   it('should find by findByAddressAndToken', async () => {
     const createdMember = await Models.MemberBalance.create(rawMemberBalance)
-    const member = await Models.MemberBalance.findByAddressAndToken(
-      createdMember.address,
-      createdMember.tokenAddress,
-      createdMember.network,
-    )
+    const member = await Models.MemberBalance.findByAddressAndToken({
+      address: createdMember.address,
+      tokenAddress: createdMember.tokenAddress,
+      network: createdMember.network,
+    })
     expect(member?.address).to.eq(createdMember.address)
   })
 })

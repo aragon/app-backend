@@ -79,7 +79,15 @@ export default class MemberBalance extends Model {
     return await this.findOne({ tokenAddress, network })
   }
 
-  static async findByAddressAndToken(address: HexAddress, tokenAddress: HexAddress, network: NetworksEnum) {
+  static async findByAddressAndToken({
+    address,
+    tokenAddress,
+    network,
+  }: {
+    address: HexAddress
+    tokenAddress: HexAddress
+    network: NetworksEnum
+  }) {
     return await this.findOne({ address, tokenAddress, network })
   }
 

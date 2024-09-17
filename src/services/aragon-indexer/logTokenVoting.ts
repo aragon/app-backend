@@ -9,6 +9,7 @@ import { ProposalHandler } from '@indexer/handlers/proposalHandler'
 import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
+import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
@@ -27,25 +28,51 @@ export const LogTokenVoting = {
       .filter((item: any) => item.type && LogTokenVoting.eventsGovernanceErc20.includes(item.name))
       .map((event: any) => new Interface(GovernanceERC20.abi).getEvent(event.name)?.topicHash)
 
-    const filter = {
+    /**
+     * Plugin Related Events
+     */
+
+    const pluginFilter = {
       address: plugin.address,
       fromBlock: plugin?.blockNumber || 0,
-      topics: [...governanceErc20Topics, ...tokenVotingTopics],
+      topics: [...tokenVotingTopics],
     }
 
-    const crawler = new BlockchainLogCrawler({
+    const pluginCrawler = new BlockchainLogCrawler({
       network: plugin.network,
-      filter,
+      filter: pluginFilter,
       onLog: async (txLog: Log) => LogTokenVoting.processLog(txLog, plugin.network, plugin),
       onError: async (error: any) => LogTokenVoting.processError(error, plugin.network, plugin),
       logService: `TokenVoting-${plugin.network}-${plugin.tokenAddress}`,
       stopOnError: true,
     })
 
-    await crawler.crawl()
+    /**
+     * Governance Token Related Events
+     */
+
+    const token = await Models.Token.findOne({ address: plugin.tokenAddress, network: plugin.network })
+
+    const governanceTokenFilter = {
+      address: token?.address,
+      fromBlock: token?.blockNumber || 0,
+      topics: [...governanceErc20Topics],
+    }
+
+    const governanceTokenCrawler = new BlockchainLogCrawler({
+      network: plugin.network,
+      filter: governanceTokenFilter,
+      onLog: async (txLog: Log) => LogTokenVoting.processLog(txLog, plugin.network, plugin),
+      onError: async (error: any) => LogTokenVoting.processError(error, plugin.network, plugin),
+      logService: `Token-${plugin.network}-${plugin.tokenAddress}`,
+      stopOnError: true,
+    })
+
+    await Promise.all([pluginCrawler.crawl(), governanceTokenCrawler.crawl()])
+
     logger.verbose(
       'End LogTokenVoting',
-      llo({ network: plugin.network, latestBlockSync: crawler.crawlResult.lastSync }),
+      llo({ network: plugin.network, latestBlockSync: pluginCrawler.crawlResult.lastSync }),
     )
   },
 
