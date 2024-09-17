@@ -28,6 +28,7 @@ import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
 import { Multisig } from '@artifacts/Multisig'
 import { ProxyToken } from '@modules/proxyToken'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -464,7 +465,7 @@ const Web3Helper = {
       )
 
       const token = await ProxyToken.saveAndGetToken(address, network)
-      return (BigInt(response || 0) / BigInt(10 ** (token?.decimals || 0))).toString()
+      return utils.handleAlchemyCrazyBalance(response, token?.decimals)
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
       return '0'
@@ -485,7 +486,7 @@ const Web3Helper = {
         ?.map((token: any) => {
           const result: IAlchemyTokenBalance = {
             contractAddress: Web3Helper.parseAddress(token.contractAddress) || token.contractAddress,
-            tokenBalance: (BigInt(token.tokenBalance) / BigInt(10 ** (token?.decimals || 0))).toString(),
+            tokenBalance: utils.handleAlchemyCrazyBalance(token.tokenBalance, token?.decimals),
           }
           return result
         })
