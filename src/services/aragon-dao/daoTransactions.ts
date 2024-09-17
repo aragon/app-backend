@@ -204,6 +204,6 @@ export const DaoTransactions = {
 
   calculateAmountUsd: (rawValue: number, ratePriceUsd: number): string => {
     const amountUsd = Number(rawValue) * Number(ratePriceUsd)
-    return isNaN(amountUsd) ? '0' : amountUsd.toString()
+    return isNaN(amountUsd) ? '0' : amountUsd.toLocaleString('en', { maximumFractionDigits: 2 })
   },
 }
