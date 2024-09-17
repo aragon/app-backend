@@ -143,6 +143,10 @@ export default class Plugin extends Model {
     return await this.findOne({ address, network }, tOpts)
   }
 
+  static async findByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return await this.findOne({ tokenAddress, network }, tOpts)
+  }
+
   static async findActivePluginByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum) {
     return await this.findOne({
       tokenAddress,
