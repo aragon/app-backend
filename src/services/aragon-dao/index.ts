@@ -15,13 +15,13 @@ const DaoSyncService: IService = {
     await RabbitMQHelper.process(EnumQueueName.daoTransactions, 10, async job => {
       const { address, network } = job.params as IQueueDao
 
-      await DaoAssets.start({ daoAddress: address, network })
+      await DaoTransactions.start({ daoAddress: address, network })
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoAssets, 10, async job => {
       const { address, network } = job.params as IQueueDao
 
-      await DaoTransactions.start({ daoAddress: address, network })
+      await DaoAssets.start({ daoAddress: address, network })
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoMetrics, 10, async job => {
