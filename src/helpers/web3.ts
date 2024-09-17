@@ -28,7 +28,6 @@ import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
 import { Multisig } from '@artifacts/Multisig'
 import { ProxyToken } from '@modules/proxyToken'
-import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -51,6 +50,23 @@ const Web3Helper = {
 
   ERC1155_safeTransferFrom: '0xf242432a',
   ERC1155_safeBatchTransferFrom: '0x2eb2c2d6',
+
+  handleAlchemyCrazyBalance(amount: number | string, decimals: number = 0): string {
+    try {
+      const bigIntAmount = BigInt(amount || 0)
+      return (bigIntAmount / BigInt(10 ** decimals)).toString()
+    } catch (error) {
+      logger.error('Error parse to bigint', llo({ error, amount, decimals }))
+    }
+
+    try {
+      return amount.toString()
+    } catch (error) {
+      logger.error('Error parse to string', llo({ error, amount, decimals }))
+    }
+
+    return amount as string
+  },
 
   needToSyncBlockTime(document: any) {
     return !document?.blockTimestamp || document?.blockTimestamp === 0
@@ -465,7 +481,7 @@ const Web3Helper = {
       )
 
       const token = await ProxyToken.saveAndGetToken(address, network)
-      return utils.handleAlchemyCrazyBalance(response, token?.decimals)
+      return Web3Helper.handleAlchemyCrazyBalance(response, token?.decimals)
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
       return '0'
@@ -486,7 +502,7 @@ const Web3Helper = {
         ?.map((token: any) => {
           const result: IAlchemyTokenBalance = {
             contractAddress: Web3Helper.parseAddress(token.contractAddress) || token.contractAddress,
-            tokenBalance: utils.handleAlchemyCrazyBalance(token.tokenBalance, token?.decimals),
+            tokenBalance: Web3Helper.handleAlchemyCrazyBalance(token.tokenBalance, token?.decimals),
           }
           return result
         })
