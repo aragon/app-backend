@@ -99,11 +99,11 @@ export const DaoRegistryHandler = {
     if (plugins.length === 1) {
       await Promise.all(
         plugins.map(async plugin => {
-          /**
-           * Save the member logs that will create the member entry for the dao
-           */
-          await DaoRegistryHandler._memberAdded(txReceipt, info, plugin)
-
+          // /**
+          //  * Save the member logs that will create the member entry for the dao
+          //  */
+          // await DaoRegistryHandler._memberAdded(txReceipt, info, plugin)
+          //
 
           // update the dao as supported
           await DaoRegistryHandler._updateSupportedDao(plugin)
