@@ -156,7 +156,7 @@ export const DaoTransactions = {
           pluginAddress,
           fromAddress: tx.from,
           toAddress: tx.to,
-          value: utils.handleAlchemyCrazyBalance(tx.value, token?.decimals),
+          value: Web3Helper.handleAlchemyCrazyBalance(tx.value || 0, token?.decimals),
           tokenId: tx.tokenId ? BigInt(tx.tokenId).toString() : undefined,
           erc721TokenId: tx.erc721TokenId ? BigInt(tx.erc721TokenId).toString() : undefined,
           erc1155Metadata: tx.erc1155Metadata?.map(w => ({
