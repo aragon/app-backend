@@ -142,6 +142,8 @@ export const DaoTransactions = {
       }
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), dao.network)
+      const tokenAddress = tx.rawContract?.address || utils.zeroAddress
+      const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)
 
       await DbTx.executeTxFn(async ({ session }) => {
         const rawTx: Partial<Transaction> = {
@@ -154,7 +156,7 @@ export const DaoTransactions = {
           pluginAddress,
           fromAddress: tx.from,
           toAddress: tx.to,
-          value: tx.value?.toString(),
+          value: tx.value?.toLocaleString('en', { maximumFractionDigits: token?.decimals || 0 }),
           tokenId: tx.tokenId ? BigInt(tx.tokenId).toString() : undefined,
           erc721TokenId: tx.erc721TokenId ? BigInt(tx.erc721TokenId).toString() : undefined,
           erc1155Metadata: tx.erc1155Metadata?.map(w => ({
@@ -164,9 +166,6 @@ export const DaoTransactions = {
           category: tx.category,
           proposalIndex,
         }
-
-        const tokenAddress = tx.rawContract?.address || utils.zeroAddress
-        const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)
 
         if (token?.address) {
           rawTx.tokenAddress = token.address
