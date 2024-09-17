@@ -14,11 +14,12 @@ import { RabbitMQHelper } from '@helpers/redditMQ'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:GovernanceErc20Handler' })
 
 export const GovernanceErc20Handler = {
+  // TODO: fix the fucking plugin
   // is trigger once for all user - (from user increase balance and 1 user decrease balance)
   transfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
     // when realtime the plugin is undefined, check if related to aragon dao
     if (!plugin) {
-      plugin = await Models.Plugin.findByAddress(info.address, info.network)
+      plugin = await Models.Plugin.findByTokenAddress(info.address, info.network)
       if (!plugin) return
     }
 
@@ -37,7 +38,7 @@ export const GovernanceErc20Handler = {
   delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
     // when realtime the plugin is undefined, check if related to aragon dao
     if (!plugin) {
-      plugin = await Models.Plugin.findByAddress(info.address, info.network)
+      plugin = await Models.Plugin.findByTokenAddress(info.address, info.network)
       if (!plugin) return
     }
 
