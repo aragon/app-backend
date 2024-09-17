@@ -2,9 +2,6 @@ import { type HexAddress, type IPermission, NetworksEnum } from '@types'
 import { assert } from '@errors'
 import async from 'async'
 import dayjs from '@helpers/dayjs'
-import logger from '@logger'
-
-const llo = logger.logMeta.bind(null, { service: 'Utils' })
 
 const Utils = {
   noop: (): number => 0,
@@ -279,16 +276,6 @@ const Utils = {
       return
     }
     return Number(value)
-  },
-
-  handleAlchemyCrazyBalance: (amount: number | string, decimals: number = 0) => {
-    try {
-      const bigIntAmount = BigInt(amount || 0)
-      return (bigIntAmount / BigInt(10 ** decimals)).toString()
-    } catch (error) {
-      logger.error('Error handling Alchemy crazy balance', llo({ error, amount, decimals }))
-      return amount
-    }
   },
 }
 
