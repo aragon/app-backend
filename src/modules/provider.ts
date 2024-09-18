@@ -136,14 +136,14 @@ const ProviderModule = {
     // Store the wrapped listener
     providerProxy.subscriptions.push({ filter, listener: wrappedListener })
 
-    const provider = providerProxy.provider
-    provider.on(filter, wrappedListener)
+    const provider = providerProxy?.provider
+    provider?.on(filter, wrappedListener)
   },
 
   async closeAllNetworks() {
     for (const network in ProviderModule.providerProxies) {
       const providerProxy = ProviderModule.providerProxies[network]
-      const provider = providerProxy.provider
+      const provider = providerProxy?.provider
       if (provider) {
         provider.removeAllListeners()
         if (provider.destroy) {
@@ -175,8 +175,8 @@ const ProviderModule = {
 
   resubscribeEvents(network: NetworksEnum) {
     const providerProxy = ProviderModule.providerProxies[network]
-    const provider = providerProxy.provider
-    if (providerProxy.subscriptions.length > 0) {
+    const provider = providerProxy?.provider
+    if (providerProxy?.subscriptions?.length > 0) {
       providerProxy.subscriptions.forEach((subscription: { filter: any; listener: any }) => {
         logger.verbose('Resubscribing to events', llo({ network, filter: subscription.filter }))
         provider.removeListener(subscription.filter, subscription.listener) // Remove existing listener
