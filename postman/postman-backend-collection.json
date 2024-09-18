@@ -2453,7 +2453,7 @@
 					]
 				},
 				{
-					"name": "get votes Copy",
+					"name": "can Vote",
 					"event": [
 						{
 							"listen": "test",
@@ -2636,15 +2636,25 @@
 						"disableBodyPruning": true
 					},
 					"request": {
-						"method": "GET",
+						"method": "POST",
 						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pluginAddress\":\"0x178F5a2D2Ae45de04E9247039D6d039dcc7821E1\",\n    \"network\": \"ethereum-sepolia\",\n    \"memberAddress\": \"0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449\",\n    \"proposalIndex\": 44\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
 						"url": {
-							"raw": "{{host}}/votes?includeInfo=true",
+							"raw": "{{host}}/votes/can-vote",
 							"host": [
 								"{{host}}"
 							],
 							"path": [
-								"votes"
+								"votes",
+								"can-vote"
 							],
 							"query": [
 								{
@@ -2727,10 +2737,6 @@
 									"key": "proposalId",
 									"value": "<string>",
 									"disabled": true
-								},
-								{
-									"key": "includeInfo",
-									"value": "true"
 								}
 							]
 						}
