@@ -1,8 +1,9 @@
-import { IPluginAction, IPluginSubdomain, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 
 export const DaoList = [
   {
-    network: NetworksEnum.ethereumMainnet,
+    isActive: true,
+    network: NetworksEnum.polygonMainnet,
     transactionHash: '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9c',
     blockNumber: 1677529415,
     address: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
@@ -15,19 +16,10 @@ export const DaoList = [
     name: 'management',
     description: 'management',
     avatar: null,
-    links: [],
-    plugins: [
+    links: [
       {
-        transactionHash: '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9a',
-        blockNumber: 1677529410,
-        action: IPluginAction.install,
-        subdomain: IPluginSubdomain.token,
-        address: '0x4423f3a76d2090e1388cb67fb7b2ae162f754281',
-        implementationAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-        tokenAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-        pluginSetupRepoAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-        release: '1',
-        build: '2',
+        name: 'Website',
+        url: 'https://management.com/',
       },
     ],
     tvlUSD: 0,
@@ -38,10 +30,11 @@ export const DaoList = [
       uniqueVoters: 4,
       votes: 7,
     },
-    hideDao: false,
+    isHidden: false,
     createdAt: '2023-02-27T20:23:35.000Z',
   },
   {
+    isActive: true,
     network: NetworksEnum.ethereumMainnet,
     transactionHash: '0xf982eeb27979afda22ba06613e52bf0e164a56a9d8d949b19878830097987303',
     blockNumber: 1677697751,
@@ -66,20 +59,6 @@ export const DaoList = [
         url: 'https://twitter.com/sio_eth',
       },
     ],
-    plugins: [
-      {
-        transactionHash: '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9a',
-        blockNumber: 1677529410,
-        address: '0x0673c13d48023efa609c20e5e351763b99dd67de',
-        implementationAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-        release: '1',
-        build: '2',
-        action: IPluginAction.install,
-        subdomain: IPluginSubdomain.multisig,
-        tokenAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-        pluginSetupRepoAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-      },
-    ],
     metrics: {
       members: 15,
       proposalsCreated: 1,
@@ -88,10 +67,11 @@ export const DaoList = [
       votes: 1,
     },
     tvlUSD: 0,
-    hideDao: false,
+    isHidden: false,
     createdAt: '2023-03-01T19:09:11.000Z',
   },
   {
+    isActive: true,
     network: NetworksEnum.ethereumMainnet,
     transactionHash: '0x8c325e119c9728b60094a13cdc76a06a3821364259596dc968b60c31010e4988',
     blockNumber: 1677589847,
@@ -106,20 +86,6 @@ export const DaoList = [
     description: 'barukimang\n',
     avatar: null,
     links: [],
-    plugins: [
-      {
-        transactionHash: '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9a',
-        blockNumber: 1677529410,
-        address: '0x563ebb4972bb6fabb1128c5895a31b6fac2f6e14',
-        implementationAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-        release: '1',
-        build: '2',
-        action: IPluginAction.install,
-        subdomain: IPluginSubdomain.multisig,
-        tokenAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-        pluginSetupRepoAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-      },
-    ],
     metrics: {
       members: 15,
       proposalsCreated: 12,
@@ -128,7 +94,7 @@ export const DaoList = [
       votes: 7,
     },
     tvlUSD: 56.653524513813046,
-    hideDao: false,
+    isHidden: false,
     createdAt: '2023-02-28T13:10:47.000Z',
   },
   {
@@ -142,20 +108,6 @@ export const DaoList = [
     subdomain: 'giveth',
     members: 2,
     metadataIpfs: 'ipfs://QmNitNJ28bKL8rg7qQqeZKG3EXsnv3a3Qb3dDsn3Y82WaT',
-    plugins: [
-      {
-        transactionHash: '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9a',
-        blockNumber: 1677529410,
-        address: '0xabcc395dd4533b4e787b1318fc6d16ec8e62facb',
-        implementationAddress: '0xabcc395dd4533b4e787b1318fc6d16ec8e62fac0',
-        release: '2',
-        build: '2',
-        action: IPluginAction.install,
-        subdomain: IPluginSubdomain.token,
-        tokenAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-        pluginSetupRepoAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-      },
-    ],
     metrics: {
       members: 15,
       proposalsCreated: 0,
@@ -164,7 +116,7 @@ export const DaoList = [
       votes: 0,
     },
     tvlUSD: 0,
-    hideDao: false,
+    isHidden: false,
     createdAt: '2023-02-28T22:38:59.000Z',
   },
   {
@@ -188,20 +140,6 @@ export const DaoList = [
         url: 'http://www.totalgroup.com.my',
       },
     ],
-    plugins: [
-      {
-        transactionHash: '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9a',
-        blockNumber: 1677529410,
-        address: '0x0',
-        implementationAddress: '0x1',
-        release: '2',
-        build: '2',
-        action: IPluginAction.install,
-        subdomain: IPluginSubdomain.token,
-        tokenAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-        pluginSetupRepoAddress: '0x4423f3a76d2090e1388cb67fb7b2ae162f754280',
-      },
-    ],
     metrics: {
       members: 15,
       proposalsCreated: 2,
@@ -210,7 +148,7 @@ export const DaoList = [
       votes: 2,
     },
     tvlUSD: 424.81185800142185,
-    hideDao: false,
+    isHidden: false,
     createdAt: '2023-05-08T07:13:59.000Z',
   },
 ]

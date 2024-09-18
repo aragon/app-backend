@@ -1,40 +1,36 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import SettingController from '@api/controllers/setting'
 import Setting from '@models/schema/setting'
 import PairDataModule from '@modules/pairData'
+import { fakeSettings } from '@test/mock/fakeSettings'
+import { FakeToken } from '@test/mock/fakeToken'
+import Token from '@models/schema/token'
 
 describe('Controller: Setting', () => {
   let sandbox: SinonSandbox
   let rawSetting: Partial<Setting>
+  let rawToken: Partial<Token>
+
   let settingDb: Setting
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    rawSetting = {
-      daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
-      pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
-      network: NetworksEnum.polygonMainnet,
-      fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef8',
-      toTxHash: '0x11ed65ce6ba3dbed7194ead9d3ffdfafdb921f39b1e55bd5139f0277ea219083',
-      fromBlockNumber: 47758873,
-      toBlockNumber: 48097896,
-      settings: {
-        votingMode: 1,
-        supportThreshold: 500000,
-        minParticipation: 150000,
-        minDuration: 86400,
-        minProposerVotingPower: '5e+18',
-
-        minApprovals: 1,
-        onlyListed: true,
-      },
+    rawToken = {
+      ...(FakeToken as any),
     }
-    settingDb = await Models.Setting.create(rawSetting)
+
+    rawSetting = {
+      ...(fakeSettings as any),
+      tokenAddress: rawToken.address,
+    }
+
+    await Promise.all([Models.Token.create(rawToken), Models.Setting.create(rawSetting)])
+
+    settingDb = (await Models.Setting.findOne({})) as Setting
   })
 
   afterEach(() => {
@@ -52,9 +48,9 @@ describe('Controller: Setting', () => {
       }
 
       const filterParams: any = {
-        network: rawSetting.daos?.[0].network,
-        daoAddress: rawSetting.daos?.[0].daoAddress,
-        pluginAddress: rawSetting.daos?.[0].pluginAddress,
+        network: rawSetting.network,
+        daoAddress: rawSetting.daoAddress,
+        pluginAddress: rawSetting.pluginAddress,
       }
 
       const spyReq = sandbox.spy(Models.Setting, 'findWithPagination')
@@ -79,7 +75,8 @@ describe('Controller: Setting', () => {
       expect(response.data[0].daoAddress).to.eq(rawSetting.daoAddress)
       expect(response.data[0].pluginAddress).to.eq(rawSetting.pluginAddress)
       expect(response.data[0].network).to.eq(rawSetting.network)
-      expect(response.data[0].settings.votingMode).to.eq(rawSetting.settings?.votingMode)
+      expect(response.data[0].votingMode).to.eq(rawSetting?.votingMode)
+      expect(response.data[0].tokenAddress).to.eq(rawSetting.tokenAddress)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -166,7 +163,7 @@ describe('Controller: Setting', () => {
       expect(response.data[0].daoAddress).to.eq(rawSetting.daoAddress)
       expect(response.data[0].pluginAddress).to.eq(rawSetting.pluginAddress)
       expect(response.data[0].network).to.eq(rawSetting.network)
-      expect(response.data[0].settings.votingMode).to.eq(rawSetting.settings?.votingMode)
+      expect(response.data[0].votingMode).to.eq(rawSetting.votingMode)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -194,73 +191,6 @@ describe('Controller: Setting', () => {
 
       expect(spyReq.calledOnce).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
-    })
-  })
-
-  describe('getActiveSettingByDaoId', () => {
-    it('should getActiveSettingByDaoAddress', async () => {
-      const newSettingDb = await Models.Setting.create({
-        daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
-        pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
-        network: NetworksEnum.polygonMainnet,
-        fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef0',
-        fromBlockNumber: 47758873,
-        settings: {
-          votingMode: 1,
-          supportThreshold: 500000,
-          minParticipation: 150000,
-          minDuration: 86400,
-          minProposerVotingPower: '5e+18',
-
-          minApprovals: 1,
-          onlyListed: true,
-        },
-      })
-
-      sandbox
-        .stub(Models.Dao, 'findByEntityId')
-        .resolves({ network: newSettingDb.network, address: newSettingDb.daoAddress })
-      const setting = await SettingController.getActiveSettingByDaoId(settingDb.id)
-      expect(setting.id).to.eq(newSettingDb.id)
-    })
-
-    it('should fail to getActiveSettingByDaoAddress', async () => {
-      sandbox.stub(Models.Setting, 'findActiveByDaoAddress').resolves(null)
-      await expect(
-        SettingController.getActiveSettingByDaoAddress(settingDb.daoAddress, settingDb.network),
-      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
-    })
-  })
-
-  describe('getActiveSettingByDaoAddress', () => {
-    it('should getActiveSettingByDaoAddress', async () => {
-      const newSettingDb = await Models.Setting.create({
-        daoAddress: '0x6C25Eb70F88E50a3f455f4C60d36D720cC037BEE',
-        pluginAddress: '0xE567419Db18d97D9cbBCA4Bb9eA566758Dc6d251',
-        network: NetworksEnum.polygonMainnet,
-        fromTxHash: '0xcf464fc9ad56b1ae8544c9d31c66dfc90c45f72c12bcb389c494db7633bcaef0',
-        fromBlockNumber: 47758873,
-        settings: {
-          votingMode: 1,
-          supportThreshold: 500000,
-          minParticipation: 150000,
-          minDuration: 86400,
-          minProposerVotingPower: '5e+18',
-
-          minApprovals: 1,
-          onlyListed: true,
-        },
-      })
-
-      const setting = await SettingController.getActiveSettingByDaoAddress(settingDb.daoAddress, settingDb.network)
-      expect(setting.id).to.eq(newSettingDb.id)
-    })
-
-    it('should fail to getActiveSettingByDaoAddress', async () => {
-      sandbox.stub(Models.Setting, 'findActiveByDaoAddress').resolves(null)
-      await expect(
-        SettingController.getActiveSettingByDaoAddress(settingDb.daoAddress, settingDb.network),
-      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
     })
   })
 })

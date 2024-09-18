@@ -9,9 +9,8 @@ import Utils from '@helpers/utils'
 
 const SettingRouter = {
   getWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'amountUsd' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockNumber' })
     const extraParams: ISettingExtraParams = {
-      onlyActive: Utils.parseBoolean(ctx.query.onlyActive),
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,

@@ -9,13 +9,14 @@ import Utils from '@helpers/utils'
 
 const ProposalRouter = {
   getWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'proposalId' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'proposalIndex' })
     const extraParams: IProposalExtraParams = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       creatorAddress: ctx.query.creatorAddress as HexAddress,
       daoInfo: Utils.parseBoolean(ctx.query.daoInfo),
+      proposalIndex: Utils.parseNumber(ctx.query.proposalIndex),
     }
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
@@ -53,24 +54,6 @@ const ProposalRouter = {
     ctx.body = await ProposalController.getProposalById(formattedValues.id)
   },
 
-  getProposalByTransactionHash: async function (ctx: RouterContext) {
-    const params = {
-      network: ctx.params.network,
-      transactionHash: ctx.params.transactionHash,
-    }
-    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
-
-    const [formattedValues] = await Promise.all([
-      ValidationSchema.validateParams(ProposalSchema.getProposalByTransactionHash, params),
-      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
-    ])
-
-    ctx.body = await ProposalController.getProposalByTransactionHash(
-      formattedValues.transactionHash,
-      formattedValues.network,
-    )
-  },
-
   router() {
     const router = new Router()
 
@@ -94,16 +77,6 @@ const ProposalRouter = {
      * @apiSampleRequest /:id
      */
     router.get('/:id', ProposalRouter.getProposalById)
-
-    /**
-     * @api {get} /:network/:transactionHash Get Proposal by transactionHash
-     * @apiName Proposals
-     * @apiGroup Proposals
-     * @apiDescription Get Proposal by transactionHash
-     *
-     * @apiSampleRequest /:network/:transactionHash
-     */
-    router.get('/:network/:transactionHash', ProposalRouter.getProposalByTransactionHash)
 
     return router
   },

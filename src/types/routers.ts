@@ -1,7 +1,8 @@
 import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 import { type ITokenType } from '@src/types/token'
-import { type IPluginAction, type IPluginSubdomain } from '@src/types/plugin'
+import { type IPluginSubdomain } from '@src/types/plugin'
 import { type IActionMetadata } from '@src/types/proposalAction'
+import { type ITransferSide, type ITransferType } from '@src/types/transfer'
 
 export interface IStatusResponse {
   status: string
@@ -17,9 +18,18 @@ export interface IDelegatesResponse {
   network: NetworksEnum
   transactionHash: HexAddress
   blockNumber: number
-  tokenAddress: HexAddress
-  fromDelegate: HexAddress
-  toDelegate: HexAddress
+  from: {
+    address: HexAddress
+    ens: ENS
+    avatar: string
+  }
+  to: {
+    address: HexAddress
+    ens: ENS
+    avatar: string
+  }
+  side: ITransferSide
+  type: ITransferType
   pluginAddress: HexAddress
   daoAddress: HexAddress
   amount: string
@@ -45,9 +55,9 @@ export interface IMembersResponse {
   tokenAddress: HexAddress
   daoAddress: HexAddress
   votingPower?: string
-  firstActivity?: number
-  lastActivity?: number
   metrics: {
+    firstActivity?: number
+    lastActivity?: number
     delegateReceivedCount: number
     delegateSentCount: number
     voteCount: number
@@ -91,7 +101,7 @@ export interface IDaoResponse {
     votes: number
     members: number
   }
-  hideDao: boolean
+  isHidden: boolean
 }
 
 export interface IPluginResponse {
@@ -117,17 +127,16 @@ export interface ISettingResponse {
   fromBlockNumber: number
   toBlockNumber: number
   daoAddress: HexAddress
+  tokenAddress: HexAddress
   pluginAddress: HexAddress
   network: NetworksEnum
-  settings: {
-    minApprovals?: number
-    onlyListed?: boolean
-    votingMode?: number
-    supportThreshold?: number
-    minParticipation?: number
-    minDuration?: number
-    minProposerVotingPower?: string
-  }
+  minApprovals?: number
+  onlyListed?: boolean
+  votingMode?: number
+  supportThreshold?: number
+  minParticipation?: number
+  minDuration?: number
+  minProposerVotingPower?: string
 }
 
 export interface IVoteResponse {
@@ -138,7 +147,11 @@ export interface IVoteResponse {
   pluginAddress: HexAddress
   daoAddress: HexAddress
   proposalId: number
-  memberAddress: HexAddress
+  member: {
+    address: HexAddress
+    ens: ENS
+    avatar: string
+  }
   voteOption?: number
   votingPower?: string
   token: {
@@ -201,7 +214,6 @@ export interface IProposalsResponse {
     textSignature: string
     decoded: any[]
     contractName: string
-    type: IPluginAction
     metadata: IActionMetadata
   }
   media: {

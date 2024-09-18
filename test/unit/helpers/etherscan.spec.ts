@@ -187,7 +187,6 @@ describe('Helpers: Etherscan', () => {
 
     it('should return an empty array if the network is not configured', async () => {
       const rpcCallStub = sandbox.stub(EtherscanHelper, '_rpCall').throws(new Error('Network not configured'))
-      const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await EtherscanHelper.fetchContractCreation({
         contractAddress: '0x123',
@@ -196,14 +195,11 @@ describe('Helpers: Etherscan', () => {
 
       expect(result).to.deep.equal([])
       expect(rpcCallStub.calledOnce).to.be.true
-      expect(loggerStub.calledOnce).to.be.true
-      expect(loggerStub.args[0][0]).to.include('Error fetchAllTransactions')
     })
 
     it('should handle errors when fetching contract creation fails', async () => {
       const expectedError = new Error('Failed to fetch contract creation')
       sandbox.stub(EtherscanHelper, '_rpCall').rejects(expectedError)
-      const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await EtherscanHelper.fetchContractCreation({
         contractAddress: '0x123',
@@ -211,8 +207,6 @@ describe('Helpers: Etherscan', () => {
       })
 
       expect(result).to.deep.equal([])
-      expect(loggerStub.calledOnce).to.be.true
-      expect(loggerStub.args[0][0]).to.include('Error fetchAllTransactions')
     })
   })
 })

@@ -1,50 +1,27 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
+  ICollectionNames,
+  type IPaginatedResult,
+  type IPaginationParams,
   type IVoteExtraParams,
   type IVoteIdParams,
   type IVoteResponse,
-  type IPaginatedResult,
-  type IPaginationParams,
   NetworksEnum,
-  ITokenType,
-  type IMemberVoteMetrics,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
-const customName = 'Vote'
-
-class Token {
-  @prop({ type: () => String, enum: NetworksEnum })
-  public network!: NetworksEnum
-
-  @prop({ type: () => String, enum: ITokenType, required: true })
-  public type!: ITokenType
-
-  @prop({ type: () => String, required: true })
-  public address!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public logo!: string
-
-  @prop({ type: () => String, default: null })
-  public name!: string
-
-  @prop({ type: () => String, default: null, uppercase: true })
-  public symbol!: string
-
-  @prop({ type: () => Number, default: 18 })
-  public decimals!: number
-}
+const customName = ICollectionNames.Vote
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'vote',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -58,7 +35,6 @@ class Token {
   daoAddress: 1,
   pluginAddress: 1,
   memberAddress: 1,
-  'token.address': 1,
 })
 export default class Vote extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -68,10 +44,16 @@ export default class Vote extends Model {
   public transactionHash!: HexAddress
 
   @prop({ type: () => Number, required: true })
+  public transactionIndex!: number
+
+  @prop({ type: () => Number, required: true })
+  public logIndex!: number
+
+  @prop({ type: () => Number, required: true })
   public blockNumber!: number
 
   @prop({ type: () => Number })
-  public blockTimestamp!: number
+  public blockTimestamp?: number
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -85,11 +67,11 @@ export default class Vote extends Model {
   @prop({ type: () => String, required: true })
   public memberAddress!: HexAddress
 
-  @prop({ type: () => Number })
-  public proposalId!: number
+  @prop({ type: () => String, default: null })
+  public tokenAddress!: HexAddress
 
-  @prop({ type: () => Token, _id: false, default: null })
-  public token?: Token
+  @prop({ type: () => Number })
+  public proposalIndex!: number
 
   @prop({ type: () => Number })
   public voteOption?: number
@@ -97,17 +79,20 @@ export default class Vote extends Model {
   @prop({ type: () => String, default: null })
   public votingPower?: string
 
+  @prop({ type: () => String, default: null })
+  public replacedTransactionHash!: HexAddress
+
   static async create(rawData: Partial<Vote>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'pluginAddress is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
-      assert(!!rawData.pluginAddress, 'pluginAddress is required')
-      assert(!!rawData.proposalId || rawData.proposalId === 0, 'proposalId is required')
+      assert(!!rawData.transactionIndex || rawData.transactionIndex === 0, 'transactionIndex is required')
+      assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
       rawData.id = this.getEntityId({
         network: rawData?.network!,
         transactionHash: rawData?.transactionHash!,
-        pluginAddress: rawData?.pluginAddress!,
-        proposalId: rawData?.proposalId!,
+        transactionIndex: rawData?.transactionIndex!,
+        logIndex: rawData?.logIndex!,
       })
     }
     const data = new this(rawData)
@@ -115,7 +100,7 @@ export default class Vote extends Model {
   }
 
   static getEntityId(params: IVoteIdParams) {
-    const entityId = `${params.network}-${params.transactionHash}-${params.pluginAddress}-${params.proposalId}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}`
     return entityId
   }
 
@@ -128,84 +113,28 @@ export default class Vote extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
-  static async findMemberActivity(memberAddress: HexAddress) {
-    const metrics = await this.aggregate([
-      {
-        $facet: {
-          votes: [
-            {
-              $match: {
-                memberAddress,
-              },
-            },
-            {
-              $group: {
-                _id: { memberAddress: '$memberAddress', network: '$network' },
-                firstActivity: { $min: '$blockNumber' },
-                lastActivity: { $max: '$blockNumber' },
-              },
-            },
-            {
-              $project: {
-                address: '$_id.memberAddress',
-                network: '$_id.network',
-                firstActivity: 1,
-                lastActivity: 1,
-              },
-            },
-          ],
-          proposals: [
-            {
-              $match: {
-                creatorAddress: memberAddress,
-              },
-            },
-            {
-              $group: {
-                _id: { creatorAddress: '$creatorAddress', network: '$network' },
-                firstActivity: { $min: '$blockNumber' },
-                lastActivity: { $max: '$blockNumber' },
-              },
-            },
-            {
-              $project: {
-                address: '$_id.creatorAddress',
-                network: '$_id.network',
-                firstActivity: 1,
-                lastActivity: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $project: {
-          activities: {
-            $concatArrays: ['$votes', '$proposals'],
-          },
-        },
-      },
-      {
-        $unwind: '$activities',
-      },
-      {
-        $group: {
-          _id: { address: '$activities.address', network: '$activities.network' },
-          firstActivity: { $min: '$activities.firstActivity' },
-          lastActivity: { $max: '$activities.lastActivity' },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          address: '$_id.address',
-          network: '$_id.network',
-          firstActivity: 1,
-          lastActivity: 1,
-        },
-      },
-    ])
-    return metrics?.[0] as IMemberVoteMetrics
+  static async findVotes({
+    proposalIndex,
+    pluginAddress,
+    network,
+  }: {
+    proposalIndex: number
+    pluginAddress: HexAddress
+    network: NetworksEnum
+  }) {
+    return await this.find({ proposalIndex, pluginAddress, network })
+  }
+
+  static async findVoteOnPlugin({
+    memberAddress,
+    pluginAddress,
+    network,
+  }: {
+    memberAddress: HexAddress
+    pluginAddress: HexAddress
+    network: NetworksEnum
+  }) {
+    return await this.findOne({ memberAddress, pluginAddress, network })
   }
 
   static async findWithPagination({
@@ -218,7 +147,7 @@ export default class Vote extends Model {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
       Object.entries(extraParams).filter(
-        ([key, value]) => value !== undefined && key !== 'tokenAddress' && key !== 'includeInfo',
+        ([key, value]) => key !== 'includeInfo' && value !== undefined, // Exclude keys with undefined values
       ),
     )
 
@@ -227,29 +156,76 @@ export default class Vote extends Model {
       ...dynamicFilter,
     }
 
-    if (extraParams.tokenAddress) {
-      filter['token.address'] = extraParams.tokenAddress
-    }
-
-    // make the aggregation query better
-    let query: any = [
+    const query: any = [
       {
         $match: filter,
+      },
+      AggregationQueryHelper.token({ address: '$tokenAddress', network: '$network' }, 'token', {
+        _id: 0,
+        network: 1,
+        address: 1,
+        symbol: 1,
+        name: 1,
+        decimals: 1,
+        logo: 1,
+        type: 1,
+      }),
+      {
+        $addFields: {
+          token: { $arrayElemAt: ['$token', 0] },
+        },
+      },
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$memberAddress',
+        },
+        'member',
+        {
+          address: 1,
+          ens: 1,
+          avatar: 1,
+        },
+      ),
+      {
+        $addFields: {
+          member: {
+            $cond: {
+              if: { $gt: [{ $size: '$member' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$member.address', 0] },
+                ens: { $arrayElemAt: ['$member.ens', 0] },
+                avatar: { $arrayElemAt: ['$member.avatar', 0] },
+              },
+              else: {
+                address: '$memberAddress',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          memberAddress: '$$REMOVE',
+        },
       },
     ]
 
     if (extraParams.includeInfo) {
-      query = [
-        ...query,
+      query.push(
         {
           $lookup: {
-            from: 'logProposalMetadata',
-            let: { pId: '$proposalId', pluginAddr: '$pluginAddress' },
+            from: 'Proposal',
+            let: { proposalIndex: '$proposalIndex', pluginAddress: '$pluginAddress' },
             pipeline: [
               {
                 $match: {
                   $expr: {
-                    $and: [{ $eq: ['$proposalId', '$$pId'] }, { $eq: ['$pluginAddress', '$$pluginAddr'] }],
+                    $and: [
+                      { $eq: ['$proposalIndex', '$$proposalIndex'] },
+                      { $eq: ['$pluginAddress', '$$pluginAddress'] },
+                    ],
                   },
                 },
               },
@@ -257,7 +233,8 @@ export default class Vote extends Model {
                 $project: {
                   _id: 0,
                   id: 1,
-                  proposalId: 1,
+                  transactionHash: 1,
+                  proposalIndex: 1,
                   title: 1,
                   description: 1,
                   summary: 1,
@@ -272,26 +249,26 @@ export default class Vote extends Model {
         },
         {
           $addFields: {
-            proposalInfo: {
-              $arrayElemAt: ['$proposalDetails', 0],
-            },
+            proposal: { $arrayElemAt: ['$proposalDetails', 0] },
           },
         },
-      ]
+      )
     }
 
-    query = [
-      ...query,
-      {
-        $project: {
-          createdAt: 0,
-          updatedAt: 0,
-          __v: 0,
-          _id: 0,
-          proposalDetails: 0,
-        },
+    query.push({
+      $project: {
+        _id: 0,
+        transactionHash: 1,
+        blockNumber: 1,
+        blockTimestamp: 1,
+        network: 1,
+        member: 1,
+        proposalIndex: 1,
+        votingPower: 1,
+        token: 1,
+        proposal: 1,
       },
-    ]
+    })
 
     const currentPage = request.skip / request.limit + 1
     const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
@@ -338,12 +315,5 @@ export default class Vote extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
-  }
-
-  filterKeys() {
-    const obj = this.toObject()
-    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
-    filtered.token = filtered.token ? _.omit(filtered.token, 'id', '_id', '__v') : undefined
-    return filtered
   }
 }

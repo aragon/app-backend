@@ -22,8 +22,8 @@ describe('Router: Setting', () => {
         network: NetworksEnum.ethereumMainnet,
         daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
-        onlyActive: true,
       }
+
       const paginationParams = {
         pageSize: 10,
         page: 1,
@@ -80,7 +80,7 @@ describe('Router: Setting', () => {
         endDate: undefined,
         startDate: undefined,
         search: undefined,
-        sort: 'amountUsd',
+        sort: 'blockNumber',
       }
 
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
@@ -88,7 +88,6 @@ describe('Router: Setting', () => {
         network: undefined,
         daoAddress: undefined,
         pluginAddress: undefined,
-        onlyActive: undefined,
       })
       expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
@@ -125,7 +124,7 @@ describe('Router: Setting', () => {
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
         ...filterParams,
-        ...{ daoAddress: undefined, pluginAddress: undefined, onlyActive: undefined },
+        ...{ daoAddress: undefined, pluginAddress: undefined },
       })
     })
   })

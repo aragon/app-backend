@@ -2,14 +2,12 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import RatesService from '@services/aragon-rates/index'
-import { FetchRates } from '@services/aragon-rates/fetchRates'
 import config from '@config'
 import utils from '@helpers/utils'
 import { EnumConnection } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import logger from '@logger'
-import { DaoAssets } from '@rates/daoAsset'
-import { DaoTransactions } from '@rates/daoTransaction'
+import { FetchRates } from '@services/aragon-rates/fetchRates'
 
 describe('Rates: index', () => {
   let sandbox: SinonSandbox
@@ -31,11 +29,7 @@ describe('Rates: index', () => {
     const configBk = config.SERVICES.ARAGON_RATES.RATES_INTERVAL
     config.SERVICES.ARAGON_RATES.RATES_INTERVAL = 200
 
-    const taskStubs = [
-      sandbox.stub(FetchRates, 'start').resolves(),
-      sandbox.stub(DaoAssets, 'start').resolves(),
-      sandbox.stub(DaoTransactions, 'start').resolves(),
-    ]
+    const taskStubs = [sandbox.stub(FetchRates, 'start').resolves()]
 
     await RatesService.start()
     await utils.wait(100)

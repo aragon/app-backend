@@ -14,9 +14,10 @@ services:
       - mongo1
       - mongo2
       - mongo3
+      - rabbitmq
     env_file:
       - ./docker.env
-    command: bash -c 'yarn wait:db & wait && yarn service:aragon-api'
+    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-api'
 
   service-aragon-indexer:
     build:
@@ -28,6 +29,18 @@ services:
     env_file:
       - ./docker.env
     command: bash -c 'yarn wait:db & wait && yarn service:aragon-indexer'
+
+  service-aragon-dao:
+    build:
+      context: ./
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+      - rabbitmq
+    env_file:
+      - ./docker.env
+    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-dao'
 
   service-aragon-rates:
     build:
@@ -41,6 +54,16 @@ services:
     command: bash -c 'yarn wait:db & wait && yarn service:aragon-rates'
 
   ### Dependencies
+
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # Port for RabbitMQ
+      - "15672:15672" # Port for RabbitMQ Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: user # default username
+      RABBITMQ_DEFAULT_PASS: password # default password
 
   mongo1:
     image: mongo:7.0.0

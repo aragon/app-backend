@@ -1,10 +1,11 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
+  ICollectionNames,
   type IPaginationParams,
   type ISettingExtraParams,
   type ISettingIdParams,
-  ITokenType,
+  ISettingStatus,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
@@ -12,35 +13,64 @@ import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
-const customName = 'Setting'
+const customName = ICollectionNames.Setting
 
-class Token {
-  @prop({ type: () => String, enum: NetworksEnum })
-  public network!: NetworksEnum
-
-  @prop({ type: () => String, enum: ITokenType, required: true })
-  public type!: ITokenType
+@modelOptions({
+  schemaOptions: {
+    id: false,
+    timestamps: true,
+    collection: customName,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
+  options: {
+    customName,
+  },
+})
+@index({
+  pluginAddress: 1,
+  blockNumber: 1,
+})
+export default class Setting extends Model {
+  @prop({ type: () => String, required: true, unique: true })
+  public id!: string
 
   @prop({ type: () => String, required: true })
-  public address!: HexAddress
+  public transactionHash!: HexAddress
+
+  @prop({ type: () => Number, required: true })
+  public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public inactiveAtBlockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
+
+  @prop({ type: () => String, enum: NetworksEnum, required: true })
+  public network!: NetworksEnum
+
+  @prop({ type: () => String, enum: ISettingStatus, required: true })
+  public status!: ISettingStatus
 
   @prop({ type: () => String, default: null })
-  public logo!: string
+  public daoAddress!: HexAddress
+
+  @prop({ type: () => String, required: true })
+  public pluginAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public name!: string
+  public pluginSubdomain!: string
 
-  @prop({ type: () => String, default: null, uppercase: true })
-  public symbol!: string
+  @prop({ type: () => String, default: null })
+  public tokenAddress!: HexAddress // voting token address
 
-  @prop({ type: () => Number, default: 18 })
-  public decimals!: number
+  @prop({ type: () => Boolean })
+  public onlyListed!: boolean
 
-  @prop({ type: () => String, default: '0' })
-  public totalSupply!: string
-}
+  @prop({ type: () => Number })
+  public minApprovals!: number
 
-class Settings {
   @prop({ type: () => Number })
   public votingMode!: number
 
@@ -56,79 +86,21 @@ class Settings {
   @prop({ type: () => String })
   public minProposerVotingPower!: string
 
-  @prop({ type: () => Number })
-  public minApprovals!: number
-
-  @prop({ type: () => Boolean })
-  public onlyListed!: boolean
-}
-
-@modelOptions({
-  schemaOptions: {
-    id: false,
-    timestamps: true,
-    collection: 'setting',
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
-  },
-  options: {
-    customName,
-  },
-})
-@index({
-  pluginAddress: 1,
-  fromBlockNumber: 1,
-  toBlockNumber: 1,
-})
-export default class Setting extends Model {
-  @prop({ type: () => String, required: true, unique: true })
-  public id!: string
-
-  @prop({ type: () => String, enum: NetworksEnum, required: true })
-  public network!: NetworksEnum
-
-  @prop({ type: () => String, required: true })
-  public fromTxHash!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public toTxHash!: HexAddress
-
-  @prop({ type: () => Number, required: true })
-  public fromBlockNumber!: number
-
-  @prop({ type: () => Number, default: null })
-  public toBlockNumber?: number
-
-  @prop({ type: () => String, required: true })
-  public daoAddress!: HexAddress
-
-  @prop({ type: () => String, required: true })
-  public pluginAddress!: HexAddress
-
-  @prop({ type: () => String })
-  public tokenAddress!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public pluginSubdomain!: string
-
-  @prop({ type: () => Settings, _id: false })
-  public settings?: Settings
-
-  @prop({ type: () => Token, _id: false })
-  public token?: Token
-
   static async create(rawData: Partial<Setting>, tOpts?: SaveOptions) {
     if (!rawData.id) {
-      assert(!!rawData.fromTxHash, 'fromTxHash is required')
-      assert(!!rawData.network, 'network is required')
-      rawData.id = this.getEntityId({ fromTxHash: rawData?.fromTxHash!, network: rawData?.network! })
+      assert(!!rawData.transactionHash, 'transactionHash is required')
+      assert(!!rawData.pluginAddress, 'pluginAddress is required')
+      rawData.id = this.getEntityId({
+        transactionHash: rawData?.transactionHash!,
+        pluginAddress: rawData?.pluginAddress!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
   static getEntityId(params: ISettingIdParams) {
-    const entityId = `${params.fromTxHash}-${params.network}`
+    const entityId = `${params.transactionHash}-${params.pluginAddress}`
     return entityId
   }
 
@@ -141,14 +113,40 @@ export default class Setting extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
-  static async findActiveByDaoAddress(daoAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    const toBlockNumber = null
-    const toTxHash = null
-    return await this.findOne({ daoAddress, network, toBlockNumber, toTxHash }, tOpts)
+  static async findActive({
+    daoAddress,
+    pluginAddress,
+    network,
+  }: {
+    pluginAddress?: HexAddress
+    daoAddress?: HexAddress
+    network: NetworksEnum
+  }) {
+    const params: any = {
+      status: ISettingStatus.active,
+    }
+
+    if (daoAddress) {
+      params.daoAddress = daoAddress
+    }
+
+    if (pluginAddress) {
+      params.pluginAddress = pluginAddress
+    }
+
+    if (network) {
+      params.network = network
+    }
+    return await this.findOne(params).exec()
   }
 
-  static async findByTransactionHash(fromTxHash: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    return await this.findOne({ fromTxHash, network }, tOpts)
+  static async findLastSettingByBlockNumber(pluginAddress: HexAddress, blockNumber: number) {
+    return await this.findOne({
+      pluginAddress,
+      blockNumber: { $lte: blockNumber },
+    })
+      .sort({ blockNumber: -1 })
+      .exec()
   }
 
   static async findWithPagination({
@@ -159,23 +157,29 @@ export default class Setting extends Model {
     paginationParams?: IPaginationParams
   }) {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(([key, value]) => value !== undefined && key !== 'onlyActive'),
-    )
+    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([_, value]) => value !== undefined))
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['pluginAddress', 'daoAddress', 'network']),
       ...dynamicFilter,
     }
 
-    // only filter active setting in dao
-    if (extraParams.onlyActive) {
-      filter['$or'] = [{ toBlockNumber: null }, { toBlockNumber: { $exists: false } }]
-    }
+    const query: any = [
+      {
+        $match: filter,
+      },
+    ]
 
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
+    const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
 
-    const totalPages = Math.ceil(totalRecords / request.limit)
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery),
+      this.aggregate([...query, { $count: 'totalRecords' }]),
+    ])
+
+    const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
+
+    const totalPages = Math.ceil(_totalRecords / request.limit)
 
     if (currentPage > totalPages) {
       return ModelUtils.paginateEmptyResponse(request.limit)
@@ -186,7 +190,7 @@ export default class Setting extends Model {
         page: currentPage,
         pageSize: request.limit,
         totalPages,
-        totalRecords,
+        totalRecords: _totalRecords,
       },
       data,
     }
@@ -210,13 +214,5 @@ export default class Setting extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
-  }
-
-  filterKeys() {
-    const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
-    filtered.settings = _.omit(filtered.settings, 'id', '_id', '__v')
-    filtered.token = filtered.token ? _.omit(filtered.token, 'id', '_id', '__v') : undefined
-    return filtered
   }
 }

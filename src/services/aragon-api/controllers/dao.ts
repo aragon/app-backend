@@ -8,7 +8,6 @@ import {
   type IPaginationParams,
   type NetworksEnum,
 } from '@types'
-import type Dao from '@models/schema/dao'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 
@@ -20,7 +19,6 @@ const DaoController = {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
 
     const result = await Models.Dao.findWithPagination({ extraParams, paginationParams })
-    result.data = result.data.map((dao: Dao) => dao.filterKeys())
 
     return result
   },
@@ -47,7 +45,7 @@ const DaoController = {
         })
       : undefined
 
-    return await Models.Member.findDaoOfMemberWithPagination(extraParams, paginationParams)
+    return await Models.DaoMemberMapping.findDaosByMemberWithPagination({ extraParams, paginationParams })
   },
 }
 
