@@ -508,7 +508,8 @@ const Web3Helper = {
       )
 
       const token = await ProxyToken.saveAndGetToken(address, network)
-      return Web3Helper.handleAlchemyCrazyBalance(response, token?.decimals)
+      const balance = Web3Helper.handleAlchemyCrazyBalance(response, token?.decimals)
+      return balance
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
       return '0'
@@ -526,10 +527,11 @@ const Web3Helper = {
       )
 
       const balances = response?.tokenBalances
-        ?.map((token: any) => {
+        ?.map(async (alchemyBalance: any) => {
+          const token = await ProxyToken.saveAndGetToken(alchemyBalance.contractAddress, network)
           const result: IAlchemyTokenBalance = {
-            contractAddress: Web3Helper.parseAddress(token.contractAddress) || token.contractAddress,
-            tokenBalance: Web3Helper.handleAlchemyCrazyBalance(token.tokenBalance, token?.decimals),
+            contractAddress: Web3Helper.parseAddress(alchemyBalance.contractAddress) || alchemyBalance.contractAddress,
+            tokenBalance: Web3Helper.handleAlchemyCrazyBalance(alchemyBalance.tokenBalance, token?.decimals),
           }
           return result
         })
