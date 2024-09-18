@@ -32,4 +32,4 @@ export enum IEnumIndexerService {
   withdrawTxs = 'withdrawTxs',
 }
 
-export type IEnumIndexerServiceStatic = `${'Token' | 'TokenVoting' | 'Multisig'}-${string}-${string}`
+export type IEnumIndexerServiceStatic = `${'Token' | 'Deposit' | 'TokenVoting' | 'Multisig'}-${string}-${string}` | ''
