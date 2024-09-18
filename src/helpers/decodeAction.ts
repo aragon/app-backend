@@ -4,6 +4,7 @@ import FourByte from '@helpers/4byte'
 import Web3Helper from '@helpers/web3'
 import type Proposal from '@models/schema/proposal'
 import {
+  type HexAddress,
   type IProposalAction,
   type IProposalActionInputData,
   type IProposalActionInputDataParameter,
@@ -17,7 +18,7 @@ import _ from 'lodash'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import Etherscan from '@helpers/etherscan'
 import ProxyContract from '@helpers/proxyContract'
-import { TokenProxy } from '@modules/tokenProxy'
+import { ProxyToken } from '@modules/proxyToken'
 import Covalent from '@helpers/covalent'
 import IPFSModule from '@src/modules/ipfs'
 import { retryRequest } from '@helpers/retryRequest'
@@ -27,14 +28,14 @@ import {
   AddresslistVoting,
   DAO,
   DAOFactory,
+  DAORegistry,
   GoveranceERC20,
   Multisig,
-  TokenVoting,
   MultiSigSetup,
   PluginRepo,
   PluginRepoFactory,
   PluginRepoRegistry,
-  DAORegistry,
+  TokenVoting,
 } from '@src/aragonContracts'
 
 import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
@@ -43,6 +44,8 @@ import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { ERC1155 } from '@artifacts/ERC1155'
 import Utils from '@helpers/utils'
+import { ProxyMember } from '@modules/proxyMember'
+import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -67,14 +70,18 @@ class DecodeActions {
     if (Web3Helper.isNativeTokenAction(action)) {
       const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
       const token = _.pick(nativeToken, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
+
+      const member = await ProxyMember.createMember(action.to)
+      const dao = await Models.Dao.findByAddress(document.daoAddress, document.network)
+
       return {
         from: document.daoAddress,
         to: action.to,
         value: action.value,
         data: action.data,
         type: ProposalActionType.Transfer,
-        sender: { address: document.daoAddress }, // TODO: Add a way to find and add ens
-        receiver: { address: action.to },
+        sender: { address: document.daoAddress, ens: dao.ens },
+        receiver: { address: member.address, ens: member.ens, avatar: member.avatar },
         amount: action.value,
         token,
         inputData: {
@@ -141,11 +148,16 @@ class DecodeActions {
     }
 
     const receiver = decodedData.parameters[0].value
+    const member = await ProxyMember.createMember(receiver)
+
+    if (!member) {
+      logger.error('Missing member', llo({ member, receiver, decodedData }))
+    }
 
     const [currentBalance, tokenInfo, token] = await Promise.all([
       Web3Helper.getERC20Balance(receiver, action.to, document.network!),
       Covalent.getTokenInfo(action.to, document.network!, document.blockNumber),
-      TokenProxy.saveAndGetToken(action.to, document.network!),
+      ProxyToken.saveAndGetToken(action.to, document.network!),
     ])
 
     return {
@@ -153,6 +165,7 @@ class DecodeActions {
       type: ProposalActionType.Mint,
       receivers: {
         address: receiver,
+        ens: member?.ens,
         currentBalance: currentBalance.toString(),
         newBalance: decodedData.parameters[1].value.toString(),
       },
@@ -174,18 +187,22 @@ class DecodeActions {
       return null
     }
 
-    const currentMembers = await Models.LogMember.getMultiSigMemberAtBlockNumber(
-      document.pluginAddress!,
-      document.blockNumber!,
-      document.network!,
-    )
+    const currentMembers = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+      pluginAddress: document.pluginAddress,
+      network: document.network,
+    })
 
     return {
-      ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigAddMembers,
-      members: decodedData.parameters[0].value.map((member: any) => ({ address: member })),
-      currentMembers: currentMembers.members.map((member: any) => ({ address: member })),
+      members: decodedData.parameters[0].value.map(async (address: HexAddress) => {
+        const member = await ProxyMember.createMember(address)
+        return { address: member.address, ens: member.ens, avatar: member.avatar }
+      }),
+      currentMembers: currentMembers.map(async (memberInfo: DaoMemberMapping) => {
+        const member = await ProxyMember.createMember(memberInfo.memberAddress)
+        return { address: member.address, ens: member.ens, avatar: member.avatar }
+      }),
     }
   }
 
@@ -198,18 +215,22 @@ class DecodeActions {
       return null
     }
 
-    const currentMembers = await Models.LogMember.getMultiSigMemberAtBlockNumber(
-      document.pluginAddress!,
-      document.blockNumber!,
-      document.network!,
-    )
+    const currentMembers = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+      pluginAddress: document.pluginAddress,
+      network: document.network,
+    })
 
     return {
-      ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigRemoveMembers,
-      members: decodedData.parameters[0].value.map((member: any) => ({ address: member })),
-      currentMembers: currentMembers.members.map((member: any) => ({ address: member })),
+      members: decodedData.parameters[0].value.map(async (address: HexAddress) => {
+        const member = await ProxyMember.createMember(address)
+        return { address: member.address, ens: member.ens, avatar: member.avatar }
+      }),
+      currentMembers: currentMembers.map(async (memberInfo: DaoMemberMapping) => {
+        const member = await ProxyMember.createMember(memberInfo.memberAddress)
+        return { address: member.address, ens: member.ens, avatar: member.avatar }
+      }),
     }
   }
 
@@ -239,7 +260,6 @@ class DecodeActions {
       }
 
       return {
-        ...action,
         type: ProposalActionType.MetadataUpdate,
         inputData: decodedData,
         proposedMetadata,
@@ -255,7 +275,6 @@ class DecodeActions {
       return null
     }
     return {
-      ...action,
       inputData: decodedData,
       type: ProposalActionType.UpdateMultiSigSettings,
       proposedSettings: {
@@ -270,7 +289,6 @@ class DecodeActions {
     }
 
     return {
-      ...action,
       inputData: decodedData,
       type: ProposalActionType.UpdateVoteSettings,
       proposedSettings: {
@@ -287,7 +305,7 @@ class DecodeActions {
     const metadata: any = {}
 
     const setCommonMetadata = async (from: string, to: string, value: string) => {
-      const token = await TokenProxy.saveAndGetToken(action.to, document.network!)
+      const token = await ProxyToken.saveAndGetToken(action.to, document.network!)
 
       if (token) {
         metadata.token = _.pick(token, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
@@ -320,14 +338,7 @@ class DecodeActions {
       sender: { address: metadata.from },
       receiver: { address: metadata.to },
       amount: metadata.value,
-      token: {
-        name: metadata.token.name,
-        symbol: metadata.token.symbol,
-        decimals: metadata.token.decimals,
-        logo: metadata.token.logo,
-        priceUsd: metadata.token.priceUsd,
-        address: metadata.token.address,
-      },
+      token: metadata.token,
     }
   }
 

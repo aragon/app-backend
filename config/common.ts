@@ -1,5 +1,5 @@
 import utils from '@helpers/utils'
-import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum } from '@types'
+import { type IConfig, SupportedEnsNetworksEnum } from '@types'
 
 const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
@@ -9,7 +9,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     TIMEZONE: utils.configParser(sourceConfig, 'string', 'TIMEZONE', 'Europe/London'),
     REMOTE_EXECUTION: utils.configParser(sourceConfig, 'bool', 'REMOTE_EXECUTION', false),
     PROXY: utils.configParser(sourceConfig, 'string', 'PROXY', null),
-    SUPPORTED_NETWORKS: utils.configParser(sourceConfig, 'array', 'SUPPORTED_NETWORKS', Object.values(NetworksEnum)),
+    SUPPORTED_NETWORKS: utils.configParser(sourceConfig, 'array', 'SUPPORTED_NETWORKS', []),
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
     ENS_DOMAIN: utils.configParser(sourceConfig, 'string', 'ENS_DOMAIN', 'dao.eth'),
     SUPPORTED_ENS_NETWORKS: utils.configParser(
@@ -19,9 +19,13 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       Object.values(SupportedEnsNetworksEnum),
     ),
 
+    RABBITMQ: {
+      URI: utils.configParser(sourceConfig, 'string', 'RABBITMQ_URI', 'amqp://localhost:5672'),
+    },
+
     NODE_CONFIG: {
       MAX_RECONNECT_ATTEMPTS: utils.configParser(sourceConfig, 'number', 'NODE_CONFIG_MAX_RECONNECT_ATTEMPTS', 10),
-      RECONNECT_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODE_CONFIG_RECONNECT_INTERVAL', 5000),
+      RECONNECT_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODE_CONFIG_RECONNECT_INTERVAL', 100),
     },
 
     ARAGON_SUPPORTED_BLOCK: {
@@ -181,51 +185,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     CRAWLER_CONFIG: {
-      // INDEXER
-      DA0_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_BATCH_SIZE', 1000),
-      DAO_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_CONCURRENCY', 1),
-      DA0_PLUGIN_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_PLUGIN_BATCH_SIZE', 1000),
-      DAO_PLUGIN_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_PLUGIN_CONCURRENCY', 1),
-      DA0_SETTING_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_SETTING_BATCH_SIZE', 1000),
-      DAO_SETTING_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_SETTING_CONCURRENCY', 1),
-      MEMBER_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_MEMBER_BATCH_SIZE', 1000),
-      MEMBER_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_MEMBER_CONCURRENCY', 1),
-      MEMBER_DELEGATE_BATCH_SIZE: utils.configParser(
-        sourceConfig,
-        'number',
-        'INDEXER_CONFIG_MEMBER_DELEGATE_BATCH_SIZE',
-        1000,
-      ),
-      MEMBER_DELEGATE_CONCURRENCY: utils.configParser(
-        sourceConfig,
-        'number',
-        'INDEXER_CONFIG_MEMBER_DELEGATE_CONCURRENCY',
-        1,
-      ),
-      PROPOSAL_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_PROPOSAL_BATCH_SIZE', 1000),
-      PROPOSAL_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_PROPOSAL_CONCURRENCY', 1),
-      VOTE_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_VOTE_BATCH_SIZE', 1000),
-      VOTE_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_VOTE_CONCURRENCY', 1),
-
       // RATES
       TOKEN_RATES_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_BATCH_SIZE', 1000),
       TOKEN_RATES_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_CONCURRENCY', 1),
-      DAO_TVL_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_TVL_BATCH_SIZE', 1000),
-      DAO_TVL_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_TVL_CONCURRENCY', 1),
-      DAO_ASSETS_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_ASSETS_BATCH_SIZE', 1000),
-      DAO_ASSETS_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_DAO_ASSETS_CONCURRENCY', 1),
-      DAO_TRANSACTIONS_BATCH_SIZE: utils.configParser(
-        sourceConfig,
-        'number',
-        'INDEXER_CONFIG_DAO_TRANSACTIONS_BATCH_SIZE',
-        1000,
-      ),
-      DAO_TRANSACTIONS_CONCURRENCY: utils.configParser(
-        sourceConfig,
-        'number',
-        'INDEXER_CONFIG_DAO_TRANSACTIONS_CONCURRENCY',
-        1,
-      ),
     },
     ETHERSCAN_API: {
       ETHEREUM_MAINNET: {

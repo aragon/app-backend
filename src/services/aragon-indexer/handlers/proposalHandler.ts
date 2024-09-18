@@ -1,201 +1,355 @@
 import logger from '@logger'
-import { type ILogInfo } from '@types'
+import { EnumQueueName, type ILogInfo, IMetricAction, type IProposalMetadata, type IRawAction } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
-import DbTx from '@modules/dbTx'
 import IPFSModule from '@modules/ipfs'
-import type LogProposal from '@models/schema/logProposal'
-import { type Vote } from '@models/schema/logProposal'
+import type Vote from '@models/schema/vote'
 import Web3Helper from '@helpers/web3'
+import { ProxyMember } from '@modules/proxyMember'
+import { ProxyToken } from '@modules/proxyToken'
+import type Proposal from '@models/schema/proposal'
+import DecodeActions from '@helpers/decodeAction'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
+import DbOperations from '@models/utils/dbOperations'
+import { RabbitMQHelper } from '@helpers/redditMQ'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:ProposalHandler' })
 
 export const ProposalHandler = {
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const pluginAddress = info.address
-    const relatedPlugin = await Models.LogPluginSetupProcessor.findByPluginAddress(pluginAddress, info.network)
+    const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, info.network)
 
     if (!relatedPlugin) {
       logger.warn('Plugin not found', llo(info))
       return
     }
 
-    try {
-      const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
-      const proposalId = Number(parsedEvent.args.proposalId)
-      const existingLog = await Models.LogProposal.findExistingLog({
-        transactionHash: info.transactionHash,
-        pluginAddress,
-        proposalId,
-      })
+    const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
+    const proposalIndex = Number(parsedEvent.args.proposalId)
+    const existingLog = await Models.Proposal.findExistingLog({
+      transactionHash: info.transactionHash,
+      pluginAddress,
+      proposalIndex,
+    })
+    if (existingLog) return
 
-      if (!existingLog) {
-        await DbTx.executeTxFn(async ({ session }) => {
-          const proposalLog = {
-            network: info.network,
-            blockNumber: info.blockNumber,
-            transactionHash: info.transactionHash,
-            pluginAddress,
-            creatorAddress: parsedEvent.args.creator,
-            proposalId,
-            startDate: Number(parsedEvent.args.startDate),
-            endDate: Number(parsedEvent.args.endDate),
-            allowFailureMap: Number(parsedEvent.args.allowFailureMap),
-            metadataUri,
-            actions: parsedEvent.args?.actions.map((w: any) => ({
-              to: w.to,
-              value: w.value,
-              data: w.data,
-            })),
-          }
+    const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
+    const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
-          const logDb = await Models.LogProposal.create(proposalLog, { session } as any)
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose('New Proposal', llo({ ...info, logId: logDb.id }))
+    const document: Partial<Proposal> = {
+      network: info.network,
+      blockNumber: info.blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+      transactionHash: info.transactionHash,
+      title: proposalMetadata.title!,
+      description: proposalMetadata.description!,
+      summary: proposalMetadata.summary!,
+      resources: proposalMetadata.resources as any,
+      media: proposalMetadata.media as any,
+      daoAddress: relatedPlugin.daoAddress,
+      pluginAddress,
+      pluginSubdomain: relatedPlugin.subdomain,
+      creatorAddress: parsedEvent.args.creator,
+      proposalIndex,
+      startDate: Number(parsedEvent.args.startDate),
+      endDate: Number(parsedEvent.args.endDate),
+      allowFailureMap: Number(parsedEvent.args.allowFailureMap),
+      metadataUri,
 
-          await ProposalHandler.proposalMetadata(info, logDb)
-        })
-      }
-    } catch (error) {
-      logger.error('Error proposalCreated', llo({ ...info, error }))
+      // setting needs to be static as they will never change during the proposal lifecycle
+      settings: {
+        id: settings?.id,
+        transactionHash: settings.transactionHash,
+        blockNumber: settings.blockNumber,
+        blockTimestamp: settings.blockTimestamp,
+        network: settings.network,
+        daoAddress: settings.daoAddress,
+        pluginAddress: settings.pluginAddress,
+        pluginSubdomain: settings.pluginSubdomain,
+        tokenAddress: settings.tokenAddress,
+        onlyListed: settings?.onlyListed,
+        minApprovals: settings?.minApprovals,
+        votingMode: settings?.votingMode,
+        supportThreshold: settings?.supportThreshold,
+        minParticipation: settings?.minParticipation,
+        minDuration: settings?.minDuration,
+        minProposerVotingPower: settings?.minProposerVotingPower,
+      },
+      rawActions: parsedEvent.args?.actions.map((w: IRawAction) => ({
+        to: w.to,
+        value: w.value,
+        data: w.data,
+      })),
     }
+
+    if (relatedPlugin.tokenAddress) {
+      document.snapshot = {
+        totalSupply: await GovernanceErc20Helper.getPastTotalSupply(
+          info.blockNumber,
+          relatedPlugin.tokenAddress,
+          relatedPlugin.network,
+        ),
+      }
+    } else {
+      const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+        pluginAddress: relatedPlugin.address,
+        network: relatedPlugin.network,
+      })
+      document.snapshot = {
+        membersCount: members.length,
+      }
+    }
+
+    const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)
+
+    await ProxyMember.updateActivity({
+      memberAddress: newProposal.creatorAddress,
+      pluginAddress: relatedPlugin.address,
+      network: newProposal.network,
+      blockNumber: newProposal.blockNumber,
+    })
+
+    await Promise.all([
+      ProposalHandler.parseActions(newProposal),
+      ProxyMember.updateMetricsByAction(IMetricAction.increaseProposalCount, {
+        memberAddress: newProposal.creatorAddress,
+        pluginAddress,
+        network: info.network,
+      }),
+      // Dao metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: newProposal.daoAddress,
+        params: { address: newProposal.daoAddress, network: newProposal.network },
+      }),
+    ])
   },
 
   approved: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    try {
-      const parsedParams: Vote = {
-        blockNumber: info.blockNumber,
-        transactionHash: info.transactionHash,
-        proposalId: Number(parsedEvent.args.proposalId),
-        memberAddress: parsedEvent.args.approver,
-      }
-      const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, info.address, info.network)
+    const proposalIndex = Number(parsedEvent.args.proposalId)
+    const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
 
-      if (!proposal) {
-        logger.warn('proposal not found', llo({ ...info, parsedEvent }))
-        return
-      }
-
-      const existingVote = await proposal.findVote(info.transactionHash)
-
-      if (!existingVote) {
-        await DbTx.executeTxFn(async ({ session }) => {
-          const logDb = await proposal.addVoteEvent(parsedParams, { session })
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose('New approved', llo({ ...info, logId: logDb.id }))
-        })
-      }
-    } catch (error) {
-      logger.error('Error approved', llo({ ...info, error }))
+    if (!proposal) {
+      logger.warn('Approved - Proposal not found', llo(info))
+      return
     }
+
+    const existingLog = await Models.Vote.findExistingLog({
+      network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+    })
+    if (existingLog) return
+
+    const document: Partial<Vote> = {
+      network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+      blockNumber: info.blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+      daoAddress: proposal?.daoAddress,
+      pluginAddress: info.address,
+      memberAddress: parsedEvent.args.approver,
+      proposalIndex: Number(parsedEvent.args.proposalId),
+    }
+
+    await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
+
+    await ProxyMember.updateActivity({
+      memberAddress: document.memberAddress!,
+      pluginAddress: info.address,
+      network: info.network,
+      blockNumber: info.blockNumber,
+    })
+
+    await Promise.all([
+      ProxyMember.updateMetricsByAction(IMetricAction.increaseVoteCount, {
+        memberAddress: document.memberAddress!,
+        pluginAddress: info.address,
+        network: info.network,
+      }),
+      // Proposal metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
+        id: `${proposalIndex}-${info.address}`,
+        params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+      }),
+      // Dao metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: proposal.daoAddress,
+        params: { address: proposal.daoAddress, network: proposal.network },
+      }),
+    ])
   },
 
   voteCast: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    try {
-      const parsedParams: Vote = {
-        blockNumber: info.blockNumber,
-        transactionHash: info.transactionHash,
-        proposalId: Number(parsedEvent.args.proposalId),
-        voteOption: Number(parsedEvent.args.voteOption),
-        votingPower: parsedEvent.args.votingPower,
-        memberAddress: parsedEvent.args.voter,
-      }
-      const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, info.address, info.network)
+    const proposalIndex = Number(parsedEvent.args.proposalId)
+    const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
 
-      if (!proposal) {
-        logger.warn('proposal not found', llo({ ...info, parsedEvent }))
-        return
-      }
-
-      const existingVote = await proposal.findVote(info.transactionHash)
-
-      if (!existingVote) {
-        await DbTx.executeTxFn(async ({ session }) => {
-          const logDb = await proposal.addVoteEvent(parsedParams, { session })
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose('New voteCast', llo({ ...info, logId: logDb.id }))
-        })
-      }
-    } catch (error) {
-      logger.error('Error voteCast', llo({ ...info, error }))
+    if (!proposal) {
+      logger.warn('VoteCast - Proposal not found', llo(info))
+      return
     }
+
+    const existingLog = await Models.Vote.findExistingLog({
+      network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+    })
+    if (existingLog) return
+
+    const document: Partial<Vote> = {
+      network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+      blockNumber: info.blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+      daoAddress: proposal.daoAddress,
+      pluginAddress: info.address,
+      memberAddress: parsedEvent.args.voter,
+      tokenAddress: proposal.settings.tokenAddress,
+      proposalIndex: Number(parsedEvent.args.proposalId),
+      voteOption: Number(parsedEvent.args.voteOption),
+      votingPower: parsedEvent.args.votingPower.toString(),
+    }
+
+    if (proposal.settings.tokenAddress) {
+      await ProxyToken.saveAndGetToken(proposal.settings.tokenAddress, proposal.network)
+    }
+
+    // find existing voting
+    const existingMemberVote = await Models.Vote.findVoteOnPlugin({
+      network: info.network,
+      pluginAddress: info.address,
+      memberAddress: parsedEvent.args.voter,
+    })
+    const isExistingVote = !!existingMemberVote
+
+    // handle replace vote and persist the previous vote by transactionHash
+    if (isExistingVote) {
+      document.replacedTransactionHash = existingMemberVote.transactionHash
+    }
+
+    await DbTx.executeTxFn(async ({ session }) => {
+      const logId = await Models.Vote.create(document, { session })
+
+      if (isExistingVote) {
+        await existingMemberVote.deleteOne({ session })
+      }
+
+      await session.commitTransaction()
+      await session.endSession()
+
+      const logName = existingMemberVote ? 'Replace Vote - VoteCast' : 'New Vote - VoteCast'
+      logger.verbose(`Created new document - ${logName}`, llo({ ...info, documentId: logId.id }))
+    })
+
+    if (!isExistingVote) {
+      // only increase vote count if it's a new vote
+      await ProxyMember.updateMetricsByAction(IMetricAction.increaseVoteCount, {
+        memberAddress: document.memberAddress!,
+        pluginAddress: info.address,
+        network: info.network,
+      })
+    }
+
+    // always update updateActivity
+    await ProxyMember.updateActivity({
+      memberAddress: document.memberAddress!,
+      pluginAddress: info.address,
+      network: info.network,
+      blockNumber: info.blockNumber,
+    })
+
+    await Promise.all([
+      // Proposal metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+        id: `${proposalIndex}-${info.address}`,
+        params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+      }),
+      // Dao metrics
+      RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: proposal.daoAddress,
+        params: { address: proposal.daoAddress, network: proposal.network },
+      }),
+    ])
   },
 
   proposalExecuted: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    try {
-      const parsedParams = {
-        proposalId: Number(parsedEvent.args.proposalId),
-      }
-      const proposal = await Models.LogProposal.findByProposalId(parsedParams.proposalId, info.address, info.network)
-      if (!proposal) {
-        logger.warn('proposal not found', llo({ ...info, parsedEvent }))
-        return
-      }
-
-      if (!proposal.executed) {
-        await DbTx.executeTxFn(async ({ session }) => {
-          const logDb = await proposal.update(
-            {
-              executed: {
-                status: true,
-                blockNumber: info.blockNumber,
-                transactionHash: info.transactionHash,
-              },
-            },
-            { session },
-          )
-
-          await session.commitTransaction()
-          await session.endSession()
-
-          logger.verbose('New proposalExecuted', llo({ ...info, logId: logDb.id }))
-        })
-      }
-    } catch (error) {
-      logger.error('Error proposalExecuted', llo({ ...info, error }))
+    const parsedParams = {
+      proposalIndex: Number(parsedEvent.args.proposalId),
     }
+    const proposal = await Models.Proposal.findByProposalIndex(parsedParams.proposalIndex, info.address, info.network)
+    if (!proposal) {
+      logger.warn('proposal not found', llo({ ...info, parsedEvent }))
+      return
+    }
+
+    if (proposal?.executed?.status) return
+
+    const rawUpdate = {
+      executed: {
+        status: true,
+        blockNumber: info.blockNumber,
+        transactionHash: info.transactionHash,
+        blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+      },
+    }
+
+    await DbOperations.updateDocument(proposal, rawUpdate, { logId: proposal.id, info }, 'Update proposalExecuted', llo)
+
+    // Dao metrics
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: proposal.daoAddress,
+      params: { address: proposal.daoAddress, network: proposal.network },
+    })
   },
 
-  proposalMetadata: async (info: ILogInfo, proposalDb: LogProposal) => {
-    const logInfo: any = {
-      ...info,
-      proposalId: proposalDb.id,
-      metadataUri: proposalDb.metadataUri,
+  fetchProposalMetadata: async (metadataUri: string): Promise<IProposalMetadata> => {
+    const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 1 })
+    const proposalMetadata = Web3Helper.parseProposalMetadata(ipfsMetadata!)
+    return proposalMetadata
+  },
+
+  parseActions: async (proposal: Proposal) => {
+    if (!(proposal.rawActions?.length > 0)) {
+      return []
     }
 
     try {
-      const ipfsMetadata = await IPFSModule.fetchMetadata(proposalDb.metadataUri, { retries: 1 })
-      const proposalMetadata = Web3Helper.parseProposalMetadata(ipfsMetadata!)
-      const existingProposalMetadata = await Models.LogProposalMetadata.findExistingLog({
-        transactionHash: proposalDb.transactionHash,
-        pluginAddress: proposalDb.pluginAddress,
-        proposalId: proposalDb.proposalId,
-      })
+      const decodeActions = new DecodeActions()
+      const parsedActions = proposal.rawActions
+      const rawActions = await Promise.all(
+        parsedActions.map(async (action: any) => {
+          let decodeData: any
 
-      if (!existingProposalMetadata) {
-        await DbTx.executeTxFn(async ({ session }) => {
-          const logProposalMetadata = {
-            ...proposalMetadata,
-            network: proposalDb.network,
-            metadataUri: proposalDb.metadataUri,
-            pluginAddress: proposalDb.pluginAddress,
-            fetchedMetadata: !!ipfsMetadata,
-            proposalId: proposalDb.proposalId,
-            transactionHash: proposalDb.transactionHash,
-            blockNumber: proposalDb.blockNumber,
+          if (action.data?.length >= 10) {
+            decodeData = await decodeActions.decodeData(action, proposal)
+          } else {
+            decodeData = await decodeActions.decodeTransfer(action, proposal)
           }
-          const logDb = await Models.LogProposalMetadata.create(logProposalMetadata as any, { session } as any)
 
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose('New proposalMetadata', llo({ ...logInfo, logId: logDb.id }))
-        })
-      }
+          if (decodeData) {
+            return decodeData
+          }
+
+          return []
+        }),
+      )
+
+      return await DbOperations.updateDocument(
+        proposal,
+        { actions: rawActions },
+        { logId: proposal.id },
+        'Update proposalAction',
+        llo,
+      )
     } catch (error) {
-      logger.error('Error proposalMetadata', llo({ ...logInfo, error }))
+      logger.error('Error parseActions', llo({ error, proposalId: proposal.id }))
     }
   },
 }

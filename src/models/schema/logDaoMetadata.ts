@@ -1,10 +1,10 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type ILogDaoMetadataIdParams, NetworksEnum } from '@types'
+import { HexAddress, ICollectionNames, type ILogDaoMetadataIdParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 
-const customName = 'LogDaoMetadata'
+const customName = ICollectionNames.LogDaoMetadata
 
 class Link {
   @prop({ type: () => String, default: null })
@@ -18,7 +18,7 @@ class Link {
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'logDaoMetadata',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -38,6 +38,12 @@ export default class LogDaoMetadata extends Model {
 
   @prop({ type: () => Number, required: true })
   public blockNumber!: number
+
+  @prop({ type: () => Number, required: true })
+  public transactionIndex!: number
+
+  @prop({ type: () => Number, required: true })
+  public logIndex!: number
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
@@ -74,16 +80,25 @@ export default class LogDaoMetadata extends Model {
 
   static async create(rawData: Partial<LogDaoMetadata>, tOpts?: SaveOptions) {
     if (!rawData.id) {
+      assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
+      assert(!!rawData.transactionIndex || rawData.transactionIndex === 0, 'transactionIndex is required')
+      assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
       assert(!!rawData.daoAddress, 'daoAddress is required')
-      rawData.id = this.getEntityId({ transactionHash: rawData?.transactionHash!, daoAddress: rawData?.daoAddress! })
+      rawData.id = this.getEntityId({
+        network: rawData?.network!,
+        transactionHash: rawData?.transactionHash!,
+        transactionIndex: rawData?.transactionIndex!,
+        logIndex: rawData?.logIndex!,
+        daoAddress: rawData?.daoAddress!,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
   static getEntityId(params: ILogDaoMetadataIdParams) {
-    const entityId = `${params.transactionHash}-${params.daoAddress}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.daoAddress}`
     return entityId
   }
 

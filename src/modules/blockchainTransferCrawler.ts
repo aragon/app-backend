@@ -4,6 +4,7 @@ import {
   type IAlchemyTransferOptions,
   type IAlchemyTransferResponse,
   type IEnumIndexerService,
+  type IEnumIndexerServiceStatic,
   NetworksEnum,
 } from '@types'
 import BottleneckModule from '@modules/bottleneck'
@@ -20,7 +21,6 @@ class BlockchainTransferCrawler {
   private readonly network: NetworksEnum
   private readonly fromBlock: number | string
   private readonly toBlock: number | string
-  private readonly provider: WebSocketProvider
   private readonly filter: IAlchemyTransferOptions
   private readonly stopOnError: boolean
   private readonly logService: IEnumIndexerService | null
@@ -34,10 +34,13 @@ class BlockchainTransferCrawler {
   readonly onError: (error: any, log?: IAlchemyTransferResponse) => void
   public readonly crawlResult: {
     network: NetworksEnum
+    fromBlock: number
+    toBlock: number
     nbSuccess: number
     nbError: number
     nbTotal: number
     lastSync: number
+    logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
   }
 
   constructor(opts: {
@@ -50,11 +53,6 @@ class BlockchainTransferCrawler {
     logService?: IEnumIndexerService
   }) {
     this.network = opts.network
-    this.provider = ProviderModule.getProvider(opts.network)!
-    if (!this.provider) {
-      throw new Error('Provider not configured for network: ' + opts.network)
-    }
-
     this.filter = {
       ...opts.filter,
       fromBlock: opts.filter.fromBlock || 0,
@@ -70,12 +68,16 @@ class BlockchainTransferCrawler {
     this.isOnError = false
     this.runCount = 0
     this.logService = opts.logService ?? null
+
     this.crawlResult = {
+      fromBlock: 0,
+      toBlock: 0,
       network: opts.network,
+      logService: this.logService,
+      lastSync: 0,
       nbSuccess: 0,
       nbError: 0,
       nbTotal: 0,
-      lastSync: 0,
     }
   }
 
@@ -93,7 +95,7 @@ class BlockchainTransferCrawler {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
         return await BottleneckModule.getNodeTransferLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
-          this.provider.getBlockNumber(),
+          this.getProvider().getBlockNumber(),
         )
       } catch (error) {
         logger.error(
@@ -136,22 +138,11 @@ class BlockchainTransferCrawler {
       this.runCount++
       let toBlock = Math.min(currentBlock + this.batchSize - (this.runCount > 1 ? 1 : 0), latestBlock)
 
-      logger.silly(
-        'Querying logs for topic chunk',
-        llo({
-          network: this.crawlResult.network,
-          initBlock: this.fromBlock,
-          endBlock: this.toBlock,
-          fromBlock: currentBlock,
-          toBlock,
-        }),
-      )
-
       let success = false
       while (!success) {
         try {
           const response = await BottleneckModule.getNodeTransferLimiter(this.network)!.schedule(async () =>
-            this.provider.send('alchemy_getAssetTransfers', [
+            this.getProvider().send('alchemy_getAssetTransfers', [
               {
                 fromBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(currentBlock) : undefined,
                 toBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(toBlock) : undefined,
@@ -241,6 +232,10 @@ class BlockchainTransferCrawler {
     const messages = ['The query timed out', 'Log response size exceeded']
 
     return messages.some(msg => error.message?.includes(msg))
+  }
+
+  getProvider(): WebSocketProvider {
+    return ProviderModule.getProvider(this.network)!
   }
 
   async getServiceStartBlock() {

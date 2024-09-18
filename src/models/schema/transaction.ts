@@ -1,6 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
+  ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
   ITokenType,
@@ -16,7 +17,7 @@ import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
-const customName = 'Transaction'
+const customName = ICollectionNames.Transaction
 
 class ERC1155Metadata {
   @prop({ type: () => String, default: null })
@@ -24,6 +25,15 @@ class ERC1155Metadata {
 
   @prop({ type: () => String, default: null })
   public value!: string
+}
+
+class Snapshot {
+  // transaction price at specific block
+  @prop({ type: () => String, default: null })
+  public priceUsd!: string
+
+  @prop({ type: () => Number, default: 0 })
+  public priceUpdatedAt!: number
 }
 
 class Token {
@@ -48,18 +58,15 @@ class Token {
   @prop({ type: () => Number, default: 18 })
   public decimals!: number
 
-  @prop({ type: () => String, default: null })
-  public priceUsd!: string
-
-  @prop({ type: () => Number, default: 0 })
-  public priceUpdatedAt!: number
+  @prop({ type: () => Snapshot, _id: false, default: {} })
+  public snapshot!: Snapshot
 }
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'transaction',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -108,19 +115,22 @@ export default class Transaction extends Model {
   public tokenAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
+  public pluginAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
   public daoAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public tokenId!: string
+  public tokenId!: string | null
 
   @prop({ type: () => String, default: null })
-  public erc721TokenId!: string
+  public erc721TokenId!: string | null
 
   @prop({ type: () => [ERC1155Metadata], _id: false, default: [] })
   public erc1155Metadata!: ERC1155Metadata[]
 
   @prop({ type: () => String, default: null })
-  public proposalId!: string
+  public proposalIndex!: number | null
 
   @prop({ type: () => Token, _id: false, default: null })
   public token?: Token
@@ -182,6 +192,7 @@ export default class Transaction extends Model {
     }
 
     const currentPage = request.skip / request.limit + 1
+
     const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
@@ -226,16 +237,24 @@ export default class Transaction extends Model {
     const filtered = _.omit(
       obj,
       '_id',
+      'id',
       '__v',
-      'hideDao',
+      'isHidden',
       'createdAt',
       'updatedAt',
+      'pluginAddress',
       'daoAddress',
       'tokenAddress',
       'createdAt',
       'updatedAt',
     )
     filtered.token = filtered.token ? _.omit(filtered.token, '_id', '__v') : undefined
+
+    if (this.token?.snapshot) {
+      filtered.token.historicalPriceUsd = filtered.token.snapshot.priceUsd
+      filtered.token.snapshot = undefined
+    }
+
     return filtered
   }
 }

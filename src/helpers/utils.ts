@@ -20,6 +20,13 @@ const Utils = {
 
   networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],
 
+  validateString(input: string | null | undefined): string | null {
+    if (typeof input === 'string' && input.trim() !== '') {
+      return input
+    }
+    return null
+  },
+
   extractAdditionalParams: (
     knownParams: Record<string, any> = {},
     queryParams: Record<string, any> = {},
@@ -62,6 +69,14 @@ const Utils = {
         [key]: key,
       }
     }, {})
+  },
+
+  setImmediateAsyncArray(fns: Array<() => Promise<any>>, onError: (error: any) => void = Utils.defaultError): void {
+    for (const fn of fns) {
+      setImmediate(() => {
+        fn().catch(onError)
+      })
+    }
   },
 
   setImmediateAsync(fn: any, onError: any = Utils.defaultError): void {
@@ -243,8 +258,8 @@ const Utils = {
 
   hasPropsWithValuesExcludingNetwork(obj: any) {
     const filteredValues = Object.entries(obj)
-      .filter(([key, value]) => key !== 'network')
-      .map(([key, value]) => value)
+      .filter(([key, _]) => key !== 'network')
+      .map(([_, value]) => value)
 
     return filteredValues.some(value => value !== undefined)
   },
@@ -254,6 +269,13 @@ const Utils = {
       return
     }
     return value === true || value === 'true'
+  },
+
+  parseNumber: (value: any): number | undefined => {
+    if (value === undefined || value === 'undefined') {
+      return
+    }
+    return Number(value)
   },
 }
 

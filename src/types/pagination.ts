@@ -1,6 +1,7 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import type { ITransactionCategory } from '@src/types/alchemy'
 import { type ITokenType } from '@src/types/token'
+import { type ITransferSide, type ITransferType } from '@src/types/transfer'
 
 export interface ITokenExtraParams {
   network?: NetworksEnum
@@ -27,6 +28,7 @@ export interface IProposalExtraParams {
   daoAddress?: HexAddress
   pluginAddress?: HexAddress
   creatorAddress?: HexAddress
+  proposalIndex?: number
   daoInfo?: boolean
 }
 
@@ -55,17 +57,12 @@ export interface IMemberExtraParams {
   network?: NetworksEnum
   pluginAddress?: HexAddress
   tokenAddress?: HexAddress
-  onlyActive?: boolean
-}
-
-export interface IActiveMemberExtraParams {
-  daoAddress?: HexAddress
-  pluginAddress?: HexAddress
-  tokenAddress?: HexAddress
-  network?: NetworksEnum
 }
 
 export interface IDelegateExtraParams {
+  type?: ITransferType
+  side?: ITransferSide
+  excludeZeroAddress?: boolean
   memberAddress?: HexAddress
   daoAddress?: HexAddress
   pluginAddress?: HexAddress
@@ -86,7 +83,6 @@ export interface ISettingExtraParams {
   daoAddress?: HexAddress
   pluginAddress?: HexAddress
   network?: NetworksEnum
-  onlyActive?: boolean
 }
 
 export interface IPaginationParams {

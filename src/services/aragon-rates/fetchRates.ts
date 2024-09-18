@@ -7,7 +7,7 @@ import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
 import { NetworksEnum } from '@types'
 import config from '@config'
-import { TokenProxy } from '@modules/tokenProxy'
+import { ProxyToken } from '@modules/proxyToken'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
@@ -55,7 +55,7 @@ export const FetchRates = {
     const rawTokenUpdateRate = await RateModule.fetchRate(token.address, token.network)
 
     // skip governance tokens with no price or unsupported token networks
-    if (TokenProxy.skipFetchToken(token, rawTokenUpdateRate)) {
+    if (ProxyToken.skipFetchToken(token, rawTokenUpdateRate)) {
       rawTokenUpdateRate.lastUpdatedAt = dayjs.utc().toDate()
       rawTokenUpdateRate.skipFetchRate = true
     }

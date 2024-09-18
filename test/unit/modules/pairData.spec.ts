@@ -36,6 +36,7 @@ describe('Modules:PairDataModule', () => {
         },
       ],
       metrics: {
+        tvlUSD: 10000,
         members: 15,
         proposalsCreated: 5,
         proposalsExecuted: 3,
@@ -56,7 +57,7 @@ describe('Modules:PairDataModule', () => {
           subdomain: 'test',
         },
       ],
-      hideDao: false,
+      isHidden: false,
     }
 
     rawMember = {

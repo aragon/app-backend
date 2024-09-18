@@ -1,6 +1,7 @@
 export enum EnumConnection {
   MONGODB = 'MONGODB',
   BLOCKCHAIN = 'BLOCKCHAIN',
+  RABBITMQ = 'RABBITMQ',
 }
 
 export interface IService {
@@ -19,13 +20,16 @@ export enum IEnumTaskStatus {
 }
 
 export enum IEnumIndexerService {
-  daoLog = 'daoLog',
-  daoRegistryLog = 'daoRegistryLog',
-  memberLog = 'memberLog',
-  pluginRepoRegistryLog = 'pluginRepoRegistryLog',
-  pluginSettingLog = 'pluginSettingLog',
-  pluginSetupProcessorLog = 'pluginSetupProcessorLog',
-  proposalLog = 'proposalLog',
+  // logStageProposalProcessor = 'logStageProposalProcessor',
+  logPluginRepoRegistry = 'logPluginRepoRegistry',
+  logDaoRegistry = 'logDaoRegistry',
+  logPluginSetupProcessor = 'logPluginSetupProcessor',
+  logMetadata = 'logMetadata',
+  logMultisig = 'logMultisig',
+  logTokenVoting = 'logTokenVoting',
+  logGovernanceErc20 = 'logGovernanceErc20',
   depositTxs = 'depositTxs',
   withdrawTxs = 'withdrawTxs',
 }
+
+export type IEnumIndexerServiceStatic = `${'Token' | 'Deposit' | 'TokenVoting' | 'Multisig'}-${string}-${string}` | ''

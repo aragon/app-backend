@@ -26,6 +26,17 @@ module.exports = {
       },
     },
     {
+      name: 'aragon-dao',
+      cwd: path.resolve(__dirname, ''),
+      script: 'yarn',
+      args: 'service:aragon-dao',
+      autorestart: true,
+      env: {
+        INSTANCE_ID: 'aragon-dao',
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-dao') }).parsed,
+      },
+    },
+    {
       name: 'aragon-rates',
       cwd: path.resolve(__dirname, ''),
       script: 'yarn',
@@ -35,6 +46,6 @@ module.exports = {
         INSTANCE_ID: 'aragon-rates',
         ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-rates') }).parsed,
       },
-    },
+    }
   ],
 }
