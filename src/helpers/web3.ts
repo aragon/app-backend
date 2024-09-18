@@ -69,6 +69,11 @@ const Web3Helper = {
         const divisor = new BigNumber(10).pow(decimals)
         const integerPart = number.dividedBy(divisor).integerValue(BigNumber.ROUND_FLOOR)
         const fractionalPart = number.modulo(divisor)
+
+        if(fractionalPart.toString() === '0') {
+          return integerPart.toString()
+        }
+
         return integerPart.toString() + '.' + fractionalPart.toString().padStart(decimals, '0')
       }
 
