@@ -24,6 +24,13 @@ const ProposalSchema = {
       .required(),
     transactionHash: ValidationSchema.joiTransactionHash.required(),
   }),
+  canCreateProposal: Joi.object({
+    pluginAddress: ValidationSchema.joiAddress.required(),
+    memberAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+  }),
 }
 
 export default ProposalSchema

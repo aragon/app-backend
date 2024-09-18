@@ -20,7 +20,7 @@ export interface IVoteExtraParams {
 export interface IPairParams {
   daoId?: string
   ens?: string
-  proposalId?: string
+  proposalIndex?: string
 }
 
 export interface IProposalExtraParams {
