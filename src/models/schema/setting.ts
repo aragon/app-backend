@@ -191,6 +191,73 @@ export default class Setting extends Model {
       .exec()
   }
 
+  static async findSetting(extraParams: ISettingExtraParams) {
+    const filter: any = {}
+
+    if (extraParams.status) {
+      filter.status = extraParams.status
+    }
+
+    if (extraParams.daoAddress) {
+      filter.daoAddress = extraParams.daoAddress
+    }
+
+    if (extraParams.pluginAddress) {
+      filter.pluginAddress = extraParams.pluginAddress
+    }
+
+    if (extraParams.network) {
+      filter.network = extraParams.network
+    }
+
+    const query: any = [
+      {
+        $match: filter,
+      },
+
+      // Fetch token only if settings are included and plugin has tokenAddress
+      AggregationQueryHelper.token({ address: '$tokenAddress', network: '$network' }, 'token', {
+        _id: 0,
+        network: 1,
+        address: 1,
+        symbol: 1,
+        name: 1,
+        decimals: 1,
+        logo: 1,
+        type: 1,
+        totalSupply: 1,
+      }),
+      {
+        $addFields: {
+          token: {
+            $cond: {
+              if: { $ne: ['$tokenAddress', null] },
+              then: { $arrayElemAt: ['$token', 0] },
+              else: null,
+            },
+          },
+        },
+      },
+
+      {
+        $project: {
+          _id: 0,
+          onlyListed: 1,
+          minApprovals: 1,
+          votingMode: 1,
+          supportThreshold: 1,
+          minParticipation: 1,
+          minDuration: 1,
+          minProposerVotingPower: 1,
+          token: 1,
+        },
+      },
+    ]
+
+    const results = await this.aggregate(query)
+    return results?.[0]
+  }
+
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
