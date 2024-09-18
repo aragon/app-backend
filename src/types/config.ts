@@ -1,4 +1,5 @@
 import { type NetworksEnum, type SupportedEnsNetworksEnum } from './networks'
+import { type IEnumIndexerService } from '@src/types/services'
 
 export enum IEnumEnvironment {
   production = 'production',
@@ -15,6 +16,20 @@ export enum IEnumNodeEnv {
 export interface IEtherScanConfig {
   API_KEY: string
   API_URL: string
+}
+
+export interface IEventConfig {
+  event: string
+  handler: (event: any, info: any) => Promise<any>
+  enableHistorical?: boolean
+  enableRealtime?: boolean
+}
+
+export interface IIndexerConfig {
+  name: IEnumIndexerService
+  abi: any[]
+  listen: IEventConfig[]
+  enabled?: boolean
 }
 
 export interface IConfig {
@@ -37,6 +52,9 @@ export interface IConfig {
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
   DEFAULT_CURRENCY: string
+  RABBITMQ: {
+    URI: string
+  }
   NODE_CONFIG: {
     MAX_RECONNECT_ATTEMPTS: number
     RECONNECT_INTERVAL: number
@@ -139,28 +157,8 @@ export interface IConfig {
   }
 
   CRAWLER_CONFIG: {
-    DA0_BATCH_SIZE: number
-    DAO_CONCURRENCY: number
-    DA0_PLUGIN_BATCH_SIZE: number
-    DAO_PLUGIN_CONCURRENCY: number
-    DA0_SETTING_BATCH_SIZE: number
-    DAO_SETTING_CONCURRENCY: number
-    MEMBER_BATCH_SIZE: number
-    MEMBER_CONCURRENCY: number
-    MEMBER_DELEGATE_BATCH_SIZE: number
-    MEMBER_DELEGATE_CONCURRENCY: number
-    PROPOSAL_BATCH_SIZE: number
-    PROPOSAL_CONCURRENCY: number
-    VOTE_BATCH_SIZE: number
-    VOTE_CONCURRENCY: number
     TOKEN_RATES_BATCH_SIZE: number
     TOKEN_RATES_CONCURRENCY: number
-    DAO_TVL_BATCH_SIZE: number
-    DAO_TVL_CONCURRENCY: number
-    DAO_ASSETS_BATCH_SIZE: number
-    DAO_ASSETS_CONCURRENCY: number
-    DAO_TRANSACTIONS_BATCH_SIZE: number
-    DAO_TRANSACTIONS_CONCURRENCY: number
   }
 
   ETHERSCAN_API: {

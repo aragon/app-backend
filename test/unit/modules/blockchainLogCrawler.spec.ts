@@ -83,7 +83,7 @@ describe('Module: blockchainLogCrawler', () => {
 
     expect(onLogStub.calledTwice).to.be.true
     expect(onLogStub.calledTwice).to.be.true
-    expect(stubSaveProgress.callCount).to.equal(5)
+    expect(stubSaveProgress.callCount).to.equal(4)
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
@@ -242,18 +242,6 @@ describe('Module: blockchainLogCrawler', () => {
     expect(logError.calledWith('Error get block number')).to.be.true
   })
 
-  it('should throw an error if the provider is not configured for the network', () => {
-    sandbox.stub(ProviderModule, 'getProvider').returns(null as any)
-
-    const options = {
-      network: NetworksEnum.ethereumMainnet,
-      filter: {},
-      onLog: async () => {},
-    }
-
-    expect(() => new BlockchainLogCrawler(options)).to.throw('Provider not configured for network: ' + options.network)
-  })
-
   it('should throw an error if crawl is invoked while already crawling', async () => {
     const provider = {
       getBlockNumber: sandbox.stub().resolves(10),
@@ -332,9 +320,16 @@ describe('Module: blockchainLogCrawler', () => {
 
   describe('calculateBatchSize', () => {
     let crawler
+    const BLOCK_TIME_SECONDS = {
+      ethereum: 12,
+      zkSync: 15,
+      arbitrum: 3,
+      base: 12,
+      polygon: 2,
+    }
 
     beforeEach(() => {
-      sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+      // Initialize the crawler instance
       crawler = new BlockchainLogCrawler({
         network: NetworksEnum.ethereumMainnet,
         filter: {},
@@ -342,25 +337,46 @@ describe('Module: blockchainLogCrawler', () => {
       })
     })
 
-    it('should calculate the correct batch size for mainnet, arbitrum, zksync and base networks', () => {
-      const secondsInMonth = 30 * 24 * 3600
-      const expectedBatchSize = Math.floor(secondsInMonth / 14) // Average block time ~14 seconds
+    it('should calculate the correct batch size for Ethereum networks', () => {
+      const days = 30 * 4
+      const secondsInMonth = days * 24 * 3600
+      const expectedBatchSize = Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.ethereum)
+
       expect(crawler.calculateBatchSize(NetworksEnum.ethereumMainnet)).to.equal(expectedBatchSize)
-      expect(crawler.calculateBatchSize(NetworksEnum.arbitrumMainnet)).to.equal(expectedBatchSize)
-      expect(crawler.calculateBatchSize(NetworksEnum.baseMainnet)).to.equal(expectedBatchSize)
+      expect(crawler.calculateBatchSize(NetworksEnum.ethereumSepolia)).to.equal(expectedBatchSize)
+    })
+
+    it('should calculate the correct batch size for zkSync networks', () => {
+      const days = 30 * 4
+      const secondsInMonth = days * 24 * 3600
+      const expectedBatchSize = Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.zkSync)
+
+      expect(crawler.calculateBatchSize(NetworksEnum.zksyncMainnet)).to.equal(expectedBatchSize)
       expect(crawler.calculateBatchSize(NetworksEnum.zksyncSepolia)).to.equal(expectedBatchSize)
     })
 
-    it('should calculate the correct batch size for polygon network', () => {
-      const secondsInMonth = 30 * 24 * 3600
-      const expectedBatchSize = Math.floor(secondsInMonth / 2) // Average block time ~2 seconds
-      expect(crawler.calculateBatchSize(NetworksEnum.polygonMainnet)).to.equal(expectedBatchSize)
+    it('should calculate the correct batch size for arbitrumMainnet', () => {
+      const days = 30 * 4
+      const secondsInMonth = days * 24 * 3600
+      const expectedBatchSize = Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.arbitrum)
+
+      expect(crawler.calculateBatchSize(NetworksEnum.arbitrumMainnet)).to.equal(expectedBatchSize)
     })
 
-    it('should calculate the correct batch size for sepolia network', () => {
-      const secondsInMonth = 30 * 24 * 3600
-      const expectedBatchSize = Math.floor(secondsInMonth / 12) // Average block time ~12 seconds
-      expect(crawler.calculateBatchSize(NetworksEnum.ethereumSepolia)).to.equal(expectedBatchSize)
+    it('should calculate the correct batch size for baseMainnet', () => {
+      const days = 30 * 4
+      const secondsInMonth = days * 24 * 3600
+      const expectedBatchSize = Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.base)
+
+      expect(crawler.calculateBatchSize(NetworksEnum.baseMainnet)).to.equal(expectedBatchSize)
+    })
+
+    it('should calculate the correct batch size for polygonMainnet', () => {
+      const days = 30 * 4
+      const secondsInMonth = days * 24 * 3600
+      const expectedBatchSize = Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.polygon)
+
+      expect(crawler.calculateBatchSize(NetworksEnum.polygonMainnet)).to.equal(expectedBatchSize)
     })
 
     it('should throw an error for an unsupported network', () => {

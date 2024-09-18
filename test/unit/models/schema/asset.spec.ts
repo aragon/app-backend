@@ -5,20 +5,28 @@ import { HexAddress, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Asset from '@models/schema/asset'
 import ModelUtils from '@models/utils/models'
+import { FakeAsset } from '@test/mock/fakeAsset'
+import { FakeToken } from '@test/mock/fakeToken'
+import Token from '@models/schema/token'
 
 describe('Model: Asset', () => {
   let sandbox: SinonSandbox
   let rawAsset: Partial<Asset>
+  let rawToken: Partial<Token>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
     rawAsset = {
-      network: NetworksEnum.ethereumMainnet,
-      daoAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-      tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
-      amount: '32423423',
+      ...FakeAsset,
     }
+
+    rawToken = {
+      ...(FakeToken as any),
+      address: FakeAsset.tokenAddress,
+    }
+
+    await Models.Token.create(rawToken)
   })
 
   afterEach(() => {
@@ -73,25 +81,6 @@ describe('Model: Asset', () => {
     })
 
     expect(createdAsset.amount).to.eq('90')
-  })
-
-  it('Should findAssetsByDao', async () => {
-    const createdAsset = await Models.Asset.create(rawAsset)
-    const assets = await Models.Asset.findAssetsByDao(
-      rawAsset.daoAddress as HexAddress,
-      rawAsset.network as NetworksEnum,
-    )
-    expect(assets[0].tokenAddress).to.eq(createdAsset.tokenAddress)
-  })
-
-  it('Should findAssetByTokenAndDao', async () => {
-    const createdAsset = await Models.Asset.create(rawAsset)
-    const token = await Models.Asset.findAssetByTokenAndDao(
-      createdAsset.tokenAddress,
-      createdAsset.daoAddress,
-      rawAsset.network as NetworksEnum,
-    )
-    expect(token?.tokenAddress).to.eq(createdAsset.tokenAddress)
   })
 
   describe('Pagination', () => {
@@ -173,9 +162,11 @@ describe('Model: Asset', () => {
     expect(createdAsset.tokenAddress).to.eq(rawAsset.tokenAddress)
   })
 
-  it('Should getDaoTvl', async () => {
-    sandbox.stub(Models.Asset, 'aggregate').resolves([{ tvlUsd: 10 }])
-    const result = await Models.Asset.getDaoTvl('0x', NetworksEnum.ethereumMainnet)
-    expect(result.tvlUsd).to.eq(10)
+  it('should get dao tvl', async () => {
+    await Models.Asset.create(rawAsset)
+    const tvl = await Models.Asset.getDaoTvl(rawAsset.daoAddress, rawAsset.network)
+    expect(tvl.tvlUsd.toString()).to.be.eq('8125101180.00')
+    expect(tvl.daoAddress).to.be.eq(rawAsset.daoAddress)
+    expect(tvl.network).to.be.eq(rawAsset.network)
   })
 })

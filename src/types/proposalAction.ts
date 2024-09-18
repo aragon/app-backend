@@ -41,6 +41,7 @@ export interface IProposalRawAction {
   type: ProposalActionType
   metadata: IActionMetadata
 }
+
 export interface ITransfacerActionMeta {
   token: ITokenMetadata
   from: string

@@ -25,7 +25,7 @@ const EnsHelper = {
 
       return result[0]
     } catch (error) {
-      logger.warn('Error getting ENS with Universal Resolver', llo({ address, error }))
+      logger.silly('Error getting ENS with Universal Resolver', llo({ address, error }))
       return null
     }
   },

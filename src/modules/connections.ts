@@ -4,14 +4,15 @@ import MongoDB from './mongo'
 import ProviderModule from '@modules/provider'
 import { throwError } from '@errors'
 import { EnumConnection } from '@types'
+import RabbitMQ from '@modules/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'connection' })
 
 const Connections = {
-  openedConnections: [] as string[],
+  openedConnections: [] as EnumConnection[],
 
-  async open(needConnections: string[]): Promise<any> {
-    return Utils.asyncForEach(needConnections, async (connection: string) => {
+  async open(needConnections: EnumConnection[]): Promise<any> {
+    return Utils.asyncForEach(needConnections, async (connection: EnumConnection) => {
       try {
         if (!connection || Connections.openedConnections.find(c => c === connection)) {
           await Promise.resolve()
@@ -27,6 +28,10 @@ const Connections = {
           }
           case EnumConnection.BLOCKCHAIN: {
             await ProviderModule.connectToAllNetworks()
+            return true
+          }
+          case EnumConnection.RABBITMQ: {
+            await RabbitMQ.connect()
             return true
           }
           default: {
@@ -51,7 +56,7 @@ const Connections = {
   },
 
   async close(): Promise<any> {
-    return Utils.asyncForEach(Connections.openedConnections, async (connection: string) => {
+    return Utils.asyncForEach(Connections.openedConnections, async (connection: EnumConnection) => {
       switch (connection) {
         case EnumConnection.MONGODB: {
           await MongoDB.disconnect()
@@ -59,6 +64,10 @@ const Connections = {
         }
         case EnumConnection.BLOCKCHAIN: {
           await ProviderModule.closeAllNetworks()
+          return true
+        }
+        case EnumConnection.RABBITMQ: {
+          await RabbitMQ.close()
           return true
         }
         default: {

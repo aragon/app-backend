@@ -3,17 +3,22 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
 import Logger from '@logger'
-import { NetworksEnum } from '@types'
+import { EnumQueueName, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { DaoRegistryHandler } from '@services/aragon-indexer/handlers/daoRegistryHandler'
 import { Models } from '@dbModels'
 import Web3 from '@helpers/web3'
 import Web3Helper from '@helpers/web3'
 import { PluginSetupProcessorHandler } from '@services/aragon-indexer/handlers/pluginSetupProcessorHandler'
-import { MemberHandler } from '@services/aragon-indexer/handlers/memberHandler'
+import { MultisigHandler } from '@indexer/handlers/multisigHandler'
 import ProxyContractHelper from '@helpers/proxyContract'
 import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
 import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
+import { ProxyMember } from '@modules/proxyMember'
+import Utils from '@helpers/utils'
+import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
+import { LogTokenVoting } from '@indexer/logTokenVoting'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
@@ -28,13 +33,17 @@ describe('Indexer: DaoRegistryHandler', () => {
   describe('daoRegistered', () => {
     it('should process dao registered', async () => {
       const network = NetworksEnum.ethereumMainnet
+
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
       }
+
       const fakeEvent = {
         args: {
           dao: '0x123',
@@ -44,22 +53,27 @@ describe('Indexer: DaoRegistryHandler', () => {
       }
 
       const initNewDaoStub = sandbox.stub(DaoRegistryHandler, 'initiateNewDaoCreation')
-      const findTxHashSpy = sandbox.spy(Models.LogDaoRegistry, 'findExistingLog')
+      const findTxHashSpy = sandbox.spy(Models.Dao, 'findExistingLog')
       const loggerStub = sandbox.stub(logger, 'verbose')
       const proxyUtils = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves('0x123')
+      const subdomainExistsStub = sandbox.stub(Web3Helper, 'subdomainExists').resolves(true)
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1123213)
+      const getDaoOsVersionStub = sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('1.0.0')
+      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves()
 
       await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
 
       expect(
         findTxHashSpy.calledOnceWith({
-          transactionHash: logInfo.transactionHash,
+          network: logInfo.network,
           address: fakeEvent.args.dao,
         }),
       ).to.be.true
+
       expect(loggerStub.calledOnce).to.be.true
 
-      const savedDaoLog = await Models.LogDaoRegistry.findExistingLog({
-        transactionHash: logInfo.transactionHash,
+      const savedDaoLog = await Models.Dao.findExistingLog({
+        network: logInfo.network,
         address: fakeEvent.args.dao,
       })
       expect(!!savedDaoLog).to.be.true
@@ -73,12 +87,18 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(initNewDaoStub.calledOnce).to.be.true
       expect(initNewDaoStub.calledWith(logInfo)).to.be.true
       expect(proxyUtils.calledWith(fakeEvent.args.dao, network)).to.be.true
+      expect(subdomainExistsStub.calledWith(fakeEvent.args.subdomain, network)).to.be.true
+      expect(getBlockTimestampStub.calledWith(logInfo.blockNumber, network)).to.be.true
+      expect(getDaoOsVersionStub.calledWith(fakeEvent.args.dao, network)).to.be.true
+      expect(createMemberStub.calledWith(fakeEvent.args.creator)).to.be.true
     })
 
     it('should not process existing dao registered', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -90,45 +110,19 @@ describe('Indexer: DaoRegistryHandler', () => {
           subdomain: 'test',
         },
       }
-      const findTxHashStub = sandbox
-        .stub(Models.LogDaoRegistry, 'findExistingLog')
-        .resolves({ transactionHash: '0x00' })
+      const findTxHashStub = sandbox.stub(Models.Dao, 'findExistingLog').resolves({ transactionHash: '0x00' })
 
-      const createStub = sandbox.stub(Models.LogDaoRegistry, 'create')
+      const createStub = sandbox.stub(Models.Dao, 'create')
 
       await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
 
       expect(
         findTxHashStub.calledOnceWith({
-          transactionHash: logInfo.transactionHash,
+          network: logInfo.network,
           address: fakeEvent.args.dao,
         }),
       ).to.be.true
       expect(createStub.notCalled).to.be.true
-    })
-
-    it('daoRegistered throw error', async () => {
-      const logInfo = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 3,
-        transactionHash: '0x0123123',
-        address: '0x0123123',
-        eventName: 'test',
-      }
-      const fakeEvent = {
-        args: {
-          sender: '0x123',
-          amount: 10n,
-          _reference: 'some reference',
-        },
-      }
-
-      sandbox.stub(Models.LogDaoRegistry, 'findExistingLog').rejects(new Error('error'))
-      const stubLogger = sandbox.stub(logger, 'error')
-
-      await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
-
-      expect(stubLogger.calledOnceWith('Error DaoRegister' as any)).to.be.true
     })
   })
 
@@ -143,12 +137,14 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
       }
 
-      await DaoRegistryHandler.initiateNewDaoCreation(logInfo)
+      await DaoRegistryHandler.initiateNewDaoCreation(logInfo, '0x00')
 
       expect(web3Stub.calledOnce).to.be.true
       expect(_metadataHandlerStub.notCalled).to.be.true
@@ -170,24 +166,62 @@ describe('Indexer: DaoRegistryHandler', () => {
       } as any)
       const metadataHandlerStub = sandbox.stub(DaoRegistryHandler, '_metadataHandler')
       const pluginSetupStub = sandbox.stub(DaoRegistryHandler, '_pluginSetup')
-      const memberAddedStub = sandbox.stub(DaoRegistryHandler, '_memberAdded')
-      const pluginSettingStub = sandbox.stub(DaoRegistryHandler, '_pluginSettings')
+
+      const pluginSettingStub = sandbox.stub(DaoRegistryHandler, '_pluginSettings').resolves([
+        {
+          tokenAddress: '0x123',
+        },
+      ] as any)
+
+      const logTokenVotingStartStub = sandbox.stub(LogTokenVoting, 'start')
+      const _updateSupportedDaoStub = sandbox.stub(DaoRegistryHandler, '_updateSupportedDao')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
       }
 
-      await DaoRegistryHandler.initiateNewDaoCreation(logInfo)
+      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await DaoRegistryHandler.initiateNewDaoCreation(logInfo, '0x00')
+
+      await Utils.wait(500)
 
       expect(web3Stub.calledOnce).to.be.true
       expect(metadataHandlerStub.calledOnce).to.be.true
       expect(pluginSetupStub.calledOnce).to.be.true
-      expect(memberAddedStub.calledOnce).to.be.true
       expect(pluginSettingStub.calledOnce).to.be.true
+      expect(_updateSupportedDaoStub.calledOnce).to.be.true
+      expect(logTokenVotingStartStub.calledOnce).to.be.true
+
+      expect(
+        _updateSupportedDaoStub.calledWith({
+          tokenAddress: '0x123',
+        }),
+      ).to.be.true
+
+      expect(
+        logTokenVotingStartStub.calledOnceWith({
+          tokenAddress: '0x123',
+        }),
+      ).to.be.true
+
+      expect(rabbitMqStub.calledTwice).to.be.true
+      expect(rabbitMqStub.args[0][0]).to.eq(EnumQueueName.daoTransactions)
+      expect(rabbitMqStub.args[0][1]).to.deep.eq({
+        id: '0x00',
+        params: { address: '0x00', network: logInfo.network },
+      })
+      expect(rabbitMqStub.args[1][0]).to.eq(EnumQueueName.daoAssets)
+      expect(rabbitMqStub.args[1][1]).to.deep.eq({
+        id: '0x00',
+        params: { address: '0x00', network: logInfo.network },
+      })
     })
   })
 
@@ -212,6 +246,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -260,6 +296,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -311,6 +349,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -358,6 +398,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
@@ -390,17 +432,19 @@ describe('Indexer: DaoRegistryHandler', () => {
         .onSecondCall()
         .returns([])
 
-      const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
+      const delegateChangedStub = sandbox.stub(MultisigHandler, 'membersRemoved')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
       }
 
-      await DaoRegistryHandler._memberAdded(fakeTx, logInfo)
+      await DaoRegistryHandler._memberAdded(fakeTx, logInfo, {} as any)
 
       expect(findLogsByNameStub.calledTwice).to.be.true
       expect(delegateChangedStub.notCalled).to.be.true
@@ -440,22 +484,26 @@ describe('Indexer: DaoRegistryHandler', () => {
           },
         ] as any)
 
-      const memberAddedStub = sandbox.stub(MemberHandler, 'membersAdded')
-      const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
+      const memberAddedStub = sandbox.stub(MultisigHandler, 'membersAdded')
+      const delegateChangedStub = sandbox.stub(MultisigHandler, 'membersRemoved')
+      const delegateVotesChangedStub = sandbox.stub(GovernanceErc20Handler, 'delegateVotesChanged')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
       }
 
-      await DaoRegistryHandler._memberAdded(fakeTx, logInfo)
+      await DaoRegistryHandler._memberAdded(fakeTx, logInfo, {} as any)
 
       expect(web3Stub.calledTwice).to.be.true
-      expect(delegateChangedStub.calledOnce).to.be.true
+      expect(delegateChangedStub.notCalled).to.be.true
       expect(memberAddedStub.notCalled).to.be.true
+      expect(delegateVotesChangedStub.calledOnce).to.be.true
     })
 
     it('should save member logs', async () => {
@@ -486,6 +534,8 @@ describe('Indexer: DaoRegistryHandler', () => {
               address: '0x123',
               topics: ['0x456'],
               data: '0x789',
+              transactionIndex: 1,
+              index: 2,
               blockNumber: 1,
             },
           },
@@ -503,22 +553,26 @@ describe('Indexer: DaoRegistryHandler', () => {
               topics: ['0x456'],
               data: '0x789',
               blockNumber: 1,
+              transactionIndex: 1,
+              index: 1,
             },
           },
         ] as any)
 
-      const memberAddedStub = sandbox.stub(MemberHandler, 'membersAdded')
-      const delegateChangedStub = sandbox.stub(MemberHandler, 'delegateChanged')
+      const memberAddedStub = sandbox.stub(MultisigHandler, 'membersAdded')
+      const delegateVotesChangedStub = sandbox.stub(GovernanceErc20Handler, 'delegateVotesChanged')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
       }
 
-      await DaoRegistryHandler._memberAdded(fakeTx, logInfo)
+      await DaoRegistryHandler._memberAdded(fakeTx, logInfo, {} as any)
 
       expect(web3Stub.callCount).to.be.eq(2)
       expect(memberAddedStub.calledOnce).to.be.true
@@ -527,17 +581,21 @@ describe('Indexer: DaoRegistryHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         address: '0x123',
         blockNumber: 1,
+        logIndex: 2,
+        transactionIndex: 1,
         transactionHash: '0x123',
         eventName: 'MembersAdded',
       } as any)
-      expect(delegateChangedStub.calledOnce).to.be.true
-      expect(delegateChangedStub.args[0][0]).to.deep.eq({ dao: fakeTx.logs[0].address, member: '0x456' } as any)
-      expect(delegateChangedStub.args[0][1]).to.deep.eq({
+      expect(delegateVotesChangedStub.calledOnce).to.be.true
+      expect(delegateVotesChangedStub.args[0][0]).to.deep.eq({ dao: fakeTx.logs[0].address, member: '0x456' } as any)
+      expect(delegateVotesChangedStub.args[0][1]).to.deep.eq({
         network: NetworksEnum.ethereumMainnet,
         address: '0x123',
         blockNumber: 1,
         transactionHash: '0x123',
-        eventName: 'DelegateChanged',
+        eventName: 'DelegateVotesChanged',
+        logIndex: 1,
+        transactionIndex: 1,
       } as any)
       expect(verboseStub.notCalled).to.be.true
     })
@@ -558,6 +616,8 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 1,
+        logIndex: 1,
         blockNumber: 3,
         transactionHash: '0x0123123',
         address: '0x0123123',
@@ -571,8 +631,6 @@ describe('Indexer: DaoRegistryHandler', () => {
     })
 
     it('should call metadataSet', async () => {
-      const transactionHash = '0x0'
-      const network = NetworksEnum.ethereumMainnet
       const txReceipt = {
         transactionHash: '0x123',
         address: '0x123',
@@ -588,6 +646,8 @@ describe('Indexer: DaoRegistryHandler', () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',

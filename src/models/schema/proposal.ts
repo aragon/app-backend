@@ -1,20 +1,21 @@
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import {
   HexAddress,
+  ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
   type IProposalExtraParams,
   type IProposalIdParams,
   type IProposalsResponse,
-  ITokenType,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions, Schema } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
-const customName = 'Proposal'
+const customName = ICollectionNames.Proposal
 
 class Resource {
   @prop({ type: () => String, default: null })
@@ -23,26 +24,59 @@ class Resource {
   @prop({ type: () => String, default: null })
   public name!: string
 }
-class Media {
+
+class RawAction {
   @prop({ type: () => String, default: null })
-  public header!: string
+  public to!: string
 
   @prop({ type: () => String, default: null })
-  public logo!: string
+  public value!: string
+
+  @prop({ type: () => String, default: null })
+  public data!: string
 }
 
-export class Settings {
+class Media {
   @prop({ type: () => String, default: null })
-  public fromTxHash!: HexAddress
+  public header!: string | null
 
   @prop({ type: () => String, default: null })
-  public toTxHash!: HexAddress
+  public logo!: string | null
+}
 
-  @prop({ type: () => Number, default: null })
-  public fromBlockNumber!: number
+class Settings {
+  @prop({ type: () => String, required: true })
+  public id!: string
 
-  @prop({ type: () => Number, default: null })
-  public toBlockNumber!: number
+  @prop({ type: () => String, required: true })
+  public transactionHash!: HexAddress
+
+  @prop({ type: () => Number, required: true })
+  public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
+
+  @prop({ type: () => String, enum: NetworksEnum, required: true })
+  public network!: NetworksEnum
+
+  @prop({ type: () => String, default: null })
+  public daoAddress!: HexAddress
+
+  @prop({ type: () => String, required: true })
+  public pluginAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public pluginSubdomain!: string
+
+  @prop({ type: () => String, default: null })
+  public tokenAddress!: HexAddress // voting token address
+
+  @prop({ type: () => Boolean })
+  public onlyListed!: boolean
+
+  @prop({ type: () => Number })
+  public minApprovals!: number
 
   @prop({ type: () => Number })
   public votingMode!: number
@@ -56,14 +90,8 @@ export class Settings {
   @prop({ type: () => Number })
   public minDuration!: number
 
-  @prop({ type: () => String })
-  public minProposerVotingPower!: string
-
   @prop({ type: () => Number })
-  public minApprovals!: number
-
-  @prop({ type: () => Boolean })
-  public onlyListed!: boolean
+  public minProposerVotingPower!: number
 }
 
 export class ProposalExecuted {
@@ -71,18 +99,18 @@ export class ProposalExecuted {
   public status!: boolean
 
   @prop({ type: () => String, default: null })
-  public transactionHash!: HexAddress
+  public transactionHash!: HexAddress | null
 
-  @prop({ type: () => Number })
-  public blockNumber!: number
+  @prop({ type: () => Number, default: null })
+  public blockNumber!: number | null
 
-  @prop({ type: () => Number })
-  public blockTimestamp!: number
+  @prop({ type: () => Number, default: null })
+  public blockTimestamp!: number | null
 }
 
 export class VotesByOption {
-  @prop({ type: () => Number, default: null })
-  public type!: number | null
+  @prop({ type: () => Number, required: true })
+  public type!: number
 
   @prop({ type: () => Number, default: 0 })
   public totalVotes!: number
@@ -98,41 +126,23 @@ export class Metrics {
   @prop({ type: () => Number, default: 0 })
   public missingVotes!: number
 
-  @prop({ type: () => [VotesByOption], _id: false, default: [] })
+  @prop({ type: () => [VotesByOption], _id: false })
   public votesByOption!: VotesByOption[]
 }
 
-class Token {
-  @prop({ type: () => String, enum: ITokenType, required: true })
-  public type!: ITokenType
+class Snapshot {
+  @prop({ type: () => String })
+  public totalSupply?: string // totalSupply (only needed for token, rm from multisig)
 
-  @prop({ type: () => String, required: true })
-  public address!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public logo!: string
-
-  @prop({ type: () => String, default: null })
-  public name!: string
-
-  @prop({ type: () => String, default: null, uppercase: true })
-  public symbol!: string
-
-  @prop({ type: () => Number, default: 18 })
-  public decimals!: number
-
-  @prop({ type: () => String, default: 0 })
-  public totalSupply!: string
-
-  @prop({ type: () => Number, default: 0 })
-  public holdersCount!: number
+  @prop({ type: () => Number })
+  public membersCount?: number // memberCount (only needed for multisig, rm from token)
 }
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'proposal',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -170,7 +180,7 @@ export default class Proposal extends Model {
   public daoAddress!: HexAddress
 
   @prop({ type: () => Number, required: true })
-  public proposalId!: number
+  public proposalIndex!: number
 
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress
@@ -180,6 +190,9 @@ export default class Proposal extends Model {
 
   @prop({ type: () => Number, required: true })
   public endDate!: number
+
+  @prop({ type: () => Boolean, default: false })
+  public approvalReached!: boolean
 
   @prop({ type: () => String, default: null })
   public metadataUri!: string
@@ -202,8 +215,8 @@ export default class Proposal extends Model {
   @prop({ type: () => ProposalExecuted, _id: false, default: {} })
   public executed!: ProposalExecuted
 
-  @prop({ type: () => Settings, _id: false })
-  public settings!: Settings
+  @prop({ type: () => [RawAction], _id: false, default: [] })
+  public rawActions!: RawAction[]
 
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
   public actions!: any[]
@@ -211,21 +224,24 @@ export default class Proposal extends Model {
   @prop({ type: () => Media, _id: false })
   public media!: Media
 
+  @prop({ type: () => Settings, _id: false, default: {} })
+  public settings!: Settings
+
+  @prop({ type: () => Snapshot, _id: false, default: {} })
+  public snapshot!: Snapshot
+
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics!: Metrics
-
-  @prop({ type: () => Token, _id: false, default: null })
-  public token!: Token
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
-      assert(!!(rawData?.proposalId! >= 0), 'proposalId is required')
+      assert(rawData?.proposalIndex! >= 0, 'proposalIndex is required')
       rawData.id = this.getEntityId({
         transactionHash: rawData?.transactionHash!,
         pluginAddress: rawData?.pluginAddress!,
-        proposalId: rawData?.proposalId!,
+        proposalIndex: rawData?.proposalIndex!,
       })
     }
     const data = new this(rawData)
@@ -233,7 +249,7 @@ export default class Proposal extends Model {
   }
 
   static getEntityId(params: IProposalIdParams) {
-    const entityId = `${params.transactionHash}-${params.pluginAddress}-${params.proposalId}`
+    const entityId = `${params.transactionHash}-${params.pluginAddress}-${params.proposalIndex}`
     return entityId
   }
 
@@ -246,17 +262,132 @@ export default class Proposal extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
-  static async findByProposalId(
-    proposalId: number,
+  static async findByProposalIndex(
+    proposalIndex: number,
     pluginAddress: HexAddress,
     network: NetworksEnum,
     tOpts?: SaveOptions,
   ) {
-    return await this.findOne({ proposalId, pluginAddress, network }, tOpts)
+    return await this.findOne({ proposalIndex, pluginAddress, network }, tOpts)
   }
 
-  static async findByTransactionHash(transactionHash: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    return await this.findOne({ transactionHash, network }, tOpts)
+  static async findWithEntityId(id: string) {
+    const query = [
+      {
+        $match: {
+          id,
+        },
+      },
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$creatorAddress',
+        },
+        'creator',
+      ),
+      {
+        $addFields: {
+          creator: {
+            $cond: {
+              if: { $gt: [{ $size: '$creator' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$creator.address', 0] },
+                ens: { $arrayElemAt: ['$creator.ens', 0] },
+                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
+              },
+              else: {
+                address: '$creatorAddress',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          creatorAddress: '$$REMOVE',
+        },
+      },
+      AggregationQueryHelper.token({ address: '$settings.tokenAddress', network: '$network' }, 'token', {
+        _id: 0,
+        network: 1,
+        address: 1,
+        symbol: 1,
+        name: 1,
+        decimals: 1,
+        logo: 1,
+        type: 1,
+      }),
+      {
+        $addFields: {
+          'settings.token': {
+            $cond: {
+              if: { $gt: [{ $size: '$token' }, 0] },
+              then: { $arrayElemAt: ['$token', 0] },
+              else: null,
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          token: '$$REMOVE',
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          id: 1,
+          transactionHash: 1,
+          blockNumber: 1,
+          blockTimestamp: 1,
+          network: 1,
+          pluginAddress: 1,
+          pluginSubdomain: 1,
+          daoAddress: 1,
+          proposalIndex: 1,
+          creator: 1,
+          startDate: 1,
+          endDate: 1,
+          metadataUri: 1,
+          title: 1,
+          description: 1,
+          summary: 1,
+          resources: 1,
+          executed: 1,
+          actions: 1,
+          media: 1,
+          settings: {
+            $mergeObjects: [
+              {
+                onlyListed: '$settings.onlyListed',
+                minApprovals: '$settings.minApprovals',
+                votingMode: '$settings.votingMode',
+                supportThreshold: '$settings.supportThreshold',
+                minParticipation: '$settings.minParticipation',
+                minDuration: '$settings.minDuration',
+                minProposerVotingPower: '$settings.minProposerVotingPower',
+                token: {
+                  $cond: {
+                    if: '$settings.token',
+                    then: '$settings.token',
+                    else: '$$REMOVE',
+                  },
+                },
+              },
+              {
+                historicalMembersCount: '$snapshot.membersCount',
+                historicalTotalSupply: '$snapshot.totalSupply',
+              },
+            ],
+          },
+          metrics: 1,
+        },
+      },
+    ]
+
+    const results = await this.aggregate(query)
+    return results?.[0] as IProposalsResponse
   }
 
   static async findWithPagination({
@@ -268,7 +399,7 @@ export default class Proposal extends Model {
   }): Promise<IPaginatedResult<IProposalsResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(([_, v]) => v !== undefined && _ !== 'daoInfo'),
+      Object.entries(extraParams).filter(([key, v]) => v !== undefined && key !== 'daoInfo'),
     )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, [
@@ -283,49 +414,79 @@ export default class Proposal extends Model {
 
     const currentPage = request.skip / request.limit + 1
 
-    let query: any = [
+    const query: any = [
       {
         $match: filter,
+      },
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$creatorAddress',
+        },
+        'creator',
+      ),
+      {
+        $addFields: {
+          creator: {
+            $cond: {
+              if: { $gt: [{ $size: '$creator' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$creator.address', 0] },
+                ens: { $arrayElemAt: ['$creator.ens', 0] },
+                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
+              },
+              else: {
+                address: '$creatorAddress',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          creatorAddress: '$$REMOVE',
+        },
+      },
+      AggregationQueryHelper.token({ address: '$settings.tokenAddress', network: '$network' }, 'token', {
+        _id: 0,
+        network: 1,
+        address: 1,
+        symbol: 1,
+        name: 1,
+        decimals: 1,
+        logo: 1,
+        type: 1,
+      }),
+      {
+        $addFields: {
+          'settings.token': {
+            $cond: {
+              if: { $gt: [{ $size: '$token' }, 0] },
+              then: { $arrayElemAt: ['$token', 0] },
+              else: null,
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          token: '$$REMOVE',
+        },
       },
     ]
 
     if (extraParams.daoInfo) {
-      query = [
-        ...query,
-        {
-          $lookup: {
-            from: 'dao',
-            let: { daoAddresses: '$daoAddress' },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $eq: ['$address', '$$daoAddresses'],
-                  },
-                },
-              },
-              {
-                $project: {
-                  _id: 0,
-                  address: 1,
-                  name: 1,
-                  description: 1,
-                  avatar: 1,
-                  links: 1,
-                },
-              },
-            ],
-            as: 'daoDetails',
-          },
-        },
-        {
-          $addFields: {
-            daoDetails: {
-              $arrayElemAt: ['$daoDetails', 0],
-            },
-          },
-        },
-      ]
+      query.push(
+        AggregationQueryHelper.dao({ address: '$daoAddress', network: '$network' }, 'dao', {
+          _id: 0,
+          address: 1,
+          name: 1,
+          description: 1,
+          avatar: 1,
+          links: 1,
+        }),
+      )
     }
 
     const aggQuery = [
@@ -336,9 +497,52 @@ export default class Proposal extends Model {
       {
         $project: {
           _id: 0,
-          __v: 0,
-          createdAt: 0,
-          updatedAt: 0,
+          id: 1,
+          transactionHash: 1,
+          blockNumber: 1,
+          blockTimestamp: 1,
+          network: 1,
+          pluginAddress: 1,
+          pluginSubdomain: 1,
+          daoAddress: 1,
+          proposalIndex: 1,
+          creator: 1,
+          startDate: 1,
+          endDate: 1,
+          metadataUri: 1,
+          title: 1,
+          description: 1,
+          summary: 1,
+          resources: 1,
+          executed: 1,
+          actions: 1,
+          media: 1,
+          settings: {
+            $mergeObjects: [
+              {
+                onlyListed: '$settings.onlyListed',
+                minApprovals: '$settings.minApprovals',
+                votingMode: '$settings.votingMode',
+                supportThreshold: '$settings.supportThreshold',
+                minParticipation: '$settings.minParticipation',
+                minDuration: '$settings.minDuration',
+                minProposerVotingPower: '$settings.minProposerVotingPower',
+                token: {
+                  $cond: {
+                    if: '$settings.token',
+                    then: '$settings.token',
+                    else: '$$REMOVE',
+                  },
+                },
+              },
+              {
+                historicalMembersCount: '$snapshot.membersCount',
+                historicalTotalSupply: '$snapshot.totalSupply',
+              },
+            ],
+          },
+          metrics: 1,
+          ...(extraParams.daoInfo && { dao: 1 }),
         },
       },
     ]
@@ -393,13 +597,5 @@ export default class Proposal extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
-  }
-
-  filterKeys() {
-    const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'updatedAt')
-    filtered.settings = _.omit(filtered.settings, 'id', '_id', '__v')
-    filtered.media = _.omit(filtered.media, 'id', '_id', '__v')
-    return filtered
   }
 }

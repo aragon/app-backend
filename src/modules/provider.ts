@@ -1,15 +1,17 @@
-import { type IWebSocketProvider, NetworksEnum } from '@types'
+import { type IProviderProxy, type IWebSocketProvider, IWebSocketStatus, NetworksEnum } from '@types'
 import { WebSocketProvider } from 'ethers'
 import config from '@config'
 import logger from '@logger'
 import { assert } from '@errors'
-import { createProviderProxy } from '@modules/proxyProvider'
+import Utils from '@helpers/utils'
+import EventEmitter from 'events'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
+const ProviderEvents = new EventEmitter()
+
 const ProviderModule = {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-  providerProxies: {} as Record<string, IWebSocketProvider>,
+  providerProxies: {} satisfies Record<string, IProviderProxy>,
   networksMap: {
     ETHEREUM_MAINNET: NetworksEnum.ethereumMainnet,
     ETHEREUM_SEPOLIA: NetworksEnum.ethereumSepolia,
@@ -30,7 +32,7 @@ const ProviderModule = {
       Object.entries(networks).map(async ([network, nodeUrl]) => {
         try {
           assert(!!nodeUrl && nodeUrl.length > 0, 'Node URL is not configured')
-          return ProviderModule.connectToNetwork(ProviderModule.parseNetwork(network) as NetworksEnum, nodeUrl!)
+          return await ProviderModule.connectToNetwork(ProviderModule.parseNetwork(network) as NetworksEnum, nodeUrl!)
         } catch (error) {
           logger.warn(`Node URL for ${network} is not configured.`, llo({ network }))
           return Promise.resolve()
@@ -40,94 +42,159 @@ const ProviderModule = {
   },
 
   async connectToNetwork(network: NetworksEnum, nodeUrl: string) {
-    return new Promise((resolve, reject) => {
-      try {
-        const provider = new WebSocketProvider(nodeUrl) as IWebSocketProvider
+    try {
+      const existingProxy = ProviderModule.providerProxies[network]
+      const existingSubscriptions = existingProxy?.subscriptions || []
 
-        if (!ProviderModule.providerProxies[network]) {
-          ProviderModule.providerProxies[network] = createProviderProxy(provider)
-        } else {
-          ProviderModule.providerProxies[network].updateProvider(provider)
-        }
-        ProviderModule.attachEventListeners(provider, network, nodeUrl, resolve, reject)
-      } catch (error) {
-        logger.error('Failed to create WebSocketProvider', llo({ network, error }))
-        reject(error)
+      // Create a new provider with a custom WebSocket class for testing
+      const provider = new WebSocketProvider(nodeUrl) as IWebSocketProvider
+
+      // Update provider proxy while preserving existing properties
+      ProviderModule.providerProxies[network] = {
+        ...existingProxy,
+        provider,
+        reconnectAttempts: 0,
+        subscriptions: existingSubscriptions,
       }
+
+      // Add event listeners for the provider's WebSocket
+      provider.websocket.addEventListener('open', () => {
+        logger.info(`WebSocket connected to ${network}`, llo({ network }))
+        ProviderModule.providerProxies[network].reconnectAttempts = 0
+        ProviderModule.resubscribeEvents(network)
+        ProviderEvents.emit('reconnected', network)
+      })
+
+      provider.websocket.addEventListener('error', (error: any) => {
+        logger.error('WebSocket error', llo({ network, error }))
+      })
+
+      provider.websocket.addEventListener('close', () => {
+        const attempts = ProviderModule.providerProxies[network].reconnectAttempts + 1
+        ProviderModule.providerProxies[network].reconnectAttempts = attempts
+        logger.error(
+          `WebSocket connection closed for ${network}. Attempting to reconnect...`,
+          llo({ network, attempts }),
+        )
+        ProviderModule.reconnectToNetwork(network, nodeUrl, attempts).catch(error => {
+          logger.error('Reconnection failed', llo({ network, error }))
+        })
+      })
+
+      // // Simulate disconnection after 5 seconds for testing purposes
+      // // if (config.NODE_CONFIG.SIMULATE_DISCONNECT) {
+      // setTimeout(() => {
+      //   provider.websocket.close()
+      //   logger.info('Programmatically closed WebSocket connection for testing', llo({ network }))
+      // }, 1000 * 60) // Adjust the delay as needed
+      // // }
+    } catch (error) {
+      logger.error('Failed to create WebSocketProvider', llo({ network, error }))
+      throw error
+    }
+  },
+
+  getProvider(network: NetworksEnum) {
+    const provider = ProviderModule.providerProxies[network]?.provider
+    if (!provider) {
+      return
+    }
+
+    return new Proxy(provider, {
+      get: (target, prop, receiver) => {
+        const value = Reflect.get(target, prop, receiver)
+
+        if (typeof value === 'function') {
+          return async (...args: any[]) => {
+            if (!ProviderModule.isConnectionOpen(network)) {
+              await ProviderModule.waitForConnection(network)
+            }
+            return value.apply(target, args)
+          }
+        }
+        return value
+      },
     })
   },
 
-  attachEventListeners(
-    provider: IWebSocketProvider,
-    network: NetworksEnum,
-    nodeUrl: string,
-    resolve?: any,
-    reject?: any,
-  ) {
-    const handleOpen = async () => {
-      logger.info(`WebSocket connected successfully to ${network}`)
-      provider.websocket.removeEventListener('open', handleOpen)
-      if (resolve) resolve(provider)
+  subscribeToEvent(network: NetworksEnum, filter: any, listener: any) {
+    const providerProxy = ProviderModule.providerProxies[network]
+    if (!providerProxy) {
+      throw new Error(`Provider for network ${network} is not available`)
     }
 
-    const handleClose = async () => {
-      logger.error(
-        `WebSocket connection closed unexpectedly for ${network}. Attempting to reconnect...`,
-        llo({ network }),
-      )
-      provider.websocket.removeEventListener('close', handleClose)
-      await ProviderModule.reconnectToNetwork(network, nodeUrl)
+    // Wrap the listener to handle errors and prevent duplication
+    const wrappedListener = async (...args: any[]) => {
+      try {
+        await listener(...args)
+      } catch (error) {
+        logger.error('Error in event listener', llo({ network, error }))
+        // Handle error appropriately
+      }
     }
 
-    const handleError = (error: any) => {
-      logger.error('WebSocket error', llo({ network, error }))
-      provider.websocket.removeEventListener('error', handleError)
-      if (reject) reject(error)
-    }
+    // Store the wrapped listener
+    providerProxy.subscriptions.push({ filter, listener: wrappedListener })
 
-    provider.websocket.addEventListener('open', handleOpen)
-    provider.websocket.addEventListener('close', handleClose)
-    provider.websocket.addEventListener('error', handleError)
+    const provider = providerProxy?.provider
+    provider?.on(filter, wrappedListener)
+  },
+
+  async closeAllNetworks() {
+    for (const network in ProviderModule.providerProxies) {
+      const providerProxy = ProviderModule.providerProxies[network]
+      const provider = providerProxy?.provider
+      if (provider) {
+        provider.removeAllListeners()
+        if (provider.destroy) {
+          await provider.destroy()
+        }
+        delete ProviderModule.providerProxies[network]
+        logger.info(`WebSocket connection closed and cleaned up for ${network}`, llo({ network }))
+      }
+    }
   },
 
   async reconnectToNetwork(network: NetworksEnum, nodeUrl: string, attempt = 0): Promise<void> {
     if (attempt >= config.NODE_CONFIG.MAX_RECONNECT_ATTEMPTS) {
-      logger.error(`Max reconnect attempts reached for ${network}`, llo({ network }))
-      return
+      logger.error('Max reconnect attempts reached', llo({ network, attempt }))
+      throw new Error(`Max reconnect attempts reached for ${network}`)
     }
+
     const delay = config.NODE_CONFIG.RECONNECT_INTERVAL * Math.pow(2, attempt)
-    return new Promise((resolve, reject) => {
-      setTimeout(async () => {
-        try {
-          logger.info(`Reconnecting to ${network}... Attempt ${attempt + 1}`, llo({ network, attempt: attempt + 1 }))
-          await ProviderModule.connectToNetwork(network, nodeUrl)
-          resolve()
-        } catch (error) {
-          logger.error(
-            `Reconnection attempt ${attempt + 1} failed for ${network}`,
-            llo({ error, network, attempt: attempt + 1 }),
-          )
-          await ProviderModule.reconnectToNetwork(network, nodeUrl, attempt + 1)
-            .then(resolve)
-            .catch(reject)
-        }
-      }, delay)
-    })
+
+    logger.info(
+      `Reconnecting to ${network} after ${delay}ms... Attempt ${attempt + 1}`,
+      llo({ network, attempt: attempt + 1, delay }),
+    )
+
+    await Utils.wait(delay)
+
+    await ProviderModule.connectToNetwork(network, nodeUrl)
   },
 
-  async closeAllNetworks() {
-    const networks = Object.values(NetworksEnum)
-    networks.map(async network => {
-      const provider = ProviderModule.providerProxies[network]
-      if (provider) {
-        await provider.destroy()
-        logger.info(`WebSocket connection closed for ${network}`, llo({ network }))
-      }
-    })
+  resubscribeEvents(network: NetworksEnum) {
+    const providerProxy = ProviderModule.providerProxies[network]
+    const provider = providerProxy?.provider
+    if (providerProxy?.subscriptions?.length > 0) {
+      providerProxy.subscriptions.forEach((subscription: { filter: any; listener: any }) => {
+        logger.verbose('Resubscribing to events', llo({ network, filter: subscription.filter }))
+        provider.removeListener(subscription.filter, subscription.listener) // Remove existing listener
+        provider.on(subscription.filter, subscription.listener) // Add listener
+      })
+    }
   },
 
-  getProvider(network: NetworksEnum): IWebSocketProvider | undefined {
-    return ProviderModule.providerProxies[network]
+  isConnectionOpen(network: NetworksEnum) {
+    const provider = ProviderModule.providerProxies[network]?.provider
+    return provider?.websocket && provider.websocket.readyState === IWebSocketStatus.OPEN
+  },
+
+  async waitForConnection(network: NetworksEnum) {
+    while (!ProviderModule.isConnectionOpen(network)) {
+      logger.debug('Waiting for connection to open', llo({ network }))
+      await Utils.wait(1000)
+    }
   },
 }
 

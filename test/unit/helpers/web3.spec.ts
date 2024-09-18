@@ -1,16 +1,13 @@
 import * as sinon from 'sinon'
-import { fake, SinonSandbox } from 'sinon'
+import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Web3Helper from '@helpers/web3'
 import { ITransactionType, NetworksEnum } from '@types'
 import { AbiCoder, Interface } from 'ethers'
-import { ConfigState } from '@state/configState'
 import Logger from '@logger'
 import logger from '@logger'
 import proxyquire from 'proxyquire'
-import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
-import { ERC20_FUNCTIONS } from '@helpers/tokenDetector'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -21,6 +18,24 @@ describe('Helpers:Web3', () => {
 
   afterEach(() => {
     sandbox?.restore()
+  })
+
+  it('handleAlchemyCrazyBalance', () => {
+    expect(Web3Helper.handleAlchemyCrazyBalance('7.326e+22', 18)).to.equal('73260000000000000000000')
+    expect(Web3Helper.handleAlchemyCrazyBalance('0', 18)).to.equal('0')
+    expect(Web3Helper.handleAlchemyCrazyBalance('50000000000000000', 18)).to.equal('50000000000000000')
+    expect(Web3Helper.handleAlchemyCrazyBalance('0.01', 18)).to.equal('0.01')
+    expect(Web3Helper.handleAlchemyCrazyBalance(0.01, 18)).to.equal('0.01')
+    expect(Web3Helper.handleAlchemyCrazyBalance('1.73462724372438', 18)).to.equal('1.73462724372438')
+    expect(Web3Helper.handleAlchemyCrazyBalance(1.73462724372438, 18)).to.equal('1.73462724372438')
+    expect(Web3Helper.handleAlchemyCrazyBalance(4.2e-16, 18)).to.equal('0.000000000000000420')
+    expect(Web3Helper.handleAlchemyCrazyBalance('4.2e-16', 18)).to.equal('0.000000000000000420')
+    expect(
+      Web3Helper.handleAlchemyCrazyBalance('0x0000000000000000000000000000000000000000000000000000000000124f80', 18),
+    ).to.equal('0.000000000001200000')
+    expect(Web3Helper.handleAlchemyCrazyBalance('43943983483908340948.438934780934834409', 18)).to.equal(
+      '43943983483908340948.438934780934834409',
+    )
   })
 
   describe('Constants', () => {
@@ -1257,6 +1272,47 @@ describe('Helpers:Web3', () => {
       expect(result).to.be.undefined
       expect(stubTransactionReceipt.calledOnceWith(params.txLog.transactionHash, params.network)).to.be.true
       expect(stubFindLogsByName.calledOnceWith(true as any, params.eventName, params.abi)).to.be.true
+    })
+  })
+
+  describe('getTokenBalanceAtBlock', () => {
+    it('should get the token balance at a specific block', async () => {
+      const providerSendStub = sandbox.stub().resolves('0x' + ''.padStart(63, '0') + 1)
+
+      sandbox.stub(ProviderModule, 'getProvider').returns({
+        send: providerSendStub,
+      } as any)
+
+      const result = await Web3Helper.getTokenBalanceAtBlock({
+        address: '0x36466a17feead01870e2781f608ccbffc9977081',
+        blockNumber: 123456,
+        tokenAddress: '0x84DaD4E4A4d1510052D39e916330372db8cD1238',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(result).to.equal('1')
+    })
+
+    it('should throw error if the provider fails', async () => {
+      const providerSendStub = sandbox.stub().rejects(new Error('fake-error'))
+
+      sandbox.stub(ProviderModule, 'getProvider').returns({
+        send: providerSendStub,
+      } as any)
+
+      const params = {
+        address: '0x36466a17feead01870e2781f608ccbffc9977081',
+        blockNumber: 123456,
+        tokenAddress: '0x84DaD4E4A4d1510052D39e916330372db8cD1238',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const loggerWarnStub = sandbox.stub(Logger, 'error')
+
+      const returnedValue = await Web3Helper.getTokenBalanceAtBlock(params)
+      expect(returnedValue).to.equal('0')
+      expect(providerSendStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledOnceWith('Error getErc20BalanceAtBlock' as any)).to.be.true
     })
   })
 })

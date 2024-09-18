@@ -31,18 +31,6 @@ describe('Modules:BlockchainTransferCrawler', () => {
   })
 
   describe('constructor', () => {
-    it('should throw an error if the provider is not configured', () => {
-      sandbox.stub(ProviderModule, 'getProvider').callsFake(_ => null as any)
-      expect(
-        () =>
-          new BlockchainTransferCrawler({
-            network: NetworksEnum.ethereumMainnet,
-            filter: {},
-            onTx: async () => {},
-          }),
-      ).to.throw(`Provider not configured for network: ${NetworksEnum.ethereumMainnet}`)
-    })
-
     it('should initialize with default values', () => {
       const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
       sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)

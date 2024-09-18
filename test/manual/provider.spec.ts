@@ -20,8 +20,7 @@ describe('Manual: Provider', () => {
   it('should handle reconnection during a loop', async function () {
     this.timeout(60000) // Increase timeout for the test
 
-    await ProviderModule.connectToAllNetworks()
-    const provider = ProviderModule.providerProxies[NetworksEnum.arbitrumMainnet]
+    const provider = ProviderModule.providerProxies[NetworksEnum.arbitrumMainnet].provider
     const items = 100 // Reduced for practicality in a test scenario
 
     let reconnectCalled = false
