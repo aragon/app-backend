@@ -376,8 +376,8 @@ export default class Proposal extends Model {
                 },
               },
               {
-                membersCount: '$snapshot.membersCount',
-                totalSupply: '$snapshot.totalSupply',
+                historicalMembersCount: '$snapshot.membersCount',
+                historicalTotalSupply: '$snapshot.totalSupply',
               },
             ],
           },
@@ -536,8 +536,8 @@ export default class Proposal extends Model {
                 },
               },
               {
-                membersCount: '$snapshot.membersCount',
-                totalSupply: '$snapshot.totalSupply',
+                historicalMembersCount: '$snapshot.membersCount',
+                historicalTotalSupply: '$snapshot.totalSupply',
               },
             ],
           },
