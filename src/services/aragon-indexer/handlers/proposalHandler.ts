@@ -226,6 +226,7 @@ export const ProposalHandler = {
       network: info.network,
       pluginAddress: info.address,
       memberAddress: parsedEvent.args.voter,
+      proposalIndex: Number(parsedEvent.args.proposalId),
     })
     const isExistingVote = !!existingMemberVote
 

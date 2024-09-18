@@ -21,7 +21,7 @@ const VoteRouter = {
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
       ens: ctx.query.ens as string,
-      proposalId: ctx.query.proposalId as string,
+      proposalIndex: ctx.query.proposalIndex as string,
     }
     const anyInvalidParams = Utils.extractAdditionalParams(
       { ...paginationParams, ...extraParams, ...pairParams },
@@ -43,6 +43,19 @@ const VoteRouter = {
     )
   },
 
+  async canVote(ctx: RouterContext) {
+    const requestBody = ctx.request.body as {
+      pluginAddress: HexAddress
+      memberAddress: HexAddress
+      network: NetworksEnum
+      proposalIndex: number
+    }
+
+    const formattedRequestBody = await ValidationSchema.validateParams(VoteSchema.canVote, requestBody)
+
+    ctx.body = await VoteController.canVote(formattedRequestBody)
+  },
+
   router() {
     const router = new Router()
 
@@ -56,6 +69,12 @@ const VoteRouter = {
      *
      */
     router.get('/', VoteRouter.getWithPagination)
+
+    /**
+     * @api {post} /can-vote Can Vote
+     */
+
+    router.post('/can-vote', VoteRouter.canVote)
 
     return router
   },
