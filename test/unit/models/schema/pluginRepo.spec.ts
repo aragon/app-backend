@@ -51,20 +51,44 @@ describe('Model: Plugin Repo', () => {
       expect(getEntityIdSpy.called).to.be.false
     })
 
+    it('should fail when network is not present', async () => {
+      await expect(
+        Models.PluginRepo.create({
+          transactionHash: rawPluginRepo.transactionHash!,
+          transactionIndex: rawPluginRepo.transactionIndex!,
+          logIndex: rawPluginRepo.logIndex!,
+        }),
+      ).to.be.rejectedWith('network is required')
+    })
+
     it('should fail when transaction hash is not present', async () => {
       await expect(
         Models.PluginRepo.create({
-          pluginRepo: rawPluginRepo.pluginRepo,
+          transactionIndex: rawPluginRepo.transactionIndex!,
+          logIndex: rawPluginRepo.logIndex!,
+          network: rawPluginRepo.network!,
         }),
       ).to.be.rejectedWith('transactionHash is required')
     })
 
-    it('should fail when plugin repo is not present', async () => {
+    it('should fail when transaction index is not present', async () => {
       await expect(
         Models.PluginRepo.create({
-          transactionHash: rawPluginRepo.transactionHash,
+          transactionHash: rawPluginRepo.transactionHash!,
+          logIndex: rawPluginRepo.logIndex!,
+          network: rawPluginRepo.network!,
         }),
-      ).to.be.rejectedWith('pluginRepo is required')
+      ).to.be.rejectedWith('transactionIndex is required')
+    })
+
+    it('should fail when log index is not present', async () => {
+      await expect(
+        Models.PluginRepo.create({
+          transactionHash: rawPluginRepo.transactionHash!,
+          transactionIndex: rawPluginRepo.transactionIndex!,
+          network: rawPluginRepo.network!,
+        }),
+      ).to.be.rejectedWith('logIndex is required')
     })
   })
 

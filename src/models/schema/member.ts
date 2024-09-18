@@ -330,7 +330,9 @@ export default class Member extends Model {
         avatar: 1,
         tokenBalance: '$memberBalance.amount',
         votingPower: '$memberBalance.votingPower',
-        metrics: '$memberMetrics',
+        metrics: {
+          $arrayElemAt: ['$memberMetrics', 0],
+        },
       },
     })
 

@@ -25,7 +25,8 @@ export const ProposalMetrics = {
     const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network })
 
     const rawMetrics = {
-      approvalReached: votes.length >= proposal.settings.minApprovals,
+      // TODO: add this feature to know if approvalReached
+      // approvalReached: votes.length >= proposal.settings.minApprovals,
       metrics: {
         totalVotes: votes.length,
         missingVotes:
@@ -86,7 +87,7 @@ export const ProposalMetrics = {
 
     const rawMetrics = {
       // TODO: add this feature to know if approvalReached
-      approvalReached: votes.length >= proposal.settings.minApprovals,
+      // approvalReached: votes.length >= proposal.settings.minApprovals,
       metrics: {
         totalVotes: votes.length,
         missingVotes: votes.length >= members.length ? votes.length - members.length : members.length - votes.length,

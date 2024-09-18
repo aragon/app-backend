@@ -3,7 +3,7 @@ import { NetworksEnum } from '@types'
 export const DaoList = [
   {
     isActive: true,
-    network: NetworksEnum.ethereumMainnet,
+    network: NetworksEnum.polygonMainnet,
     transactionHash: '0x8542d5480aaa2798db8e6ed4cb066cdbbc88f7bcce1a87d9c4e7067bb10a4c9c',
     blockNumber: 1677529415,
     address: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',

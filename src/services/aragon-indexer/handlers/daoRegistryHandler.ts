@@ -56,7 +56,7 @@ export const DaoRegistryHandler = {
     }
 
     const dao = await DbOperations.createDocument(Models.Dao, document, info, 'New DaoRegistered', llo)
-    await ProxyMember.saveAndGetMember(parsedEvent.args.creator)
+    await ProxyMember.createMember(parsedEvent.args.creator)
     await DaoRegistryHandler.initiateNewDaoCreation(info, dao.address)
   },
 
@@ -99,6 +99,12 @@ export const DaoRegistryHandler = {
     if (plugins.length === 1) {
       await Promise.all(
         plugins.map(async plugin => {
+          // /**
+          //  * Save the member logs that will create the member entry for the dao
+          //  */
+          // await DaoRegistryHandler._memberAdded(txReceipt, info, plugin)
+          //
+
           // update the dao as supported
           await DaoRegistryHandler._updateSupportedDao(plugin)
 
@@ -185,7 +191,7 @@ export const DaoRegistryHandler = {
     return plugins
   },
 
-  _memberAdded: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
+  _memberAdded: async (txReceipt: TransactionReceipt, info: ILogInfo, plugin: Plugin) => {
     const memberAddedLogs = Web3Helper.findLogsByName(txReceipt, IEventLogMember.MembersAdded, Multisig.abi)
     if (memberAddedLogs.length > 0) {
       await Promise.all(
@@ -196,6 +202,7 @@ export const DaoRegistryHandler = {
       )
     }
 
+    // TODO: we need to handle the case when transfer happen too
     const delegationChangedLogs = Web3Helper.findLogsByName(
       txReceipt,
       IEventLogMember.DelegateVotesChanged,
@@ -205,7 +212,7 @@ export const DaoRegistryHandler = {
       await Promise.all(
         delegationChangedLogs.map(async (log: { parsed: LogDescription | null; txLog: Log }) => {
           const infoPluginSetup = Web3Helper.parseInfoLog(log.txLog, IEventLogMember.DelegateVotesChanged, info.network)
-          await GovernanceErc20Handler.delegateVotesChanged(log.parsed!, infoPluginSetup)
+          await GovernanceErc20Handler.delegateVotesChanged(log.parsed!, infoPluginSetup, plugin)
         }),
       )
     }

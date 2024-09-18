@@ -228,10 +228,7 @@ export default class DaoMemberMapping extends Model {
       pluginAddress,
       network,
     }: {
-      memberAddress: HexAddress
-      daoAddress: HexAddress
       pluginAddress: HexAddress
-      tokenAddress: HexAddress
       network: NetworksEnum
     },
     tOpts?: SaveOptions,

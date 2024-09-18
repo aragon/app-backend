@@ -251,7 +251,7 @@ describe('Model: Transaction', () => {
     const createdDao = await Models.Transaction.create(rawTransaction)
     const filterDao = createdDao.filterKeys()
 
-    expect(filterDao.id).to.exist
+    expect(filterDao.id).to.be.undefined
     expect(filterDao._id).to.be.undefined
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
@@ -259,7 +259,7 @@ describe('Model: Transaction', () => {
     expect(filterDao.daoAddress).to.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.token._id).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(17)
+    expect(Object.keys(filterDao).length).to.eq(15)
   })
 
   it('Should filterKeys without token', async () => {

@@ -27,6 +27,8 @@ import { ENSRegistry } from '@artifacts/ENSRegistry'
 import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
 import { Multisig } from '@artifacts/Multisig'
+import { ProxyToken } from '@modules/proxyToken'
+import BigNumber from 'bignumber.js'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -49,6 +51,49 @@ const Web3Helper = {
 
   ERC1155_safeTransferFrom: '0xf242432a',
   ERC1155_safeBatchTransferFrom: '0x2eb2c2d6',
+
+  handleAlchemyCrazyBalance(amount: number | string, decimals: number = 0): string {
+    try {
+      BigNumber.config({ DECIMAL_PLACES: decimals, ROUNDING_MODE: BigNumber.ROUND_DOWN })
+
+      // Check if the amount is a floating-point number without scientific notation
+      if (typeof amount === 'number' && amount % 1 !== 0 && !amount.toString().includes('e')) {
+        return amount.toString()
+      }
+      if (typeof amount === 'string' && !amount.includes('e') && !amount.startsWith('0x')) {
+        return amount
+      }
+
+      if (typeof amount === 'string' && amount.startsWith('0x')) {
+        const number = new BigNumber(amount)
+        const divisor = new BigNumber(10).pow(decimals)
+        const integerPart = number.dividedBy(divisor).integerValue(BigNumber.ROUND_FLOOR)
+        const fractionalPart = number.modulo(divisor)
+
+        if (fractionalPart.isZero()) {
+          return integerPart.toString()
+        }
+
+        const result = integerPart.toString() + '.' + fractionalPart.toString().padStart(decimals, '0')
+        return result.replace(/\.0+$/, '')
+      }
+
+      const number = new BigNumber(amount)
+      const result = number.toFixed(decimals)
+      return result.replace(/\.0+$/, '')
+    } catch (error) {
+      // skip error
+    }
+
+    try {
+      // Fallback if all else fails, return the string representation
+      return amount.toString()
+    } catch (error) {
+      // skip error
+    }
+
+    return amount as string
+  },
 
   needToSyncBlockTime(document: any) {
     return !document?.blockTimestamp || document?.blockTimestamp === 0
@@ -462,7 +507,9 @@ const Web3Helper = {
         ),
       )
 
-      return BigInt(response).toString()
+      const token = await ProxyToken.saveAndGetToken(address, network)
+      const balance = Web3Helper.handleAlchemyCrazyBalance(response, token?.decimals)
+      return balance
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
       return '0'
@@ -480,10 +527,11 @@ const Web3Helper = {
       )
 
       const balances = response?.tokenBalances
-        ?.map((token: any) => {
+        ?.map(async (alchemyBalance: any) => {
+          const token = await ProxyToken.saveAndGetToken(alchemyBalance.contractAddress, network)
           const result: IAlchemyTokenBalance = {
-            contractAddress: Web3Helper.parseAddress(token.contractAddress) || token.contractAddress,
-            tokenBalance: BigInt(token.tokenBalance).toString(),
+            contractAddress: Web3Helper.parseAddress(alchemyBalance.contractAddress) || alchemyBalance.contractAddress,
+            tokenBalance: Web3Helper.handleAlchemyCrazyBalance(alchemyBalance.tokenBalance, token?.decimals),
           }
           return result
         })

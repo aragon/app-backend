@@ -360,4 +360,23 @@ describe('Model: Dao', () => {
       },
     })
   })
+
+  it('should update the dao metrics', async () => {
+    const createdDao = await Models.Dao.create(rawDao)
+    await createdDao.updateMetrics({
+      members: 100,
+      proposalsCreated: 50,
+      proposalsExecuted: 30,
+      uniqueVoters: 200,
+      votes: 1000,
+      tvlUSD: 100000,
+    })
+
+    expect(createdDao.metrics.members).to.eq(100)
+    expect(createdDao.metrics.proposalsCreated).to.eq(50)
+    expect(createdDao.metrics.proposalsExecuted).to.eq(30)
+    expect(createdDao.metrics.uniqueVoters).to.eq(200)
+    expect(createdDao.metrics.votes).to.eq(1000)
+    expect(createdDao.metrics.tvlUSD).to.eq(100000)
+  })
 })

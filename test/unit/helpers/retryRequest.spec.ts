@@ -3,6 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { retryRequest } from '@helpers/retryRequest'
 import Utils from '@helpers/utils'
+import Logger from '@logger'
 
 describe('Helpers:RetryRequest', () => {
   let sandbox: SinonSandbox
@@ -65,5 +66,22 @@ describe('Helpers:RetryRequest', () => {
       expect(error.message).to.equal('Non-retry error')
       expect(requestFunction.calledOnce).to.be.true
     }
+  })
+
+  it('should throw a rate limit error when response message is NOTOK', async () => {
+    const mockResponse = { data: { message: 'NOTOK' } }
+    const requestFunction = sandbox.stub().resolves(mockResponse)
+    const verboseStub = sandbox.stub(Logger, 'warn')
+    try {
+      await retryRequest(requestFunction, {
+        maxRetries: 1,
+      })
+      expect.fail('should have thrown a rate limit error')
+    } catch (error: any) {
+      expect(error.message).to.equal('Request failed after 1 retries')
+    }
+    expect(verboseStub.calledOnce).to.be.true
+    expect(verboseStub.calledWith('Rate limit exceeded, retrying...' as any)).to.be.true
+    expect(requestFunction.calledOnce).to.be.true
   })
 })
