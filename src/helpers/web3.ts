@@ -70,15 +70,17 @@ const Web3Helper = {
         const integerPart = number.dividedBy(divisor).integerValue(BigNumber.ROUND_FLOOR)
         const fractionalPart = number.modulo(divisor)
 
-        if (fractionalPart.toString() === '0') {
+        if (fractionalPart.isZero()) {
           return integerPart.toString()
         }
 
-        return integerPart.toString() + '.' + fractionalPart.toString().padStart(decimals, '0')
+        const result = integerPart.toString() + '.' + fractionalPart.toString().padStart(decimals, '0')
+        return result.replace(/\.0+$/, '')
       }
 
       const number = new BigNumber(amount)
-      return number.toFixed(decimals)
+      const result = number.toFixed(decimals)
+      return result.replace(/\.0+$/, '')
     } catch (error) {
       // skip error
     }
