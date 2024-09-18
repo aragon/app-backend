@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { type Filter, type Log, type WebSocketProvider } from 'ethers'
-import { type IEnumIndexerService, NetworksEnum } from '@types'
+import { type IEnumIndexerService, type IEnumIndexerServiceStatic, NetworksEnum } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -12,14 +12,14 @@ import { retryRequest } from '@helpers/retryRequest'
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainLogCrawler' })
 
 class BlockchainLogCrawler {
+  private readonly network: NetworksEnum
   private readonly fromBlock: number | string
   private readonly toBlock: number | string
-  private readonly provider: WebSocketProvider
   private readonly onLog: (log: Log) => Promise<void>
   private readonly onError: (error: any, log?: Log) => void
   private readonly filter: Filter
   private readonly stopOnError: boolean
-  private readonly logService: IEnumIndexerService | null
+  private readonly logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
   private readonly originalBatchSize: number
   private batchSize: number
   private crawling: boolean
@@ -28,10 +28,13 @@ class BlockchainLogCrawler {
   private shutdown: boolean
   public readonly crawlResult: {
     network: NetworksEnum
+    fromBlock: number
+    toBlock: number
     nbSuccess: number
     nbError: number
     nbTotal: number
     lastSync: number
+    logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
   }
 
   constructor(opts: {
@@ -41,20 +44,16 @@ class BlockchainLogCrawler {
     onLog: (log: Log) => Promise<void>
     onError?: (error: Error, log?: Log) => void
     stopOnError?: boolean
-    logService?: IEnumIndexerService
+    logService?: IEnumIndexerService | IEnumIndexerServiceStatic | null
   }) {
-    this.provider = ProviderModule.getProvider(opts.network)!
-    if (!this.provider) {
-      throw new Error('Provider not configured for network: ' + opts.network)
-    }
-
+    this.network = opts.network
     this.filter = {
       ...opts.filter,
       fromBlock: opts.filter.fromBlock || 0,
       toBlock: opts.filter.toBlock || 'latest',
     }
-    this.fromBlock = this.filter.fromBlock as any
-    this.toBlock = this.filter.toBlock as any
+    this.fromBlock = opts.filter.fromBlock
+    this.toBlock = opts.filter.toBlock
     this.batchSize = opts.batchSize || this.calculateBatchSize(opts.network)
     this.originalBatchSize = this.batchSize
     this.onLog = opts.onLog
@@ -67,7 +66,10 @@ class BlockchainLogCrawler {
     this.logService = opts.logService ?? null
 
     this.crawlResult = {
+      fromBlock: 0,
+      toBlock: 0,
       network: opts.network,
+      logService: this.logService,
       lastSync: 0,
       nbSuccess: 0,
       nbError: 0,
@@ -86,19 +88,32 @@ class BlockchainLogCrawler {
   }
 
   calculateBatchSize(network: NetworksEnum): number {
-    // TODO: check the block size for each network
-    const secondsInMonth = 30 * 24 * 3600
+    // Constants for block times in seconds for different networks
+    const BLOCK_TIME_SECONDS = {
+      ethereum: 12,
+      zkSync: 15,
+      arbitrum: 3,
+      base: 12,
+      polygon: 2,
+    }
+
+    // Seconds in 4 months (assuming 30 days per month)
+    const days = 30 * 4
+    const secondsInMonth = days * 24 * 3600
+
     switch (network) {
       case NetworksEnum.zksyncMainnet:
       case NetworksEnum.zksyncSepolia:
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.zkSync)
       case NetworksEnum.ethereumMainnet:
-      case NetworksEnum.arbitrumMainnet:
-      case NetworksEnum.baseMainnet:
-        return Math.floor(secondsInMonth / 14) // Average block time ~14 seconds
-      case NetworksEnum.polygonMainnet:
-        return Math.floor(secondsInMonth / 2) // Average block time ~2 seconds
       case NetworksEnum.ethereumSepolia:
-        return Math.floor(secondsInMonth / 12) // Average block time ~12 seconds
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.ethereum)
+      case NetworksEnum.arbitrumMainnet:
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.arbitrum)
+      case NetworksEnum.baseMainnet:
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.base)
+      case NetworksEnum.polygonMainnet:
+        return Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.polygon)
       default:
         throw new Error(`Unsupported network: ${network}`)
     }
@@ -109,7 +124,7 @@ class BlockchainLogCrawler {
       try {
         return await retryRequest(async () =>
           BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
-            this.provider.getBlockNumber(),
+            this.getProvider().getBlockNumber(),
           ),
         )
       } catch (error) {
@@ -153,26 +168,15 @@ class BlockchainLogCrawler {
 
       // Handle topics: use chunks if there are topics, or pass empty for all logs
       const topicChunks = utils.chunkArray(this.filter.topics, 4)
+      let allLogs: Log[] = []
 
       for (const topics of topicChunks) {
-        logger.silly(
-          'Querying logs for topic chunk',
-          llo({
-            network: this.crawlResult.network,
-            initBlock: this.fromBlock,
-            endBlock: this.toBlock,
-            fromBlock: currentBlock,
-            toBlock,
-            topics,
-          }),
-        )
-
         let success = false
         while (!success) {
           try {
             const logs = await retryRequest(async () =>
               BottleneckModule.getNodeLimiter(this.crawlResult.network)!.schedule(async () =>
-                this.provider.getLogs({
+                this.getProvider().getLogs({
                   address: this.filter.address,
                   topics: [topics],
                   fromBlock: currentBlock,
@@ -180,7 +184,11 @@ class BlockchainLogCrawler {
                 }),
               ),
             )
-            await this.processLogs(logs)
+
+            allLogs = allLogs.concat(logs) // Collect logs from this chunk
+            this.crawlResult.fromBlock = currentBlock
+            this.crawlResult.toBlock = toBlock
+            this.crawlResult.nbTotal += logs.length
             this.batchSize = this.originalBatchSize
             success = true
             break
@@ -203,6 +211,23 @@ class BlockchainLogCrawler {
         }
         if (this.shutdown) break
       }
+
+      if (this.shutdown) break
+
+      await this.processLogs(
+        allLogs.sort((a, b) => {
+          // First, sort by blockNumber in ascending order
+          if (a.blockNumber !== b.blockNumber) {
+            return a.blockNumber - b.blockNumber
+          }
+          // If blockNumbers are the same, sort by transactionIndex in ascending order
+          if (a.transactionIndex !== b.transactionIndex) {
+            return a.transactionIndex - b.transactionIndex
+          }
+          // If both blockNumber and transactionIndex are the same, sort by index in ascending order
+          return a.index - b.index
+        }),
+      )
 
       if (this.logService) {
         await this.onSaveProgress(toBlock)
@@ -233,6 +258,7 @@ class BlockchainLogCrawler {
         if (log.blockNumber) {
           this.crawlResult.lastSync = log?.blockNumber
         }
+        logger.verbose('Processing log', llo({ crawlResult: this.crawlResult }))
         if (this.logService && log.blockNumber) {
           await this.onSaveProgress(log.blockNumber)
         }
@@ -259,14 +285,23 @@ class BlockchainLogCrawler {
     return messages.some(msg => error.message?.includes(msg))
   }
 
+  getProvider(): WebSocketProvider {
+    return ProviderModule.getProvider(this.network)!
+  }
+
   async getServiceStartBlock() {
     const existingConfig = await Models.ConfigIndexer.findExistingLog({
       network: this.crawlResult.network,
       service: this.logService!,
     })
-    return existingConfig
-      ? existingConfig.lastSync
-      : config.ARAGON_SUPPORTED_BLOCK[utils.networkToAragon(this.crawlResult.network)]
+
+    if (!existingConfig && (this.filter?.fromBlock as number) > 0) {
+      return this.filter.fromBlock
+    } else if (existingConfig) {
+      return existingConfig.lastSync
+    } else {
+      return config.ARAGON_SUPPORTED_BLOCK[utils.networkToAragon(this.crawlResult.network)]
+    }
   }
 
   async onSaveProgress(blockNumber: number) {

@@ -14,10 +14,10 @@ export interface IProposalMetadata {
   title?: string | null
   summary?: string | null
   description?: string | null
-  resources?: Array<{
+  resources?: {
     url?: string
     name?: string
-  }>
+  }[]
   media?: {
     header?: string | null
     logo?: string | null

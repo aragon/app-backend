@@ -6,7 +6,7 @@ import { Models } from '@dbModels'
 import Transaction from '@models/schema/transaction'
 import { beforeEach } from 'mocha'
 import ModelUtils from '@models/utils/models'
-
+import { FakeTransaction } from '@test/mock/fakeTransaction'
 describe('Model: Transaction', () => {
   let sandbox: SinonSandbox
   let rawTransaction: Partial<Transaction>
@@ -15,36 +15,7 @@ describe('Model: Transaction', () => {
     sandbox = sinon.createSandbox()
 
     rawTransaction = {
-      transactionHash: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-      blockNumber: 1,
-      network: NetworksEnum.ethereumMainnet,
-      type: ITransactionType.deposit,
-      category: ITransactionCategory.Internal,
-      fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',
-      toAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
-      value: '0x0',
-      tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
-      daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc8',
-      tokenId: '1',
-      erc721TokenId: '1',
-      erc1155Metadata: [
-        {
-          tokenId: '1',
-          value: '0',
-        },
-      ],
-      proposalId: '18',
-      token: {
-        network: NetworksEnum.polygonMainnet,
-        address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
-        symbol: 'Test',
-        name: 'Test Token',
-        type: ITokenType.ERC20,
-        logo: 'fake-logo',
-        decimals: 18,
-        priceUsd: '0.1',
-        priceUpdatedAt: 1213123,
-      },
+      ...FakeTransaction,
     }
   })
 
@@ -71,10 +42,6 @@ describe('Model: Transaction', () => {
     expect(createdToken.value).to.eq(rawTransaction.value)
     expect(createdToken.tokenAddress).to.eq(rawTransaction.tokenAddress)
     expect(createdToken.daoAddress).to.eq(rawTransaction.daoAddress)
-    expect(createdToken.tokenId).to.eq(rawTransaction.tokenId)
-    expect(createdToken.erc721TokenId).to.eq(rawTransaction.erc721TokenId)
-    expect(createdToken.erc1155Metadata[0].tokenId).to.eq(rawTransaction.erc1155Metadata?.[0].tokenId)
-    expect(createdToken.erc1155Metadata[0].value).to.eq(rawTransaction.erc1155Metadata?.[0].value)
     expect(createdToken.proposalId).to.eq(rawTransaction.proposalId)
     expect(createdToken.token.address).to.eq(rawTransaction.token?.address)
     expect(createdToken.token.symbol).to.eq(rawTransaction.token?.symbol.toUpperCase())
@@ -82,8 +49,8 @@ describe('Model: Transaction', () => {
     expect(createdToken.token.type).to.eq(rawTransaction.token?.type)
     expect(createdToken.token.logo).to.eq(rawTransaction.token?.logo)
     expect(createdToken.token.decimals).to.eq(rawTransaction.token?.decimals)
-    expect(createdToken.token.priceUsd).to.eq(rawTransaction.token?.priceUsd)
-    expect(createdToken.token.priceUpdatedAt).to.eq(rawTransaction.token?.priceUpdatedAt)
+    expect(createdToken.token.snapshot.priceUsd).to.eq(rawTransaction.token?.snapshot.priceUsd)
+    expect(createdToken.token.snapshot.priceUpdatedAt).to.eq(rawTransaction.token?.snapshot.priceUpdatedAt)
   })
 
   it('Should getEntityId', async () => {
@@ -140,7 +107,7 @@ describe('Model: Transaction', () => {
           fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',
           toAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
           value: '0x0',
-          tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+          tokenAddress: rawTransaction.tokenAddress,
           daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc8',
           tokenId: '1',
           erc721TokenId: '1',
@@ -153,7 +120,7 @@ describe('Model: Transaction', () => {
           proposalId: '18',
           token: {
             network: NetworksEnum.ethereumMainnet,
-            address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+            address: rawTransaction.tokenAddress,
             symbol: 'Test',
             name: 'Test Token',
             type: ITokenType.ERC20,
@@ -170,7 +137,7 @@ describe('Model: Transaction', () => {
           fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',
           toAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
           value: '0x0',
-          tokenAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+          tokenAddress: rawTransaction.tokenAddress,
           daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc8',
           tokenId: '1',
           erc721TokenId: '1',
@@ -183,7 +150,7 @@ describe('Model: Transaction', () => {
           proposalId: '19',
           token: {
             network: NetworksEnum.ethereumMainnet,
-            address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc9',
+            address: rawTransaction.tokenAddress,
             symbol: 'Test',
             name: 'Test Token',
             type: ITokenType.ERC20,
@@ -284,7 +251,7 @@ describe('Model: Transaction', () => {
     const createdDao = await Models.Transaction.create(rawTransaction)
     const filterDao = createdDao.filterKeys()
 
-    expect(filterDao.id).to.exist
+    expect(filterDao.id).to.be.undefined
     expect(filterDao._id).to.be.undefined
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined

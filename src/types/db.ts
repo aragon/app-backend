@@ -1,13 +1,8 @@
 import type Dao from '@models/schema/dao'
 import type Token from '@models/schema/token'
-import type LogDaoRegistry from '@models/schema/logDaoRegistry'
 import type LogDaoMetadata from '@models/schema/logDaoMetadata'
-import type LogProposalMetadata from '@models/schema/logProposalMetadata'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
-import type LogPluginRepo from '@models/schema/logPluginRepo'
-import type LogProposal from '@models/schema/logProposal'
-import type LogPluginSetting from '@models/schema/logPluginSetting'
-import type LogMember from '@models/schema/logMember'
+import type PluginRepo from '@models/schema/pluginRepo'
 import type Member from '@models/schema/member'
 import type Plugin from '@models/schema/plugin'
 import type Setting from '@models/schema/setting'
@@ -15,30 +10,53 @@ import type Asset from '@models/schema/asset'
 import type Transaction from '@models/schema/transaction'
 import type Proposal from '@models/schema/proposal'
 import type ConfigIndexer from '@models/schema/configIndexer'
-import type Delegate from '@models/schema/delegate'
 import type Vote from '@models/schema/vote'
 import type TaskService from '@models/schema/taskService'
 import type TaskRun from '@models/schema/taskRun'
+import type MemberBalance from '@models/schema/memberBalance'
+import type MemberTransaction from '@models/schema/memberTransaction'
+import type DaoMemberMapping from '@models/schema/daoMemberMapping'
+import type MemberMetrics from '@models/schema/memberMetrics'
+
+export enum ICollectionNames {
+  Asset = 'Asset',
+  ConfigIndexer = 'ConfigIndexer',
+  Dao = 'Dao',
+  DaoMemberMapping = 'DaoMemberMapping',
+  LogDaoMetadata = 'LogDaoMetadata',
+  LogPluginSetupProcessor = 'LogPluginSetupProcessor',
+  Member = 'Member',
+  MemberBalance = 'MemberBalance',
+  MemberMetrics = 'MemberMetrics',
+  MemberTransaction = 'MemberTransaction',
+  Plugin = 'Plugin',
+  PluginRepo = 'PluginRepo',
+  Proposal = 'Proposal',
+  Setting = 'Setting',
+  TaskRun = 'TaskRun',
+  TaskService = 'TaskService',
+  Token = 'Token',
+  Transaction = 'Transaction',
+  Vote = 'Vote',
+}
 
 export interface IMongoModel {
   Dao: typeof Dao
   Token: typeof Token
-  LogDaoRegistry: typeof LogDaoRegistry
   LogDaoMetadata: typeof LogDaoMetadata
-  LogProposalMetadata: typeof LogProposalMetadata
   LogPluginSetupProcessor: typeof LogPluginSetupProcessor
-  LogPluginRepo: typeof LogPluginRepo
-  LogProposal: typeof LogProposal
-  LogPluginSetting: typeof LogPluginSetting
-  LogMember: typeof LogMember
+  PluginRepo: typeof PluginRepo
   Member: typeof Member
+  MemberBalance: typeof MemberBalance
+  MemberMetrics: typeof MemberMetrics
+  MemberTransaction: typeof MemberTransaction
+  DaoMemberMapping: typeof DaoMemberMapping
   Plugin: typeof Plugin
   Setting: typeof Setting
   Asset: typeof Asset
   Proposal: typeof Proposal
   Transaction: typeof Transaction
   ConfigIndexer: typeof ConfigIndexer
-  Delegate: typeof Delegate
   Vote: typeof Vote
   TaskService: typeof TaskService
   TaskRun: typeof TaskRun

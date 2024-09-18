@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DelegateRouter from '@services/aragon-api/routers/delegate'
 import DelegateController from '@services/aragon-api/controllers/delegate'
-import { NetworksEnum } from '@types'
+import { ITransferSide, ITransferType, NetworksEnum } from '@types'
 import * as _ from 'lodash'
 
 describe('Router: Delegate', () => {
@@ -25,6 +25,9 @@ describe('Router: Delegate', () => {
         daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         tokenAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        type: ITransferType.delegate,
+        side: ITransferSide.incoming,
+        excludeZeroAddress: false,
       }
       const paginationParams = {
         pageSize: 10,
@@ -95,6 +98,9 @@ describe('Router: Delegate', () => {
         pluginAddress: undefined,
         memberAddress: undefined,
         tokenAddress: undefined,
+        type: undefined,
+        side: undefined,
+        excludeZeroAddress: undefined,
       })
       expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
@@ -137,6 +143,9 @@ describe('Router: Delegate', () => {
           pluginAddress: undefined,
           tokenAddress: undefined,
           network: undefined,
+          type: undefined,
+          side: undefined,
+          excludeZeroAddress: undefined,
         },
       })
     })

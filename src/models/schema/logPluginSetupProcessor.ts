@@ -1,10 +1,16 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, IEventLogPluginType, type ILogPluginSetupProcessorIdParams, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  ICollectionNames,
+  IEventLogPluginType,
+  type ILogPluginSetupProcessorIdParams,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 
-const customName = 'LogPluginSetupProcessor'
+const customName = ICollectionNames.LogPluginSetupProcessor
 
 class Permission {
   @prop({ type: () => Number, default: null })
@@ -27,7 +33,7 @@ class Permission {
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'logPluginSetupProcessor',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -50,6 +56,12 @@ export default class LogPluginSetupProcessor extends Model {
 
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
+
+  @prop({ type: () => Number, required: true })
+  public transactionIndex!: number
+
+  @prop({ type: () => Number, required: true })
+  public logIndex!: number
 
   @prop({ type: () => Number, required: true })
   public blockNumber!: number
@@ -89,16 +101,25 @@ export default class LogPluginSetupProcessor extends Model {
 
   static async create(rawData: Partial<LogPluginSetupProcessor>, tOpts?: SaveOptions) {
     if (!rawData.id) {
+      assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
+      assert(!!rawData.transactionIndex || rawData.transactionIndex === 0, 'transactionIndex is required')
+      assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
       assert(!!rawData.event, 'event is required')
-      rawData.id = this.getEntityId({ transactionHash: rawData?.transactionHash!, event: rawData?.event as any })
+      rawData.id = this.getEntityId({
+        network: rawData?.network!,
+        transactionHash: rawData?.transactionHash!,
+        transactionIndex: rawData?.transactionIndex!,
+        logIndex: rawData?.logIndex!,
+        event: rawData?.event as any,
+      })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
   static getEntityId(params: ILogPluginSetupProcessorIdParams) {
-    const entityId = `${params.transactionHash}-${params.event}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.event}`
     return entityId
   }
 
@@ -111,11 +132,9 @@ export default class LogPluginSetupProcessor extends Model {
     return await this.findOne({ tokenAddress, network })
   }
 
-  static async findByPluginAddress(pluginAddress: HexAddress, network: NetworksEnum) {
-    return await this.findOne({
-      pluginAddress,
-      network,
-    })
+  static async findByPluginAddress(pluginAddress: HexAddress, network: NetworksEnum, event?: IEventLogPluginType) {
+    const params = { pluginAddress, network, ...(event && { event }) }
+    return await this.findOne(params)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {

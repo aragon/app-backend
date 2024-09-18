@@ -1,7 +1,7 @@
 {
   "name": "aragon-backend",
   "description": "OpenSource backend services",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "index.ts",
   "license": "AGPL-3.0",
   "author": "Aragon Development Team",
@@ -10,6 +10,7 @@
     "service:aragon-api": "ts-node -r tsconfig-paths/register runners/aragon-api.ts",
     "service:aragon-indexer": "ts-node -r tsconfig-paths/register runners/aragon-indexer.ts",
     "service:aragon-rates": "ts-node -r tsconfig-paths/register runners/aragon-rates.ts",
+    "service:aragon-dao": "ts-node -r tsconfig-paths/register runners/aragon-dao.ts",
     "service:init-data": "ts-node -r tsconfig-paths/register runners/initialData.ts",
     "push:check": "yarn lint:fix && yarn format:fix && yarn test:dotonly",
     "lint": "eslint . --ext .ts",
@@ -23,6 +24,7 @@
     "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 97 --branches 83 --functions 96 --lines 97",
     "docker:dependencies": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica",
     "docker:services": "docker-compose up --build -d service-aragon-api service-aragon-indexer service-aragon-rates",
+    "wait:rabbitmq": "bash test/lib/scripts/waitUp.sh rabbitmq 5672",
     "wait:db": "bash test/lib/scripts/waitUp.sh mongo1 27017 && bash test/lib/scripts/waitUp.sh mongo2 27017 && bash test/lib/scripts/waitUp.sh mongo3 27017"
   },
   "repository": {
@@ -57,8 +59,10 @@
     "@pinata/sdk": "^2.1.0",
     "@sentry/node": "^7.102.1",
     "@typegoose/typegoose": "^12.1.0",
+    "amqplib": "^0.10.4",
     "async": "^3.2.5",
     "axios": "^1.6.7",
+    "bignumber.js": "^9.1.2",
     "bottleneck": "^2.19.5",
     "class-validator": "^0.14.1",
     "dayjs": "^1.11.10",
@@ -86,6 +90,7 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "@types/amqplib": "^0.10.5",
     "@types/async": "^3.2.24",
     "@types/chai": "^4.3.6",
     "@types/chai-as-promised": "^7.1.8",
@@ -101,6 +106,7 @@
     "@types/toobusy-js": "^0.5.4",
     "@types/ua-parser-js": "^0.7.39",
     "@types/uuid": "^9.0.8",
+    "@types/ws": "^8.5.12",
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "chai": "^4.3.8",
     "chai-as-promised": "^7.1.1",

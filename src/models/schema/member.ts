@@ -2,89 +2,28 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   type ENS,
   HexAddress,
-  type IActiveMemberExtraParams,
-  type IDaoExtraParams,
+  ICollectionNames,
   type IMemberExtraParams,
   type IMemberIdParams,
   type IMembersResponse,
   type IPaginatedResult,
   type IPaginationParams,
-  NetworksEnum,
+  IPluginStatus,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 import Utils from '@helpers/utils'
 
-const customName = 'Member'
-
-export class Metrics {
-  @prop({ type: () => Number })
-  public delegateReceivedCount!: number
-
-  @prop({ type: () => Number })
-  public delegateSentCount!: number
-
-  @prop({ type: () => Number })
-  public voteCount!: number
-
-  @prop({ type: () => Number })
-  public proposalCount!: number
-}
-
-export class DaoHistory {
-  @prop({ type: () => String, enum: NetworksEnum, required: true })
-  public network!: NetworksEnum
-
-  @prop({ type: () => Number, default: null })
-  public fromBlockNumber!: number
-
-  @prop({ type: () => Number, default: null })
-  public toBlockNumber!: number
-
-  @prop({ type: () => String, default: null })
-  public fromTxHash!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public toTxHash!: HexAddress
-
-  @prop({ type: () => String, required: true })
-  public pluginAddress!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public pluginSubdomain!: string
-
-  @prop({ type: () => String, default: null })
-  public tokenAddress!: HexAddress
-
-  @prop({ type: () => String, required: true })
-  public daoAddress!: HexAddress
-
-  @prop({ type: () => String })
-  public votingPower!: string
-
-  @prop({ type: () => String, default: '0' })
-  public tokenBalance!: string
-
-  @prop({ type: () => String })
-  public delegateFromAddress!: HexAddress
-
-  @prop({ type: () => String })
-  public delegateToAddress!: HexAddress
-
-  @prop({ type: () => Metrics, _id: false, default: {} })
-  public metrics!: Metrics
-
-  @prop({ type: () => Number, default: 0 })
-  public fromBlockTimestamp!: number
-}
+const customName = ICollectionNames.Member
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
-    collection: 'member',
+    collection: customName,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -94,7 +33,7 @@ export class DaoHistory {
 })
 @index({
   address: 1,
-  'history.pluginAddress': 1,
+  ens: 1,
 })
 export default class Member extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -106,14 +45,8 @@ export default class Member extends Model {
   @prop({ type: () => String, default: null })
   public ens!: ENS | null
 
-  @prop({ type: () => [DaoHistory], _id: false, default: [] })
-  public history?: DaoHistory[]
-
-  @prop({ type: () => Number, default: null })
-  public lastActivity?: number
-
-  @prop({ type: () => Number, default: null })
-  public firstActivity?: number
+  @prop({ type: () => String, default: null })
+  public avatar!: string
 
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -156,66 +89,142 @@ export default class Member extends Model {
     paginationParams?: IPaginationParams
   }): Promise<IPaginatedResult<IMembersResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(
-        ([key, value]) =>
-          value !== undefined &&
-          key !== 'network' &&
-          key !== 'daoAddress' &&
-          key !== 'pluginAddress' &&
-          key !== 'tokenAddress' &&
-          key !== 'onlyActive',
-      ),
-    )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['address', 'ens']),
-      ...dynamicFilter,
-    }
-
-    const historyFilter = {
-      ...(extraParams.tokenAddress && { 'history.tokenAddress': extraParams.tokenAddress }),
-      ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
-      ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
-      ...(extraParams.network && { 'history.network': extraParams.network }),
-      ...(extraParams.onlyActive && {
-        $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
-      }),
     }
 
     const currentPage = request.skip / request.limit + 1
 
-    const [data, totalRecords] = await Promise.all([
-      this.aggregate([
-        { $match: filter },
-        { $unwind: '$history' },
-        { $match: historyFilter },
+    const query: any = [
+      { $match: filter },
+      AggregationQueryHelper.daoMemberMapping(
         {
-          $group: {
-            _id: '$_id',
-            address: { $first: '$address' },
-            ens: { $first: '$ens' },
-            history: { $push: '$history' },
+          memberAddress: '$address',
+          daoAddress: extraParams.daoAddress,
+          pluginAddress: extraParams.pluginAddress,
+          tokenAddress: extraParams.tokenAddress,
+          network: extraParams.network,
+        },
+        'daoMappings',
+      ),
+      {
+        $match: {
+          daoMappings: { $ne: [] },
+        },
+      },
+      {
+        $unwind: '$daoMappings',
+      },
+      {
+        $group: {
+          _id: '$_id',
+          address: { $first: '$address' },
+          ens: { $first: '$ens' },
+          avatar: { $first: '$avatar' },
+        },
+      },
+      // {
+      //   $project: {
+      //     _id: 0,
+      //     address: 1,
+      //     ens: 1,
+      //     avatar: 1,
+      //   },
+      // },
+    ]
+
+    if (Utils.hasPropsWithValuesExcludingNetwork(extraParams)) {
+      query.push(
+        AggregationQueryHelper.plugin(
+          {
+            daoAddress: extraParams.daoAddress,
+            pluginAddress: extraParams.pluginAddress,
+            network: extraParams.network,
+            status: IPluginStatus.installed,
+          },
+          'plugin',
+          {
+            _id: 0,
+            network: 1,
+            tokenAddress: 1,
+            address: 1,
+          },
+        ),
+        {
+          $addFields: {
+            daoPlugin: { $arrayElemAt: ['$plugin', 0] },
           },
         },
+        AggregationQueryHelper.memberBalance(
+          {
+            tokenAddress: '$daoPlugin.tokenAddress',
+            network: '$daoPlugin.network',
+            memberAddress: '$address',
+          },
+          'memberBalance',
+          {
+            amount: 1,
+            votingPower: 1,
+          },
+        ),
+        {
+          $addFields: {
+            memberBalance: {
+              $cond: [
+                { $gt: [{ $size: '$memberBalance' }, 0] },
+                { $arrayElemAt: ['$memberBalance', 0] },
+                { amount: null, votingPower: null },
+              ],
+            },
+          },
+        },
+        AggregationQueryHelper.memberMetrics(
+          {
+            pluginAddress: '$daoPlugin.address',
+            network: '$daoPlugin.network',
+            memberAddress: '$address',
+          },
+          'memberMetrics',
+          {
+            _id: 0,
+            lastActivity: 1,
+            firstActivity: 1,
+            delegateReceivedCount: 1,
+            delegateSentCount: 1,
+            voteCount: 1,
+            proposalCount: 1,
+          },
+        ),
         {
           $project: {
             _id: 0,
             address: 1,
             ens: 1,
-            history: 1,
+            avatar: 1,
+            tokenBalance: '$memberBalance.amount',
+            votingPower: '$memberBalance.votingPower',
+            metrics: '$memberMetrics',
           },
         },
-        { $sort: request.sort },
-        { $skip: request.skip },
-        { $limit: request.limit },
-      ]),
-      this.aggregate([
-        { $match: filter },
-        { $unwind: '$history' },
-        { $match: historyFilter },
-        { $group: { _id: '$_id' } },
-        { $count: 'totalRecords' },
-      ]).then(results => (results[0] ? results[0].totalRecords : 0)),
+      )
+    } else {
+      query.push({
+        $project: {
+          _id: 0,
+          address: 1,
+          ens: 1,
+          avatar: 1,
+        },
+      })
+    }
+
+    const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery),
+      this.aggregate([...query, { $count: 'totalRecords' }]).then(results =>
+        results[0] ? results[0].totalRecords : 0,
+      ),
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
@@ -239,336 +248,96 @@ export default class Member extends Model {
     address: HexAddress,
     extraParams: IMemberExtraParams = {},
   ): Promise<IMembersResponse> {
-    const filter = {
-      address,
-    }
-
-    const query = [
-      { $match: filter },
-      {
-        $unwind: '$history',
-      },
+    const query: any = [
       {
         $match: {
-          ...(extraParams.tokenAddress && { 'history.tokenAddress': extraParams.tokenAddress }),
-          ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
-          ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
-          ...(extraParams.network && { 'history.network': extraParams.network }),
-          ...(extraParams.onlyActive && {
-            $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
-          }),
-        },
-      },
-      {
-        $group: {
-          _id: '$_id',
-          address: { $first: '$address' },
-          ens: { $first: '$ens' },
-          daos: { $push: '$history' },
-        },
-      },
-      {
-        $lookup: {
-          from: 'dao',
-          let: { daoAddresses: '$daos.daoAddress' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $in: ['$address', '$$daoAddresses'],
-                },
-              },
-            },
-            {
-              $project: {
-                _id: 0,
-                address: 1,
-                name: 1,
-                description: 1,
-                avatar: 1,
-                links: 1,
-              },
-            },
-          ],
-          as: 'daoDetails',
-        },
-      },
-      {
-        $addFields: {
-          daos: {
-            $map: {
-              input: '$daos',
-              as: 'dao',
-              in: {
-                $mergeObjects: [
-                  '$$dao',
-                  {
-                    daoInfo: {
-                      $arrayElemAt: [
-                        {
-                          $filter: {
-                            input: '$daoDetails',
-                            cond: { $eq: ['$$this.address', '$$dao.daoAddress'] },
-                          },
-                        },
-                        0,
-                      ],
-                    },
-                  },
-                ],
-              },
-            },
-          },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          address: 1,
-          ens: 1,
-          history: '$daos',
+          address,
         },
       },
     ]
 
-    const member = await this.aggregate(query as any)
-    return member?.[0] as IMembersResponse
-  }
-
-  static async findActiveWithPagination({
-    extraParams = {},
-    paginationParams = {},
-  }: {
-    extraParams?: IActiveMemberExtraParams
-    paginationParams?: IPaginationParams
-  }): Promise<IPaginatedResult<IMembersResponse>> {
-    const request = ModelUtils.paginateAndSort(paginationParams)
-
-    const filter = {
-      ...ModelUtils.createFilter(paginationParams, ['address', 'ens']),
-    }
-
-    const currentPage = request.skip / request.limit + 1
-    const query = [
-      { $match: filter },
-      {
-        $project: {
-          address: 1,
-          ens: 1,
-          firstActivity: 1,
-          lastActivity: 1,
-          history: {
-            $filter: {
-              input: '$history',
-              as: 'item',
-              cond: {
-                $and: [
-                  ...(extraParams.pluginAddress ? [{ $eq: ['$$item.pluginAddress', extraParams.pluginAddress] }] : []),
-                  ...(extraParams.tokenAddress ? [{ $eq: ['$$item.tokenAddress', extraParams.tokenAddress] }] : []),
-                  ...(extraParams.daoAddress ? [{ $eq: ['$$item.daoAddress', extraParams.daoAddress] }] : []),
-                  ...(extraParams.network ? [{ $eq: ['$$item.network', extraParams.network] }] : []),
-                  {
-                    $or: [{ $eq: ['$$item.toBlockNumber', null] }, { $eq: ['$$item.toBlockNumber', undefined] }],
-                  },
-                ],
-              },
-            },
+    if (Utils.hasPropsWithValuesExcludingNetwork(extraParams)) {
+      query.push(
+        AggregationQueryHelper.plugin(
+          {
+            daoAddress: extraParams.daoAddress,
+            pluginAddress: extraParams.pluginAddress,
+            network: extraParams.network,
+            status: IPluginStatus.installed,
           },
-        },
-      },
-      {
-        $match: {
-          'history.0': { $exists: true },
-        },
-      },
-    ]
-
-    const [data, totalRecords] = await Promise.all([
-      this.aggregate([
-        ...query,
+          'plugin',
+          {
+            _id: 0,
+            network: 1,
+            tokenAddress: 1,
+            address: 1,
+          },
+        ),
         {
-          $project: Utils.hasPropsWithValuesExcludingNetwork(extraParams)
-            ? {
-                _id: 0,
-                address: 1,
-                ens: 1,
-                network: { $arrayElemAt: ['$history.network', 0] },
-                daoAddress: { $arrayElemAt: ['$history.daoAddress', 0] },
-                fromBlockNumber: { $arrayElemAt: ['$history.fromBlockNumber', 0] },
-                fromTxHash: { $arrayElemAt: ['$history.fromTxHash', 0] },
-                pluginAddress: { $arrayElemAt: ['$history.pluginAddress', 0] },
-                pluginSubdomain: { $arrayElemAt: ['$history.pluginSubdomain', 0] },
-                tokenAddress: { $arrayElemAt: ['$history.tokenAddress', 0] },
-                votingPower: { $arrayElemAt: ['$history.votingPower', 0] },
-                tokenBalance: { $arrayElemAt: ['$history.tokenBalance', 0] },
-                metrics: { $arrayElemAt: ['$history.metrics', 0] },
-                firstActivity: 1,
-                lastActivity: 1,
-              }
-            : {
-                _id: 0,
-                address: 1,
-                ens: 1,
-                firstActivity: 1,
-                lastActivity: 1,
-              },
+          $addFields: {
+            // Extract tokenAddress from the first plugin (if it exists)
+            daoPlugin: { $arrayElemAt: ['$plugin', 0] },
+          },
         },
-        { $sort: request.sort },
-        { $skip: request.skip },
-        { $limit: request.limit },
-      ]),
-      this.aggregate([...query, { $count: 'totalRecords' }]),
-    ])
-
-    const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
-    const totalPages = Math.ceil(_totalRecords / request.limit)
-
-    if (currentPage > totalPages) {
-      return ModelUtils.paginateEmptyResponse(request.limit)
-    }
-
-    return {
-      metadata: {
-        page: currentPage,
-        pageSize: request.limit,
-        totalPages,
-        totalRecords: _totalRecords,
-      },
-      data: data as any,
-    }
-  }
-
-  static async findActiveMember(
-    address: HexAddress,
-    extraParams: IActiveMemberExtraParams = {},
-  ): Promise<IMembersResponse> {
-    const filter = {
-      address,
-    }
-
-    const member = await this.aggregate([
-      { $match: filter },
-      {
-        $unwind: '$history',
-      },
-      {
-        $match: {
-          ...(extraParams.pluginAddress && { 'history.pluginAddress': extraParams.pluginAddress }),
-          ...(extraParams.daoAddress && { 'history.daoAddress': extraParams.daoAddress }),
-          ...(extraParams.network && { 'history.network': extraParams.network }),
-          $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
-        },
-      },
-      {
-        $project: Utils.hasPropsWithValuesExcludingNetwork(extraParams)
-          ? {
-              _id: 0,
-              address: '$address',
-              ens: '$ens',
-              network: '$history.network',
-              fromBlockNumber: '$history.fromBlockNumber',
-              fromTxHash: '$history.fromTxHash',
-              pluginAddress: '$history.pluginAddress',
-              pluginSubdomain: '$history.pluginSubdomain',
-              tokenAddress: '$history.tokenAddress',
-              daoAddress: '$history.daoAddress',
-              tokenBalance: '$history.tokenBalance',
-              votingPower: '$history.votingPower',
-              metrics: '$history.metrics',
-              firstActivity: '$firstActivity',
-              lastActivity: '$lastActivity',
-            }
-          : {
-              _id: 0,
-              address: '$address',
-              ens: '$ens',
-              firstActivity: '$firstActivity',
-              lastActivity: '$lastActivity',
+        AggregationQueryHelper.memberBalance(
+          {
+            tokenAddress: '$daoPlugin.tokenAddress',
+            network: '$daoPlugin.network',
+            memberAddress: '$address',
+          },
+          'memberBalance',
+          {
+            amount: 1,
+            votingPower: 1,
+          },
+        ),
+        {
+          $addFields: {
+            memberBalance: {
+              $cond: [
+                { $gt: [{ $size: '$memberBalance' }, 0] },
+                { $arrayElemAt: ['$memberBalance', 0] },
+                { amount: null, votingPower: null },
+              ],
             },
+          },
+        },
+        AggregationQueryHelper.memberMetrics(
+          {
+            pluginAddress: '$daoPlugin.address',
+            network: '$daoPlugin.network',
+            memberAddress: '$address',
+          },
+          'memberMetrics',
+          {
+            _id: 0,
+            lastActivity: 1,
+            firstActivity: 1,
+            delegateReceivedCount: 1,
+            delegateSentCount: 1,
+            voteCount: 1,
+            proposalCount: 1,
+          },
+        ),
+      )
+    }
+
+    query.push({
+      $project: {
+        _id: 0,
+        address: 1,
+        ens: 1,
+        avatar: 1,
+        tokenBalance: '$memberBalance.amount',
+        votingPower: '$memberBalance.votingPower',
+        metrics: {
+          $arrayElemAt: ['$memberMetrics', 0],
+        },
       },
-    ])
+    })
+
+    const member = await this.aggregate(query)
     return member?.[0] as IMembersResponse
-  }
-
-  static async findDaoOfMemberWithPagination(extraParams?: IDaoExtraParams, paginationParams?: IPaginationParams) {
-    const request = ModelUtils.paginateAndSort(paginationParams)
-    const filter = {
-      address: extraParams?.memberAddress,
-    }
-
-    const currentPage = request.skip / request.limit + 1
-
-    const query = [
-      { $match: filter },
-      {
-        $unwind: '$history',
-      },
-      {
-        $match: {
-          ...(extraParams?.network && { 'history.network': extraParams.network }),
-          $or: [{ 'history.toBlockNumber': null }, { 'history.toBlockNumber': { $exists: false } }],
-          ...(extraParams?.excludedDao && {
-            $nor: [
-              {
-                'history.daoAddress': extraParams.excludedDao.daoAddress,
-                'history.network': extraParams.excludedDao.network,
-              },
-            ],
-          }),
-        },
-      },
-      {
-        $lookup: {
-          from: 'dao',
-          let: { daoAddress: '$history.daoAddress' },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ['$address', '$$daoAddress'] },
-              },
-            },
-            {
-              $project: {
-                createdAt: 0,
-                updatedAt: 0,
-                __v: 0,
-                hideDao: 0,
-                _id: 0,
-              },
-            },
-          ],
-          as: 'daoDetails',
-        },
-      },
-      {
-        $unwind: '$daoDetails',
-      },
-      {
-        $replaceRoot: { newRoot: '$daoDetails' },
-      },
-    ]
-
-    const [result, totalRecords] = await Promise.all([
-      this.aggregate([...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]),
-      this.aggregate([...query, { $count: 'totalRecords' }]),
-    ])
-
-    const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
-    const totalPages = Math.ceil(_totalRecords / request.limit)
-
-    if (currentPage > totalPages) {
-      return ModelUtils.paginateEmptyResponse(request.limit)
-    }
-
-    return {
-      metadata: {
-        page: currentPage,
-        pageSize: request.limit,
-        totalPages,
-        totalRecords: _totalRecords,
-      },
-      data: result as any,
-    }
   }
 
   async update(params: Partial<Member>, tOpts?: SaveOptions) {
@@ -589,18 +358,5 @@ export default class Member extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
-  }
-
-  filterMemberOnlyKeys() {
-    const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', 'id', '__v', 'history', 'createdAt', 'updatedAt')
-    return filtered
-  }
-
-  filterKeys() {
-    const obj = this.toObject()
-    const filtered = _.omit(obj, 'id', '_id', '__v', 'createdAt', 'updatedAt')
-    filtered.history = filtered.history.map((h: any) => _.omit(h, '_id', '__v'))
-    return filtered
   }
 }

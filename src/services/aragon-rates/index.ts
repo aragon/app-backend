@@ -3,8 +3,6 @@ import { EnumConnection, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
-import { DaoAssets } from '@rates/daoAsset'
-import { DaoTransactions } from '@rates/daoTransaction'
 
 const llo = logger.logMeta.bind(null, { service: 'service:RatesService' })
 
@@ -14,7 +12,7 @@ const RatesService: IService = {
   start: async function () {
     logger.info('RatesService service sync start', llo({}))
 
-    const tasks = [[{ fetchRates: FetchRates }], [{ daoAssets: DaoAssets }], [{ daoTransactions: DaoTransactions }]]
+    const tasks = [[{ fetchRates: FetchRates }]]
 
     const taskOptions = {
       fn: () => [...tasks],
