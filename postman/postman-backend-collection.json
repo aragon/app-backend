@@ -2451,6 +2451,468 @@
 							"body": "{\n    \"metadata\": {\n        \"page\": 1,\n        \"pageSize\": 10,\n        \"totalPages\": 697,\n        \"totalRecords\": 6965\n    },\n    \"data\": [\n        {\n            \"transactionHash\": \"0x1ac48092cb2e34059ca1f8c8e126380b342c98686d6c963fccdfcffeeb2bcf9f\",\n            \"blockNumber\": 232900002,\n            \"blockTimestamp\": 1721156516,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x4e14C3AFb57184c39F004aDB12e51689f02fE67F\",\n            \"pluginAddress\": \"0xeaDce7d4AF43074B058554910091D227e67061FD\",\n            \"memberAddress\": \"0x5504E7AeA0cf0582f7db6fD9C810f3810425a6c2\",\n            \"proposalId\": 1,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0xF62Ccc4CD09b2D7Fd6b262FF6B30271970EBf621\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0xf62ccc4cd09b2d7fd6b262ff6b30271970ebf621.png\",\n                \"name\": \"Renew DAO Token\",\n                \"symbol\": \"RDAO\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"170000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0xed7361843368de97897f4446aa1c5fd8f540595f9e0ab3c5af1d88b1502343c7\",\n            \"blockNumber\": 232879457,\n            \"blockTimestamp\": 1721151381,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x4e14C3AFb57184c39F004aDB12e51689f02fE67F\",\n            \"pluginAddress\": \"0xeaDce7d4AF43074B058554910091D227e67061FD\",\n            \"memberAddress\": \"0x6959c1ce1469F335C1849bE80fBF104ed2c9EBb5\",\n            \"proposalId\": 0,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0xF62Ccc4CD09b2D7Fd6b262FF6B30271970EBf621\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0xf62ccc4cd09b2d7fd6b262ff6b30271970ebf621.png\",\n                \"name\": \"Renew DAO Token\",\n                \"symbol\": \"RDAO\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 3,\n            \"votingPower\": \"50000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0xc0466f91591757022f20e25c37166ee84c01f9ac926f454d8b213cce49008e08\",\n            \"blockNumber\": 232855153,\n            \"blockTimestamp\": 1721145278,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x4e14C3AFb57184c39F004aDB12e51689f02fE67F\",\n            \"pluginAddress\": \"0xeaDce7d4AF43074B058554910091D227e67061FD\",\n            \"memberAddress\": \"0x6959c1ce1469F335C1849bE80fBF104ed2c9EBb5\",\n            \"proposalId\": 1,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0xF62Ccc4CD09b2D7Fd6b262FF6B30271970EBf621\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0xf62ccc4cd09b2d7fd6b262ff6b30271970ebf621.png\",\n                \"name\": \"Renew DAO Token\",\n                \"symbol\": \"RDAO\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"50000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0x1eabf30258bfc848ff82c5b793e4855f32baf508c89e8e4448bd22d8964854d3\",\n            \"blockNumber\": 232842731,\n            \"blockTimestamp\": 1721142168,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0xf1718E2b38A9c509002521d162BFb8d8CB3027eF\",\n            \"pluginAddress\": \"0x8C94ffb7f86c1E919bc82D430919C9B25Efa1db2\",\n            \"memberAddress\": \"0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31\",\n            \"proposalId\": 2,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x2538AF04F6005563BE4980B06a2bECcd26DA3B67\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0x2538af04f6005563be4980b06a2beccd26da3b67.png\",\n                \"name\": \"EthAdVentures\",\n                \"symbol\": \"EAV\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"10000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0x117a1c75ece3c9c0cdc4857a6314717df3de8ba9eebe1baf9687d4824e656903\",\n            \"blockNumber\": 232473672,\n            \"blockTimestamp\": 1721049611,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0xf1718E2b38A9c509002521d162BFb8d8CB3027eF\",\n            \"pluginAddress\": \"0x8C94ffb7f86c1E919bc82D430919C9B25Efa1db2\",\n            \"memberAddress\": \"0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31\",\n            \"proposalId\": 1,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x2538AF04F6005563BE4980B06a2bECcd26DA3B67\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0x2538af04f6005563be4980b06a2beccd26da3b67.png\",\n                \"name\": \"EthAdVentures\",\n                \"symbol\": \"EAV\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"10000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0x572a16607cddc1d13207cbb81a0a6c27f8a5a856e500c4138b942933d2efd2e1\",\n            \"blockNumber\": 232473303,\n            \"blockTimestamp\": 1721049518,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0xf1718E2b38A9c509002521d162BFb8d8CB3027eF\",\n            \"pluginAddress\": \"0x8C94ffb7f86c1E919bc82D430919C9B25Efa1db2\",\n            \"memberAddress\": \"0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31\",\n            \"proposalId\": 0,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x2538AF04F6005563BE4980B06a2bECcd26DA3B67\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0x2538af04f6005563be4980b06a2beccd26da3b67.png\",\n                \"name\": \"EthAdVentures\",\n                \"symbol\": \"EAV\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"10000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0xcc8632bbd10c9640cfed98126dfa6b2599434c9635d72fceba244f45d8d5c8a0\",\n            \"blockNumber\": 232082690,\n            \"blockTimestamp\": 1720951670,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x88F57e7c75E21cDC8F41f06eA9fDdA25a0b55B07\",\n            \"pluginAddress\": \"0x7D2Af87D5F04b2D5F834135E3570B8B9AeD3AeBa\",\n            \"memberAddress\": \"0x5C0A054D830e8C36BE5D630969C7bb3EF9bae8f3\",\n            \"proposalId\": 41,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x56FfA72934990A8AaE0A3cc7Ef04A32E7B8527C7\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0x56ffa72934990a8aae0a3cc7ef04a32e7b8527c7.png\",\n                \"name\": \"Governance ForumAIDAO\",\n                \"symbol\": \"GFAIDAO\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"4000000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0x4c56ef8b5a8f9ada54f02d633f2018de42f53a84bf4fec79c268a48a4e8fd13e\",\n            \"blockNumber\": 230905315,\n            \"blockTimestamp\": 1720656687,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x9e0543845232d0b83272eeDa1a96BEa9b596FD1c\",\n            \"pluginAddress\": \"0x0207C58030CafFf9eFF4b3dEE82Bddc1e1571df5\",\n            \"memberAddress\": \"0x6bBd6a6F93328707773b45025AA56DCBa16B695F\",\n            \"proposalId\": 0,\n            \"votingPower\": null\n        },\n        {\n            \"transactionHash\": \"0x6e2221964ecd30aaba894c6979cfe176a48b2335123188e0df27b7cc0c8663d1\",\n            \"blockNumber\": 230045715,\n            \"blockTimestamp\": 1720441001,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x88F57e7c75E21cDC8F41f06eA9fDdA25a0b55B07\",\n            \"pluginAddress\": \"0x7D2Af87D5F04b2D5F834135E3570B8B9AeD3AeBa\",\n            \"memberAddress\": \"0x5C0A054D830e8C36BE5D630969C7bb3EF9bae8f3\",\n            \"proposalId\": 40,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x56FfA72934990A8AaE0A3cc7Ef04A32E7B8527C7\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0x56ffa72934990a8aae0a3cc7ef04a32e7b8527c7.png\",\n                \"name\": \"Governance ForumAIDAO\",\n                \"symbol\": \"GFAIDAO\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"4000000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0x905dea00e1bec3bd0e0f559961df3722daba92ec824ac5a1496371c7591dde3f\",\n            \"blockNumber\": 230033003,\n            \"blockTimestamp\": 1720437805,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x88F57e7c75E21cDC8F41f06eA9fDdA25a0b55B07\",\n            \"pluginAddress\": \"0x7D2Af87D5F04b2D5F834135E3570B8B9AeD3AeBa\",\n            \"memberAddress\": \"0x060d6f634aF86FeC140928153C930193C8975f13\",\n            \"proposalId\": 40,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x56FfA72934990A8AaE0A3cc7Ef04A32E7B8527C7\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0x56ffa72934990a8aae0a3cc7ef04a32e7b8527c7.png\",\n                \"name\": \"Governance ForumAIDAO\",\n                \"symbol\": \"GFAIDAO\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"2350000000000000000000000\"\n        }\n    ]\n}"
 						}
 					]
+				},
+				{
+					"name": "get votes Copy",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "059220f9-f989-44fe-8e19-93b0dfdf0fec",
+								"exec": [
+									"// Tests for the vote data object",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"  pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"  pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});",
+									"",
+									"pm.test(\"Response has data array\", function () {",
+									"  const jsonData = pm.response.json();",
+									"  pm.expect(jsonData)",
+									"    .to.have.property(\"data\")",
+									"    .that.is.an(\"array\", \"Expected response to have a 'data' property that is an array\");",
+									"});",
+									"",
+									"pm.test(\"Each object has correct properties and types\", function () {",
+									"  const data = pm.response.json().data;",
+									"  ",
+									"  data.forEach((item, index) => {",
+									"    try {",
+									"      // Check for the expected number of properties (either 8 or 9 if 'token' is present)",
+									"      const expectedPropertyCount = item.hasOwnProperty(\"token\") ? 9 : 8;",
+									"      pm.expect(Object.keys(item).length).to.equal(",
+									"        expectedPropertyCount,",
+									"        `Item ${",
+									"          index + 1",
+									"        }: Expected ${expectedPropertyCount} properties but found ${",
+									"          Object.keys(item).length",
+									"        }`",
+									"      );",
+									"",
+									"      // Top-level properties",
+									"      pm.expect(item)",
+									"        .to.have.property(\"transactionHash\")",
+									"        .that.is.a(\"string\", `Item ${index + 1}: 'transactionHash' should be a string`);",
+									"      pm.expect(item)",
+									"        .to.have.property(\"blockNumber\")",
+									"        .that.is.a(\"number\", `Item ${index + 1}: 'blockNumber' should be a number`);",
+									"      pm.expect(item)",
+									"        .to.have.property(\"blockTimestamp\")",
+									"        .that.is.a(\"number\", `Item ${index + 1}: 'blockTimestamp' should be a number`);",
+									"      pm.expect(item)",
+									"        .to.have.property(\"network\")",
+									"        .that.is.a(\"string\", `Item ${index + 1}: 'network' should be a string`);",
+									"      pm.expect(item)",
+									"        .to.have.property(\"proposalIndex\")",
+									"        .that.is.a(\"number\", `Item ${index + 1}: 'proposalIndex' should be a number`);",
+									"      pm.expect(item)",
+									"        .to.have.property(\"votingPower\")",
+									"        .that.satisfies(",
+									"          (value) => value === null || typeof value === \"string\",",
+									"          `Item ${index + 1}: 'votingPower' should be null or a string`",
+									"        );",
+									"",
+									"      // Token object validation, if present",
+									"      if (item.hasOwnProperty(\"token\")) {",
+									"        pm.expect(item)",
+									"          .to.have.property(\"token\")",
+									"          .that.is.an(\"object\", `Item ${index + 1}: 'token' should be an object`);",
+									"        const token = item.token;",
+									"        pm.expect(token)",
+									"          .to.have.property(\"network\")",
+									"          .that.is.a(\"string\", `Item ${index + 1}: 'token.network' should be a string`);",
+									"        pm.expect(token)",
+									"          .to.have.property(\"type\")",
+									"          .that.is.a(\"string\", `Item ${index + 1}: 'token.type' should be a string`);",
+									"        pm.expect(token)",
+									"          .to.have.property(\"address\")",
+									"          .that.is.a(\"string\", `Item ${index + 1}: 'token.address' should be a string`);",
+									"        pm.expect(token)",
+									"          .to.have.property(\"logo\")",
+									"          .that.is.a(\"string\", `Item ${index + 1}: 'token.logo' should be a string`);",
+									"        pm.expect(token)",
+									"          .to.have.property(\"name\")",
+									"          .that.is.a(\"string\", `Item ${index + 1}: 'token.name' should be a string`);",
+									"        pm.expect(token)",
+									"          .to.have.property(\"symbol\")",
+									"          .that.is.a(\"string\", `Item ${index + 1}: 'token.symbol' should be a string`);",
+									"        pm.expect(token)",
+									"          .to.have.property(\"decimals\")",
+									"          .that.is.a(\"number\", `Item ${index + 1}: 'token.decimals' should be a number`);",
+									"      }",
+									"",
+									"      // Member object validation",
+									"      pm.expect(item)",
+									"        .to.have.property(\"member\")",
+									"        .that.is.an(\"object\", `Item ${index + 1}: 'member' should be an object`);",
+									"      const member = item.member;",
+									"      pm.expect(member)",
+									"        .to.have.property(\"address\")",
+									"        .that.is.a(\"string\", `Item ${index + 1}: 'member.address' should be a string`);",
+									"      pm.expect(member)",
+									"        .to.have.property(\"ens\")",
+									"        .that.satisfies(",
+									"          (value) => value === null || typeof value === \"string\",",
+									"          `Item ${index + 1}: 'member.ens' should be null or a string`",
+									"        );",
+									"      pm.expect(member)",
+									"        .to.have.property(\"avatar\")",
+									"        .that.satisfies(",
+									"          (value) => value === null || typeof value === \"string\",",
+									"          `Item ${index + 1}: 'member.avatar' should be null or a string`",
+									"        );",
+									"",
+									"      // Proposal object validation",
+									"      pm.expect(item)",
+									"        .to.have.property(\"proposal\")",
+									"        .that.is.an(\"object\", `Item ${index + 1}: 'proposal' should be an object`);",
+									"      const proposal = item.proposal;",
+									"      pm.expect(proposal)",
+									"        .to.have.property(\"id\")",
+									"        .that.is.a(\"string\", `Item ${index + 1}: 'proposal.id' should be a string`);",
+									"      pm.expect(proposal)",
+									"        .to.have.property(\"transactionHash\")",
+									"        .that.is.a(\"string\", `Item ${index + 1}: 'proposal.transactionHash' should be a string`);",
+									"      pm.expect(proposal)",
+									"        .to.have.property(\"proposalIndex\")",
+									"        .that.is.a(\"number\", `Item ${index + 1}: 'proposal.proposalIndex' should be a number`);",
+									"      pm.expect(proposal)",
+									"        .to.have.property(\"metadataUri\")",
+									"        .that.is.a(\"string\", `Item ${index + 1}: 'proposal.metadataUri' should be a string`);",
+									"      pm.expect(proposal)",
+									"        .to.have.property(\"title\")",
+									"        .that.is.a(\"string\", `Item ${index + 1}: 'proposal.title' should be a string`);",
+									"      pm.expect(proposal)",
+									"        .to.have.property(\"description\")",
+									"        .that.satisfies(",
+									"          (value) => value === null || typeof value === \"string\",",
+									"          `Item ${index + 1}: 'proposal.description' should be null or a string`",
+									"        );",
+									"      pm.expect(proposal)",
+									"        .to.have.property(\"summary\")",
+									"        .that.is.a(\"string\", `Item ${index + 1}: 'proposal.summary' should be a string`);",
+									"      pm.expect(proposal)",
+									"        .to.have.property(\"resources\")",
+									"        .that.is.an(\"array\", `Item ${index + 1}: 'proposal.resources' should be an array`);",
+									"",
+									"      // Media object validation",
+									"      pm.expect(proposal)",
+									"        .to.have.property(\"media\")",
+									"        .that.is.an(\"object\", `Item ${index + 1}: 'proposal.media' should be an object`);",
+									"      const media = proposal.media;",
+									"      pm.expect(media)",
+									"        .to.have.property(\"header\")",
+									"        .that.satisfies(",
+									"          (value) => value === null || typeof value === \"string\",",
+									"          `Item ${index + 1}: 'proposal.media.header' should be null or a string`",
+									"        );",
+									"      pm.expect(media)",
+									"        .to.have.property(\"logo\")",
+									"        .that.satisfies(",
+									"          (value) => value === null || typeof value === \"string\",",
+									"          `Item ${index + 1}: 'proposal.media.logo' should be null or a string`",
+									"        );",
+									"    } catch (e) {",
+									"      console.error(`Error in Item ${index + 1}: ${e.message}`, item);",
+									"      throw new Error(",
+									"        `Item ${index + 1}: Check the console for more details. ${e.message}`",
+									"      );",
+									"    }",
+									"  });",
+									"});",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"id": "c156efbc-c799-4710-aca4-1230cb49041c",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{host}}/votes?includeInfo=true",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"votes"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "<string>",
+									"disabled": true
+								},
+								{
+									"key": "page",
+									"value": "<number>",
+									"disabled": true
+								},
+								{
+									"key": "pageSize",
+									"value": "<number>",
+									"disabled": true
+								},
+								{
+									"key": "order",
+									"value": "<string>",
+									"disabled": true
+								},
+								{
+									"key": "sort",
+									"value": "<string>",
+									"disabled": true
+								},
+								{
+									"key": "startDateProp",
+									"value": "<string>",
+									"disabled": true
+								},
+								{
+									"key": "endDateProp",
+									"value": "<string>",
+									"disabled": true
+								},
+								{
+									"key": "startDate",
+									"value": "<Date | timestamp>",
+									"disabled": true
+								},
+								{
+									"key": "endDate",
+									"value": "<Date | timestamp>",
+									"disabled": true
+								},
+								{
+									"key": "network",
+									"value": "<Network>",
+									"disabled": true
+								},
+								{
+									"key": "address",
+									"value": "<string>",
+									"description": "memberAddress",
+									"disabled": true
+								},
+								{
+									"key": "daoAddress",
+									"value": "<string>",
+									"disabled": true
+								},
+								{
+									"key": "tokenAddress",
+									"value": "<string>",
+									"disabled": true
+								},
+								{
+									"key": "pluginAddress",
+									"value": "<string>",
+									"disabled": true
+								},
+								{
+									"key": "daoId",
+									"value": "<daoId>",
+									"disabled": true
+								},
+								{
+									"key": "proposalId",
+									"value": "<string>",
+									"disabled": true
+								},
+								{
+									"key": "includeInfo",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": [
+						{
+							"id": "1587a14e-b889-4ac4-ae6a-e9793915782a",
+							"name": "get votes",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{host}}/votes",
+									"host": [
+										"{{host}}"
+									],
+									"path": [
+										"votes"
+									],
+									"query": [
+										{
+											"key": "search",
+											"value": "<string>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "page",
+											"value": "<number>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "pageSize",
+											"value": "<number>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "order",
+											"value": "<string>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "sort",
+											"value": "<string>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "startDateProp",
+											"value": "<string>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "endDateProp",
+											"value": "<string>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "startDate",
+											"value": "<Date | timestamp>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "endDate",
+											"value": "<Date | timestamp>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "network",
+											"value": "<Network>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "address",
+											"value": "<string>",
+											"description": "memberAddress",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "daoAddress",
+											"value": "<string>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "tokenAddress",
+											"value": "<string>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "pluginAddress",
+											"value": "<string>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "daoId",
+											"value": "<daoId>",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "proposalId",
+											"value": "<number>",
+											"type": "text",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "X-Correlation-Id",
+									"value": "38d3cf94-7dbf-41f9-be5c-ae6dba47e9be"
+								},
+								{
+									"key": "Access-Control-Allow-Origin",
+									"value": "*"
+								},
+								{
+									"key": "referrer-policy",
+									"value": "no-referrer"
+								},
+								{
+									"key": "x-content-type-options",
+									"value": "nosniff"
+								},
+								{
+									"key": "x-frame-options",
+									"value": "DENY"
+								},
+								{
+									"key": "content-security-policy",
+									"value": "default-src 'self' https:"
+								},
+								{
+									"key": "x-xss-protection",
+									"value": "1; mode=block"
+								},
+								{
+									"key": "strict-transport-security",
+									"value": "max-age=2592000; includeSubDomains"
+								},
+								{
+									"key": "Content-Type",
+									"value": "application/json; charset=utf-8"
+								},
+								{
+									"key": "Content-Length",
+									"value": "6462"
+								},
+								{
+									"key": "Date",
+									"value": "Wed, 17 Jul 2024 00:38:59 GMT"
+								},
+								{
+									"key": "Connection",
+									"value": "keep-alive"
+								},
+								{
+									"key": "Keep-Alive",
+									"value": "timeout=5"
+								}
+							],
+							"cookie": [],
+							"responseTime": null,
+							"body": "{\n    \"metadata\": {\n        \"page\": 1,\n        \"pageSize\": 10,\n        \"totalPages\": 697,\n        \"totalRecords\": 6965\n    },\n    \"data\": [\n        {\n            \"transactionHash\": \"0x1ac48092cb2e34059ca1f8c8e126380b342c98686d6c963fccdfcffeeb2bcf9f\",\n            \"blockNumber\": 232900002,\n            \"blockTimestamp\": 1721156516,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x4e14C3AFb57184c39F004aDB12e51689f02fE67F\",\n            \"pluginAddress\": \"0xeaDce7d4AF43074B058554910091D227e67061FD\",\n            \"memberAddress\": \"0x5504E7AeA0cf0582f7db6fD9C810f3810425a6c2\",\n            \"proposalId\": 1,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0xF62Ccc4CD09b2D7Fd6b262FF6B30271970EBf621\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0xf62ccc4cd09b2d7fd6b262ff6b30271970ebf621.png\",\n                \"name\": \"Renew DAO Token\",\n                \"symbol\": \"RDAO\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"170000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0xed7361843368de97897f4446aa1c5fd8f540595f9e0ab3c5af1d88b1502343c7\",\n            \"blockNumber\": 232879457,\n            \"blockTimestamp\": 1721151381,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x4e14C3AFb57184c39F004aDB12e51689f02fE67F\",\n            \"pluginAddress\": \"0xeaDce7d4AF43074B058554910091D227e67061FD\",\n            \"memberAddress\": \"0x6959c1ce1469F335C1849bE80fBF104ed2c9EBb5\",\n            \"proposalId\": 0,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0xF62Ccc4CD09b2D7Fd6b262FF6B30271970EBf621\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0xf62ccc4cd09b2d7fd6b262ff6b30271970ebf621.png\",\n                \"name\": \"Renew DAO Token\",\n                \"symbol\": \"RDAO\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 3,\n            \"votingPower\": \"50000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0xc0466f91591757022f20e25c37166ee84c01f9ac926f454d8b213cce49008e08\",\n            \"blockNumber\": 232855153,\n            \"blockTimestamp\": 1721145278,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x4e14C3AFb57184c39F004aDB12e51689f02fE67F\",\n            \"pluginAddress\": \"0xeaDce7d4AF43074B058554910091D227e67061FD\",\n            \"memberAddress\": \"0x6959c1ce1469F335C1849bE80fBF104ed2c9EBb5\",\n            \"proposalId\": 1,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0xF62Ccc4CD09b2D7Fd6b262FF6B30271970EBf621\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0xf62ccc4cd09b2d7fd6b262ff6b30271970ebf621.png\",\n                \"name\": \"Renew DAO Token\",\n                \"symbol\": \"RDAO\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"50000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0x1eabf30258bfc848ff82c5b793e4855f32baf508c89e8e4448bd22d8964854d3\",\n            \"blockNumber\": 232842731,\n            \"blockTimestamp\": 1721142168,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0xf1718E2b38A9c509002521d162BFb8d8CB3027eF\",\n            \"pluginAddress\": \"0x8C94ffb7f86c1E919bc82D430919C9B25Efa1db2\",\n            \"memberAddress\": \"0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31\",\n            \"proposalId\": 2,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x2538AF04F6005563BE4980B06a2bECcd26DA3B67\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0x2538af04f6005563be4980b06a2beccd26da3b67.png\",\n                \"name\": \"EthAdVentures\",\n                \"symbol\": \"EAV\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"10000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0x117a1c75ece3c9c0cdc4857a6314717df3de8ba9eebe1baf9687d4824e656903\",\n            \"blockNumber\": 232473672,\n            \"blockTimestamp\": 1721049611,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0xf1718E2b38A9c509002521d162BFb8d8CB3027eF\",\n            \"pluginAddress\": \"0x8C94ffb7f86c1E919bc82D430919C9B25Efa1db2\",\n            \"memberAddress\": \"0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31\",\n            \"proposalId\": 1,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x2538AF04F6005563BE4980B06a2bECcd26DA3B67\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0x2538af04f6005563be4980b06a2beccd26da3b67.png\",\n                \"name\": \"EthAdVentures\",\n                \"symbol\": \"EAV\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"10000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0x572a16607cddc1d13207cbb81a0a6c27f8a5a856e500c4138b942933d2efd2e1\",\n            \"blockNumber\": 232473303,\n            \"blockTimestamp\": 1721049518,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0xf1718E2b38A9c509002521d162BFb8d8CB3027eF\",\n            \"pluginAddress\": \"0x8C94ffb7f86c1E919bc82D430919C9B25Efa1db2\",\n            \"memberAddress\": \"0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31\",\n            \"proposalId\": 0,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x2538AF04F6005563BE4980B06a2bECcd26DA3B67\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0x2538af04f6005563be4980b06a2beccd26da3b67.png\",\n                \"name\": \"EthAdVentures\",\n                \"symbol\": \"EAV\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"10000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0xcc8632bbd10c9640cfed98126dfa6b2599434c9635d72fceba244f45d8d5c8a0\",\n            \"blockNumber\": 232082690,\n            \"blockTimestamp\": 1720951670,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x88F57e7c75E21cDC8F41f06eA9fDdA25a0b55B07\",\n            \"pluginAddress\": \"0x7D2Af87D5F04b2D5F834135E3570B8B9AeD3AeBa\",\n            \"memberAddress\": \"0x5C0A054D830e8C36BE5D630969C7bb3EF9bae8f3\",\n            \"proposalId\": 41,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x56FfA72934990A8AaE0A3cc7Ef04A32E7B8527C7\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0x56ffa72934990a8aae0a3cc7ef04a32e7b8527c7.png\",\n                \"name\": \"Governance ForumAIDAO\",\n                \"symbol\": \"GFAIDAO\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"4000000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0x4c56ef8b5a8f9ada54f02d633f2018de42f53a84bf4fec79c268a48a4e8fd13e\",\n            \"blockNumber\": 230905315,\n            \"blockTimestamp\": 1720656687,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x9e0543845232d0b83272eeDa1a96BEa9b596FD1c\",\n            \"pluginAddress\": \"0x0207C58030CafFf9eFF4b3dEE82Bddc1e1571df5\",\n            \"memberAddress\": \"0x6bBd6a6F93328707773b45025AA56DCBa16B695F\",\n            \"proposalId\": 0,\n            \"votingPower\": null\n        },\n        {\n            \"transactionHash\": \"0x6e2221964ecd30aaba894c6979cfe176a48b2335123188e0df27b7cc0c8663d1\",\n            \"blockNumber\": 230045715,\n            \"blockTimestamp\": 1720441001,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x88F57e7c75E21cDC8F41f06eA9fDdA25a0b55B07\",\n            \"pluginAddress\": \"0x7D2Af87D5F04b2D5F834135E3570B8B9AeD3AeBa\",\n            \"memberAddress\": \"0x5C0A054D830e8C36BE5D630969C7bb3EF9bae8f3\",\n            \"proposalId\": 40,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x56FfA72934990A8AaE0A3cc7Ef04A32E7B8527C7\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0x56ffa72934990a8aae0a3cc7ef04a32e7b8527c7.png\",\n                \"name\": \"Governance ForumAIDAO\",\n                \"symbol\": \"GFAIDAO\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"4000000000000000000000000\"\n        },\n        {\n            \"transactionHash\": \"0x905dea00e1bec3bd0e0f559961df3722daba92ec824ac5a1496371c7591dde3f\",\n            \"blockNumber\": 230033003,\n            \"blockTimestamp\": 1720437805,\n            \"network\": \"arbitrum-mainnet\",\n            \"daoAddress\": \"0x88F57e7c75E21cDC8F41f06eA9fDdA25a0b55B07\",\n            \"pluginAddress\": \"0x7D2Af87D5F04b2D5F834135E3570B8B9AeD3AeBa\",\n            \"memberAddress\": \"0x060d6f634aF86FeC140928153C930193C8975f13\",\n            \"proposalId\": 40,\n            \"token\": {\n                \"type\": \"GovernanceERC20\",\n                \"address\": \"0x56FfA72934990A8AaE0A3cc7Ef04A32E7B8527C7\",\n                \"logo\": \"https://logos.covalenthq.com/tokens/42161/0x56ffa72934990a8aae0a3cc7ef04a32e7b8527c7.png\",\n                \"name\": \"Governance ForumAIDAO\",\n                \"symbol\": \"GFAIDAO\",\n                \"decimals\": 18\n            },\n            \"voteOption\": 2,\n            \"votingPower\": \"2350000000000000000000000\"\n        }\n    ]\n}"
+						}
+					]
 				}
 			],
 			"id": "bf384338-830e-423b-8965-bcb300ad8ccf",
@@ -2460,7 +2922,7 @@
 			"name": "Proposals",
 			"item": [
 				{
-					"name": "get proposals",
+					"name": "Get Proposals",
 					"event": [
 						{
 							"listen": "test",
