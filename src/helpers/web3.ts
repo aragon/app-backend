@@ -28,6 +28,7 @@ import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
 import { Multisig } from '@artifacts/Multisig'
 import { ProxyToken } from '@modules/proxyToken'
+import BigNumber from 'bignumber.js'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -53,16 +54,35 @@ const Web3Helper = {
 
   handleAlchemyCrazyBalance(amount: number | string, decimals: number = 0): string {
     try {
-      const bigIntAmount = BigInt(amount || 0)
-      return (bigIntAmount / BigInt(10 ** decimals)).toString()
+      BigNumber.config({ DECIMAL_PLACES: decimals, ROUNDING_MODE: BigNumber.ROUND_DOWN })
+
+      // Check if the amount is a floating-point number without scientific notation
+      if (typeof amount === 'number' && amount % 1 !== 0 && !amount.toString().includes('e')) {
+        return amount.toString()
+      }
+      if (typeof amount === 'string' && amount.includes('.') && !amount.includes('e')) {
+        return `${amount}`
+      }
+
+      if (typeof amount === 'string' && amount.startsWith('0x')) {
+        const number = new BigNumber(amount)
+        const divisor = new BigNumber(10).pow(decimals)
+        const integerPart = number.dividedBy(divisor).integerValue(BigNumber.ROUND_FLOOR)
+        const fractionalPart = number.modulo(divisor)
+        return integerPart.toString() + '.' + fractionalPart.toString().padStart(decimals, '0')
+      }
+
+      const number = new BigNumber(amount)
+      return number.toFixed(decimals)
     } catch (error) {
-      logger.error('Error parse to bigint', llo({ error, amount, decimals }))
+      // skip error
     }
 
     try {
+      // Fallback if all else fails, return the string representation
       return amount.toString()
     } catch (error) {
-      logger.error('Error parse to string', llo({ error, amount, decimals }))
+      // skip error
     }
 
     return amount as string

@@ -15,8 +15,6 @@ import ProxyContractHelper from '@helpers/proxyContract'
 import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
 import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
 import { ProxyMember } from '@modules/proxyMember'
-import { DaoAssets } from '@services/aragon-dao/daoAssets'
-import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import Utils from '@helpers/utils'
 import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
 import { LogTokenVoting } from '@indexer/logTokenVoting'
@@ -446,7 +444,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         eventName: 'test',
       }
 
-      await DaoRegistryHandler._memberAdded(fakeTx, logInfo)
+      await DaoRegistryHandler._memberAdded(fakeTx, logInfo, {} as any)
 
       expect(findLogsByNameStub.calledTwice).to.be.true
       expect(delegateChangedStub.notCalled).to.be.true
@@ -500,7 +498,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         eventName: 'test',
       }
 
-      await DaoRegistryHandler._memberAdded(fakeTx, logInfo)
+      await DaoRegistryHandler._memberAdded(fakeTx, logInfo, {} as any)
 
       expect(web3Stub.calledTwice).to.be.true
       expect(delegateChangedStub.notCalled).to.be.true
@@ -574,7 +572,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         eventName: 'test',
       }
 
-      await DaoRegistryHandler._memberAdded(fakeTx, logInfo)
+      await DaoRegistryHandler._memberAdded(fakeTx, logInfo, {} as any)
 
       expect(web3Stub.callCount).to.be.eq(2)
       expect(memberAddedStub.calledOnce).to.be.true
