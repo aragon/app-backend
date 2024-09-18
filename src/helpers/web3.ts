@@ -70,7 +70,7 @@ const Web3Helper = {
         const integerPart = number.dividedBy(divisor).integerValue(BigNumber.ROUND_FLOOR)
         const fractionalPart = number.modulo(divisor)
 
-        if(fractionalPart.toString() === '0') {
+        if (fractionalPart.toString() === '0') {
           return integerPart.toString()
         }
 
