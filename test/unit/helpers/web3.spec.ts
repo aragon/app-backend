@@ -21,6 +21,8 @@ describe('Helpers:Web3', () => {
   })
 
   it('handleAlchemyCrazyBalance', () => {
+    expect(Web3Helper.handleAlchemyCrazyBalance('0', 18)).to.equal('0')
+    expect(Web3Helper.handleAlchemyCrazyBalance('50000000000000000', 18)).to.equal('50000000000000000')
     expect(Web3Helper.handleAlchemyCrazyBalance('0.01', 18)).to.equal('0.01')
     expect(Web3Helper.handleAlchemyCrazyBalance(0.01, 18)).to.equal('0.01')
     expect(Web3Helper.handleAlchemyCrazyBalance('1.73462724372438', 18)).to.equal('1.73462724372438')
