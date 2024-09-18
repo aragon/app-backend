@@ -93,6 +93,8 @@ export interface IPaginationParams {
   endDate?: number // in our system date is always seconds
   pageSize?: number
   page?: number
+  limit?: number
+  skip?: number
   order?: 'asc' | 'desc' | string // asc or desc
   sort?: string // the property to sort by
 }
