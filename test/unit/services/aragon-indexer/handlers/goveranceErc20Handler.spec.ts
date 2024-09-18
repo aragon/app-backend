@@ -2,14 +2,15 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Logger from '@logger'
-import { IMetricAction, NetworksEnum } from '@types'
+import { EnumQueueName, IMetricAction, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { GovernanceErc20Handler } from '@services/aragon-indexer/handlers/governanceErc20Handler'
 import utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
-// import { AggregatorDaoMetrics } from '@indexer/aggregator/daoMetrics'
+import { RabbitMQHelper } from '@helpers/redditMQ'
+import { LogDescription } from 'ethers'
 
 describe('GovernanceErc20Handler', () => {
   let sandbox: SinonSandbox
@@ -44,135 +45,159 @@ describe('GovernanceErc20Handler', () => {
       expect(handlerResponse).to.be.undefined
     })
 
-    it('should return if already existing logs for delegate votes changed event', async () => {
+    it('should return if plugin is not found', async () => {
       const fakeLog = {
         args: {
-          delegate: '0x123',
-          previousBalance: 1232,
-          newBalance: 123213,
+          delegate: '0xDelegateAddress',
+          previousBalance: '1000',
+          newBalance: '2000',
         },
       }
 
       const logInfo = {
         network: NetworksEnum.polygonMainnet,
-        blockNumber: 12313123,
+        blockNumber: 12345678,
         transactionIndex: 1,
         logIndex: 1,
-        transactionHash: '0x123213213213213',
-        address: '0x12ba12bac',
+        transactionHash: '0xTransactionHash',
+        address: '0xTokenAddress',
         eventName: 'DelegateVotesChanged',
       }
 
-      const saveAndGetMemberStub = sandbox.stub(ProxyMember, 'saveAndGetMember').resolves({
-        address: '0x123',
-      } as any)
+      const findPluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
 
-      const existingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').returns(true)
+      const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
 
-      const response = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
-      expect(response).to.be.undefined
-      expect(saveAndGetMemberStub.calledOnce).to.be.true
-      expect(existingLogStub.calledOnce).to.be.true
+      expect(handlerResponse).to.be.undefined
+      expect(findPluginStub.calledOnce).to.be.true
+      expect(findPluginStub.calledWith(logInfo.address, logInfo.network)).to.be.true
     })
 
-    it('should save the delegate votes changed event', async () => {
+    it('should return if existing log is found', async () => {
       const fakeLog = {
         args: {
-          delegate: '0x123',
-          previousBalance: 1232,
-          newBalance: 123213,
+          delegate: '0xDelegateAddress',
+          previousBalance: '1000',
+          newBalance: '2000',
         },
       }
 
+      const loggerErrorStub = sandbox.stub(Logger, 'error')
+
       const logInfo = {
         network: NetworksEnum.polygonMainnet,
-        blockNumber: 12313123,
+        blockNumber: 12345678,
         transactionIndex: 1,
         logIndex: 1,
-        transactionHash: '0x123213213213213',
-        address: '0x12ba12bac',
+        transactionHash: '0xTransactionHash',
+        address: '0xTokenAddress',
         eventName: 'DelegateVotesChanged',
       }
-      const loggerStub = sandbox.stub(Logger, 'verbose')
-      const saveAndGetMemberStub = sandbox.stub(ProxyMember, 'saveAndGetMember').resolves({
-        address: '0x123',
-      } as any)
-      const existingLogSpy = sandbox.spy(Models.MemberTransaction, 'findExistingLog')
 
-      const _findDelegatorsFromReceiptStub = sandbox
-        .stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt')
-        .resolves({
-          from: '0x123',
-          to: '0x123',
-        })
-
-      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
-      const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1000')
-
-      const findActivePluginStub = sandbox.stub(Models.Plugin, 'findActivePluginByTokenAddress').resolves({
+      const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
         network: NetworksEnum.polygonMainnet,
+      } as any
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+
+      const createMemberStub = sandbox
+        .stub(ProxyMember, 'createMember')
+        .resolves({ address: fakeLog.args.delegate } as any)
+      const existingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(true)
+
+      const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
+
+      expect(loggerErrorStub.calledOnceWith('DelegateVotesChanged - already processed' as any))
+      expect(handlerResponse).to.be.undefined
+      expect(createMemberStub.calledOnce).to.be.true
+      expect(existingLogStub.calledOnce).to.be.true
+    })
+
+    it('should handle incoming delegateVotesChanged event and add member to DAO', async () => {
+      const parsedEvent = {
+        args: {
+          delegate: '0xDelegateAddress',
+          previousBalance: '1000',
+          newBalance: '2000',
+        },
+      } as unknown as LogDescription
+
+      const info = {
+        network: NetworksEnum.polygonMainnet,
+        blockNumber: 12345678,
+        transactionHash: '0xTransactionHash',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0xTokenAddress',
+      }
+
+      const plugin = {
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.polygonMainnet,
+      }
+
+      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+      const createMemberStub = sandbox
+        .stub(ProxyMember, 'createMember')
+        .resolves({ address: parsedEvent.args.delegate } as any)
+      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
+
+      const getBalancesStub = sandbox.stub(ProxyMember, 'getBalances').resolves({
+        updateVotingPower: sandbox.stub().resolves({ id: 'logDbId' }),
       } as any)
 
-      const updateMemberMetricsStub = sandbox.stub(ProxyMember, 'updateMemberMetrics').resolves()
+      const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+
+      const findDelegatorsStub = sandbox
+        .stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt')
+        .resolves({ from: '0xFrom', to: '0xTo' })
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
+      const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
+      const memberTransactionCreateStub = sandbox.stub(Models.MemberTransaction, 'create').resolves({
+        memberBalance: '1500',
+        memberVotingPower: '2000',
+      } as any)
+
+      const updateMetricsStub = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
       const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
-      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
-      // const aggregatorDaoMetricsStub = sandbox.stub(AggregatorDaoMetrics, 'start').resolves()
+      await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
-      await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
-
-      expect(saveAndGetMemberStub.calledOnce).to.be.true
-      expect(saveAndGetMemberStub.calledWith(fakeLog.args.delegate)).to.be.true
-
-      expect(existingLogSpy.calledOnce).to.be.true
-      expect(
-        existingLogSpy.calledWith({
-          transactionHash: logInfo.transactionHash,
-          side: 'incoming',
-          type: 'delegate',
-          address: fakeLog.args.delegate,
-        }),
-      ).to.be.true
-
-      expect(_findDelegatorsFromReceiptStub.calledOnce).to.be.true
-
-      expect(getBlockTimestampStub.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledWith(logInfo.blockNumber, logInfo.network)).to.be.true
+      expect(findByAddressStub.calledOnceWithExactly(info.address, info.network)).to.be.true
+      expect(createMemberStub.calledOnceWithExactly(parsedEvent.args.delegate)).to.be.true
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getBalancesStub.calledOnce).to.be.true
+      expect(findDelegatorsStub.calledOnce).to.be.true
+      expect(getBlockTimestampStub.calledOnceWithExactly(info.blockNumber, info.network)).to.be.true
       expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
+      expect(memberTransactionCreateStub.calledOnce).to.be.true
       expect(
-        getTokenBalanceAtBlockStub.calledWith({
-          address: fakeLog.args.delegate,
-          blockNumber: logInfo.blockNumber,
-          tokenAddress: logInfo.address,
-          network: logInfo.network,
+        updateMetricsStub.calledOnceWithExactly(IMetricAction.increaseDelegateReceivedCount, {
+          memberAddress: parsedEvent.args.delegate,
+          pluginAddress: plugin.address,
+          network: info.network,
         }),
       ).to.be.true
-      expect(findActivePluginStub.calledOnce).to.be.true
-      expect(findActivePluginStub.calledWith(logInfo.address, logInfo.network)).to.be.true
-      expect(updateMemberMetricsStub.calledOnce).to.be.true
       expect(
-        updateMemberMetricsStub.calledWith(IMetricAction.increaseDelegateReceivedCount, {
-          memberAddress: fakeLog.args.delegate,
-          pluginAddress: '0xPluginAddress',
-          network: logInfo.network,
+        addToDaoStub.calledOnceWithExactly({
+          memberAddress: parsedEvent.args.delegate,
+          daoAddress: plugin.daoAddress,
+          pluginAddress: plugin.address,
+          network: info.network,
         }),
       ).to.be.true
-
-      expect(addToDaoStub.calledOnce).to.be.true
       expect(
-        addToDaoStub.calledWith({
-          memberAddress: fakeLog.args.delegate,
-          pluginAddress: '0xPluginAddress',
-          daoAddress: '0xDaoAddress',
-          network: logInfo.network,
+        sendMessageStub.calledOnceWithExactly(EnumQueueName.daoMetrics, {
+          id: plugin.daoAddress,
+          params: { address: plugin.daoAddress, network: plugin.network },
         }),
       ).to.be.true
 
-      expect(removeFromDaoStub.calledOnce).to.be.false
-      expect(loggerStub.calledTwice).to.be.true
-      // expect(aggregatorDaoMetricsStub.calledOnce).to.be.true
+      expect(loggerVerboseStub.calledTwice).to.be.true
     })
   })
 })

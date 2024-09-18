@@ -75,7 +75,7 @@ export const DaoTransactions = {
           llo({ error, type: ITransactionType.withdraw, daoId: dao.id, network: dao.network }),
         )
       },
-      logService: IEnumIndexerService.depositTxs,
+      logService: `Deposit-${dao.address}-${IEnumIndexerService.depositTxs}` as any,
       stopOnError: true,
     })
     await depositTxCrawler.crawl()
@@ -95,7 +95,7 @@ export const DaoTransactions = {
           llo({ error, type: ITransactionType.withdraw, daoId: dao.id, network: dao.network }),
         )
       },
-      logService: IEnumIndexerService.withdrawTxs,
+      logService: `Withdraw-${dao.address}-${IEnumIndexerService.withdrawTxs}` as any,
       stopOnError: true,
     })
     await withdrawTxCrawler.crawl()
@@ -142,6 +142,8 @@ export const DaoTransactions = {
       }
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), dao.network)
+      const tokenAddress = tx.rawContract?.address || utils.zeroAddress
+      const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)
 
       await DbTx.executeTxFn(async ({ session }) => {
         const rawTx: Partial<Transaction> = {
@@ -154,7 +156,7 @@ export const DaoTransactions = {
           pluginAddress,
           fromAddress: tx.from,
           toAddress: tx.to,
-          value: tx.value?.toString(),
+          value: Web3Helper.handleAlchemyCrazyBalance(tx.value || 0, token?.decimals),
           tokenId: tx.tokenId ? BigInt(tx.tokenId).toString() : undefined,
           erc721TokenId: tx.erc721TokenId ? BigInt(tx.erc721TokenId).toString() : undefined,
           erc1155Metadata: tx.erc1155Metadata?.map(w => ({
@@ -164,9 +166,6 @@ export const DaoTransactions = {
           category: tx.category,
           proposalIndex,
         }
-
-        const tokenAddress = tx.rawContract?.address || utils.zeroAddress
-        const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)
 
         if (token?.address) {
           rawTx.tokenAddress = token.address
@@ -205,6 +204,6 @@ export const DaoTransactions = {
 
   calculateAmountUsd: (rawValue: number, ratePriceUsd: number): string => {
     const amountUsd = Number(rawValue) * Number(ratePriceUsd)
-    return isNaN(amountUsd) ? '0' : amountUsd.toString()
+    return isNaN(amountUsd) ? '0' : amountUsd.toLocaleString('en', { maximumFractionDigits: 2, useGrouping: false })
   },
 }

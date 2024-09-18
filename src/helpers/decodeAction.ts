@@ -71,7 +71,7 @@ class DecodeActions {
       const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
       const token = _.pick(nativeToken, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
 
-      const member = await ProxyMember.saveAndGetMember(action.to)
+      const member = await ProxyMember.createMember(action.to)
       const dao = await Models.Dao.findByAddress(document.daoAddress, document.network)
 
       return {
@@ -148,7 +148,7 @@ class DecodeActions {
     }
 
     const receiver = decodedData.parameters[0].value
-    const member = await ProxyMember.saveAndGetMember(receiver)
+    const member = await ProxyMember.createMember(receiver)
 
     if (!member) {
       logger.error('Missing member', llo({ member, receiver, decodedData }))
@@ -196,11 +196,11 @@ class DecodeActions {
       inputData: decodedData,
       type: ProposalActionType.MultisigAddMembers,
       members: decodedData.parameters[0].value.map(async (address: HexAddress) => {
-        const member = await ProxyMember.saveAndGetMember(address)
+        const member = await ProxyMember.createMember(address)
         return { address: member.address, ens: member.ens, avatar: member.avatar }
       }),
       currentMembers: currentMembers.map(async (memberInfo: DaoMemberMapping) => {
-        const member = await ProxyMember.saveAndGetMember(memberInfo.memberAddress)
+        const member = await ProxyMember.createMember(memberInfo.memberAddress)
         return { address: member.address, ens: member.ens, avatar: member.avatar }
       }),
     }
@@ -224,11 +224,11 @@ class DecodeActions {
       inputData: decodedData,
       type: ProposalActionType.MultisigRemoveMembers,
       members: decodedData.parameters[0].value.map(async (address: HexAddress) => {
-        const member = await ProxyMember.saveAndGetMember(address)
+        const member = await ProxyMember.createMember(address)
         return { address: member.address, ens: member.ens, avatar: member.avatar }
       }),
       currentMembers: currentMembers.map(async (memberInfo: DaoMemberMapping) => {
-        const member = await ProxyMember.saveAndGetMember(memberInfo.memberAddress)
+        const member = await ProxyMember.createMember(memberInfo.memberAddress)
         return { address: member.address, ens: member.ens, avatar: member.avatar }
       }),
     }

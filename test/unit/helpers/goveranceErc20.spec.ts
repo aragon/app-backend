@@ -51,10 +51,10 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const loggerStub = sandbox.stub(logger, 'warn')
+      const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, NetworksEnum.ethereumMainnet)
-      expect(result).to.eq(false)
+      expect(result).to.eq('0')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getting past votes' as any)).to.be.true
     })
@@ -95,10 +95,10 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const loggerStub = sandbox.stub(logger, 'warn')
+      const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await MockedGoveranceErc20Helper.getVotes('0x123', '0x123', NetworksEnum.ethereumMainnet)
-      expect(result).to.eq(false)
+      expect(result).to.eq('0')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getting votes' as any)).to.be.true
     })
@@ -139,10 +139,10 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const loggerStub = sandbox.stub(logger, 'warn')
+      const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await MockedGoveranceErc20Helper.getPastTotalSupply(1, '0x123', NetworksEnum.ethereumMainnet)
-      expect(result).to.eq(false)
+      expect(result).to.eq('0')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getting pastTotalSupply' as any)).to.be.true
     })
@@ -183,10 +183,10 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const loggerStub = sandbox.stub(logger, 'warn')
+      const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await MockedGoveranceErc20Helper.getDelegates('0x123', '0x123', NetworksEnum.ethereumMainnet)
-      expect(result).to.eq(false)
+      expect(result).to.eq('0')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getting delegates' as any)).to.be.true
     })

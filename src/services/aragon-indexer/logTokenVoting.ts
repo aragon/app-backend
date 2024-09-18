@@ -27,8 +27,12 @@ export const LogTokenVoting = {
       .filter((item: any) => item.type && LogTokenVoting.eventsGovernanceErc20.includes(item.name))
       .map((event: any) => new Interface(GovernanceERC20.abi).getEvent(event.name)?.topicHash)
 
+    /**
+     * Looking events for both plugin and token with one filter
+     */
+
     const filter = {
-      address: plugin.address,
+      address: [plugin.address, plugin.tokenAddress],
       fromBlock: plugin?.blockNumber || 0,
       topics: [...governanceErc20Topics, ...tokenVotingTopics],
     }

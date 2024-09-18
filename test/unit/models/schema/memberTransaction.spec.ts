@@ -5,11 +5,19 @@ import { afterEach, beforeEach } from 'mocha'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { fakeMemberTransactions } from '@test/mock/fakeMemberTransaction'
+import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
+import DaoMemberMapping from '@models/schema/daoMemberMapping'
+import Token from '@models/schema/token'
+import { FakeToken } from '@test/mock/fakeToken'
+import { ITransferSide, ITransferType } from '@types'
+import { ethers } from 'ethers'
 
 describe('Model: Member Transaction', () => {
   let sandbox: SinonSandbox
   let rawMemberTransferTx: Partial<MemberTransaction>
   let rawMemberDelegationTx: Partial<MemberTransaction>
+  let rawDaoMemberMapping: Partial<DaoMemberMapping>
+  let rawToken: Partial<Token>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -20,6 +28,26 @@ describe('Model: Member Transaction', () => {
     rawMemberTransferTx = {
       ...fakeMemberTransactions[1],
     }
+
+    rawDaoMemberMapping = {
+      ...(FakeDaoMemberMappings[0] as any),
+      tokenAddress: rawMemberTransferTx.tokenAddress,
+      memberAddress: rawMemberTransferTx.address,
+    }
+
+    rawToken = {
+      ...(FakeToken as any),
+      address: rawMemberTransferTx.tokenAddress,
+    }
+
+    await Models.DaoMemberMapping.create(rawDaoMemberMapping)
+
+    await Models.DaoMemberMapping.create({
+      ...rawDaoMemberMapping,
+      memberAddress: rawMemberDelegationTx.address,
+    })
+
+    await Models.Token.create(rawToken)
   })
 
   afterEach(() => {
@@ -30,9 +58,10 @@ describe('Model: Member Transaction', () => {
     it('should create new entry of member balance', async () => {
       const entityId = Models.MemberTransaction.getEntityId({
         transactionHash: rawMemberDelegationTx.transactionHash!,
+        network: rawMemberDelegationTx.network,
+        transactionIndex: rawMemberDelegationTx.transactionIndex!,
+        logIndex: rawMemberDelegationTx.logIndex!,
         address: rawMemberDelegationTx.address!,
-        side: rawMemberDelegationTx.side!,
-        type: rawMemberDelegationTx.type!,
       })
 
       const MemberMetrics = await Models.MemberTransaction.create(rawMemberDelegationTx)
@@ -46,9 +75,10 @@ describe('Model: Member Transaction', () => {
     it('should save without asset if id present', async () => {
       const entityId = Models.MemberTransaction.getEntityId({
         transactionHash: rawMemberDelegationTx.transactionHash!,
+        network: rawMemberDelegationTx.network,
+        transactionIndex: rawMemberDelegationTx.transactionIndex!,
+        logIndex: rawMemberDelegationTx.logIndex!,
         address: rawMemberDelegationTx.address!,
-        side: rawMemberDelegationTx.side!,
-        type: rawMemberDelegationTx.type!,
       })
 
       rawMemberDelegationTx.id = entityId
@@ -62,6 +92,8 @@ describe('Model: Member Transaction', () => {
         Models.MemberTransaction.create({
           network: rawMemberDelegationTx.network,
           transactionHash: rawMemberDelegationTx.transactionHash,
+          transactionIndex: rawMemberDelegationTx.transactionIndex,
+          logIndex: rawMemberDelegationTx.logIndex,
         }),
       ).to.be.rejectedWith('address is required')
     })
@@ -70,30 +102,33 @@ describe('Model: Member Transaction', () => {
       await expect(
         Models.MemberTransaction.create({
           network: rawMemberDelegationTx.network,
+          transactionIndex: rawMemberDelegationTx.transactionIndex,
+          logIndex: rawMemberDelegationTx.logIndex,
           address: rawMemberDelegationTx.address,
         }),
       ).to.be.rejectedWith('transactionHash is required')
     })
 
-    it('should fail if side is not present', async () => {
+    it('should fail if transaction index is not present', async () => {
       await expect(
         Models.MemberTransaction.create({
           network: rawMemberDelegationTx.network,
           address: rawMemberDelegationTx.address,
           transactionHash: rawMemberDelegationTx.transactionHash,
+          logIndex: rawMemberDelegationTx.logIndex,
         }),
-      ).to.be.rejectedWith('side is required')
+      ).to.be.rejectedWith('transactionIndex is required')
     })
 
-    it('should fail if type is not present', async () => {
+    it('should fail if log index is not present', async () => {
       await expect(
         Models.MemberTransaction.create({
           network: rawMemberDelegationTx.network,
           address: rawMemberDelegationTx.address,
           transactionHash: rawMemberDelegationTx.transactionHash,
-          side: rawMemberDelegationTx.side,
+          transactionIndex: rawMemberDelegationTx.transactionIndex,
         }),
-      ).to.be.rejectedWith('type is required')
+      ).to.be.rejectedWith('logIndex is required')
     })
   })
 
@@ -103,6 +138,7 @@ describe('Model: Member Transaction', () => {
       transactionHash: rawMemberTransferTx.transactionHash!,
       transactionIndex: rawMemberTransferTx.transactionIndex!,
       logIndex: rawMemberTransferTx.logIndex!,
+      address: rawMemberTransferTx.address!,
     })
     const memberDb = await Models.MemberTransaction.create(rawMemberTransferTx)
     expect(entityId).to.eq(memberDb.id)
@@ -115,6 +151,7 @@ describe('Model: Member Transaction', () => {
       transactionHash: rawMemberDelegationTx.transactionHash!,
       transactionIndex: rawMemberDelegationTx.transactionIndex!,
       logIndex: rawMemberDelegationTx.logIndex!,
+      address: rawMemberTransferTx.address!,
     })
     expect(foundedEntityDb?.id).to.eq(entityDb.id)
   })
@@ -141,5 +178,55 @@ describe('Model: Member Transaction', () => {
     const entityDb = await Models.MemberTransaction.create(rawMemberTransferTx)
     await entityDb.reload()
     expect(entityDb.id).to.eq(entityDb.id)
+  })
+
+  describe('findWithPagination', () => {
+    beforeEach(async () => {
+      await Models.MemberTransaction.create(rawMemberTransferTx)
+      await Models.MemberTransaction.create(rawMemberDelegationTx)
+    })
+
+    it('should find member transactions with pagination filter by memberAddress', async () => {
+      const result = await Models.MemberTransaction.findWithPagination({
+        extraParams: {
+          memberAddress: rawMemberTransferTx.address,
+        },
+      })
+
+      expect(result.data.length).to.eq(2)
+    })
+
+    it('should find member transaction by type', async () => {
+      const result = await Models.MemberTransaction.findWithPagination({
+        extraParams: {
+          type: ITransferType.delegate,
+          side: ITransferSide.incoming,
+        },
+      })
+
+      expect(result.data.length).to.eq(1)
+    })
+
+    it('should find member transaction by excludeZeroAddress', async () => {
+      const result = await Models.MemberTransaction.findWithPagination({
+        extraParams: {
+          excludeZeroAddress: true,
+        },
+      })
+
+      expect(result.data.length).to.eq(1)
+      expect(result.data[0].from.address).to.not.eq(ethers.ZeroAddress)
+      expect(result.data[0].to.address).to.not.eq(ethers.ZeroAddress)
+    })
+
+    it('should handle when there is no member transaction', async () => {
+      const result = await Models.MemberTransaction.findWithPagination({
+        extraParams: {
+          memberAddress: '0x000',
+        },
+      })
+
+      expect(result.data.length).to.eq(0)
+    })
   })
 })

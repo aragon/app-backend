@@ -20,6 +20,24 @@ describe('Helpers:Web3', () => {
     sandbox?.restore()
   })
 
+  it('handleAlchemyCrazyBalance', () => {
+    expect(Web3Helper.handleAlchemyCrazyBalance('7.326e+22', 18)).to.equal('73260000000000000000000')
+    expect(Web3Helper.handleAlchemyCrazyBalance('0', 18)).to.equal('0')
+    expect(Web3Helper.handleAlchemyCrazyBalance('50000000000000000', 18)).to.equal('50000000000000000')
+    expect(Web3Helper.handleAlchemyCrazyBalance('0.01', 18)).to.equal('0.01')
+    expect(Web3Helper.handleAlchemyCrazyBalance(0.01, 18)).to.equal('0.01')
+    expect(Web3Helper.handleAlchemyCrazyBalance('1.73462724372438', 18)).to.equal('1.73462724372438')
+    expect(Web3Helper.handleAlchemyCrazyBalance(1.73462724372438, 18)).to.equal('1.73462724372438')
+    expect(Web3Helper.handleAlchemyCrazyBalance(4.2e-16, 18)).to.equal('0.000000000000000420')
+    expect(Web3Helper.handleAlchemyCrazyBalance('4.2e-16', 18)).to.equal('0.000000000000000420')
+    expect(
+      Web3Helper.handleAlchemyCrazyBalance('0x0000000000000000000000000000000000000000000000000000000000124f80', 18),
+    ).to.equal('0.000000000001200000')
+    expect(Web3Helper.handleAlchemyCrazyBalance('43943983483908340948.438934780934834409', 18)).to.equal(
+      '43943983483908340948.438934780934834409',
+    )
+  })
+
   describe('Constants', () => {
     it('should have correct ERC1155_INTERFACE_ID', () => {
       expect(Web3Helper.ERC1155_INTERFACE_ID).to.equal('0xd9b67a26')
