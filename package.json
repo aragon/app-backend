@@ -62,6 +62,7 @@
     "amqplib": "^0.10.4",
     "async": "^3.2.5",
     "axios": "^1.6.7",
+    "bignumber.js": "^9.1.2",
     "bottleneck": "^2.19.5",
     "class-validator": "^0.14.1",
     "dayjs": "^1.11.10",
