@@ -8,6 +8,7 @@ import {
   type IProposalsResponse,
   type ISettingExtraParams,
   type ISettingResponse,
+  ISettingStatus,
   type NetworksEnum,
 } from '@types'
 import { assertExposable } from '@errors'
@@ -33,7 +34,7 @@ const SettingController = {
   },
 
   getActiveSettingByDaoAddress: async (daoAddress: HexAddress, network: NetworksEnum): Promise<IProposalsResponse> => {
-    const setting = await Models.Setting.findActive({ daoAddress, network })
+    const setting = await Models.Setting.findSetting({ daoAddress, network, status: ISettingStatus.active })
     assertExposable(setting, ErrorKeyEnum.notFound)
     return setting
   },

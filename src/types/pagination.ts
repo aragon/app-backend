@@ -2,6 +2,7 @@ import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import type { ITransactionCategory } from '@src/types/alchemy'
 import { type ITokenType } from '@src/types/token'
 import { type ITransferSide, type ITransferType } from '@src/types/transfer'
+import { type ISettingStatus } from '@src/types/plugin'
 
 export interface ITokenExtraParams {
   network?: NetworksEnum
@@ -83,6 +84,7 @@ export interface ISettingExtraParams {
   daoAddress?: HexAddress
   pluginAddress?: HexAddress
   network?: NetworksEnum
+  status?: ISettingStatus
 }
 
 export interface IPaginationParams {
