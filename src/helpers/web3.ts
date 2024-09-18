@@ -60,8 +60,8 @@ const Web3Helper = {
       if (typeof amount === 'number' && amount % 1 !== 0 && !amount.toString().includes('e')) {
         return amount.toString()
       }
-      if (typeof amount === 'string' && amount.includes('.') && !amount.includes('e')) {
-        return `${amount}`
+      if (typeof amount === 'string' && !amount.includes('e') && !amount.startsWith('0x')) {
+        return amount
       }
 
       if (typeof amount === 'string' && amount.startsWith('0x')) {
