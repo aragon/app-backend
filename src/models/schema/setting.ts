@@ -12,8 +12,29 @@ import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Setting
+
+// export class Stages {
+//   @prop({ type: () => Number, default: null })
+//   public id!: number
+//
+//   @prop({ type: () => String, default: null })
+//   public name!: string // fetch from ipfs
+//
+//   @prop({ type: () => String, default: null })
+//   public pluginIds!: HexAddress[]
+//
+//   @prop({ type: () => Boolean, default: null })
+//   public isManual!: boolean
+//
+//   @prop({ type: () => Boolean, default: null })
+//   public allowedBody!: boolean
+//
+//   @prop({ type: () => String, default: null })
+//   public proposalType!: string // Approval | Veto TODO: enum
+// }
 
 @modelOptions({
   schemaOptions: {
@@ -65,12 +86,14 @@ export default class Setting extends Model {
   @prop({ type: () => String, default: null })
   public tokenAddress!: HexAddress // voting token address
 
+  // Multisig plugin
   @prop({ type: () => Boolean })
   public onlyListed!: boolean
 
   @prop({ type: () => Number })
   public minApprovals!: number
 
+  // TokenVoting plugin
   @prop({ type: () => Number })
   public votingMode!: number
 
@@ -85,6 +108,25 @@ export default class Setting extends Model {
 
   @prop({ type: () => String })
   public minProposerVotingPower!: string
+
+  // SPP plugin
+  // @prop({ type: () => [Stages], _id: false, default: [] })
+  // public stages!: Stages[]
+
+  // @prop({ type: () => Number })
+  // public minAdvance!: number
+  //
+  // @prop({ type: () => Number })
+  // public maxAdvance!: number
+  //
+  // @prop({ type: () => Number })
+  // public voteDuration!: number
+  //
+  // @prop({ type: () => Number })
+  // public approvalThreshold!: number
+  //
+  // @prop({ type: () => Number })
+  // public vetoThreshold!: number
 
   static async create(rawData: Partial<Setting>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -167,14 +209,58 @@ export default class Setting extends Model {
       {
         $match: filter,
       },
+
+      // Fetch token only if settings are included and plugin has tokenAddress
+      AggregationQueryHelper.token({ address: '$tokenAddress', network: '$network' }, 'token', {
+        _id: 0,
+        network: 1,
+        address: 1,
+        symbol: 1,
+        name: 1,
+        decimals: 1,
+        logo: 1,
+        type: 1,
+        totalSupply: 1,
+      }),
+      {
+        $addFields: {
+          token: {
+            $cond: {
+              if: { $ne: ['$tokenAddress', null] },
+              then: { $arrayElemAt: ['$token', 0] },
+              else: null,
+            },
+          },
+        },
+      },
+
+      {
+        $project: {
+          _id: 0,
+          onlyListed: 1,
+          minApprovals: 1,
+          votingMode: 1,
+          supportThreshold: 1,
+          minParticipation: 1,
+          minDuration: 1,
+          minProposerVotingPower: 1,
+          token: 1,
+        },
+      },
     ]
 
     const currentPage = request.skip / request.limit + 1
-    const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
+    const aggQuery = [
+      { $match: filter },
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+      ...query,
+    ]
 
     const [data, totalRecords] = await Promise.all([
       this.aggregate(aggQuery),
-      this.aggregate([...query, { $count: 'totalRecords' }]),
+      this.aggregate([{ $match: filter }, ...query, { $count: 'totalRecords' }]),
     ])
 
     const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
