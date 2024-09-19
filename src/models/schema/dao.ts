@@ -225,6 +225,7 @@ export default class Dao extends Model {
     const aggQuery = [
       ...query,
       { $match: filter },
+      { $sort: request?.sort },
       { $skip: request?.skip },
       { $limit: request?.limit },
 
@@ -268,7 +269,6 @@ export default class Dao extends Model {
           updatedAt: 0,
         },
       },
-      { $sort: request?.sort },
     ]
 
     const currentPage = request.skip / request.limit + 1
