@@ -32,10 +32,6 @@ class DbOperations {
       }
     })
   }
-
-  isDuplicateCollection(error: any) {
-    return error.message.includes('E11000 duplicate key error collection')
-  }
 }
 
 export default DbOperations

@@ -30,6 +30,10 @@ const EnsHelper = {
     }
   },
 
+  _stringToBytes(str: string) {
+    return toUtf8Bytes(str)
+  },
+
   _addressToPacket: function (address: string): Uint8Array {
     const packet = address.replace('0x', '').toLowerCase() + '.addr.reverse'
 
@@ -37,13 +41,11 @@ const EnsHelper = {
     const value = packet.replace(/^\.|\.$/gm, '')
     if (value.length === 0) return new Uint8Array(1)
 
-    const stringToBytes = (str: string) => toUtf8Bytes(str)
-
-    const bytes = new Uint8Array(stringToBytes(value).length + 2)
+    const bytes = new Uint8Array(EnsHelper._stringToBytes(value).length + 2)
     let offset = 0
     const list = value.split('.')
     for (const label of list) {
-      let encoded: any = stringToBytes(label)
+      let encoded: any = EnsHelper._stringToBytes(label)
       if (encoded.length > 255) {
         encoded = hexlify(keccak256(encoded))
       }

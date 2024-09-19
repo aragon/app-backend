@@ -11,7 +11,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:GovernanceErc20Handler' })
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:GovernanceErc20Handler' })
 
 export const GovernanceErc20Handler = {
   // TODO: fix the fucking plugin
