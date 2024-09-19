@@ -70,7 +70,7 @@ const Web3Helper = {
 
       return amount
     } catch (error) {
-      console.error('Error in conversion', { error, amount, decimals, tx })
+      logger.error('Error in conversion', llo({ error, amount, decimals, tx }))
       return '0' // Return '0' or handle the error as appropriate
     }
   },
