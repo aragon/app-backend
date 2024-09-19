@@ -9,7 +9,7 @@ import Utils from '@helpers/utils'
 
 const MemberRouter = {
   getMembersWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'address' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'votingPower' })
     const extraParams: IMemberExtraParams = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,

@@ -9,7 +9,7 @@ import Utils from '@helpers/utils'
 
 const DaoRouter = {
   getWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockTimestamp' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'metrics.tvlUSD' })
     const extraParams: IDaoExtraParams = {
       network: ctx.query.network as NetworksEnum,
       address: ctx.query.address as HexAddress,
@@ -27,7 +27,7 @@ const DaoRouter = {
   },
 
   getDaoByMemberAddress: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockTimestamp' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'metrics.tvlUSD' })
     const extraParams = {
       memberAddress: ctx.params.address,
       network: ctx.query.network,
