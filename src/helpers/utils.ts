@@ -277,6 +277,16 @@ const Utils = {
     }
     return Number(value)
   },
+
+  isScientificNumber: (value: number) => {
+    const scientificPattern = /^-?\d+(\.\d+)?e[-+]?\d+$/i
+    return scientificPattern.test(value.toString())
+  },
+
+  isDecimalNumber: (value: number) => {
+    const decimalPattern = /^\d+\.\d+$/
+    return decimalPattern.test(value.toString())
+  },
 }
 
 export default Utils
