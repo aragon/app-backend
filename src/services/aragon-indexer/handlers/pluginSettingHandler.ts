@@ -6,7 +6,7 @@ import Web3Helper from '@helpers/web3'
 import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:PluginSettingHandler' })
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
 
 export const PluginSettingHandler = {
   votingSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {

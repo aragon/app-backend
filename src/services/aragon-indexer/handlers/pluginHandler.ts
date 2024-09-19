@@ -15,7 +15,7 @@ import Web3Helper from '@helpers/web3'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:PluginHandler' })
+const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PluginHandler' })
 
 export const PluginHandler = {
   async _queryGetPlugin({
