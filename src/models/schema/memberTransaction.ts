@@ -17,6 +17,8 @@ import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import utils from '@helpers/utils'
+import PairData from '@modules/pairData'
+import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 
 const customName = ICollectionNames.MemberTransaction
 
@@ -146,6 +148,24 @@ export default class MemberTransaction extends Model {
       ]),
     }
 
+    if (
+      extraParams.daoAddress ||
+      extraParams.memberAddress ||
+      extraParams.pluginAddress ||
+      extraParams.tokenAddress ||
+      extraParams.tokenAddress
+    ) {
+      const mapping = await PairData.pairFromDaoMemberMapping({
+        daoAddress: extraParams.daoAddress,
+        pluginAddress: extraParams.pluginAddress,
+        tokenAddress: extraParams.tokenAddress,
+        memberAddress: extraParams.memberAddress,
+        network: extraParams.network,
+      })
+
+      filter.address = { $in: mapping.map((w: DaoMemberMapping) => w.memberAddress) }
+    }
+
     if (extraParams.memberAddress) {
       filter['$or'] = [{ from: extraParams.memberAddress }, { to: extraParams.memberAddress }]
     }
@@ -173,25 +193,6 @@ export default class MemberTransaction extends Model {
 
     // TODO: from/to could also be a dao
     const query = [
-      { $match: filter },
-      AggregationQueryHelper.daoMemberMapping(
-        {
-          memberAddress: '$address',
-          daoAddress: extraParams.daoAddress,
-          pluginAddress: extraParams.pluginAddress,
-          tokenAddress: extraParams.tokenAddress,
-          network: extraParams.network,
-        },
-        'daoMappings',
-      ),
-      {
-        $match: {
-          daoMappings: { $ne: [] },
-        },
-      },
-      {
-        $unwind: '$daoMappings',
-      },
       AggregationQueryHelper.token({ address: '$tokenAddress', network: '$network' }, 'token', {
         _id: 0,
         network: 1,
@@ -205,25 +206,6 @@ export default class MemberTransaction extends Model {
       {
         $addFields: {
           token: { $arrayElemAt: ['$token', 0] },
-        },
-      },
-      {
-        $group: {
-          _id: '$_id',
-          network: { $first: '$network' },
-          transactionHash: { $first: '$transactionHash' },
-          blockNumber: { $first: '$blockNumber' },
-          blockTimestamp: { $first: '$blockTimestamp' },
-          tokenAddress: { $first: '$tokenAddress' },
-          address: { $first: '$address' },
-          from: { $first: '$from' },
-          to: { $first: '$to' },
-          side: { $first: '$side' },
-          type: { $first: '$type' },
-          amount: { $first: '$amount' },
-          memberBalance: { $first: '$memberBalance' },
-          memberVotingPower: { $first: '$memberVotingPower' },
-          token: { $first: '$token' },
         },
       },
       AggregationQueryHelper.member(
@@ -318,13 +300,21 @@ export default class MemberTransaction extends Model {
       },
     ]
 
-    const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
+    const aggQuery = [
+      ...(Object.values(filter).length > 0 ? [{ $match: filter }] : []),
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+      ...query,
+    ]
 
     const [data, totalRecords] = await Promise.all([
       this.aggregate(aggQuery),
-      this.aggregate([...query, { $count: 'totalRecords' }]).then(results =>
-        results[0] ? results[0].totalRecords : 0,
-      ),
+      this.aggregate([
+        ...(Object.values(filter).length > 0 ? [{ $match: filter }] : []),
+        ...query,
+        { $count: 'totalRecords' },
+      ]).then(results => (results[0] ? results[0].totalRecords : 0)),
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
