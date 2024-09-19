@@ -29,6 +29,7 @@ import ProviderModule from '@modules/provider'
 import { Multisig } from '@artifacts/Multisig'
 import { ProxyToken } from '@modules/proxyToken'
 import BigNumber from 'bignumber.js'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -52,47 +53,26 @@ const Web3Helper = {
   ERC1155_safeTransferFrom: '0xf242432a',
   ERC1155_safeBatchTransferFrom: '0x2eb2c2d6',
 
-  handleAlchemyCrazyBalance(amount: number | string, decimals: number = 0): string {
+  handleAlchemyCrazyBalance: (amount: number | string, decimals: number = 0, tx?: any): string => {
     try {
-      BigNumber.config({ DECIMAL_PLACES: decimals, ROUNDING_MODE: BigNumber.ROUND_DOWN })
-
-      // Check if the amount is a floating-point number without scientific notation
-      if (typeof amount === 'number' && amount % 1 !== 0 && !amount.toString().includes('e')) {
-        return amount.toString()
-      }
-      if (typeof amount === 'string' && !amount.includes('e') && !amount.startsWith('0x')) {
-        return amount
-      }
-
-      if (typeof amount === 'string' && amount.startsWith('0x')) {
-        const number = new BigNumber(amount)
-        const divisor = new BigNumber(10).pow(decimals)
-        const integerPart = number.dividedBy(divisor).integerValue(BigNumber.ROUND_FLOOR)
-        const fractionalPart = number.modulo(divisor)
-
-        if (fractionalPart.isZero()) {
-          return integerPart.toString()
+      if (typeof amount === 'string' && amount.includes('0x')) {
+        const conversionNumb = Number(BigInt(amount)) / 10 ** decimals
+        return conversionNumb.toString()
+      } else if (typeof amount === 'number') {
+        if (utils.isScientificNumber(amount)) {
+          return Number(amount).toFixed(decimals)
         }
 
-        const result = integerPart.toString() + '.' + fractionalPart.toString().padStart(decimals, '0')
-        return result.replace(/\.0+$/, '')
+        return amount.toString()
+      } else {
+        logger.error('Error not handled amount format', llo({ amount, decimals, tx }))
       }
 
-      const number = new BigNumber(amount)
-      const result = number.toFixed(decimals)
-      return result.replace(/\.0+$/, '')
+      return amount
     } catch (error) {
-      // skip error
+      console.error('Error in conversion', { error, amount, decimals, tx })
+      return '0' // Return '0' or handle the error as appropriate
     }
-
-    try {
-      // Fallback if all else fails, return the string representation
-      return amount.toString()
-    } catch (error) {
-      // skip error
-    }
-
-    return amount as string
   },
 
   needToSyncBlockTime(document: any) {
@@ -296,6 +276,22 @@ const Web3Helper = {
       transactionIndex: txLog.transactionIndex,
       logIndex: txLog.index,
       eventName,
+    }
+  },
+
+  convertBalanceToUsd: (balance: string, tokenRate: string, decimals: number = 0): string => {
+    try {
+      BigNumber.config({ DECIMAL_PLACES: decimals, ROUNDING_MODE: BigNumber.ROUND_DOWN })
+
+      const primaryUnitBN = new BigNumber(balance)
+      const rateBN = new BigNumber(tokenRate)
+
+      const usdValue = primaryUnitBN.multipliedBy(rateBN)
+
+      return usdValue.toFixed(2)
+    } catch (error) {
+      logger.error('Error in conversion', llo({ error, balance, tokenRate, decimals }))
+      return '0'
     }
   },
 
@@ -507,7 +503,7 @@ const Web3Helper = {
         ),
       )
 
-      const token = await ProxyToken.saveAndGetToken(address, network)
+      const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, network)
       const balance = Web3Helper.handleAlchemyCrazyBalance(response, token?.decimals)
       return balance
     } catch (error) {
@@ -526,18 +522,19 @@ const Web3Helper = {
         ),
       )
 
-      const balances = response?.tokenBalances
-        ?.map(async (alchemyBalance: any) => {
+      const balances = await Promise.all(
+        response?.tokenBalances?.map(async (alchemyBalance: any) => {
           const token = await ProxyToken.saveAndGetToken(alchemyBalance.contractAddress, network)
           const result: IAlchemyTokenBalance = {
             contractAddress: Web3Helper.parseAddress(alchemyBalance.contractAddress) || alchemyBalance.contractAddress,
             tokenBalance: Web3Helper.handleAlchemyCrazyBalance(alchemyBalance.tokenBalance, token?.decimals),
+            originalBalance: alchemyBalance.tokenBalance,
           }
           return result
-        })
-        .filter((token: any) => token.tokenBalance !== '0')
+        }),
+      )
 
-      return balances
+      return balances.filter((token: any) => token.tokenBalance !== '0')
     } catch (error) {
       logger.error('Error getTokenBalances', llo({ address, network, error }))
       return []

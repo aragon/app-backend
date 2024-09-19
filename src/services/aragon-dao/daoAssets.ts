@@ -37,14 +37,15 @@ export const DaoAssets = {
       ])
 
       if (Number(ethBalance) > 0) {
+        const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, document.network)
+
         const ethAssetData: Partial<Asset> = {
           amount: ethBalance,
           network: document.network,
           daoAddress: document.address,
           tokenAddress: utils.zeroAddress, // native token
+          amountUsd: Web3Helper.convertBalanceToUsd(ethBalance, token?.priceUsd || '0', token?.decimals || 0),
         }
-
-        await ProxyToken.saveAndGetToken(utils.zeroAddress, document.network)
 
         const existingEthAssetDb = await Models.Asset.findExistingLog({
           daoAddress: document.address,
@@ -72,10 +73,17 @@ export const DaoAssets = {
         tokenBalances
           .filter(token => Number(token.tokenBalance) > 0)
           .map(async (token: IAlchemyTokenBalance) => {
-            if (token?.contractAddress) {
-              await ProxyToken.saveAndGetToken(token.contractAddress, document.network)
-            } else {
-              logger.error('Error Token balance missing contractAddress', llo({ token }))
+            const tokenDb = await ProxyToken.saveAndGetToken(token?.contractAddress!, document.network)
+            const rawData: Partial<Asset> = {
+              amount: token.tokenBalance,
+              network: document.network,
+              daoAddress: document.address,
+              tokenAddress: token.contractAddress,
+              amountUsd: Web3Helper.convertBalanceToUsd(
+                token.tokenBalance,
+                tokenDb?.priceUsd || '0',
+                tokenDb?.decimals || 0,
+              ),
             }
 
             const existingAssetDb = await Models.Asset.findExistingLog({
@@ -83,13 +91,6 @@ export const DaoAssets = {
               tokenAddress: token.contractAddress,
               network: document.network,
             })
-
-            const rawData: Partial<Asset> = {
-              amount: token.tokenBalance,
-              network: document.network,
-              daoAddress: document.address,
-              tokenAddress: token.contractAddress,
-            }
 
             await DbTx.executeTxFn(async ({ session }) => {
               let logDb: any

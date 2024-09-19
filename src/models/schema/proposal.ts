@@ -415,9 +415,6 @@ export default class Proposal extends Model {
     const currentPage = request.skip / request.limit + 1
 
     const query: any = [
-      {
-        $match: filter,
-      },
       AggregationQueryHelper.member(
         {
           memberAddress: '$creatorAddress',
@@ -490,10 +487,13 @@ export default class Proposal extends Model {
     }
 
     const aggQuery = [
-      ...query,
+      {
+        $match: filter,
+      },
       { $sort: request?.sort },
       { $skip: request?.skip },
       { $limit: request?.limit },
+      ...query,
       {
         $project: {
           _id: 0,
@@ -548,6 +548,9 @@ export default class Proposal extends Model {
     ]
 
     const aggCountQuery = [
+      {
+        $match: filter,
+      },
       ...query,
       {
         $project: {

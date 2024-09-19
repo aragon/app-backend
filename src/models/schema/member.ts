@@ -16,6 +16,8 @@ import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import Utils from '@helpers/utils'
+import PairData from '@modules/pairData'
+import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 
 const customName = ICollectionNames.Member
 
@@ -95,43 +97,18 @@ export default class Member extends Model {
 
     const currentPage = request.skip / request.limit + 1
 
-    const query: any = [
-      { $match: filter },
-      AggregationQueryHelper.daoMemberMapping(
-        {
-          memberAddress: '$address',
-          daoAddress: extraParams.daoAddress,
-          pluginAddress: extraParams.pluginAddress,
-          tokenAddress: extraParams.tokenAddress,
-          network: extraParams.network,
-        },
-        'daoMappings',
-      ),
-      {
-        $match: {
-          daoMappings: { $ne: [] },
-        },
-      },
-      {
-        $unwind: '$daoMappings',
-      },
-      {
-        $group: {
-          _id: '$_id',
-          address: { $first: '$address' },
-          ens: { $first: '$ens' },
-          avatar: { $first: '$avatar' },
-        },
-      },
-      // {
-      //   $project: {
-      //     _id: 0,
-      //     address: 1,
-      //     ens: 1,
-      //     avatar: 1,
-      //   },
-      // },
-    ]
+    if (extraParams.daoAddress || extraParams.pluginAddress || extraParams.tokenAddress) {
+      const mapping = await PairData.pairFromDaoMemberMapping({
+        daoAddress: extraParams.daoAddress,
+        pluginAddress: extraParams.pluginAddress,
+        tokenAddress: extraParams.tokenAddress,
+        network: extraParams.network,
+      })
+
+      filter.address = { $in: mapping.map((w: DaoMemberMapping) => w.memberAddress) }
+    }
+
+    const query: any = [{ $match: filter }]
 
     if (Utils.hasPropsWithValuesExcludingNetwork(extraParams)) {
       query.push(
