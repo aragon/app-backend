@@ -159,9 +159,6 @@ export default class Vote extends Model {
     }
 
     const query: any = [
-      {
-        $match: filter,
-      },
       AggregationQueryHelper.token({ address: '$tokenAddress', network: '$network' }, 'token', {
         _id: 0,
         network: 1,
@@ -273,11 +270,17 @@ export default class Vote extends Model {
     })
 
     const currentPage = request.skip / request.limit + 1
-    const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
+    const aggQuery = [
+      { $match: filter },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+      ...query,
+      { $sort: request?.sort },
+    ]
 
     const [data, totalRecords] = await Promise.all([
       this.aggregate(aggQuery),
-      this.aggregate([...query, { $count: 'totalRecords' }]),
+      this.aggregate([{ $match: filter }, ...query, { $count: 'totalRecords' }]),
     ])
 
     const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0

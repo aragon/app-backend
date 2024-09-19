@@ -187,9 +187,6 @@ export default class Dao extends Model {
     filter.isActive = { $eq: true }
 
     const query: any = [
-      {
-        $match: filter,
-      },
       AggregationQueryHelper.plugin(
         {
           pluginAddress: extraParams.pluginAddress || undefined,
@@ -212,6 +209,26 @@ export default class Dao extends Model {
           token: true,
         },
       ),
+      ...(extraParams.pluginAddress
+        ? [
+            {
+              $match: {
+                $expr: {
+                  $gte: [{ $size: '$plugins' }, 1],
+                },
+              },
+            },
+          ]
+        : []),
+    ]
+
+    const aggQuery = [
+      ...query,
+      { $match: filter },
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+
       AggregationQueryHelper.member(
         {
           memberAddress: '$creatorAddress',
@@ -242,25 +259,6 @@ export default class Dao extends Model {
           creatorAddress: '$$REMOVE',
         },
       },
-    ]
-
-    if (extraParams.pluginAddress) {
-      query.push({
-        $match: {
-          $expr: {
-            $gte: [{ $size: '$plugins' }, 1],
-          },
-        },
-      })
-    }
-
-    const currentPage = request.skip / request.limit + 1
-
-    const aggQuery = [
-      ...query,
-      { $sort: request?.sort },
-      { $skip: request?.skip },
-      { $limit: request?.limit },
       {
         $project: {
           _id: 0,
@@ -273,9 +271,11 @@ export default class Dao extends Model {
       },
     ]
 
+    const currentPage = request.skip / request.limit + 1
+
     const [data, totalRecords] = await Promise.all([
       this.aggregate(aggQuery),
-      this.aggregate([...query, { $count: 'totalRecords' }]),
+      this.aggregate([...query, { $match: filter }, { $count: 'totalRecords' }]),
     ])
 
     const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0

@@ -53,7 +53,7 @@ export default class DaoMemberMapping extends Model {
     return await data.save(tOpts)
   }
 
-  static async findDaosByMemberWithPagination({
+  static async findTransferByMemberWithPagination({
     extraParams,
     paginationParams,
   }: {
@@ -181,9 +181,163 @@ export default class DaoMemberMapping extends Model {
       ),
     ]
 
+    const aggQuery = [{ $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }, ...query]
+
     const [result, totalRecords] = await Promise.all([
-      this.aggregate([...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]),
+      this.aggregate(aggQuery),
       this.aggregate([...query, { $count: 'totalRecords' }]),
+    ])
+
+    const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
+    const totalPages = Math.ceil(_totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords: _totalRecords,
+      },
+      data: result as any,
+    }
+  }
+
+  static async findDaosByMemberWithPagination({
+    extraParams,
+    paginationParams,
+  }: {
+    extraParams?: IDaoExtraParams
+    paginationParams?: IPaginationParams
+  }) {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const currentPage = request.skip / request.limit + 1
+    const filter: any = {}
+
+    if (extraParams?.memberAddress) {
+      filter.memberAddress = extraParams?.memberAddress
+    }
+
+    if (extraParams?.network) {
+      filter.network = extraParams?.network
+    }
+
+    const query = [
+      {
+        $project: {
+          daoAddress: 1,
+          _id: 0,
+        },
+      },
+      AggregationQueryHelper.dao(
+        {
+          address: '$daoAddress',
+        },
+        'daoDetails',
+      ),
+      {
+        $unwind: {
+          path: '$daoDetails',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $replaceRoot: {
+          newRoot: '$daoDetails',
+        },
+      },
+      {
+        $project: {
+          createdAt: 0,
+          updatedAt: 0,
+          isHidden: 0,
+          isActive: 0,
+          __v: 0,
+          _id: 0,
+        },
+      },
+      ...(extraParams?.excludedDao?.daoAddress && extraParams?.excludedDao?.network
+        ? [
+            {
+              $match: {
+                $nor: [
+                  {
+                    address: extraParams.excludedDao.daoAddress,
+                    network: extraParams.excludedDao.network,
+                  },
+                ],
+              },
+            },
+          ]
+        : []),
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$creatorAddress',
+        },
+        'creator',
+      ),
+      {
+        $addFields: {
+          creator: {
+            $cond: {
+              if: { $gt: [{ $size: '$creator' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$creator.address', 0] },
+                ens: { $arrayElemAt: ['$creator.ens', 0] },
+                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
+              },
+              else: {
+                address: '$creatorAddress',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          creatorAddress: '$$REMOVE',
+        },
+      },
+      AggregationQueryHelper.plugin(
+        {
+          daoAddress: '$address',
+          network: '$network',
+          status: IPluginStatus.installed,
+        },
+        'plugins',
+        {
+          _id: 0,
+          address: 1,
+          implementationAddress: 1,
+          // status: 1,
+          release: 1,
+          build: 1,
+          subdomain: 1,
+        },
+        {
+          settings: true,
+          token: true,
+        },
+      ),
+    ]
+
+    const aggQuery = [
+      { $match: filter },
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+      ...query,
+    ]
+
+    const [result, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery),
+      // this.aggregate(AggregationQueryHelper.aggregateQuery(request, filter, query, project)),
+      this.aggregate([{ $match: filter }, ...query, { $count: 'totalRecords' }]),
     ])
 
     const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
