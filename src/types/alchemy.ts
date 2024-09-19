@@ -16,6 +16,7 @@ export interface IWebSocketProvider extends WebSocketProvider {
 export interface IAlchemyTokenBalance {
   contractAddress?: HexAddress | undefined
   tokenBalance: string
+  originalBalance: any
 }
 
 export enum ITransactionCategory {
