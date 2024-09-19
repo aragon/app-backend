@@ -103,7 +103,7 @@ const CovalentHelper = {
     }
 
     const networkId = CovalentHelper.networkToCovalent(network)
-    const back2Days = dayjs().subtract(pastDays, 'day').format('YYYY-MM-DD')
+    const back2Days = dayjs().subtract(Math.round(pastDays), 'days').format('YYYY-MM-DD')
     const path = `/pricing/historical_by_addresses_v2/${networkId}/${config.DEFAULT_CURRENCY}/${tokenContractAddress}/?from=${back2Days}`
 
     try {
