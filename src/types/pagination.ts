@@ -82,6 +82,7 @@ export interface ITransactionExtraParams {
 
 export interface IExtraQueryData {
   daoAddresses?: HexAddress[]
+  memberAddresses?: HexAddress[]
 }
 
 export interface ISettingExtraParams {
