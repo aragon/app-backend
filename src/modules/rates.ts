@@ -4,7 +4,7 @@ import CovalentHelper from '@helpers/covalent'
 
 export const RateModule = {
   fetchRate: async (tokenAddress: HexAddress, network: NetworksEnum, pastDays?: number): Promise<ITokenRate> => {
-    return await RateModule.fetchRateWithCovalent(tokenAddress, network)
+    return await RateModule.fetchRateWithCovalent(tokenAddress, network, pastDays)
   },
 
   fetchRateWithCovalent: async (
