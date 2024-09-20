@@ -6,6 +6,7 @@ import {
   type IDaoExtraParams,
   type IDaoIdParams,
   type IDaoResponse,
+  type IExtraQueryData,
   type IMembersResponse,
   type IPaginatedResult,
   type IPaginationParams,
@@ -162,9 +163,11 @@ export default class Dao extends Model {
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
+    extraQueryData = {},
   }: {
     extraParams?: IDaoExtraParams
     paginationParams?: IPaginationParams
+    extraQueryData: IExtraQueryData
   }): Promise<IPaginatedResult<IDaoResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
@@ -186,7 +189,15 @@ export default class Dao extends Model {
     filter.isHidden = { $ne: true }
     filter.isActive = { $eq: true }
 
-    const query: any = [
+    if (extraQueryData.daoAddress) {
+      filter.address = extraQueryData.daoAddress
+    }
+
+    const aggQuery = [
+      { $match: filter },
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
       AggregationQueryHelper.plugin(
         {
           pluginAddress: extraParams.pluginAddress || undefined,
@@ -220,14 +231,6 @@ export default class Dao extends Model {
             },
           ]
         : []),
-    ]
-
-    const aggQuery = [
-      ...query,
-      { $match: filter },
-      { $sort: request?.sort },
-      { $skip: request?.skip },
-      { $limit: request?.limit },
 
       AggregationQueryHelper.member(
         {
@@ -275,7 +278,7 @@ export default class Dao extends Model {
 
     const [data, totalRecords] = await Promise.all([
       this.aggregate(aggQuery),
-      this.aggregate([...query, { $match: filter }, { $count: 'totalRecords' }]),
+      this.aggregate([{ $match: filter }, { $count: 'totalRecords' }]),
     ])
 
     const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0

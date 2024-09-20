@@ -80,6 +80,10 @@ export interface ITransactionExtraParams {
   toAddress?: HexAddress
 }
 
+export interface IExtraQueryData {
+  daoAddress?: HexAddress
+}
+
 export interface ISettingExtraParams {
   daoAddress?: HexAddress
   pluginAddress?: HexAddress

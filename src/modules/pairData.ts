@@ -1,7 +1,31 @@
 import { Models } from '@dbModels'
-import { type HexAddress, type IPaginationParams, type IPairParams, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IExtraQueryData,
+  type IPaginationParams,
+  type IPairParams,
+  type NetworksEnum,
+} from '@types'
 
 const PairDataModule = {
+  pairExtraQueryData: async <
+    T extends {
+      pluginAddress?: HexAddress
+    },
+  >(
+    extraParams: T,
+    pairParams?: IPairParams,
+  ): Promise<IExtraQueryData> => {
+    const extraQueryData: IExtraQueryData = {}
+
+    if (extraParams.pluginAddress) {
+      const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress)
+      extraQueryData.daoAddress = plugin?.daoAddress
+    }
+
+    return extraQueryData
+  },
+
   pairFromPaginationParams: async (paginationParams: IPaginationParams): Promise<IPaginationParams> => {
     // resolve ens from search
     if (paginationParams?.search && paginationParams?.search?.length > 0) {
@@ -53,7 +77,7 @@ const PairDataModule = {
     },
   >(
     extraParams: T,
-    pairParams: IPairParams,
+    pairParams?: IPairParams,
   ): Promise<T> => {
     // resolve daoId
     if (pairParams?.daoId) {
