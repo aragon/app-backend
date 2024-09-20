@@ -3108,7 +3108,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"pluginAddress\":\"0x178F5a2D2Ae45de04E9247039D6d039dcc7821E1\",\n    \"network\": \"ethereum-sepolia\",\n    \"memberAddress\": \"0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449\",\n    \"proposalIndex\": 44\n}",
+							"raw": "{\n    \"pluginAddress\":\"0x178F5a2D2Ae45de04E9247039D6d039dcc7821E1\",\n    \"network\": \"ethereum-sepolia\",\n    \"memberAddress\": \"0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449\",\n    \"proposalIndex\": 45\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -3116,13 +3116,13 @@
 							}
 						},
 						"url": {
-							"raw": "{{host}}/votes/can-vote",
+							"raw": "{{host}}/votes/member-vote-info",
 							"host": [
 								"{{host}}"
 							],
 							"path": [
 								"votes",
-								"can-vote"
+								"member-vote-info"
 							],
 							"query": [
 								{
