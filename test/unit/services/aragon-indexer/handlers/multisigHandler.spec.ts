@@ -12,9 +12,9 @@ import { RabbitMQHelper } from '@helpers/redditMQ'
 describe('Indexer: MemberHandler', () => {
   let sandbox: SinonSandbox
   let plugin: any
+
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
 
     let rawPlugin = {

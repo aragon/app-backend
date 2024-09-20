@@ -1,7 +1,6 @@
 // import * as sinon from 'sinon'
 // import { SinonSandbox } from 'sinon'
 // import { expect } from 'chai'
-// import { AggregatorDaoAssets } from '@indexer/aggregator/daoAssets'
 // import { Models } from '@dbModels'
 // import DBCrawler from '@models/utils/crawler'
 // import { HexAddress, IAlchemyTokenBalance, ITokenType, NetworksEnum } from '@types'

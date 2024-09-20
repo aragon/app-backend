@@ -10,6 +10,7 @@ import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import { ProposalHandler } from '@indexer/handlers/proposalHandler'
 import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
+import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
 
 describe('Indexer: LogTokenVoting', () => {
   let sandbox: SinonSandbox
@@ -138,6 +139,74 @@ describe('Indexer: LogTokenVoting', () => {
       expect(parseLogStub.calledOnce).to.be.true
       expect(parseInfoLogStub.calledOnce).to.be.true
       expect(votingSettingsUpdatedStub.calledOnce).to.be.true
+    })
+
+    it('should process the transfer log', async () => {
+      const txLog = {
+        data: '0x1234567890123456789012345678901234567890',
+        topics: ['0x1234567890123456789012345678901234567890'],
+      } as any
+
+      const network = NetworksEnum.polygonMainnet
+      const verboseStub = sandbox.stub(logger, 'verbose')
+
+      const fakeLogInfo = {
+        network: network,
+        blockNumber: 123213,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0x1234567890123456789012345678901234567890',
+        address: '0x1234567890123456789012345678901234567890',
+        eventName: 'Transfer',
+      }
+
+      const parseLogStub = sandbox.stub(Web3Helper, 'parseLog').returns({ name: 'Transfer' } as any)
+
+      const parseInfoLogStub = sandbox.stub(Web3Helper, 'parseInfoLog').returns(fakeLogInfo)
+
+      const GovernanceErc20HandlerStub = sandbox.stub(GovernanceErc20Handler, 'transfer').resolves()
+
+      await LogTokenVoting.processLog(txLog, network)
+
+      expect(parseLogStub.calledOnce).to.be.true
+      expect(parseInfoLogStub.calledOnce).to.be.true
+      expect(GovernanceErc20HandlerStub.calledOnce).to.be.true
+      expect(parseInfoLogStub.calledWith(txLog, 'Transfer', network)).to.be.true
+      expect(verboseStub.calledWith('Transfer' as any)).to.be.true
+    })
+
+    it('should process the delegate votes changed log', async () => {
+      const txLog = {
+        data: '0x1234567890123456789012345678901234567890',
+        topics: ['0x1234567890123456789012345678901234567890'],
+      } as any
+
+      const network = NetworksEnum.polygonMainnet
+      const verboseStub = sandbox.stub(logger, 'verbose')
+
+      const fakeLogInfo = {
+        network: network,
+        blockNumber: 123213,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0x1234567890123456789012345678901234567890',
+        address: '0x1234567890123456789012345678901234567890',
+        eventName: 'DelegateVotesChanged',
+      }
+
+      const parseLogStub = sandbox.stub(Web3Helper, 'parseLog').returns({ name: 'DelegateVotesChanged' } as any)
+
+      const parseInfoLogStub = sandbox.stub(Web3Helper, 'parseInfoLog').returns(fakeLogInfo)
+
+      const GovernanceErc20HandlerStub = sandbox.stub(GovernanceErc20Handler, 'delegateVotesChanged').resolves()
+
+      await LogTokenVoting.processLog(txLog, network)
+
+      expect(parseLogStub.calledOnce).to.be.true
+      expect(parseInfoLogStub.calledOnce).to.be.true
+      expect(GovernanceErc20HandlerStub.calledOnce).to.be.true
+      expect(parseInfoLogStub.calledWith(txLog, 'DelegateVotesChanged', network)).to.be.true
+      expect(verboseStub.calledWith('DelegateVotesChanged' as any)).to.be.true
     })
 
     it('should process the unhandled event log', async () => {
