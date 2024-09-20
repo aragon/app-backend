@@ -17,8 +17,8 @@ const DaoController = {
     extraParams: IDaoExtraParams = {},
   ): Promise<IPaginatedResult<IDaoResponse>> => {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
-
-    const result = await Models.Dao.findWithPagination({ extraParams, paginationParams })
+    const extraQueryData = await PairDataModule.pairExtraQueryData(extraParams)
+    const result = await Models.Dao.findWithPagination({ extraParams, paginationParams, extraQueryData })
 
     return result
   },
@@ -45,7 +45,20 @@ const DaoController = {
         })
       : undefined
 
-    return await Models.DaoMemberMapping.findDaosByMemberWithPagination({ extraParams, paginationParams })
+    const mapping = await PairDataModule.pairFromDaoMemberMapping({
+      memberAddress: extraParams.memberAddress,
+    })
+    const daoAddresses = mapping
+      .map(m => m.daoAddress)
+      .filter((daoAddress: HexAddress) => daoAddress !== extraParams?.excludedDao?.daoAddress)
+
+    const result = await Models.Dao.findWithPagination({
+      extraParams,
+      paginationParams,
+      extraQueryData: { daoAddresses },
+    })
+
+    return result
   },
 }
 

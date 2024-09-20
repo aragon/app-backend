@@ -9,6 +9,7 @@ import {
 } from '@types'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
+import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -17,7 +18,20 @@ const MemberController = {
     pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<IMembersResponse>> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
-    const result = await Models.Member.findWithPagination({ extraParams, paginationParams })
+
+    const mapping = await PairDataModule.pairFromDaoMemberMapping({
+      daoAddress: extraParams.daoAddress,
+      pluginAddress: extraParams.pluginAddress,
+      network: extraParams.network,
+    })
+
+    const memberAddresses = mapping.map((w: DaoMemberMapping) => w.memberAddress)
+
+    const result = await Models.Member.findWithPagination({
+      extraParams,
+      paginationParams,
+      extraQueryData: { memberAddresses },
+    })
 
     return result
   },
