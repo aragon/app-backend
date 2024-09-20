@@ -4,6 +4,7 @@ import {
   ICollectionNames,
   type IDelegateExtraParams,
   type IDelegatesResponse,
+  type IExtraQueryData,
   type IMemberTransactionIdParams,
   type IPaginatedResult,
   type IPaginationParams,
@@ -17,8 +18,6 @@ import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import utils from '@helpers/utils'
-import PairData from '@modules/pairData'
-import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 
 const customName = ICollectionNames.MemberTransaction
 
@@ -132,9 +131,11 @@ export default class MemberTransaction extends Model {
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
+    extraQueryData = {},
   }: {
     extraParams?: IDelegateExtraParams
     paginationParams?: IPaginationParams
+    extraQueryData: IExtraQueryData
   }): Promise<IPaginatedResult<IDelegatesResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const filter = {
@@ -148,22 +149,8 @@ export default class MemberTransaction extends Model {
       ]),
     }
 
-    if (
-      extraParams.daoAddress ||
-      extraParams.memberAddress ||
-      extraParams.pluginAddress ||
-      extraParams.tokenAddress ||
-      extraParams.tokenAddress
-    ) {
-      const mapping = await PairData.pairFromDaoMemberMapping({
-        daoAddress: extraParams.daoAddress,
-        pluginAddress: extraParams.pluginAddress,
-        tokenAddress: extraParams.tokenAddress,
-        memberAddress: extraParams.memberAddress,
-        network: extraParams.network,
-      })
-
-      filter.address = { $in: mapping.map((w: DaoMemberMapping) => w.memberAddress) }
+    if (extraQueryData?.memberAddresses?.length! > 0) {
+      filter.address = { $in: extraQueryData.memberAddresses }
     }
 
     if (extraParams.memberAddress) {

@@ -125,7 +125,16 @@ class DecodeActions {
 
     for (const pattern in actionHandlers) {
       if (decoded.textSignature!.toLowerCase().includes(pattern.toLowerCase())) {
-        const parsedAction = await actionHandlers[pattern](decoded, action, document)
+        const parsedAction = await actionHandlers[pattern](
+          decoded,
+          {
+            from: document.daoAddress!,
+            to: action.to,
+            data: action.data,
+            value: action.value,
+          },
+          document,
+        )
         if (parsedAction) {
           return parsedAction
         }
