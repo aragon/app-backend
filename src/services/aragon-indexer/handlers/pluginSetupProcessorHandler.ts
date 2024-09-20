@@ -10,7 +10,7 @@ import { PluginHandler } from '@indexer/handlers/pluginHandler'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import DbOperations from '@models/utils/dbOperations'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:pluginSetupProcessorHandler' })
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
 
 export enum IPluginActionType {
   installed = 'installed',

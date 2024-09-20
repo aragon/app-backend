@@ -5,6 +5,7 @@ import EtherscanHelper from '@helpers/etherscan'
 import logger from '@logger'
 import config from '@config'
 import { NetworksEnum } from '@types'
+import axios from 'axios'
 
 describe('Helpers: Etherscan', () => {
   let sandbox: SinonSandbox
@@ -15,6 +16,12 @@ describe('Helpers: Etherscan', () => {
 
   afterEach(() => {
     sandbox && sandbox.restore()
+  })
+
+  it('axiosInstance', async () => {
+    const stubAxios = sandbox.stub(axios, 'create')
+    EtherscanHelper.axiosInstance(NetworksEnum.ethereumMainnet)
+    expect(stubAxios.calledOnce).to.be.true
   })
 
   describe('_rpCall', () => {

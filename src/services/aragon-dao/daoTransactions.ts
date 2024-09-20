@@ -32,6 +32,7 @@ export const DaoTransactions = {
 
     const daoDb = await Models.Dao.findByAddress(daoAddress, network)
     if (!daoDb) return
+
     await DaoTransactions.onDocument(daoDb)
 
     const duration = Date.now() - startTime
@@ -170,7 +171,7 @@ export const DaoTransactions = {
         if (token?.address) {
           rawTx.tokenAddress = token.address
           // historical price
-          const daysDifference = utils.calculateDaysDifference(rawTx.blockTimestamp)
+          const daysDifference = utils.calculateDaysDifference(rawTx.blockTimestamp! * 1000)
           const tokenRate = await RateModule.fetchRate(token.address, dao.network, daysDifference)
           rawTx.amountUsd = DaoTransactions.calculateAmountUsd(
             Number(rawTx.value || 0),

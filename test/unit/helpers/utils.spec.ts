@@ -607,4 +607,101 @@ describe('Helpers:Utils', () => {
     expect(Utils.parseBoolean('false')).to.be.false
     expect(Utils.parseBoolean(false)).to.be.false
   })
+
+  describe('setImmediateAsyncArray', () => {
+    it('should execute all functions in the array', async () => {
+      const fn1 = sandbox.stub().resolves(1)
+      const fn2 = sandbox.stub().resolves(2)
+      const onError = sandbox.stub()
+
+      await new Promise(resolve => {
+        Utils.setImmediateAsyncArray([fn1, fn2], onError)
+        setImmediate(resolve)
+      })
+
+      sinon.assert.calledOnce(fn1)
+      sinon.assert.calledOnce(fn2)
+      sinon.assert.notCalled(onError)
+    })
+
+    it('should call onError if an error occurs in any function', async () => {
+      const error = new Error('Test Error')
+      const fn1 = sandbox.stub().resolves(1)
+      const fn2 = sandbox.stub().rejects(error)
+      const onError = sandbox.stub()
+
+      await new Promise(resolve => {
+        Utils.setImmediateAsyncArray([fn1, fn2], onError)
+        setImmediate(resolve)
+      })
+
+      sinon.assert.calledOnce(fn1)
+      sinon.assert.calledOnce(fn2)
+      sinon.assert.calledOnceWithExactly(onError, sinon.match(error))
+    })
+
+    it('should continue to execute all functions even if one fails', async () => {
+      const error = new Error('Test Error')
+      const fn1 = sandbox.stub().rejects(error)
+      const fn2 = sandbox.stub().resolves(2)
+      const onError = sandbox.stub()
+
+      await new Promise(resolve => {
+        Utils.setImmediateAsyncArray([fn1, fn2], onError)
+        setImmediate(resolve) // Allow all setImmediate calls to complete
+      })
+
+      sinon.assert.calledOnce(fn1)
+      sinon.assert.calledOnce(fn2)
+      sinon.assert.calledOnce(onError)
+    })
+  })
+
+  describe('calculateDaysDifference', () => {
+    it('should return approximately 0 days when the timestamp is for the current day', () => {
+      const timestampToday = new Date().getTime()
+      const result = Utils.calculateDaysDifference(timestampToday)
+      expect(result).to.be.closeTo(0, 0.1)
+    })
+
+    it('should return approximately 1 day when the timestamp is from 1 day ago', () => {
+      const oneDayInMs = 24 * 60 * 60 * 1000
+      const timestampOneDayAgo = new Date().getTime() - oneDayInMs
+      const result = Utils.calculateDaysDifference(timestampOneDayAgo)
+      expect(result).to.be.closeTo(1, 0.1)
+    })
+
+    it('should return approximately -1 day when the timestamp is 1 day in the future', () => {
+      const oneDayInMs = 24 * 60 * 60 * 1000
+      const timestampOneDayFuture = new Date().getTime() + oneDayInMs
+      const result = Utils.calculateDaysDifference(timestampOneDayFuture)
+      expect(result).to.be.closeTo(-1, 0.1)
+    })
+
+    it('should handle large time differences accurately', () => {
+      const oneHundredDaysInMs = 100 * 24 * 60 * 60 * 1000
+      const timestampOneHundredDaysAgo = new Date().getTime() - oneHundredDaysInMs
+      const result = Utils.calculateDaysDifference(timestampOneHundredDaysAgo)
+      expect(result).to.be.closeTo(100, 0.1)
+    })
+  })
+
+  it('validateString', () => {
+    expect(Utils.validateString('test')).to.eq('test')
+    expect(Utils.validateString('')).to.be.null
+  })
+
+  it('isScientificNumber', () => {
+    expect(Utils.isScientificNumber('7.326e+22')).to.true
+    expect(Utils.isScientificNumber(7.326e22)).to.be.true
+    expect(Utils.isScientificNumber(10.314234324324)).to.be.false
+    expect(Utils.isScientificNumber(1032423423)).to.be.false
+  })
+
+  it('isDecimalNumber', () => {
+    expect(Utils.isDecimalNumber(10.1)).to.true
+    expect(Utils.isDecimalNumber(7.326e22)).to.be.false
+    expect(Utils.isDecimalNumber(10)).to.be.false
+    expect(Utils.isDecimalNumber(1032423423)).to.be.false
+  })
 })
