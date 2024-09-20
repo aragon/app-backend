@@ -16,6 +16,7 @@ export interface IRawAction {
   to: string
   data: string
   value: any
+  from?: string
 }
 
 export enum KnownActionSignature {
