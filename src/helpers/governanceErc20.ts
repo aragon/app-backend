@@ -13,6 +13,7 @@ const GovernanceErc20Helper = {
     memberAddress: HexAddress,
     tokenAddress: HexAddress,
     blockNumber: number,
+    blockTimestamp: number,
     network: NetworksEnum,
   ): Promise<string> {
     const provider = ProviderModule.getProvider(network)!
@@ -24,9 +25,26 @@ const GovernanceErc20Helper = {
         ),
       )
     } catch (error) {
-      logger.error('Error getting past votes', llo({ memberAddress, tokenAddress, blockNumber, network, error }))
-      return '0'
+      logger.error(
+        'Error getting past votes - blockNumber',
+        llo({ memberAddress, tokenAddress, blockNumber, network, error }),
+      )
     }
+
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+          contract.getPastVotes(memberAddress, blockTimestamp),
+        ),
+      )
+    } catch (error) {
+      logger.error(
+        'Error getting past votes - blockTimestamp',
+        llo({ memberAddress, tokenAddress, blockNumber, network, error }),
+      )
+    }
+
+    return '0'
   },
 
   async getVotes(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
