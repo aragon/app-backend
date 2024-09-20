@@ -14,13 +14,12 @@ const PairDataModule = {
     },
   >(
     extraParams: T,
-    pairParams?: IPairParams,
   ): Promise<IExtraQueryData> => {
     const extraQueryData: IExtraQueryData = {}
 
     if (extraParams.pluginAddress) {
-      const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress)
-      extraQueryData.daoAddress = plugin?.daoAddress
+      const plugin = await Models.Plugin.findOne({ address: extraParams.pluginAddress })
+      extraQueryData.daoAddresses = plugin?.daoAddress ? [plugin.daoAddress] : []
     }
 
     return extraQueryData
@@ -134,9 +133,12 @@ const PairDataModule = {
       params.network = network
     }
 
-    const mappings = await Models.DaoMemberMapping.find(params)
+    if (Object.keys(params).length > 0) {
+      const mappings = await Models.DaoMemberMapping.find(params)
+      return mappings
+    }
 
-    return mappings
+    return []
   },
 }
 export default PairDataModule

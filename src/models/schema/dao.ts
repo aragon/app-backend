@@ -171,7 +171,9 @@ export default class Dao extends Model {
   }): Promise<IPaginatedResult<IDaoResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(([key, value]) => value !== undefined && key !== 'pluginAddress'),
+      Object.entries(extraParams).filter(
+        ([key, value]) => value !== undefined && key !== 'pluginAddress' && key !== 'memberAddress',
+      ),
     )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, [
@@ -189,8 +191,8 @@ export default class Dao extends Model {
     filter.isHidden = { $ne: true }
     filter.isActive = { $eq: true }
 
-    if (extraQueryData.daoAddress) {
-      filter.address = extraQueryData.daoAddress
+    if (extraQueryData?.daoAddresses?.length! > 0) {
+      filter.address = { $in: extraQueryData.daoAddresses }
     }
 
     const aggQuery = [
