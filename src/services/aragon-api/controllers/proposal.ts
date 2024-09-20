@@ -30,15 +30,9 @@ const ProposalController = {
 
   canCreateProposal: async (params: ICanCreateProposal) => {
     try {
-      const filterParams = await PairDataModule.pairFromExtraParams(params, params)
-      /**
-       * ENS as well also can be passed and the transformation should be happened at this point
-       */
-      assertExposable(!!filterParams.memberAddress, ErrorKeyEnum.notFound)
-
       const [member, plugin] = await Promise.all([
-        Models.Member.findByAddress(filterParams.memberAddress),
-        Models.Plugin.findByAddress(filterParams.pluginAddress, filterParams.network),
+        Models.Member.findByAddress(params.memberAddress),
+        Models.Plugin.findByAddress(params.pluginAddress, params.network),
       ])
 
       assertExposable(member && plugin, ErrorKeyEnum.notFound)
