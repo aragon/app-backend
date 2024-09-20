@@ -41,7 +41,10 @@ export const ProxyToken = {
     const tokenRate = await RateModule.fetchRate(parsedTokenAddress, network)
 
     // this slow down a lot due to the rate limiting of etherscan
-    const contractDeployInfo = tokenTypeInfo?.type === ITokenType.GovernanceERC20 ? await ProxyToken.getContractCreationInfo(parsedTokenAddress, network) : null
+    const contractDeployInfo =
+      tokenTypeInfo?.type === ITokenType.GovernanceERC20
+        ? await ProxyToken.getContractCreationInfo(parsedTokenAddress, network)
+        : null
 
     const rawToken: Partial<Token> = ProxyToken.constructRawToken(
       parsedTokenAddress,

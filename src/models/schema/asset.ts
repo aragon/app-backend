@@ -215,84 +215,24 @@ export default class Asset extends Model {
   }
 
   static async getDaoTvl(daoAddress: HexAddress, network: NetworksEnum) {
-    const response = await this.aggregate([
+    const query = [
       {
         $match: { daoAddress, network },
       },
-      AggregationQueryHelper.token(
-        {
-          network: '$network',
-          address: '$tokenAddress',
-        },
-        'rate',
-        {
-          _id: 0,
-          network: 1,
-          address: 1,
-          symbol: 1,
-          name: 1,
-          type: 1,
-          logo: 1,
-          decimals: 1,
-          priceUsd: 1,
-        },
-      ),
-      {
-        $unwind: {
-          path: '$rate',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $addFields: {
-          priceUsd: {
-            $ifNull: [{ $toDecimal: '$rate.priceUsd' }, 0],
-          },
-          decimals: {
-            $ifNull: [{ $toInt: '$rate.decimals' }, 18],
-          },
-          amountBigInt: { $toDecimal: '$amount' },
-        },
-      },
-      {
-        $addFields: {
-          normalizedAmount: {
-            $divide: ['$amountBigInt', { $pow: [10, '$decimals'] }],
-          },
-        },
-      },
-      {
-        $addFields: {
-          totalValueUsd: {
-            $multiply: ['$priceUsd', '$normalizedAmount'],
-          },
-        },
-      },
       {
         $group: {
-          _id: '$daoAddress',
-          totalValueUsd: {
-            $sum: '$totalValueUsd',
-          },
-          dao: { $first: '$$ROOT' },
-        },
-      },
-      {
-        $addFields: {
-          totalValueUsdRounded: {
-            $round: ['$totalValueUsd', 2],
-          },
+          _id: null,
+          tvlUsd: { $sum: '$amountUsd' },
         },
       },
       {
         $project: {
           _id: 0,
-          address: '$dao.daoAddress',
-          network: '$dao.network',
-          tvlUsd: '$totalValueUsdRounded',
+          tvlUsd: 1,
         },
       },
-    ])
+    ]
+    const response = await this.aggregate(query)
     return {
       tvlUsd: response[0]?.tvlUsd || 0,
       daoAddress,
