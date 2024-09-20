@@ -7,7 +7,7 @@ import IPFSModule from '@modules/ipfs'
 import type LogDaoMetadata from '@models/schema/logDaoMetadata'
 import DbOperations from '@models/utils/dbOperations'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:MetadataHandler' })
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:MetadataHandler' })
 
 export const MetadataHandler = {
   metadataSet: async (parsedEvent: LogDescription, info: ILogInfo) => {

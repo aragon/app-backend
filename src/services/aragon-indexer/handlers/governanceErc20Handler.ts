@@ -11,10 +11,9 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:GovernanceErc20Handler' })
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:GovernanceErc20Handler' })
 
 export const GovernanceErc20Handler = {
-  // TODO: fix the fucking plugin
   // is trigger once for all user - (from user increase balance and 1 user decrease balance)
   transfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
     // when realtime the plugin is undefined, check if related to aragon dao
@@ -191,6 +190,7 @@ export const GovernanceErc20Handler = {
     })
 
     const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
       const logDb = await Models.MemberTransaction.create(
         {
           network: info.network,
@@ -198,7 +198,7 @@ export const GovernanceErc20Handler = {
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,
           blockNumber: info.blockNumber,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+          blockTimestamp,
           address: memberAddress,
           type: ITransferType.tokenTransfer,
           side: ITransferSide.outgoing,
@@ -211,6 +211,7 @@ export const GovernanceErc20Handler = {
             memberAddress,
             info.address,
             info.blockNumber,
+            blockTimestamp,
             info.network,
           ),
         },
@@ -275,6 +276,7 @@ export const GovernanceErc20Handler = {
     })
 
     await DbTx.executeTxFn(async ({ session }) => {
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
       const logDb = await Models.MemberTransaction.create(
         {
           network: info.network,
@@ -282,7 +284,7 @@ export const GovernanceErc20Handler = {
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,
           blockNumber: info.blockNumber,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+          blockTimestamp,
           address: memberAddress,
           side: ITransferSide.incoming,
           type: ITransferType.tokenTransfer,
@@ -295,6 +297,7 @@ export const GovernanceErc20Handler = {
             memberAddress,
             info.address,
             info.blockNumber,
+            blockTimestamp,
             info.network,
           ),
         },

@@ -6,7 +6,7 @@ import Web3Helper from '@helpers/web3'
 import type PluginRepo from '@models/schema/pluginRepo'
 import DbOperations from '@models/utils/dbOperations'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:PluginRepoRegistryHandler' })
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginRepoRegistryHandler' })
 
 export const PluginRepoRegistryHandler = {
   pluginRepoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
