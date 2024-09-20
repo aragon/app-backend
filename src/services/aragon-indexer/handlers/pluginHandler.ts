@@ -29,16 +29,21 @@ export const PluginHandler = {
     network: NetworksEnum
     events: IEventLogPluginType[]
   }): Promise<IQueryGetPlugin | undefined> {
+    const filter: any = { event: { $in: events } }
+
+    if (pluginAddress && events[0] !== IEventLogPluginType.UninstallationPrepared) {
+      filter.pluginAddress = pluginAddress
+    }
+    if (daoAddress) {
+      filter.daoAddress = daoAddress
+    }
+    if (network) {
+      filter.network = network
+    }
+
     const query = [
       {
-        $match: {
-          network,
-          daoAddress,
-          pluginAddress,
-          event: {
-            $in: events,
-          },
-        },
+        $match: filter,
       },
       {
         $sort: {
@@ -164,7 +169,6 @@ export const PluginHandler = {
           path: '$pluginRepo',
         },
       },
-
       {
         $project: {
           action: 1,
@@ -301,46 +305,51 @@ export const PluginHandler = {
   },
 
   updatePlugin: async (pluginLog: LogPluginSetupProcessor) => {
-    const plugin = await PluginHandler._queryGetPlugin({
-      ...pluginLog,
+    const rawPlugin = await PluginHandler._queryGetPlugin({
+      daoAddress: pluginLog.daoAddress,
+      pluginAddress: pluginLog.pluginAddress,
+      network: pluginLog.network,
       ...{ events: [IEventLogPluginType.UpdatePrepared, IEventLogPluginType.UpdateApplied] },
     })
 
-    if (!plugin) {
+    if (!rawPlugin) {
       logger.warn('Update Plugin event not found', llo({ pluginLog }))
       return
     }
 
-    const newPlugin = await PluginHandler._createPlugin(plugin as any)
-
-    if (!newPlugin) return
-
     // we should be able to find out the plugin that was updated
     // newPlugin.release > actualPlugin.release | newPlugin.build > actualPlugin.build
-    const actualPlugin = await Models.Plugin.find({
+    const existingPlugin = await Models.Plugin.findOne({
       network: pluginLog.network,
-      daoAddress: plugin.daoAddress,
-      pluginSetupRepoAddress: plugin.pluginSetupRepoAddress,
-      address: plugin.address,
+      daoAddress: rawPlugin.daoAddress,
+      pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+      address: rawPlugin.address,
+      status: IPluginStatus.installed,
     })
 
-    if (!actualPlugin) return
+    const plugin = await PluginHandler._createPlugin(rawPlugin as any)
+    if (!plugin) return
 
-    const rawPlugin = {
-      status: IPluginStatus.deprecated,
-      uninstalled: {
-        status: true,
-        blockNumber: newPlugin.blockNumber,
-        blockTimestamp: newPlugin.blockTimestamp,
-        transactionHash: newPlugin.transactionHash,
-      },
+    if (existingPlugin) {
+      const document = {
+        status: IPluginStatus.deprecated,
+        uninstalled: {
+          status: true,
+          blockNumber: plugin.blockNumber,
+          blockTimestamp: plugin.blockTimestamp,
+          transactionHash: plugin.transactionHash,
+        },
+      }
+
+      await DbOperations.updateDocument(existingPlugin, document, { logId: existingPlugin.id }, 'Update plugin', llo)
     }
-    return await DbOperations.updateDocument(actualPlugin, rawPlugin, { logId: actualPlugin.id }, 'Update plugin', llo)
   },
 
   uninstallPlugin: async (pluginLog: LogPluginSetupProcessor) => {
     const plugin = await PluginHandler._queryGetPlugin({
-      ...pluginLog,
+      daoAddress: pluginLog.daoAddress,
+      pluginAddress: pluginLog.pluginAddress,
+      network: pluginLog.network,
       ...{ events: [IEventLogPluginType.UninstallationPrepared, IEventLogPluginType.UninstallationApplied] },
     })
 
@@ -349,13 +358,15 @@ export const PluginHandler = {
       return
     }
 
-    const existingLog = await Models.Plugin.findExistingLog({
+    const existingPlugin = await Models.Plugin.findOne({
       network: pluginLog.network,
-      transactionHash: plugin.transactionHash,
+      daoAddress: plugin.daoAddress,
+      pluginSetupRepoAddress: plugin.pluginSetupRepoAddress,
       address: plugin.address,
+      status: IPluginStatus.installed,
     })
 
-    if (!existingLog) return
+    if (!existingPlugin) return
 
     const blockTimestamp = (await Web3Helper.getBlockTimestamp(plugin.blockNumber, plugin.network)) || undefined
     const updatePlugin: Partial<Plugin> = {
@@ -369,9 +380,9 @@ export const PluginHandler = {
     }
 
     return await DbOperations.updateDocument(
-      existingLog,
+      existingPlugin,
       updatePlugin,
-      { logId: existingLog.id },
+      { logId: existingPlugin.id },
       'Uninstall plugin',
       llo,
     )
