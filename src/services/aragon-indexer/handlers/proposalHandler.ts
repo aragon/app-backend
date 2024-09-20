@@ -14,7 +14,7 @@ import DbOperations from '@models/utils/dbOperations'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import DbTx from '@modules/dbTx'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:ProposalHandler' })
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 
 export const ProposalHandler = {
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -226,6 +226,7 @@ export const ProposalHandler = {
       network: info.network,
       pluginAddress: info.address,
       memberAddress: parsedEvent.args.voter,
+      proposalIndex: Number(parsedEvent.args.proposalId),
     })
     const isExistingVote = !!existingMemberVote
 

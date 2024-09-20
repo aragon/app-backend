@@ -363,18 +363,16 @@ export default class DaoMemberMapping extends Model {
       memberAddress,
       daoAddress,
       pluginAddress,
-      tokenAddress,
       network,
     }: {
       memberAddress: HexAddress
       daoAddress: HexAddress
       pluginAddress: HexAddress
-      tokenAddress: HexAddress
       network: NetworksEnum
     },
     tOpts?: SaveOptions,
   ) {
-    return await this.findOne({ memberAddress, daoAddress, pluginAddress, tokenAddress, network }, tOpts)
+    return await this.findOne({ memberAddress, daoAddress, pluginAddress, network }, tOpts)
   }
 
   static async findAllMembersOfPlugin(

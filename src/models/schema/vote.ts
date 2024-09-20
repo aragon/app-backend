@@ -129,12 +129,14 @@ export default class Vote extends Model {
     memberAddress,
     pluginAddress,
     network,
+    proposalIndex,
   }: {
     memberAddress: HexAddress
     pluginAddress: HexAddress
     network: NetworksEnum
+    proposalIndex: number
   }) {
-    return await this.findOne({ memberAddress, pluginAddress, network })
+    return await this.findOne({ memberAddress, pluginAddress, proposalIndex, network })
   }
 
   static async findWithPagination({

@@ -23,7 +23,7 @@ import { LogTokenVoting } from '@indexer/logTokenVoting'
 import { LogMultisig } from '@indexer/logMultisig'
 import type Dao from '@models/schema/dao'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:DaoRegistryHandler' })
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:DaoRegistryHandler' })
 
 export const DaoRegistryHandler = {
   daoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
