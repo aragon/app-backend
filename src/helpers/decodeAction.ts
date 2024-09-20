@@ -161,6 +161,7 @@ class DecodeActions {
     ])
 
     return {
+      ...action,
       inputData: decodedData,
       type: ProposalActionType.Mint,
       receivers: {
@@ -188,11 +189,12 @@ class DecodeActions {
     }
 
     const currentMembers = await Models.DaoMemberMapping.findAllMembersOfPlugin({
-      pluginAddress: document.pluginAddress,
-      network: document.network,
+      pluginAddress: document.pluginAddress!,
+      network: document.network!,
     })
 
     return {
+      ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigAddMembers,
       members: decodedData.parameters[0].value.map(async (address: HexAddress) => {
@@ -221,6 +223,7 @@ class DecodeActions {
     })
 
     return {
+      ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigRemoveMembers,
       members: decodedData.parameters[0].value.map(async (address: HexAddress) => {
@@ -260,6 +263,7 @@ class DecodeActions {
       }
 
       return {
+        ...action,
         type: ProposalActionType.MetadataUpdate,
         inputData: decodedData,
         proposedMetadata,
@@ -275,6 +279,7 @@ class DecodeActions {
       return null
     }
     return {
+      ...action,
       inputData: decodedData,
       type: ProposalActionType.UpdateMultiSigSettings,
       proposedSettings: {
@@ -289,6 +294,7 @@ class DecodeActions {
     }
 
     return {
+      ...action,
       inputData: decodedData,
       type: ProposalActionType.UpdateVoteSettings,
       proposedSettings: {
@@ -333,6 +339,7 @@ class DecodeActions {
     }
 
     return {
+      ...action,
       inputData: decodedData,
       type: ProposalActionType.Transfer,
       sender: { address: metadata.from },

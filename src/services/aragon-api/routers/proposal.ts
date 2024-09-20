@@ -54,6 +54,24 @@ const ProposalRouter = {
     ctx.body = await ProposalController.getProposalById(formattedValues.id)
   },
 
+  canCreateProposal: async function (ctx: RouterContext) {
+    const requestBody = ctx.request.body as {
+      memberAddress?: string
+      pluginAddress: string
+      network: NetworksEnum
+    }
+
+    const params = {
+      memberAddress: requestBody.memberAddress,
+      pluginAddress: requestBody.pluginAddress,
+      network: requestBody.network,
+    }
+
+    const formattedValue = await ValidationSchema.validateParams(ProposalSchema.canCreateProposal, params)
+
+    ctx.body = await ProposalController.canCreateProposal(formattedValue)
+  },
+
   router() {
     const router = new Router()
 
@@ -77,6 +95,13 @@ const ProposalRouter = {
      * @apiSampleRequest /:id
      */
     router.get('/:id', ProposalRouter.getProposalById)
+
+    /**
+     * @api {post} /proposal/canCreateProposal
+     * @apiDescription Check if the user is allowed to create the proposal
+     */
+
+    router.post('/canCreateProposal', ProposalRouter.canCreateProposal)
 
     return router
   },

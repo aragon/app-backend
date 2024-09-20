@@ -13,6 +13,15 @@ const VoteSchema = {
     memberAddress: ValidationSchema.joiAddress.optional(),
     includeInfo: Joi.boolean().optional(),
   }),
+
+  canVote: Joi.object({
+    pluginAddress: ValidationSchema.joiAddress.required(),
+    memberAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    proposalIndex: Joi.any().required(),
+  }),
 }
 
 export default VoteSchema
