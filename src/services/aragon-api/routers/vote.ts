@@ -17,11 +17,12 @@ const VoteRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
       includeInfo: Utils.parseBoolean(ctx.query.includeInfo),
+      highlightUser: ctx.query.highlightUser as HexAddress,
     }
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
       ens: ctx.query.ens as string,
-      proposalIndex: ctx.query.proposalIndex as string,
+      proposalId: ctx.query.proposalId as string,
     }
     const anyInvalidParams = Utils.extractAdditionalParams(
       { ...paginationParams, ...extraParams, ...pairParams },
@@ -56,6 +57,19 @@ const VoteRouter = {
     ctx.body = await VoteController.canVote(formattedRequestBody)
   },
 
+  async getMemberVoteInfo(ctx: RouterContext) {
+    const requestBody = ctx.request.body as {
+      pluginAddress: HexAddress
+      memberAddress: HexAddress
+      network: NetworksEnum
+      proposalIndex: number
+    }
+
+    const formattedRequestBody = await ValidationSchema.validateParams(VoteSchema.canVote, requestBody)
+
+    ctx.body = await VoteController.memberVotesInfo(formattedRequestBody)
+  },
+
   router() {
     const router = new Router()
 
@@ -75,6 +89,16 @@ const VoteRouter = {
      */
 
     router.post('/can-vote', VoteRouter.canVote)
+
+    /**
+     * @api {post} /member-vote-info Member Vote Info
+     * @apiDescription Get member vote info
+     * @apiName Member Vote Info
+     * @apiGroup Vote
+     * @apiSampleRequest /info
+     */
+
+    router.post('/member-vote-info', VoteRouter.getMemberVoteInfo)
 
     return router
   },

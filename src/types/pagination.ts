@@ -16,12 +16,14 @@ export interface IVoteExtraParams {
   tokenAddress?: HexAddress
   memberAddress?: HexAddress
   includeInfo?: boolean
+  highlightUser?: HexAddress
 }
 
 export interface IPairParams {
   daoId?: string
   ens?: string
   proposalIndex?: string
+  proposalId?: string
 }
 
 export interface IProposalExtraParams {
