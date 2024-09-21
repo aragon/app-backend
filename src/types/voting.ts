@@ -13,3 +13,5 @@ export interface ICanVote {
   network: NetworksEnum
   proposalIndex: number
 }
+
+export type IMemberVotesInfo = ICanVote
