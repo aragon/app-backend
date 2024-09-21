@@ -136,7 +136,7 @@ export default class Vote extends Model {
     network: NetworksEnum
     proposalIndex: number
   }) {
-    return await this.findOne({ memberAddress, pluginAddress, proposalIndex, network })
+    return this.findOne({ memberAddress, pluginAddress, proposalIndex, network }, {}, { sort: { blockNumber: -1 } })
   }
 
   static async findWithPagination({
@@ -149,7 +149,7 @@ export default class Vote extends Model {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
       Object.entries(extraParams).filter(
-        ([key, value]) => key !== 'includeInfo' && value !== undefined, // Exclude keys with undefined values
+        ([key, value]) => key !== 'includeInfo' && value !== undefined && key !== 'highlightUser', // Exclude keys with undefined values
       ),
     )
 
@@ -272,6 +272,7 @@ export default class Vote extends Model {
     const currentPage = request.skip / request.limit + 1
     const aggQuery = [
       { $match: filter },
+      { $match: { ...(extraParams.highlightUser ? { memberAddress: { $ne: extraParams.highlightUser } } : {}) } },
       { $skip: request?.skip },
       { $limit: request?.limit },
       ...query,
@@ -280,15 +281,46 @@ export default class Vote extends Model {
 
     const [data, totalRecords] = await Promise.all([
       this.aggregate(aggQuery),
-      this.aggregate([{ $match: filter }, ...query, { $count: 'totalRecords' }]),
+      this.aggregate([
+        { $match: filter },
+        { $match: { ...(extraParams.highlightUser ? { memberAddress: { $ne: extraParams.highlightUser } } : {}) } },
+        ...query,
+        { $count: 'totalRecords' },
+      ]),
     ])
 
-    const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
+    let _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
+
+    let highlightedUser: any = []
+
+    if (currentPage === 1 && extraParams.highlightUser) {
+      highlightedUser = await this.aggregate([
+        { $match: filter },
+        { $match: { memberAddress: extraParams.highlightUser } },
+        ...query,
+      ])
+
+      if (highlightedUser.length > 0) {
+        _totalRecords += 1
+      }
+    }
 
     const totalPages = Math.ceil(_totalRecords / request.limit)
 
     if (currentPage > totalPages) {
       return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    if (currentPage === 1) {
+      return {
+        metadata: {
+          page: currentPage,
+          pageSize: request.limit,
+          totalPages,
+          totalRecords: _totalRecords,
+        },
+        data: [...highlightedUser, ...data],
+      }
     }
 
     return {
