@@ -3742,6 +3742,19 @@
 						"url": "{{host}}/proposals/0xf01c9b505ad8e00c4f774268bd1866d9088591a10332afcc7bcb1daaa5bae25e-0x9486A57A8989522A4d540CCE21910E9BC353A2d6-1"
 					},
 					"response": []
+				},
+				{
+					"name": "can create proposal",
+					"id": "c5320280-dece-4141-b165-866e436c6bdc",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{host}}/proposals/0xf01c9b505ad8e00c4f774268bd1866d9088591a10332afcc7bcb1daaa5bae25e-0x9486A57A8989522A4d540CCE21910E9BC353A2d6-1"
+					},
+					"response": []
 				}
 			],
 			"id": "7ce2df9c-39d8-47c7-8335-67102672f0c3",
