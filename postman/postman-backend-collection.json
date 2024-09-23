@@ -2177,7 +2177,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{host}}/votes?includeInfo=true",
+							"raw": "{{host}}/votes?pluginAddress=0x178F5a2D2Ae45de04E9247039D6d039dcc7821E1&proposalId=0xa7489c029d40f05b72d417347c9c79911f0cb4c325d82d1ff49e76424b7e3961-0x178F5a2D2Ae45de04E9247039D6d039dcc7821E1-45&includeInfo=true&highlightUser=0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449&page=2",
 							"host": [
 								"{{host}}"
 							],
@@ -2253,8 +2253,7 @@
 								},
 								{
 									"key": "pluginAddress",
-									"value": "<string>",
-									"disabled": true
+									"value": "0x178F5a2D2Ae45de04E9247039D6d039dcc7821E1"
 								},
 								{
 									"key": "daoId",
@@ -2263,12 +2262,19 @@
 								},
 								{
 									"key": "proposalId",
-									"value": "<string>",
-									"disabled": true
+									"value": "0xa7489c029d40f05b72d417347c9c79911f0cb4c325d82d1ff49e76424b7e3961-0x178F5a2D2Ae45de04E9247039D6d039dcc7821E1-45"
 								},
 								{
 									"key": "includeInfo",
 									"value": "true"
+								},
+								{
+									"key": "highlightUser",
+									"value": "0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449"
+								},
+								{
+									"key": "page",
+									"value": "2"
 								}
 							]
 						}
@@ -3750,9 +3756,18 @@
 						"disableBodyPruning": true
 					},
 					"request": {
-						"method": "GET",
+						"method": "POST",
 						"header": [],
-						"url": "{{host}}/proposals/0xf01c9b505ad8e00c4f774268bd1866d9088591a10332afcc7bcb1daaa5bae25e-0x9486A57A8989522A4d540CCE21910E9BC353A2d6-1"
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pluginAddress\":\"0x178F5a2D2Ae45de04E9247039D6d039dcc7821E1\",\n    \"network\": \"ethereum-sepolia\",\n    \"memberAddress\": \"0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{host}}/proposals/can-create-proposal"
 					},
 					"response": []
 				}
