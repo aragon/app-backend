@@ -20,7 +20,7 @@ describe('Helpers:Web3', () => {
     sandbox?.restore()
   })
 
-  it.only('handleAlchemyCrazyBalance', () => {
+  it('handleAlchemyCrazyBalance', () => {
     expect(Web3Helper.handleAlchemyCrazyBalance('7.326e+22', 18)).to.equal('73260.0')
     expect(Web3Helper.handleAlchemyCrazyBalance('0', 18)).to.equal('0')
     expect(Web3Helper.handleAlchemyCrazyBalance('50000000000000000', 18)).to.equal('50000000000000000')
