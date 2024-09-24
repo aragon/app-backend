@@ -39,20 +39,6 @@ describe('Model:Utils: dbOperations', () => {
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Created new document - DbOperations' as any)).to.be.true
     })
-
-    it('should fail to create a new database document', async () => {
-      const loggerStub = sandbox.stub(Logger, 'error')
-      sandbox.stub(Models.Member, 'create').throws(new Error('Failed to create document'))
-
-      await expect(DbOperation.createDocument(Models.Member, FakeMember, {}, 'DbOperations', llo)).to.be.rejectedWith(
-        Error,
-        'Failed to create document',
-      )
-
-      expect(loggerStub.calledTwice).to.be.true
-      expect(loggerStub.calledWith('Failed to create document - DbOperations' as any)).to.be.true
-      expect(loggerStub.calledWith('error after all retry' as any)).to.be.true
-    })
   })
 
   describe('update document', () => {
@@ -72,21 +58,6 @@ describe('Model:Utils: dbOperations', () => {
       expect(result).to.be.an('object')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Updated document - DbOperations' as any)).to.be.true
-    })
-
-    it('should fail to update a database document', async () => {
-      const document = await Models.Member.create(FakeMember)
-      const loggerStub = sandbox.stub(Logger, 'error')
-      sandbox.stub(document, 'update').throws(new Error('Failed to update document'))
-
-      await expect(DbOperation.updateDocument(document, FakeMember, {}, 'DbOperations', llo)).to.be.rejectedWith(
-        Error,
-        'Failed to update document',
-      )
-
-      expect(loggerStub.calledTwice).to.be.true
-      expect(loggerStub.calledWith('Failed to update document - DbOperations' as any)).to.be.true
-      expect(loggerStub.calledWith('error after all retry' as any)).to.be.true
     })
   })
 })

@@ -3,6 +3,7 @@ import { type ITokenType } from '@src/types/token'
 import { type IPluginSubdomain } from '@src/types/plugin'
 import { type IActionMetadata } from '@src/types/proposalAction'
 import { type ITransferSide, type ITransferType } from '@src/types/transfer'
+import type { RouterContext } from '@koa/router'
 
 export interface IStatusResponse {
   status: string
@@ -288,4 +289,14 @@ export interface ITokenResponse {
   priceChangeOnDayUsd: string
   priceUsd: string
   lastUpdatedAt: string
+}
+
+/**
+ * For the post request the data will be in the body
+ * And without this interface typescript is giving error
+ */
+export interface KoaPostContext extends RouterContext {
+  request: RouterContext['request'] & {
+    body: any
+  }
 }

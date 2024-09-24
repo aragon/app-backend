@@ -3,7 +3,13 @@ import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import ProposalSchema from '@api/routers/schema/proposal'
 import ProposalController from '@api/controllers/proposal'
-import { type HexAddress, type IPairParams, type IProposalExtraParams, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IPairParams,
+  type IProposalExtraParams,
+  type NetworksEnum,
+  type KoaPostContext,
+} from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import Utils from '@helpers/utils'
 
@@ -54,7 +60,7 @@ const ProposalRouter = {
     ctx.body = await ProposalController.getProposalById(formattedValues.id)
   },
 
-  canCreateProposal: async function (ctx: RouterContext) {
+  canCreateProposal: async function (ctx: KoaPostContext) {
     const requestBody = ctx.request.body as {
       memberAddress?: string
       pluginAddress: string
