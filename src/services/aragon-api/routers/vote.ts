@@ -2,7 +2,13 @@ import Router, { type RouterContext } from '@koa/router'
 import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import VoteController from '@api/controllers/vote'
-import { type HexAddress, type IPairParams, type IVoteExtraParams, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IPairParams,
+  type IVoteExtraParams,
+  type NetworksEnum,
+  type KoaPostContext,
+} from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import VoteSchema from '@api/routers/schema/vote'
 import Utils from '@helpers/utils'
@@ -44,7 +50,7 @@ const VoteRouter = {
     )
   },
 
-  async canVote(ctx: RouterContext) {
+  async canVote(ctx: KoaPostContext) {
     const requestBody = ctx.request.body as {
       pluginAddress: HexAddress
       memberAddress: HexAddress
@@ -57,7 +63,7 @@ const VoteRouter = {
     ctx.body = await VoteController.canVote(formattedRequestBody)
   },
 
-  async getMemberVoteInfo(ctx: RouterContext) {
+  async getMemberVoteInfo(ctx: KoaPostContext) {
     const requestBody = ctx.request.body as {
       pluginAddress: HexAddress
       memberAddress: HexAddress
