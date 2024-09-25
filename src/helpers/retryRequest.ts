@@ -26,14 +26,14 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
       if (error?.status === 429 || error?.response?.status === 429 || error?.info?.error?.code === 429) {
         logger.warn(
           'Rate limit exceeded, retrying...',
-          llo({ retryCount, wait: retryDelay(retryCount), fn: requestFunction.toString() }),
+          llo({ retryCount, wait: retryDelay(retryCount), fn: requestFunction.toString(), error }),
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
       } else if (forceRetry) {
         logger.warn(
           'ForceRetry, retrying...',
-          llo({ retryCount, wait: retryDelay(retryCount), fn: requestFunction.toString() }),
+          llo({ retryCount, wait: retryDelay(retryCount), fn: requestFunction.toString(), error }),
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
