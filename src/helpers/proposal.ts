@@ -14,7 +14,7 @@ import ProviderModule from '@modules/provider'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { Multisig } from '@artifacts/Multisig'
 
-const llo = logger.logMeta.bind(null, { service: 'helpers:GovernanceErc20Helper' })
+const llo = logger.logMeta.bind(null, { service: 'helpers:ProposalHelper' })
 
 const ProposalHelper = {
   async getProposal({
