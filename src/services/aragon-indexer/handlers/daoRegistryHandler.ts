@@ -131,6 +131,23 @@ export const DaoRegistryHandler = {
     ])
   },
 
+  daoDeposit: async (_: LogDescription, info: ILogInfo) => {
+    await Promise.all([
+      RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
+        id: info.address,
+        params: { address: info.address, network: info.network },
+      }),
+      RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
+        id: info.address,
+        params: { address: info.address, network: info.network },
+      }),
+      RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: info.address,
+        params: { address: info.address, network: info.network },
+      }),
+    ])
+  },
+
   _metadataHandler: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
     const metadataLogs = Web3Helper.findLogsByName(txReceipt, 'MetadataSet', DAO.abi)
 
