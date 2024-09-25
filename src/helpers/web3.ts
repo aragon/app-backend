@@ -477,8 +477,10 @@ const Web3Helper = {
         `0x${BigInt(blockNumber).toString(16)}`,
       ]
 
-      const response = await retryRequest(async () =>
-        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () => provider.send('eth_call', params)),
+      const response = await retryRequest(
+        async () =>
+          BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () => provider.send('eth_call', params)),
+        { maxRetries: 3, forceRetry: true },
       )
 
       const balance = iface.decodeFunctionResult('balanceOf', response)[0]

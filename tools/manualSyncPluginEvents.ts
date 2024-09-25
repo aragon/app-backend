@@ -4,7 +4,7 @@ import { LogTokenVoting } from '@indexer/logTokenVoting'
 import { LogMultisig } from '@indexer/logMultisig'
 import { IPluginActionType } from '@indexer/handlers/pluginSetupProcessorHandler'
 
-export const ToolsManualSyncDaoProposals: IService = {
+export const ToolsManualSyncDaoPluginEvents: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
@@ -33,4 +33,4 @@ export const ToolsManualSyncDaoProposals: IService = {
   stop: async () => {},
 }
 
-export default ToolsManualSyncDaoProposals
+export default ToolsManualSyncDaoPluginEvents
