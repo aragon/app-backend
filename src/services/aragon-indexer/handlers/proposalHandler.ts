@@ -99,10 +99,10 @@ export const ProposalHandler = {
       document.endDate = endDate
     }
 
-    if (relatedPlugin.tokenAddress) {
+    if (document?.settings?.tokenAddress) {
       const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
         info.blockNumber,
-        relatedPlugin.tokenAddress,
+        document?.settings?.tokenAddress,
         relatedPlugin.network,
       )
 
