@@ -101,9 +101,9 @@ export const ProposalHandler = {
 
     if (document?.settings?.tokenAddress) {
       const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
-        info.blockNumber,
-        document?.settings?.tokenAddress,
-        relatedPlugin.network,
+        document.blockNumber!,
+        document?.settings.tokenAddress,
+        document.network!,
       )
 
       document.snapshot = {
