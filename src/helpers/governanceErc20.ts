@@ -22,7 +22,7 @@ const GovernanceErc20Helper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(
           async () => contract.getPastVotes(memberAddress, blockNumber),
-          { maxRetries: 3, forceRetry: true },
+          { forceRetry: true },
         ),
       )
     } catch (error) {
@@ -36,7 +36,7 @@ const GovernanceErc20Helper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(
           async () => contract.getPastVotes(memberAddress, blockTimestamp),
-          { maxRetries: 3, forceRetry: true },
+          { forceRetry: true },
         ),
       )
     } catch (error) {
@@ -55,7 +55,7 @@ const GovernanceErc20Helper = {
     try {
       return await retryRequest(
         async () => BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getVotes(memberAddress)),
-        { maxRetries: 3, forceRetry: true },
+        { forceRetry: true },
       )
     } catch (error) {
       logger.error('Error getting votes', llo({ memberAddress, tokenAddress, network, error }))
@@ -70,7 +70,7 @@ const GovernanceErc20Helper = {
       return await retryRequest(
         async () =>
           BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getPastTotalSupply(blockNumber)),
-        { maxRetries: 3, forceRetry: true },
+        { forceRetry: true },
       )
     } catch (error) {
       logger.error('Error getting pastTotalSupply', llo({ blockNumber, tokenAddress, network, error }))
@@ -88,7 +88,7 @@ const GovernanceErc20Helper = {
     try {
       return await retryRequest(
         async () => BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.delegates(memberAddress)),
-        { maxRetries: 3, forceRetry: true },
+        { forceRetry: true },
       )
     } catch (error) {
       logger.error('Error getting delegates', llo({ memberAddress, tokenAddress, network, error }))
