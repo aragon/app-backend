@@ -101,7 +101,7 @@ const ProposalRouter = {
      * @apiDescription Check if the user is allowed to create the proposal
      */
 
-    router.post('/canCreateProposal', ProposalRouter.canCreateProposal)
+    router.post('/can-create-proposal', ProposalRouter.canCreateProposal)
 
     return router
   },

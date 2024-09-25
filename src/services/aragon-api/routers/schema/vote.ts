@@ -12,6 +12,7 @@ const VoteSchema = {
     tokenAddress: ValidationSchema.joiAddress.optional(),
     memberAddress: ValidationSchema.joiAddress.optional(),
     includeInfo: Joi.boolean().optional(),
+    highlightUser: ValidationSchema.joiAddress.optional(),
   }),
 
   canVote: Joi.object({

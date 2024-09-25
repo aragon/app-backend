@@ -73,6 +73,7 @@ const PairDataModule = {
       daoAddress?: HexAddress
       memberAddress?: HexAddress
       pluginAddress?: HexAddress
+      proposalIndex?: number
     },
   >(
     extraParams: T,
@@ -92,6 +93,14 @@ const PairDataModule = {
       const memberDb = await Models.Member.findByEns(pairParams.ens as any)
       if (memberDb) {
         extraParams.memberAddress = memberDb.address
+      }
+    }
+
+    if (pairParams?.proposalId) {
+      const proposal = await Models.Proposal.findByEntityId(pairParams.proposalId)
+      if (proposal) {
+        extraParams.pluginAddress = proposal.pluginAddress
+        extraParams.proposalIndex = proposal.proposalIndex
       }
     }
 
