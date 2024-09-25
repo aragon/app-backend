@@ -8,7 +8,7 @@ import {
   type IVoteResponse,
 } from '@types'
 import PairDataModule from '@modules/pairData'
-import { type ICanVote } from '@src/types/voting'
+import { type ICanVote, type IMemberVotesInfo } from '@src/types/voting'
 import { assertExposable } from '@errors'
 
 const VoteController = {
@@ -61,13 +61,40 @@ const VoteController = {
         proposalIndex: params.proposalIndex,
       })
 
-      if (activeSettings.votingMode === 1) {
+      if (activeSettings.votingMode === 2) {
         return true
       }
 
       return !userVotingStatus
     } catch (e) {
       return false
+    }
+  },
+
+  memberVotesInfo: async (params: IMemberVotesInfo) => {
+    const userVotingStatus = await Models.Vote.findVoteOnPlugin({
+      memberAddress: params.memberAddress,
+      pluginAddress: params.pluginAddress,
+      network: params.network,
+      proposalIndex: params.proposalIndex,
+    })
+
+    if (!userVotingStatus) {
+      return false
+    }
+
+    return {
+      transactionHash: userVotingStatus.transactionHash,
+      transactionIndex: userVotingStatus.transactionIndex,
+      blockNumber: userVotingStatus.blockNumber,
+      blockTimestamp: userVotingStatus.blockTimestamp,
+      voteOption: userVotingStatus.voteOption,
+      votingPower: userVotingStatus.votingPower,
+      replacedTransactionHash: userVotingStatus.replacedTransactionHash,
+      daoAddress: userVotingStatus.daoAddress,
+      pluginAddress: userVotingStatus.pluginAddress,
+      proposalIndex: userVotingStatus.proposalIndex,
+      network: userVotingStatus.network,
     }
   },
 }
