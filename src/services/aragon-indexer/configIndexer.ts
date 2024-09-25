@@ -97,6 +97,12 @@ const IndexerEventConfig: IIndexerConfig[] = [
         enableHistorical: true,
         enableRealtime: true,
       },
+      {
+        event: 'Deposited',
+        handler: DaoRegistryHandler.daoDeposit,
+        enableHistorical: false,
+        enableRealtime: true,
+      },
     ],
     enabled: true,
   },
