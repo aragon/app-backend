@@ -154,6 +154,9 @@ export interface IConfig {
       NAME: string
       RATES_INTERVAL: number
     }
+    ARAGON_TRANSACTIONS: {
+      CONFIRMATION_DELAY: number
+    }
   }
 
   CRAWLER_CONFIG: {

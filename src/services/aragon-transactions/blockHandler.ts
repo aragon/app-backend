@@ -8,6 +8,7 @@ import { Models } from '@dbModels'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Dao from '@models/schema/dao'
 import utils from '@helpers/utils'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-transactions:BlockHandler' })
 
@@ -26,7 +27,7 @@ export const BlockHandler = {
         const dao = await Models.Dao.findByAddress(tx.to, network)
         if (dao) {
           // add some delay because the alchemy nodes may not be up-to date
-          await utils.wait(3000)
+          await utils.wait(config.SERVICES.ARAGON_TRANSACTIONS.CONFIRMATION_DELAY)
           await BlockHandler.sendDaoMessages(dao)
 
           logger.verbose(
