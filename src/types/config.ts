@@ -155,7 +155,7 @@ export interface IConfig {
       RATES_INTERVAL: number
     }
     ARAGON_TRANSACTIONS: {
-      CONFIRMATION_DELAY: number
+      TX_CONFIRMATIONS: number
     }
   }
 

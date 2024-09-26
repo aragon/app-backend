@@ -25,9 +25,10 @@ export const BlockHandler = {
         if (!tx?.to) return null
 
         const dao = await Models.Dao.findByAddress(tx.to, network)
+
         if (dao) {
-          // add some delay because the alchemy nodes may not be up-to date
-          await utils.wait(config.SERVICES.ARAGON_TRANSACTIONS.CONFIRMATION_DELAY)
+          // wait 10 blocks for confirmations
+          await BlockHandler.waitForConfirmations(tx, provider, 10, config.SERVICES.ARAGON_TRANSACTIONS.TX_CONFIRMATIONS);
           await BlockHandler.sendDaoMessages(dao)
 
           logger.verbose(
@@ -41,6 +42,22 @@ export const BlockHandler = {
         }
       }),
     )
+  },
+
+  waitForConfirmations: async (tx: TransactionResponse, provider: any, requiredConfirmations = 10, delay = 5000) => {
+    while (true) {
+      const currentBlock = await provider.getBlockNumber()
+      const confirmations = currentBlock - tx.blockNumber!
+
+      if (confirmations >= requiredConfirmations) {
+        logger.log(`Transaction confirmations. Proceeding...`, llo({ txHash: tx.hash, confirmations }))
+        break
+      }
+
+      // If not enough confirmations, wait for the specified delay and check again
+      logger.log('Waiting for confirmations... Current confirmations:', llo({ txHash: tx.hash, confirmations }))
+      await utils.wait(delay) // Delay between checks
+    }
   },
 
   sendDaoMessages: async (dao: Dao) => {
