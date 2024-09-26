@@ -7,6 +7,7 @@ import ProviderModule from '@modules/provider'
 import { Models } from '@dbModels'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Dao from '@models/schema/dao'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-transactions:BlockHandler' })
 
@@ -24,11 +25,18 @@ export const BlockHandler = {
 
         const dao = await Models.Dao.findByAddress(tx.to, network)
         if (dao) {
+          // add some delay because the alchemy nodes may not be up-to date
+          await utils.wait(3000)
+          await BlockHandler.sendDaoMessages(dao)
+
           logger.verbose(
             'New Block incoming transaction found',
-            llo({ network, daoAddress: dao, transactionHas: tx.hash }),
+            llo({
+              network,
+              daoAddress: dao,
+              transactionHas: tx.hash,
+            }),
           )
-          await BlockHandler.sendDaoMessages(dao)
         }
       }),
     )
