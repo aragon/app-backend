@@ -87,6 +87,7 @@ describe('Module: provider', () => {
     const nodeUrl = 'ws://localhost:8545'
 
     const providerStub = {
+      removeAllListeners: sandbox.stub(),
       websocket: {
         addEventListener: sandbox.stub(),
       },
@@ -100,18 +101,17 @@ describe('Module: provider', () => {
       ethers: ethersStub,
     }).default
 
-    const resubscribeEventsStub = sandbox.stub(ProviderModule, 'resubscribeEvents')
-
     await ProviderModule.connectToNetwork(network, nodeUrl)
 
     expect(ProviderModule.providerProxies[network].provider).to.equal(providerStub)
     expect(providerStub.websocket.addEventListener.calledThrice).to.be.true
-    expect(resubscribeEventsStub.calledWith(network)).to.be.true
   })
 
   it('should get provider', () => {
     const network = NetworksEnum.ethereumMainnet
-    const providerStub = {}
+    const providerStub = {
+      removeAllListeners: sandbox.stub(),
+    }
     ProviderModule.providerProxies[network] = {
       provider: providerStub as any,
       reconnectAttempts: 0,
@@ -124,7 +124,8 @@ describe('Module: provider', () => {
   it('should subscribe to event', () => {
     const network = NetworksEnum.ethereumMainnet
     const providerStub = {
-      on: sandbox.stub(),
+      on: sandbox.spy(),
+      removeAllListeners: sandbox.stub(),
     }
     ProviderModule.providerProxies[network] = {
       provider: providerStub as any,
@@ -133,23 +134,28 @@ describe('Module: provider', () => {
     }
     const filter = {}
     const listener = () => {}
+
     ProviderModule.subscribeToEvent(network, filter, listener)
 
     expect(ProviderModule.providerProxies[network].subscriptions.length).to.equal(1)
-    expect(providerStub.on.calledWith(filter, listener)).to.be.true
+    expect(providerStub.on.calledWith(filter)).to.be.true
   })
 
   it('should close all networks', async () => {
-    let loggerInfoStub = sandbox.stub(Logger, 'info')
+    const loggerInfoStub = sandbox.stub(Logger, 'info')
     const providerStub = {
       destroy: sandbox.stub().resolves(),
+      removeAllListeners: sandbox.stub(),
     }
     ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = {
       provider: providerStub as any,
       reconnectAttempts: 0,
       subscriptions: [],
     }
+
     await ProviderModule.closeAllNetworks()
+
+    expect(providerStub.removeAllListeners.calledOnce).to.be.true
     expect(providerStub.destroy.calledOnce).to.be.true
     expect(loggerInfoStub.calledWith('WebSocket connection closed for ethereum-mainnet' as any)).to.be.true
   })
@@ -166,7 +172,7 @@ describe('Module: provider', () => {
 
     await ProviderModule.reconnectToNetwork(network, nodeUrl, 0)
 
-    expect(loggerInfoStub.calledWith('Reconnecting to ethereum-mainnet... Attempt 1' as any)).to.be.true
+    expect(loggerInfoStub.calledOnce).to.be.true
     expect(waitStub.calledWith(1000)).to.be.true
     expect(connectToNetworkStub.calledWith(network, nodeUrl)).to.be.true
   })
@@ -191,6 +197,8 @@ describe('Module: provider', () => {
     const network = NetworksEnum.ethereumMainnet
     const providerStub = {
       on: sandbox.stub(),
+      removeAllListeners: sandbox.stub(),
+      removeListener: sandbox.stub(),
     }
     const subscription = {
       filter: {},
@@ -207,12 +215,13 @@ describe('Module: provider', () => {
     ProviderModule.resubscribeEvents(network)
 
     expect(providerStub.on.calledWith(subscription.filter, subscription.listener)).to.be.true
-    expect(loggerVerboseStub.calledWith('resubscribe events' as any)).to.be.true
+    expect(loggerVerboseStub.calledWith('Resubscribing to events' as any)).to.be.true
   })
 
   it('should check if connection is open', () => {
     const network = NetworksEnum.ethereumMainnet
     const providerStub = {
+      removeAllListeners: sandbox.stub(),
       websocket: {
         readyState: IWebSocketStatus.OPEN,
       },

@@ -1,5 +1,12 @@
 import logger from '@logger'
-import { EnumQueueName, type ILogInfo, IMetricAction, type IProposalMetadata, type IRawAction } from '@types'
+import {
+  EnumQueueName,
+  type ILogInfo,
+  IMetricAction,
+  type IProposalMetadata,
+  IProposalType,
+  type IRawAction,
+} from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
@@ -13,6 +20,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import DbOperations from '@models/utils/dbOperations'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import DbTx from '@modules/dbTx'
+import ProposalHelper from '@helpers/proposal'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 
@@ -84,13 +92,23 @@ export const ProposalHandler = {
       })),
     }
 
-    if (relatedPlugin.tokenAddress) {
+    // in case startDate is 0 we need to fetch it from the contract
+    if (document.startDate === 0) {
+      const { startDate, endDate } = await ProposalHandler.handleStartEndDate(document as Proposal)
+      document.startDate = startDate
+      document.endDate = endDate
+    }
+
+    if (document?.settings?.tokenAddress) {
+      const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
+        document.blockNumber!,
+        document?.settings.tokenAddress,
+        document.network!,
+        true,
+      )
+
       document.snapshot = {
-        totalSupply: await GovernanceErc20Helper.getPastTotalSupply(
-          info.blockNumber,
-          relatedPlugin.tokenAddress,
-          relatedPlugin.network,
-        ),
+        totalSupply: totalSupply?.toString() ?? '0',
       }
     } else {
       const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
@@ -314,6 +332,20 @@ export const ProposalHandler = {
     const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 1 })
     const proposalMetadata = Web3Helper.parseProposalMetadata(ipfsMetadata!)
     return proposalMetadata
+  },
+
+  handleStartEndDate: async (proposal: Proposal): Promise<{ startDate: number; endDate: number }> => {
+    const response = await ProposalHelper.getProposal({
+      proposalType: proposal.settings?.tokenAddress ? IProposalType.tokenVoting : IProposalType.multisig,
+      proposalIndex: proposal.proposalIndex,
+      pluginAddress: proposal.pluginSubdomain,
+      network: proposal.network,
+    })
+
+    return {
+      startDate: Number(response?.parameters?.startDate || 0),
+      endDate: Number(response?.parameters?.endDate || 0),
+    }
   },
 
   parseActions: async (proposal: Proposal) => {

@@ -6,10 +6,11 @@ const llo = logger.logMeta.bind(null, { service: 'RetryRequestHelper' })
 
 interface RetryOptions {
   maxRetries?: number
+  forceRetry?: boolean
 }
 
 export async function retryRequest<T>(requestFunction: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
-  const { maxRetries = 10 } = options
+  const { maxRetries = 10, forceRetry } = options
   const retryDelay = (retryCount: number) => Math.pow(2, retryCount) * 1000
 
   let retryCount = 0
@@ -23,7 +24,17 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
       return response
     } catch (error: any) {
       if (error?.status === 429 || error?.response?.status === 429 || error?.info?.error?.code === 429) {
-        logger.warn('Rate limit exceeded, retrying...', llo({ retryCount, wait: retryDelay(retryCount) }))
+        logger.warn(
+          'Rate limit exceeded, retrying...',
+          llo({ retryCount, wait: retryDelay(retryCount), fn: requestFunction.toString(), error }),
+        )
+        await Utils.wait(retryDelay(retryCount))
+        retryCount++
+      } else if (forceRetry) {
+        logger.warn(
+          'ForceRetry, retrying...',
+          llo({ retryCount, wait: retryDelay(retryCount), fn: requestFunction.toString(), error }),
+        )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
       } else {

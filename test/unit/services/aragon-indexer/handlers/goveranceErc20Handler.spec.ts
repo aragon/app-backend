@@ -64,7 +64,7 @@ describe('GovernanceErc20Handler', () => {
         eventName: 'DelegateVotesChanged',
       }
 
-      const findPluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const findPluginStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(null)
 
       const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
 
@@ -105,6 +105,7 @@ describe('GovernanceErc20Handler', () => {
       const createMemberStub = sandbox
         .stub(ProxyMember, 'createMember')
         .resolves({ address: fakeLog.args.delegate } as any)
+      const existingPlugintub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(true)
       const existingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(true)
 
       const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
@@ -113,6 +114,7 @@ describe('GovernanceErc20Handler', () => {
       expect(handlerResponse).to.be.undefined
       expect(createMemberStub.calledOnce).to.be.true
       expect(existingLogStub.calledOnce).to.be.true
+      expect(existingPlugintub.calledOnce).to.be.true
     })
 
     it('should handle incoming delegateVotesChanged event and add member to DAO', async () => {
@@ -139,7 +141,7 @@ describe('GovernanceErc20Handler', () => {
         network: NetworksEnum.polygonMainnet,
       }
 
-      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
       const createMemberStub = sandbox
         .stub(ProxyMember, 'createMember')
         .resolves({ address: parsedEvent.args.delegate } as any)

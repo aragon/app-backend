@@ -5,10 +5,10 @@ import ProposalSchema from '@api/routers/schema/proposal'
 import ProposalController from '@api/controllers/proposal'
 import {
   type HexAddress,
+  type ICanCreateProposalParams,
   type IPairParams,
   type IProposalExtraParams,
   type NetworksEnum,
-  type KoaPostContext,
 } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import Utils from '@helpers/utils'
@@ -60,22 +60,20 @@ const ProposalRouter = {
     ctx.body = await ProposalController.getProposalById(formattedValues.id)
   },
 
-  canCreateProposal: async function (ctx: KoaPostContext) {
-    const requestBody = ctx.request.body as {
-      memberAddress?: string
-      pluginAddress: string
-      network: NetworksEnum
+  canCreateProposal: async function (ctx: RouterContext) {
+    const params: ICanCreateProposalParams = {
+      memberAddress: ctx.query.memberAddress as HexAddress,
+      pluginAddress: ctx.query.pluginAddress as HexAddress,
+      network: ctx.query.network as NetworksEnum,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const params = {
-      memberAddress: requestBody.memberAddress,
-      pluginAddress: requestBody.pluginAddress,
-      network: requestBody.network,
-    }
+    const [formattedValues] = await Promise.all([
+      ValidationSchema.validateParams(ProposalSchema.canCreateProposal, params),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
 
-    const formattedValue = await ValidationSchema.validateParams(ProposalSchema.canCreateProposal, params)
-
-    ctx.body = await ProposalController.canCreateProposal(formattedValue)
+    ctx.body = await ProposalController.canCreateProposal(formattedValues)
   },
 
   router() {
@@ -103,11 +101,11 @@ const ProposalRouter = {
     router.get('/:id', ProposalRouter.getProposalById)
 
     /**
-     * @api {post} /proposal/canCreateProposal
+     * @api {get} /proposal/canCreateProposal
      * @apiDescription Check if the user is allowed to create the proposal
      */
 
-    router.post('/can-create-proposal', ProposalRouter.canCreateProposal)
+    router.get('/can-create-proposal', ProposalRouter.canCreateProposal)
 
     return router
   },
