@@ -1,546 +1,383 @@
-// import * as sinon from 'sinon'
-// import { SinonSandbox } from 'sinon'
-// import { expect } from 'chai'
-// import logger from '@logger'
-// import { ILogInfo, NetworksEnum } from '@types'
-// import { beforeEach } from 'mocha'
-// import { ProposalHandler } from '@services/aragon-indexer/handlers/proposalHandler'
-// import Web3Helper from '@helpers/web3'
-// import { Models } from '@dbModels'
-// import IPFSModule from '@modules/ipfs'
-//
-// describe('Indexer: ProposalHandler', () => {
-//   let sandbox: SinonSandbox
-//   beforeEach(async () => {
-//     sandbox = sinon.createSandbox()
-//   })
-//
-//   afterEach(async () => {
-//     sandbox?.restore()
-//   })
-//
-//   describe('proposalCreated', () => {
-//     it('should proposalCreated', async () => {
-//       const metadataUri = 'fake-uri'
-//       const network = NetworksEnum.ethereumMainnet
-//
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x456',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'proposalCreated',
-//       }
-//
-//       const fakeEvent = {
-//         args: {
-//           creator: '0x456',
-//           proposalId: 2n,
-//           startDate: 1312312123n,
-//           endDate: 1312312125n,
-//           allowFailureMap: 1n,
-//           metadata: 'test',
-//           actions: [
-//             {
-//               to: '0x0',
-//               value: 1n,
-//               data: '0x',
-//             },
-//           ],
-//         },
-//       }
-//
-//       const stubProposalMetadata = sandbox.stub(ProposalHandler, 'proposalMetadata').resolves()
-//       const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(metadataUri)
-//       const stubLogger = sandbox.stub(logger, 'verbose')
-//       const stubFindPlugin = sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(true)
-//
-//       await ProposalHandler.proposalCreated(fakeEvent as any, info)
-//
-//       expect(stubFindPlugin.calledOnce).to.be.true
-//       expect(stubLogger.calledOnce).to.be.true
-//       expect(stubExtractMetadataUri.calledOnceWith(fakeEvent.args.metadata)).to.be.true
-//       expect(stubProposalMetadata.calledOnceWith(info)).to.be.true
-//     })
-//
-//     it('Plugin not found', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x456',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'proposalCreated',
-//       }
-//       const fakeEvent = {
-//         args: {
-//           sender: '0x123',
-//           amount: 10n,
-//           _reference: 'some reference',
-//         },
-//       }
-//
-//       const stubLogger = sandbox.stub(logger, 'warn')
-//       sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(false)
-//
-//       await ProposalHandler.proposalCreated(fakeEvent as any, info)
-//
-//       expect(stubLogger.calledOnceWith('Plugin not found' as any)).to.be.true
-//     })
-//
-//     it('proposalCreated throw error', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x456',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'proposalCreated',
-//       }
-//       const fakeEvent = {
-//         args: {
-//           sender: '0x123',
-//           amount: 10n,
-//           _reference: 'some reference',
-//         },
-//       }
-//
-//       sandbox.stub(Web3Helper, 'extractMetadataUri').rejects(new Error('error'))
-//       const stubLogger = sandbox.stub(logger, 'error')
-//       sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(true)
-//
-//       await ProposalHandler.proposalCreated(fakeEvent as any, info)
-//
-//       expect(stubLogger.calledOnceWith('Error proposalCreated' as any)).to.be.true
-//     })
-//   })
-//
-//   describe('approved', () => {
-//     it('should approved', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const rawProposal = {
-//         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-//         blockNumber: 3,
-//         network,
-//         pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         proposalId: 0,
-//         allowFailureMap: 0,
-//         creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
-//         startDate: 234234223,
-//         endDate: 334234223,
-//         metadataUri: 'some-uri',
-//         actions: [],
-//         voteEvents: [],
-//         executed: {
-//           status: true,
-//           transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-//           blockNumber: 3,
-//         },
-//       }
-//       await Models.LogProposal.create(rawProposal)
-//
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'Approved',
-//       }
-//
-//       const fakeEvent = {
-//         args: {
-//           proposalId: 0n,
-//           approver: '0x0',
-//         },
-//       }
-//
-//       const stubLogger = sandbox.stub(logger, 'verbose')
-//
-//       await ProposalHandler.approved(fakeEvent as any, info)
-//
-//       const newProposal = await Models.LogProposal.findByProposalId(
-//         Number(fakeEvent.args.proposalId),
-//         info.address,
-//         network,
-//       )
-//
-//       expect(stubLogger.calledOnce).to.be.true
-//       expect(newProposal.voteEvents[0].transactionHash).to.eq(info.transactionHash)
-//       expect(newProposal.voteEvents[0].blockNumber).to.eq(info.blockNumber)
-//       expect(newProposal.voteEvents[0].proposalId).to.eq(Number(fakeEvent.args.proposalId))
-//       expect(newProposal.voteEvents[0].memberAddress).to.eq(fakeEvent.args.approver)
-//     })
-//
-//     it('approved warn proposal not found', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const rawProposal = {
-//         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-//         blockNumber: 3,
-//         network,
-//         pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         proposalId: 0,
-//         allowFailureMap: 0,
-//         creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
-//         startDate: 234234223,
-//         endDate: 334234223,
-//         metadataUri: 'some-uri',
-//         actions: [],
-//         voteEvents: [],
-//         executed: {
-//           status: true,
-//           transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-//           blockNumber: 3,
-//         },
-//       }
-//       await Models.LogProposal.create(rawProposal)
-//
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'Approved',
-//       }
-//       const fakeEvent = {
-//         args: {
-//           proposalId: 0n,
-//           approver: '0x0',
-//         },
-//       }
-//
-//       sandbox.stub(Models.LogProposal, 'findByProposalId').resolves(null)
-//       const stubLogger = sandbox.stub(logger, 'warn')
-//
-//       const result = await ProposalHandler.approved(fakeEvent as any, info)
-//
-//       expect(result).to.be.undefined
-//
-//       expect(stubLogger.calledOnceWith('proposal not found' as any)).to.be.true
-//     })
-//
-//     it('proposalCreated throw error', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'Approved',
-//       }
-//       const fakeEvent = {
-//         args: {
-//           sender: '0x123',
-//           amount: 10n,
-//           _reference: 'some reference',
-//         },
-//       }
-//
-//       sandbox.stub(Models.LogProposal, 'findExistingLog').rejects(new Error('error'))
-//       const stubLogger = sandbox.stub(logger, 'error')
-//
-//       await ProposalHandler.approved(fakeEvent as any, info)
-//
-//       expect(stubLogger.calledOnceWith('Error approved' as any)).to.be.true
-//     })
-//   })
-//
-//   describe('voteCast', () => {
-//     it('should voteCast', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const rawProposal = {
-//         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-//         blockNumber: 3,
-//         network,
-//         pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         proposalId: 0,
-//         allowFailureMap: 0,
-//         creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
-//         startDate: 234234223,
-//         endDate: 334234223,
-//         metadataUri: 'some-uri',
-//         actions: [],
-//         voteEvents: [],
-//       }
-//       await Models.LogProposal.create(rawProposal)
-//
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'Approved',
-//       }
-//       const fakeEvent = {
-//         args: {
-//           voter: '0x0',
-//           proposalId: 0n,
-//           voteOption: 10n,
-//           votingPower: 1000n,
-//         },
-//       }
-//
-//       const stubLogger = sandbox.stub(logger, 'verbose')
-//
-//       await ProposalHandler.voteCast(fakeEvent as any, info)
-//
-//       const newProposal = await Models.LogProposal.findByProposalId(
-//         Number(fakeEvent.args.proposalId),
-//         info.address,
-//         network,
-//       )
-//
-//       expect(stubLogger.calledOnce).to.be.true
-//       expect(newProposal.voteEvents[0].transactionHash).to.eq(info.transactionHash)
-//       expect(newProposal.voteEvents[0].blockNumber).to.eq(info.blockNumber)
-//       expect(newProposal.voteEvents[0].proposalId).to.eq(Number(fakeEvent.args.proposalId))
-//       expect(newProposal.voteEvents[0].memberAddress).to.eq(fakeEvent.args.voter)
-//       expect(newProposal.voteEvents[0].voteOption).to.eq(Number(fakeEvent.args.voteOption))
-//       expect(newProposal.voteEvents[0].votingPower).to.eq(fakeEvent.args.votingPower.toString())
-//     })
-//
-//     it('voteCast error proposal not found', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const rawProposal = {
-//         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-//         blockNumber: 3,
-//         network,
-//         pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         proposalId: 0,
-//         allowFailureMap: 0,
-//         creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
-//         startDate: 234234223,
-//         endDate: 334234223,
-//         metadataUri: 'some-uri',
-//         actions: [],
-//         voteEvents: [],
-//       }
-//       await Models.LogProposal.create(rawProposal)
-//
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'Approved',
-//       }
-//       const fakeEvent = {
-//         args: {
-//           voter: '0x0',
-//           proposalId: 0n,
-//           voteOption: 10n,
-//           votingPower: 1000n,
-//         },
-//       }
-//
-//       sandbox.stub(Models.LogProposal, 'findByProposalId').resolves(null)
-//       const stubLogger = sandbox.stub(logger, 'warn')
-//
-//       const result = await ProposalHandler.voteCast(fakeEvent as any, info)
-//
-//       expect(result).to.be.undefined
-//       expect(stubLogger.calledOnceWith('proposal not found' as any)).to.be.true
-//     })
-//
-//     it('voteCast throw error', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'Approved',
-//       }
-//       const fakeEvent = {
-//         args: {
-//           sender: '0x123',
-//           amount: 10n,
-//           _reference: 'some reference',
-//         },
-//       }
-//
-//       sandbox.stub(Models.LogProposal, 'findExistingLog').rejects(new Error('error'))
-//       const stubLogger = sandbox.stub(logger, 'error')
-//
-//       await ProposalHandler.voteCast(fakeEvent as any, info)
-//
-//       expect(stubLogger.calledOnceWith('Error voteCast' as any)).to.be.true
-//     })
-//   })
-//
-//   describe('proposalExecuted', () => {
-//     it('should proposalExecuted', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const rawProposal = {
-//         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-//         blockNumber: 3,
-//         network,
-//         pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         proposalId: 0,
-//         allowFailureMap: 0,
-//         creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
-//         startDate: 234234223,
-//         endDate: 334234223,
-//         metadataUri: 'some-uri',
-//         actions: [],
-//         voteEvents: [],
-//       }
-//       await Models.LogProposal.create(rawProposal)
-//
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'ProposalExecuted',
-//       }
-//       const fakeEvent = {
-//         args: {
-//           proposalId: 0n,
-//         },
-//       }
-//
-//       const stubLogger = sandbox.stub(logger, 'verbose')
-//
-//       await ProposalHandler.proposalExecuted(fakeEvent as any, info)
-//
-//       const newProposal = await Models.LogProposal.findByProposalId(
-//         Number(fakeEvent.args.proposalId),
-//         info.address,
-//         network,
-//       )
-//
-//       expect(stubLogger.calledOnce).to.be.true
-//       expect(newProposal.executed.status).to.be.true
-//       expect(newProposal.executed.blockNumber).to.eq(info.blockNumber)
-//       expect(newProposal.executed.transactionHash).to.eq(info.transactionHash)
-//     })
-//
-//     it('proposalExecuted error proposal not found', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'ProposalExecuted',
-//       }
-//       const fakeEvent = {
-//         args: {
-//           voter: '0x0',
-//           proposalId: 0n,
-//           voteOption: 10n,
-//           votingPower: 1000n,
-//         },
-//       }
-//
-//       sandbox.stub(Models.LogProposal, 'findByProposalId').resolves(null)
-//       const stubLogger = sandbox.stub(logger, 'warn')
-//
-//       const result = await ProposalHandler.proposalExecuted(fakeEvent as any, info)
-//
-//       expect(result).to.be.undefined
-//       expect(stubLogger.calledOnceWith('proposal not found' as any)).to.be.true
-//     })
-//
-//     it('proposalExecuted throw error', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'ProposalExecuted',
-//       }
-//       const fakeEvent = {
-//         args: {
-//           sender: '0x123',
-//           amount: 10n,
-//           _reference: 'some reference',
-//         },
-//       }
-//
-//       sandbox.stub(Models.LogProposal, 'findByProposalId').rejects(new Error('error'))
-//       const stubLogger = sandbox.stub(logger, 'error')
-//
-//       await ProposalHandler.proposalExecuted(fakeEvent as any, info)
-//
-//       expect(stubLogger.calledOnceWith('Error proposalExecuted' as any)).to.be.true
-//     })
-//   })
-//
-//   describe('proposalMetadata', () => {
-//     it('should proposalMetadata', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const rawProposal = {
-//         transactionHash: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-//         blockNumber: 3,
-//         network,
-//         pluginAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         proposalId: 0,
-//         allowFailureMap: 0,
-//         creatorAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
-//         startDate: 234234223,
-//         endDate: 334234223,
-//         metadataUri: 'some-uri',
-//         actions: [],
-//         voteEvents: [],
-//       }
-//       const proposalDb = await Models.LogProposal.create(rawProposal)
-//
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'ProposalCreated',
-//       }
-//       const fakeMetadata = {
-//         name: 'test',
-//         description: 'fake-description',
-//       }
-//
-//       const stubLogger = sandbox.stub(logger, 'verbose')
-//       const stubFetchMetadata = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
-//       const stubParseDaoMetadata = sandbox.stub(Web3Helper, 'parseProposalMetadata').returns(fakeMetadata)
-//
-//       await ProposalHandler.proposalMetadata(info, proposalDb)
-//
-//       expect(stubLogger.calledOnce).to.be.true
-//       expect(stubFetchMetadata.calledOnce).to.be.true
-//       expect(stubFetchMetadata.args[0][0]).to.eq(proposalDb.metadataUri)
-//       expect(stubParseDaoMetadata.calledOnce).to.be.true
-//       expect(stubParseDaoMetadata.calledWith(fakeMetadata)).to.be.true
-//
-//       const proposalMetadataDB = await Models.LogProposalMetadata.findExistingLog({
-//         transactionHash: proposalDb.transactionHash,
-//         pluginAddress: proposalDb.pluginAddress,
-//         proposalId: proposalDb.proposalId,
-//       })
-//       expect(proposalMetadataDB.transactionHash).to.eq(proposalDb.transactionHash)
-//       expect(proposalMetadataDB.blockNumber).to.eq(proposalDb.blockNumber)
-//       expect(proposalMetadataDB.network).to.eq(NetworksEnum.ethereumMainnet)
-//       expect(proposalMetadataDB.fetchedMetadata).to.eq(true)
-//       expect(proposalMetadataDB.pluginAddress).to.eq(proposalDb.pluginAddress)
-//       expect(proposalMetadataDB.fetchedMetadata).to.eq(true)
-//       expect(proposalMetadataDB.proposalId).to.eq(proposalDb.proposalId)
-//     })
-//
-//     it('proposalMetadata throw error', async () => {
-//       const network = NetworksEnum.ethereumMainnet
-//       const info: ILogInfo = {
-//         transactionHash: '0x123',
-//         address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-//         blockNumber: 1,
-//         network,
-//         eventName: 'ProposalCreated',
-//       }
-//
-//       sandbox.stub(IPFSModule, 'fetchMetadata').rejects(new Error('error'))
-//       const stubLogger = sandbox.stub(logger, 'error')
-//
-//       await ProposalHandler.proposalMetadata(info, { id: 1 } as any)
-//
-//       expect(stubLogger.calledOnceWith('Error proposalMetadata' as any)).to.be.true
-//     })
-//   })
-// })
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import { expect } from 'chai'
+import logger from '@logger'
+import { ILogInfo, NetworksEnum } from '@types'
+import { beforeEach } from 'mocha'
+import { ProposalHandler } from '@services/aragon-indexer/handlers/proposalHandler'
+import Web3Helper from '@helpers/web3'
+import { Models } from '@dbModels'
+import { ProxyMember } from '@modules/proxyMember'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
+import { RabbitMQHelper } from '@helpers/redditMQ'
+import { ProxyToken } from '@modules/proxyToken'
+import { ProposalList } from '@test/mock/fakeProposal'
+
+describe('ProposalHandler', () => {
+  let sandbox: SinonSandbox
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+  })
+
+  afterEach(() => {
+    sandbox.restore()
+  })
+
+  describe('proposalCreated', () => {
+    it('should create a proposal successfully', async () => {
+      const metadataUri = 'fake-uri'
+      const network = NetworksEnum.ethereumMainnet
+      const pluginAddress = '0x123456'
+      const proposalIndex = 1
+
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: pluginAddress,
+        blockNumber: 1,
+        network,
+        eventName: 'proposalCreated',
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x456',
+          proposalId: BigInt(proposalIndex),
+          startDate: 0,
+          endDate: 0,
+          allowFailureMap: BigInt(1),
+          metadata: 'test',
+          actions: [
+            {
+              to: '0x0',
+              value: BigInt(1),
+              data: '0x',
+            },
+          ],
+        },
+      }
+
+      const stubFetchDate = sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({
+        startDate: Number(213123),
+        endDate: Number(123123),
+      })
+      const stubFindPlugin = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        subdomain: 'plugin-subdomain',
+        address: pluginAddress,
+        network,
+      })
+      const stubSetting = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').returns({
+        id: 'fake-id',
+        transactionHash: 'fake-tx-hash',
+        blockNumber: info.blockNumber,
+        blockTimestamp: 321312,
+        network: info.network,
+        daoAddress: 'fake-dao-address',
+        pluginAddress: 'fake-plugin-address',
+        pluginSubdomain: 'fake-plugin-subdomain',
+        tokenAddress: 'fake-token-address',
+        onlyListed: true,
+        minApprovals: 1,
+        votingMode: 1,
+        supportThreshold: 2,
+        minParticipation: 2,
+        minDuration: 2,
+        minProposerVotingPower: 2,
+      })
+      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(metadataUri)
+      const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456789)
+      const stubProposalMetadata = sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves({
+        title: 'test-title',
+        description: 'test-description',
+        summary: 'test-summary',
+        resources: [],
+      } as any)
+      const stubTotalSupply = sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(20000 as any)
+      const stubUpdateActivity = sandbox.stub(ProxyMember, 'updateActivity').resolves()
+
+      const stubActions = sandbox.stub(ProposalHandler, 'parseActions').resolves()
+      const stubMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
+      const stubMessagingQueue = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      expect(stubGetBlockTimestamp.calledOnce).to.be.true
+      expect(stubFetchDate.calledOnce).to.be.true
+      expect(stubFindPlugin.calledOnce).to.be.true
+      expect(stubSetting.calledOnce).to.be.true
+      expect(stubExtractMetadataUri.calledOnceWith(fakeEvent.args.metadata)).to.be.true
+      expect(stubProposalMetadata.calledOnceWith(metadataUri)).to.be.true
+      expect(stubUpdateActivity.calledOnce).to.be.true
+      expect(stubTotalSupply.calledOnce).to.be.true
+      expect(stubActions.calledOnce).to.be.true
+      expect(stubMetrics.calledOnce).to.be.true
+      expect(stubMessagingQueue.calledOnce).to.be.true
+
+      const proposalDb = await Models.Proposal.findOne({
+        transactionHash: info.transactionHash,
+        daoAddress: '0xDaoAddress',
+        pluginAddress,
+        proposalIndex,
+      })
+      expect(proposalDb).to.exist
+    })
+
+    it('should handle plugin not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0x456',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+        eventName: 'proposalCreated',
+      }
+
+      const fakeEvent = {
+        args: {
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      }
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      expect(stubLogger.calledOnceWith('Plugin not found' as any)).to.be.true
+    })
+  })
+
+  describe('approved', () => {
+    it('should handle approved event', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0x456',
+        blockNumber: 1,
+        network,
+        eventName: 'approved',
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: BigInt(1),
+          approver: '0xApprover',
+        },
+      }
+
+      const stubFindProposal = sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves({
+        daoAddress: '0xDaoAddress',
+        network,
+        pluginAddress: info.address,
+      } as any)
+      const stubFindExistingLog = sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
+      const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456789)
+      const stubUpdateActivity = sandbox.stub(ProxyMember, 'updateActivity').resolves()
+      const stubUpdateMetricsByAction = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
+      const stubMessagingQueue = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await ProposalHandler.approved(fakeEvent as any, info)
+
+      expect(stubFindProposal.calledOnce).to.be.true
+      expect(stubGetBlockTimestamp.calledOnce).to.be.true
+      expect(stubFindExistingLog.calledOnce).to.be.true
+      expect(stubUpdateActivity.calledOnce).to.be.true
+      expect(stubUpdateMetricsByAction.calledOnce).to.be.true
+      expect(stubMessagingQueue.calledTwice).to.be.true
+
+      const proposalDb = await Models.Vote.findOne({
+        transactionHash: info.transactionHash,
+        daoAddress: '0xDaoAddress',
+        pluginAddress: info.address,
+        proposalIndex: 1,
+      })
+      expect(proposalDb).to.exist
+    })
+
+    it('should handle proposal not found in approved', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0x456',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+        eventName: 'approved',
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: BigInt(1),
+          approver: '0xApprover',
+        },
+      }
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+
+      await ProposalHandler.approved(fakeEvent as any, info)
+
+      expect(stubLogger.calledOnceWith('Approved - Proposal not found' as any)).to.be.true
+    })
+  })
+
+  describe('voteCast', () => {
+    it('should handle voteCast event', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0xPluginAddress',
+        blockNumber: 1,
+        network,
+        eventName: 'voteCast',
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: BigInt(1),
+          voter: '0xVoter',
+          voteOption: BigInt(1),
+          votingPower: BigInt(1000),
+        },
+      }
+
+      const stubFindProposal = sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves({
+        daoAddress: '0xDaoAddress',
+        network,
+        pluginAddress: '0xPluginAddress',
+        settings: { tokenAddress: '0xTokenAddress' },
+      } as any)
+      const stubFindExistingLog = sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
+      const stubFindExistingVote = sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
+      const stubProxyToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
+      const stubUpdateMetricsByAction = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
+      const stubUpdateActivity = sandbox.stub(ProxyMember, 'updateActivity').resolves()
+      const stubMessagingQueue = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456789)
+
+      await ProposalHandler.voteCast(fakeEvent as any, info)
+
+      expect(stubFindProposal.calledOnce).to.be.true
+      expect(stubFindExistingLog.calledOnce).to.be.true
+      expect(stubFindExistingVote.calledOnce).to.be.true
+      expect(stubUpdateActivity.calledOnce).to.be.true
+      expect(stubProxyToken.calledOnce).to.be.true
+      expect(stubUpdateMetricsByAction.calledOnce).to.be.true
+      expect(stubMessagingQueue.calledTwice).to.be.true
+      expect(stubGetBlockTimestamp.calledOnce).to.be.true
+
+      const voteDb = await Models.Vote.findOne({
+        transactionHash: info.transactionHash,
+        daoAddress: '0xDaoAddress',
+        memberAddress: '0xVoter',
+        pluginAddress: '0xPluginAddress',
+        proposalIndex: 1,
+      })
+      expect(voteDb).to.exist
+    })
+
+    it('should handle proposal not found in voteCast', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0x456',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+        eventName: 'voteCast',
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: BigInt(1),
+          voter: '0xVoter',
+          voteOption: BigInt(1),
+          votingPower: BigInt(1000),
+        },
+      }
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+
+      await ProposalHandler.voteCast(fakeEvent as any, info)
+
+      expect(stubLogger.calledOnceWith('VoteCast - Proposal not found' as any)).to.be.true
+    })
+  })
+
+  describe('proposalExecuted', () => {
+    it('should handle proposalExecuted event', async () => {
+      const rawProposalTokenVoting = ProposalList[0]
+      const createdProposal = await Models.Proposal.create(rawProposalTokenVoting)
+
+      const network = NetworksEnum.polygonMainnet
+      const info: ILogInfo = {
+        transactionHash: createdProposal.transactionHash,
+        transactionIndex: createdProposal.transactionIndex,
+        logIndex: createdProposal.logIndex,
+        address: createdProposal.pluginAddress,
+        blockNumber: createdProposal.blockNumber,
+        network,
+        eventName: 'proposalExecuted',
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: rawProposalTokenVoting.proposalIndex,
+        },
+      }
+
+      const stubMessagingQueue = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456789)
+
+      await ProposalHandler.proposalExecuted(fakeEvent as any, info)
+
+      expect(stubMessagingQueue.calledOnce).to.be.true
+      expect(stubGetBlockTimestamp.calledOnce).to.be.true
+
+      const proposalDb = await Models.Proposal.findOne({
+        transactionHash: rawProposalTokenVoting.transactionHash,
+        daoAddress: rawProposalTokenVoting.daoAddress,
+        pluginAddress: rawProposalTokenVoting.pluginAddress,
+        proposalIndex: rawProposalTokenVoting.proposalIndex,
+      })
+      expect(proposalDb).to.exist
+      expect(proposalDb.executed.status).to.be.true
+    })
+
+    it('should handle proposal not found in proposalExecuted', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0x456',
+        blockNumber: 1,
+        network: NetworksEnum.polygonMainnet,
+        eventName: 'proposalExecuted',
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: BigInt(1),
+        },
+      }
+
+      const stubLogger = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+
+      await ProposalHandler.proposalExecuted(fakeEvent as any, info)
+
+      expect(stubLogger.calledOnceWith('proposal not found' as any)).to.be.true
+    })
+  })
+})
