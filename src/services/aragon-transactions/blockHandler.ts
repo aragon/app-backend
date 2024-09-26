@@ -8,7 +8,6 @@ import { Models } from '@dbModels'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Dao from '@models/schema/dao'
 import utils from '@helpers/utils'
-import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-transactions:BlockHandler' })
 
@@ -21,7 +20,7 @@ export const BlockHandler = {
 
     await Promise.all(
       block.transactions.map(async (txHash: HexAddress) => {
-        const tx = await BlockHandler.fetchTransactionWithRetry(txHash, network, provider)
+        const tx = await BlockHandler.fetchTransaction(txHash, network, provider)
         if (!tx?.to) return null
 
         const dao = await Models.Dao.findByAddress(tx.to, network)
@@ -36,13 +35,8 @@ export const BlockHandler = {
             }),
           )
 
-          // wait 10 blocks for confirmations
-          await BlockHandler.waitForConfirmations(
-            tx,
-            provider,
-            10,
-            config.SERVICES.ARAGON_TRANSACTIONS.TX_CONFIRMATIONS,
-          )
+          // alchemy instance node not always up-to-date
+          await utils.wait(10000)
           await BlockHandler.sendDaoMessages(dao)
 
           logger.verbose(
@@ -56,27 +50,6 @@ export const BlockHandler = {
         }
       }),
     )
-  },
-
-  waitForConfirmations: async (
-    tx: TransactionResponse,
-    provider: IWebSocketProvider,
-    requiredConfirmations = 10,
-    delay = 5000,
-  ) => {
-    while (true) {
-      const currentBlock = await provider.getBlockNumber()
-      const confirmations = currentBlock - tx.blockNumber!
-
-      if (confirmations >= requiredConfirmations) {
-        logger.verbose('Transaction confirmations. Proceeding...', llo({ txHash: tx.hash, confirmations }))
-        break
-      }
-
-      // If not enough confirmations, wait for the specified delay and check again
-      logger.verbose('Waiting for confirmations... Current confirmations:', llo({ txHash: tx.hash, confirmations }))
-      await utils.wait(delay) // Delay between checks
-    }
   },
 
   sendDaoMessages: async (dao: Dao) => {
@@ -101,7 +74,7 @@ export const BlockHandler = {
     }
   },
 
-  fetchTransactionWithRetry: async (
+  fetchTransaction: async (
     txHash: string,
     network: NetworksEnum,
     provider: IWebSocketProvider,

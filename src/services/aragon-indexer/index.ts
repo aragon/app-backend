@@ -75,7 +75,7 @@ const IndexerService: IExtendedService = {
           listener =>
             group.includes(listener.name) && listener.listen.some(eventConfig => eventConfig.enableHistorical),
         )
-        .map(async listener => listener.start(true, false, false)) // Start crawler only
+        .map(async listener => listener.start(true, false)) // Start crawler only
 
       if (crawlers.length > 0) {
         await Promise.all(crawlers)
@@ -91,7 +91,7 @@ const IndexerService: IExtendedService = {
 
     if (realtimeListeners.length > 0) {
       await Promise.all(
-        realtimeListeners.map(async listener => listener.start(false, true, false)), // Start listener only
+        realtimeListeners.map(async listener => listener.start(false, true)), // Start listener only
       )
     }
   },
