@@ -46,9 +46,9 @@ class EventListener {
     if (listen) {
       this.listenToEvents(filter)
     }
-    if (listenToBlocks) {
-      this.listenToNewBlocks()
-    }
+    // if (listenToBlocks) {
+    //   this.listenToNewBlocks()
+    // }
   }
 
   private async crawl(filter: any) {
