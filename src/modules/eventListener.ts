@@ -110,6 +110,7 @@ class EventListener {
         const block = await retryRequest(async () =>
           BottleneckModule.getNodeLimiter(this.networkName)!.schedule(async () => provider.getBlock(blockNumber)),
         )
+        logger.verbose('New block', llo({ network: this.networkName, blockNumber }))
         await BlockHandler.processNewBlock(block, this.networkName)
       } catch (error) {
         logger.warn('Error fetching block data', llo({ network: this.networkName, blockNumber, error }))
