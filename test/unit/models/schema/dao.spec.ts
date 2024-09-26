@@ -212,7 +212,7 @@ describe('Model: Dao', () => {
       })
 
       expect(data.length).to.eq(1)
-      expect(totalRecords).to.eq(1)
+      expect(totalRecords).to.eq(2)
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)

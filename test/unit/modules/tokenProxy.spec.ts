@@ -98,14 +98,14 @@ describe('Modules: ProxyToken', () => {
       expect(token!.priceChangeOnDayUsd).to.eq('0')
     })
 
-    it('should detect token type unknown', async () => {
+    it('should detect token type GovernanceERC20', async () => {
       const stubRate = sandbox.stub(RateModule, 'fetchRate').resolves({
         address: '0xA109D1DDE2f2F6f385B39cDB91A24cCb83a9b564',
         name: 'TokenName',
         decimals: 18,
         symbol: 'TKN',
         logo: null,
-        type: ITokenType.unknown,
+        type: ITokenType.GovernanceERC20,
         priceUsd: '1',
         priceChangeOnDayUsd: '0.1',
       } as any)
@@ -133,9 +133,9 @@ describe('Modules: ProxyToken', () => {
       expect(stubFind.calledOnce).to.be.true
       expect(stubDetectTokenType.calledOnce).to.be.true
       expect(stubTokenMetrics.calledOnce).to.be.true
-      expect(token!.type).to.eq(ITokenType.unknown)
+      expect(token!.type).to.eq(ITokenType.GovernanceERC20)
       expect(token!.skipFetchRate).to.eq(false)
-      expect(getContractCreationInfoStub.calledOnce).to.be.true
+      expect(getContractCreationInfoStub.notCalled).to.be.true
     })
 
     it('should return existing token if found', async () => {

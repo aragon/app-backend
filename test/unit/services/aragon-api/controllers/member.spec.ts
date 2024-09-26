@@ -77,6 +77,9 @@ describe('Controller: Member', () => {
             order: 'asc',
             sort: 'createdAt',
           },
+          extraQueryData: {
+            memberAddresses: ['0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'],
+          },
         }),
       ).to.be.true
       //
@@ -113,6 +116,9 @@ describe('Controller: Member', () => {
             page: 1,
             order: 'asc',
             sort: 'createdAt',
+          },
+          extraQueryData: {
+            memberAddresses: [],
           },
         }),
       ).to.be.true
@@ -159,6 +165,9 @@ describe('Controller: Member', () => {
             page: 1,
             order: 'asc',
             sort: 'createdAt',
+          },
+          extraQueryData: {
+            memberAddresses: ['0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'],
           },
         }),
       ).to.be.true
