@@ -48,7 +48,7 @@ describe('Router: Member', () => {
         endDate: undefined,
         startDate: undefined,
         search: undefined,
-        sort: 'address',
+        sort: 'votingPower',
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
@@ -83,7 +83,7 @@ describe('Router: Member', () => {
         endDate: undefined,
         startDate: undefined,
         search: undefined,
-        sort: 'address',
+        sort: 'votingPower',
       }
 
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })

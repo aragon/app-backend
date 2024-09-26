@@ -164,10 +164,10 @@ describe('Modules:PairDataModule', () => {
         .returns({ pluginAddress: rawDao.plugins![0].address, proposalIndex: 1 } as any)
       const extraParams: any = {}
 
-      await PairDataModule.pairFromExtraParams(extraParams, { proposalIndex: 'fake-id' })
+      await PairDataModule.pairFromExtraParams(extraParams, { proposalId: 'fake-id' })
       expect(findProposalStub.calledOnce).to.be.true
       expect(extraParams.pluginAddress).to.be.eq(rawDao.plugins![0].address)
-      expect(extraParams.proposalId).to.be.eq(1)
+      expect(extraParams.proposalIndex).to.be.eq(1)
     })
   })
 })

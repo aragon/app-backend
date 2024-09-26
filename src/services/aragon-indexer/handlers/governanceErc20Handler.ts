@@ -96,12 +96,15 @@ export const GovernanceErc20Handler = {
           to,
           amount: BigInt(parsedEvent.args.value || 0).toString(),
           tokenAddress: info.address,
-          memberBalance: await Web3Helper.getTokenBalanceAtBlock({
-            address: member.address,
-            tokenAddress: info.address,
-            blockNumber: info.blockNumber,
-            network: info.network,
-          }),
+          memberBalance: await Web3Helper.getTokenBalanceAtBlock(
+            {
+              address: member.address,
+              tokenAddress: info.address,
+              blockNumber: info.blockNumber,
+              network: info.network,
+            },
+            true,
+          ),
           memberVotingPower: newVotingPower.toString(),
         },
         { session },
@@ -197,6 +200,7 @@ export const GovernanceErc20Handler = {
         info.blockNumber,
         blockTimestamp,
         info.network,
+        true,
       )
       const logDb = await Models.MemberTransaction.create(
         {
@@ -284,6 +288,7 @@ export const GovernanceErc20Handler = {
         info.blockNumber,
         blockTimestamp,
         info.network,
+        true,
       )
 
       const logDb = await Models.MemberTransaction.create(

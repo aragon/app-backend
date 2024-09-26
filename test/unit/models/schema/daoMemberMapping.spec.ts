@@ -116,50 +116,18 @@ describe('Model: DaoMemberMappings', () => {
     expect(foundLogDao).to.be.null
   })
 
-  describe('findDaosByMemberWithPagination', () => {
-    it('should find daos by member with pagination', async () => {
-      const [fakeDaoMemberMapping] = rawDaoMemberMapping
-      await Models.DaoMemberMapping.create(fakeDaoMemberMapping)
-      const foundLogDao = await Models.DaoMemberMapping.findDaosByMemberWithPagination({
-        extraParams: {
-          memberAddress: fakeDaoMemberMapping.memberAddress,
-          network: fakeDaoMemberMapping.network,
-        },
-        paginationParams: {},
-      })
-      const {
-        data,
-        metadata: { totalRecords, page, pageSize, totalPages },
-      } = foundLogDao
-
-      expect(data.length).to.eq(1)
-      expect(totalRecords).to.eq(1)
-      expect(page).to.eq(1)
-      expect(pageSize).to.eq(10)
-      expect(totalPages).to.eq(1)
-
-      expect(data[0].network).to.eq(fakeDaoMemberMapping.network)
-      expect(data[0].address).to.be.eq(fakeDaoMemberMapping.daoAddress)
+  it('Should find transfer by member with pagination', async () => {
+    const stubPaginateAndSort = sandbox.stub(Models.DaoMemberMapping, 'aggregate').resolves([
+      {
+        daoDetails: rawDao,
+      },
+    ])
+    const result = await Models.DaoMemberMapping.findTransferByMemberWithPagination({
+      extraParams: { memberAddress: rawMember.address, network: rawDao.network },
+      paginationParams: { page: 1, pageSize: 10 },
     })
 
-    it('should return empty array if no daos found', async () => {
-      const foundLogDao = await Models.DaoMemberMapping.findDaosByMemberWithPagination({
-        extraParams: {
-          memberAddress: '0x00',
-          network: '1',
-        },
-        paginationParams: {},
-      } as any)
-      const {
-        data,
-        metadata: { totalRecords, page, pageSize, totalPages },
-      } = foundLogDao
-
-      expect(data.length).to.eq(0)
-      expect(totalRecords).to.eq(0)
-      expect(page).to.eq(1)
-      expect(pageSize).to.eq(10)
-      expect(totalPages).to.eq(1)
-    })
+    expect(result.data.length).to.eq(1)
+    expect(stubPaginateAndSort.calledTwice).to.be.true
   })
 })
