@@ -182,6 +182,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           6 * 60 * 60 * 1000,
         ), // 6 hours
       },
+
+      ARAGON_TRANSACTIONS: {
+        CONFIRMATION_DELAY: utils.configParser(sourceConfig, 'number', 'ARAGON_TRANSACTIONS_CONFIRMATION_DELAY', 10000), // 10 seconds
+      },
     },
 
     CRAWLER_CONFIG: {
