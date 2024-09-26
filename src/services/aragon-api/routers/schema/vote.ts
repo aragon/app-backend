@@ -21,7 +21,7 @@ const VoteSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
-    proposalIndex: Joi.any().required(),
+    proposalIndex: Joi.number().integer().min(0).required(),
   }),
 }
 

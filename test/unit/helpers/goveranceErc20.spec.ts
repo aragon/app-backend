@@ -55,8 +55,9 @@ describe('Helpers: GovernanceErc20', () => {
 
       const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, NetworksEnum.ethereumMainnet)
       expect(result).to.eq('0')
-      expect(loggerStub.calledOnce).to.be.true
-      expect(loggerStub.calledWith('Error getting past votes' as any)).to.be.true
+      expect(loggerStub.calledTwice).to.be.true
+      expect(loggerStub.calledWith('Error getting past votes - blockNumber' as any)).to.be.true
+      expect(loggerStub.calledWith('Error getting past votes - blockTimestamp' as any)).to.be.true
     })
   })
 

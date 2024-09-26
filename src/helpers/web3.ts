@@ -434,13 +434,13 @@ const Web3Helper = {
     return '0x' + number?.toString(16)
   },
 
-  async getBlockTimestamp(blockNumber: number, network: NetworksEnum): Promise<number> {
+  async getBlockTimestamp(blockNumber: number, network: NetworksEnum, forceRetry: boolean = false): Promise<number> {
     try {
       const provider = ProviderModule.getProvider(network)!
 
       const block = await retryRequest(
         async () => BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber)),
-        { forceRetry: true },
+        { forceRetry },
       )
 
       return block?.timestamp ?? 0
@@ -450,17 +450,20 @@ const Web3Helper = {
     }
   },
 
-  async getTokenBalanceAtBlock({
-    address,
-    tokenAddress,
-    blockNumber,
-    network,
-  }: {
-    address: HexAddress
-    tokenAddress: HexAddress
-    blockNumber: number
-    network: NetworksEnum
-  }): Promise<string> {
+  async getTokenBalanceAtBlock(
+    {
+      address,
+      tokenAddress,
+      blockNumber,
+      network,
+    }: {
+      address: HexAddress
+      tokenAddress: HexAddress
+      blockNumber: number
+      network: NetworksEnum
+    },
+    forceRetry: boolean = false,
+  ): Promise<string> {
     let params = {}
     try {
       const provider = ProviderModule.getProvider(network)!
@@ -481,7 +484,7 @@ const Web3Helper = {
       const response = await retryRequest(
         async () =>
           BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () => provider.send('eth_call', params)),
-        { maxRetries: 3, forceRetry: true },
+        { forceRetry },
       )
 
       const balance = iface.decodeFunctionResult('balanceOf', response)[0]
@@ -496,7 +499,7 @@ const Web3Helper = {
     }
   },
 
-  async getBalance(address: HexAddress, network: NetworksEnum): Promise<string> {
+  async getBalance(address: HexAddress, network: NetworksEnum, forceRetry: boolean = false): Promise<string> {
     try {
       const provider = ProviderModule.getProvider(network)!
 
@@ -505,7 +508,7 @@ const Web3Helper = {
           BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
             provider.send('eth_getBalance', [address]),
           ),
-        { forceRetry: true },
+        { forceRetry },
       )
 
       const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, network)
@@ -517,7 +520,11 @@ const Web3Helper = {
     }
   },
 
-  async getTokenBalances(address: HexAddress, network: NetworksEnum): Promise<IAlchemyTokenBalance[] | []> {
+  async getTokenBalances(
+    address: HexAddress,
+    network: NetworksEnum,
+    forceRetry: boolean = false,
+  ): Promise<IAlchemyTokenBalance[] | []> {
     try {
       const provider = ProviderModule.getProvider(network)!
 
@@ -526,7 +533,7 @@ const Web3Helper = {
           BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
             provider.send('alchemy_getTokenBalances', [address]),
           ),
-        { forceRetry: true },
+        { forceRetry },
       )
 
       const balances = await Promise.all(
@@ -552,7 +559,7 @@ const Web3Helper = {
     return `${subdomain}.${config.ENS_DOMAIN}` as ENS
   },
 
-  async subdomainExists(ensName: string, network: NetworksEnum): Promise<boolean> {
+  async subdomainExists(ensName: string, network: NetworksEnum, forceRetry: boolean = false): Promise<boolean> {
     if (!config.SUPPORTED_ENS_NETWORKS.includes(network as any)) {
       return false
     }
@@ -567,7 +574,7 @@ const Web3Helper = {
       const recordExists = await retryRequest(
         async () =>
           BottleneckModule.getNodeLimiter(network)!.schedule(async () => ensContract.recordExists(nameHashed)),
-        { forceRetry: true },
+        { forceRetry },
       )
 
       return recordExists
@@ -584,13 +591,13 @@ const Web3Helper = {
     }
   },
 
-  async getTransaction(txHash: string, network: NetworksEnum) {
+  async getTransaction(txHash: string, network: NetworksEnum, forceRetry: boolean = false) {
     const provider = ProviderModule.getProvider(network)!
 
     try {
       return await retryRequest(
         async () => BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getTransaction(txHash)),
-        { forceRetry: true },
+        { forceRetry },
       )
     } catch (error) {
       logger.error(
@@ -604,14 +611,18 @@ const Web3Helper = {
     }
   },
 
-  async getTransactionReceipt(txHash: string, network: NetworksEnum): Promise<TransactionReceipt | null> {
+  async getTransactionReceipt(
+    txHash: string,
+    network: NetworksEnum,
+    forceRetry: boolean = false,
+  ): Promise<TransactionReceipt | null> {
     const provider = ProviderModule.getProvider(network)!
 
     try {
       return await retryRequest(
         async () =>
           BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getTransactionReceipt(txHash)),
-        { forceRetry: true },
+        { forceRetry },
       )
     } catch (error) {
       logger.error(
@@ -667,9 +678,8 @@ const Web3Helper = {
     }
 
     try {
-      const totalSupply = await retryRequest(
-        async () => BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.totalSupply()),
-        { forceRetry: true },
+      const totalSupply = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.totalSupply()),
       )
       token.totalSupply = BigInt(totalSupply).toString()
     } catch (error) {
@@ -709,6 +719,7 @@ const Web3Helper = {
   async getProposalMultisig(
     pluginAddress: string,
     network: NetworksEnum,
+    forceRetry: boolean = false,
   ): Promise<{
     executed: boolean
     approvals: bigint
@@ -720,20 +731,19 @@ const Web3Helper = {
     try {
       return await retryRequest(
         async () => BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(pluginAddress)),
-        { forceRetry: true },
+        { forceRetry },
       )
     } catch (error) {
       return null
     }
   },
 
-  async getERC20Balance(address: string, tokenAddress: string, network: NetworksEnum) {
+  async getERC20Balance(address: string, tokenAddress: string, network: NetworksEnum): Promise<string> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, ERC20.abi, provider)
     try {
-      return await retryRequest(
-        async () => BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.balanceOf(address)),
-        { forceRetry: true },
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.balanceOf(address)),
       )
     } catch (error) {
       return '0'

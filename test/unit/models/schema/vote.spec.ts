@@ -256,4 +256,33 @@ describe('Model: Vote', () => {
 
     expect(createdLogDao.memberAddress).to.eq(rawVote.memberAddress)
   })
+
+  it('findVotes', async () => {
+    const voteDb = await Models.Vote.create(rawVote)
+    const votes = await Models.Vote.findVotes({
+      proposalIndex: FakeVote.proposalIndex!,
+      pluginAddress: FakeVote.pluginAddress!,
+      network: FakeVote.network!,
+    })
+
+    expect(votes.length).to.be.greaterThan(0)
+    expect(votes[0].proposalIndex).to.eq(voteDb.proposalIndex)
+    expect(votes[0].pluginAddress).to.eq(voteDb.pluginAddress)
+    expect(votes[0].network).to.eq(voteDb.network)
+  })
+
+  it('findVoteOnPlugin', async () => {
+    const voteDb = await Models.Vote.create(rawVote)
+    const vote = await Models.Vote.findVoteOnPlugin({
+      memberAddress: FakeVote.memberAddress!,
+      pluginAddress: FakeVote.pluginAddress!,
+      network: FakeVote.network!,
+      proposalIndex: FakeVote.proposalIndex!,
+    })
+
+    expect(vote).to.not.be.null
+    expect(vote?.memberAddress).to.eq(voteDb.memberAddress)
+    expect(vote?.pluginAddress).to.eq(voteDb.pluginAddress)
+    expect(vote?.proposalIndex).to.eq(voteDb.proposalIndex)
+  })
 })

@@ -2,14 +2,11 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ProxyContractHelper from '@helpers/proxyContract'
-import { ConfigState } from '@state/configState'
 import { getAddress } from 'ethers'
 import { NetworksEnum } from '@types'
 import proxyquire from 'proxyquire'
 import Logger from '@logger'
-import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
-import { NetworkHelper } from '@helpers/network'
 
 describe('Helpers:ProxyContractHelper', () => {
   let sandbox: SinonSandbox

@@ -15,6 +15,7 @@ export const ToolsManualSyncProposals: IService = {
         proposal.blockNumber,
         proposal.settings.tokenAddress,
         proposal.network,
+        true,
       )
 
       proposal.snapshot.totalSupply = pastTotalSupply.toString()

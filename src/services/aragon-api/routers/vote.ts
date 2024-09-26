@@ -2,7 +2,13 @@ import Router, { type RouterContext } from '@koa/router'
 import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import VoteController from '@api/controllers/vote'
-import { type HexAddress, type IPairParams, type IVoteExtraParams, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type ICanVoteParams,
+  type IPairParams,
+  type IVoteExtraParams,
+  type NetworksEnum,
+} from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import VoteSchema from '@api/routers/schema/vote'
 import Utils from '@helpers/utils'
@@ -45,29 +51,37 @@ const VoteRouter = {
   },
 
   async canVote(ctx: RouterContext) {
-    const requestBody = ctx.request.body as {
-      pluginAddress: HexAddress
-      memberAddress: HexAddress
-      network: NetworksEnum
-      proposalIndex: number
+    const params: ICanVoteParams = {
+      memberAddress: ctx.query.memberAddress as HexAddress,
+      pluginAddress: ctx.query.pluginAddress as HexAddress,
+      proposalIndex: Number(ctx.query.proposalIndex ?? -1),
+      network: ctx.query.network as NetworksEnum,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const formattedRequestBody = await ValidationSchema.validateParams(VoteSchema.canVote, requestBody)
+    const [formattedValues] = await Promise.all([
+      ValidationSchema.validateParams(VoteSchema.canVote, params),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
 
-    ctx.body = await VoteController.canVote(formattedRequestBody)
+    ctx.body = await VoteController.canVote(formattedValues)
   },
 
   async getMemberVoteInfo(ctx: RouterContext) {
-    const requestBody = ctx.request.body as {
-      pluginAddress: HexAddress
-      memberAddress: HexAddress
-      network: NetworksEnum
-      proposalIndex: number
+    const params: ICanVoteParams = {
+      memberAddress: ctx.query.memberAddress as HexAddress,
+      pluginAddress: ctx.query.pluginAddress as HexAddress,
+      proposalIndex: Number(ctx.query.proposalIndex ?? -1),
+      network: ctx.query.network as NetworksEnum,
     }
+    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const formattedRequestBody = await ValidationSchema.validateParams(VoteSchema.canVote, requestBody)
+    const [formattedValues] = await Promise.all([
+      ValidationSchema.validateParams(VoteSchema.canVote, params),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
 
-    ctx.body = await VoteController.memberVotesInfo(formattedRequestBody)
+    ctx.body = await VoteController.memberVotesInfo(formattedValues)
   },
 
   router() {
@@ -85,20 +99,20 @@ const VoteRouter = {
     router.get('/', VoteRouter.getWithPagination)
 
     /**
-     * @api {post} /can-vote Can Vote
+     * @api {get} /can-vote Can Vote
      */
 
-    router.post('/can-vote', VoteRouter.canVote)
+    router.get('/can-vote', VoteRouter.canVote)
 
     /**
-     * @api {post} /member-vote-info Member Vote Info
+     * @api {get} /member-vote-info Member Vote Info
      * @apiDescription Get member vote info
      * @apiName Member Vote Info
      * @apiGroup Vote
      * @apiSampleRequest /info
      */
 
-    router.post('/member-vote-info', VoteRouter.getMemberVoteInfo)
+    router.get('/member-vote-info', VoteRouter.getMemberVoteInfo)
 
     return router
   },

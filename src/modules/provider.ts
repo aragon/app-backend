@@ -145,12 +145,12 @@ const ProviderModule = {
       const providerProxy = ProviderModule.providerProxies[network]
       const provider = providerProxy?.provider
       if (provider) {
-        provider.removeAllListeners()
+        provider?.removeAllListeners()
         if (provider.destroy) {
-          await provider.destroy()
+          await provider?.destroy()
         }
         delete ProviderModule.providerProxies[network]
-        logger.info(`WebSocket connection closed and cleaned up for ${network}`, llo({ network }))
+        logger.info(`WebSocket connection closed for ${network}`, llo({ network }))
       }
     }
   },
