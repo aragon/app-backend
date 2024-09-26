@@ -184,7 +184,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
 
       ARAGON_TRANSACTIONS: {
-        CONFIRMATION_DELAY: utils.configParser(sourceConfig, 'number', 'ARAGON_TRANSACTIONS_CONFIRMATION_DELAY', 10000), // 10 seconds
+        TX_CONFIRMATIONS: utils.configParser(sourceConfig, 'number', 'ARAGON_TRANSACTIONS_TX_CONFIRMATIONS', 10), // 10 blocks
       },
     },
 
