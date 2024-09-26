@@ -25,8 +25,8 @@ describe('Router: Vote', () => {
         daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         tokenAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
-        proposalId: '1',
         includeInfo: true,
+        highlightUser: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
       const paginationParams = {
         pageSize: 10,
@@ -54,18 +54,18 @@ describe('Router: Vote', () => {
         sort: 'blockNumber',
       }
 
-      const extraParams = {
+      const pairParams = {
         daoId: undefined,
         ens: undefined,
-        proposalId: '1',
+        proposalId: undefined,
       }
 
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
-        ..._.omit(filterParams, 'address', 'proposalId'),
+        ..._.omit(filterParams, 'address'),
         ...{ memberAddress: filterParams.address },
       })
-      expect(stubCtrl.args[0][2]).to.deep.eq(extraParams)
+      expect(stubCtrl.args[0][2]).to.deep.eq(pairParams)
     })
 
     it('Should get vote with pagination - ens', async () => {
@@ -103,6 +103,7 @@ describe('Router: Vote', () => {
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
         network: undefined,
+        highlightUser: undefined,
         daoAddress: undefined,
         pluginAddress: undefined,
         memberAddress: undefined,
@@ -151,6 +152,7 @@ describe('Router: Vote', () => {
           tokenAddress: undefined,
           network: undefined,
           includeInfo: undefined,
+          highlightUser: undefined,
         },
       })
     })

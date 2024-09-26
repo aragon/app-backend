@@ -104,6 +104,7 @@ export const ProposalHandler = {
         document.blockNumber!,
         document?.settings.tokenAddress,
         document.network!,
+        true,
       )
 
       document.snapshot = {

@@ -32,8 +32,8 @@ export const DaoAssets = {
   assets: async (document: Dao) => {
     try {
       const [ethBalance, tokenBalances] = await Promise.all([
-        Web3Helper.getBalance(document.address, document.network),
-        Web3Helper.getTokenBalances(document.address, document.network),
+        Web3Helper.getBalance(document.address, document.network, true),
+        Web3Helper.getTokenBalances(document.address, document.network, true),
       ])
 
       if (Number(ethBalance) > 0) {

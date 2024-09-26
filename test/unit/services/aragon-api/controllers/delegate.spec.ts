@@ -91,6 +91,7 @@ describe('Controller: Delegate', () => {
             order: 'asc',
             sort: 'createdAt',
           },
+          extraQueryData: { memberAddresses: [] },
         }),
       ).to.be.true
 
@@ -134,23 +135,23 @@ describe('Controller: Delegate', () => {
 
     expect(spyReq.calledOnce).to.be.true
     expect(pairFromExtraParamsSpy.calledOnce).to.be.true
-    expect(
-      spyReq.calledWith({
-        extraParams: {
-          daoAddress: rawDaoMappings1.daoAddress,
-          network: rawMemberTx.network,
-          tokenAddress: rawMemberTx.tokenAddress,
-          pluginAddress: rawDaoMappings1.pluginAddress,
-        },
-        paginationParams: {
-          search: '',
-          pageSize: 10,
-          page: 1,
-          order: 'asc',
-          sort: 'createdAt',
-        },
-      }),
-    ).to.be.true
+
+    expect(spyReq.args[0][0].extraParams).to.deep.eq({
+      daoAddress: rawDaoMappings1.daoAddress,
+      network: rawMemberTx.network,
+      tokenAddress: rawMemberTx.tokenAddress,
+      pluginAddress: rawDaoMappings1.pluginAddress,
+    })
+
+    expect(spyReq.args[0][0].paginationParams).to.deep.eq({
+      search: '',
+      pageSize: 10,
+      page: 1,
+      order: 'asc',
+      sort: 'createdAt',
+    })
+
+    expect(spyReq.args[0][0].extraQueryData.memberAddresses.length).to.eq(2)
 
     expect(response).to.have.property('data').with.lengthOf(1)
     expect(response.data[0].network).to.eq(rawMemberTx.network)

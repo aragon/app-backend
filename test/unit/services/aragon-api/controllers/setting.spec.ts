@@ -55,7 +55,7 @@ describe('Controller: Setting', () => {
 
       const spyReq = sandbox.spy(Models.Setting, 'findWithPagination')
 
-      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams)
+      const response = (await SettingController.getSettingsWithPagination(paginationParams, filterParams)) as any
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -72,11 +72,13 @@ describe('Controller: Setting', () => {
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].daoAddress).to.eq(rawSetting.daoAddress)
-      expect(response.data[0].pluginAddress).to.eq(rawSetting.pluginAddress)
-      expect(response.data[0].network).to.eq(rawSetting.network)
-      expect(response.data[0].votingMode).to.eq(rawSetting?.votingMode)
-      expect(response.data[0].tokenAddress).to.eq(rawSetting.tokenAddress)
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].votingMode).to.eq(rawSetting.votingMode)
+      expect(response.data[0].supportThreshold).to.eq(rawSetting.supportThreshold)
+      expect(response.data[0].minParticipation).to.eq(rawSetting.minParticipation)
+      expect(response.data[0].minDuration).to.eq(rawSetting.minDuration)
+      expect(response.data[0].minProposerVotingPower).to.eq(rawSetting.minProposerVotingPower)
+      expect(response.data[0].token.network).to.eq(rawSetting.network)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -95,7 +97,7 @@ describe('Controller: Setting', () => {
 
       const spyReq = sandbox.spy(Models.Setting, 'findWithPagination')
 
-      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams)
+      const response = (await SettingController.getSettingsWithPagination(paginationParams, filterParams)) as any
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -112,9 +114,12 @@ describe('Controller: Setting', () => {
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].daoAddress).to.eq(rawSetting.daoAddress)
-      expect(response.data[0].pluginAddress).to.eq(rawSetting.pluginAddress)
-      expect(response.data[0].network).to.eq(rawSetting.network)
+      expect(response.data[0].votingMode).to.eq(rawSetting.votingMode)
+      expect(response.data[0].supportThreshold).to.eq(rawSetting.supportThreshold)
+      expect(response.data[0].minParticipation).to.eq(rawSetting.minParticipation)
+      expect(response.data[0].minDuration).to.eq(rawSetting.minDuration)
+      expect(response.data[0].minProposerVotingPower).to.eq(rawSetting.minProposerVotingPower)
+      expect(response.data[0].token.network).to.eq(rawSetting.network)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -140,7 +145,11 @@ describe('Controller: Setting', () => {
       })
       const spyReq = sandbox.spy(Models.Setting, 'findWithPagination')
 
-      const response = await SettingController.getSettingsWithPagination(paginationParams, filterParams, pairParams)
+      const response = (await SettingController.getSettingsWithPagination(
+        paginationParams,
+        filterParams,
+        pairParams,
+      )) as any
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -160,10 +169,12 @@ describe('Controller: Setting', () => {
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].daoAddress).to.eq(rawSetting.daoAddress)
-      expect(response.data[0].pluginAddress).to.eq(rawSetting.pluginAddress)
-      expect(response.data[0].network).to.eq(rawSetting.network)
       expect(response.data[0].votingMode).to.eq(rawSetting.votingMode)
+      expect(response.data[0].supportThreshold).to.eq(rawSetting.supportThreshold)
+      expect(response.data[0].minParticipation).to.eq(rawSetting.minParticipation)
+      expect(response.data[0].minDuration).to.eq(rawSetting.minDuration)
+      expect(response.data[0].minProposerVotingPower).to.eq(rawSetting.minProposerVotingPower)
+      expect(response.data[0].token.network).to.eq(rawSetting.network)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)

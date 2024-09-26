@@ -19,6 +19,19 @@ export interface IVoteExtraParams {
   highlightUser?: HexAddress
 }
 
+export interface ICanVoteParams {
+  memberAddress: HexAddress
+  pluginAddress: HexAddress
+  proposalIndex: number
+  network: HexAddress
+}
+
+export interface ICanCreateProposalParams {
+  memberAddress: HexAddress
+  pluginAddress: HexAddress
+  network: HexAddress
+}
+
 export interface IPairParams {
   daoId?: string
   ens?: string
