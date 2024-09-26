@@ -36,7 +36,7 @@ export const BlockHandler = {
           )
 
           // alchemy instance node not always up-to-date
-          await utils.wait(10000)
+          await utils.wait(7000)
           await BlockHandler.sendDaoMessages(dao)
 
           logger.verbose(
