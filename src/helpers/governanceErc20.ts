@@ -15,13 +15,15 @@ const GovernanceErc20Helper = {
     blockNumber: number,
     blockTimestamp: number,
     network: NetworksEnum,
+    forceRetry: boolean = false,
   ): Promise<string> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-          contract.getPastVotes(memberAddress, blockNumber),
+        BottleneckModule.getNodeLimiter(network)!.schedule(
+          async () => contract.getPastVotes(memberAddress, blockNumber),
+          { forceRetry },
         ),
       )
     } catch (error) {
@@ -33,8 +35,9 @@ const GovernanceErc20Helper = {
 
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-          contract.getPastVotes(memberAddress, blockTimestamp),
+        BottleneckModule.getNodeLimiter(network)!.schedule(
+          async () => contract.getPastVotes(memberAddress, blockTimestamp),
+          { forceRetry },
         ),
       )
     } catch (error) {
@@ -47,12 +50,18 @@ const GovernanceErc20Helper = {
     return '0'
   },
 
-  async getVotes(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
+  async getVotes(
+    memberAddress: HexAddress,
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    forceRetry: boolean = false,
+  ): Promise<string> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getVotes(memberAddress)),
+      return await retryRequest(
+        async () => BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getVotes(memberAddress)),
+        { forceRetry },
       )
     } catch (error) {
       logger.error('Error getting votes', llo({ memberAddress, tokenAddress, network, error }))
@@ -60,12 +69,19 @@ const GovernanceErc20Helper = {
     }
   },
 
-  async getPastTotalSupply(blockNumber: number, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
+  async getPastTotalSupply(
+    blockNumber: number,
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    forceRetry: boolean = false,
+  ): Promise<string> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getPastTotalSupply(blockNumber)),
+      return await retryRequest(
+        async () =>
+          BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getPastTotalSupply(blockNumber)),
+        { forceRetry },
       )
     } catch (error) {
       logger.error('Error getting pastTotalSupply', llo({ blockNumber, tokenAddress, network, error }))
@@ -77,12 +93,14 @@ const GovernanceErc20Helper = {
     memberAddress: HexAddress,
     tokenAddress: HexAddress,
     network: NetworksEnum,
+    forceRetry: boolean = false,
   ): Promise<HexAddress | false> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.delegates(memberAddress)),
+      return await retryRequest(
+        async () => BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.delegates(memberAddress)),
+        { forceRetry },
       )
     } catch (error) {
       logger.error('Error getting delegates', llo({ memberAddress, tokenAddress, network, error }))

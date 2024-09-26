@@ -25,7 +25,8 @@ describe('Modules:RateModule', () => {
 
       expect(result).to.equal(expectedPrice)
       expect(getCoinPriceStub.calledOnce).to.be.true
-      expect(getCoinPriceStub.calledWithExactly(ZeroAddress as HexAddress, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(getCoinPriceStub.calledWithExactly(ZeroAddress as HexAddress, NetworksEnum.ethereumMainnet, undefined)).to
+        .be.true
     })
   })
 

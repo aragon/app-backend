@@ -96,12 +96,15 @@ export const GovernanceErc20Handler = {
           to,
           amount: BigInt(parsedEvent.args.value || 0).toString(),
           tokenAddress: info.address,
-          memberBalance: await Web3Helper.getTokenBalanceAtBlock({
-            address: member.address,
-            tokenAddress: info.address,
-            blockNumber: info.blockNumber,
-            network: info.network,
-          }),
+          memberBalance: await Web3Helper.getTokenBalanceAtBlock(
+            {
+              address: member.address,
+              tokenAddress: info.address,
+              blockNumber: info.blockNumber,
+              network: info.network,
+            },
+            true,
+          ),
           memberVotingPower: newVotingPower.toString(),
         },
         { session },
@@ -191,6 +194,14 @@ export const GovernanceErc20Handler = {
 
     const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+      const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
+        memberAddress,
+        info.address,
+        info.blockNumber,
+        blockTimestamp,
+        info.network,
+        true,
+      )
       const logDb = await Models.MemberTransaction.create(
         {
           network: info.network,
@@ -207,13 +218,7 @@ export const GovernanceErc20Handler = {
           amount: BigInt(parsedEvent.args.value).toString(),
           tokenAddress: info.address,
           memberBalance: tokenBalance.amount,
-          memberVotingPower: await GovernanceErc20Helper.getPastVotes(
-            memberAddress,
-            info.address,
-            info.blockNumber,
-            blockTimestamp,
-            info.network,
-          ),
+          memberVotingPower: memberVotingPower?.toString() ?? '0',
         },
         { session },
       )
@@ -277,6 +282,15 @@ export const GovernanceErc20Handler = {
 
     await DbTx.executeTxFn(async ({ session }) => {
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+      const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
+        memberAddress,
+        info.address,
+        info.blockNumber,
+        blockTimestamp,
+        info.network,
+        true,
+      )
+
       const logDb = await Models.MemberTransaction.create(
         {
           network: info.network,
@@ -293,13 +307,7 @@ export const GovernanceErc20Handler = {
           amount: BigInt(parsedEvent.args.value).toString(),
           tokenAddress: info.address,
           memberBalance: tokenBalance.amount,
-          memberVotingPower: await GovernanceErc20Helper.getPastVotes(
-            memberAddress,
-            info.address,
-            info.blockNumber,
-            blockTimestamp,
-            info.network,
-          ),
+          memberVotingPower: memberVotingPower?.toString() ?? '0',
         },
         { session },
       )

@@ -273,10 +273,10 @@ export default class Vote extends Model {
     const aggQuery = [
       { $match: filter },
       { $match: { ...(extraParams.highlightUser ? { memberAddress: { $ne: extraParams.highlightUser } } : {}) } },
-      { $skip: request?.skip },
-      { $limit: request?.limit },
       ...query,
       { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
     ]
 
     const [data, totalRecords] = await Promise.all([

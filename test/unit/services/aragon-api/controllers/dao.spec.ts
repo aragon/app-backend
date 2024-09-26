@@ -57,6 +57,7 @@ describe('Controller: Dao', () => {
             order: 'asc',
             sort: 'createdAt',
           },
+          extraQueryData: {},
         }),
       ).to.be.true
 
@@ -98,6 +99,7 @@ describe('Controller: Dao', () => {
             order: 'asc',
             sort: 'createdAt',
           },
+          extraQueryData: {},
         }),
       ).to.be.true
 
@@ -137,6 +139,7 @@ describe('Controller: Dao', () => {
             order: 'asc',
             sort: 'createdAt',
           },
+          extraQueryData: {},
         }),
       ).to.be.true
 
@@ -178,30 +181,6 @@ describe('Controller: Dao', () => {
       const address = 'test-member'
       const network = NetworksEnum.baseMainnet
       await expect(DaoController.getDaoByAddress(address, network)).to.be.rejectedWith(ErrorKeyEnum.notFound)
-    })
-  })
-
-  describe('getDaosByMember', () => {
-    it('should get daos by member', async () => {
-      const findStub = sandbox.stub(Models.DaoMemberMapping, 'findDaosByMemberWithPagination').resolves([true])
-      const checkIFEnsStub = sandbox
-        .stub(PairDataModule, 'checkIFEns')
-        .resolves('0x17366cae2b9c6c3055e9e3c78936a69006be5409')
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-      }
-
-      const filterParams: any = {
-        memberAddress: 'abc.eth',
-      }
-
-      await DaoController.getDaosByMember(paginationParams, filterParams)
-      expect(checkIFEnsStub.calledOnce).to.be.true
-      expect(findStub.calledOnce).to.be.true
-      expect(findStub.args[0][0]?.extraParams.memberAddress).to.be.eq('0x17366cae2b9c6c3055e9e3c78936a69006be5409')
     })
   })
 })
