@@ -69,12 +69,12 @@ export const BlockHandler = {
       const confirmations = currentBlock - tx.blockNumber!
 
       if (confirmations >= requiredConfirmations) {
-        logger.log('Transaction confirmations. Proceeding...', llo({ txHash: tx.hash, confirmations }))
+        logger.verbose('Transaction confirmations. Proceeding...', llo({ txHash: tx.hash, confirmations }))
         break
       }
 
       // If not enough confirmations, wait for the specified delay and check again
-      logger.log('Waiting for confirmations... Current confirmations:', llo({ txHash: tx.hash, confirmations }))
+      logger.verbose('Waiting for confirmations... Current confirmations:', llo({ txHash: tx.hash, confirmations }))
       await utils.wait(delay) // Delay between checks
     }
   },
