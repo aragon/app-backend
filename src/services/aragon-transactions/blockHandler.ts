@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { type TransactionResponse } from 'ethers'
-import { EnumQueueName, type HexAddress, type NetworksEnum } from '@types'
+import { EnumQueueName, type HexAddress, type IWebSocketProvider, type NetworksEnum } from '@types'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
@@ -27,12 +27,26 @@ export const BlockHandler = {
         const dao = await Models.Dao.findByAddress(tx.to, network)
 
         if (dao) {
+          logger.verbose(
+            'New pending incoming transaction',
+            llo({
+              network,
+              daoAddress: dao,
+              transactionHas: tx.hash,
+            }),
+          )
+
           // wait 10 blocks for confirmations
-          await BlockHandler.waitForConfirmations(tx, provider, 10, config.SERVICES.ARAGON_TRANSACTIONS.TX_CONFIRMATIONS);
+          await BlockHandler.waitForConfirmations(
+            tx,
+            provider,
+            10,
+            config.SERVICES.ARAGON_TRANSACTIONS.TX_CONFIRMATIONS,
+          )
           await BlockHandler.sendDaoMessages(dao)
 
           logger.verbose(
-            'New Block incoming transaction found',
+            'New confirmed incoming transaction',
             llo({
               network,
               daoAddress: dao,
@@ -44,13 +58,18 @@ export const BlockHandler = {
     )
   },
 
-  waitForConfirmations: async (tx: TransactionResponse, provider: any, requiredConfirmations = 10, delay = 5000) => {
+  waitForConfirmations: async (
+    tx: TransactionResponse,
+    provider: IWebSocketProvider,
+    requiredConfirmations = 10,
+    delay = 5000,
+  ) => {
     while (true) {
       const currentBlock = await provider.getBlockNumber()
       const confirmations = currentBlock - tx.blockNumber!
 
       if (confirmations >= requiredConfirmations) {
-        logger.log(`Transaction confirmations. Proceeding...`, llo({ txHash: tx.hash, confirmations }))
+        logger.log('Transaction confirmations. Proceeding...', llo({ txHash: tx.hash, confirmations }))
         break
       }
 
@@ -85,11 +104,11 @@ export const BlockHandler = {
   fetchTransactionWithRetry: async (
     txHash: string,
     network: NetworksEnum,
-    provider: any,
+    provider: IWebSocketProvider,
   ): Promise<TransactionResponse | null> => {
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(() => provider.getTransaction(txHash)),
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getTransaction(txHash)),
       )
     } catch (error) {
       logger.warn('Failed to fetch transaction', llo({ txHash, error, network }))
