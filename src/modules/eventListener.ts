@@ -6,7 +6,7 @@ import { type IEnumIndexerService, type IEventConfig, type IIndexerConfig, type 
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
-import { BlockHandler } from '@indexer/handlers/blockHandler'
+import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
@@ -46,9 +46,9 @@ class EventListener {
     if (listen) {
       this.listenToEvents(filter)
     }
-    // if (listenToBlocks) {
-    //   this.listenToNewBlocks()
-    // }
+    if (listenToBlocks) {
+      this.listenToNewBlocks()
+    }
   }
 
   private async crawl(filter: any) {

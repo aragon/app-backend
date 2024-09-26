@@ -8,7 +8,7 @@ import { Models } from '@dbModels'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Dao from '@models/schema/dao'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:BlockHandler' })
+const llo = logger.logMeta.bind(null, { service: 'service:aragon-transactions:BlockHandler' })
 
 export const BlockHandler = {
   processNewBlock: async (block: any, network: NetworksEnum) => {
@@ -24,6 +24,10 @@ export const BlockHandler = {
 
         const dao = await Models.Dao.findByAddress(tx.to, network)
         if (dao) {
+          logger.verbose(
+            'New Block incoming transaction found',
+            llo({ network, daoAddress: dao, transactionHas: tx.hash }),
+          )
           await BlockHandler.sendDaoMessages(dao)
         }
       }),
