@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { EnumConnection, IEnumIndexerService, type IService } from '@types'
+import { EnumConnection, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { NetworkHelper } from '@helpers/network'
 import ConfigIndexer from '@indexer/configIndexer'
@@ -9,7 +9,6 @@ const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
 export interface IExtendedService extends IService {
   initializeEventListeners: (networks: any[]) => EventListener[]
-  runCrawlersInOrder: (eventListeners: EventListener[], orderedServices: IEnumIndexerService[][]) => Promise<void>
   startRealtimeListeners: (eventListeners: EventListener[]) => Promise<void>
 }
 
@@ -19,21 +18,8 @@ const IndexerService: IExtendedService = {
   start: async function () {
     logger.info('IndexerService started', llo({}))
 
-    const networks = NetworkHelper.supportedNetworks() // Ensure async/await is used
-
-    const orderedServices = [
-      [IEnumIndexerService.logPluginRepoRegistry, IEnumIndexerService.logDaoRegistry],
-      [IEnumIndexerService.logMetadata, IEnumIndexerService.logPluginSetupProcessor],
-      [IEnumIndexerService.logTokenVoting],
-      [IEnumIndexerService.logMultisig, IEnumIndexerService.logGovernanceErc20],
-    ]
-
+    const networks = NetworkHelper.supportedNetworks()
     const eventListeners: EventListener[] = IndexerService.initializeEventListeners(networks)
-
-    // fetch historical data
-    await IndexerService.runCrawlersInOrder(eventListeners, orderedServices)
-
-    logger.info('IndexerService historical logs end', llo({}))
 
     // fetch realtime data
     await IndexerService.startRealtimeListeners(eventListeners)
@@ -67,22 +53,6 @@ const IndexerService: IExtendedService = {
     return eventListeners
   },
 
-  // Run all crawlers in the specified order
-  async runCrawlersInOrder(eventListeners: EventListener[], orderedServices: IEnumIndexerService[][]) {
-    for (const group of orderedServices) {
-      const crawlers = eventListeners
-        .filter(
-          listener =>
-            group.includes(listener.name) && listener.listen.some(eventConfig => eventConfig.enableHistorical),
-        )
-        .map(async listener => listener.start(true, false, false)) // Start crawler only
-
-      if (crawlers.length > 0) {
-        await Promise.all(crawlers)
-      }
-    }
-  },
-
   // Start all real-time listeners
   async startRealtimeListeners(eventListeners: EventListener[]) {
     const realtimeListeners = eventListeners.filter(listener =>
@@ -91,7 +61,7 @@ const IndexerService: IExtendedService = {
 
     if (realtimeListeners.length > 0) {
       await Promise.all(
-        realtimeListeners.map(async listener => listener.start(false, true, false)), // Start listener only
+        realtimeListeners.map(async listener => listener.start(false, false, true)), // Start onBlock
       )
     }
   },
