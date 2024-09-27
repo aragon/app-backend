@@ -29,7 +29,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
-      } else if (error?.reason.includes('future lookup')) {
+      } else if (error?.reason?.includes('future lookup')) {
         logger.warn(
           'ForceRetry, retrying...',
           llo({ retryCount, wait: retryDelay(retryCount), fn: requestFunction.toString(), error }),
