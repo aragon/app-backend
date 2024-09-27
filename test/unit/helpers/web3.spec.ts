@@ -10,6 +10,7 @@ import proxyquire from 'proxyquire'
 import ProviderModule from '@modules/provider'
 import { RateModule } from '@modules/rates'
 import utils from '@helpers/utils'
+import {ProxyToken} from "@modules/proxyToken";
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -743,7 +744,7 @@ describe('Helpers:Web3', () => {
       } as any)
 
       const balance = await Web3Helper.getBalance(fakeAddress, fakeNetwork)
-      expect(balance).to.equal('2') // Check if conversion from wei to ether is correct
+      expect(balance).to.equal('2.0') // Check if conversion from wei to ether is correct
       expect(providerStub.send.calledOnce).to.be.true
       expect(providerStub.send.calledWith('eth_getBalance', [fakeAddress])).to.be.true
       expect(stubRate.calledOnce).to.be.true
@@ -777,6 +778,9 @@ describe('Helpers:Web3', () => {
         send: sandbox.stub().resolves(fakeResponse),
       }
       sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').returns({
+        decimals: 0,
+      } as any)
 
       const balances = await Web3Helper.getTokenBalances(fakeAddress, fakeNetwork)
       expect(balances.length).to.equal(2)
