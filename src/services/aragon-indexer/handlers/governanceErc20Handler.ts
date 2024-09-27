@@ -103,7 +103,6 @@ export const GovernanceErc20Handler = {
               blockNumber: info.blockNumber,
               network: info.network,
             },
-            true,
           ),
           memberVotingPower: newVotingPower.toString(),
         },
@@ -200,7 +199,6 @@ export const GovernanceErc20Handler = {
         info.blockNumber,
         blockTimestamp,
         info.network,
-        true,
       )
       const logDb = await Models.MemberTransaction.create(
         {
@@ -288,7 +286,6 @@ export const GovernanceErc20Handler = {
         info.blockNumber,
         blockTimestamp,
         info.network,
-        true,
       )
 
       const logDb = await Models.MemberTransaction.create(
