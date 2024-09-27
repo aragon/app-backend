@@ -4,9 +4,6 @@ import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { type IEnumIndexerService, type IEventConfig, type IIndexerConfig, type NetworksEnum } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
-import { BlockHandler } from '@indexer/handlers/blockHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
