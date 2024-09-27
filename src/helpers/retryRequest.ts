@@ -6,11 +6,10 @@ const llo = logger.logMeta.bind(null, { service: 'RetryRequestHelper' })
 
 interface RetryOptions {
   maxRetries?: number
-  forceRetry?: boolean
 }
 
 export async function retryRequest<T>(requestFunction: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
-  const { maxRetries = 10, forceRetry } = options
+  const { maxRetries = 10 } = options
   const retryDelay = (retryCount: number) => Math.pow(2, retryCount) * 1000
 
   let retryCount = 0
@@ -30,7 +29,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
-      } else if (forceRetry) {
+      } else if (error?.reason.includes('future lookup')) {
         logger.warn(
           'ForceRetry, retrying...',
           llo({ retryCount, wait: retryDelay(retryCount), fn: requestFunction.toString(), error }),
