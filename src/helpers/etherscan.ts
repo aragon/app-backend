@@ -74,7 +74,7 @@ const EtherscanHelper = {
     }
   },
 
-  fetchContractSourceCode: async ({ contractAddress, network }): Promise<IEtherScanSource | null> => {
+  fetchContractSourceCode: async ({ contractAddress, network }): Promise<IEtherScanSource[] | null> => {
     const apiKey = EtherscanHelper._parseNetworkToConfig(network).API_KEY
     const params = {
       module: 'contract',

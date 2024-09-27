@@ -3,6 +3,7 @@ import { Contract, ethers, getAddress, ZeroAddress } from 'ethers'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
+import { retryRequest } from '@helpers/retryRequest'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyContractHelper' })
 
@@ -49,14 +50,20 @@ const ProxyContractHelper = {
     return null
   },
 
-  async getImplementationAddress(address: string, network: NetworksEnum): Promise<HexAddress | null> {
+  async getImplementationAddress(
+    address: string,
+    network: NetworksEnum,
+    forceRetry = false,
+  ): Promise<HexAddress | null> {
     const provider = ProviderModule.getProvider(network)!
 
     // Helper function to extract an address from a storage slot
     async function getAddressFromStorage(slot: string): Promise<HexAddress | null> {
       try {
-        const storageValue = await BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-          provider.getStorage(address, slot),
+        const storageValue = await retryRequest(
+          async () =>
+            BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getStorage(address, slot)),
+          { forceRetry },
         )
         const addressFromStorage = getAddress('0x' + storageValue.slice(-40))
         return addressFromStorage === ZeroAddress ? null : addressFromStorage
