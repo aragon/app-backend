@@ -50,20 +50,14 @@ const ProxyContractHelper = {
     return null
   },
 
-  async getImplementationAddress(
-    address: string,
-    network: NetworksEnum,
-    forceRetry = false,
-  ): Promise<HexAddress | null> {
+  async getImplementationAddress(address: string, network: NetworksEnum): Promise<HexAddress | null> {
     const provider = ProviderModule.getProvider(network)!
 
     // Helper function to extract an address from a storage slot
     async function getAddressFromStorage(slot: string): Promise<HexAddress | null> {
       try {
-        const storageValue = await retryRequest(
-          async () =>
-            BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getStorage(address, slot)),
-          { forceRetry },
+        const storageValue = await retryRequest(async () =>
+          BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getStorage(address, slot)),
         )
         const addressFromStorage = getAddress('0x' + storageValue.slice(-40))
         return addressFromStorage === ZeroAddress ? null : addressFromStorage

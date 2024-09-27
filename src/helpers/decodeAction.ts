@@ -403,7 +403,7 @@ class DecodeActions {
   }
 
   async parseContractNetspec(functionName: string, address: string, network: NetworksEnum) {
-    let implementationAddress = await ProxyContract.getImplementationAddress(address, network, true)
+    let implementationAddress = await ProxyContract.getImplementationAddress(address, network)
 
     if (!implementationAddress) {
       implementationAddress = address
