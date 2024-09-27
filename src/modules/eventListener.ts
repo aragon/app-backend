@@ -4,9 +4,6 @@ import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { type IEnumIndexerService, type IEventConfig, type IIndexerConfig, type NetworksEnum } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
-import { BlockHandler } from '@indexer/handlers/blockHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
@@ -36,7 +33,7 @@ class EventListener {
     return new Interface(this.abi)
   }
 
-  async start(crawl = false, listen = false, listenToBlocks = false) {
+  async start(crawl = false, listen = false) {
     const eventTopics = this.getEventTopics()
     const filter = { topics: eventTopics }
 
@@ -45,9 +42,6 @@ class EventListener {
     }
     if (listen) {
       this.listenToEvents(filter)
-    }
-    if (listenToBlocks) {
-      this.listenToNewBlocks()
     }
   }
 
@@ -96,27 +90,6 @@ class EventListener {
     } catch (error) {
       logger.error('Event listener error', llo({ error, name: this.name, network: this.networkName }))
     }
-  }
-
-  private listenToNewBlocks() {
-    const provider = ProviderModule.getProvider(this.networkName)
-    if (!provider) {
-      logger.error('Provider not available for network', llo({ network: this.networkName }))
-      return
-    }
-
-    provider.on('block', async (blockNumber: number) => {
-      try {
-        const block = await retryRequest(async () =>
-          BottleneckModule.getNodeLimiter(this.networkName)!.schedule(async () => provider.getBlock(blockNumber)),
-        )
-        await BlockHandler.processNewBlock(block, this.networkName)
-      } catch (error) {
-        logger.warn('Error fetching block data', llo({ network: this.networkName, blockNumber, error }))
-      }
-    })
-
-    logger.verbose('Listening to new block events', llo({ network: this.networkName }))
   }
 
   private async processLog(txLog: Log) {
