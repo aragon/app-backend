@@ -141,11 +141,6 @@ class DecodeActions {
       }
     }
 
-    /**
-     * // TODO
-     * If the ether-scan api got hung up we need to have a timeout to prevent the process from hanging up.
-     */
-
     const contractNetspec = await this.parseContractNetspec(decoded.function, action.to, document.network!)
     logger.info('ContractNetspec', llo({ contractNetspec }))
 
@@ -408,18 +403,20 @@ class DecodeActions {
   }
 
   async parseContractNetspec(functionName: string, address: string, network: NetworksEnum) {
-    let implementationAddress = await ProxyContract.getImplementationAddress(address, network)
+    let implementationAddress = await ProxyContract.getImplementationAddress(address, network, true)
 
     if (!implementationAddress) {
       implementationAddress = address
     }
 
     const contractDetails = await retryRequest(async () =>
-      BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-        Etherscan.fetchContractSourceCode({
-          contractAddress: implementationAddress,
-          network,
-        }),
+      BottleneckModule.getNodeLimiter(network)!.schedule(
+        async () =>
+          Etherscan.fetchContractSourceCode({
+            contractAddress: implementationAddress,
+            network,
+          }),
+        { retryRequest: true },
       ),
     )
 
