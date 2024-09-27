@@ -10,7 +10,7 @@ import proxyquire from 'proxyquire'
 import ProviderModule from '@modules/provider'
 import { RateModule } from '@modules/rates'
 import utils from '@helpers/utils'
-import {ProxyToken} from "@modules/proxyToken";
+import { ProxyToken } from '@modules/proxyToken'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
