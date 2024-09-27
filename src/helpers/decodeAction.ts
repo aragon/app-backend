@@ -141,6 +141,23 @@ class DecodeActions {
       }
     }
 
+    /**
+     * // TODO
+     * If the ether-scan api got hung up we need to have a timeout to prevent the process from hanging up.
+     */
+
+    const contractNetspec = await this.parseContractNetspec(decoded.function, action.to, document.network!)
+    logger.info('ContractNetspec', llo({ contractNetspec }))
+
+    if (contractNetspec) {
+      decoded.notice = contractNetspec.notice
+      decoded.contract = contractNetspec.contractName
+      decoded.parameters = decoded.parameters.map((param, index) => {
+        param.notice = contractNetspec.inputs[index].notice
+        return param
+      })
+    }
+
     return {
       from: document?.daoAddress!,
       to: action.to,
@@ -372,7 +389,7 @@ class DecodeActions {
 
       const iface = new Interface([`function ${signatureInfo.text_signature}`])
       const decoded = iface.decodeFunctionData(signatureInfo.text_signature, data as any)
-      const decodedFormatted = decoded.toArray().map((item: any) => (item instanceof BigInt ? item.toString() : item))
+      const decodedFormatted = JSON.parse(Utils.JSONStringifyCircular(decoded.toArray()))
       const paramters = signatureInfo.text_signature.split('(')[1].split(')')[0]
       const parametersWithValue = paramters.split(',').map((item, index) => ({
         type: item,
@@ -406,16 +423,16 @@ class DecodeActions {
       ),
     )
 
-    if (contractDetails) {
+    if (contractDetails && contractDetails.length > 0) {
       const results = ContractNetspecHelper.parseNetspec(
-        contractDetails.SourceCode,
-        contractDetails.ContractName,
-        JSON.parse(contractDetails.ABI),
+        contractDetails[0].SourceCode,
+        contractDetails[0].ContractName,
+        JSON.parse(contractDetails[0].ABI),
       )
 
       const abiWithNetspec = results.find((action: any) => action.name === functionName)
       return {
-        contractName: contractDetails.ContractName,
+        contractName: contractDetails[0].ContractName,
         inputs: abiWithNetspec?.inputs,
         notice: abiWithNetspec?.notice,
       }
