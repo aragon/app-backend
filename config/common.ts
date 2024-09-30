@@ -182,10 +182,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           6 * 60 * 60 * 1000,
         ), // 6 hours
       },
-
-      ARAGON_TRANSACTIONS: {
-        TX_CONFIRMATIONS: utils.configParser(sourceConfig, 'number', 'ARAGON_TRANSACTIONS_TX_CONFIRMATIONS', 10), // 10 blocks
-      },
     },
 
     CRAWLER_CONFIG: {
