@@ -80,6 +80,7 @@ describe('Helpers: DecodeActions', () => {
     const stubDecodeFallback = sandbox.stub(decodeActions, '_decodeFallback').resolves({
       textSignature: 'mockSig(address,uint256)',
     } as any)
+    const stubNetspec = sandbox.stub(decodeActions, 'parseContractNetspec').resolves(null as any)
 
     const result = await decodeActions.decodeData(action, {
       network: NetworksEnum.ethereumMainnet,
@@ -96,6 +97,7 @@ describe('Helpers: DecodeActions', () => {
     })
     expect(stubDecodeAbi.calledOnceWith(action)).to.be.true
     expect(stubDecodeFallback.calledOnceWith(action.data)).to.be.true
+    expect(stubNetspec.calledOnce).to.be.true
   })
 
   it('Should fail decodeData', async () => {
@@ -590,11 +592,13 @@ describe('Helpers: DecodeActions', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      const getContractSourceCode = sandbox.stub(Etherscan, 'fetchContractSourceCode').resolves({
-        SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
-        ContractName: 'IERC20MintableUpgradeable',
-        ABI: '[]',
-      })
+      const getContractSourceCode = sandbox.stub(Etherscan, 'fetchContractSourceCode').resolves([
+        {
+          SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
+          ContractName: 'IERC20MintableUpgradeable',
+          ABI: '[]',
+        },
+      ])
       const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([
         {
           inputs: [
