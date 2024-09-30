@@ -10,6 +10,7 @@ import {
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import type DaoMemberMapping from '@models/schema/daoMemberMapping'
+import ModelUtils from '@models/utils/models'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -26,6 +27,10 @@ const MemberController = {
     })
 
     const memberAddresses = mapping.map((w: DaoMemberMapping) => w.memberAddress)
+
+    if (Object.values(extraParams).length > 0 && memberAddresses.length === 0) {
+      return ModelUtils.paginateEmptyResponse(paginationParams.limit!)
+    }
 
     const result = await Models.Member.findWithPagination({
       extraParams,
