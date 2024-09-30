@@ -1,14 +1,15 @@
 import logger from '@logger'
 import { type TransactionResponse } from 'ethers'
-import { EnumQueueName, type HexAddress, type NetworksEnum } from '@types'
+import { EnumQueueName, type HexAddress, type IWebSocketProvider, type NetworksEnum } from '@types'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { Models } from '@dbModels'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Dao from '@models/schema/dao'
+import utils from '@helpers/utils'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:BlockHandler' })
+const llo = logger.logMeta.bind(null, { service: 'service:aragon-transactions:BlockHandler' })
 
 export const BlockHandler = {
   processNewBlock: async (block: any, network: NetworksEnum) => {
@@ -19,12 +20,33 @@ export const BlockHandler = {
 
     await Promise.all(
       block.transactions.map(async (txHash: HexAddress) => {
-        const tx = await BlockHandler.fetchTransactionWithRetry(txHash, network, provider)
+        const tx = await BlockHandler.fetchTransaction(txHash, network, provider)
         if (!tx?.to) return null
 
         const dao = await Models.Dao.findByAddress(tx.to, network)
+
         if (dao) {
+          logger.verbose(
+            'New pending incoming transaction',
+            llo({
+              network,
+              daoAddress: dao,
+              transactionHas: tx.hash,
+            }),
+          )
+
+          // alchemy instance node not always up-to-date
+          await utils.wait(7000)
           await BlockHandler.sendDaoMessages(dao)
+
+          logger.verbose(
+            'New confirmed incoming transaction',
+            llo({
+              network,
+              daoAddress: dao,
+              transactionHas: tx.hash,
+            }),
+          )
         }
       }),
     )
@@ -52,14 +74,14 @@ export const BlockHandler = {
     }
   },
 
-  fetchTransactionWithRetry: async (
+  fetchTransaction: async (
     txHash: string,
     network: NetworksEnum,
-    provider: any,
+    provider: IWebSocketProvider,
   ): Promise<TransactionResponse | null> => {
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(() => provider.getTransaction(txHash)),
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getTransaction(txHash)),
       )
     } catch (error) {
       logger.warn('Failed to fetch transaction', llo({ txHash, error, network }))
