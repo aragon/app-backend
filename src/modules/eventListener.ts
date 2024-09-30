@@ -39,6 +39,7 @@ class EventListener {
 
     if (crawl) {
       await this.crawl(filter)
+      // TODO: re-sync all plugins
     }
     if (listen) {
       this.listenToEvents(filter)
