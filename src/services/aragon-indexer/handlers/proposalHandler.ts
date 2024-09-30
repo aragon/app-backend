@@ -51,11 +51,11 @@ export const ProposalHandler = {
       blockNumber: info.blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
       transactionHash: info.transactionHash,
-      title: proposalMetadata.title!,
-      description: proposalMetadata.description!,
-      summary: proposalMetadata.summary!,
-      resources: proposalMetadata.resources as any,
-      media: proposalMetadata.media as any,
+      title: proposalMetadata?.title!,
+      description: proposalMetadata?.description!,
+      summary: proposalMetadata?.summary!,
+      resources: proposalMetadata?.resources as any,
+      media: proposalMetadata?.media as any,
       daoAddress: relatedPlugin.daoAddress,
       pluginAddress,
       pluginSubdomain: relatedPlugin.subdomain,
@@ -327,10 +327,13 @@ export const ProposalHandler = {
     })
   },
 
-  fetchProposalMetadata: async (metadataUri: string): Promise<IProposalMetadata> => {
-    const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 1 })
-    const proposalMetadata = Web3Helper.parseProposalMetadata(ipfsMetadata!)
-    return proposalMetadata
+  fetchProposalMetadata: async (metadataUri: string): Promise<IProposalMetadata | null> => {
+    try {
+      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 1 })
+      return Web3Helper.parseProposalMetadata(ipfsMetadata!)
+    } catch (error) {
+      return null
+    }
   },
 
   handleStartEndDate: async (proposal: Proposal): Promise<{ startDate: number; endDate: number }> => {
