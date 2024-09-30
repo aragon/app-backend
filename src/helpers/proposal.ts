@@ -29,30 +29,26 @@ const ProposalHelper = {
     network: NetworksEnum
   }): Promise<IProposalOnChain> {
     if (proposalType === IProposalType.tokenVoting) {
-      return await ProposalHelper.getProposalTokenVoting({ proposalIndex, pluginAddress, network }, true)
+      return await ProposalHelper.getProposalTokenVoting({ proposalIndex, pluginAddress, network })
     } else {
-      return await ProposalHelper.getProposalMultisig({ proposalIndex, pluginAddress, network }, true)
+      return await ProposalHelper.getProposalMultisig({ proposalIndex, pluginAddress, network })
     }
   },
 
-  async getProposalTokenVoting(
-    {
-      proposalIndex,
-      pluginAddress,
-      network,
-    }: {
-      proposalIndex: number
-      pluginAddress: HexAddress
-      network: NetworksEnum
-    },
-    forceRetry: boolean = false,
-  ): Promise<IProposalTokenVotingOnChain | null> {
+  async getProposalTokenVoting({
+    proposalIndex,
+    pluginAddress,
+    network,
+  }: {
+    proposalIndex: number
+    pluginAddress: HexAddress
+    network: NetworksEnum
+  }): Promise<IProposalTokenVotingOnChain | null> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(pluginAddress, TokenVoting.abi, provider)
     try {
-      return await retryRequest(
-        async () => BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(proposalIndex)),
-        { forceRetry },
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(proposalIndex)),
       )
     } catch (error) {
       logger.error('Error getting proposal tokenVoting', llo({ proposalIndex, pluginAddress, network, error }))
@@ -60,24 +56,20 @@ const ProposalHelper = {
     }
   },
 
-  async getProposalMultisig(
-    {
-      proposalIndex,
-      pluginAddress,
-      network,
-    }: {
-      proposalIndex: number
-      pluginAddress: HexAddress
-      network: NetworksEnum
-    },
-    forceRetry: boolean = false,
-  ): Promise<IProposalMultisigOnChain | null> {
+  async getProposalMultisig({
+    proposalIndex,
+    pluginAddress,
+    network,
+  }: {
+    proposalIndex: number
+    pluginAddress: HexAddress
+    network: NetworksEnum
+  }): Promise<IProposalMultisigOnChain | null> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(pluginAddress, Multisig.abi, provider)
     try {
-      return await retryRequest(
-        async () => BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(proposalIndex)),
-        { forceRetry },
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(proposalIndex)),
       )
     } catch (error) {
       logger.error('Error getting proposal multisig', llo({ proposalIndex, pluginAddress, network, error }))
