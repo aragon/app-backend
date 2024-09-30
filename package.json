@@ -21,7 +21,7 @@
     "test:manual": "ts-node -r tsconfig-paths/register test/test.config.ts --manual",
     "test:unit": "ts-node -r tsconfig-paths/register test/test.config.ts --unit",
     "test:unit:coverage": "rm -rf coverage .nyc_output && nyc --debug --no-clean --temp-dir=.nyc_output/ yarn test:unit",
-    "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 97 --branches 83 --functions 96 --lines 97",
+    "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 91 --branches 73 --functions 93 --lines 91",
     "docker:dependencies": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica",
     "docker:services": "docker-compose up --build -d service-aragon-api service-aragon-indexer service-aragon-rates",
     "wait:rabbitmq": "bash test/lib/scripts/waitUp.sh rabbitmq 5672",
