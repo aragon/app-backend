@@ -10,12 +10,16 @@ import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
 import { DaoList } from '@test/mock/fakeDao'
 import DaoMemberMapping from '@models/schema/daoMemberMapping'
 import type Dao from '@models/schema/dao'
+import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
+import MemberBalance from '@models/schema/memberBalance'
+import { HexAddress } from '@types'
 
 describe('Controller: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
   let rawDaoMemberMapping: Partial<DaoMemberMapping>
   let rawDao: Partial<Dao>
+  let rawMemberBalance: Partial<MemberBalance>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -26,10 +30,18 @@ describe('Controller: Member', () => {
 
     rawDaoMemberMapping = {
       ...(FakeDaoMemberMappings[0] as any),
+      memberAddress: FakeMember.address,
+      daoAddress: DaoList[0].address,
+      pluginAddress: FakeDaoMemberMappings[0].pluginAddress,
     }
 
     rawDao = {
       ...(DaoList[0] as any),
+    }
+
+    rawMemberBalance = {
+      ...(fakeMemberBalance as any),
+      address: FakeMember.address,
     }
 
     rawDaoMemberMapping.memberAddress = FakeMember.address
@@ -39,6 +51,7 @@ describe('Controller: Member', () => {
     await Models.Member.create(rawMember)
     await Models.DaoMemberMapping.create(rawDaoMemberMapping)
     await Models.Dao.create(rawDao)
+    await Models.MemberBalance.create(rawMemberBalance)
   })
 
   afterEach(() => {
@@ -201,5 +214,20 @@ describe('Controller: Member', () => {
       expect(spyReq.calledOnce).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
     })
+  })
+
+  it('it should get member by address', async () => {
+    const response = await MemberController.getMemberByAddress(
+      rawMember.address as HexAddress,
+      {
+        daoAddress: rawDaoMemberMapping.daoAddress,
+        network: rawDaoMemberMapping.network,
+        pluginAddress: rawDaoMemberMapping.pluginAddress,
+      },
+      {},
+    )
+
+    expect(response.address).to.eq(rawMember.address)
+    expect(response.ens).to.eq(rawMember.ens)
   })
 })

@@ -130,4 +130,15 @@ describe('Model: DaoMemberMappings', () => {
     expect(result.data.length).to.eq(1)
     expect(stubPaginateAndSort.calledTwice).to.be.true
   })
+
+  it('should find empty transfer by member with pagination', async () => {
+    const stubPaginateAndSort = sandbox.stub(Models.DaoMemberMapping, 'aggregate').resolves([])
+    const result = await Models.DaoMemberMapping.findTransferByMemberWithPagination({
+      extraParams: { memberAddress: rawMember.address, network: rawDao.network },
+      paginationParams: { page: 1, pageSize: 10 },
+    })
+
+    expect(result.data.length).to.eq(0)
+    expect(stubPaginateAndSort.calledTwice).to.be.true
+  })
 })
