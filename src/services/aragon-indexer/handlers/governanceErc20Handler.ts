@@ -225,7 +225,7 @@ export const GovernanceErc20Handler = {
       return logDb
     })
 
-    if (BigInt(memberTransaction.memberBalance) === 0n && memberTransaction.votingPower === 0n) {
+    if (BigInt(memberTransaction.memberBalance) === 0n && BigInt(memberTransaction.memberVotingPower) === 0n) {
       await ProxyMember.removeFromDao({
         memberAddress,
         daoAddress: plugin.daoAddress,
