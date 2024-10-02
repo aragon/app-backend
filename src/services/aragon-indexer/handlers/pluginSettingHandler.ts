@@ -201,6 +201,7 @@ export const PluginSettingHandler = {
 
   pairSppPlugins: async (plugin: Plugin, settings: Setting, info: ILogInfo) => {
     // TODO: i think may not be necessary to define pluginType: 'BODY' | 'PROCESS'
+    // plugin.subPlugins.length > 0 || !plugin.parentPlugin ? 'BODY' : 'PROCESS'
 
     // update SPP plugin
     const rawPluginUpdate = {
