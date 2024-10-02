@@ -20,7 +20,7 @@ export enum IEnumTaskStatus {
 }
 
 export enum IEnumIndexerService {
-  // logStageProposalProcessor = 'logStageProposalProcessor',
+  logStageProposalProcessor = 'logStageProposalProcessor',
   logPluginRepoRegistry = 'logPluginRepoRegistry',
   logDaoRegistry = 'logDaoRegistry',
   logPluginSetupProcessor = 'logPluginSetupProcessor',

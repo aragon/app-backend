@@ -149,6 +149,7 @@ export const AggregationQueryHelper = {
     }
   },
 
+  // TODO: for spp plugin check interface https://aragonassociation.atlassian.net/browse/APP-3661
   plugin: (
     { daoAddress, pluginAddress, network, status }: IAggPluginParams,
     as: string = 'plugin',

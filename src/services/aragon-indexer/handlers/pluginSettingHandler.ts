@@ -1,10 +1,11 @@
 import logger from '@logger'
-import { type ILogInfo, ISettingStatus } from '@types'
+import { type ILogInfo, IPluginProposalType, ISettingStatus } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
+import type Setting from '@models/schema/setting'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
 
@@ -62,6 +63,8 @@ export const PluginSettingHandler = {
       )
     }
 
+    await PluginSettingHandler.isSupported(relatedPlugin, info)
+
     return relatedPlugin
   },
 
@@ -114,6 +117,136 @@ export const PluginSettingHandler = {
       )
     }
 
+    await PluginSettingHandler.isSupported(relatedPlugin, info)
+
     return relatedPlugin
+  },
+
+  sppSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
+    const { address: pluginAddress, transactionHash, blockNumber, network } = info
+    const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, network)
+
+    if (!relatedPlugin) {
+      logger.warn('Plugin not found', llo(info))
+      return
+    }
+
+    const existingLog = await Models.Setting.findExistingLog({
+      transactionHash,
+      pluginAddress,
+    })
+
+    if (existingLog) return
+
+    const activePluginSetting = await Models.Setting.findActive({
+      network: info.network,
+      pluginAddress,
+    })
+
+    const settingLog = {
+      blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
+      transactionHash,
+      status: ISettingStatus.active,
+      daoAddress: relatedPlugin.daoAddress,
+      pluginAddress,
+      pluginSubdomain: relatedPlugin.subdomain,
+      tokenAddress: relatedPlugin.tokenAddress,
+      network,
+      stages: parsedEvent.args.stages.map((stage: any, index: number) => ({
+        stage: index,
+        minAdvance: Number(stage.minAdvance),
+        maxAdvance: Number(stage.maxAdvance),
+        voteDuration: stage.voteDuration ? Number(stage.voteDuration) : Number(stage.stageDuration || 0),
+        approvalThreshold: Number(stage.approvalThreshold),
+        vetoThreshold: Number(stage.vetoThreshold),
+        plugins: stage.plugins.map((plugin: any) => {
+          return {
+            address: plugin.pluginAddress,
+            isManual: plugin.isManual,
+            allowedBody: plugin.allowedBody,
+            proposalType: plugin.proposalType === 0n ? IPluginProposalType.Approval : IPluginProposalType.Veto,
+          }
+        }),
+      })),
+    }
+
+    const settings = await DbOperations.createDocument(
+      Models.Setting,
+      settingLog,
+      info,
+      'New Setting - sppSettingsUpdated',
+      llo,
+    )
+
+    if (activePluginSetting) {
+      await DbOperations.updateDocument(
+        activePluginSetting,
+        {
+          inactiveAtBlockNumber: blockNumber,
+          status: ISettingStatus.inactive,
+        },
+        { logId: activePluginSetting.id, info },
+        'Update SPP inactive plugin',
+        llo,
+      )
+    }
+
+    // pair plugins
+    await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
+    await PluginSettingHandler.isSupported(relatedPlugin, info)
+
+    return relatedPlugin
+  },
+
+  pairSppPlugins: async (plugin: Plugin, settings: Setting, info: ILogInfo) => {
+    // TODO: i think may not be necessary to define pluginType: 'BODY' | 'PROCESS'
+
+    // update SPP plugin
+    const rawPluginUpdate = {
+      totalStages: settings.stages.length,
+      subPlugins: settings.stages.map(stage => ({
+        stage: stage.stage,
+        plugins: stage.plugins.map(plugin => plugin.address),
+      })),
+    }
+    await DbOperations.updateDocument(plugin, rawPluginUpdate, { logId: plugin.id, info }, 'Update spp plugin', llo)
+
+    // Update sub-plugins for each stage
+    await Promise.all(
+      settings.stages.flatMap(stage =>
+        stage.plugins.map(async subPlugin => {
+          const relatedPlugin = await Models.Plugin.findByAddress(subPlugin.address, info.network)
+          if (!relatedPlugin) {
+            logger.error('Plugin not found - pairSppPlugins', llo({ ...info, address: subPlugin.address }))
+            return
+          }
+
+          const rawSubPluginUpdate = {
+            stage: stage.stage,
+            parentPlugin: plugin.address,
+          }
+
+          const log = { logId: relatedPlugin.id, info }
+          await DbOperations.updateDocument(relatedPlugin, rawSubPluginUpdate, log, 'Update sub-plugin', llo)
+        }),
+      ),
+    )
+  },
+
+  proposalAdvanced: async (parsedEvent: LogDescription, info: ILogInfo): Promise<void> => {
+    // TODO: it should have parsedEvent.args.proposalId, parsedEvent.args.newStage
+    const proposal = await Models.Proposal.findByProposalIndex(parsedEvent.args.proposalId, info.address, info.network)
+
+    if (!proposal) {
+      logger.warn('Proposal not found', llo(info))
+    }
+  },
+
+  isSupported: async (plugin: Plugin, info: ILogInfo): Promise<void> => {
+    if (!plugin.isSupported) {
+      const rawUpdate = { isSupported: true }
+      await DbOperations.updateDocument(plugin, rawUpdate, { logId: plugin.id, info }, 'Update plugin isSupported', llo)
+    }
   },
 }
