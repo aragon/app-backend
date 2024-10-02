@@ -14,7 +14,7 @@ import { DAO } from '@artifacts/dao'
 import { MetadataHandler } from '@indexer/handlers/metadataHandler'
 import { ProposalHandler } from '@indexer/handlers/proposalHandler'
 import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
-// import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -196,19 +196,25 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
     enabled: true,
   },
-  // {
-  //   name: IEnumIndexerService.logStageProposalProcessor,
-  //   abi: StagedProposalProcessor.abi,
-  //   listen: [
-  //     {
-  //       event: 'StagesUpdated',
-  //       handler: PluginSettingHandler.stateProposalUpdate,
-  //       enableHistorical: false,
-  //       enableRealtime: true,
-  //     },
-  //   ],
-  //   enabled: false,
-  // },
+  {
+    name: IEnumIndexerService.logStageProposalProcessor,
+    abi: StagedProposalProcessor.abi,
+    listen: [
+      {
+        event: 'StagesUpdated',
+        handler: PluginSettingHandler.sppSettingsUpdated,
+        enableHistorical: false,
+        enableRealtime: true,
+      },
+      {
+        event: 'ProposalAdvanced',
+        handler: PluginSettingHandler.proposalAdvanced,
+        enableHistorical: false,
+        enableRealtime: true,
+      },
+    ],
+    enabled: true,
+  },
 ]
 
 export default IndexerEventConfig

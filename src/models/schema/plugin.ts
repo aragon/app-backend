@@ -6,6 +6,14 @@ import { assert } from '@errors'
 
 const customName = ICollectionNames.Plugin
 
+export class SubPlugin {
+  @prop({ type: () => String, default: null })
+  public address!: HexAddress | null
+
+  @prop({ type: () => Number })
+  public stage?: number
+}
+
 export class PluginPermission {
   @prop({ type: () => Number, default: null })
   public operation!: number
@@ -77,11 +85,11 @@ export default class Plugin extends Model {
   @prop({ type: () => String, default: null })
   public implementationAddress?: HexAddress
 
-  // @prop({ type: () => String, default: null })
-  // public parentPlugin?: HexAddress
-
   @prop({ type: () => String, enum: IPluginStatus, required: true })
   public status!: IPluginStatus
+
+  @prop({ type: () => Boolean, default: false })
+  public isSupported!: boolean
 
   @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
@@ -109,6 +117,20 @@ export default class Plugin extends Model {
 
   @prop({ type: () => PluginUninstalled, _id: false, default: {} })
   public uninstalled!: PluginUninstalled
+
+  // SPP plugin
+  @prop({ type: () => Number })
+  public totalStages?: number
+
+  @prop({ type: () => [SubPlugin], _id: false })
+  public subPlugins!: SubPlugin[]
+
+  // SPP sub-plugins
+  @prop({ type: () => Number })
+  public stage?: number
+
+  @prop({ type: () => String })
+  public parentPlugin?: HexAddress
 
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {

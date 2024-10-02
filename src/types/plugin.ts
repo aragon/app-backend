@@ -1,3 +1,8 @@
+export enum IPluginProposalType {
+  Approval = 'Approval',
+  Veto = 'Veto',
+}
+
 export enum IPluginSubdomain {
   multisig = 'multisig',
   token = 'token-voting',

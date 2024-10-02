@@ -78,9 +78,6 @@ export default class Dao extends Model {
   @prop({ type: () => Boolean, default: false })
   public isHidden!: boolean
 
-  @prop({ type: () => Boolean, default: false })
-  public isSupported!: boolean
-
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
@@ -160,6 +157,7 @@ export default class Dao extends Model {
     return await this.findOne({ address, network }, tOpts)
   }
 
+  // TODO: for spp plugin check interface https://aragonassociation.atlassian.net/browse/APP-3661
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},

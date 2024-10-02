@@ -21,7 +21,6 @@ import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Plugin from '@models/schema/plugin'
 import { LogTokenVoting } from '@indexer/logTokenVoting'
 import { LogMultisig } from '@indexer/logMultisig'
-import type Dao from '@models/schema/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:DaoRegistryHandler' })
 
@@ -104,10 +103,6 @@ export const DaoRegistryHandler = {
           //  */
           // await DaoRegistryHandler._memberAdded(txReceipt, info, plugin)
           //
-
-          // update the dao as supported
-          await DaoRegistryHandler._updateSupportedDao(plugin)
-
           // TODO: add to the queue
           if (plugin.tokenAddress) {
             await LogTokenVoting.start(plugin)
@@ -216,27 +211,5 @@ export const DaoRegistryHandler = {
         }),
       )
     }
-  },
-
-  _updateSupportedDao: async (plugin: Plugin): Promise<Dao | undefined> => {
-    if (!plugin) return
-
-    const dao = await Models.Dao.findByAddress(plugin.daoAddress, plugin.network)
-    if (!dao) {
-      logger.error('Dao not found', llo({ logId: plugin.id }))
-      return
-    }
-
-    if (!dao.isSupported) {
-      await DbOperations.updateDocument(
-        dao,
-        { isSupported: true },
-        { logId: dao.id },
-        'Dao Supported - setting fetched',
-        llo,
-      )
-    }
-
-    return dao
   },
 }
