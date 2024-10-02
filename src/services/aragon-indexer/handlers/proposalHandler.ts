@@ -46,6 +46,9 @@ export const ProposalHandler = {
     const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
     const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
+    // TODO: relatedPlugin.parentPlugin check how to handle this
+    // https://aragonassociation.atlassian.net/browse/APP-3661
+
     const document: Partial<Proposal> = {
       network: info.network,
       blockNumber: info.blockNumber,
