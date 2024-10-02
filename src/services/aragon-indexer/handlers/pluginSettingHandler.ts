@@ -209,6 +209,7 @@ export const PluginSettingHandler = {
       subPlugins: settings.stages.map(stage => ({
         stage: stage.stage,
         plugins: stage.plugins.map(plugin => plugin.address),
+        // pluginType: 'BODY'
       })),
     }
     await DbOperations.updateDocument(plugin, rawPluginUpdate, { logId: plugin.id, info }, 'Update spp plugin', llo)
@@ -226,6 +227,7 @@ export const PluginSettingHandler = {
           const rawSubPluginUpdate = {
             stage: stage.stage,
             parentPlugin: plugin.address,
+            // pluginType: 'PROCESS'
           }
 
           const log = { logId: relatedPlugin.id, info }
