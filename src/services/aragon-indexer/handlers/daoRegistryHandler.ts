@@ -1,5 +1,12 @@
 import logger from '@logger'
-import { EnumQueueName, type HexAddress, IEventLogMember, IEventLogPluginType, type ILogInfo } from '@types'
+import {
+  EnumQueueName,
+  type HexAddress,
+  IEventLogMember,
+  IEventLogPluginType,
+  type ILogInfo,
+  IPluginInterfaceType,
+} from '@types'
 import { type Log, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
@@ -21,6 +28,7 @@ import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Plugin from '@models/schema/plugin'
 import { LogTokenVoting } from '@indexer/logTokenVoting'
 import { LogMultisig } from '@indexer/logMultisig'
+import { LogSpp } from '@indexer/logSPP'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:DaoRegistryHandler' })
 
@@ -95,7 +103,7 @@ export const DaoRegistryHandler = {
     const plugins = await DaoRegistryHandler._pluginSettings(txReceipt, info)
 
     // TODO: handle dao with multiple plugins
-    if (plugins.length === 1) {
+    if (plugins.length > 0) {
       await Promise.all(
         plugins.map(async plugin => {
           // /**
@@ -104,10 +112,12 @@ export const DaoRegistryHandler = {
           // await DaoRegistryHandler._memberAdded(txReceipt, info, plugin)
           //
           // TODO: add to the queue
-          if (plugin.tokenAddress) {
+          if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
             await LogTokenVoting.start(plugin)
-          } else {
+          } else if (plugin.interfaceType === IPluginInterfaceType.multisig) {
             await LogMultisig.start(plugin)
+          } else if (plugin.interfaceType === IPluginInterfaceType.spp) {
+            await LogSpp.start(plugin)
           }
         }),
       )

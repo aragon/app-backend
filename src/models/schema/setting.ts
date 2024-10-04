@@ -36,7 +36,7 @@ export class PluginSetting {
 
 export class Stages {
   @prop({ type: () => Number })
-  public stage!: number
+  public stageIndex!: number
 
   @prop({ type: () => Number })
   public minAdvance!: number

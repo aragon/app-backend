@@ -1,3 +1,9 @@
+export interface IPluginInfo {
+  type: IPluginInterfaceType
+  proxy: boolean
+  implementationAddress: string | null
+}
+
 export enum IPluginProposalType {
   Approval = 'Approval',
   Veto = 'Veto',
@@ -21,6 +27,13 @@ export enum IPluginStatus {
   installed = 'installed',
   deprecated = 'deprecated',
   uninstalled = 'uninstalled',
+}
+
+export enum IPluginInterfaceType {
+  tokenVoting = 'tokenVoting',
+  multisig = 'multisig',
+  spp = 'spp',
+  unknown = 'unknown',
 }
 
 export enum ISettingStatus {

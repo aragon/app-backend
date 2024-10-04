@@ -1,3 +1,5 @@
+import { type HexAddress } from '@src/types/networks'
+
 export interface DaoResourceLink {
   name: string
   url: string
@@ -8,11 +10,6 @@ export interface IDaoMetadata {
   description?: string | null
   avatar?: string | null
   links?: DaoResourceLink[]
-}
-
-export enum IProposalType {
-  tokenVoting = 'tokenVoting',
-  multisig = 'multisig',
 }
 
 export interface IProposalMetadata {
@@ -35,6 +32,27 @@ export interface IPermission {
   who: string
   condition: string
   permissionId: string
+}
+
+export enum IOperationType {
+  Call = 0,
+  Delegate = 1,
+}
+
+export interface IProposalSPPOnChain {
+  allowFailureMap: string
+  creator: HexAddress
+  lastStageTransition: number
+  metadata: string
+  actions: IProposalActionOnChain[]
+  currentStage: number
+  stageConfigIndex: number
+  executed: boolean
+  targetConfig: {
+    target: HexAddress
+    operation: IOperationType
+  }
+  parameters?: any
 }
 
 export interface IProposalTokenVotingOnChain {
@@ -76,4 +94,4 @@ export interface IProposalActionOnChain {
   data: string
 }
 
-export type IProposalOnChain = IProposalTokenVotingOnChain | IProposalMultisigOnChain | null
+export type IProposalOnChain = IProposalTokenVotingOnChain | IProposalMultisigOnChain | IProposalSPPOnChain | null

@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
-import { NetworksEnum, IProposalType } from '@types'
+import { NetworksEnum, IPluginInterfaceType } from '@types'
 import logger from '@logger'
 
 describe('Helpers: ProposalHelper', () => {
@@ -35,7 +35,7 @@ describe('Helpers: ProposalHelper', () => {
       const mockParams = {
         proposalIndex: 1,
         pluginAddress: '0xpluginAddress',
-        proposalType: IProposalType.tokenVoting,
+        proposalType: IPluginInterfaceType.tokenVoting,
         network: NetworksEnum.ethereumMainnet,
       }
 
@@ -59,7 +59,7 @@ describe('Helpers: ProposalHelper', () => {
       const mockParams = {
         proposalIndex: 1,
         pluginAddress: '0xpluginAddress',
-        proposalType: IProposalType.multisig,
+        proposalType: IPluginInterfaceType.multisig,
         network: NetworksEnum.ethereumMainnet,
       }
 

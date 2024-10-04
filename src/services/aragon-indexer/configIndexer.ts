@@ -208,7 +208,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
       },
       {
         event: 'ProposalAdvanced',
-        handler: PluginSettingHandler.proposalAdvanced,
+        handler: ProposalHandler.proposalAdvanced,
         enableHistorical: false,
         enableRealtime: true,
       },

@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo, IPluginProposalType, ISettingStatus } from '@types'
+import { type ILogInfo, IPluginInterfaceType, IPluginProposalType, ISettingStatus } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
@@ -154,7 +154,7 @@ export const PluginSettingHandler = {
       tokenAddress: relatedPlugin.tokenAddress,
       network,
       stages: parsedEvent.args.stages.map((stage: any, index: number) => ({
-        stage: index,
+        stageIndex: index,
         minAdvance: Number(stage.minAdvance),
         maxAdvance: Number(stage.maxAdvance),
         voteDuration: stage.voteDuration ? Number(stage.voteDuration) : Number(stage.stageDuration || 0),
@@ -200,16 +200,13 @@ export const PluginSettingHandler = {
   },
 
   pairSppPlugins: async (plugin: Plugin, settings: Setting, info: ILogInfo) => {
-    // TODO: i think may not be necessary to define pluginType: 'BODY' | 'PROCESS'
-    // plugin.subPlugins.length > 0 || !plugin.parentPlugin ? 'BODY' : 'PROCESS'
-
     // update SPP plugin
     const rawPluginUpdate = {
+      isSubPlugin: plugin.parentPlugin, // it could be a sub-plugin of an other SPP
       totalStages: settings.stages.length,
       subPlugins: settings.stages.map(stage => ({
-        stage: stage.stage,
-        plugins: stage.plugins.map(plugin => plugin.address),
-        // pluginType: 'BODY'
+        stageIndex: stage.stageIndex,
+        addresses: stage.plugins.map(plugin => plugin.address),
       })),
     }
     await DbOperations.updateDocument(plugin, rawPluginUpdate, { logId: plugin.id, info }, 'Update spp plugin', llo)
@@ -225,9 +222,11 @@ export const PluginSettingHandler = {
           }
 
           const rawSubPluginUpdate = {
-            stage: stage.stage,
+            stageIndex: stage.stageIndex,
             parentPlugin: plugin.address,
-            // pluginType: 'PROCESS'
+            isSubPlugin: true, // set this plugin as subPlugin
+            isBody: relatedPlugin.interfaceType !== IPluginInterfaceType.spp,
+            isProcessor: relatedPlugin.interfaceType === IPluginInterfaceType.spp,
           }
 
           const log = { logId: relatedPlugin.id, info }
@@ -235,15 +234,6 @@ export const PluginSettingHandler = {
         }),
       ),
     )
-  },
-
-  proposalAdvanced: async (parsedEvent: LogDescription, info: ILogInfo): Promise<void> => {
-    // TODO: it should have parsedEvent.args.proposalId, parsedEvent.args.newStage
-    const proposal = await Models.Proposal.findByProposalIndex(parsedEvent.args.proposalId, info.address, info.network)
-
-    if (!proposal) {
-      logger.warn('Proposal not found', llo(info))
-    }
   },
 
   isSupported: async (plugin: Plugin, info: ILogInfo): Promise<void> => {
