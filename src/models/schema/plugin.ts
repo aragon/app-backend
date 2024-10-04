@@ -1,5 +1,12 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, ICollectionNames, type IPluginIdParams, IPluginStatus, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  ICollectionNames,
+  type IPluginIdParams,
+  IPluginInterfaceType,
+  IPluginStatus,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -7,11 +14,11 @@ import { assert } from '@errors'
 const customName = ICollectionNames.Plugin
 
 export class SubPlugin {
-  @prop({ type: () => String, default: null })
-  public address!: HexAddress | null
+  @prop({ type: () => [String], default: [] })
+  public addresses!: HexAddress[]
 
   @prop({ type: () => Number })
-  public stage?: number
+  public stageIndex?: number
 }
 
 export class PluginPermission {
@@ -85,6 +92,9 @@ export default class Plugin extends Model {
   @prop({ type: () => String, default: null })
   public implementationAddress?: HexAddress
 
+  @prop({ type: () => String, enum: IPluginInterfaceType, required: true })
+  public interfaceType!: IPluginInterfaceType
+
   @prop({ type: () => String, enum: IPluginStatus, required: true })
   public status!: IPluginStatus
 
@@ -118,6 +128,16 @@ export default class Plugin extends Model {
   @prop({ type: () => PluginUninstalled, _id: false, default: {} })
   public uninstalled!: PluginUninstalled
 
+  // Flags
+  @prop({ type: () => Boolean, default: false })
+  public isProcessor?: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public isBody?: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public isSubPlugin?: boolean
+
   // SPP plugin
   @prop({ type: () => Number })
   public totalStages?: number
@@ -127,7 +147,7 @@ export default class Plugin extends Model {
 
   // SPP sub-plugins
   @prop({ type: () => Number })
-  public stage?: number
+  public stageIndex?: number
 
   @prop({ type: () => String })
   public parentPlugin?: HexAddress

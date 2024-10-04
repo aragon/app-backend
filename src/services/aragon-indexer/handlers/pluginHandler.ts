@@ -3,17 +3,18 @@ import logger from '@logger'
 import {
   type HexAddress,
   IEventLogPluginType,
+  IPluginInterfaceType,
   IPluginRawStatus,
   IPluginStatus,
   type IQueryGetPlugin,
   type NetworksEnum,
 } from '@types'
-import ProxyContractHelper from '@helpers/proxyContract'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Plugin from '@models/schema/plugin'
 import Web3Helper from '@helpers/web3'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
+import PluginDetector from '@helpers/pluginDetector'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PluginHandler' })
 
@@ -269,9 +270,20 @@ export const PluginHandler = {
       subdomain: plugin.subdomain,
     }
 
-    const implementationAddress = await ProxyContractHelper.getImplementationAddress(plugin.address, plugin.network)
-    if (implementationAddress) {
-      document.implementationAddress = implementationAddress
+    const pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)
+    document.interfaceType = pluginInfo?.type
+    if (pluginInfo?.implementationAddress) {
+      document.implementationAddress = pluginInfo.implementationAddress
+    }
+
+    if (document.interfaceType === IPluginInterfaceType.spp) {
+      document.isProcessor = true
+      document.isBody = false
+      document.isSubPlugin = false
+    } else {
+      document.isProcessor = true
+      document.isBody = true
+      document.isSubPlugin = false
     }
 
     const info = {
