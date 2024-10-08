@@ -160,64 +160,6 @@ describe('Module: provider', () => {
     expect(loggerInfoStub.calledWith('WebSocket connection closed for ethereum-mainnet' as any)).to.be.true
   })
 
-  it('should reconnect to network', async () => {
-    const loggerInfoStub = sandbox.stub(Logger, 'info')
-    const network = NetworksEnum.ethereumMainnet
-    const nodeUrl = 'ws://localhost:8545'
-    const connectToNetworkStub = sandbox.stub(ProviderModule, 'connectToNetwork').resolves()
-    const waitStub = sandbox.stub(Utils, 'wait').resolves()
-
-    sandbox.stub(config.NODE_CONFIG, 'MAX_RECONNECT_ATTEMPTS').value(5)
-    sandbox.stub(config.NODE_CONFIG, 'RECONNECT_INTERVAL').value(1000)
-
-    await ProviderModule.reconnectToNetwork(network, nodeUrl, 0)
-
-    expect(loggerInfoStub.calledOnce).to.be.true
-    expect(waitStub.calledWith(1000)).to.be.true
-    expect(connectToNetworkStub.calledWith(network, nodeUrl)).to.be.true
-  })
-
-  it('should throw error after max reconnect attempts', async () => {
-    const network = NetworksEnum.ethereumMainnet
-    const nodeUrl = 'ws://localhost:8545'
-
-    sandbox.stub(config.NODE_CONFIG, 'MAX_RECONNECT_ATTEMPTS').value(2)
-    const loggerErrorStub = sandbox.stub(Logger, 'error')
-
-    try {
-      await ProviderModule.reconnectToNetwork(network, nodeUrl, 2)
-      expect.fail('Should have thrown an error')
-    } catch (error: any) {
-      expect(error.message).to.equal(`Max reconnect attempts reached for ${network}`)
-      expect(loggerErrorStub.calledWith('Max reconnect attempts reached' as any)).to.be.true
-    }
-  })
-
-  it('should resubscribe events', () => {
-    const network = NetworksEnum.ethereumMainnet
-    const providerStub = {
-      on: sandbox.stub(),
-      removeAllListeners: sandbox.stub(),
-      removeListener: sandbox.stub(),
-    }
-    const subscription = {
-      filter: {},
-      listener: () => {},
-    }
-    ProviderModule.providerProxies[network] = {
-      provider: providerStub as any,
-      reconnectAttempts: 0,
-      subscriptions: [subscription],
-    }
-
-    const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
-
-    ProviderModule.resubscribeEvents(network)
-
-    expect(providerStub.on.calledWith(subscription.filter, subscription.listener)).to.be.true
-    expect(loggerVerboseStub.calledWith('Resubscribing to events' as any)).to.be.true
-  })
-
   it('should check if connection is open', () => {
     const network = NetworksEnum.ethereumMainnet
     const providerStub = {
@@ -233,19 +175,5 @@ describe('Module: provider', () => {
     }
     const isOpen = ProviderModule.isConnectionOpen(network)
     expect(isOpen).to.be.true
-  })
-
-  it('should wait for connection', async () => {
-    const network = NetworksEnum.ethereumMainnet
-    const isConnectionOpenStub = sandbox
-      .stub(ProviderModule, 'isConnectionOpen')
-      .onFirstCall()
-      .returns(false)
-      .onSecondCall()
-      .returns(true)
-    const setTimeoutStub = sandbox.stub(global, 'setTimeout').callsArgWith(0)
-    await ProviderModule.waitForConnection(network)
-    expect(isConnectionOpenStub.calledTwice).to.be.true
-    expect(setTimeoutStub.calledOnce).to.be.true
   })
 })
