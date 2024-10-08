@@ -2,11 +2,11 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ProviderModule from '@modules/provider'
-import { IWebSocketStatus, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import Logger from '@logger'
 import config from '@config'
-import Utils from '@helpers/utils'
 import proxyquire from 'proxyquire'
+import { Network } from 'alchemy-sdk'
 
 describe('Module: provider', () => {
   let sandbox: SinonSandbox
@@ -29,7 +29,17 @@ describe('Module: provider', () => {
     expect(ProviderModule.networksMap.ZKSYNC_MAINNET).to.equal(NetworksEnum.zksyncMainnet)
   })
 
-  it('should correctly parse ETHEREUM_MAINNET to NetworksEnum.ethereumMainnet', () => {
+  it('alchemyNetworksMap', () => {
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.ethereumMainnet]).to.equal(Network.ETH_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.ethereumSepolia]).to.equal(Network.ETH_SEPOLIA)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.polygonMainnet]).to.equal(Network.MATIC_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.baseMainnet]).to.equal(Network.BASE_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.arbitrumMainnet]).to.equal(Network.ARB_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncSepolia]).to.equal(Network.ZKSYNC_SEPOLIA)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(Network.ZKSYNC_MAINNET)
+  })
+
+  it('should correctly parseNetwork', () => {
     const result = ProviderModule.parseNetwork('ETHEREUM_MAINNET')
     expect(result).to.equal(NetworksEnum.ethereumMainnet)
 
@@ -50,6 +60,29 @@ describe('Module: provider', () => {
 
     const result7 = ProviderModule.parseNetwork('ZKSYNC_MAINNET')
     expect(result7).to.equal(NetworksEnum.zksyncMainnet)
+  })
+
+  it('should correctly parseAlchemyNetwork', () => {
+    const result = ProviderModule.parseAlchemyNetwork(NetworksEnum.ethereumMainnet)
+    expect(result).to.equal(Network.ETH_MAINNET)
+
+    const result2 = ProviderModule.parseAlchemyNetwork(NetworksEnum.ethereumSepolia)
+    expect(result2).to.equal(Network.ETH_SEPOLIA)
+
+    const result3 = ProviderModule.parseAlchemyNetwork(NetworksEnum.polygonMainnet)
+    expect(result3).to.equal(Network.MATIC_MAINNET)
+
+    const result4 = ProviderModule.parseAlchemyNetwork(NetworksEnum.baseMainnet)
+    expect(result4).to.equal(Network.BASE_MAINNET)
+
+    const result5 = ProviderModule.parseAlchemyNetwork(NetworksEnum.arbitrumMainnet)
+    expect(result5).to.equal(Network.ARB_MAINNET)
+
+    const result6 = ProviderModule.parseAlchemyNetwork(NetworksEnum.zksyncSepolia)
+    expect(result6).to.equal(Network.ZKSYNC_SEPOLIA)
+
+    const result7 = ProviderModule.parseAlchemyNetwork(NetworksEnum.zksyncMainnet)
+    expect(result7).to.equal(Network.ZKSYNC_MAINNET)
   })
 
   it('should connect to all networks', async () => {
@@ -87,93 +120,92 @@ describe('Module: provider', () => {
     const nodeUrl = 'ws://localhost:8545'
 
     const providerStub = {
-      removeAllListeners: sandbox.stub(),
-      websocket: {
-        addEventListener: sandbox.stub(),
+      ws: {
+        on: sandbox.stub(),
       },
+      core: {},
     } as any
 
-    const ethersStub = {
-      WebSocketProvider: sandbox.stub().returns(providerStub),
-    }
-
     const ProviderModule = proxyquire('@modules/provider', {
-      ethers: ethersStub,
+      'alchemy-sdk': {
+        Alchemy: sandbox.stub().returns(providerStub),
+      },
     }).default
 
     await ProviderModule.connectToNetwork(network, nodeUrl)
 
-    expect(ProviderModule.providerProxies[network].provider).to.equal(providerStub)
-    expect(providerStub.websocket.addEventListener.calledThrice).to.be.true
+    expect(ProviderModule.providerProxies[network].provider).to.eq(providerStub.core)
+    expect(providerStub.ws.on.calledThrice).to.be.true
+
+    expect(providerStub.ws.on.getCall(0).args[0]).to.eq('open')
+    expect(providerStub.ws.on.getCall(1).args[0]).to.eq('error')
+    expect(providerStub.ws.on.getCall(2).args[0]).to.eq('close')
   })
 
   it('should get provider', () => {
     const network = NetworksEnum.ethereumMainnet
+
     const providerStub = {
-      removeAllListeners: sandbox.stub(),
-    }
-    ProviderModule.providerProxies[network] = {
-      provider: providerStub as any,
-      reconnectAttempts: 0,
+      provider: {
+        core: {},
+      },
       subscriptions: [],
+      alchemy: {
+        ws: {
+          on: sandbox.stub(),
+        },
+      },
     }
+
+    ProviderModule.providerProxies[network] = providerStub
     const proxy = ProviderModule.getProvider(network)
-    expect(proxy).to.exist
+    expect(proxy.core).to.exist
   })
 
   it('should subscribe to event', () => {
     const network = NetworksEnum.ethereumMainnet
+
     const providerStub = {
-      on: sandbox.spy(),
-      removeAllListeners: sandbox.stub(),
-    }
-    ProviderModule.providerProxies[network] = {
-      provider: providerStub as any,
-      reconnectAttempts: 0,
+      provider: {
+        core: {},
+      },
       subscriptions: [],
+      alchemy: {
+        ws: {
+          on: sandbox.stub(),
+        },
+      },
     }
+
+    ProviderModule.providerProxies[network] = providerStub
     const filter = {}
     const listener = () => {}
 
     ProviderModule.subscribeToEvent(network, filter, listener)
 
     expect(ProviderModule.providerProxies[network].subscriptions.length).to.equal(1)
-    expect(providerStub.on.calledWith(filter)).to.be.true
+    expect(providerStub.alchemy.ws.on.calledWith(filter)).to.be.true
   })
 
   it('should close all networks', async () => {
     const loggerInfoStub = sandbox.stub(Logger, 'info')
+
     const providerStub = {
-      destroy: sandbox.stub().resolves(),
-      removeAllListeners: sandbox.stub(),
-    }
-    ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = {
-      provider: providerStub as any,
-      reconnectAttempts: 0,
+      provider: {
+        core: {},
+      },
       subscriptions: [],
+      alchemy: {
+        ws: {
+          on: sandbox.stub(),
+        },
+      },
     }
+
+    ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = providerStub
 
     await ProviderModule.closeAllNetworks()
 
-    expect(providerStub.removeAllListeners.calledOnce).to.be.true
-    expect(providerStub.destroy.calledOnce).to.be.true
     expect(loggerInfoStub.calledWith('WebSocket connection closed for ethereum-mainnet' as any)).to.be.true
-  })
-
-  it('should check if connection is open', () => {
-    const network = NetworksEnum.ethereumMainnet
-    const providerStub = {
-      removeAllListeners: sandbox.stub(),
-      websocket: {
-        readyState: IWebSocketStatus.OPEN,
-      },
-    }
-    ProviderModule.providerProxies[network] = {
-      provider: providerStub as any,
-      reconnectAttempts: 0,
-      subscriptions: [],
-    }
-    const isOpen = ProviderModule.isConnectionOpen(network)
-    expect(isOpen).to.be.true
   })
 })
