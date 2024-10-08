@@ -60,6 +60,7 @@
     "@pinata/sdk": "^2.1.0",
     "@sentry/node": "^7.102.1",
     "@typegoose/typegoose": "^12.1.0",
+    "alchemy-sdk": "^3.4.2",
     "amqplib": "^0.10.4",
     "async": "^3.2.5",
     "axios": "^1.6.7",
