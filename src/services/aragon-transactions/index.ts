@@ -28,7 +28,7 @@ const IndexerService: IExtendedService = {
         return
       }
 
-      provider.on('block', async (blockNumber: number) => this.processNewBlock(provider, blockNumber, networkName))
+      provider?.ws?.on('block', async (blockNumber: number) => this.processNewBlock(provider, blockNumber, networkName))
       logger.verbose('Listening to new block events', llo({ network: networkName }))
     }
   },
