@@ -1,4 +1,4 @@
-import { type IProviderProxy, IWebSocketStatus, NetworksEnum } from '@types'
+import { type IProviderProxy, NetworksEnum } from '@types'
 import { Alchemy, type AlchemySettings, Network } from 'alchemy-sdk'
 import config from '@config'
 import logger from '@logger'
@@ -68,7 +68,6 @@ const ProviderModule = {
         ...existingProxy,
         provider,
         alchemy,
-        reconnectAttempts: 0,
         subscriptions: existingSubscriptions,
       }
 
@@ -126,19 +125,10 @@ const ProviderModule = {
       const providerProxy = ProviderModule.providerProxies[network]
       const provider = providerProxy?.provider
       if (provider) {
-        provider?.removeAllListeners()
-        if (provider.destroy) {
-          await provider?.destroy()
-        }
         delete ProviderModule.providerProxies[network]
         logger.info(`WebSocket connection closed for ${network}`, llo({ network }))
       }
     }
-  },
-
-  isConnectionOpen(network: NetworksEnum) {
-    const provider = ProviderModule.providerProxies[network]?.provider
-    return provider?.websocket && provider?.websocket?.readyState === IWebSocketStatus.OPEN
   },
 }
 
