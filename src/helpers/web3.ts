@@ -28,6 +28,7 @@ import { ENSRegistry } from '@artifacts/ENSRegistry'
 import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
 import { Multisig } from '@artifacts/Multisig'
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { ProxyToken } from '@modules/proxyToken'
 import BigNumber from 'bignumber.js'
 import utils from '@helpers/utils'
@@ -767,6 +768,30 @@ const Web3Helper = {
       version = [1, 0, 0]
     }
     return version.join('.')
+  },
+
+  async getSppSubPluginProposals(proposalIndex: number, stage: number, pluginAddress: HexAddress, sppPluginAddress: HexAddress, network: NetworksEnum): Promise<number | false> {
+    const provider = ProviderModule.getProvider(network)!
+    const contract = new Contract(sppPluginAddress, StagedProposalProcessor.abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.pluginProposalIds(proposalIndex, stage, pluginAddress)),
+      )
+    } catch (error) {
+      return false
+    }
+  },
+
+  async getSppProposal(proposalIndex: number, sppPluginAddress: HexAddress, network: NetworksEnum): Promise<{currentStage: number} | false> {
+    const provider = ProviderModule.getProvider(network)!
+    const contract = new Contract(sppPluginAddress, StagedProposalProcessor.abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(proposalIndex)),
+      )
+    } catch (error) {
+      return false
+    }
   },
 }
 

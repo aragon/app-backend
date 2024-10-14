@@ -14,8 +14,20 @@ import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
+import { Stages } from '@models/schema/setting'
 
 const customName = ICollectionNames.Proposal
+
+export class SubProposal {
+  @prop({ type: () => String })
+  public pluginAddress!: HexAddress
+
+  @prop({ type: () => Number })
+  public proposalIndex?: number
+
+  @prop({ type: () => Number })
+  public stageIndex?: number
+}
 
 class Resource {
   @prop({ type: () => String, default: null })
@@ -92,6 +104,9 @@ class Settings {
 
   @prop({ type: () => Number })
   public minProposerVotingPower!: number
+
+  @prop({ type: () => [Stages], _id: false })
+  public stages!: Stages[]
 }
 
 export class ProposalExecuted {
@@ -232,6 +247,23 @@ export default class Proposal extends Model {
 
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics!: Metrics
+
+  // SPP Proposal
+  @prop({ type: () => Number })
+  public totalStages?: number
+
+  // if SubProposal
+  @prop({ type: () => [SubProposal], _id: false })
+  public parentProposal!: SubProposal[]
+
+  @prop({ type: () => Boolean, default: false })
+  public isSubProposal?: boolean
+
+  @prop({ type: () => Number })
+  public stageIndex?: number
+
+  @prop({ type: () => [SubProposal], _id: false })
+  public subProposals!: SubProposal[]
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
