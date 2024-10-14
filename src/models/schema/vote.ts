@@ -266,6 +266,7 @@ export default class Vote extends Model {
         votingPower: 1,
         token: 1,
         proposal: 1,
+        voteOption: 1,
       },
     })
 
