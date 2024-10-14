@@ -202,7 +202,7 @@ export const PluginSettingHandler = {
   pairSppPlugins: async (plugin: Plugin, settings: Setting, info: ILogInfo) => {
     // update SPP plugin
     const rawPluginUpdate = {
-      isSubPlugin: plugin.parentPlugin, // it could be a sub-plugin of an other SPP
+      isSubPlugin: !!plugin.parentPlugin, // it could be a sub-plugin of an other SPP
       totalStages: settings.stages.length,
       subPlugins: settings.stages.map(stage => ({
         stageIndex: stage.stageIndex,
