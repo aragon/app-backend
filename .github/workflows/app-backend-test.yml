@@ -12,10 +12,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Install OpenSSL 1.1
+      - name: Install OpenSSL 1.1 and create symlink for libcrypto.so.1.1
         run: |
           sudo apt-get update
-          sudo apt-get install -y libssl-dev
+          sudo apt-get install -y libssl1.1
+          LIBCRYPTO_PATH=$(find /usr/lib/ -name libcrypto.so.1.1)
+          if [ -n "$LIBCRYPTO_PATH" ]; then
+            sudo ln -s $LIBCRYPTO_PATH /usr/lib/x86_64-linux-gnu/libcrypto.so
+          else
+            echo "libcrypto.so.1.1 not found"
+            exit 1
+          fi
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
