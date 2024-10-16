@@ -8,8 +8,8 @@ import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { Interface, type LogDescription } from 'ethers'
 import Web3Helper from '@helpers/web3'
-import {ProposalHandler} from "@indexer/handlers/proposalHandler";
-import {TokenVoting} from "@artifacts/TokenVoting";
+import { ProposalHandler } from '@indexer/handlers/proposalHandler'
+import { TokenVoting } from '@artifacts/TokenVoting'
 
 describe('Manual: BlockchainLogs', () => {
   let sandbox: SinonSandbox

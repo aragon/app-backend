@@ -261,7 +261,6 @@ export const PluginHandler = {
       transactionHash: plugin.transactionHash,
       address: plugin.address,
       daoAddress: plugin.daoAddress,
-      tokenAddress: plugin.tokenAddress,
       pluginSetupRepoAddress: plugin.pluginSetupRepoAddress,
       sender: plugin.sender,
       release: plugin.release,
@@ -272,6 +271,11 @@ export const PluginHandler = {
 
     const pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)
     document.interfaceType = pluginInfo?.type
+
+    if (document.interfaceType === IPluginInterfaceType.tokenVoting) {
+      document.tokenAddress = plugin.tokenAddress
+    }
+
     if (pluginInfo?.implementationAddress) {
       document.implementationAddress = pluginInfo.implementationAddress
     }

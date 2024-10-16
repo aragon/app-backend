@@ -10,7 +10,7 @@ import type Setting from '@models/schema/setting'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
 
 export const PluginSettingHandler = {
-  votingSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
+  votingSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address: pluginAddress, transactionHash, blockNumber, network } = info
     const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, network)
 
@@ -64,11 +64,9 @@ export const PluginSettingHandler = {
     }
 
     await PluginSettingHandler.isSupported(relatedPlugin, info)
-
-    return relatedPlugin
   },
 
-  multisigSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
+  multisigSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address: pluginAddress, transactionHash, blockNumber, network } = info
     const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, network)
 
@@ -118,11 +116,9 @@ export const PluginSettingHandler = {
     }
 
     await PluginSettingHandler.isSupported(relatedPlugin, info)
-
-    return relatedPlugin
   },
 
-  sppSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
+  sppSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address: pluginAddress, transactionHash, blockNumber, network } = info
     const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, network)
 
@@ -195,8 +191,6 @@ export const PluginSettingHandler = {
     // pair plugins
     await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
     await PluginSettingHandler.isSupported(relatedPlugin, info)
-
-    return relatedPlugin
   },
 
   pairSppPlugins: async (plugin: Plugin, settings: Setting, info: ILogInfo) => {

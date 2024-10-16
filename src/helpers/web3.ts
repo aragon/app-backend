@@ -436,6 +436,23 @@ const Web3Helper = {
     return '0x' + number?.toString(16)
   },
 
+  async getBlockNumber(blockNumber: string | number | undefined, network: NetworksEnum): Promise<number> {
+    if (blockNumber === 'latest' || blockNumber === undefined) {
+      try {
+        const provider = ProviderModule.getProvider(network)!
+
+        return await retryRequest(async () =>
+          BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlockNumber()),
+        )
+      } catch (error) {
+        logger.error('Error getBlockNumber', llo({ blockNumber, network, error }))
+        return -1
+      }
+    } else {
+      return Number(blockNumber)
+    }
+  },
+
   async getBlockTimestamp(blockNumber: number, network: NetworksEnum): Promise<number> {
     try {
       const provider = ProviderModule.getProvider(network)!
@@ -770,19 +787,31 @@ const Web3Helper = {
     return version.join('.')
   },
 
-  async getSppSubPluginProposals(proposalIndex: number, stage: number, pluginAddress: HexAddress, sppPluginAddress: HexAddress, network: NetworksEnum): Promise<number | false> {
+  async getSppSubPluginProposals(
+    proposalIndex: string,
+    stage: number,
+    pluginAddress: HexAddress,
+    sppPluginAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<number | false> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(sppPluginAddress, StagedProposalProcessor.abi, provider)
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.pluginProposalIds(proposalIndex, stage, pluginAddress)),
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+          contract.pluginProposalIds(proposalIndex, stage, pluginAddress),
+        ),
       )
     } catch (error) {
       return false
     }
   },
 
-  async getSppProposal(proposalIndex: number, sppPluginAddress: HexAddress, network: NetworksEnum): Promise<{currentStage: number} | false> {
+  async getSppProposal(
+    proposalIndex: string,
+    sppPluginAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<{ currentStage: number } | false> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(sppPluginAddress, StagedProposalProcessor.abi, provider)
     try {

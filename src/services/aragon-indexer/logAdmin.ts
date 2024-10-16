@@ -1,17 +1,19 @@
 import logger from '@logger'
-import { type IIndexerConfig, IMultiSigLogs } from '@types'
+import { IAdminLogs, type IIndexerConfig } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMultiSig' })
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogAdmin' })
 
-export const LogMultiSig = {
+export const LogAdmin = {
   start: async (plugin: Plugin) => {
-    logger.verbose('Start LogMultiSig', llo({ network: plugin.network }))
+    // TODO: handle adminV2
+
+    logger.verbose('Start LogAdmin', llo({ network: plugin.network }))
 
     const configLogs = configIndexer.filter((item: IIndexerConfig) =>
-      Object.values(IMultiSigLogs).includes(item.event as any),
+      Object.values(IAdminLogs).includes(item.event as any),
     )
 
     const crawler = new BlockchainLogCrawler({
@@ -20,18 +22,18 @@ export const LogMultiSig = {
       address: plugin.address,
       fromBlock: plugin?.blockNumber || 0,
       toBlock: 'latest',
-      onError: async (error: any) => LogMultiSig.processError(error, plugin),
-      logService: `MultiSig-${plugin.network}-${plugin.address}`,
+      onError: async (error: any) => LogAdmin.processError(error, plugin),
+      logService: `Admin-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
     await crawler.crawl()
 
-    logger.verbose('End LogMultiSig', llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }))
+    logger.verbose('End LogAdmin', llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },
 
   processError: async (error: any, plugin: Plugin) => {
     logger.error(
-      'Error LogMultiSig',
+      'Error LogAdmin',
       llo({
         error,
         plugin,
