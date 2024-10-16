@@ -7,9 +7,11 @@ export const SPP_FUNCTIONS = ['getStages()']
 
 export const TOKEN_VOTING_FUNCTIONS = ['getVotingToken()']
 
-export const MULTISIG_FUNCTIONS = ['isMember(address)']
+export const MULTISIG_FUNCTIONS = ['isMember(address)', 'isListed(address)']
 
-const allFunctions = [...SPP_FUNCTIONS, ...MULTISIG_FUNCTIONS, ...TOKEN_VOTING_FUNCTIONS]
+export const ADMIN_FUNCTIONS = ['isMember(address)']
+
+const allFunctions = [...SPP_FUNCTIONS, ...MULTISIG_FUNCTIONS, ...TOKEN_VOTING_FUNCTIONS, ...ADMIN_FUNCTIONS]
 
 const functionHashes = allFunctions.reduce<Record<string, string>>((acc, func) => {
   acc[func] = keccak256(Buffer.from(func)).slice(0, 10)
@@ -47,11 +49,12 @@ async function detectPluginType(address: string, network: NetworksEnum): Promise
     }
 
     function hasFunction(signature: string): boolean {
-      return bytecode.includes(functionHashes[signature].replace('0x', ''))
+      const functionHash = functionHashes[signature]
+      return functionHash ? bytecode.includes(functionHash.replace('0x', '')) : false
     }
 
     function hasFunctions(functions: string[]): boolean {
-      return functions.every(func => hasFunction(func))
+      return functions.every(hasFunction)
     }
 
     if (hasFunctions(TOKEN_VOTING_FUNCTIONS)) {
@@ -60,6 +63,8 @@ async function detectPluginType(address: string, network: NetworksEnum): Promise
       contractDetails.type = IPluginInterfaceType.spp
     } else if (hasFunctions(MULTISIG_FUNCTIONS)) {
       contractDetails.type = IPluginInterfaceType.multisig
+    } else if (hasFunctions(ADMIN_FUNCTIONS)) {
+      contractDetails.type = IPluginInterfaceType.admin
     } else {
       contractDetails.type = IPluginInterfaceType.unknown
     }

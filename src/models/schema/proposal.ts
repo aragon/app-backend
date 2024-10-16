@@ -22,8 +22,8 @@ export class SubProposal {
   @prop({ type: () => String })
   public pluginAddress!: HexAddress
 
-  @prop({ type: () => Number })
-  public proposalIndex?: number
+  @prop({ type: () => String })
+  public proposalIndex?: string
 
   @prop({ type: () => Number })
   public stageIndex?: number
@@ -194,8 +194,8 @@ export default class Proposal extends Model {
   @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
 
-  @prop({ type: () => Number, required: true })
-  public proposalIndex!: number
+  @prop({ type: () => String, required: true })
+  public proposalIndex!: string
 
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress
@@ -253,8 +253,8 @@ export default class Proposal extends Model {
   public totalStages?: number
 
   // if SubProposal
-  @prop({ type: () => [SubProposal], _id: false })
-  public parentProposal!: SubProposal[]
+  @prop({ type: () => SubProposal, _id: false })
+  public parentProposal!: SubProposal
 
   @prop({ type: () => Boolean, default: false })
   public isSubProposal?: boolean
@@ -269,7 +269,7 @@ export default class Proposal extends Model {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
-      assert(rawData?.proposalIndex! >= 0, 'proposalIndex is required')
+      assert(!!rawData?.proposalIndex, 'proposalIndex is required')
       rawData.id = this.getEntityId({
         transactionHash: rawData?.transactionHash!,
         pluginAddress: rawData?.pluginAddress!,
@@ -295,7 +295,7 @@ export default class Proposal extends Model {
   }
 
   static async findByProposalIndex(
-    proposalIndex: number,
+    proposalIndex: string,
     pluginAddress: HexAddress,
     network: NetworksEnum,
     tOpts?: SaveOptions,

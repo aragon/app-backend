@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler.old'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'

@@ -2,8 +2,8 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { LogMultisig } from '@services/aragon-indexer/logMultisig'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { LogMultiSig } from '@services/aragon-indexer/logMultisig'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler.old'
 import { NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import { ProposalHandler } from '@indexer/handlers/proposalHandler'
@@ -12,7 +12,7 @@ import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
 
-describe('Indexer: LogMultisig', () => {
+describe('Indexer: LogMultiSig', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -36,11 +36,11 @@ describe('Indexer: LogMultisig', () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
-      await LogMultisig.start(plugin)
+      await LogMultiSig.start(plugin)
 
       expect(crawlStub.calledOnce).to.be.true
-      expect(verboseStub.calledWith('Start LogMultisig' as any)).to.be.true
-      expect(verboseStub.calledWith('End LogMultisig' as any)).to.be.true
+      expect(verboseStub.calledWith('Start LogMultiSig' as any)).to.be.true
+      expect(verboseStub.calledWith('End LogMultiSig' as any)).to.be.true
     })
   })
 
@@ -63,7 +63,7 @@ describe('Indexer: LogMultisig', () => {
 
       const proposalCreatedStub = sandbox.stub(ProposalHandler, 'proposalCreated').resolves()
 
-      await LogMultisig.processLog(txLog, network)
+      await LogMultiSig.processLog(txLog, network)
 
       expect(proposalCreatedStub.calledOnce).to.be.true
       expect(verboseStub.calledWith('ProposalCreated' as any)).to.be.true
@@ -89,7 +89,7 @@ describe('Indexer: LogMultisig', () => {
 
       const proposalExecutedStub = sandbox.stub(ProposalHandler, 'proposalExecuted').resolves()
 
-      await LogMultisig.processLog(txLog, network)
+      await LogMultiSig.processLog(txLog, network)
 
       expect(proposalExecutedStub.calledOnce).to.be.true
       expect(verboseStub.calledWith('ProposalExecuted' as any)).to.be.true
@@ -115,7 +115,7 @@ describe('Indexer: LogMultisig', () => {
 
       const membersAddedStub = sandbox.stub(MultisigHandler, 'membersAdded').resolves()
 
-      await LogMultisig.processLog(txLog, network)
+      await LogMultiSig.processLog(txLog, network)
 
       expect(membersAddedStub.calledOnce).to.be.true
 
@@ -142,7 +142,7 @@ describe('Indexer: LogMultisig', () => {
 
       const membersRemovedStub = sandbox.stub(MultisigHandler, 'membersRemoved').resolves()
 
-      await LogMultisig.processLog(txLog, network)
+      await LogMultiSig.processLog(txLog, network)
       expect(membersRemovedStub.calledOnce).to.be.true
       expect(verboseStub.calledWith('MembersRemoved' as any)).to.be.true
       expect(parseLogStub.calledOnce).to.be.true
@@ -167,7 +167,7 @@ describe('Indexer: LogMultisig', () => {
 
       const proposalHandlerStub = sandbox.stub(ProposalHandler, 'approved').resolves()
 
-      await LogMultisig.processLog(txLog, network)
+      await LogMultiSig.processLog(txLog, network)
 
       expect(proposalHandlerStub.calledOnce).to.be.true
       expect(verboseStub.calledWith('Approved' as any)).to.be.true
@@ -193,7 +193,7 @@ describe('Indexer: LogMultisig', () => {
 
       const pluginSettingHandlerStub = sandbox.stub(PluginSettingHandler, 'multisigSettingsUpdated').resolves()
 
-      await LogMultisig.processLog(txLog, network)
+      await LogMultiSig.processLog(txLog, network)
 
       expect(pluginSettingHandlerStub.calledOnce).to.be.true
       expect(verboseStub.calledWith('MultisigSettingsUpdated' as any)).to.be.true
@@ -216,7 +216,7 @@ describe('Indexer: LogMultisig', () => {
         transactionHash: '0x1234567890123456789012345678901234567890',
         address: '0x1234567890123456789012345678901234567890',
       } as any)
-      await LogMultisig.processLog(txLog, network)
+      await LogMultiSig.processLog(txLog, network)
 
       expect(parseLogStub.calledOnce).to.be.true
       expect(parseInfoLogStub.calledOnce).to.be.true

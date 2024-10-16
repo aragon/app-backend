@@ -25,7 +25,7 @@ const ProposalHelper = {
     proposalType,
     network,
   }: {
-    proposalIndex: number
+    proposalIndex: string
     pluginAddress: HexAddress
     proposalType: IPluginInterfaceType
     network: NetworksEnum
@@ -46,7 +46,7 @@ const ProposalHelper = {
     pluginAddress,
     network,
   }: {
-    proposalIndex: number
+    proposalIndex: string
     pluginAddress: HexAddress
     network: NetworksEnum
   }): Promise<IProposalSPPOnChain | null> {
@@ -67,7 +67,7 @@ const ProposalHelper = {
     pluginAddress,
     network,
   }: {
-    proposalIndex: number
+    proposalIndex: string
     pluginAddress: HexAddress
     network: NetworksEnum
   }): Promise<IProposalTokenVotingOnChain | null> {
@@ -88,7 +88,7 @@ const ProposalHelper = {
     pluginAddress,
     network,
   }: {
-    proposalIndex: number
+    proposalIndex: string
     pluginAddress: HexAddress
     network: NetworksEnum
   }): Promise<IProposalMultisigOnChain | null> {

@@ -18,6 +18,19 @@ export const StagedProposalProcessor = {
     },
     {
       type: 'function',
+      name: 'SET_METADATA_PERMISSION_ID',
+      inputs: [],
+      outputs: [
+        {
+          name: '',
+          type: 'bytes32',
+          internalType: 'bytes32',
+        },
+      ],
+      stateMutability: 'view',
+    },
+    {
+      type: 'function',
       name: 'SET_TARGET_CONFIG_PERMISSION_ID',
       inputs: [],
       outputs: [
@@ -32,19 +45,6 @@ export const StagedProposalProcessor = {
     {
       type: 'function',
       name: 'SET_TRUSTED_FORWARDER_PERMISSION_ID',
-      inputs: [],
-      outputs: [
-        {
-          name: '',
-          type: 'bytes32',
-          internalType: 'bytes32',
-        },
-      ],
-      stateMutability: 'view',
-    },
-    {
-      type: 'function',
-      name: 'UPDATE_METADATA_PERMISSION_ID',
       inputs: [],
       outputs: [
         {
@@ -174,7 +174,7 @@ export const StagedProposalProcessor = {
           internalType: 'uint64',
         },
         {
-          name: '_data',
+          name: '_proposalParams',
           type: 'bytes[][]',
           internalType: 'bytes[][]',
         },
@@ -246,48 +246,7 @@ export const StagedProposalProcessor = {
     },
     {
       type: 'function',
-      name: 'createProposalId',
-      inputs: [
-        {
-          name: '_actions',
-          type: 'tuple[]',
-          internalType: 'struct Action[]',
-          components: [
-            {
-              name: 'to',
-              type: 'address',
-              internalType: 'address',
-            },
-            {
-              name: 'value',
-              type: 'uint256',
-              internalType: 'uint256',
-            },
-            {
-              name: 'data',
-              type: 'bytes',
-              internalType: 'bytes',
-            },
-          ],
-        },
-        {
-          name: '_metadata',
-          type: 'bytes',
-          internalType: 'bytes',
-        },
-      ],
-      outputs: [
-        {
-          name: '',
-          type: 'uint256',
-          internalType: 'uint256',
-        },
-      ],
-      stateMutability: 'pure',
-    },
-    {
-      type: 'function',
-      name: 'createProposalParamsABI',
+      name: 'customProposalParamsABI',
       inputs: [],
       outputs: [
         {
@@ -351,7 +310,7 @@ export const StagedProposalProcessor = {
         {
           name: '',
           type: 'tuple',
-          internalType: 'struct PluginUUPSUpgradeable.TargetConfig',
+          internalType: 'struct IPlugin.TargetConfig',
           components: [
             {
               name: 'target',
@@ -361,7 +320,7 @@ export const StagedProposalProcessor = {
             {
               name: 'operation',
               type: 'uint8',
-              internalType: 'enum PluginUUPSUpgradeable.Operation',
+              internalType: 'enum IPlugin.Operation',
             },
           ],
         },
@@ -396,11 +355,6 @@ export const StagedProposalProcessor = {
           internalType: 'uint16',
         },
         {
-          name: '_proposalType',
-          type: 'uint8',
-          internalType: 'enum StagedProposalProcessor.ProposalType',
-        },
-        {
           name: '_body',
           type: 'address',
           internalType: 'address',
@@ -409,8 +363,8 @@ export const StagedProposalProcessor = {
       outputs: [
         {
           name: '',
-          type: 'bool',
-          internalType: 'bool',
+          type: 'uint8',
+          internalType: 'enum StagedProposalProcessor.ResultType',
         },
       ],
       stateMutability: 'view',
@@ -491,7 +445,7 @@ export const StagedProposalProcessor = {
             {
               name: 'targetConfig',
               type: 'tuple',
-              internalType: 'struct PluginUUPSUpgradeable.TargetConfig',
+              internalType: 'struct IPlugin.TargetConfig',
               components: [
                 {
                   name: 'target',
@@ -501,7 +455,7 @@ export const StagedProposalProcessor = {
                 {
                   name: 'operation',
                   type: 'uint8',
-                  internalType: 'enum PluginUUPSUpgradeable.Operation',
+                  internalType: 'enum IPlugin.Operation',
                 },
               ],
             },
@@ -565,9 +519,9 @@ export const StagedProposalProcessor = {
                   internalType: 'address',
                 },
                 {
-                  name: 'proposalType',
+                  name: 'resultType',
                   type: 'uint8',
-                  internalType: 'enum StagedProposalProcessor.ProposalType',
+                  internalType: 'enum StagedProposalProcessor.ResultType',
                 },
               ],
             },
@@ -609,7 +563,7 @@ export const StagedProposalProcessor = {
         {
           name: '',
           type: 'tuple',
-          internalType: 'struct PluginUUPSUpgradeable.TargetConfig',
+          internalType: 'struct IPlugin.TargetConfig',
           components: [
             {
               name: 'target',
@@ -619,7 +573,7 @@ export const StagedProposalProcessor = {
             {
               name: 'operation',
               type: 'uint8',
-              internalType: 'enum PluginUUPSUpgradeable.Operation',
+              internalType: 'enum IPlugin.Operation',
             },
           ],
         },
@@ -692,9 +646,9 @@ export const StagedProposalProcessor = {
                   internalType: 'address',
                 },
                 {
-                  name: 'proposalType',
+                  name: 'resultType',
                   type: 'uint8',
-                  internalType: 'enum StagedProposalProcessor.ProposalType',
+                  internalType: 'enum StagedProposalProcessor.ResultType',
                 },
               ],
             },
@@ -726,14 +680,14 @@ export const StagedProposalProcessor = {
           ],
         },
         {
-          name: '_metadata',
+          name: '_pluginMetadata',
           type: 'bytes',
           internalType: 'bytes',
         },
         {
           name: '_targetConfig',
           type: 'tuple',
-          internalType: 'struct PluginUUPSUpgradeable.TargetConfig',
+          internalType: 'struct IPlugin.TargetConfig',
           components: [
             {
               name: 'target',
@@ -743,7 +697,7 @@ export const StagedProposalProcessor = {
             {
               name: 'operation',
               type: 'uint8',
-              internalType: 'enum PluginUUPSUpgradeable.Operation',
+              internalType: 'enum IPlugin.Operation',
             },
           ],
         },
@@ -804,7 +758,7 @@ export const StagedProposalProcessor = {
           internalType: 'uint256',
         },
       ],
-      stateMutability: 'pure',
+      stateMutability: 'view',
     },
     {
       type: 'function',
@@ -842,9 +796,14 @@ export const StagedProposalProcessor = {
           internalType: 'uint256',
         },
         {
-          name: '_proposalType',
+          name: '_stageId',
+          type: 'uint16',
+          internalType: 'uint16',
+        },
+        {
+          name: '_resultType',
           type: 'uint8',
-          internalType: 'enum StagedProposalProcessor.ProposalType',
+          internalType: 'enum StagedProposalProcessor.ResultType',
         },
         {
           name: '_tryAdvance',
@@ -857,12 +816,25 @@ export const StagedProposalProcessor = {
     },
     {
       type: 'function',
+      name: 'setMetadata',
+      inputs: [
+        {
+          name: '_metadata',
+          type: 'bytes',
+          internalType: 'bytes',
+        },
+      ],
+      outputs: [],
+      stateMutability: 'nonpayable',
+    },
+    {
+      type: 'function',
       name: 'setTargetConfig',
       inputs: [
         {
           name: '_targetConfig',
           type: 'tuple',
-          internalType: 'struct PluginUUPSUpgradeable.TargetConfig',
+          internalType: 'struct IPlugin.TargetConfig',
           components: [
             {
               name: 'target',
@@ -872,7 +844,7 @@ export const StagedProposalProcessor = {
             {
               name: 'operation',
               type: 'uint8',
-              internalType: 'enum PluginUUPSUpgradeable.Operation',
+              internalType: 'enum IPlugin.Operation',
             },
           ],
         },
@@ -914,19 +886,6 @@ export const StagedProposalProcessor = {
     },
     {
       type: 'function',
-      name: 'updateMetadata',
-      inputs: [
-        {
-          name: '_metadata',
-          type: 'bytes',
-          internalType: 'bytes',
-        },
-      ],
-      outputs: [],
-      stateMutability: 'nonpayable',
-    },
-    {
-      type: 'function',
       name: 'updateStages',
       inputs: [
         {
@@ -955,9 +914,9 @@ export const StagedProposalProcessor = {
                   internalType: 'address',
                 },
                 {
-                  name: 'proposalType',
+                  name: 'resultType',
                   type: 'uint8',
-                  internalType: 'enum StagedProposalProcessor.ProposalType',
+                  internalType: 'enum StagedProposalProcessor.ResultType',
                 },
               ],
             },
@@ -1070,10 +1029,10 @@ export const StagedProposalProcessor = {
     },
     {
       type: 'event',
-      name: 'MetadataUpdated',
+      name: 'MetadataSet',
       inputs: [
         {
-          name: 'releaseMetadata',
+          name: 'metadata',
           type: 'bytes',
           indexed: false,
           internalType: 'bytes',
@@ -1190,6 +1149,12 @@ export const StagedProposalProcessor = {
           internalType: 'uint256',
         },
         {
+          name: 'stageId',
+          type: 'uint16',
+          indexed: true,
+          internalType: 'uint16',
+        },
+        {
           name: 'plugin',
           type: 'address',
           indexed: true,
@@ -1229,9 +1194,9 @@ export const StagedProposalProcessor = {
                   internalType: 'address',
                 },
                 {
-                  name: 'proposalType',
+                  name: 'resultType',
                   type: 'uint8',
-                  internalType: 'enum StagedProposalProcessor.ProposalType',
+                  internalType: 'enum StagedProposalProcessor.ResultType',
                 },
               ],
             },
@@ -1273,7 +1238,7 @@ export const StagedProposalProcessor = {
           name: 'newTargetConfig',
           type: 'tuple',
           indexed: false,
-          internalType: 'struct PluginUUPSUpgradeable.TargetConfig',
+          internalType: 'struct IPlugin.TargetConfig',
           components: [
             {
               name: 'target',
@@ -1283,7 +1248,7 @@ export const StagedProposalProcessor = {
             {
               name: 'operation',
               type: 'uint8',
-              internalType: 'enum PluginUUPSUpgradeable.Operation',
+              internalType: 'enum IPlugin.Operation',
             },
           ],
         },
@@ -1349,12 +1314,28 @@ export const StagedProposalProcessor = {
     },
     {
       type: 'error',
-      name: 'EmptyMetadata',
+      name: 'DelegateCallFailed',
       inputs: [],
     },
     {
       type: 'error',
-      name: 'ExecuteFailed',
+      name: 'DuplicatePluginAddress',
+      inputs: [
+        {
+          name: 'stageId',
+          type: 'uint256',
+          internalType: 'uint256',
+        },
+        {
+          name: 'plugin',
+          type: 'address',
+          internalType: 'address',
+        },
+      ],
+    },
+    {
+      type: 'error',
+      name: 'FunctionDeprecated',
       inputs: [],
     },
     {
@@ -1374,7 +1355,7 @@ export const StagedProposalProcessor = {
         {
           name: 'targetConfig',
           type: 'tuple',
-          internalType: 'struct PluginUUPSUpgradeable.TargetConfig',
+          internalType: 'struct IPlugin.TargetConfig',
           components: [
             {
               name: 'target',
@@ -1384,7 +1365,7 @@ export const StagedProposalProcessor = {
             {
               name: 'operation',
               type: 'uint8',
-              internalType: 'enum PluginUUPSUpgradeable.Operation',
+              internalType: 'enum IPlugin.Operation',
             },
           ],
         },
@@ -1427,6 +1408,22 @@ export const StagedProposalProcessor = {
       type: 'error',
       name: 'StageCountZero',
       inputs: [],
+    },
+    {
+      type: 'error',
+      name: 'StageIdInvalid',
+      inputs: [
+        {
+          name: 'currentStageId',
+          type: 'uint64',
+          internalType: 'uint64',
+        },
+        {
+          name: 'reportedStageId',
+          type: 'uint64',
+          internalType: 'uint64',
+        },
+      ],
     },
   ],
   bytecode: '',

@@ -1,12 +1,5 @@
 import logger from '@logger'
-import {
-  EnumQueueName,
-  type HexAddress,
-  IEventLogMember,
-  IEventLogPluginType,
-  type ILogInfo,
-  IPluginInterfaceType,
-} from '@types'
+import { EnumQueueName, type HexAddress, IEventLogMember, IEventLogPluginType, type ILogInfo } from '@types'
 import { type Log, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
@@ -26,9 +19,6 @@ import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Plugin from '@models/schema/plugin'
-import { LogTokenVoting } from '@indexer/logTokenVoting'
-import { LogMultisig } from '@indexer/logMultisig'
-import { LogSpp } from '@indexer/logSPP'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:DaoRegistryHandler' })
 
@@ -63,6 +53,7 @@ export const DaoRegistryHandler = {
     }
 
     const dao = await DbOperations.createDocument(Models.Dao, document, info, 'New DaoRegistered', llo)
+
     await ProxyMember.createMember(parsedEvent.args.creator)
     await DaoRegistryHandler.initiateNewDaoCreation(info, dao.address)
   },
@@ -100,28 +91,27 @@ export const DaoRegistryHandler = {
      * Save the plugin settings logs that will create the plugin settings entry for the dao
      * It return the plugin if the setting are saved successfully
      */
-    const plugins = await DaoRegistryHandler._pluginSettings(txReceipt, info)
+    await DaoRegistryHandler._pluginSettings(txReceipt, info)
 
-    // TODO: handle dao with multiple plugins
-    if (plugins.length > 0) {
-      await Promise.all(
-        plugins.map(async plugin => {
-          // /**
-          //  * Save the member logs that will create the member entry for the dao
-          //  */
-          // await DaoRegistryHandler._memberAdded(txReceipt, info, plugin)
-          //
-          // TODO: add to the queue
-          if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
-            await LogTokenVoting.start(plugin)
-          } else if (plugin.interfaceType === IPluginInterfaceType.multisig) {
-            await LogMultisig.start(plugin)
-          } else if (plugin.interfaceType === IPluginInterfaceType.spp) {
-            await LogSpp.start(plugin)
-          }
-        }),
-      )
-    }
+    // await Promise.all(
+    //   Utils.mergeAndRemoveDuplicatePlugins(installedPlugins, settingPlugins).map(async (plugin: Plugin) => {
+    //     // /**
+    //     //  * Save the member logs that will create the member entry for the dao
+    //     //  */
+    //     // await DaoRegistryHandler._memberAdded(txReceipt, info, plugin)
+    //     //
+    //     // TODO: add to the queue
+    //     if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
+    //       await LogTokenVoting.start(plugin)
+    //     } else if (plugin.interfaceType === IPluginInterfaceType.multisig) {
+    //       await LogMultiSig.start(plugin)
+    //     } else if (plugin.interfaceType === IPluginInterfaceType.admin) {
+    //       await LogAdmin.start(plugin)
+    //     } else if (plugin.interfaceType === IPluginInterfaceType.spp) {
+    //       await LogSpp.start(plugin)
+    //     }
+    //   }),
+    // )
 
     // always get dao transactions and assets
     await Promise.all([
@@ -166,6 +156,19 @@ export const DaoRegistryHandler = {
           await PluginSetupProcessorHandler.installationPrepared(pluginSetupLog.parsed!, infoPluginSetup)
         } else if (installationType === IEventLogPluginType.InstallationApplied) {
           await PluginSetupProcessorHandler.installationApplied(pluginSetupLog.parsed!, infoPluginSetup)
+
+          // return installed plugins
+          const installedPlugin = await Models.Plugin.findByAddress(
+            pluginSetupLog?.parsed?.args.plugin,
+            infoPluginSetup.network,
+          )
+
+          if (!installedPlugin) {
+            logger.error(
+              'Error InstallationApplied but Plugin not installed',
+              llo({ plugin: pluginSetupLog?.parsed?.args.plugin }, txReceipt, info),
+            )
+          }
         }
       }
     }
@@ -173,13 +176,11 @@ export const DaoRegistryHandler = {
 
   _pluginSettings: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
     const multisigSettings = Web3Helper.findLogsByName(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
-    const plugins: Plugin[] = []
 
     if (multisigSettings?.length > 0) {
       for (const multisigSetting of multisigSettings) {
         const infoPluginSetup = Web3Helper.parseInfoLog(multisigSetting.txLog, 'MultisigSettingsUpdated', info.network)
-        const plugin = await PluginSettingHandler.multisigSettingsUpdated(multisigSetting.parsed!, infoPluginSetup)
-        if (plugin) plugins.push(plugin)
+        await PluginSettingHandler.multisigSettingsUpdated(multisigSetting.parsed!, infoPluginSetup)
       }
     }
 
@@ -188,12 +189,9 @@ export const DaoRegistryHandler = {
     if (votingSettings?.length > 0) {
       for (const votingSetting of votingSettings) {
         const infoPluginSetup = Web3Helper.parseInfoLog(votingSetting.txLog, 'VotingSettingsUpdated', info.network)
-        const plugin = await PluginSettingHandler.votingSettingsUpdated(votingSetting.parsed!, infoPluginSetup)
-        if (plugin) plugins.push(plugin)
+        await PluginSettingHandler.votingSettingsUpdated(votingSetting.parsed!, infoPluginSetup)
       }
     }
-
-    return plugins
   },
 
   _memberAdded: async (txReceipt: TransactionReceipt, info: ILogInfo, plugin: Plugin) => {

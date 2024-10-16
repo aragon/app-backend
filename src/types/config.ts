@@ -1,5 +1,4 @@
 import { type NetworksEnum, type SupportedEnsNetworksEnum } from './networks'
-import { type IEnumIndexerService } from '@src/types/services'
 
 export enum IEnumEnvironment {
   production = 'production',
@@ -13,25 +12,6 @@ export enum IEnumNodeEnv {
   production = 'production',
 }
 
-export interface IEtherScanConfig {
-  API_KEY: string
-  API_URL: string
-}
-
-export interface IEventConfig {
-  event: string
-  handler: (event: any, info: any) => Promise<any>
-  enableHistorical?: boolean
-  enableRealtime?: boolean
-}
-
-export interface IIndexerConfig {
-  name: IEnumIndexerService
-  abi: any[]
-  listen: IEventConfig[]
-  enabled?: boolean
-}
-
 export interface IConfig {
   APP_NAME: string
   ENVIRONMENT: IEnumEnvironment
@@ -40,14 +20,56 @@ export interface IConfig {
   REMOTE_EXECUTION: boolean
   PROXY: string | null
   ENS_DOMAIN: string
-  ARAGON_SUPPORTED_BLOCK: {
-    ETHEREUM_MAINNET: number
-    ETHEREUM_SEPOLIA: number
-    POLYGON_MAINNET: number
-    BASE_MAINNET: number
-    ARBITRUM_MAINNET: number
-    ZKSYNC_SEPOLIA: number
-    ZKSYNC_MAINNET: number
+  NODES: {
+    ETHEREUM_MAINNET: {
+      WS: string
+      FROM_BLOCK: number
+      INTERVAL_BLOCK_TIME: number
+      ETHERSCAN_API_KEY: string
+      ETHERSCAN_API_URL: string
+    }
+    ETHEREUM_SEPOLIA: {
+      WS: string
+      FROM_BLOCK: number
+      INTERVAL_BLOCK_TIME: number
+      ETHERSCAN_API_KEY: string
+      ETHERSCAN_API_URL: string
+    }
+    POLYGON_MAINNET: {
+      WS: string
+      FROM_BLOCK: number
+      INTERVAL_BLOCK_TIME: number
+      ETHERSCAN_API_KEY: string
+      ETHERSCAN_API_URL: string
+    }
+    BASE_MAINNET: {
+      WS: string
+      FROM_BLOCK: number
+      INTERVAL_BLOCK_TIME: number
+      ETHERSCAN_API_KEY: string
+      ETHERSCAN_API_URL: string
+    }
+    ARBITRUM_MAINNET: {
+      WS: string
+      FROM_BLOCK: number
+      INTERVAL_BLOCK_TIME: number
+      ETHERSCAN_API_KEY: string
+      ETHERSCAN_API_URL: string
+    }
+    ZKSYNC_SEPOLIA: {
+      WS: string
+      FROM_BLOCK: number
+      INTERVAL_BLOCK_TIME: number
+      ETHERSCAN_API_KEY: string
+      ETHERSCAN_API_URL: string
+    }
+    ZKSYNC_MAINNET: {
+      WS: string
+      FROM_BLOCK: number
+      INTERVAL_BLOCK_TIME: number
+      ETHERSCAN_API_KEY: string
+      ETHERSCAN_API_URL: string
+    }
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
@@ -100,10 +122,6 @@ export interface IConfig {
     API_KEY: string
   }
 
-  ETHERSCAN: {
-    API_KEY: string
-  }
-
   COINGECKO: {
     URI: string
     API_KEY: string
@@ -128,16 +146,6 @@ export interface IConfig {
     METADATA_FETCH_TIMEOUT: number
   }
 
-  BLOCKCHAIN_NODES: {
-    ETHEREUM_MAINNET: string | null
-    ETHEREUM_SEPOLIA: string | null
-    POLYGON_MAINNET: string | null
-    BASE_MAINNET: string | null
-    ARBITRUM_MAINNET: string | null
-    ZKSYNC_SEPOLIA: string | null
-    ZKSYNC_MAINNET: string | null
-  }
-
   SERVICES: {
     ARAGON_API: {
       BASE_URL: string
@@ -159,15 +167,5 @@ export interface IConfig {
   CRAWLER_CONFIG: {
     TOKEN_RATES_BATCH_SIZE: number
     TOKEN_RATES_CONCURRENCY: number
-  }
-
-  ETHERSCAN_API: {
-    ETHEREUM_MAINNET: IEtherScanConfig
-    ETHEREUM_SEPOLIA: IEtherScanConfig
-    POLYGON_MAINNET: IEtherScanConfig
-    BASE_MAINNET: IEtherScanConfig
-    ARBITRUM_MAINNET: IEtherScanConfig
-    ZKSYNC_SEPOLIA: IEtherScanConfig
-    ZKSYNC_MAINNET: IEtherScanConfig
   }
 }

@@ -16,7 +16,7 @@ const EtherscanHelper = {
 
   _parseNetworkToConfig: (network: NetworksEnum) => {
     const networkConfigKey = network.replace('-', '_').toUpperCase()
-    const etherscanConfig = config.ETHERSCAN_API[networkConfigKey]
+    const etherscanConfig = config.NODES[networkConfigKey]
     return etherscanConfig
   },
 

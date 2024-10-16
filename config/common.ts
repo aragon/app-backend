@@ -28,19 +28,106 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       RECONNECT_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODE_CONFIG_RECONNECT_INTERVAL', 100),
     },
 
-    ARAGON_SUPPORTED_BLOCK: {
-      ETHEREUM_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ETHEREUM_MAINNET', 16721812),
-      ETHEREUM_SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ETHEREUM_SEPOLIA', 4415294),
-      POLYGON_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_POLYGON_MAINNET', 40830344),
-      BASE_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_BASE_MAINNET', 2094724),
-      ZKSYNC_SEPOLIA: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ZKSYNC_SEPOLIA', 2441204),
-      ZKSYNC_MAINNET: utils.configParser(sourceConfig, 'number', 'ARAGON_SUPPORTED_BLOCK_ZKSYNC_MAINNET', 37460765), // zkSync ERA
-      ARBITRUM_MAINNET: utils.configParser(
-        sourceConfig,
-        'number',
-        'ARAGON_SUPPORTED_BLOCK_ARBITRUM_MAINNET',
-        145462155,
-      ),
+    NODES: {
+      ETHEREUM_MAINNET: {
+        WS: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_WS', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_MAINNET_FROM_BLOCK', 16721812),
+        INTERVAL_BLOCK_TIME: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ETHEREUM_MAINNET_INTERVAL_BLOCK_TIME',
+          14,
+        ),
+        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ETHERSCAN_API_KEY', null),
+        ETHERSCAN_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ETHEREUM_MAINNET_ETHERSCAN_API_URL',
+          'https://api.etherscan.io/api',
+        ),
+      },
+      ETHEREUM_SEPOLIA: {
+        WS: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_WS', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_SEPOLIA_FROM_BLOCK', 4415294),
+        INTERVAL_BLOCK_TIME: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ETHEREUM_SEPOLIA_INTERVAL_BLOCK_TIME',
+          14,
+        ),
+        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ETHERSCAN_API_KEY', null),
+        ETHERSCAN_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ETHEREUM_SEPOLIA_ETHERSCAN_API_URL',
+          'https://api-sepolia.etherscan.io/api',
+        ),
+      },
+      POLYGON_MAINNET: {
+        WS: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_WS', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_FROM_BLOCK', 40830344),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_INTERVAL_BLOCK_TIME', 2),
+        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ETHERSCAN_API_KEY', null),
+        ETHERSCAN_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_POLYGON_MAINNET_ETHERSCAN_API_URL',
+          'https://api.polygonscan.com/api',
+        ),
+      },
+      BASE_MAINNET: {
+        WS: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_WS', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_FROM_BLOCK', 2094724),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 12),
+        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ETHERSCAN_API_KEY', null),
+        ETHERSCAN_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_BASE_MAINNET_ETHERSCAN_API_URL',
+          'https://api.basescan.org/api',
+        ),
+      },
+      ARBITRUM_MAINNET: {
+        WS: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_WS', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_FROM_BLOCK', 2441204),
+        INTERVAL_BLOCK_TIME: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ARBITRUM_MAINNET_INTERVAL_BLOCK_TIME',
+          2,
+        ),
+        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ETHERSCAN_API_KEY', null),
+        ETHERSCAN_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ARBITRUM_MAINNET_ETHERSCAN_API_URL',
+          'https://api.arbiscan.io/api',
+        ),
+      },
+      ZKSYNC_SEPOLIA: {
+        WS: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_WS', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_FROM_BLOCK', 37460765), // zkSync ERA
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_INTERVAL_BLOCK_TIME', 3),
+        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ETHERSCAN_API_KEY', null),
+        ETHERSCAN_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ZKSYNC_SEPOLIA_ETHERSCAN_API_URL',
+          'https://block-explorer-api.sepolia.zksync.dev/api',
+        ),
+      },
+      ZKSYNC_MAINNET: {
+        WS: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_WS', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_FROM_BLOCK', 145462155),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_INTERVAL_BLOCK_TIME', 5),
+        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ETHERSCAN_API_KEY', null),
+        ETHERSCAN_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ZKSYNC_MAINNET_ETHERSCAN_API_URL',
+          'https://block-explorer-api.mainnet.zksync.io/api',
+        ),
+      },
     },
 
     BOTTLENECK: {
@@ -115,10 +202,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       URI: utils.configParser(sourceConfig, 'string', 'FOUR_BYTE_URI', 'https://www.4byte.directory/api/v1'),
     },
 
-    ETHERSCAN: {
-      API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_KEY', null),
-    },
-
     PINATA: {
       JWT: utils.configParser(sourceConfig, 'string', 'PINATA_JWT', null),
       GATEWAY_URI: utils.configParser(
@@ -142,16 +225,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       METADATA_FETCH_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_RETRY', 2),
       METADATA_FETCH_DELAY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_DELAY', 500),
       METADATA_FETCH_TIMEOUT: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_TIMEOUT', 10000),
-    },
-
-    BLOCKCHAIN_NODES: {
-      ETHEREUM_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ETHEREUM_MAINNET', null),
-      ETHEREUM_SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ETHEREUM_SEPOLIA', null),
-      POLYGON_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_POLYGON_MAINNET', null),
-      BASE_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_BASE_MAINNET', null),
-      ARBITRUM_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ARBITRUM_MAINNET', null),
-      ZKSYNC_SEPOLIA: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ZKSYNC_SEPOLIA', null),
-      ZKSYNC_MAINNET: utils.configParser(sourceConfig, 'string', 'BLOCKCHAIN_NODES_ZKSYNC_MAINNET', null),
     },
 
     SERVICES: {
@@ -188,71 +261,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       // RATES
       TOKEN_RATES_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_BATCH_SIZE', 1000),
       TOKEN_RATES_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_CONCURRENCY', 1),
-    },
-    ETHERSCAN_API: {
-      ETHEREUM_MAINNET: {
-        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_ETHEREUM_MAINNET_API_KEY', null),
-        API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'ETHERSCAN_API_ETHEREUM_MAINNET_API_URL',
-          'https://api.etherscan.io/api',
-        ),
-      },
-      ETHEREUM_SEPOLIA: {
-        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_ETHEREUM_SEPOLIA_API_KEY', null),
-        API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'ETHERSCAN_API_ETHEREUM_SPOILIA_API_URL',
-          'https://api-sepolia.etherscan.io/api',
-        ),
-      },
-      POLYGON_MAINNET: {
-        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_POLYGON_MAINNET_API_KEY', null),
-        API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'ETHERSCAN_API_POLYGON_MAINNET_API_URL',
-          'https://api.polygonscan.com/api',
-        ),
-      },
-      BASE_MAINNET: {
-        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_BASE_MAINNET_API_KEY', null),
-        API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'ETHERSCAN_API_BASE_MAINNET_API_URL',
-          'https://api.basescan.org/api',
-        ),
-      },
-      ARBITRUM_MAINNET: {
-        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_ARBITRUM_MAINNET_API_KEY', null),
-        API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'ETHERSCAN_API_ARBITRUM_MAINNET_API_URL',
-          'https://api.arbiscan.io/api',
-        ),
-      },
-      ZKSYNC_SEPOLIA: {
-        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_ZKSYNC_SEPOLIA_API_KEY', null),
-        API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'ETHERSCAN_API_ZKSYNC_SEPOLIA_API_URL',
-          'https://block-explorer-api.sepolia.zksync.dev/api',
-        ),
-      },
-      ZKSYNC_MAINNET: {
-        API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_ZKSYNC_MAINNET_API_KEY', null),
-        API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'ETHERSCAN_API_ZKSYNC_MAINNET_API_URL',
-          'https://block-explorer-api.mainnet.zksync.io/api',
-        ),
-      },
     },
   }
 }
