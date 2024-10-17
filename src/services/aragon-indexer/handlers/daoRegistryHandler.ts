@@ -1,5 +1,12 @@
 import logger from '@logger'
-import { EnumQueueName, type HexAddress, IEventLogMember, IEventLogPluginType, type ILogInfo } from '@types'
+import {
+  EnumQueueName,
+  type HexAddress,
+  IEventLogMember,
+  IEventLogPluginType,
+  type ILogInfo,
+  IPluginInterfaceType
+} from '@types'
 import { type Log, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
@@ -19,6 +26,9 @@ import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Plugin from '@models/schema/plugin'
+import {LogTokenVoting} from "@indexer/logTokenVoting";
+import {LogMultiSig} from "@indexer/logMultisig";
+import {LogAdmin} from "@indexer/logAdmin";
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:DaoRegistryHandler' })
 
@@ -85,14 +95,14 @@ export const DaoRegistryHandler = {
     /**
      * Save the plugin Setup Processor logs that will create the plugin entry for the dao
      */
-    await DaoRegistryHandler._pluginSetup(txReceipt, info)
+    const installedPlugins = await DaoRegistryHandler._pluginSetup(txReceipt, info)
 
-    /**
-     * Save the plugin settings logs that will create the plugin settings entry for the dao
-     * It return the plugin if the setting are saved successfully
-     */
-    await DaoRegistryHandler._pluginSettings(txReceipt, info)
-
+    // /**
+    //  * Save the plugin settings logs that will create the plugin settings entry for the dao
+    //  * It return the plugin if the setting are saved successfully
+    //  */
+    // const settingPlugins = await DaoRegistryHandler._pluginSettings(txReceipt, info)
+    //
     // await Promise.all(
     //   Utils.mergeAndRemoveDuplicatePlugins(installedPlugins, settingPlugins).map(async (plugin: Plugin) => {
     //     // /**
@@ -107,9 +117,8 @@ export const DaoRegistryHandler = {
     //       await LogMultiSig.start(plugin)
     //     } else if (plugin.interfaceType === IPluginInterfaceType.admin) {
     //       await LogAdmin.start(plugin)
-    //     } else if (plugin.interfaceType === IPluginInterfaceType.spp) {
-    //       await LogSpp.start(plugin)
     //     }
+    //     // SPP will never trigger here
     //   }),
     // )
 
@@ -140,6 +149,7 @@ export const DaoRegistryHandler = {
 
   _pluginSetup: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
     const installationTypes = [IEventLogPluginType.InstallationPrepared, IEventLogPluginType.InstallationApplied]
+    const installedPlugins: Plugin[] = []
 
     for (const installationType of installationTypes) {
       const pluginSetupLogs = Web3Helper.findLogsByName(txReceipt, installationType, PluginSetupProcessor.abi)
@@ -163,7 +173,9 @@ export const DaoRegistryHandler = {
             infoPluginSetup.network,
           )
 
-          if (!installedPlugin) {
+          if (installedPlugin) {
+            installedPlugins.push(installedPlugin)
+          } else {
             logger.error(
               'Error InstallationApplied but Plugin not installed',
               llo({ plugin: pluginSetupLog?.parsed?.args.plugin }, txReceipt, info),
@@ -172,15 +184,18 @@ export const DaoRegistryHandler = {
         }
       }
     }
+    return installedPlugins
   },
 
   _pluginSettings: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
     const multisigSettings = Web3Helper.findLogsByName(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
+    const plugins: Plugin[] = []
 
     if (multisigSettings?.length > 0) {
       for (const multisigSetting of multisigSettings) {
         const infoPluginSetup = Web3Helper.parseInfoLog(multisigSetting.txLog, 'MultisigSettingsUpdated', info.network)
-        await PluginSettingHandler.multisigSettingsUpdated(multisigSetting.parsed!, infoPluginSetup)
+        const plugin = await PluginSettingHandler.multisigSettingsUpdated(multisigSetting.parsed!, infoPluginSetup)
+        if (plugin) plugins.push(plugin)
       }
     }
 
@@ -189,9 +204,12 @@ export const DaoRegistryHandler = {
     if (votingSettings?.length > 0) {
       for (const votingSetting of votingSettings) {
         const infoPluginSetup = Web3Helper.parseInfoLog(votingSetting.txLog, 'VotingSettingsUpdated', info.network)
-        await PluginSettingHandler.votingSettingsUpdated(votingSetting.parsed!, infoPluginSetup)
+        const plugin = await PluginSettingHandler.votingSettingsUpdated(votingSetting.parsed!, infoPluginSetup)
+        if (plugin) plugins.push(plugin)
       }
     }
+
+    return plugins
   },
 
   _memberAdded: async (txReceipt: TransactionReceipt, info: ILogInfo, plugin: Plugin) => {

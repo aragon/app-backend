@@ -80,6 +80,10 @@ export default class PluginRepo extends Model {
     return await this.findOne({ id: entityId }, tOpts)
   }
 
+  static async findSubdomain(pluginRepo: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return await this.findOne({ pluginRepo, network }, tOpts)
+  }
+
   async update(params: Partial<PluginRepo>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
