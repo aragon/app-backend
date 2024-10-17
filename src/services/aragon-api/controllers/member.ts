@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import {
   ErrorKeyEnum,
+  type HexAddress,
   type IMemberExtraParams,
   type IMembersResponse,
   type IPaginatedResult,
@@ -42,7 +43,7 @@ const MemberController = {
   },
 
   getMemberByAddress: async (
-    address: string,
+    address: HexAddress,
     extraParams: IMemberExtraParams = {},
     pairParams: IPairParams = {},
   ): Promise<IMembersResponse> => {
@@ -51,6 +52,15 @@ const MemberController = {
     assertExposable(member, ErrorKeyEnum.notFound)
 
     return member
+  },
+
+  isMemberOfPlugin: async (memberAddress: HexAddress, pluginAddress: HexAddress): Promise<boolean> => {
+    const member = await Models.DaoMemberMapping.findOne({
+      memberAddress,
+      pluginAddress,
+    })
+
+    return !!member
   },
 }
 
