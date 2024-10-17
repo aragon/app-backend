@@ -1,5 +1,5 @@
 import logger from '@logger'
-import {IEventLogPluginMembership, IEventLogPluginType, type ILogInfo, IPluginInterfaceType} from '@types'
+import { IEventLogPluginMembership, IEventLogPluginType, type ILogInfo, IPluginInterfaceType } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Utils from '@helpers/utils'
@@ -9,12 +9,12 @@ import { ProxyToken } from '@modules/proxyToken'
 import { PluginHandler } from '@indexer/handlers/pluginHandler'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import DbOperations from '@models/utils/dbOperations'
-import {DaoRegistryHandler} from "@indexer/handlers/daoRegistryHandler";
-import {LogTokenVoting} from "@indexer/logTokenVoting";
-import {LogMultiSig} from "@indexer/logMultisig";
-import {LogAdmin} from "@indexer/logAdmin";
-import {LogSpp} from "@indexer/logSPP";
-import {PluginSettingHandler} from "@indexer/handlers/pluginSettingHandler";
+import { LogTokenVoting } from '@indexer/logTokenVoting'
+import { LogMultiSig } from '@indexer/logMultisig'
+import { LogAdmin } from '@indexer/logAdmin'
+import { LogSpp } from '@indexer/logSPP'
+import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
+import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
 
@@ -89,6 +89,49 @@ export const PluginSetupProcessorHandler = {
       llo,
     )
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.installed, logDb)
+
+    const pluginDb = await Models.Plugin.findByAddress(parsedEvent.args.plugin, info.network)
+
+    if (pluginDb && pluginDb.interfaceType === IPluginInterfaceType.spp) {
+      const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+      await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
+      await LogSpp.start(pluginDb)
+    }
+  },
+
+  handleSingleInstallationPrepared: async ({ txLog, parsed }: any, logInfo: ILogInfo, tokenAddress?: any) => {
+    const rawPluginLog: Partial<LogPluginSetupProcessor> = {
+      event: IEventLogPluginType.InstallationPrepared,
+      network: logInfo.network,
+      transactionHash: txLog.transactionHash,
+      transactionIndex: txLog.transactionIndex,
+      logIndex: txLog.logIndex,
+      permissions: Utils.parsePermissions(parsed.args?.preparedSetupData?.permissions),
+      sender: parsed.args.sender,
+      daoAddress: parsed.args.dao,
+      preparedSetupId: parsed.args.preparedSetupId,
+      pluginSetupRepo: parsed.args.pluginSetupRepo,
+      pluginAddress: parsed.args.plugin,
+      release: parsed.args.versionTag.release,
+      build: parsed.args.versionTag.build,
+      blockNumber: txLog.blockNumber,
+      tokenAddress: undefined,
+    }
+
+    if (tokenAddress) {
+      const tokenDb = await ProxyToken.saveAndGetToken(tokenAddress, logInfo.network)
+      rawPluginLog.tokenAddress = tokenDb?.address || tokenAddress
+    }
+
+    const logDb = await DbOperations.createDocument(
+      Models.LogPluginSetupProcessor,
+      rawPluginLog,
+      logInfo,
+      'New InstallationPrepared',
+      llo,
+    )
+
+    await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.preInstall, logDb)
   },
 
   installationPrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -100,71 +143,69 @@ export const PluginSetupProcessorHandler = {
       return
     }
 
-    const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
-      network: info.network,
-      transactionHash: info.transactionHash,
-      transactionIndex: info.transactionIndex,
-      logIndex: info.logIndex,
-      event: IEventLogPluginType.InstallationPrepared,
-    })
-    if (existingLog) return
-
-    const rawPluginLog: Partial<LogPluginSetupProcessor> = {
-      event: IEventLogPluginType.InstallationPrepared,
-      network: info.network,
-      transactionHash: info.transactionHash,
-      transactionIndex: info.transactionIndex,
-      logIndex: info.logIndex,
-      permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
-      sender: parsedEvent.args.sender,
-      daoAddress,
-      preparedSetupId: parsedEvent.args.preparedSetupId,
-      pluginSetupRepo: parsedEvent.args.pluginSetupRepo,
-      pluginAddress: parsedEvent.args.plugin,
-      release: parsedEvent.args.versionTag.release,
-      build: parsedEvent.args.versionTag.build,
-      blockNumber: info.blockNumber,
-      tokenAddress: undefined,
-    }
-
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-    const pluginSetupLogs = Web3Helper.findLogsByName(
+
+    const installationPreparingLogs = Web3Helper.findLogsByName(
+      txReceipt!,
+      IEventLogPluginType.InstallationPrepared,
+      PluginSetupProcessor.abi,
+    )
+
+    const memberShipAnnouncedLogs = Web3Helper.findLogsByName(
       txReceipt!,
       IEventLogPluginMembership.MembershipContractAnnounced,
       TokenVoting.abi,
     )
 
-    if (pluginSetupLogs.length > 0) {
-      const tokenAddress = pluginSetupLogs[0]?.parsed?.args?.[0]
-      if (tokenAddress) {
-        const tokenDb = await ProxyToken.saveAndGetToken(tokenAddress, info.network)
-        rawPluginLog.tokenAddress = tokenDb?.address || tokenAddress
-      }
-    }
+    const parsedMembershipAnnouncedLogs = memberShipAnnouncedLogs.reduce((parsed: any, log: any) => {
+      parsed.push({
+        [log.txLog.address]: log.parsed.args[0],
+      })
+      return parsed
+    }, [])
 
-    const logDb = await DbOperations.createDocument(
-      Models.LogPluginSetupProcessor,
-      rawPluginLog,
-      info,
-      'New InstallationPrepared',
-      llo,
+    await Promise.all(
+      installationPreparingLogs.map(async (installationPreparingLog: any) => {
+        const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
+          network: info.network,
+          transactionHash: installationPreparingLog.txLog.transactionHash,
+          transactionIndex: installationPreparingLog.txLog.transactionIndex,
+          logIndex: installationPreparingLog.txLog.logIndex,
+          event: IEventLogPluginType.InstallationPrepared,
+        })
+        if (!existingLog) {
+          const logInfo = Web3Helper.parseInfoLog(installationPreparingLog.txLog, 'InstallationPrepared', info.network)
+          const memberShipAnnouncedLog = parsedMembershipAnnouncedLogs.find(
+            (parsed: any) => parsed[installationPreparingLog.parsed.args.plugin],
+          )
+          const tokenAddress = memberShipAnnouncedLog
+            ? memberShipAnnouncedLog[installationPreparingLog.parsed.args.plugin]
+            : undefined
+
+          await PluginSetupProcessorHandler.handleSingleInstallationPrepared(
+            installationPreparingLog,
+            logInfo,
+            tokenAddress,
+          )
+        }
+      }),
     )
 
-    await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.preInstall, logDb)
     const plugins = await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
 
-    await Promise.all(plugins.map(async (plugin) => {
-
-      if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
-        await LogTokenVoting.start(plugin)
-      } else if (plugin.interfaceType === IPluginInterfaceType.multisig) {
-        await LogMultiSig.start(plugin)
-      } else if (plugin.interfaceType === IPluginInterfaceType.admin) {
-        await LogAdmin.start(plugin)
-      } else if(plugin.interfaceType === IPluginInterfaceType.spp) {
-        await LogSpp.start(plugin)
-      }
-    }))
+    await Promise.all([
+      ...plugins.map(async (plugin: any) => {
+        if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
+          await LogTokenVoting.start(plugin)
+        } else if (plugin.interfaceType === IPluginInterfaceType.multisig) {
+          await LogMultiSig.start(plugin)
+        } else if (plugin.interfaceType === IPluginInterfaceType.admin) {
+          await LogAdmin.start(plugin)
+        } else if (plugin.interfaceType === IPluginInterfaceType.spp) {
+          await LogSpp.start(plugin)
+        }
+      }),
+    ])
   },
 
   uninstallationApplied: async (parsedEvent: LogDescription, info: ILogInfo) => {

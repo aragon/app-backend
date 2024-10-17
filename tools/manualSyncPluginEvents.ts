@@ -1,7 +1,7 @@
 import { EnumConnection, type IService } from '@types'
 import { Models } from '@dbModels'
 import { LogTokenVoting } from '@indexer/logTokenVoting'
-import { LogMultisig } from '@indexer/logMultisig'
+import { LogMultiSig } from '@indexer/logMultisig'
 import { IPluginActionType } from '@indexer/handlers/pluginSetupProcessorHandler'
 
 export const ToolsManualSyncDaoPluginEvents: IService = {
@@ -24,7 +24,7 @@ export const ToolsManualSyncDaoPluginEvents: IService = {
         if (setting.tokenAddress) {
           await LogTokenVoting.start(plugin)
         } else {
-          await LogMultisig.start(plugin)
+          await LogMultiSig.start(plugin)
         }
       }
     }

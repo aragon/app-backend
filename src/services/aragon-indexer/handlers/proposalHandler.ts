@@ -359,7 +359,7 @@ export const ProposalHandler = {
       logger.warn('Proposal not found', llo(info))
     }
 
-    const newStage = parsedEvent.args.stageId
+    const newStage = Number(parsedEvent.args.stageId)
     await proposal.update({ stageIndex: newStage })
     const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, info.network)
 
@@ -453,14 +453,14 @@ export const ProposalHandler = {
 
       const proposalInfo = await Web3Helper.getSppProposal(proposal.proposalIndex, plugin.address, proposal.network)
       if (proposalInfo) {
-        proposal.stageIndex = proposalInfo.currentStage
+        proposal.stageIndex = Number(proposalInfo.currentStage)
       }
 
       const subPlugins = plugin.subPlugins.find(async subPlugin => subPlugin.stageIndex === proposal.stageIndex)
       subPlugins?.addresses?.map(async (address: HexAddress) => {
         const proposalIndex = await Web3Helper.getSppSubPluginProposals(
           proposal.proposalIndex,
-          proposal.stageIndex!,
+          proposal.stageIndex as any,
           address,
           plugin.address,
           proposal.network,
@@ -478,13 +478,17 @@ export const ProposalHandler = {
           address,
           plugin.network,
         )
-        subProposalDb.update({
-          parentProposal: {
-            pluginAddress: proposal.pluginAddress,
-            proposalIndex: proposal.proposalIndex,
-            stageIndex: proposal.stageIndex,
-          },
-        })
+        if (subProposalDb) {
+          subProposalDb.update({
+            parentProposal: {
+              pluginAddress: proposal.pluginAddress,
+              proposalIndex: proposal.proposalIndex,
+              stageIndex: proposal.stageIndex,
+            },
+          })
+        } else {
+          logger.warn('Sub proposal not found', llo({ proposalIndex, address, plugin }))
+        }
       })
     }
 

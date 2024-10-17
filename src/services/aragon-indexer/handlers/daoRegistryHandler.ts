@@ -1,12 +1,5 @@
 import logger from '@logger'
-import {
-  EnumQueueName,
-  type HexAddress,
-  IEventLogMember,
-  IEventLogPluginType,
-  type ILogInfo,
-  IPluginInterfaceType
-} from '@types'
+import { EnumQueueName, type HexAddress, IEventLogMember, IEventLogPluginType, type ILogInfo } from '@types'
 import { type Log, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
@@ -26,9 +19,6 @@ import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Plugin from '@models/schema/plugin'
-import {LogTokenVoting} from "@indexer/logTokenVoting";
-import {LogMultiSig} from "@indexer/logMultisig";
-import {LogAdmin} from "@indexer/logAdmin";
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:DaoRegistryHandler' })
 
@@ -95,7 +85,7 @@ export const DaoRegistryHandler = {
     /**
      * Save the plugin Setup Processor logs that will create the plugin entry for the dao
      */
-    const installedPlugins = await DaoRegistryHandler._pluginSetup(txReceipt, info)
+    // const installedPlugins = await DaoRegistryHandler._pluginSetup(txReceipt, info)
 
     // /**
     //  * Save the plugin settings logs that will create the plugin settings entry for the dao
