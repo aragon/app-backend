@@ -67,6 +67,21 @@ const MemberRouter = {
     )
   },
 
+  isMemberOfPlugin: async function (ctx: RouterContext) {
+    const params = {
+      memberAddress: ctx.params.memberAddress,
+      pluginAddress: ctx.params.pluginAddress,
+    }
+    const anyInvalidParams = Utils.extractAdditionalParams({ ...params }, ctx.query)
+
+    const [formattedParams] = await Promise.all([
+      ValidationSchema.validateParams(MemberSchema.isMemberOfPlugin, params),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
+
+    ctx.body = await MemberController.isMemberOfPlugin(formattedParams.memberAddress, formattedParams.pluginAddress)
+  },
+
   router() {
     const router = new Router()
 
@@ -89,6 +104,16 @@ const MemberRouter = {
      * @apiSampleRequest /member/:address
      */
     router.get('/:address', MemberRouter.getMemberByAddress)
+
+    /**
+     * @api {get} /:memberAddress/:pluginAddress/exists isMemberOfPlugin
+     * @apiName Members
+     * @apiGroup Members
+     * @apiDescription isMemberOfPlugin
+     *
+     * @apiSampleRequest /member/:memberAddress/:pluginAddress/exists
+     */
+    router.get('/:memberAddress/:pluginAddress/exists', MemberRouter.isMemberOfPlugin)
 
     return router
   },
