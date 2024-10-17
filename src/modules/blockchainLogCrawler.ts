@@ -44,7 +44,7 @@ class BlockchainLogCrawler {
       filter: {
         address: opts.address,
         fromBlock: opts.fromBlock || 0,
-        toBlock: opts.toBlock || 'latest', // 6878453
+        toBlock: opts.toBlock || 'latest',
         topics: [topics],
       },
       nbSuccess: 0,
@@ -241,7 +241,7 @@ class BlockchainLogCrawler {
         if (log.blockNumber) {
           this.crawlSetting.lastSync = log?.blockNumber
         }
-        // logger.verbose('Processing log', llo(this.crawlSetting))
+        logger.verbose('Processing log', llo(this.crawlSetting))
         if (this.crawlParams.logService && log.blockNumber) {
           await this.onSaveProgress(log.blockNumber)
         }

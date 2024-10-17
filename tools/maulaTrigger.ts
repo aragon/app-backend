@@ -12,7 +12,7 @@ export const ToolsManualTrigger: IService = {
   start: async () => {
     await ProviderModule.connectToAllNetworks()
 
-    const transactionHash = '0x6b9f98e62162db3f8867b05a2c71ba0adc0986ba8fec2bb61b88d1596e0a9954'
+    const transactionHash = ''
     const network = NetworksEnum.ethereumSepolia
 
     const txReceipt = await Web3Helper.getTransactionReceipt(transactionHash, network)

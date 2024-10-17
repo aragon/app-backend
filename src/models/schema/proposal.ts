@@ -27,6 +27,12 @@ export class SubProposal {
 
   @prop({ type: () => Number })
   public stageIndex?: number
+
+  @prop({ type: () => String })
+  public transactionHash?: string
+
+  @prop({ type: () => Number })
+  public blockNumber?: number
 }
 
 class Resource {
