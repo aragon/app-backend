@@ -299,7 +299,6 @@ export const PluginHandler = {
   },
 
   preInstallPlugin: async (pluginLog: LogPluginSetupProcessor) => {
-
     const dao = await Models.Dao.findByAddress(pluginLog.daoAddress, pluginLog.network)
     if (!dao) {
       logger.warn('Create Plugin - dao not found', llo({ pluginLog }))
@@ -374,7 +373,6 @@ export const PluginHandler = {
 
     const preInstalledPlugin = await Models.Plugin.findOne({
       network: pluginLog.network,
-      transactionHash: pluginLog.transactionHash,
       address: pluginLog.pluginAddress,
       status: IPluginStatus.preInstall,
     })
@@ -389,8 +387,13 @@ export const PluginHandler = {
       pluginSetupRepoAddress: rawPlugin?.pluginSetupRepoAddress,
     }
 
-    await DbOperations.updateDocument(preInstalledPlugin, document, { logId: preInstalledPlugin.id }, 'Installed plugin', llo)
-
+    await DbOperations.updateDocument(
+      preInstalledPlugin,
+      document,
+      { logId: preInstalledPlugin.id },
+      'Installed plugin',
+      llo,
+    )
   },
 
   updatePlugin: async (pluginLog: LogPluginSetupProcessor) => {

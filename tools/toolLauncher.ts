@@ -6,6 +6,7 @@ import ManualSyncPluginEvents from '@tools/manualSyncPluginEvents'
 import ManualSyncProposals from '@tools/manualSyncProposals'
 import ManualSyncTokens from '@tools/manualSyncTokens'
 import ManualSyncProposalAction from '@tools/manualSyncProposalAction'
+import ToolsManualTrigger from '@tools/maulaTrigger'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -17,6 +18,7 @@ const runners = {
   ManualSyncProposals,
   ManualSyncTokens,
   ManualSyncProposalAction,
+  ToolsManualTrigger,
 }
 
 const appToRun = runners[TOOL_RUN!]

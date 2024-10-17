@@ -8,7 +8,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMultiSig' }
 
 export const LogMultiSig = {
   start: async (plugin: Plugin) => {
-    logger.verbose('Start LogMultiSig', llo({ network: plugin.network, plugin,  }))
+    logger.verbose('Start LogMultiSig', llo({ network: plugin.network, plugin }))
 
     const configLogs = configIndexer.filter((item: IIndexerConfig) =>
       Object.values(IMultiSigLogs).includes(item.event as any),
