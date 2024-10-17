@@ -3,17 +3,18 @@ import logger from '@logger'
 import {
   type HexAddress,
   IEventLogPluginType,
+  IPluginInterfaceType,
   IPluginRawStatus,
   IPluginStatus,
   type IQueryGetPlugin,
   type NetworksEnum,
 } from '@types'
-import ProxyContractHelper from '@helpers/proxyContract'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Plugin from '@models/schema/plugin'
 import Web3Helper from '@helpers/web3'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
+import PluginDetector from '@helpers/pluginDetector'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PluginHandler' })
 
@@ -260,7 +261,6 @@ export const PluginHandler = {
       transactionHash: plugin.transactionHash,
       address: plugin.address,
       daoAddress: plugin.daoAddress,
-      tokenAddress: plugin.tokenAddress,
       pluginSetupRepoAddress: plugin.pluginSetupRepoAddress,
       sender: plugin.sender,
       release: plugin.release,
@@ -269,9 +269,25 @@ export const PluginHandler = {
       subdomain: plugin.subdomain,
     }
 
-    const implementationAddress = await ProxyContractHelper.getImplementationAddress(plugin.address, plugin.network)
-    if (implementationAddress) {
-      document.implementationAddress = implementationAddress
+    const pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)
+    document.interfaceType = pluginInfo?.type
+
+    if (document.interfaceType === IPluginInterfaceType.tokenVoting) {
+      document.tokenAddress = plugin.tokenAddress
+    }
+
+    if (pluginInfo?.implementationAddress) {
+      document.implementationAddress = pluginInfo.implementationAddress
+    }
+
+    if (document.interfaceType === IPluginInterfaceType.spp) {
+      document.isProcessor = true
+      document.isBody = false
+      document.isSubPlugin = false
+    } else {
+      document.isProcessor = true
+      document.isBody = true
+      document.isSubPlugin = false
     }
 
     const info = {
@@ -282,26 +298,99 @@ export const PluginHandler = {
     return await DbOperations.createDocument(Models.Plugin, document, info, 'New Create Plugin', llo)
   },
 
-  createPlugin: async (pluginLog: LogPluginSetupProcessor) => {
-    const plugin = await PluginHandler._queryGetPlugin({
+  preInstallPlugin: async (pluginLog: LogPluginSetupProcessor) => {
+
+    const dao = await Models.Dao.findByAddress(pluginLog.daoAddress, pluginLog.network)
+    if (!dao) {
+      logger.warn('Create Plugin - dao not found', llo({ pluginLog }))
+      return
+    }
+
+    const existingLog = await Models.Plugin.findExistingLog({
+      network: pluginLog.network,
+      transactionHash: pluginLog.transactionHash,
+      address: pluginLog.pluginAddress,
+    })
+
+    if (existingLog) {
+      return
+    }
+
+    const pluginRepo = await Models.PluginRepo.findSubdomain(pluginLog.pluginSetupRepo, pluginLog.network)
+
+    const document: Partial<Plugin> = {
+      status: IPluginStatus.preInstall,
+      network: pluginLog.network,
+      blockNumber: pluginLog.blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(pluginLog.blockNumber, pluginLog.network)) || undefined,
+      transactionHash: pluginLog.transactionHash,
+      address: pluginLog.pluginAddress,
+      daoAddress: pluginLog.daoAddress,
+      pluginSetupRepoAddress: pluginLog.pluginSetupRepo,
+      sender: pluginLog.sender,
+      release: pluginLog.release,
+      build: pluginLog.build,
+      permissions: pluginLog.permissions,
+      subdomain: pluginRepo?.subdomain,
+    }
+
+    const pluginInfo = await PluginDetector.detectPluginType(pluginLog.pluginAddress, pluginLog.network)
+    document.interfaceType = pluginInfo?.type
+
+    if (document.interfaceType === IPluginInterfaceType.tokenVoting) {
+      document.tokenAddress = pluginLog.tokenAddress
+    }
+
+    if (pluginInfo?.implementationAddress) {
+      document.implementationAddress = pluginInfo.implementationAddress
+    }
+
+    if (document.interfaceType === IPluginInterfaceType.spp) {
+      document.isProcessor = true
+      document.isBody = false
+      document.isSubPlugin = false
+    } else {
+      document.isProcessor = true
+      document.isBody = true
+      document.isSubPlugin = false
+    }
+
+    const info = {
+      network: pluginLog.network,
+      transactionHash: pluginLog.transactionHash,
+      address: pluginLog.pluginAddress,
+    }
+
+    await DbOperations.createDocument(Models.Plugin, document, info, 'New PreInstall Plugin', llo)
+  },
+
+  installPlugin: async (pluginLog: LogPluginSetupProcessor) => {
+    const rawPlugin = await PluginHandler._queryGetPlugin({
       daoAddress: pluginLog.daoAddress,
       pluginAddress: pluginLog.pluginAddress,
       network: pluginLog.network,
       ...{ events: [IEventLogPluginType.InstallationPrepared, IEventLogPluginType.InstallationApplied] },
     })
 
-    if (!plugin) {
-      logger.warn('Create Plugin - event not found', llo({ pluginLog }))
+    const preInstalledPlugin = await Models.Plugin.findOne({
+      network: pluginLog.network,
+      transactionHash: pluginLog.transactionHash,
+      address: pluginLog.pluginAddress,
+      status: IPluginStatus.preInstall,
+    })
+
+    if (!preInstalledPlugin) {
+      logger.error('PreInstalledPlugin not found', llo({ pluginLog }))
       return
     }
 
-    const dao = await Models.Dao.findByAddress(plugin.daoAddress, plugin.network)
-    if (!dao) {
-      logger.warn('Create Plugin - dao not found', llo({ pluginLog }))
-      return
+    const document = {
+      status: IPluginStatus.installed,
+      pluginSetupRepoAddress: rawPlugin?.pluginSetupRepoAddress,
     }
 
-    await PluginHandler._createPlugin(plugin as any)
+    await DbOperations.updateDocument(preInstalledPlugin, document, { logId: preInstalledPlugin.id }, 'Installed plugin', llo)
+
   },
 
   updatePlugin: async (pluginLog: LogPluginSetupProcessor) => {

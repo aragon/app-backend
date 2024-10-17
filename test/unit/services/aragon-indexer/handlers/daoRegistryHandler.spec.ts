@@ -174,7 +174,6 @@ describe('Indexer: DaoRegistryHandler', () => {
       ] as any)
 
       const logTokenVotingStartStub = sandbox.stub(LogTokenVoting, 'start')
-      const _updateSupportedDaoStub = sandbox.stub(DaoRegistryHandler, '_updateSupportedDao')
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -196,14 +195,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(metadataHandlerStub.calledOnce).to.be.true
       expect(pluginSetupStub.calledOnce).to.be.true
       expect(pluginSettingStub.calledOnce).to.be.true
-      expect(_updateSupportedDaoStub.calledOnce).to.be.true
       expect(logTokenVotingStartStub.calledOnce).to.be.true
-
-      expect(
-        _updateSupportedDaoStub.calledWith({
-          tokenAddress: '0x123',
-        }),
-      ).to.be.true
 
       expect(
         logTokenVotingStartStub.calledOnceWith({

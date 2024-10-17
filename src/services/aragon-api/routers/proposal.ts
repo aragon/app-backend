@@ -22,7 +22,7 @@ const ProposalRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       creatorAddress: ctx.query.creatorAddress as HexAddress,
       daoInfo: Utils.parseBoolean(ctx.query.daoInfo),
-      proposalIndex: Utils.parseNumber(ctx.query.proposalIndex),
+      proposalIndex: ctx.query.proposalIndex?.toString(),
     }
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,

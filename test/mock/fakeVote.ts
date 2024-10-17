@@ -11,7 +11,7 @@ export const FakeVote = {
   pluginAddress: '0x9d5586b4B048Ba9fa847Ae5F169352dc080b3eb3',
   memberAddress: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
   tokenAddress: '0x613ef3f5959688c3b422A545906F844b6f8c8F35',
-  proposalIndex: 2,
+  proposalIndex: '2',
   voteOption: 2,
   votingPower: '10000000000000000000000',
 }

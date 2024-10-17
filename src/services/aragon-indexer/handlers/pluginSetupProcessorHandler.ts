@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { IEventLogPluginMembership, IEventLogPluginType, type ILogInfo } from '@types'
+import {IEventLogPluginMembership, IEventLogPluginType, type ILogInfo, IPluginInterfaceType} from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Utils from '@helpers/utils'
@@ -9,10 +9,17 @@ import { ProxyToken } from '@modules/proxyToken'
 import { PluginHandler } from '@indexer/handlers/pluginHandler'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import DbOperations from '@models/utils/dbOperations'
+import {DaoRegistryHandler} from "@indexer/handlers/daoRegistryHandler";
+import {LogTokenVoting} from "@indexer/logTokenVoting";
+import {LogMultiSig} from "@indexer/logMultisig";
+import {LogAdmin} from "@indexer/logAdmin";
+import {LogSpp} from "@indexer/logSPP";
+import {PluginSettingHandler} from "@indexer/handlers/pluginSettingHandler";
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
 
 export enum IPluginActionType {
+  preInstall = 'pre-install',
   installed = 'installed',
   updated = 'updated',
   uninstalled = 'uninstalled',
@@ -21,8 +28,12 @@ export enum IPluginActionType {
 export const PluginSetupProcessorHandler = {
   pluginHandler: async (action: IPluginActionType, logDb: LogPluginSetupProcessor) => {
     switch (action) {
+      case IPluginActionType.preInstall: {
+        await PluginHandler.preInstallPlugin(logDb)
+        break
+      }
       case IPluginActionType.installed: {
-        await PluginHandler.createPlugin(logDb)
+        await PluginHandler.installPlugin(logDb)
         break
       }
       case IPluginActionType.updated: {
@@ -131,13 +142,29 @@ export const PluginSetupProcessorHandler = {
       }
     }
 
-    await DbOperations.createDocument(
+    const logDb = await DbOperations.createDocument(
       Models.LogPluginSetupProcessor,
       rawPluginLog,
       info,
       'New InstallationPrepared',
       llo,
     )
+
+    await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.preInstall, logDb)
+    const plugins = await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
+
+    await Promise.all(plugins.map(async (plugin) => {
+
+      if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
+        await LogTokenVoting.start(plugin)
+      } else if (plugin.interfaceType === IPluginInterfaceType.multisig) {
+        await LogMultiSig.start(plugin)
+      } else if (plugin.interfaceType === IPluginInterfaceType.admin) {
+        await LogAdmin.start(plugin)
+      } else if(plugin.interfaceType === IPluginInterfaceType.spp) {
+        await LogSpp.start(plugin)
+      }
+    }))
   },
 
   uninstallationApplied: async (parsedEvent: LogDescription, info: ILogInfo) => {

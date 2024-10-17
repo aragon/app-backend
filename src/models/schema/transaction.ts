@@ -130,7 +130,7 @@ export default class Transaction extends Model {
   public erc1155Metadata!: ERC1155Metadata[]
 
   @prop({ type: () => String, default: null })
-  public proposalIndex!: number | null
+  public proposalIndex!: string | null
 
   @prop({ type: () => Token, _id: false, default: null })
   public token?: Token
