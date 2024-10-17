@@ -10,6 +10,7 @@ import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
 import { DaoList } from '@test/mock/fakeDao'
 import DaoMemberMapping from '@models/schema/daoMemberMapping'
 import type Dao from '@models/schema/dao'
+import { NetworksEnum } from '@types'
 
 describe('Controller: Member', () => {
   let sandbox: SinonSandbox
@@ -200,6 +201,49 @@ describe('Controller: Member', () => {
 
       expect(spyReq.calledOnce).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
+    })
+  })
+
+  describe('isMemberOfPlugin', () => {
+    it('isMemberOfPlugin', async () => {
+      await Models.DaoMemberMapping.create({
+        memberAddress: '0x0',
+        pluginAddress: '0x1',
+        daoAddress: '0x0',
+        network: NetworksEnum.arbitrumMainnet,
+      })
+
+      const memberAddress = '0x0'
+      const pluginAddress = '0x1'
+
+      const spyReq = sandbox.spy(Models.DaoMemberMapping, 'findOne')
+      const response = await MemberController.isMemberOfPlugin(memberAddress, pluginAddress)
+
+      expect(response).to.be.true
+
+      expect(
+        spyReq.calledOnceWith({
+          memberAddress,
+          pluginAddress,
+        }),
+      ).to.be.true
+    })
+
+    it('isMemberOfPlugin - not a member', async () => {
+      const memberAddress = '0x0'
+      const pluginAddress = '0x1'
+
+      const spyReq = sandbox.spy(Models.DaoMemberMapping, 'findOne')
+      const response = await MemberController.isMemberOfPlugin(memberAddress, pluginAddress)
+
+      expect(response).to.be.false
+
+      expect(
+        spyReq.calledOnceWith({
+          memberAddress,
+          pluginAddress,
+        }),
+      ).to.be.true
     })
   })
 })
