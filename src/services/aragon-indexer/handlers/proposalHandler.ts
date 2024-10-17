@@ -23,6 +23,7 @@ import DbOperations from '@models/utils/dbOperations'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import DbTx from '@modules/dbTx'
 import ProposalHelper from '@helpers/proposal'
+import { assert } from '@helpers/errors'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 
@@ -333,7 +334,13 @@ export const ProposalHandler = {
       },
     }
 
-    await DbOperations.updateDocument(proposal, rawUpdate, { logId: proposal.id, info }, 'Update proposalExecuted', llo)
+    await DbOperations.updateDocument(
+      await proposal.reload(),
+      rawUpdate,
+      { logId: proposal.id, info },
+      'Update proposalExecuted',
+      llo,
+    )
 
     // Dao metrics
     await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
@@ -363,9 +370,7 @@ export const ProposalHandler = {
     await proposal.update({ stageIndex: newStage })
     const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, info.network)
 
-    const subPlugins = plugin.subPlugins.find(
-      async (subPlugin: { stageIndex: any }) => subPlugin.stageIndex === newStage,
-    )
+    const subPlugins = plugin.subPlugins.find((subPlugin: { stageIndex: any }) => subPlugin.stageIndex === newStage)
 
     subPlugins?.addresses?.map(async (address: HexAddress) => {
       const proposalIndex = await Web3Helper.getSppSubPluginProposals(
@@ -375,18 +380,28 @@ export const ProposalHandler = {
         plugin.address,
         proposal.network,
       )
-      if (proposalIndex !== false) {
-        proposal.subProposals.push({ proposalIndex, stageIndex: newStage, pluginAddress: address })
-      }
 
-      const subProposalDb = await Models.Proposal.findByProposalIndex(proposalIndex, address, plugin.network)
-      subProposalDb.update({
+      assert(proposalIndex !== false && Number(proposalIndex) !== 0, 'SPP Proposal index error')
+
+      proposal.subProposals.push({
+        proposalIndex,
+        stageIndex: newStage,
+        pluginAddress: address,
+        transactionHash: info.transactionHash,
+        blockNumber: info.blockNumber,
+      })
+
+      const subProposalDb = await Models.Proposal.findByProposalIndex(proposalIndex.toString(), address, plugin.network)
+      await subProposalDb.update({
         parentProposal: {
           pluginAddress: proposal.pluginAddress,
           proposalIndex: proposal.proposalIndex,
           stageIndex: newStage,
+          transactionHash: info.transactionHash,
+          blockNumber: info.blockNumber,
         },
       })
+      await proposal.save()
     })
   },
 
@@ -453,7 +468,7 @@ export const ProposalHandler = {
 
       const proposalInfo = await Web3Helper.getSppProposal(proposal.proposalIndex, plugin.address, proposal.network)
       if (proposalInfo) {
-        proposal.stageIndex = Number(proposalInfo.currentStage)
+        proposal.stageIndex = Number(proposalInfo.currentStage) - 1
       }
 
       const subPlugins = plugin.subPlugins.find(async subPlugin => subPlugin.stageIndex === proposal.stageIndex)
@@ -470,6 +485,8 @@ export const ProposalHandler = {
             proposalIndex: proposalIndex.toString(),
             stageIndex: proposal.stageIndex,
             pluginAddress: address,
+            transactionHash: info.transactionHash,
+            blockNumber: info.blockNumber,
           })
         }
 
@@ -479,11 +496,13 @@ export const ProposalHandler = {
           plugin.network,
         )
         if (subProposalDb) {
-          subProposalDb.update({
+          await subProposalDb.update({
             parentProposal: {
               pluginAddress: proposal.pluginAddress,
               proposalIndex: proposal.proposalIndex,
               stageIndex: proposal.stageIndex,
+              transactionHash: info.transactionHash,
+              blockNumber: info.blockNumber,
             },
           })
         } else {
@@ -496,6 +515,8 @@ export const ProposalHandler = {
     if (plugin.isSubPlugin) {
       proposal.isSubProposal = true
       proposal.stageIndex = plugin.stageIndex
+
+      await proposal.save()
     }
   },
 }
