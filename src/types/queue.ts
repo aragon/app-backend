@@ -15,7 +15,7 @@ export interface IQueueDao {
 
 export interface IQueueProposalMetrics {
   network: NetworksEnum
-  proposalIndex: number
+  proposalIndex: string
   pluginAddress: HexAddress
 }
 

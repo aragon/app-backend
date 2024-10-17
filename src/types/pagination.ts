@@ -22,7 +22,7 @@ export interface IVoteExtraParams {
 export interface ICanVoteParams {
   memberAddress: HexAddress
   pluginAddress: HexAddress
-  proposalIndex: number
+  proposalIndex: string
   network: HexAddress
 }
 
@@ -44,7 +44,7 @@ export interface IProposalExtraParams {
   daoAddress?: HexAddress
   pluginAddress?: HexAddress
   creatorAddress?: HexAddress
-  proposalIndex?: number
+  proposalIndex?: string
   daoInfo?: boolean
 }
 

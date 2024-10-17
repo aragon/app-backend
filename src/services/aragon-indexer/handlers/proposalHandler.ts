@@ -1,10 +1,11 @@
 import logger from '@logger'
 import {
   EnumQueueName,
+  type HexAddress,
   type ILogInfo,
   IMetricAction,
+  IPluginInterfaceType,
   type IProposalMetadata,
-  IProposalType,
   type IRawAction,
 } from '@types'
 import { type LogDescription } from 'ethers'
@@ -15,6 +16,7 @@ import Web3Helper from '@helpers/web3'
 import { ProxyMember } from '@modules/proxyMember'
 import { ProxyToken } from '@modules/proxyToken'
 import type Proposal from '@models/schema/proposal'
+import type Plugin from '@models/schema/plugin'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import DbOperations from '@models/utils/dbOperations'
@@ -34,8 +36,13 @@ export const ProposalHandler = {
       return
     }
 
+    if (relatedPlugin.interfaceType === IPluginInterfaceType.admin) {
+      logger.warn('Proposal from admin plugin not supported', llo(info))
+      return
+    }
+
     const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
-    const proposalIndex = Number(parsedEvent.args.proposalId)
+    const proposalIndex = parsedEvent.args.proposalId.toString()
     const existingLog = await Models.Proposal.findExistingLog({
       transactionHash: info.transactionHash,
       pluginAddress,
@@ -45,6 +52,11 @@ export const ProposalHandler = {
 
     const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
     const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
+
+    if (!settings) {
+      logger.error('Plugin setting not found - cannot create proposal without setting', llo(info, pluginAddress))
+      return
+    }
 
     const document: Partial<Proposal> = {
       network: info.network,
@@ -84,6 +96,7 @@ export const ProposalHandler = {
         minParticipation: settings?.minParticipation,
         minDuration: settings?.minDuration,
         minProposerVotingPower: settings?.minProposerVotingPower,
+        stages: settings?.stages, // spp settings
       },
       rawActions: parsedEvent.args?.actions.map((w: IRawAction) => ({
         to: w.to,
@@ -94,12 +107,12 @@ export const ProposalHandler = {
 
     // in case startDate is 0 we need to fetch it from the contract
     if (document.startDate === 0) {
-      const { startDate, endDate } = await ProposalHandler.handleStartEndDate(document as Proposal)
+      const { startDate, endDate } = await ProposalHandler.handleStartEndDate(document as Proposal, relatedPlugin)
       document.startDate = startDate
       document.endDate = endDate
     }
 
-    if (document?.settings?.tokenAddress) {
+    if (document?.settings?.tokenAddress && relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
       const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
         document.blockNumber!,
         document?.settings.tokenAddress,
@@ -109,7 +122,10 @@ export const ProposalHandler = {
       document.snapshot = {
         totalSupply: totalSupply?.toString() ?? '0',
       }
-    } else {
+    } else if (
+      relatedPlugin.interfaceType === IPluginInterfaceType.multisig ||
+      relatedPlugin.interfaceType === IPluginInterfaceType.admin
+    ) {
       const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
         pluginAddress: relatedPlugin.address,
         network: relatedPlugin.network,
@@ -121,6 +137,7 @@ export const ProposalHandler = {
 
     const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)
 
+    await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
     await ProxyMember.updateActivity({
       memberAddress: newProposal.creatorAddress,
       pluginAddress: relatedPlugin.address,
@@ -144,7 +161,7 @@ export const ProposalHandler = {
   },
 
   approved: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const proposalIndex = Number(parsedEvent.args.proposalId)
+    const proposalIndex = parsedEvent.args.proposalId.toString()
     const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
 
     if (!proposal) {
@@ -170,7 +187,7 @@ export const ProposalHandler = {
       daoAddress: proposal?.daoAddress,
       pluginAddress: info.address,
       memberAddress: parsedEvent.args.approver,
-      proposalIndex: Number(parsedEvent.args.proposalId),
+      proposalIndex: parsedEvent.args.proposalId.toString(),
     }
 
     await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
@@ -202,7 +219,7 @@ export const ProposalHandler = {
   },
 
   voteCast: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const proposalIndex = Number(parsedEvent.args.proposalId)
+    const proposalIndex = parsedEvent.args.proposalId.toString()
     const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
 
     if (!proposal) {
@@ -229,21 +246,19 @@ export const ProposalHandler = {
       pluginAddress: info.address,
       memberAddress: parsedEvent.args.voter,
       tokenAddress: proposal.settings.tokenAddress,
-      proposalIndex: Number(parsedEvent.args.proposalId),
+      proposalIndex: parsedEvent.args.proposalId.toString(),
       voteOption: Number(parsedEvent.args.voteOption),
       votingPower: parsedEvent.args.votingPower.toString(),
     }
 
-    if (proposal.settings.tokenAddress) {
-      await ProxyToken.saveAndGetToken(proposal.settings.tokenAddress, proposal.network)
-    }
+    await ProxyToken.saveAndGetToken(proposal.settings.tokenAddress, proposal.network)
 
     // find existing voting
     const existingMemberVote = await Models.Vote.findVoteOnPlugin({
       network: info.network,
       pluginAddress: info.address,
       memberAddress: parsedEvent.args.voter,
-      proposalIndex: Number(parsedEvent.args.proposalId),
+      proposalIndex: parsedEvent.args.proposalId.toString(),
     })
     const isExistingVote = !!existingMemberVote
 
@@ -299,7 +314,7 @@ export const ProposalHandler = {
 
   proposalExecuted: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const parsedParams = {
-      proposalIndex: Number(parsedEvent.args.proposalId),
+      proposalIndex: parsedEvent.args.proposalId.toString(),
     }
     const proposal = await Models.Proposal.findByProposalIndex(parsedParams.proposalIndex, info.address, info.network)
     if (!proposal) {
@@ -336,9 +351,48 @@ export const ProposalHandler = {
     }
   },
 
-  handleStartEndDate: async (proposal: Proposal): Promise<{ startDate: number; endDate: number }> => {
+  proposalAdvanced: async (parsedEvent: LogDescription, info: ILogInfo): Promise<void> => {
+    // TODO: it should have parsedEvent.args.proposalId, parsedEvent.args.newStage
+    const proposal = await Models.Proposal.findByProposalIndex(parsedEvent.args.proposalId, info.address, info.network)
+
+    if (!proposal) {
+      logger.warn('Proposal not found', llo(info))
+    }
+
+    const newStage = parsedEvent.args.stageId
+    await proposal.update({ stageIndex: newStage })
+    const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, info.network)
+
+    const subPlugins = plugin.subPlugins.find(
+      async (subPlugin: { stageIndex: any }) => subPlugin.stageIndex === newStage,
+    )
+
+    subPlugins?.addresses?.map(async (address: HexAddress) => {
+      const proposalIndex = await Web3Helper.getSppSubPluginProposals(
+        proposal.proposalIndex,
+        newStage,
+        address,
+        plugin.address,
+        proposal.network,
+      )
+      if (proposalIndex !== false) {
+        proposal.subProposals.push({ proposalIndex, stageIndex: newStage, pluginAddress: address })
+      }
+
+      const subProposalDb = await Models.Proposal.findByProposalIndex(proposalIndex, address, plugin.network)
+      subProposalDb.update({
+        parentProposal: {
+          pluginAddress: proposal.pluginAddress,
+          proposalIndex: proposal.proposalIndex,
+          stageIndex: newStage,
+        },
+      })
+    })
+  },
+
+  handleStartEndDate: async (proposal: Proposal, plugin: Plugin): Promise<{ startDate: number; endDate: number }> => {
     const response = await ProposalHelper.getProposal({
-      proposalType: proposal.settings?.tokenAddress ? IProposalType.tokenVoting : IProposalType.multisig,
+      proposalType: plugin.interfaceType,
       proposalIndex: proposal.proposalIndex,
       pluginAddress: proposal.pluginSubdomain,
       network: proposal.network,
@@ -385,6 +439,59 @@ export const ProposalHandler = {
       )
     } catch (error) {
       logger.error('Error parseActions', llo({ error, proposalId: proposal.id }))
+    }
+  },
+
+  pairSppProposals: async (proposal: Proposal, plugin: Plugin, info: ILogInfo) => {
+    logger.verbose('pair spp proposals', llo({ proposal, plugin, info }))
+
+    // proposal of a spp plugin
+    if (plugin.interfaceType === IPluginInterfaceType.spp) {
+      proposal.isSubProposal = false
+      proposal.totalStages = plugin.totalStages
+      proposal.subProposals = []
+
+      const proposalInfo = await Web3Helper.getSppProposal(proposal.proposalIndex, plugin.address, proposal.network)
+      if (proposalInfo) {
+        proposal.stageIndex = proposalInfo.currentStage
+      }
+
+      const subPlugins = plugin.subPlugins.find(async subPlugin => subPlugin.stageIndex === proposal.stageIndex)
+      subPlugins?.addresses?.map(async (address: HexAddress) => {
+        const proposalIndex = await Web3Helper.getSppSubPluginProposals(
+          proposal.proposalIndex,
+          proposal.stageIndex!,
+          address,
+          plugin.address,
+          proposal.network,
+        )
+        if (proposalIndex !== false) {
+          proposal.subProposals.push({
+            proposalIndex: proposalIndex.toString(),
+            stageIndex: proposal.stageIndex,
+            pluginAddress: address,
+          })
+        }
+
+        const subProposalDb = await Models.Proposal.findByProposalIndex(
+          proposalIndex.toString(),
+          address,
+          plugin.network,
+        )
+        subProposalDb.update({
+          parentProposal: {
+            pluginAddress: proposal.pluginAddress,
+            proposalIndex: proposal.proposalIndex,
+            stageIndex: proposal.stageIndex,
+          },
+        })
+      })
+    }
+
+    // proposal of a sub plugin
+    if (plugin.isSubPlugin) {
+      proposal.isSubProposal = true
+      proposal.stageIndex = plugin.stageIndex
     }
   },
 }

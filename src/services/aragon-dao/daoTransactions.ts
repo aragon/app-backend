@@ -118,7 +118,7 @@ export const DaoTransactions = {
 
       let daoAddress = dao.address
       let pluginAddress: string | undefined
-      let proposalIndex: number | undefined
+      let proposalIndex: string | undefined
 
       const proposalExecutionLog = Web3Helper.findLogsByName(transactionReceipt, 'Executed', DAO.abi)
       if (proposalExecutionLog?.length) {
@@ -128,7 +128,7 @@ export const DaoTransactions = {
         pluginAddress = proposalIdLog[0].txLog.address
 
         if (proposalIdLog?.length) {
-          proposalIndex = Number(proposalIdLog[0].txLog.topics[1])
+          proposalIndex = proposalIdLog[0].txLog.topics[1].toString()
         }
       }
 

@@ -49,7 +49,7 @@ describe('Manual: Etherscan', () => {
         implementationAddress = contract
       }
 
-      const response = await EtherscanHelper.fetchContractSourceCode({
+      const response: any = await EtherscanHelper.fetchContractSourceCode({
         contractAddress: contract,
         network: NetworksEnum.ethereumSepolia,
       })

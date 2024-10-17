@@ -14,8 +14,20 @@ import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
+import { Stages } from '@models/schema/setting'
 
 const customName = ICollectionNames.Proposal
+
+export class SubProposal {
+  @prop({ type: () => String })
+  public pluginAddress!: HexAddress
+
+  @prop({ type: () => String })
+  public proposalIndex?: string
+
+  @prop({ type: () => Number })
+  public stageIndex?: number
+}
 
 class Resource {
   @prop({ type: () => String, default: null })
@@ -92,6 +104,9 @@ class Settings {
 
   @prop({ type: () => Number })
   public minProposerVotingPower!: number
+
+  @prop({ type: () => [Stages], _id: false })
+  public stages!: Stages[]
 }
 
 export class ProposalExecuted {
@@ -179,8 +194,8 @@ export default class Proposal extends Model {
   @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
 
-  @prop({ type: () => Number, required: true })
-  public proposalIndex!: number
+  @prop({ type: () => String, required: true })
+  public proposalIndex!: string
 
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress
@@ -233,11 +248,28 @@ export default class Proposal extends Model {
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics!: Metrics
 
+  // SPP Proposal
+  @prop({ type: () => Number })
+  public totalStages?: number
+
+  // if SubProposal
+  @prop({ type: () => SubProposal, _id: false })
+  public parentProposal!: SubProposal
+
+  @prop({ type: () => Boolean, default: false })
+  public isSubProposal?: boolean
+
+  @prop({ type: () => Number })
+  public stageIndex?: number
+
+  @prop({ type: () => [SubProposal], _id: false })
+  public subProposals!: SubProposal[]
+
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
-      assert(rawData?.proposalIndex! >= 0, 'proposalIndex is required')
+      assert(!!rawData?.proposalIndex, 'proposalIndex is required')
       rawData.id = this.getEntityId({
         transactionHash: rawData?.transactionHash!,
         pluginAddress: rawData?.pluginAddress!,
@@ -263,7 +295,7 @@ export default class Proposal extends Model {
   }
 
   static async findByProposalIndex(
-    proposalIndex: number,
+    proposalIndex: string,
     pluginAddress: HexAddress,
     network: NetworksEnum,
     tOpts?: SaveOptions,

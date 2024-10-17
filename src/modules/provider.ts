@@ -37,14 +37,17 @@ const ProviderModule = {
   },
 
   async connectToAllNetworks() {
-    const networks = config.BLOCKCHAIN_NODES
+    const networks = config.NODES
     await Promise.all(
-      Object.entries(networks).map(async ([network, nodeUrl]) => {
+      Object.entries(networks).map(async item => {
         try {
-          assert(!!nodeUrl && nodeUrl.length > 0, 'Node URL is not configured')
-          return await ProviderModule.connectToNetwork(ProviderModule.parseNetwork(network) as NetworksEnum, nodeUrl!)
+          assert(item?.[1]?.WS?.length > 0, 'Node URL is not configured')
+          return await ProviderModule.connectToNetwork(
+            ProviderModule.parseNetwork(item[0]) as NetworksEnum,
+            item?.[1]?.WS,
+          )
         } catch (error) {
-          logger.warn(`Node URL for ${network} is not configured.`, llo({ network }))
+          logger.warn(`Node URL for ${ProviderModule.parseNetwork(item[0])} is not configured.`, llo({ item }))
           return Promise.resolve()
         }
       }),
@@ -54,7 +57,6 @@ const ProviderModule = {
   async connectToNetwork(network: NetworksEnum, nodeUrl: string) {
     try {
       const existingProxy = ProviderModule.providerProxies[network]
-      const existingSubscriptions = existingProxy?.subscriptions || []
 
       const alchemySettings: AlchemySettings = {
         apiKey: nodeUrl.split('/v2/')[1],
@@ -68,7 +70,6 @@ const ProviderModule = {
         ...existingProxy,
         provider,
         alchemy,
-        subscriptions: existingSubscriptions,
       }
 
       ProviderModule.providerProxies[network].alchemy.ws.on('open', () => {
@@ -112,9 +113,6 @@ const ProviderModule = {
         // Handle error appropriately
       }
     }
-
-    // Store the wrapped listener
-    providerProxy.subscriptions.push({ filter, listener: wrappedListener })
 
     const alchemy = providerProxy?.alchemy
     alchemy?.ws?.on(filter, wrappedListener)

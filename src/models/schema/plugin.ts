@@ -1,10 +1,25 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, ICollectionNames, type IPluginIdParams, IPluginStatus, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  ICollectionNames,
+  type IPluginIdParams,
+  IPluginInterfaceType,
+  IPluginStatus,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 
 const customName = ICollectionNames.Plugin
+
+export class SubPlugin {
+  @prop({ type: () => [String], default: [] })
+  public addresses!: HexAddress[]
+
+  @prop({ type: () => Number })
+  public stageIndex?: number
+}
 
 export class PluginPermission {
   @prop({ type: () => Number, default: null })
@@ -77,11 +92,14 @@ export default class Plugin extends Model {
   @prop({ type: () => String, default: null })
   public implementationAddress?: HexAddress
 
-  // @prop({ type: () => String, default: null })
-  // public parentPlugin?: HexAddress
+  @prop({ type: () => String, enum: IPluginInterfaceType, required: true })
+  public interfaceType!: IPluginInterfaceType
 
   @prop({ type: () => String, enum: IPluginStatus, required: true })
   public status!: IPluginStatus
+
+  @prop({ type: () => Boolean, default: false })
+  public isSupported!: boolean
 
   @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
@@ -109,6 +127,30 @@ export default class Plugin extends Model {
 
   @prop({ type: () => PluginUninstalled, _id: false, default: {} })
   public uninstalled!: PluginUninstalled
+
+  // Flags
+  @prop({ type: () => Boolean, default: false })
+  public isProcessor?: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public isBody?: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public isSubPlugin?: boolean
+
+  // SPP plugin
+  @prop({ type: () => Number })
+  public totalStages?: number
+
+  @prop({ type: () => [SubPlugin], _id: false })
+  public subPlugins!: SubPlugin[]
+
+  // SPP sub-plugins
+  @prop({ type: () => Number })
+  public stageIndex?: number
+
+  @prop({ type: () => String })
+  public parentPlugin?: HexAddress
 
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {

@@ -89,7 +89,7 @@ export interface IPluginIdParams {
 export interface IProposalIdParams {
   transactionHash: HexAddress
   pluginAddress: HexAddress
-  proposalIndex: number
+  proposalIndex: string
 }
 
 export interface ITokenIdParams {
