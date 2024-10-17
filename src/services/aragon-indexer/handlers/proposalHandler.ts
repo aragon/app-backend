@@ -359,7 +359,6 @@ export const ProposalHandler = {
   },
 
   proposalAdvanced: async (parsedEvent: LogDescription, info: ILogInfo): Promise<void> => {
-    // TODO: it should have parsedEvent.args.proposalId, parsedEvent.args.newStage
     const proposal = await Models.Proposal.findByProposalIndex(parsedEvent.args.proposalId, info.address, info.network)
 
     if (!proposal) {
@@ -371,6 +370,40 @@ export const ProposalHandler = {
     const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, info.network)
 
     const subPlugins = plugin.subPlugins.find((subPlugin: { stageIndex: any }) => subPlugin.stageIndex === newStage)
+
+    /**
+     * We need to mark as executed all the sub proposals of the previous stage
+     */
+    await Promise.all(
+      proposal.subProposals.map(async (subProposal: any) => {
+        const subProposalDb = await Models.Proposal.findByProposalIndex(
+          subProposal.proposalIndex,
+          subProposal.pluginAddress,
+          info.network,
+        )
+        if (!subProposalDb) {
+          logger.warn('Sub proposal not found', llo({ subProposal, plugin }))
+          return
+        }
+
+        if (subProposalDb.executed.status) return
+
+        const executed = {
+          status: true,
+          blockNumber: info.blockNumber,
+          transactionHash: info.transactionHash,
+          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+        }
+
+        return await DbOperations.updateDocument(
+          subProposalDb,
+          { executed },
+          { logId: proposal.id },
+          'Proposal Executed - Sub Proposal',
+          llo,
+        )
+      }),
+    )
 
     subPlugins?.addresses?.map(async (address: HexAddress) => {
       const proposalIndex = await Web3Helper.getSppSubPluginProposals(
