@@ -61,6 +61,8 @@ export enum IMultiSigLogs {
 export enum IAdminLogs {
   MembersAdded = 'MembersAdded',
   MembersRemoved = 'MembersRemoved',
+  Granted = 'Granted',
+  Revoked = 'Revoked',
 }
 
 export enum ISPPLogs {

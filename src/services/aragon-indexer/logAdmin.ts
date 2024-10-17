@@ -8,8 +8,6 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogAdmin' })
 
 export const LogAdmin = {
   start: async (plugin: Plugin) => {
-    // TODO: handle adminV2
-
     logger.verbose('Start LogAdmin', llo({ network: plugin.network }))
 
     const configLogs = configIndexer.filter((item: IIndexerConfig) =>
@@ -19,7 +17,7 @@ export const LogAdmin = {
     const crawler = new BlockchainLogCrawler({
       network: plugin.network,
       events: configLogs,
-      address: plugin.address,
+      address: [plugin.address, plugin.daoAddress],
       fromBlock: plugin?.blockNumber || 0,
       onError: async (error: any) => LogAdmin.processError(error, plugin),
       logService: `Admin-${plugin.network}-${plugin.address}`,

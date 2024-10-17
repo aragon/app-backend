@@ -17,6 +17,7 @@ import { ProposalHandler } from '@indexer/handlers/proposalHandler'
 import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { SharedLogs } from '@artifacts/shared'
+import { PermissionHandler } from '@indexer/handlers/permissionHandler'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -189,6 +190,22 @@ const IndexerEventConfig: IIndexerConfig[] = [
     enableHistorical: false,
     enableRealtime: true,
     topic: new Interface(StagedProposalProcessor.abi).getEvent('ProposalAdvanced')?.topicHash!,
+  },
+  {
+    event: 'Granted',
+    abi: DAO.abi,
+    handler: PermissionHandler.handleGrantOnDao,
+    enableHistorical: false,
+    enableRealtime: true,
+    topic: new Interface(DAO.abi).getEvent('Grant')?.topicHash!,
+  },
+  {
+    event: 'Revoked',
+    abi: DAO.abi,
+    handler: PermissionHandler.handleRevokeOnDao,
+    enableHistorical: false,
+    enableRealtime: true,
+    topic: new Interface(DAO.abi).getEvent('Revoke')?.topicHash!,
   },
 ]
 
