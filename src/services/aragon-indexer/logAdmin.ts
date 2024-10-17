@@ -21,7 +21,6 @@ export const LogAdmin = {
       events: configLogs,
       address: plugin.address,
       fromBlock: plugin?.blockNumber || 0,
-      toBlock: 'latest',
       onError: async (error: any) => LogAdmin.processError(error, plugin),
       logService: `Admin-${plugin.network}-${plugin.address}`,
       stopOnError: true,

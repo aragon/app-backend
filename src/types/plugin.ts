@@ -16,6 +16,7 @@ export enum IPluginRawStatus {
 }
 
 export enum IPluginStatus {
+  preInstall = 'preInstall',
   installed = 'installed',
   deprecated = 'deprecated',
   uninstalled = 'uninstalled',

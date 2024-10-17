@@ -14,8 +14,8 @@ export interface IIndexerConfig {
 
 export interface ICrawlParam {
   network: NetworksEnum
-  fromBlock: number
-  toBlock: number | string
+  fromBlock?: number
+  toBlock?: number | string
   address?: HexAddress | HexAddress[] | string | string[]
   events: IIndexerConfig[]
   stopOnError: boolean

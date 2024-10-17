@@ -121,9 +121,8 @@ class BlockchainLogCrawler {
     this.crawlSetting.crawling = true
 
     // override when use log service
-    if (this.crawlParams.logService) {
+    if (!this.crawlSetting.filter.fromBlock) {
       this.crawlSetting.filter.fromBlock = await this.getServiceStartBlock()
-      this.crawlSetting.filter.toBlock = 'latest'
     }
 
     let currentBlock = await Web3Helper.getBlockNumber(

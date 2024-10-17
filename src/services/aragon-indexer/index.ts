@@ -23,8 +23,6 @@ const IndexerService: IService = {
         const crawler = new BlockchainLogCrawler({
           network: networkName,
           events: configLogs,
-          fromBlock: 0,
-          toBlock: 'latest',
           onError: async (error: any) => logger.error('Error LogMultiSig', llo(error)),
           logService: `Indexer-${networkName}`,
           stopOnError: true,
