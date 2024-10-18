@@ -63,25 +63,25 @@ class Media {
 }
 
 class Settings {
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String })
   public id!: string
 
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String })
   public transactionHash!: HexAddress
 
-  @prop({ type: () => Number, required: true })
+  @prop({ type: () => Number })
   public blockNumber!: number
 
   @prop({ type: () => Number })
   public blockTimestamp!: number
 
-  @prop({ type: () => String, enum: NetworksEnum, required: true })
+  @prop({ type: () => String, enum: NetworksEnum })
   public network!: NetworksEnum
 
   @prop({ type: () => String, default: null })
   public daoAddress!: HexAddress
 
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, default: null })
   public pluginAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
@@ -130,7 +130,7 @@ export class ProposalExecuted {
 }
 
 export class VotesByOption {
-  @prop({ type: () => Number, required: true })
+  @prop({ type: () => Number })
   public type!: number
 
   @prop({ type: () => Number, default: 0 })

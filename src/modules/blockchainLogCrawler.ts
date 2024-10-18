@@ -29,10 +29,15 @@ class BlockchainLogCrawler {
       onError: opts.onError || BlockchainLogCrawler.defaultOnError,
     }
 
-    const topics = opts.events.map(item => {
-      assert(!!item?.topic, `Topic hash not found for event ${item.event}`)
-      return item.topic
-    })
+    const topics = opts.events
+      .map(item => {
+        if (!item?.topic) {
+          logger.error(`Topic hash not found for event ${item.event}`, llo(item))
+          return null
+        }
+        return item.topic
+      })
+      .filter(Boolean) as string[]
 
     this.crawlSetting = {
       shutdown: false,

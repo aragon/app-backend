@@ -1,7 +1,7 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import type { IEnumIndexerService, IEnumIndexerServiceStatic } from '@src/types/services'
 import type { ILogInfo } from '@src/types/eventLogs'
-import { type LogDescription, type Log, type Filter } from 'ethers'
+import { type Filter, type Log, type LogDescription } from 'ethers'
 
 export interface IIndexerConfig {
   event: string
@@ -61,8 +61,8 @@ export enum IMultiSigLogs {
 export enum IAdminLogs {
   MembersAdded = 'MembersAdded',
   MembersRemoved = 'MembersRemoved',
-  Granted = 'Granted',
-  Revoked = 'Revoked',
+  ProposalCreated = 'ProposalCreated',
+  ProposalExecuted = 'ProposalExecuted',
 }
 
 export enum ISPPLogs {
@@ -70,4 +70,9 @@ export enum ISPPLogs {
   ProposalAdvanced = 'ProposalAdvanced',
   ProposalCreated = 'ProposalCreated',
   ProposalExecuted = 'ProposalExecuted',
+}
+
+export enum IDaoLogs {
+  Granted = 'Granted',
+  Revoked = 'Revoked',
 }

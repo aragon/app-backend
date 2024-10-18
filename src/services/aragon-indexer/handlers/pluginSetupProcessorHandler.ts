@@ -92,10 +92,13 @@ export const PluginSetupProcessorHandler = {
 
     const pluginDb = await Models.Plugin.findByAddress(parsedEvent.args.plugin, info.network)
 
-    if (pluginDb && pluginDb.interfaceType === IPluginInterfaceType.spp) {
+    if (pluginDb?.interfaceType === IPluginInterfaceType.spp) {
       const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
       await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
       await LogSpp.start(pluginDb)
+    } else if (pluginDb?.interfaceType === IPluginInterfaceType.admin) {
+      await LogAdmin.start(pluginDb)
+      await PluginSettingHandler.isSupported(pluginDb, info)
     }
   },
 
@@ -199,11 +202,11 @@ export const PluginSetupProcessorHandler = {
           await LogTokenVoting.start(plugin)
         } else if (plugin.interfaceType === IPluginInterfaceType.multisig) {
           await LogMultiSig.start(plugin)
-        } else if (plugin.interfaceType === IPluginInterfaceType.admin) {
-          await LogAdmin.start(plugin)
         } else if (plugin.interfaceType === IPluginInterfaceType.spp) {
           await LogSpp.start(plugin)
         }
+
+        // admin have no settings so it we need different way to support and fetch
       }),
     ])
   },
