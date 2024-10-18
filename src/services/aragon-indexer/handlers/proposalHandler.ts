@@ -37,10 +37,7 @@ export const ProposalHandler = {
       return
     }
 
-    if (relatedPlugin.interfaceType === IPluginInterfaceType.admin) {
-      logger.warn('Proposal from admin plugin not supported', llo(info))
-      return
-    }
+    info.interfaceType = relatedPlugin.interfaceType
 
     const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
     const proposalIndex = parsedEvent.args.proposalId.toString()
@@ -54,9 +51,28 @@ export const ProposalHandler = {
     const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
     const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
-    if (!settings) {
-      logger.error('Plugin setting not found - cannot create proposal without setting', llo(info, pluginAddress))
-      return
+    let rawSettings: any = null
+
+    if (settings) {
+      rawSettings = {
+        id: settings?.id,
+        transactionHash: settings.transactionHash,
+        blockNumber: settings.blockNumber,
+        blockTimestamp: settings.blockTimestamp,
+        network: settings.network,
+        daoAddress: settings.daoAddress,
+        pluginAddress: settings.pluginAddress,
+        pluginSubdomain: settings.pluginSubdomain,
+        tokenAddress: settings.tokenAddress,
+        onlyListed: settings?.onlyListed,
+        minApprovals: settings?.minApprovals,
+        votingMode: settings?.votingMode,
+        supportThreshold: settings?.supportThreshold,
+        minParticipation: settings?.minParticipation,
+        minDuration: settings?.minDuration,
+        minProposerVotingPower: settings?.minProposerVotingPower,
+        stages: settings?.stages, // spp settings
+      }
     }
 
     const document: Partial<Proposal> = {
@@ -80,26 +96,8 @@ export const ProposalHandler = {
       metadataUri,
 
       // setting needs to be static as they will never change during the proposal lifecycle
-      settings: {
-        id: settings?.id,
-        transactionHash: settings.transactionHash,
-        blockNumber: settings.blockNumber,
-        blockTimestamp: settings.blockTimestamp,
-        network: settings.network,
-        daoAddress: settings.daoAddress,
-        pluginAddress: settings.pluginAddress,
-        pluginSubdomain: settings.pluginSubdomain,
-        tokenAddress: settings.tokenAddress,
-        onlyListed: settings?.onlyListed,
-        minApprovals: settings?.minApprovals,
-        votingMode: settings?.votingMode,
-        supportThreshold: settings?.supportThreshold,
-        minParticipation: settings?.minParticipation,
-        minDuration: settings?.minDuration,
-        minProposerVotingPower: settings?.minProposerVotingPower,
-        stages: settings?.stages, // spp settings
-      },
-      rawActions: parsedEvent.args?.actions.map((w: IRawAction) => ({
+      settings: rawSettings,
+      rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({
         to: w.to,
         value: w.value,
         data: w.data,

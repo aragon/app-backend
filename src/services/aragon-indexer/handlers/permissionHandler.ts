@@ -14,7 +14,6 @@ export const PermissionHandler = {
    * To say the owner of the admin plugin has the permission to execute a proposal
    * So we can save the owner as the member of the DAO
    */
-
   handleGrantOnDao: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
     const { who, here, permissionId } = parsedEvent.args
@@ -25,6 +24,7 @@ export const PermissionHandler = {
       await PermissionHandler._handleForAdminPlugin(address, here, network, who)
     }
   },
+
   handleRevokeOnDao: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
     const { who, here, permissionId } = parsedEvent.args

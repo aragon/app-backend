@@ -86,7 +86,7 @@ const EtherscanHelper = {
     try {
       return await EtherscanHelper._rpCall(params, network)
     } catch (error) {
-      logger.error('Error fetchContractSourceCode', llo({ error }))
+      logger.error('Error fetchContractSourceCode', llo({ params, network, error }))
       return null
     }
   },

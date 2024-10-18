@@ -5,9 +5,9 @@ import Web3Helper from '@helpers/web3'
 import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import type Setting from '@models/schema/setting'
+import { type LogDescription, type TransactionReceipt } from 'ethers'
 import { Multisig } from '@artifacts/Multisig'
 import { TokenVoting } from '@artifacts/TokenVoting'
-import { type LogDescription, type TransactionReceipt } from 'ethers'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
