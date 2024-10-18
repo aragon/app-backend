@@ -25,4 +25,4 @@ export enum IEnumIndexerService {
 }
 
 export type IEnumIndexerServiceStatic =
-  `${'Indexer' | 'Token' | 'Deposit' | 'TokenVoting' | 'MultiSig' | 'Admin' | 'SPP'}-${string}-${string}`
+  `${'Indexer' | 'Token' | 'Deposit' | 'TokenVoting' | 'MultiSig' | 'Admin' | 'SPP' | 'Dao'}-${string}-${string}`
