@@ -38,6 +38,7 @@ export enum ICollectionNames {
   Token = 'Token',
   Transaction = 'Transaction',
   Vote = 'Vote',
+  DaoPermission = 'DaoPermission',
 }
 
 export interface IMongoModel {
@@ -86,4 +87,9 @@ export enum IEventLogMember {
   MembersRemoved = 'MembersRemoved',
   DelegateChanged = 'DelegateChanged',
   DelegateVotesChanged = 'DelegateVotesChanged',
+}
+
+export enum IEventLogPermission {
+  Granted = 'Granted',
+  Revoked = 'Revoked',
 }

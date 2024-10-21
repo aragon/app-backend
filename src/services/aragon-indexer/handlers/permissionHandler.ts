@@ -1,9 +1,17 @@
 import logger from '@logger'
 import { type LogDescription, ethers } from 'ethers'
-import { EnumQueueName, type HexAddress, type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  type HexAddress,
+  IEventLogPermission,
+  type ILogInfo,
+  IPluginInterfaceType,
+  type NetworksEnum,
+} from '@types'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
 import { RabbitMQHelper } from '@helpers/redditMQ'
+import DbOperations from '@models/utils/dbOperations'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PermissionHandler' })
 
@@ -16,37 +24,84 @@ export const PermissionHandler = {
    */
   handleGrantOnDao: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
-    const { who, here, permissionId } = parsedEvent.args
+    const { where, who, permissionId } = parsedEvent.args
 
     const permissionToCheck = ethers.id('EXECUTE_PROPOSAL_PERMISSION')
 
     if (permissionToCheck === permissionId) {
-      await PermissionHandler._handleForAdminPlugin(address, here, network, who)
+      await PermissionHandler.handleForAdminPlugin(address, where, network, who)
     }
+
+    const permissionEntity = {
+      network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+      daoAddress: address,
+    }
+
+    const entityId = Models.DaoPermission.getEntityId(permissionEntity)
+    const existingLog = await Models.DaoPermission.findExistingLog(entityId)
+
+    if (existingLog) return
+
+    const document = {
+      whoAddress: who,
+      whereAddress: where,
+      blockNumber: info.blockNumber,
+      permissionId,
+      event: IEventLogPermission.Granted,
+      ...permissionEntity,
+    }
+
+    await DbOperations.createDocument(Models.DaoPermission, document, info, 'Permission granted', llo)
   },
 
   handleRevokeOnDao: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
-    const { who, here, permissionId } = parsedEvent.args
+    const { who, where, permissionId } = parsedEvent.args
 
     const permissionToCheck = ethers.id('EXECUTE_PROPOSAL_PERMISSION')
 
     if (permissionToCheck === permissionId) {
-      await PermissionHandler._handleForAdminPlugin(address, here, network, who, false)
+      await PermissionHandler.handleForAdminPlugin(address, where, network, who, false)
     }
+
+    const permissionEntity = {
+      network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+      daoAddress: address,
+    }
+
+    const entityId = Models.DaoPermission.getEntityId(permissionEntity)
+    const existingLog = await Models.DaoPermission.findExistingLog(entityId)
+    if (existingLog) return
+
+    const document = {
+      whoAddress: who,
+      whereAddress: where,
+      blockNumber: info.blockNumber,
+      permissionId,
+      event: IEventLogPermission.Revoked,
+      ...permissionEntity,
+    }
+
+    await DbOperations.createDocument(Models.DaoPermission, document, info, 'Permission revoked', llo)
   },
 
-  _handleForAdminPlugin: async (
+  handleForAdminPlugin: async (
     daoAddress: HexAddress,
     pluginAddress: HexAddress,
     network: NetworksEnum,
-    here: HexAddress,
+    where: HexAddress,
     add: boolean = true,
   ) => {
-    const pluginExisted = await Models.Plugin.find({
+    const pluginExisted = await Models.Plugin.findOne({
       daoAddress,
       network,
-      pluginAddress,
+      address: pluginAddress,
       interfaceType: IPluginInterfaceType.admin,
     })
 
@@ -57,7 +112,7 @@ export const PermissionHandler = {
     if (!add) {
       await Promise.all([
         ProxyMember.removeFromDao({
-          memberAddress: here,
+          memberAddress: where,
           daoAddress: pluginExisted.daoAddress,
           pluginAddress,
           network,
@@ -68,14 +123,14 @@ export const PermissionHandler = {
         }),
       ])
 
-      logger.info('Remove member from DAO', llo({ daoAddress, pluginAddress, network, here }))
+      logger.info('Remove member from DAO', llo({ daoAddress, pluginAddress, network, where }))
 
       return
     }
 
     await Promise.all([
       ProxyMember.addToDao({
-        memberAddress: here,
+        memberAddress: where,
         daoAddress: pluginExisted.daoAddress,
         pluginAddress,
         network,
@@ -86,6 +141,6 @@ export const PermissionHandler = {
       }),
     ])
 
-    logger.info('Add member to DAO', llo({ daoAddress, pluginAddress, network, here }))
+    logger.info('Add member to DAO', llo({ daoAddress, pluginAddress, network, where }))
   },
 }

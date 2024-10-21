@@ -3,12 +3,19 @@ import { IAdminLogs, type IIndexerConfig } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
+import { DAO } from '@artifacts/dao'
+import { Interface } from 'ethers'
+import Web3Helper from '@helpers/web3'
+import { PermissionHandler } from '@indexer/handlers/permissionHandler'
+import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogAdmin' })
 
 export const LogAdmin = {
   start: async (plugin: Plugin) => {
     logger.verbose('Start LogAdmin', llo({ network: plugin.network }))
+
+    await LogAdmin._syncAdminMember(plugin)
 
     const configLogs = configIndexer.filter((item: IIndexerConfig) =>
       Object.values(IAdminLogs).includes(item.event as any),
@@ -17,7 +24,7 @@ export const LogAdmin = {
     const crawler = new BlockchainLogCrawler({
       network: plugin.network,
       events: configLogs,
-      address: [plugin.address, plugin.daoAddress],
+      address: plugin.address,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any) => LogAdmin.processError(error, plugin),
       logService: `Admin-${plugin.network}-${plugin.address}`,
@@ -36,5 +43,35 @@ export const LogAdmin = {
         plugin,
       }),
     )
+  },
+
+  /**
+   *  When an admin plugin is installed, we need to sync the admin member
+   *  We need to grab all the granted permission as they will on the same tx hash where plugin is created
+   *  Case is only for admin plugin
+   */
+
+  async _syncAdminMember(plugin: Plugin) {
+    const txReceipt = await Web3Helper.getTransactionReceipt(plugin.transactionHash, plugin.network)
+
+    const topics = [
+      new Interface(DAO.abi).getEvent('Granted')?.topicHash!,
+      new Interface(DAO.abi).getEvent('Revoked')?.topicHash!,
+    ]
+
+    const events = txReceipt!.logs.filter(log => topics.includes(log.topics[0]))
+
+    for (const log of events) {
+      const iFace = new Interface(DAO.abi)
+      const event = Web3Helper.parseLog(log, iFace)!
+      const info = Web3Helper.parseInfoLog(log, event.name, plugin.network)
+      await PermissionHandler.handleGrantOnDao(event, info)
+    }
+
+    await PluginSettingHandler.isSupported(plugin, {
+      transactionHash: plugin.transactionHash,
+    } as any)
+
+    logger.verbose('Admin Member Synced', llo({ network: plugin.network }))
   },
 }

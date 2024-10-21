@@ -197,7 +197,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
     handler: PermissionHandler.handleGrantOnDao,
     enableHistorical: false,
     enableRealtime: true,
-    topic: new Interface(DAO.abi).getEvent('Grant')?.topicHash!,
+    topic: new Interface(DAO.abi).getEvent('Granted')?.topicHash!,
   },
   {
     event: 'Revoked',
@@ -205,7 +205,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
     handler: PermissionHandler.handleRevokeOnDao,
     enableHistorical: false,
     enableRealtime: true,
-    topic: new Interface(DAO.abi).getEvent('Revoke')?.topicHash!,
+    topic: new Interface(DAO.abi).getEvent('Revoked')?.topicHash!,
   },
 ]
 
