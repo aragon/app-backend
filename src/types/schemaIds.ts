@@ -102,3 +102,11 @@ export interface ITransactionIdParams {
   category: ITransactionCategory
   network: NetworksEnum
 }
+
+export interface IDaoPermissionId {
+  network: NetworksEnum
+  daoAddress: HexAddress
+  transactionHash: HexAddress
+  transactionIndex: number
+  logIndex: number
+}
