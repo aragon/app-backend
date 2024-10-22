@@ -384,6 +384,11 @@ export default class Proposal extends Model {
           pluginSubdomain: 1,
           daoAddress: 1,
           proposalIndex: 1,
+          totalStages: 1,
+          parentProposal: 1,
+          isSubProposal: 1,
+          stageIndex: 1,
+          subProposals: 1,
           creator: 1,
           startDate: 1,
           endDate: 1,
@@ -398,6 +403,7 @@ export default class Proposal extends Model {
           settings: {
             $mergeObjects: [
               {
+                stages: '$settings.stages',
                 onlyListed: '$settings.onlyListed',
                 minApprovals: '$settings.minApprovals',
                 votingMode: '$settings.votingMode',
@@ -544,6 +550,11 @@ export default class Proposal extends Model {
           pluginSubdomain: 1,
           daoAddress: 1,
           proposalIndex: 1,
+          totalStages: 1,
+          parentProposal: 1,
+          isSubProposal: 1,
+          stageIndex: 1,
+          subProposals: 1,
           creator: 1,
           startDate: 1,
           endDate: 1,
@@ -558,6 +569,7 @@ export default class Proposal extends Model {
           settings: {
             $mergeObjects: [
               {
+                stages: '$settings.stages',
                 onlyListed: '$settings.onlyListed',
                 minApprovals: '$settings.minApprovals',
                 votingMode: '$settings.votingMode',
