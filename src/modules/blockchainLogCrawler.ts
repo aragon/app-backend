@@ -32,7 +32,7 @@ class BlockchainLogCrawler {
     const topics = opts.events
       .map(item => {
         if (!item?.topic) {
-          logger.error(`Topic hash not found for event ${item.event}`, llo(item))
+          logger.error(`Topic hash not found for event ${item.event}`, llo({ ...this.parseCrawlerInfoLog(), item }))
           return null
         }
         return item.topic
@@ -97,6 +97,7 @@ class BlockchainLogCrawler {
         logger.error(
           'Error get block number',
           llo({
+            ...this.parseCrawlerInfoLog(),
             blockNumber,
             error,
           }),
@@ -179,7 +180,7 @@ class BlockchainLogCrawler {
                   latestBlock,
                 )
               } else {
-                logger.error('Batch size too small, stopping crawl', llo({ error }))
+                logger.error('Batch size too small, stopping crawl', llo({ ...this.parseCrawlerInfoLog(), error }))
                 this.crawlSetting.shutdown = true
                 this.crawlParams.onError(error)
                 break
@@ -219,7 +220,7 @@ class BlockchainLogCrawler {
     }
 
     this.crawlSetting.crawling = false
-    logger.verbose('Finished crawling logs', llo(this.crawlSetting))
+    logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
   }
 
   async handleErrors(error: any) {
@@ -246,7 +247,7 @@ class BlockchainLogCrawler {
         if (log.blockNumber) {
           this.crawlSetting.lastSync = log?.blockNumber
         }
-        logger.verbose('Processing log', llo(this.crawlSetting))
+        logger.verbose('Processing log', llo({ ...this.parseCrawlerInfoLog() }))
         if (this.crawlParams.logService && log.blockNumber) {
           await this.onSaveProgress(log.blockNumber)
         }
@@ -315,6 +316,14 @@ class BlockchainLogCrawler {
       await session.commitTransaction()
       await session.endSession()
     })
+  }
+
+  parseCrawlerInfoLog() {
+    return {
+      network: this.crawlParams.network,
+      address: this.crawlParams.address,
+      logService: this.crawlParams.logService,
+    }
   }
 }
 
