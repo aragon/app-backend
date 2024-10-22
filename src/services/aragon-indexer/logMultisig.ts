@@ -2,13 +2,14 @@ import logger from '@logger'
 import { type IIndexerConfig, IMultiSigLogs } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
-import configIndexer from '@indexer/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMultiSig' })
 
 export const LogMultiSig = {
   start: async (plugin: Plugin) => {
     logger.verbose('Start LogMultiSig', llo({ network: plugin.network, plugin }))
+
+    const { default: configIndexer } = await import('@indexer/configIndexer')
 
     const configLogs = configIndexer.filter((item: IIndexerConfig) =>
       Object.values(IMultiSigLogs).includes(item.event as any),

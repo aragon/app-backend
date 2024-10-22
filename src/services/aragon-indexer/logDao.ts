@@ -1,7 +1,6 @@
 import logger from '@logger'
 import { IDaoLogs, type IIndexerConfig } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import configIndexer from '@indexer/configIndexer'
 import type Dao from '@models/schema/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDao' })
@@ -9,6 +8,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDao' })
 export const LogDao = {
   start: async (dao: Dao) => {
     logger.verbose('Start LogDao', llo({ network: dao.network }))
+    const { default: configIndexer } = await import('@indexer/configIndexer')
 
     const configLogs = configIndexer.filter((item: IIndexerConfig) =>
       Object.values(IDaoLogs).includes(item.event as any),
