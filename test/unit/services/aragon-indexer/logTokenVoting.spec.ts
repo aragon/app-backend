@@ -2,15 +2,11 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { LogTokenVoting } from '@services/aragon-indexer/logTokenVoting'
+import { LogTokenVoting } from '@plugins/logTokenVoting'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { NetworksEnum } from '@types'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
-import Web3Helper from '@helpers/web3'
-import { ProposalHandler } from '@indexer/handlers/proposalHandler'
-import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
-import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler'
 
 describe('Indexer: LogTokenVoting', () => {
   let sandbox: SinonSandbox

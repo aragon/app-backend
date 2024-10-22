@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { PluginHandler } from '@indexer/handlers/pluginHandler'
+import { PluginHandler } from '@handlers/pluginHandler'
 import { Models } from '@dbModels'
 import { IEventLogPluginType, IPluginRawStatus, IPluginStatus } from '@types'
 import { ListLogPluginSetupProcessor } from '@test/mock/fakeLogPluginSetupProcessor'

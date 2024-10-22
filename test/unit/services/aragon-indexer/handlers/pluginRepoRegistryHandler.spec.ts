@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
-import { PluginRepoRegistryHandler } from '@services/aragon-indexer/handlers/pluginRepoRegistryHandler'
+import { PluginRepoRegistryHandler } from '@handlers/pluginRepoRegistryHandler'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 

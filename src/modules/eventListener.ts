@@ -5,7 +5,7 @@
 // import { type IIndexerConfig, type NetworksEnum } from '@types'
 // import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 // import blockchainLogCrawler from "@modules/blockchainLogCrawler";
-// import {ProposalHandler} from "@indexer/handlers/proposalHandler";
+// import {ProposalHandler} from "@handlers/proposalHandler";
 //
 // const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 //

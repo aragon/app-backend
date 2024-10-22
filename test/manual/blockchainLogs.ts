@@ -4,11 +4,11 @@ import { NetworksEnum } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
-import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { Interface, type LogDescription } from 'ethers'
 import Web3Helper from '@helpers/web3'
-import { ProposalHandler } from '@indexer/handlers/proposalHandler'
+import { ProposalHandler } from '@handlers/proposalHandler'
 import { TokenVoting } from '@artifacts/TokenVoting'
 
 describe('Manual: BlockchainLogs', () => {
