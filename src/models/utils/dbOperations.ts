@@ -14,11 +14,12 @@ class DbOperations {
 
   static async updateDocument(document: any, data: any, info: any, logMsg: string, llo: any): Promise<any> {
     return await DbTx.executeTxFn(async ({ session }) => {
-      await document.update(data, { session })
+      const reloadDocument = await document.reload({ session })
+      await reloadDocument.update(data, { session })
       await session.commitTransaction()
       await session.endSession()
-      logger.verbose(`Updated document - ${logMsg}`, llo({ ...info, documentId: document.id }))
-      return document
+      logger.verbose(`Updated document - ${logMsg}`, llo({ ...info, documentId: reloadDocument.id }))
+      return reloadDocument
     })
   }
 }
