@@ -42,6 +42,7 @@ export enum ITokenVotingLogs {
   ProposalCreated = 'ProposalCreated',
   ProposalExecuted = 'ProposalExecuted',
   VotingSettingsUpdated = 'VotingSettingsUpdated',
+  MetadataSet = 'MetadataSet',
 }
 
 export enum IGovernanceErc20Logs {
@@ -56,6 +57,7 @@ export enum IMultiSigLogs {
   Approved = 'Approved',
   ProposalCreated = 'ProposalCreated',
   ProposalExecuted = 'ProposalExecuted',
+  MetadataSet = 'MetadataSet',
 }
 
 export enum IAdminLogs {
@@ -70,6 +72,7 @@ export enum ISPPLogs {
   ProposalAdvanced = 'ProposalAdvanced',
   ProposalCreated = 'ProposalCreated',
   ProposalExecuted = 'ProposalExecuted',
+  MetadataSet = 'MetadataSet',
 }
 
 export enum IDaoLogs {
