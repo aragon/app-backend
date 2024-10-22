@@ -28,12 +28,11 @@ export interface IDaoIdParams {
   address: HexAddress
 }
 
-export interface ILogDaoMetadataIdParams {
+export interface ILogMetadataIdParams {
   network: NetworksEnum
   transactionHash: HexAddress
   transactionIndex: number
   logIndex: number
-  daoAddress: HexAddress
 }
 
 export interface IPluginRepoIdParams {

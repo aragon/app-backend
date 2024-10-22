@@ -443,7 +443,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       })
 
       const result = await crawler.getServiceStartBlock()
-      expect(result).to.equal(config.ARAGON_SUPPORTED_BLOCK.ETHEREUM_MAINNET)
+      expect(result).to.equal(config.NODES.ETHEREUM_MAINNET.FROM_BLOCK)
     })
   })
 

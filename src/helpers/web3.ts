@@ -2,7 +2,7 @@ import {
   type ENS,
   type HexAddress,
   type IAlchemyTokenBalance,
-  type IDaoMetadata,
+  type IMetadata,
   type ILogInfo,
   type IProposalMetadata,
   ITransactionType,
@@ -340,12 +340,14 @@ const Web3Helper = {
     }
   },
 
-  parseDaoMetadata(metadata: IDaoMetadata): IDaoMetadata {
-    const parsedMetadata: IDaoMetadata = {
+  parseDaoMetadata(metadata: IMetadata): IMetadata {
+    const parsedMetadata: IMetadata = {
       name: null,
       description: null,
       avatar: null,
       links: [],
+      stageNames: [],
+      processKey: null,
     }
 
     if (!metadata) {
@@ -366,6 +368,14 @@ const Web3Helper = {
 
     if (metadata.links && metadata.links.length > 0) {
       parsedMetadata.links = metadata.links
+    }
+
+    if (metadata.stageNames && metadata.stageNames.length > 0) {
+      parsedMetadata.stageNames = metadata.stageNames
+    }
+
+    if (metadata.processKey) {
+      parsedMetadata.processKey = metadata.processKey
     }
 
     return parsedMetadata

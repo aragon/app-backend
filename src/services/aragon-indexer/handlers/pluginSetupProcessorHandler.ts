@@ -202,11 +202,9 @@ export const PluginSetupProcessorHandler = {
           await LogTokenVoting.start(plugin)
         } else if (plugin.interfaceType === IPluginInterfaceType.multisig) {
           await LogMultiSig.start(plugin)
-        } else if (plugin.interfaceType === IPluginInterfaceType.spp) {
-          await LogSpp.start(plugin)
         }
-
         // admin have no settings so it we need different way to support and fetch
+        // as spp also has installation applied on another tx so we need to handle it differently
       }),
     ])
   },

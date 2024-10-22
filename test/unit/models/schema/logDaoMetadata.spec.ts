@@ -1,13 +1,13 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { NetworksEnum } from '@types'
+import { IMetadataType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import LogDaoMetadata from '@models/schema/logDaoMetadata'
+import LogMetadata from '@models/schema/logMetadata'
 
-describe('Model: LogDaoMetadata', () => {
+describe('Model: LogMetadata', () => {
   let sandbox: SinonSandbox
-  let rawLogDaoMetadata: Partial<LogDaoMetadata>
+  let rawLogDaoMetadata: Partial<LogMetadata>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -28,6 +28,7 @@ describe('Model: LogDaoMetadata', () => {
       description: 'fake-description',
       avatar: 'fake-avatar',
       links: [],
+      type: IMetadataType.dao,
     }
   })
 
@@ -37,16 +38,15 @@ describe('Model: LogDaoMetadata', () => {
 
   describe('Create LogDaoMetadata', async () => {
     it('Should create LogDaoMetadata', async () => {
-      const entityId = Models.LogDaoMetadata.getEntityId(
+      const entityId = Models.LogMetadata.getEntityId(
         rawLogDaoMetadata.network,
         rawLogDaoMetadata.transactionHash,
         rawLogDaoMetadata.transactionIndex,
         rawLogDaoMetadata.logIndex,
-        rawLogDaoMetadata.daoAddress,
       )
       rawLogDaoMetadata.id = entityId
 
-      const createdLogDao = await Models.LogDaoMetadata.create(rawLogDaoMetadata)
+      const createdLogDao = await Models.LogMetadata.create(rawLogDaoMetadata)
 
       expect(createdLogDao.id).to.eq(entityId)
       expect(createdLogDao.transactionHash).to.eq(rawLogDaoMetadata.transactionHash)
@@ -65,14 +65,13 @@ describe('Model: LogDaoMetadata', () => {
     })
 
     it('Should create without entityId', async () => {
-      const entityId = Models.LogDaoMetadata.getEntityId({
+      const entityId = Models.LogMetadata.getEntityId({
         network: rawLogDaoMetadata.network!,
         transactionHash: rawLogDaoMetadata.transactionHash!,
         transactionIndex: rawLogDaoMetadata.transactionIndex!,
         logIndex: rawLogDaoMetadata.logIndex!,
-        daoAddress: rawLogDaoMetadata.daoAddress!,
       })
-      const createdLogDao = await Models.LogDaoMetadata.create(rawLogDaoMetadata)
+      const createdLogDao = await Models.LogMetadata.create(rawLogDaoMetadata)
 
       expect(createdLogDao.id).to.eq(entityId)
       expect(createdLogDao.transactionHash).to.eq(rawLogDaoMetadata.transactionHash)
@@ -92,7 +91,7 @@ describe('Model: LogDaoMetadata', () => {
   })
 
   it('Should update LogDaoMetadata', async () => {
-    const createdLogDao = await Models.LogDaoMetadata.create(rawLogDaoMetadata)
+    const createdLogDao = await Models.LogMetadata.create(rawLogDaoMetadata)
     expect(createdLogDao.creatorAddress).to.eq(rawLogDaoMetadata.creatorAddress)
 
     await createdLogDao.update({
@@ -107,45 +106,42 @@ describe('Model: LogDaoMetadata', () => {
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const transactionIndex = 0
     const logIndex = 0
-    const daoAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
-    const entityId = Models.LogDaoMetadata.getEntityId({
+    const entityId = Models.LogMetadata.getEntityId({
       network,
       transactionHash,
       transactionIndex,
       logIndex,
-      daoAddress,
     })
-    expect(entityId).to.eq(`${network}-${transactionHash}-${transactionIndex}-${logIndex}-${daoAddress}`)
+    expect(entityId).to.eq(`${network}-${transactionHash}-${transactionIndex}-${logIndex}`)
   })
 
   it('Should findExistingLog', async () => {
-    const createdLogDao = await Models.LogDaoMetadata.create(rawLogDaoMetadata)
-    const foundLogDao = await Models.LogDaoMetadata.findExistingLog({
+    const createdLogDao = await Models.LogMetadata.create(rawLogDaoMetadata)
+    const foundLogDao = await Models.LogMetadata.findExistingLog({
       network: createdLogDao.network,
       transactionHash: createdLogDao.transactionHash,
       transactionIndex: createdLogDao.transactionIndex,
       logIndex: createdLogDao.logIndex,
-      daoAddress: createdLogDao.daoAddress,
     })
     expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   it('Should findByEntityId', async () => {
-    const createdLogDao = await Models.LogDaoMetadata.create(rawLogDaoMetadata)
-    const foundLogDao = await Models.LogDaoMetadata.findByEntityId(createdLogDao.id)
+    const createdLogDao = await Models.LogMetadata.create(rawLogDaoMetadata)
+    const foundLogDao = await Models.LogMetadata.findByEntityId(createdLogDao.id)
     expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
   it('Should reload', async () => {
-    const createdLogDao = await Models.LogDaoMetadata.create(rawLogDaoMetadata)
+    const createdLogDao = await Models.LogMetadata.create(rawLogDaoMetadata)
     await createdLogDao.reload()
 
     expect(createdLogDao.address).to.eq(rawLogDaoMetadata.address)
   })
 
   it('getMetadataAtBlockNumber', async () => {
-    const createdLogDao = await Models.LogDaoMetadata.create(rawLogDaoMetadata)
-    const metadataAtBlockNumber = await Models.LogDaoMetadata.getMetadataAtBlockNumber(
+    const createdLogDao = await Models.LogMetadata.create(rawLogDaoMetadata)
+    const metadataAtBlockNumber = await Models.LogMetadata.getMetadataAtBlockNumber(
       rawLogDaoMetadata.daoAddress!,
       rawLogDaoMetadata.blockNumber!,
       NetworksEnum.ethereumMainnet,

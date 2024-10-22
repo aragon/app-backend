@@ -19,9 +19,6 @@ const customName = ICollectionNames.Setting
 
 export class PluginSetting {
   @prop({ type: () => String, default: null })
-  public name!: string // fetch from ipfs
-
-  @prop({ type: () => String, default: null })
   public address!: HexAddress
 
   @prop({ type: () => Boolean, default: null })
@@ -55,6 +52,9 @@ export class Stages {
 
   @prop({ type: () => [PluginSetting], _id: false, default: [] })
   public plugins!: PluginSetting[]
+
+  @prop({ type: () => String, default: null })
+  public name!: string
 }
 
 @modelOptions({

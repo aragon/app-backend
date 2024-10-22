@@ -1,6 +1,6 @@
 import type Dao from '@models/schema/dao'
 import type Token from '@models/schema/token'
-import type LogDaoMetadata from '@models/schema/logDaoMetadata'
+import type LogMetadata from '@models/schema/logMetadata'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type PluginRepo from '@models/schema/pluginRepo'
 import type Member from '@models/schema/member'
@@ -23,7 +23,7 @@ export enum ICollectionNames {
   ConfigIndexer = 'ConfigIndexer',
   Dao = 'Dao',
   DaoMemberMapping = 'DaoMemberMapping',
-  LogDaoMetadata = 'LogDaoMetadata',
+  LogMetadata = 'LogMetadata',
   LogPluginSetupProcessor = 'LogPluginSetupProcessor',
   Member = 'Member',
   MemberBalance = 'MemberBalance',
@@ -44,7 +44,7 @@ export enum ICollectionNames {
 export interface IMongoModel {
   Dao: typeof Dao
   Token: typeof Token
-  LogDaoMetadata: typeof LogDaoMetadata
+  LogMetadata: typeof LogMetadata
   LogPluginSetupProcessor: typeof LogPluginSetupProcessor
   PluginRepo: typeof PluginRepo
   Member: typeof Member

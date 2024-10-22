@@ -5,7 +5,6 @@ import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginRepoRegistry } from '@artifacts/pluginRepoRegistry'
 import { Multisig } from '@artifacts/Multisig'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { DaoRegistryHandler } from '@indexer/handlers/daoRegistryHandler'
 import { PluginRepoRegistryHandler } from '@indexer/handlers/pluginRepoRegistryHandler'
 import { MultisigHandler } from '@indexer/handlers/multisigHandler'
 import { PluginSetupProcessorHandler } from '@indexer/handlers/pluginSetupProcessorHandler'
@@ -18,6 +17,7 @@ import { GovernanceErc20Handler } from '@indexer/handlers/governanceErc20Handler
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { SharedLogs } from '@artifacts/shared'
 import { PermissionHandler } from '@indexer/handlers/permissionHandler'
+import { DaoRegistryHandler } from '@indexer/handlers/daoRegistryHandler'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -38,20 +38,20 @@ const IndexerEventConfig: IIndexerConfig[] = [
     topic: new Interface(DAORegistry.abi).getEvent('DAORegistered')?.topicHash!,
   },
   {
-    event: 'InstallationApplied',
-    abi: PluginSetupProcessor.abi,
-    handler: PluginSetupProcessorHandler.installationApplied,
-    enableHistorical: true,
-    enableRealtime: true,
-    topic: new Interface(PluginSetupProcessor.abi).getEvent('InstallationApplied')?.topicHash!,
-  },
-  {
     event: 'InstallationPrepared',
     abi: PluginSetupProcessor.abi,
     handler: PluginSetupProcessorHandler.installationPrepared,
     enableHistorical: true,
     enableRealtime: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('InstallationPrepared')?.topicHash!,
+  },
+  {
+    event: 'InstallationApplied',
+    abi: PluginSetupProcessor.abi,
+    handler: PluginSetupProcessorHandler.installationApplied,
+    enableHistorical: true,
+    enableRealtime: true,
+    topic: new Interface(PluginSetupProcessor.abi).getEvent('InstallationApplied')?.topicHash!,
   },
   {
     event: 'UninstallationApplied',

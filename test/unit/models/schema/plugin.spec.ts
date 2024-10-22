@@ -5,6 +5,7 @@ import Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import { beforeEach } from 'mocha'
 import { PluginList } from '@test/mock/fakePlugins'
+import { IPluginInterfaceType } from '@types'
 
 describe('Model: Plugin', () => {
   let sandbox: SinonSandbox
@@ -14,6 +15,7 @@ describe('Model: Plugin', () => {
     sandbox = sinon.createSandbox()
     rawPlugin = {
       ...PluginList[0],
+      interfaceType: IPluginInterfaceType.multisig,
     }
   })
 

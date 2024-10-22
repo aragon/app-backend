@@ -10,6 +10,7 @@ import { PluginList } from '@test/mock/fakePlugins'
 import Dao from '@models/schema/dao'
 import Plugin from '@models/schema/plugin'
 import Member from '@models/schema/member'
+import { IPluginInterfaceType } from '@types'
 
 describe('Model: DaoMemberMappings', () => {
   let sandbox: SinonSandbox
@@ -28,6 +29,7 @@ describe('Model: DaoMemberMappings', () => {
       ...(PluginList[0] as any),
       address: FakeDaoMemberMappings[0].pluginAddress,
       daoAddress: FakeDaoMemberMappings[0].daoAddress,
+      interfaceType: IPluginInterfaceType.multisig,
     }
     rawMember = {
       ...(FakeMember as any),
