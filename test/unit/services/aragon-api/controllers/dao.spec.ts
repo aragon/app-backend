@@ -7,6 +7,8 @@ import { Models } from '@dbModels'
 import { DaoList } from '@test/mock/fakeDao'
 import Dao from '@models/schema/dao'
 import PairDataModule from '@modules/pairData'
+import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
+import { FakeMember } from '@test/mock/fakeMember'
 
 describe('Controller: Dao', () => {
   let sandbox: SinonSandbox
@@ -17,8 +19,12 @@ describe('Controller: Dao', () => {
 
     rawDao = {
       ...(DaoList[0] as any),
+      address: FakeDaoMemberMappings[0].daoAddress,
     }
     await Models.Dao.create(rawDao)
+    await Models.DaoMemberMapping.create(FakeDaoMemberMappings[0])
+
+    await Models.Member.create(FakeMember)
   })
 
   afterEach(() => {
@@ -181,6 +187,31 @@ describe('Controller: Dao', () => {
       const address = 'test-member'
       const network = NetworksEnum.baseMainnet
       await expect(DaoController.getDaoByAddress(address, network)).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+  })
+
+  describe('getDaosByMember', () => {
+    it('should getDaosByMember', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {
+        network: rawDao.network,
+        memberAddress: FakeMember.address,
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
+      const spyReq = sandbox.spy(Models.Dao, 'findWithPagination')
+
+      const response = await DaoController.getDaosByMember(paginationParams, filterParams)
+      expect(spyReq.calledOnce).to.be.true
+      expect(response.data.length).to.eq(1)
+      expect(response.data[0].address).to.be.eq(rawDao.address)
     })
   })
 })
