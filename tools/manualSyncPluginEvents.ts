@@ -1,8 +1,8 @@
 import { EnumConnection, type IService } from '@types'
 import { Models } from '@dbModels'
-import { LogTokenVoting } from '@indexer/logTokenVoting'
-import { LogMultiSig } from '@indexer/logMultisig'
-import { IPluginActionType } from '@indexer/handlers/pluginSetupProcessorHandler'
+import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
+import { LogMultiSig } from '@services/aragon-plugins/logMultisig'
+import { IPluginActionType } from '@src/handlers/pluginSetupProcessorHandler'
 
 export const ToolsManualSyncDaoPluginEvents: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],

@@ -2,13 +2,13 @@ import logger from '@logger'
 import { IGovernanceErc20Logs, type IIndexerConfig, ITokenVotingLogs } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
+import configIndexer from '@indexer/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
 export const LogTokenVoting = {
   start: async (plugin: Plugin) => {
     logger.verbose('Start LogTokenVoting', llo({ network: plugin.network, pluginAddress: plugin.address }))
-    const { default: configIndexer } = await import('@indexer/configIndexer')
 
     const configTVLogs = configIndexer.filter((item: IIndexerConfig) =>
       Object.values(ITokenVotingLogs).includes(item.event as any),

@@ -48,6 +48,17 @@ module.exports = {
       },
     },
     {
+      name: 'aragon-plugins',
+      cwd: path.resolve(__dirname, ''),
+      script: 'yarn',
+      args: 'service:aragon-plugins',
+      autorestart: true,
+      env: {
+        INSTANCE_ID: 'aragon-plugins',
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-plugins') }).parsed,
+      },
+    },
+    {
       name: 'aragon-rates',
       cwd: path.resolve(__dirname, ''),
       script: 'yarn',

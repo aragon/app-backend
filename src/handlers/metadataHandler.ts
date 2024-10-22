@@ -8,7 +8,7 @@ import type LogMetadata from '@models/schema/logMetadata'
 import DbOperations from '@models/utils/dbOperations'
 import type Dao from '@models/schema/dao'
 import type Plugin from '@models/schema/plugin'
-import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
+import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:MetadataHandler' })
 
