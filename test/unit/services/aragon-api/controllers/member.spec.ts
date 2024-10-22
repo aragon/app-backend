@@ -15,7 +15,7 @@ import MemberBalance from '@models/schema/memberBalance'
 import { HexAddress } from '@types'
 import { NetworksEnum } from '@types'
 
-describe.only('Controller: Member', () => {
+describe('Controller: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
   let rawDaoMemberMapping: Partial<DaoMemberMapping>
