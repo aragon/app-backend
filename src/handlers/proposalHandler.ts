@@ -438,9 +438,8 @@ export const ProposalHandler = {
 
   handleStartEndDate: async (proposal: Proposal, plugin: Plugin): Promise<{ startDate: number; endDate: number }> => {
     const response = await ProposalHelper.getProposal({
-      proposalType: plugin.interfaceType,
+      plugin,
       proposalIndex: proposal.proposalIndex,
-      pluginAddress: proposal.pluginSubdomain,
       network: proposal.network,
     })
 

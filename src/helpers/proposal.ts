@@ -15,27 +15,26 @@ import ProviderModule from '@modules/provider'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { Multisig } from '@artifacts/Multisig'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
+import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProposalHelper' })
 
 const ProposalHelper = {
   async getProposal({
+    plugin,
     proposalIndex,
-    pluginAddress,
-    proposalType,
     network,
   }: {
+    plugin: Plugin,
     proposalIndex: string
-    pluginAddress: HexAddress
-    proposalType: IPluginInterfaceType
     network: NetworksEnum
   }): Promise<IProposalOnChain> {
-    if (proposalType === IPluginInterfaceType.tokenVoting) {
-      return await ProposalHelper.getProposalTokenVoting({ proposalIndex, pluginAddress, network })
-    } else if (proposalType === IPluginInterfaceType.multisig) {
-      return await ProposalHelper.getProposalMultisig({ proposalIndex, pluginAddress, network })
-    } else if (proposalType === IPluginInterfaceType.spp) {
-      return await ProposalHelper.getProposalSpp({ proposalIndex, pluginAddress, network })
+    if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
+      return await ProposalHelper.getProposalTokenVoting({ proposalIndex, pluginAddress: plugin.adress, network })
+    } else if (plugin.interfaceType === IPluginInterfaceType.multisig) {
+      return await ProposalHelper.getProposalMultisig({ proposalIndex, pluginAddress: plugin.adress, network })
+    } else if (plugin.interfaceType === IPluginInterfaceType.spp) {
+      return await ProposalHelper.getProposalSpp({ proposalIndex, pluginAddress: plugin.adress, network })
     } else {
       return null
     }
