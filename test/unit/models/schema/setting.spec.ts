@@ -253,4 +253,19 @@ describe('Model: Setting', () => {
       expect(pageSize).to.eq(10)
     })
   })
+
+  describe('should find settings', () => {
+    it('should find the settings by different filters', async () => {
+      await Models.Setting.create(rawSetting)
+      const settings = await Models.Setting.findSetting({
+        daoAddress: rawSetting.daoAddress,
+        pluginAddress: rawSetting.pluginAddress,
+        network: rawSetting.network,
+        status: rawSetting.status,
+      })
+      expect(settings.votingMode).to.eq(rawSetting.votingMode)
+      expect(settings.supportThreshold).to.eq(rawSetting.supportThreshold)
+      expect(settings.minParticipation).to.eq(rawSetting.minParticipation)
+    })
+  })
 })

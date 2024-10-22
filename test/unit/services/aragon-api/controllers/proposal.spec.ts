@@ -13,6 +13,10 @@ import { FakeToken } from '@test/mock/fakeToken'
 import { ProposalList } from '@test/mock/fakeProposal'
 import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
 import { FakeMember } from '@test/mock/fakeMember'
+import Setting from '@models/schema/setting'
+import { fakeSettings } from '@test/mock/fakeSettings'
+import { PluginList } from '@test/mock/fakePlugins'
+import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
 
 describe('Controller: Proposal', () => {
   let sandbox: SinonSandbox
@@ -21,6 +25,7 @@ describe('Controller: Proposal', () => {
   let rawProposal: Partial<Proposal>
   let rawMember: Partial<Member>
   let rawDaoMemberMappings: Partial<DaoMemberMapping>
+  let rawSettings: Partial<Setting>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -43,6 +48,15 @@ describe('Controller: Proposal', () => {
 
     rawDaoMemberMappings = {
       ...(FakeDaoMemberMappings[0] as any),
+      pluginAddress: rawProposal.pluginAddress,
+      daoAddress: rawProposal.daoAddress,
+      memberAddress: FakeMember.address,
+    }
+
+    rawSettings = {
+      ...fakeSettings,
+      pluginAddress: rawProposal.pluginAddress,
+      daoAddress: rawProposal.daoAddress,
     }
 
     await Promise.all([
@@ -50,6 +64,19 @@ describe('Controller: Proposal', () => {
       Models.Proposal.create(rawProposal),
       Models.Member.create(rawMember),
       Models.DaoMemberMapping.create(rawDaoMemberMappings),
+      Models.Setting.create(rawSettings),
+      Models.Plugin.create({
+        ...PluginList[0],
+        daoAddress: rawProposal.daoAddress,
+        network: rawProposal.network,
+        address: rawProposal.pluginAddress,
+        tokenAddress: FakeToken.address,
+      }),
+      Models.MemberBalance.create({
+        ...fakeMemberBalance,
+        address: FakeMember.address,
+        tokenAddress: FakeToken.address,
+      }),
     ])
   })
 
@@ -246,6 +273,203 @@ describe('Controller: Proposal', () => {
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
       const proposalId = 'test-member'
       await expect(ProposalController.getProposalById(proposalId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+  })
+
+  describe('canCreateProposal', () => {
+    it('should return true as member can create proposal when the plugin has token address associated', async () => {
+      const params = {
+        memberAddress: rawMember.address,
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      }
+
+      const findMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findMapping')
+      const findActiveSettingSpy = sandbox.spy(Models.Setting, 'findActive')
+      const findByAddressAndTokenSpy = sandbox.spy(Models.MemberBalance, 'findByAddressAndToken')
+
+      const response = await ProposalController.canCreateProposal(params as any)
+      expect(response).to.be.true
+      expect(findMappingSpy.calledOnce).to.be.true
+      expect(findActiveSettingSpy.calledOnce).to.be.true
+      expect(findByAddressAndTokenSpy.calledOnce).to.be.true
+
+      expect(
+        findMappingSpy.calledWith({
+          memberAddress: rawMember.address,
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+
+      expect(
+        findActiveSettingSpy.calledWith({
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+
+      expect(
+        findByAddressAndTokenSpy.calledWith({
+          address: rawMember.address,
+          tokenAddress: rawToken.address,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+    })
+
+    it('should return true as member can create proposal when plugin is multisig and onlyListed is false', async () => {
+      const plugin = await Models.Plugin.findByAddress(rawProposal.pluginAddress, rawProposal.network)
+      plugin.tokenAddress = null
+      await plugin.save()
+
+      const params = {
+        memberAddress: rawMember.address,
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      }
+
+      const findMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findMapping')
+      const findActiveSettingSpy = sandbox.spy(Models.Setting, 'findActive')
+      const findByAddressAndTokenSpy = sandbox.spy(Models.MemberBalance, 'findByAddressAndToken')
+
+      const response = await ProposalController.canCreateProposal(params as any)
+      expect(response).to.be.true
+      expect(findMappingSpy.calledOnce).to.be.true
+      expect(findActiveSettingSpy.calledOnce).to.be.true
+      expect(findByAddressAndTokenSpy.calledOnce).to.be.false
+
+      expect(
+        findMappingSpy.calledWith({
+          memberAddress: rawMember.address,
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+
+      expect(
+        findActiveSettingSpy.calledWith({
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+    })
+
+    it('should return true as member can create proposal when plugin is multisig and onlyListed is true', async () => {
+      const plugin = await Models.Plugin.findByAddress(rawProposal.pluginAddress, rawProposal.network)
+      plugin.tokenAddress = null
+      await plugin.save()
+
+      const settings = await Models.Setting.findActive({
+        daoAddress: rawProposal.daoAddress,
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      } as any)
+      settings.onlyListed = true
+      await settings.save()
+
+      const params = {
+        memberAddress: rawMember.address,
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      }
+
+      const findMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findMapping')
+      const findActiveSettingSpy = sandbox.spy(Models.Setting, 'findActive')
+      const findByAddressAndTokenSpy = sandbox.spy(Models.MemberBalance, 'findByAddressAndToken')
+
+      const response = await ProposalController.canCreateProposal(params as any)
+      expect(response).to.be.true
+      expect(findMappingSpy.calledOnce).to.be.true
+      expect(findActiveSettingSpy.calledOnce).to.be.true
+      expect(findByAddressAndTokenSpy.calledOnce).to.be.false
+
+      expect(
+        findMappingSpy.calledWith({
+          memberAddress: rawMember.address,
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+
+      expect(
+        findActiveSettingSpy.calledWith({
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+    })
+
+    it('should return false if member is not found', async () => {
+      const params = {
+        memberAddress: '0xmember',
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      }
+
+      const findMappingSpy = sandbox.spy(Models.Member, 'findByAddress')
+
+      const response = await ProposalController.canCreateProposal(params as any)
+
+      expect(response).to.be.false
+
+      expect(findMappingSpy.calledOnce).to.be.true
+
+      expect(findMappingSpy.calledWith('0xmember')).to.be.true
+    })
+
+    it('should return false if plugin is not found', async () => {
+      const params = {
+        memberAddress: rawMember.address,
+        pluginAddress: '0xplugin',
+        network: rawProposal.network,
+      }
+
+      const findMappingSpy = sandbox.spy(Models.Plugin, 'findByAddress')
+
+      const response = await ProposalController.canCreateProposal(params as any)
+
+      expect(response).to.be.false
+
+      expect(findMappingSpy.calledOnce).to.be.true
+
+      expect(findMappingSpy.calledWith('0xplugin', rawProposal.network)).to.be.true
+    })
+
+    it('should return false if active settings are not found', async () => {
+      const params = {
+        memberAddress: rawMember.address,
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      }
+
+      const settings = await Models.Setting.findActive({
+        daoAddress: rawProposal.daoAddress,
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      } as any)
+      settings.pluginAddress = '0x00'
+      await settings.save()
+
+      const findActiveSettingSpy = sandbox.spy(Models.Setting, 'findActive')
+
+      const response = await ProposalController.canCreateProposal(params as any)
+
+      expect(response).to.be.false
+
+      expect(
+        findActiveSettingSpy.calledWith({
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
     })
   })
 })
