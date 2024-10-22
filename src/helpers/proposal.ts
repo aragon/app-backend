@@ -30,11 +30,11 @@ const ProposalHelper = {
     network: NetworksEnum
   }): Promise<IProposalOnChain> {
     if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
-      return await ProposalHelper.getProposalTokenVoting({ proposalIndex, pluginAddress: plugin.adress, network })
+      return await ProposalHelper.getProposalTokenVoting({ proposalIndex, pluginAddress: plugin.address, network })
     } else if (plugin.interfaceType === IPluginInterfaceType.multisig) {
-      return await ProposalHelper.getProposalMultisig({ proposalIndex, pluginAddress: plugin.adress, network })
+      return await ProposalHelper.getProposalMultisig({ proposalIndex, pluginAddress: plugin.address, network })
     } else if (plugin.interfaceType === IPluginInterfaceType.spp) {
-      return await ProposalHelper.getProposalSpp({ proposalIndex, pluginAddress: plugin.adress, network })
+      return await ProposalHelper.getProposalSpp({ proposalIndex, pluginAddress: plugin.address, network })
     } else {
       return null
     }
