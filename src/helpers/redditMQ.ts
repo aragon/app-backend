@@ -105,4 +105,14 @@ export const RabbitMQHelper = {
       return Promise.resolve()
     }
   },
+
+  async getQueueMessageCount(queueName: EnumQueueName) {
+    const channel = RabbitMQ.getChannel()
+    if (!channel) {
+      throw new Error('RabbitMQ channel is not initialized.')
+    }
+
+    const queueInfo = await channel.checkQueue(queueName)
+    return { count: queueInfo.messageCount }
+  },
 }

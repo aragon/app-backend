@@ -24,7 +24,7 @@ export interface IQueueProposalMetrics {
 
 export interface IQueueMessage {
   id: string
-  params: IQueueProposalMetrics | IQueueDao
+  params: IQueueProposalMetrics | IQueueDao | any
 }
 
 export interface ISendOptions {

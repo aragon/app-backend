@@ -208,7 +208,7 @@ export const PluginSetupProcessorHandler = {
 
     await Promise.all([
       ...plugins.map(async (plugin: any) => {
-        if (!plugin.isSupported) return
+        // if (!plugin.isSupported) return
         await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
           id: plugin.address,
           params: { address: plugin.address, network: plugin.network },
