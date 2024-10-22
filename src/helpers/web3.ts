@@ -2,8 +2,8 @@ import {
   type ENS,
   type HexAddress,
   type IAlchemyTokenBalance,
-  type IMetadata,
   type ILogInfo,
+  type IMetadata,
   type IProposalMetadata,
   ITransactionType,
   type NetworksEnum,
@@ -27,8 +27,6 @@ import BottleneckModule from '@modules/bottleneck'
 import { ENSRegistry } from '@artifacts/ENSRegistry'
 import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
-import { Multisig } from '@artifacts/Multisig'
-import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { ProxyToken } from '@modules/proxyToken'
 import BigNumber from 'bignumber.js'
 import utils from '@helpers/utils'
@@ -722,26 +720,6 @@ const Web3Helper = {
     return { txReceipt, events }
   },
 
-  async getProposalMultisig(
-    pluginAddress: string,
-    network: NetworksEnum,
-  ): Promise<{
-    executed: boolean
-    approvals: bigint
-    allowFailureMap: bigint
-    parameters: { minApprovals: bigint; snapshotBlock: bigint; startDate: bigint; endDate: bigint }
-  } | null> {
-    const provider = ProviderModule.getProvider(network)!
-    const contract = new Contract(pluginAddress, Multisig.abi, provider)
-    try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(pluginAddress)),
-      )
-    } catch (error) {
-      return null
-    }
-  },
-
   async getERC20Balance(address: string, tokenAddress: string, network: NetworksEnum): Promise<string> {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, ERC20.abi, provider)
@@ -795,42 +773,6 @@ const Web3Helper = {
       version = [1, 0, 0]
     }
     return version.join('.')
-  },
-
-  async getSppSubPluginProposals(
-    proposalIndex: string,
-    stage: number,
-    pluginAddress: HexAddress,
-    sppPluginAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<number | false> {
-    const provider = ProviderModule.getProvider(network)!
-    const contract = new Contract(sppPluginAddress, StagedProposalProcessor.abi, provider)
-    try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-          contract.pluginProposalIds(proposalIndex, stage, pluginAddress),
-        ),
-      )
-    } catch (error) {
-      return false
-    }
-  },
-
-  async getSppProposal(
-    proposalIndex: string,
-    sppPluginAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<{ currentStage: number } | false> {
-    const provider = ProviderModule.getProvider(network)!
-    const contract = new Contract(sppPluginAddress, StagedProposalProcessor.abi, provider)
-    try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(proposalIndex)),
-      )
-    } catch (error) {
-      return false
-    }
   },
 }
 

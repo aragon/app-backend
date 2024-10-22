@@ -5,7 +5,7 @@ import ProviderModule from '@modules/provider'
 
 export const SPP_FUNCTIONS = ['getStages()']
 
-export const TOKEN_VOTING_FUNCTIONS = ['getVotingToken()']
+export const TOKEN_VOTING_FUNCTIONS = ['getVotingToken()', 'totalVotingPower(uint256)']
 
 export const MULTISIG_FUNCTIONS = ['isMember(address)', 'isListed(address)']
 

@@ -208,12 +208,11 @@ export const PluginSetupProcessorHandler = {
 
     await Promise.all([
       ...plugins.map(async (plugin: any) => {
+        if (!plugin.isSupported) return
         await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
           id: plugin.address,
           params: { address: plugin.address, network: plugin.network },
         })
-        // admin have no settings so it we need different way to support and fetch
-        // as spp also has installation applied on another tx so we need to handle it differently
       }),
     ])
   },
