@@ -185,7 +185,7 @@ class BlockchainTransferCrawler {
     }
 
     this.crawling = false
-    logger.verbose('Finished crawling logs', llo({ crawlResult: this.crawlResult, filter: this.filter }))
+    logger.verbose('Finished crawling logs', llo({ crawlResult: this.crawlResult }))
   }
 
   async handleErrors(error: any) {

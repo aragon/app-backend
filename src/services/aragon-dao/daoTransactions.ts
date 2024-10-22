@@ -28,7 +28,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransact
 export const DaoTransactions = {
   start: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
     const startTime = Date.now()
-    logger.verbose('Start DaoTransactions', llo({ startTime }))
+    logger.verbose('Start DaoTransactions', llo({ daoAddress, startTime }))
 
     const daoDb = await Models.Dao.findByAddress(daoAddress, network)
     if (!daoDb) return
@@ -36,7 +36,7 @@ export const DaoTransactions = {
     await DaoTransactions.onDocument(daoDb)
 
     const duration = Date.now() - startTime
-    logger.verbose('End DaoTransactions', llo({ daoId: daoDb.id, duration: `${duration}ms` }))
+    logger.verbose('End DaoTransactions', llo({ daoId: daoDb.id, daoAddress, duration: `${duration}ms` }))
   },
 
   getCategories: (network: NetworksEnum) => {
