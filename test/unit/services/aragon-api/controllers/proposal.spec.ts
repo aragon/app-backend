@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ProposalController from '@services/aragon-api/controllers/proposal'
-import { ErrorKeyEnum } from '@types'
+import { ErrorKeyEnum, IPluginInterfaceType } from '@types'
 import { Models } from '@dbModels'
 import Proposal from '@models/schema/proposal'
 import PairDataModule from '@modules/pairData'
@@ -71,6 +71,7 @@ describe('Controller: Proposal', () => {
         network: rawProposal.network,
         address: rawProposal.pluginAddress,
         tokenAddress: FakeToken.address,
+        interfaceType: IPluginInterfaceType.multisig,
       }),
       Models.MemberBalance.create({
         ...fakeMemberBalance,
