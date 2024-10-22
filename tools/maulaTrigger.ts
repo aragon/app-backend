@@ -6,7 +6,7 @@ import Web3Helper from '@helpers/web3'
 // import { PluginSetupProcessorHandler } from '@indexer/handlers/pluginSetupProcessorHandler'
 import { Interface } from 'ethers'
 import { DAO } from '@artifacts/dao'
-import { MetadataHandler } from '@indexer/handlers/metadataHandler'
+import { MetadataHandler } from '@src/handlers/metadataHandler'
 
 export const ToolsManualTrigger: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],

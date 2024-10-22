@@ -1,6 +1,6 @@
 import { EnumConnection, type IService } from '@types'
 import { Models } from '@dbModels'
-import { ProposalHandler } from '@indexer/handlers/proposalHandler'
+import { ProposalHandler } from '@src/handlers/proposalHandler'
 import ProviderModule from '@modules/provider'
 
 export const ToolsManualSyncProposalAction: IService = {

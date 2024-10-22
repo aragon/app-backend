@@ -1,20 +1,23 @@
 import logger from '@logger'
-import { IEventLogPluginMembership, IEventLogPluginType, type ILogInfo, IPluginInterfaceType } from '@types'
+import {
+  EnumQueueName,
+  IEventLogPluginMembership,
+  IEventLogPluginType,
+  type ILogInfo,
+  IPluginInterfaceType,
+} from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { ProxyToken } from '@modules/proxyToken'
-import { PluginHandler } from '@indexer/handlers/pluginHandler'
+import { PluginHandler } from '@src/handlers/pluginHandler'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import DbOperations from '@models/utils/dbOperations'
-import { LogTokenVoting } from '@indexer/logTokenVoting'
-import { LogMultiSig } from '@indexer/logMultisig'
-import { LogAdmin } from '@indexer/logAdmin'
-import { LogSpp } from '@indexer/logSPP'
-import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
+import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
 
@@ -95,10 +98,17 @@ export const PluginSetupProcessorHandler = {
     if (pluginDb?.interfaceType === IPluginInterfaceType.spp) {
       const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
       await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
-      await LogSpp.start(pluginDb)
+
+      await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+        id: pluginDb.address,
+        params: { address: pluginDb.address, network: pluginDb.network },
+      })
     } else if (pluginDb?.interfaceType === IPluginInterfaceType.admin) {
-      await LogAdmin.start(pluginDb)
       await PluginSettingHandler.isSupported(pluginDb, info)
+      await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+        id: pluginDb.address,
+        params: { address: pluginDb.address, network: pluginDb.network },
+      })
     }
   },
 
@@ -198,11 +208,10 @@ export const PluginSetupProcessorHandler = {
 
     await Promise.all([
       ...plugins.map(async (plugin: any) => {
-        if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
-          await LogTokenVoting.start(plugin)
-        } else if (plugin.interfaceType === IPluginInterfaceType.multisig) {
-          await LogMultiSig.start(plugin)
-        }
+        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+          id: plugin.address,
+          params: { address: plugin.address, network: plugin.network },
+        })
         // admin have no settings so it we need different way to support and fetch
         // as spp also has installation applied on another tx so we need to handle it differently
       }),

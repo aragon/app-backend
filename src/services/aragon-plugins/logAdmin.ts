@@ -2,19 +2,18 @@ import logger from '@logger'
 import { IAdminLogs, type IIndexerConfig } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
+import configIndexer from '@indexer/configIndexer'
 import { DAO } from '@artifacts/dao'
 import { Interface } from 'ethers'
 import Web3Helper from '@helpers/web3'
-import { PermissionHandler } from '@indexer/handlers/permissionHandler'
-import { PluginSettingHandler } from '@indexer/handlers/pluginSettingHandler'
+import { PermissionHandler } from '@src/handlers/permissionHandler'
+import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogAdmin' })
 
 export const LogAdmin = {
   start: async (plugin: Plugin) => {
     logger.verbose('Start LogAdmin', llo({ network: plugin.network }))
-
-    const { default: configIndexer } = await import('@indexer/configIndexer')
 
     await LogAdmin._syncAdminMember(plugin)
 

@@ -6,7 +6,8 @@ export enum EnumQueueName {
   daoMetrics = 'dao.metrics',
   proposalMultisigMetrics = 'proposal.multisig.metrics',
   proposalTokenVotingMetrics = 'proposal.token.metrics',
-  daoPermissions = 'dao.permissions',
+  plugins = 'log.plugins',
+  logDao = 'log.dao',
 }
 
 export interface IQueueDao {

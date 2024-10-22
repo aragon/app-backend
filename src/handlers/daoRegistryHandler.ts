@@ -5,12 +5,11 @@ import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import ProxyContractHelper from '@helpers/proxyContract'
 import { DAO } from '@artifacts/dao'
-import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
+import { MetadataHandler } from '@src/handlers/metadataHandler'
 import { ProxyMember } from '@modules/proxyMember'
 import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
 import { RabbitMQHelper } from '@helpers/redditMQ'
-import { LogDao } from '@indexer/logDao'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:DaoRegistryHandler' })
 
@@ -49,10 +48,10 @@ export const DaoRegistryHandler = {
     await ProxyMember.createMember(parsedEvent.args.creator)
     await DaoRegistryHandler.initiateNewDaoCreation(info, dao.address)
 
-    /**
-     * Start Syncing permission logs
-     */
-    await LogDao.start(dao)
+    await RabbitMQHelper.sendMessage(EnumQueueName.logDao, {
+      id: daoAddress,
+      params: { address: daoAddress, network: info.network },
+    })
   },
 
   /**

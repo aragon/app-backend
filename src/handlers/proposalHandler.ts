@@ -23,7 +23,7 @@ import DbOperations from '@models/utils/dbOperations'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import DbTx from '@modules/dbTx'
 import ProposalHelper from '@helpers/proposal'
-import { assert } from '@helpers/errors'
+import { assert } from '@errors'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 
