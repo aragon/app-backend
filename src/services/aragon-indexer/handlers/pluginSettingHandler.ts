@@ -178,6 +178,12 @@ export const PluginSettingHandler = {
       pluginAddress,
     })
 
+    /**
+     * //TODO
+     * If we have already existed metadata then we need to copy the name of the stages
+     * From the metadata
+     */
+
     const settingLog = {
       blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
@@ -231,6 +237,64 @@ export const PluginSettingHandler = {
     await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
     await PluginSettingHandler.isSupported(relatedPlugin, info)
     return relatedPlugin
+  },
+
+  /**
+   * Update stage names on SPP settings
+   * We mark the current settings as inactive and create a new one with the updated stage names
+   * Every time the spp metadata is updated, we call this to update
+   * the stage names on the settings, so it keeps synced and tacked
+   * @param plugin
+   * @param stageNames
+   * @param info
+   */
+
+  updateStageNamesOnSppSettings: async (plugin: Plugin, stageNames: string[], info: ILogInfo) => {
+    const existingLog = await Models.Setting.findExistingLog({
+      transactionHash: info.transactionHash,
+      pluginAddress: plugin.address,
+    })
+
+    if (existingLog) {
+      return
+    }
+
+    const activePluginSetting = await Models.Setting.findActive({
+      network: info.network,
+      pluginAddress: plugin.address,
+    })
+
+    if (!activePluginSetting) {
+      return
+    }
+
+    const settingLog = {
+      blockNumber: info.blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+      transactionHash: info.transactionHash,
+      status: ISettingStatus.active,
+      daoAddress: plugin.daoAddress,
+      pluginAddress: plugin.address,
+      pluginSubdomain: plugin.subdomain,
+      network: info.network,
+      stages: activePluginSetting.stages.map((stage: any, index: any) => ({
+        ...stage,
+        name: stageNames[index],
+      })),
+    }
+
+    await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - sppSettingsUpdated', llo)
+
+    await DbOperations.updateDocument(
+      activePluginSetting,
+      {
+        inactiveAtBlockNumber: info.blockNumber,
+        status: ISettingStatus.inactive,
+      },
+      { logId: activePluginSetting.id, info },
+      'Update SPP inactive plugin',
+      llo,
+    )
   },
 
   pairSppPlugins: async (plugin: Plugin, settings: Setting, info: ILogInfo) => {

@@ -47,8 +47,8 @@ export const LogAdmin = {
 
   /**
    *  When an admin plugin is installed, we need to sync the admin member
-   *  We need to grab all the granted permission as they will on the same tx hash where plugin is created
-   *  Case is only for admin plugin
+   *  We need to grab all the granted permission as they will be on the same tx hash where plugin is created
+   *  This Case is only for admin plugin
    */
 
   async _syncAdminMember(plugin: Plugin) {

@@ -5,11 +5,13 @@ export interface DaoResourceLink {
   url: string
 }
 
-export interface IDaoMetadata {
+export interface IMetadata {
   name?: string | null
   description?: string | null
   avatar?: string | null
   links?: DaoResourceLink[]
+  stageNames?: string[]
+  processKey?: string | null
 }
 
 export interface IProposalMetadata {

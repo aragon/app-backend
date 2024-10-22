@@ -34,3 +34,8 @@ export enum ISettingStatus {
   active = 'active',
   inactive = 'inactive',
 }
+
+export enum IMetadataType {
+  plugin = 'plugin',
+  dao = 'dao',
+}

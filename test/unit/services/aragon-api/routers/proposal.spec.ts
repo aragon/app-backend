@@ -25,7 +25,7 @@ describe('Router: Proposal', () => {
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         creatorAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         daoInfo: false,
-        proposalIndex: 1,
+        proposalIndex: '1',
       }
       const paginationParams = {
         pageSize: 10,

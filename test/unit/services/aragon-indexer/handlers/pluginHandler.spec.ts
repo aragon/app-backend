@@ -60,7 +60,7 @@ describe('Indexer:Plugin', () => {
   describe('_createPlugin', () => {
     it('should not update a plugin if it does not exist', async () => {
       const stubLogger = sandbox.stub(logger, 'warn')
-      await PluginHandler.createPlugin(ListLogPluginSetupProcessor[2] as any)
+      await PluginHandler._createPlugin(ListLogPluginSetupProcessor[2] as any)
 
       expect(stubLogger.calledOnce).to.be.true
     })

@@ -87,9 +87,13 @@ describe('Module: provider', () => {
 
   it('should connect to all networks', async () => {
     // Mock the config.BLOCKCHAIN_NODES
-    sandbox.stub(config, 'BLOCKCHAIN_NODES').value({
-      ETHEREUM_MAINNET: 'ws://localhost:8545',
-      POLYGON_MAINNET: 'ws://localhost:8546',
+    sandbox.stub(config, 'NODES').value({
+      ETHEREUM_MAINNET: {
+        WS: 'ws://localhost:8545',
+      },
+      POLYGON_MAINNET: {
+        WS: 'ws://localhost:8546',
+      },
     })
 
     // Mock ProviderModule.connectToNetwork
@@ -105,8 +109,8 @@ describe('Module: provider', () => {
   })
 
   it('should handle missing node URL in connectToAllNetworks', async () => {
-    sandbox.stub(config, 'BLOCKCHAIN_NODES').value({
-      ETHEREUM_MAINNET: '',
+    sandbox.stub(config, 'NODES').value({
+      ETHEREUM_MAINNET: {},
     })
 
     const loggerWarnStub = sandbox.stub(Logger, 'warn')

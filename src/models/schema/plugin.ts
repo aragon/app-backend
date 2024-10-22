@@ -52,6 +52,14 @@ export class PluginUninstalled {
   public blockTimestamp!: number | null
 }
 
+class Link {
+  @prop({ type: () => String, default: null })
+  public name!: string
+
+  @prop({ type: () => String, default: null })
+  public url!: string
+}
+
 @modelOptions({
   schemaOptions: {
     id: false,
@@ -151,6 +159,21 @@ export default class Plugin extends Model {
 
   @prop({ type: () => String })
   public parentPlugin?: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public metadataIpfs!: string
+
+  @prop({ type: () => String, default: null })
+  public name!: string
+
+  @prop({ type: () => String, default: null })
+  public description!: string
+
+  @prop({ type: () => String, default: null })
+  public processKey!: string
+
+  @prop({ type: () => [Link], _id: false, default: [] })
+  public links?: Link[]
 
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {

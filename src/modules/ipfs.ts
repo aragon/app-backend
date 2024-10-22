@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { type PinataPin } from '@pinata/sdk'
-import { type IDaoMetadata } from '@types'
+import { type IMetadata } from '@types'
 import { retry } from '@helpers/fetchRetry'
 import PinataHelper from '@helpers/pinata'
 import config from '@config'
@@ -17,14 +17,14 @@ const IPFSModule = {
     return await PinataHelper.unPin(cid)
   },
 
-  pinataMetadata: async (metadata: IDaoMetadata): Promise<string | null> => {
+  pinataMetadata: async (metadata: IMetadata): Promise<string | null> => {
     return await PinataHelper.uploadAndPinMetadata(metadata)
   },
 
   fetchMetadata: async (
     ipfsUrl: string,
     opts?: { retries?: number; delay?: number; timeout?: number },
-  ): Promise<IDaoMetadata | null> => {
+  ): Promise<IMetadata | null> => {
     const cid = ipfsUrl?.replace('ipfs://', '')
 
     if (!IPFSModule._isValidCIDv0(cid) && !IPFSModule._isValidCIDv1(cid)) {
@@ -92,7 +92,7 @@ const IPFSModule = {
     return cidv1Regex.test(cid)
   },
 
-  _parseDaoMetadata(metadata: IDaoMetadata): IDaoMetadata {
+  _parseDaoMetadata(metadata: IMetadata): IMetadata {
     if (!metadata.avatar || (metadata.avatar && typeof metadata.avatar !== 'string')) {
       metadata.avatar = null
     }
@@ -107,6 +107,14 @@ const IPFSModule = {
 
     if (!metadata?.links) {
       metadata.links = []
+    }
+
+    if (!metadata?.stageNames) {
+      metadata.stageNames = []
+    }
+
+    if (!metadata?.processKey) {
+      metadata.processKey = null
     }
 
     return metadata

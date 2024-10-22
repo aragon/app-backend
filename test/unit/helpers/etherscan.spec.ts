@@ -95,7 +95,7 @@ describe('Helpers: Etherscan', () => {
         startblock: 100,
         endblock: 'latest',
         sort: 'asc',
-        apikey: config.ETHERSCAN_API.ETHEREUM_MAINNET.API_KEY,
+        apikey: config.NODES.ETHEREUM_MAINNET.ETHERSCAN_API_KEY,
       })
     })
 
@@ -137,7 +137,7 @@ describe('Helpers: Etherscan', () => {
         module: 'contract',
         action: 'getsourcecode',
         address: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
-        apikey: config.ETHERSCAN_API.ETHEREUM_SEPOLIA.API_KEY,
+        apikey: config.NODES.ETHEREUM_SEPOLIA.ETHERSCAN_API_KEY,
       })
     })
 
@@ -188,7 +188,7 @@ describe('Helpers: Etherscan', () => {
         module: 'contract',
         action: 'getcontractcreation',
         contractaddresses: '0x123',
-        apikey: config.ETHERSCAN_API.ETHEREUM_MAINNET.API_KEY,
+        apikey: config.NODES.ETHEREUM_SEPOLIA.ETHERSCAN_API_KEY,
       })
     })
 

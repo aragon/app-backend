@@ -1228,7 +1228,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
-      const getMetadataAtBlockNumberStub = sandbox.stub(Models.LogDaoMetadata, 'getMetadataAtBlockNumber').resolves({
+      const getMetadataAtBlockNumberStub = sandbox.stub(Models.LogMetadata, 'getMetadataAtBlockNumber').resolves({
         name: 'MockDao',
       })
       const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('http://link')

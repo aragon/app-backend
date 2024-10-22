@@ -699,12 +699,16 @@ describe('Helpers:Web3', () => {
           description: 'test',
           avatar: 'test',
           links: [{ name: 'test', url: 'test' }],
+          stageNames: [],
+          processKey: null,
         }),
       ).to.deep.equal({
         name: 'test',
         description: 'test',
         avatar: 'test',
         links: [{ name: 'test', url: 'test' }],
+        stageNames: [],
+        processKey: null,
       })
 
       expect(Web3Helper.parseDaoMetadata({})).to.deep.equal({
@@ -712,6 +716,8 @@ describe('Helpers:Web3', () => {
         description: null,
         avatar: null,
         links: [],
+        stageNames: [],
+        processKey: null,
       })
 
       expect(Web3Helper.parseDaoMetadata(undefined as any)).to.deep.equal({
@@ -719,6 +725,8 @@ describe('Helpers:Web3', () => {
         description: null,
         avatar: null,
         links: [],
+        stageNames: [],
+        processKey: null,
       })
     })
   })

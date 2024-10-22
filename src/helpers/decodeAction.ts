@@ -266,7 +266,7 @@ class DecodeActions {
     if (decodedData.textSignature !== KnownActionSignature.MetadataUpdate) {
       return null
     }
-    const existingMetadata = await Models.LogDaoMetadata.getMetadataAtBlockNumber(
+    const existingMetadata = await Models.LogMetadata.getMetadataAtBlockNumber(
       document.daoAddress!,
       document.blockNumber!,
       document.network!,
