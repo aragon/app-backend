@@ -2,7 +2,14 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { EnumQueueName, IEventLogMember, IEventLogPluginType, IPluginStatus, NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  IEventLogMember,
+  IEventLogPluginType,
+  IPluginInterfaceType,
+  IPluginStatus,
+  NetworksEnum,
+} from '@types'
 import { beforeEach } from 'mocha'
 import { MultisigHandler } from '@handlers/multisigHandler'
 import { Models } from '@dbModels'
@@ -19,6 +26,7 @@ describe('Indexer: MemberHandler', () => {
 
     let rawPlugin = {
       transactionHash,
+      interfaceType: IPluginInterfaceType.tokenVoting,
       blockNumber: 3,
       transactionIndex: 1,
       logIndex: 1,
