@@ -19,6 +19,11 @@ const MemberSchema = {
   getMemberByAddress: Joi.object({
     address: ValidationSchema.joiAddress.required(),
   }),
+
+  isMemberOfPlugin: Joi.object({
+    memberAddress: ValidationSchema.joiAddress.required(),
+    pluginAddress: ValidationSchema.joiAddress.required(),
+  }),
 }
 
 export default MemberSchema
