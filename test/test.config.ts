@@ -28,11 +28,10 @@ if (argv.includes('--unit')) {
 async function runTests() {
   const mocha = new Mocha({
     ui: 'bdd',
-    timeout: 120000,
+    timeout: 60000,
     color: true,
     diff: true,
     fullTrace: true,
-    delay: true,
   })
 
   // MockDB setup
