@@ -4,18 +4,15 @@ import { expect } from 'chai'
 import logger from '@logger'
 import { IEventLogPluginType, IPluginInterfaceType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
-import {
-  IPluginActionType,
-  PluginSetupProcessorHandler,
-} from '@services/aragon-indexer/handlers/pluginSetupProcessorHandler'
+import { IPluginActionType, PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
-import { PluginHandler } from '@indexer/handlers/pluginHandler'
-import { PluginSettingHandler } from '@src/services/aragon-indexer/handlers/pluginSettingHandler'
-import { LogTokenVoting } from '@indexer/logTokenVoting'
-import { LogMultiSig } from '@indexer/logMultisig'
-import { LogAdmin } from '@indexer/logAdmin'
-import { LogSpp } from '@indexer/logSPP'
+import { PluginHandler } from '@handlers/pluginHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import { LogTokenVoting } from '@plugins/logTokenVoting'
+import { LogMultiSig } from '@plugins/logMultisig'
+import { LogAdmin } from '@plugins/logAdmin'
+import { LogSpp } from '@plugins/logSPP'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
