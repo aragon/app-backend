@@ -178,7 +178,9 @@ describe('Indexer: PluginSettingHandler', () => {
         logIndex: 1,
         network: NetworksEnum.ethereumMainnet,
       }
-      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        update: sandbox.stub(),
+      })
       const stubFindExistingLog = sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
       const stubFindActive = sandbox.stub(Models.Setting, 'findActive').resolves(false)
       const stubLogger = sandbox.stub(logger, 'verbose')
@@ -197,7 +199,7 @@ describe('Indexer: PluginSettingHandler', () => {
         }),
       ).to.be.true
 
-      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledTwice).to.be.true
 
       expect(getBlockTimestampStub.calledOnce).to.be.true
     })

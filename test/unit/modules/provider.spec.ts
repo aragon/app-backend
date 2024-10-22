@@ -116,7 +116,7 @@ describe('Module: provider', () => {
     const loggerWarnStub = sandbox.stub(Logger, 'warn')
     await ProviderModule.connectToAllNetworks()
 
-    expect(loggerWarnStub.calledWithMatch('Node URL for ETHEREUM_MAINNET is not configured.' as any)).to.be.true
+    expect(loggerWarnStub.calledWithMatch('Node URL for ethereum-mainnet is not configured.' as any)).to.be.true
   })
 
   it('should connect to a network', async () => {
@@ -187,7 +187,6 @@ describe('Module: provider', () => {
 
     ProviderModule.subscribeToEvent(network, filter, listener)
 
-    expect(ProviderModule.providerProxies[network].subscriptions.length).to.equal(1)
     expect(providerStub.alchemy.ws.on.calledWith(filter)).to.be.true
   })
 

@@ -13,6 +13,7 @@ import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { LogMultiSig } from '@plugins/logMultisig'
 import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -147,6 +148,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logAdminStartStub = sandbox.stub(LogAdmin, 'start')
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
 
+      const rabbiMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnce).to.be.true
@@ -172,9 +175,9 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(existingLog.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
       expect(existingLog.appliedSetupId).to.eq(fakeEvent.args.appliedSetupId)
       expect(existingLog.pluginAddress).to.eq(fakeEvent.args.plugin)
-      expect(logAdminStartStub.calledOnce).to.be.true
       expect(isSupportedStub.calledOnce).to.be.true
       expect(findByAddressStub.calledOnce).to.be.true
+      expect(rabbiMqStub.calledOnce).to.be.true
     })
 
     it('should create new log installationApplied when spp plugin', async () => {
@@ -207,6 +210,9 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const logSppStartStub = sandbox.stub(LogSpp, 'start')
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'handleFromReceipt')
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
+
+      const rabbiMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnce).to.be.true
@@ -236,6 +242,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(isSupportedStub.calledOnce).to.be.true
       expect(findByAddressStub.calledOnce).to.be.true
       expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(rabbiMqStub.calledOnce).to.be.true
     })
   })
 
@@ -313,8 +320,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         },
       ] as any)
 
-      const logTokenVotingStartStub = sandbox.stub(LogTokenVoting, 'start')
-      const logMultiSigStartStub = sandbox.stub(LogMultiSig, 'start')
+      const rabbiMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
 
@@ -325,9 +331,9 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(handleSingleInstallationPreparedStub.calledOnce).to.be.true
       expect(handleSingleInstallationPreparedStub.args[0][0].parsed.args[0]).to.be.eq('0x00')
       expect(handleFromReceiptStub.calledOnce).to.be.true
-      expect(logTokenVotingStartStub.calledOnce).to.be.true
-      expect(logMultiSigStartStub.calledOnce).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
+
+      expect(rabbiMqStub.calledTwice).to.be.true
     })
 
     it('dao not found error', async () => {
