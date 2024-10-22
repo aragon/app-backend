@@ -105,6 +105,7 @@ export interface IAggSettingProjectFields {
   minParticipation?: 1
   minDuration?: 1
   minProposerVotingPower?: 1
+  stages?: 1
 }
 
 export interface IAggMemberParams {
@@ -132,10 +133,19 @@ export interface IAggPluginProjectFields {
   address?: 1
   implementationAddress?: 1
   status?: 1
+  isSupported: 1
+  interfaceType: 1
   tokenAddress?: 1
   release?: 1
   build?: 1
   subdomain?: 1
+  isProcessor: 1
+  isBody: 1
+  isSubPlugin: 1
+  totalStages: 1
+  subPlugins: 1
+  stageIndex: 1
+  parentPlugin: 1
   permissions?: 1
   uninstalled?: 1
   createdAt?: 1

@@ -5,6 +5,7 @@ import { NetworkHelper } from '@helpers/network'
 import configIndexer from '@indexer/configIndexer'
 import utils from '@helpers/utils'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import EventListener from '@modules/eventListener'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -12,7 +13,7 @@ const IndexerService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   start: async function () {
-    logger.info('IndexerService started', llo({}))
+    logger.info('IndexerService historical started', llo({}))
 
     const networks = NetworkHelper.supportedNetworks()
 
@@ -32,6 +33,14 @@ const IndexerService: IService = {
     )
 
     logger.info('IndexerService historical logs end', llo({}))
+
+    await Promise.all(
+      networks.map(async ({ networkName }) => {
+        const realtimeConfigLogs = utils.filterArrayByProperty(configIndexer, 'enableRealtime')
+        const eventListener = new EventListener(networkName, realtimeConfigLogs)
+        await eventListener.subscribeToEvents()
+      }),
+    )
   },
 
   async stop() {

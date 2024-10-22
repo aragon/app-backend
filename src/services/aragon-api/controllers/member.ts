@@ -29,7 +29,7 @@ const MemberController = {
 
     const memberAddresses = mapping.map((w: DaoMemberMapping) => w.memberAddress)
 
-    if (Object.values(extraParams).length > 0 && memberAddresses.length === 0) {
+    if (Object.values(extraParams).filter(v => v).length > 0 && memberAddresses.length === 0) {
       return ModelUtils.paginateEmptyResponse(paginationParams.limit!)
     }
 

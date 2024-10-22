@@ -1,134 +1,56 @@
-// import { Interface, type Log } from 'ethers'
-// import ProviderModule from '@modules/provider'
-// import Web3Helper from '@helpers/web3'
-// import logger from '@logger'
-// import { type IIndexerConfig, type NetworksEnum } from '@types'
-// import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-// import blockchainLogCrawler from "@modules/blockchainLogCrawler";
-// import {ProposalHandler} from "@handlers/proposalHandler";
-//
-// const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
-//
-// class EventListener {
-//   public network: NetworksEnum
-//   public name: IEnumIndexerService
-//   public abi: any[]
-//   public listen: IEventConfig[]
-//   public networkName: NetworksEnum
-//
-//   constructor(config: Omit<IIndexerConfig, 'network'> & { networkName: NetworksEnum }) {
-//     this.name = config.name
-//     this.abi = config.abi
-//     this.listen = config.listen
-//     this.networkName = config.networkName
-//     this.network = config.networkName
-//   }
-//
-//   private getEventTopics() {
-//     const iface = new Interface(this.abi)
-//     return this.listen
-//       .filter(listener => listener.enableHistorical || listener.enableRealtime)
-//       .map(listener => iface.getEvent(listener.event)?.topicHash)
-//   }
-//
-//   private getInterface() {
-//     return new Interface(this.abi)
-//   }
-//
-//   async start(crawl = false, listen = false) {
-//     const eventTopics = this.getEventTopics()
-//     const filter = { topics: eventTopics }
-//
-//     if (crawl) {
-//       await this.crawl(filter)
-//       // TODO: re-sync all plugins
-//     }
-//     if (listen) {
-//       this.listenToEvents(filter)
-//     }
-//   }
-//
-//   private async crawl(filter: any) {
-//     const crawler = new BlockchainLogCrawler({
-//       network: this.networkName,
-//       filter: [
-//         {
-//           event: 'ProposalCreated',
-//           abi: '',
-//           handler: ProposalHandler.proposalCreated,
-//         },
-//       ],
-//       onLog: async (txLog: Log) => this.processLog(txLog),
-//       onError: async (error: any) => this.processError(error),
-//       logService: this.name,
-//       stopOnError: true,
-//     })
-//
-//     await crawler.crawl()
-//     logger.verbose(`End ${this.name} historical processing`, { networkName: this.networkName })
-//   }
-//
-//   private listenToEvents(filter: any) {
-//     const topics = filter.topics || []
-//     if (topics.length > 0) {
-//       this.subscribeWithTopics(filter, topics)
-//     } else {
-//       this.subscribeWithoutTopics(filter)
-//     }
-//   }
-//
-//   private subscribeWithTopics(filter: any, topics: string[]) {
-//     const maxTopicsPerBatch = 4
-//
-//     for (let i = 0; i < topics.length; i += maxTopicsPerBatch) {
-//       const topicSubset = topics.slice(i, i + maxTopicsPerBatch)
-//       const modifiedFilter = { ...filter, topics: [topicSubset] }
-//
-//       this.setupSubscription(modifiedFilter)
-//     }
-//   }
-//
-//   private subscribeWithoutTopics(filter: any) {
-//     this.setupSubscription(filter)
-//   }
-//
-//   private setupSubscription(filter: any) {
-//     try {
-//       ProviderModule.subscribeToEvent(this.networkName, filter, this.processLog.bind(this))
-//       logger.verbose('Start real-time listening', llo({ networkName: this.networkName, filter }))
-//     } catch (error) {
-//       logger.error('Event listener error', llo({ error, name: this.name, network: this.networkName }))
-//     }
-//   }
-//
-//   private async processLog(txLog: Log) {
-//     const iFace = this.getInterface()
-//     const event = Web3Helper.parseLog(txLog, iFace)
-//     if (!event) return
-//
-//     const info = Web3Helper.parseInfoLog(txLog, event.name, this.networkName)
-//
-//     const listener = this.listen.find(listener => listener.event === event.name)
-//
-//     if (
-//       listener &&
-//       ((listener.enableHistorical && listener.enableRealtime) || listener.enableHistorical || listener.enableRealtime)
-//     ) {
-//       await listener.handler(event, info)
-//     } else {
-//       logger.warn(`No handler found for event: ${event.name}`, { event, network: this.networkName })
-//     }
-//   }
-//
-//   private async processError(error: any) {
-//     logger.error(
-//       `Error in ${this.name}`,
-//       llo({
-//         error,
-//         network: this.networkName,
-//       }),
-//     )
-//   }
-// }
-//
-// export default EventListener
+import { Interface, type Log } from 'ethers'
+import ProviderModule from '@modules/provider'
+import Web3Helper from '@helpers/web3'
+import logger from '@logger'
+import { type IIndexerConfig, type NetworksEnum } from '@types'
+
+const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
+
+class EventListener {
+  public network: NetworksEnum
+  public configLogs: IIndexerConfig[]
+  public maxTopicsPerBatch = 4
+
+  constructor(network: NetworksEnum, configLogs: IIndexerConfig[]) {
+    this.network = network
+    this.configLogs = configLogs
+  }
+
+  async subscribeToEvents() {
+    const topics = this.configLogs.map(config => config.topic).filter(topic => topic)
+
+    if (topics.length === 0) {
+      logger.error('No topics available for subscription', llo({ network: this.network }))
+      return
+    }
+
+    const filter = { topics: [topics] }
+
+    for (let i = 0; i < topics.length; i += this.maxTopicsPerBatch) {
+      const topicSubset = topics.slice(i, i + this.maxTopicsPerBatch)
+      const modifiedFilter = { ...filter, topics: [topicSubset] }
+
+      ProviderModule.subscribeToEvent(this.network, modifiedFilter, this.handleEvent.bind(this))
+      logger.verbose('Start real-time listening', llo({ network: this.network, filter: modifiedFilter }))
+    }
+  }
+
+  async handleEvent(txLog: Log) {
+    const eventConfig = this.configLogs.find(item => item.topic === txLog.topics[0])
+    if (!eventConfig) return
+
+    const iFace = new Interface(eventConfig.abi)
+    const event = Web3Helper.parseLog(txLog, iFace)
+    if (!event) return
+
+    const info = Web3Helper.parseInfoLog(txLog, event.name, this.network)
+
+    if (eventConfig && eventConfig.enableRealtime) {
+      await eventConfig.handler(event, info)
+    } else {
+      logger.warn(`No handler found for event: ${event.name}`, llo({ event, network: this.network }))
+    }
+  }
+}
+
+export default EventListener

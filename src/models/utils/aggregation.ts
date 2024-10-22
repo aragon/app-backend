@@ -17,7 +17,6 @@ import {
   type IAggTokenParams,
   type IAggTokenProjectFields,
   ISettingStatus,
-  type NetworksEnum,
 } from '@types'
 
 export const AggregationQueryHelper = {
@@ -205,6 +204,7 @@ export const AggregationQueryHelper = {
             minParticipation: 1,
             minDuration: 1,
             minProposerVotingPower: 1,
+            stages: 1,
           },
         ),
         // Fetch token only if settings are included and plugin has tokenAddress
@@ -528,78 +528,5 @@ export const AggregationQueryHelper = {
         as,
       },
     }
-  },
-
-  memberOrDaoInfo: ({ address, network }: { address: HexAddress; network?: NetworksEnum }) => {
-    return [
-      AggregationQueryHelper.member({ memberAddress: address }, 'memberInfo', { address: 1, ens: 1, avatar: 1 }),
-      {
-        $addFields: {
-          creatorAddress: {
-            $cond: {
-              if: { $gt: [{ $size: '$memberInfo' }, 0] },
-              then: {
-                address: { $arrayElemAt: ['$memberInfo.address', 0] },
-                ens: { $arrayElemAt: ['$memberInfo.ens', 0] },
-                avatar: { $arrayElemAt: ['$memberInfo.avatar', 0] },
-              },
-              else: '$$REMOVE', // Remove field if member is not found
-            },
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: 'Dao',
-          let: { daoAddress: address, network },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [{ $eq: ['$address', '$$daoAddress'] }, { $eq: ['$network', '$$network'] }],
-                },
-              },
-            },
-            {
-              $project: { address: 1, ens: 1, avatar: 1 },
-            },
-          ],
-          as: 'daoInfo',
-        },
-      },
-      {
-        $addFields: {
-          creatorAddress: {
-            $cond: {
-              if: {
-                $and: [{ $lte: [{ $size: '$memberInfo' }, 0] }, { $gt: [{ $size: '$daoInfo' }, 0] }],
-              },
-              then: {
-                address: { $arrayElemAt: ['$daoInfo.address', 0] },
-                ens: { $arrayElemAt: ['$daoInfo.ens', 0] },
-                avatar: { $arrayElemAt: ['$daoInfo.avatar', 0] },
-              },
-              else: {
-                $cond: {
-                  if: { $lte: [{ $size: '$memberInfo' }, 0] },
-                  then: {
-                    address,
-                    ens: null,
-                    avatar: null,
-                  },
-                  else: '$creatorAddress', // Retain existing creatorAddress if already set
-                },
-              },
-            },
-          },
-        },
-      },
-      {
-        $addFields: {
-          memberInfo: '$$REMOVE',
-          daoInfo: '$$REMOVE',
-        },
-      },
-    ]
   },
 }
