@@ -98,6 +98,7 @@ export const MetadataHandler = {
       name: metadataLog.name,
       description: metadataLog.description,
       links: metadataLog.links,
+      processKey: metadataLog.processKey,
     }
     await DbOperations.updateDocument(plugin, document, { logId: metadataLog.id }, 'Update Plugin Metadata', llo)
   },
