@@ -24,7 +24,6 @@ import DbOperations from '@models/utils/dbOperations'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import DbTx from '@modules/dbTx'
 import ProposalHelper from '@helpers/proposal'
-import { assert } from '@errors'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 
@@ -435,7 +434,10 @@ export const ProposalHandler = {
           proposal.network,
         )
 
-        assert(proposalIndex !== false && Number(proposalIndex) !== 0, 'SPP Proposal index error')
+        if (!proposalIndex || proposalIndex === 0) {
+          logger.error('Error SPP Proposal index not found', llo({ proposalIndex, address, plugin }))
+          return
+        }
 
         proposal.subProposals.push({
           proposalIndex,
@@ -450,6 +452,12 @@ export const ProposalHandler = {
           address,
           plugin.network,
         )
+
+        if (!subProposalDb) {
+          logger.error('Error Sub Proposal not not found', llo({ proposalIndex, address, plugin }))
+          return
+        }
+
         await subProposalDb.update({
           parentProposal: {
             pluginAddress: proposal.pluginAddress,

@@ -8,7 +8,6 @@ import config from '@config'
 import utils from '@helpers/utils'
 import ProviderModule from '@modules/provider'
 import { retryRequest } from '@helpers/retryRequest'
-import { assert } from '@errors'
 import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventCrawler' })
@@ -71,7 +70,8 @@ class BlockchainLogCrawler {
 
   calculateBatchSize(network: NetworksEnum): number {
     // Constants for seconds in a 30-day month
-    const SECONDS_IN_MONTH = 30 * 24 * 3600
+    const days = 120
+    const SECONDS_IN_MONTH = days * 24 * 3600
 
     // Get the block interval time from the config
     const blockIntervalTime = config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME
@@ -146,7 +146,6 @@ class BlockchainLogCrawler {
         currentBlock + this.crawlSetting.batchSize - (this.crawlSetting.runCount > 1 ? 1 : 0),
         latestBlock,
       )
-
       // Handle topics: use chunks if there are topics, or pass empty for all logs
       const topicChunks = utils.chunkArray(this.crawlSetting.filter.topics, 4)
       let allLogs: Log[] = []
@@ -236,10 +235,18 @@ class BlockchainLogCrawler {
     for (const log of logs) {
       try {
         const eventSetting = this.crawlParams.events.find(item => item.topic === log.topics[0])!
-        assert(!!eventSetting, 'Error rvent setting not found in blockchainCrawler', log)
+
+        if (!eventSetting) {
+          logger.error('Error event setting not found in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
+        }
+
         const iFace = new Interface(eventSetting.abi)
         const event = Web3Helper.parseLog(log, iFace)!
-        assert(!!eventSetting, 'Error parse log in blockchainCrawler', log)
+
+        if (!event) {
+          logger.error('Error parse log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
+        }
+
         const info = Web3Helper.parseInfoLog(log, eventSetting.event, this.crawlParams.network)
         await eventSetting.handler(event, info)
 

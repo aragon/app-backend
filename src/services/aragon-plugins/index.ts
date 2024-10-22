@@ -8,12 +8,12 @@ import { LogMultiSig } from '@services/aragon-plugins/logMultisig'
 import { LogSpp } from '@services/aragon-plugins/logSPP'
 import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
 
-const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
+const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
 
 const PluginSyncService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
-  start: async function () {
+  async start() {
     await RabbitMQHelper.process(EnumQueueName.logDao, 10, async job => {
       const { address, network } = job.params as IQueueDao
       const dao = await Models.Dao.findByAddress(address, network)
@@ -24,7 +24,10 @@ const PluginSyncService: IService = {
     await RabbitMQHelper.process(EnumQueueName.plugins, 10, async job => {
       const { address, network } = job.params as IQueueDao
       const plugin = await Models.Plugin.findByAddress(address, network)
-      if (!plugin) return
+
+      if (!plugin) {
+        logger.error('PluginSyncService: plugin not found', llo({ plugin }))
+      }
 
       switch (plugin.interfaceType) {
         case IPluginInterfaceType.admin:
