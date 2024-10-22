@@ -55,7 +55,7 @@ describe('Indexer: MetadataHandler', () => {
 
       expect(fetchHelper.calledOnce).to.be.true
       expect(fetchHelper.calledWith('ipfs://fake-uri')).to.be.true
-      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Metadata Set')
+      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Dao Metadata Set')
     })
 
     it('should store DAO metadata with hash', async () => {
@@ -92,7 +92,7 @@ describe('Indexer: MetadataHandler', () => {
 
       expect(fetchHelper.calledOnce).to.be.true
       expect(fetchHelper.calledWith('ipfs://fake-uri')).to.be.true
-      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Metadata Set')
+      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Dao Metadata Set')
     })
 
     it('should _updateDaoMetadata if logDb successfully created', async () => {
@@ -131,7 +131,7 @@ describe('Indexer: MetadataHandler', () => {
 
       expect(fetchHelper.calledOnce).to.be.true
       expect(fetchHelper.calledWith('ipfs://fake-uri')).to.be.true
-      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Metadata Set')
+      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Dao Metadata Set')
       expect(createDocumentStub.calledOnce).to.be.true
       expect(updateDaoMetadataStub.calledOnce).to.be.true
     })
