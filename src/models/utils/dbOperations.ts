@@ -14,7 +14,7 @@ class DbOperations {
 
   static async updateDocument(document: any, data: any, info: any, logMsg: string, llo: any): Promise<any> {
     return await DbTx.executeTxFn(async ({ session }) => {
-      const reloadDocument = await document.reload({ session })
+      const reloadDocument = await document.constructor.findById(document._id).session(session)
       await reloadDocument.update(data, { session })
       await session.commitTransaction()
       await session.endSession()
