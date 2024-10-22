@@ -6,6 +6,7 @@ import {
   IMetricAction,
   IPluginInterfaceType,
   type IProposalMetadata,
+  type IProposalSPPOnChain,
   type IRawAction,
 } from '@types'
 import { type LogDescription } from 'ethers'
@@ -404,7 +405,7 @@ export const ProposalHandler = {
     )
 
     subPlugins?.addresses?.map(async (address: HexAddress) => {
-      const proposalIndex = await Web3Helper.getSppSubPluginProposals(
+      const proposalIndex = await ProposalHelper.getSppSubPluginProposals(
         proposal.proposalIndex,
         newStage,
         address,
@@ -496,14 +497,19 @@ export const ProposalHandler = {
       proposal.totalStages = plugin.totalStages
       proposal.subProposals = []
 
-      const proposalInfo = await Web3Helper.getSppProposal(proposal.proposalIndex, plugin.address, proposal.network)
+      const proposalInfo = (await ProposalHelper.getProposal({
+        plugin,
+        proposalIndex: proposal.proposalIndex,
+        network: proposal.network,
+      })) as IProposalSPPOnChain
+
       if (proposalInfo) {
         proposal.stageIndex = Number(proposalInfo.currentStage) - 1
       }
 
       const subPlugins = plugin.subPlugins.find(async subPlugin => subPlugin.stageIndex === proposal.stageIndex)
       subPlugins?.addresses?.map(async (address: HexAddress) => {
-        const proposalIndex = await Web3Helper.getSppSubPluginProposals(
+        const proposalIndex = await ProposalHelper.getSppSubPluginProposals(
           proposal.proposalIndex,
           proposal.stageIndex as any,
           address,

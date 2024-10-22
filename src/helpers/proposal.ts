@@ -25,7 +25,7 @@ const ProposalHelper = {
     proposalIndex,
     network,
   }: {
-    plugin: Plugin,
+    plugin: Plugin
     proposalIndex: string
     network: NetworksEnum
   }): Promise<IProposalOnChain> {
@@ -37,6 +37,26 @@ const ProposalHelper = {
       return await ProposalHelper.getProposalSpp({ proposalIndex, pluginAddress: plugin.adress, network })
     } else {
       return null
+    }
+  },
+
+  async getSppSubPluginProposals(
+    proposalIndex: string,
+    stage: number,
+    pluginAddress: HexAddress,
+    sppPluginAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<number | false> {
+    const provider = ProviderModule.getProvider(network)!
+    const contract = new Contract(sppPluginAddress, StagedProposalProcessor.abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+          contract.pluginProposalIds(proposalIndex, stage, pluginAddress),
+        ),
+      )
+    } catch (error) {
+      return false
     }
   },
 

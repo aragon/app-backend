@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo, IPluginInterfaceType, IPluginProposalType, ISettingStatus } from '@types'
+import { type ILogInfo, IPluginInterfaceType, IPluginProposalType, ISettingStatus, ITokenType } from '@types'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import type Plugin from '@models/schema/plugin'
@@ -9,6 +9,7 @@ import { type LogDescription, type TransactionReceipt } from 'ethers'
 import { Multisig } from '@artifacts/Multisig'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
+import { ProxyToken } from '@modules/proxyToken'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
 
@@ -99,6 +100,12 @@ export const PluginSettingHandler = {
         'Update tokenVoting inactive plugin',
         llo,
       )
+    }
+
+    const tokenDb = await ProxyToken.saveAndGetToken(relatedPlugin.tokenAddress, relatedPlugin.network)
+
+    if (tokenDb?.type === ITokenType.GovernanceERC20) {
+      await PluginSettingHandler.isSupported(relatedPlugin, info)
     }
 
     return relatedPlugin
