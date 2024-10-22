@@ -334,7 +334,7 @@ export const ProposalHandler = {
     }
 
     await DbOperations.updateDocument(
-      await proposal.reload(),
+      proposal,
       rawUpdate,
       { logId: proposal.id, info },
       'Update proposalExecuted',
