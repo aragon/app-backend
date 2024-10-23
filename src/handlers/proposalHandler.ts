@@ -408,6 +408,22 @@ export const ProposalHandler = {
 
           if (subProposalDb.executed.status) return
 
+          const proposalInfo = (await ProposalHelper.getProposal({
+            plugin,
+            proposalIndex: proposal.proposalIndex,
+            network: proposal.network,
+          })) as IProposalSPPOnChain
+
+          await DbOperations.updateDocument(
+            proposal,
+            {
+              lastStageTransition: proposalInfo.lastStageTransition,
+            },
+            { logId: proposal.id },
+            'Proposal Updated - lastStageTransition',
+            llo,
+          )
+
           const executed = {
             status: true,
             blockNumber: info.blockNumber,
@@ -527,6 +543,7 @@ export const ProposalHandler = {
 
   pairSppProposals: async (proposal: Proposal, plugin: Plugin, info: ILogInfo) => {
     logger.verbose('pair spp proposals', llo({ proposal, plugin, info }))
+    let hasChanges = false
 
     try {
       // proposal of a spp plugin
@@ -583,15 +600,21 @@ export const ProposalHandler = {
             logger.warn('Sub proposal not found', llo({ proposalIndex, address, plugin }))
           }
         })
+
+        hasChanges = true
       }
 
       // proposal of a sub plugin
       if (plugin.isSubPlugin) {
         proposal.isSubProposal = true
         proposal.stageIndex = plugin.stageIndex
+        hasChanges = true;
+      }
 
+      if (hasChanges) {
         await proposal.save()
       }
+
     } catch (error) {
       logger.error('Error pairSppProposals', llo({ error, proposalId: proposal.id }))
     }
