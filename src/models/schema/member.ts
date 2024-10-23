@@ -117,6 +117,8 @@ export default class Member extends Model {
           {
             _id: 0,
             network: 1,
+            transactionHash: 1,
+            blockTimestamp: 1,
             tokenAddress: 1,
             address: 1,
             implementationAddress: 1,
@@ -251,6 +253,8 @@ export default class Member extends Model {
           {
             _id: 0,
             network: 1,
+            transactionHash: 1,
+            blockTimestamp: 1,
             tokenAddress: 1,
             address: 1,
             implementationAddress: 1,

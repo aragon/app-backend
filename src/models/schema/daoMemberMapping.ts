@@ -167,6 +167,8 @@ export default class DaoMemberMapping extends Model {
         'plugins',
         {
           _id: 0,
+          transactionHash: 1,
+          blockTimestamp: 1,
           address: 1,
           implementationAddress: 1,
           isSupported: 1,
