@@ -385,9 +385,25 @@ export const ProposalHandler = {
         logger.warn('Proposal not found', llo(info))
       }
 
-      const newStage = Number(parsedEvent.args.stageId)
-      await proposal.update({ stageIndex: newStage })
       const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, info.network)
+      const newStage = Number(parsedEvent.args.stageId)
+
+      const proposalInfo = (await ProposalHelper.getProposal({
+        plugin,
+        proposalIndex: proposal.proposalIndex,
+        network: proposal.network,
+      })) as IProposalSPPOnChain
+
+      await DbOperations.updateDocument(
+        proposal,
+        {
+          lastStageTransition: proposalInfo.lastStageTransition,
+          stageIndex: newStage,
+        },
+        { logId: proposal.id },
+        'Proposal Updated - lastStageTransition',
+        llo,
+      )
 
       const subPlugins = plugin.subPlugins.find((subPlugin: { stageIndex: any }) => subPlugin.stageIndex === newStage)
 
@@ -407,22 +423,6 @@ export const ProposalHandler = {
           }
 
           if (subProposalDb.executed.status) return
-
-          const proposalInfo = (await ProposalHelper.getProposal({
-            plugin,
-            proposalIndex: proposal.proposalIndex,
-            network: proposal.network,
-          })) as IProposalSPPOnChain
-
-          await DbOperations.updateDocument(
-            proposal,
-            {
-              lastStageTransition: proposalInfo.lastStageTransition,
-            },
-            { logId: proposal.id },
-            'Proposal Updated - lastStageTransition',
-            llo,
-          )
 
           const executed = {
             status: true,
