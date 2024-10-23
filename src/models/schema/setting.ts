@@ -263,7 +263,6 @@ export default class Setting extends Model {
     return results?.[0]
   }
 
-  // TODO: for spp plugin check interface https://aragonassociation.atlassian.net/browse/APP-3661
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},

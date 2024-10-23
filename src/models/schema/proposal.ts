@@ -4,6 +4,7 @@ import {
   ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginStatus,
   type IProposalExtraParams,
   type IProposalIdParams,
   type IProposalsResponse,
@@ -372,6 +373,132 @@ export default class Proposal extends Model {
           token: '$$REMOVE',
         },
       },
+
+      // populate plugin in settings
+      {
+        $addFields: {
+          allPluginAddresses: {
+            $reduce: {
+              input: { $ifNull: ['$settings.stages', []] },
+              initialValue: [],
+              in: {
+                $concatArrays: [
+                  '$$value',
+                  {
+                    $map: {
+                      input: { $ifNull: ['$$this.plugins', []] },
+                      as: 'stagePlugin',
+                      in: '$$stagePlugin.address',
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      AggregationQueryHelper.plugin(
+        {
+          addresses: '$allPluginAddresses',
+          network: '$network',
+          status: IPluginStatus.installed,
+        },
+        'allPluginDocs',
+        {
+          _id: 0,
+          transactionHash: 1,
+          blockTimestamp: 1,
+          address: 1,
+          implementationAddress: 1,
+          name: 1,
+          description: 1,
+          processKey: 1,
+          links: 1,
+          isSupported: 1,
+          interfaceType: 1,
+          // status: 1,
+          release: 1,
+          build: 1,
+          subdomain: 1,
+          isProcess: 1,
+          isBody: 1,
+          isSubPlugin: 1,
+          totalStages: 1,
+          subPlugins: 1,
+          stageIndex: 1,
+          parentPlugin: 1,
+        },
+      ),
+      {
+        $addFields: {
+          'settings.stages': {
+            $map: {
+              input: { $ifNull: ['$settings.stages', []] },
+              as: 'stage',
+              in: {
+                $mergeObjects: [
+                  '$$stage',
+                  {
+                    plugins: {
+                      $map: {
+                        input: { $ifNull: ['$$stage.plugins', []] },
+                        as: 'stagePlugin',
+                        in: {
+                          $let: {
+                            vars: {
+                              // Remove unwanted fields from $$stagePlugin
+                              stagePluginClean: {
+                                $arrayToObject: {
+                                  $filter: {
+                                    input: {
+                                      $objectToArray: '$$stagePlugin',
+                                    },
+                                    as: 'field',
+                                    cond: {
+                                      $not: {
+                                        $in: ['$$field.k', ['isManual', 'allowedBody']],
+                                      },
+                                    },
+                                  },
+                                },
+                              },
+                              // Find the matched plugin document
+                              matchedPlugin: {
+                                $arrayElemAt: [
+                                  {
+                                    $filter: {
+                                      input: '$allPluginDocs',
+                                      as: 'pluginDoc',
+                                      cond: {
+                                        $eq: ['$$pluginDoc.address', '$$stagePlugin.address'],
+                                      },
+                                    },
+                                  },
+                                  0,
+                                ],
+                              },
+                            },
+                            in: {
+                              $mergeObjects: ['$$stagePluginClean', '$$matchedPlugin'],
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          allPluginAddresses: 0,
+          allPluginDocs: 0,
+        },
+      },
+
       {
         $project: {
           _id: 0,
@@ -513,6 +640,131 @@ export default class Proposal extends Model {
       {
         $addFields: {
           token: '$$REMOVE',
+        },
+      },
+
+      // populate plugin in settings
+      {
+        $addFields: {
+          allPluginAddresses: {
+            $reduce: {
+              input: { $ifNull: ['$settings.stages', []] },
+              initialValue: [],
+              in: {
+                $concatArrays: [
+                  '$$value',
+                  {
+                    $map: {
+                      input: { $ifNull: ['$$this.plugins', []] },
+                      as: 'stagePlugin',
+                      in: '$$stagePlugin.address',
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      AggregationQueryHelper.plugin(
+        {
+          addresses: '$allPluginAddresses',
+          network: '$network',
+          status: IPluginStatus.installed,
+        },
+        'allPluginDocs',
+        {
+          _id: 0,
+          transactionHash: 1,
+          blockTimestamp: 1,
+          address: 1,
+          implementationAddress: 1,
+          name: 1,
+          description: 1,
+          processKey: 1,
+          links: 1,
+          isSupported: 1,
+          interfaceType: 1,
+          // status: 1,
+          release: 1,
+          build: 1,
+          subdomain: 1,
+          isProcess: 1,
+          isBody: 1,
+          isSubPlugin: 1,
+          totalStages: 1,
+          subPlugins: 1,
+          stageIndex: 1,
+          parentPlugin: 1,
+        },
+      ),
+      {
+        $addFields: {
+          'settings.stages': {
+            $map: {
+              input: { $ifNull: ['$settings.stages', []] },
+              as: 'stage',
+              in: {
+                $mergeObjects: [
+                  '$$stage',
+                  {
+                    plugins: {
+                      $map: {
+                        input: { $ifNull: ['$$stage.plugins', []] },
+                        as: 'stagePlugin',
+                        in: {
+                          $let: {
+                            vars: {
+                              // Remove unwanted fields from $$stagePlugin
+                              stagePluginClean: {
+                                $arrayToObject: {
+                                  $filter: {
+                                    input: {
+                                      $objectToArray: '$$stagePlugin',
+                                    },
+                                    as: 'field',
+                                    cond: {
+                                      $not: {
+                                        $in: ['$$field.k', ['isManual', 'allowedBody']],
+                                      },
+                                    },
+                                  },
+                                },
+                              },
+                              // Find the matched plugin document
+                              matchedPlugin: {
+                                $arrayElemAt: [
+                                  {
+                                    $filter: {
+                                      input: '$allPluginDocs',
+                                      as: 'pluginDoc',
+                                      cond: {
+                                        $eq: ['$$pluginDoc.address', '$$stagePlugin.address'],
+                                      },
+                                    },
+                                  },
+                                  0,
+                                ],
+                              },
+                            },
+                            in: {
+                              $mergeObjects: ['$$stagePluginClean', '$$matchedPlugin'],
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          allPluginAddresses: 0,
+          allPluginDocs: 0,
         },
       },
     ]
