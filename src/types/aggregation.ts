@@ -131,10 +131,10 @@ export interface IAggPluginProjectFields {
   blockTimestamp?: 1
   network?: 1
   address?: 1
-  name: 1,
-  description: 1,
-  processKey: 1,
-  links: 1,
+  name: 1
+  description: 1
+  processKey: 1
+  links: 1
   implementationAddress?: 1
   status?: 1
   isSupported: 1

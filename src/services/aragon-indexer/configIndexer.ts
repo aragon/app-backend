@@ -128,6 +128,14 @@ const IndexerEventConfig: IIndexerConfig[] = [
     topic: new Interface(Multisig.abi).getEvent('MembersRemoved')?.topicHash!,
   },
   {
+    event: 'ProposalAdvanced',
+    abi: StagedProposalProcessor.abi,
+    handler: ProposalHandler.proposalAdvanced,
+    enableHistorical: false,
+    enableRealtime: true,
+    topic: new Interface(StagedProposalProcessor.abi).getEvent('ProposalAdvanced')?.topicHash!,
+  },
+  {
     event: 'ProposalCreated',
     abi: SharedLogs.abi,
     handler: ProposalHandler.proposalCreated,
@@ -182,14 +190,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     enableHistorical: false,
     enableRealtime: true,
     topic: new Interface(StagedProposalProcessor.abi).getEvent('StagesUpdated')?.topicHash!,
-  },
-  {
-    event: 'ProposalAdvanced',
-    abi: StagedProposalProcessor.abi,
-    handler: ProposalHandler.proposalAdvanced,
-    enableHistorical: false,
-    enableRealtime: true,
-    topic: new Interface(StagedProposalProcessor.abi).getEvent('ProposalAdvanced')?.topicHash!,
   },
   {
     event: 'Granted',
