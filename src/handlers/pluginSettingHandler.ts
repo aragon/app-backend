@@ -331,7 +331,7 @@ export const PluginSettingHandler = {
             parentPlugin: plugin.address,
             isSubPlugin: true, // set this plugin as subPlugin
             isBody: relatedPlugin.interfaceType !== IPluginInterfaceType.spp,
-            isProcessor: relatedPlugin.interfaceType === IPluginInterfaceType.spp,
+            isProcess: relatedPlugin.interfaceType === IPluginInterfaceType.spp,
           }
 
           const log = { logId: relatedPlugin.id, info }
