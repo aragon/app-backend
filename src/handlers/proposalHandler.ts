@@ -608,13 +608,12 @@ export const ProposalHandler = {
       if (plugin.isSubPlugin) {
         proposal.isSubProposal = true
         proposal.stageIndex = plugin.stageIndex
-        hasChanges = true;
+        hasChanges = true
       }
 
       if (hasChanges) {
         await proposal.save()
       }
-
     } catch (error) {
       logger.error('Error pairSppProposals', llo({ error, proposalId: proposal.id }))
     }

@@ -214,18 +214,23 @@ class DecodeActions {
       network: document.network!,
     })
 
+    const [membersInfo, currentMembersInfo] = await Promise.all([
+      decodedData.parameters[0].value.map(async (address: HexAddress) => {
+        const member = await ProxyMember.createMember(address)
+        return { address: member.address, ens: member.ens, avatar: member.avatar }
+      }),
+      currentMembers.map(async (memberInfo: DaoMemberMapping) => {
+        const member = await ProxyMember.createMember(memberInfo.memberAddress)
+        return { address: member.address, ens: member.ens, avatar: member.avatar }
+      }),
+    ])
+
     return {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigAddMembers,
-      members: decodedData.parameters[0].value.map(async (address: HexAddress) => {
-        const member = await ProxyMember.createMember(address)
-        return { address: member.address, ens: member.ens, avatar: member.avatar }
-      }),
-      currentMembers: currentMembers.map(async (memberInfo: DaoMemberMapping) => {
-        const member = await ProxyMember.createMember(memberInfo.memberAddress)
-        return { address: member.address, ens: member.ens, avatar: member.avatar }
-      }),
+      members: membersInfo,
+      currentMembers: currentMembersInfo,
     }
   }
 
@@ -243,18 +248,23 @@ class DecodeActions {
       network: document.network,
     })
 
+    const [membersInfo, currentMembersInfo] = await Promise.all([
+      decodedData.parameters[0].value.map(async (address: HexAddress) => {
+        const member = await ProxyMember.createMember(address)
+        return { address: member.address, ens: member.ens, avatar: member.avatar }
+      }),
+      currentMembers.map(async (memberInfo: DaoMemberMapping) => {
+        const member = await ProxyMember.createMember(memberInfo.memberAddress)
+        return { address: member.address, ens: member.ens, avatar: member.avatar }
+      }),
+    ])
+
     return {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigRemoveMembers,
-      members: decodedData.parameters[0].value.map(async (address: HexAddress) => {
-        const member = await ProxyMember.createMember(address)
-        return { address: member.address, ens: member.ens, avatar: member.avatar }
-      }),
-      currentMembers: currentMembers.map(async (memberInfo: DaoMemberMapping) => {
-        const member = await ProxyMember.createMember(memberInfo.memberAddress)
-        return { address: member.address, ens: member.ens, avatar: member.avatar }
-      }),
+      members: membersInfo,
+      currentMembers: currentMembersInfo,
     }
   }
 
