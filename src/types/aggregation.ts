@@ -113,6 +113,7 @@ export interface IAggMemberParams {
 }
 
 export interface IAggPluginParams {
+  addresses?: string | string[]
   daoAddress?: string
   pluginAddress?: string
   network: string | undefined
