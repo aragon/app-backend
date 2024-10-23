@@ -175,7 +175,7 @@ export default class DaoMemberMapping extends Model {
           release: 1,
           build: 1,
           subdomain: 1,
-          isProcessor: 1,
+          isProcess: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,

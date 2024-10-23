@@ -282,11 +282,11 @@ export const PluginHandler = {
     }
 
     if (document.interfaceType === IPluginInterfaceType.spp) {
-      document.isProcessor = true
+      document.isProcess = true
       document.isBody = false
       document.isSubPlugin = false
     } else {
-      document.isProcessor = true
+      document.isProcess = true
       document.isBody = true
       document.isSubPlugin = false
     }
@@ -346,11 +346,11 @@ export const PluginHandler = {
     }
 
     if (document.interfaceType === IPluginInterfaceType.spp) {
-      document.isProcessor = true
+      document.isProcess = true
       document.isBody = false
       document.isSubPlugin = false
     } else {
-      document.isProcessor = true
+      document.isProcess = true
       document.isBody = true
       document.isSubPlugin = false
     }

@@ -138,7 +138,7 @@ export default class Plugin extends Model {
 
   // Flags
   @prop({ type: () => Boolean, default: false })
-  public isProcessor?: boolean
+  public isProcess?: boolean
 
   @prop({ type: () => Boolean, default: false })
   public isBody?: boolean
