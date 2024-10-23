@@ -559,7 +559,7 @@ export const ProposalHandler = {
         })) as IProposalSPPOnChain
 
         if (proposalInfo) {
-          proposal.stageIndex = Number(proposalInfo.currentStage) - 1
+          proposal.stageIndex = Math.max(Number(proposalInfo.currentStage) - 1, 0)
         }
 
         const subPlugins = plugin.subPlugins.find(async subPlugin => subPlugin.stageIndex === proposal.stageIndex)
@@ -608,13 +608,12 @@ export const ProposalHandler = {
       if (plugin.isSubPlugin) {
         proposal.isSubProposal = true
         proposal.stageIndex = plugin.stageIndex
-        hasChanges = true;
+        hasChanges = true
       }
 
       if (hasChanges) {
         await proposal.save()
       }
-
     } catch (error) {
       logger.error('Error pairSppProposals', llo({ error, proposalId: proposal.id }))
     }

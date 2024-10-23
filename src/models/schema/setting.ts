@@ -3,7 +3,6 @@ import {
   HexAddress,
   ICollectionNames,
   type IPaginationParams,
-  IPluginProposalType,
   type ISettingExtraParams,
   type ISettingIdParams,
   ISettingStatus,
@@ -27,8 +26,8 @@ export class PluginSetting {
   @prop({ type: () => String, default: null })
   public allowedBody!: HexAddress
 
-  @prop({ type: () => String, enum: IPluginProposalType })
-  public proposalType!: IPluginProposalType
+  @prop({ type: () => Number })
+  public proposalType!: number
 }
 
 export class Stages {
