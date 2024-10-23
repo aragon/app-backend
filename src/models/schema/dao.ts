@@ -208,6 +208,9 @@ export default class Dao extends Model {
         'plugins',
         {
           _id: 0,
+          network: 1,
+          transactionHash: 1,
+          blockTimestamp: 1,
           address: 1,
           implementationAddress: 1,
           isSupported: 1,
@@ -357,6 +360,8 @@ export default class Dao extends Model {
         'plugins',
         {
           _id: 0,
+          transactionHash: 1,
+          blockTimestamp: 1,
           address: 1,
           implementationAddress: 1,
           isSupported: 1,
