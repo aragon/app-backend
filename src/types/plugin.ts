@@ -4,11 +4,6 @@ export interface IPluginInfo {
   implementationAddress: string | null
 }
 
-export enum IPluginProposalType {
-  Approval = 'Approval',
-  Veto = 'Veto',
-}
-
 export enum IPluginRawStatus {
   install = 'install',
   update = 'update',

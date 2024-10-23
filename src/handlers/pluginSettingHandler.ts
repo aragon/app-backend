@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo, IPluginInterfaceType, IPluginProposalType, ISettingStatus, ITokenType } from '@types'
+import { type ILogInfo, IPluginInterfaceType, ISettingStatus, ITokenType } from '@types'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import type Plugin from '@models/schema/plugin'
@@ -213,7 +213,7 @@ export const PluginSettingHandler = {
             address: plugin.pluginAddress,
             isManual: plugin.isManual,
             allowedBody: plugin.allowedBody,
-            proposalType: plugin.proposalType === 0n ? IPluginProposalType.Approval : IPluginProposalType.Veto,
+            proposalType: Number(plugin.proposalType),
           }
         }),
       })),
@@ -255,7 +255,6 @@ export const PluginSettingHandler = {
    * @param stageNames
    * @param info
    */
-
   updateStageNamesOnSppSettings: async (plugin: Plugin, stageNames: string[], info: ILogInfo) => {
     const existingLog = await Models.Setting.findExistingLog({
       transactionHash: info.transactionHash,
@@ -331,7 +330,7 @@ export const PluginSettingHandler = {
             parentPlugin: plugin.address,
             isSubPlugin: true, // set this plugin as subPlugin
             isBody: relatedPlugin.interfaceType !== IPluginInterfaceType.spp,
-            isProcess: relatedPlugin.interfaceType === IPluginInterfaceType.spp,
+            isProcess: true, // its always set to true for all plugin where we can create proposals
           }
 
           const log = { logId: relatedPlugin.id, info }
