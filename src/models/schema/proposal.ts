@@ -428,6 +428,10 @@ export default class Proposal extends Model {
           stageIndex: 1,
           parentPlugin: 1,
         },
+        {
+          settings: true,
+          token: true,
+        },
       ),
       {
         $addFields: {
