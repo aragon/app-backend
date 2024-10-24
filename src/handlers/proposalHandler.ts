@@ -563,7 +563,7 @@ export const ProposalHandler = {
         }
 
         const subPlugins = plugin.subPlugins.find(async subPlugin => subPlugin.stageIndex === proposal.stageIndex)
-        subPlugins?.addresses?.map(async (address: HexAddress) => {
+        for (const address of subPlugins?.addresses!) {
           const proposalIndex = await ProposalHelper.getSppSubPluginProposals(
             proposal.proposalIndex,
             proposal.stageIndex as any,
@@ -571,6 +571,7 @@ export const ProposalHandler = {
             plugin.address,
             proposal.network,
           )
+
           if (proposalIndex !== false) {
             proposal.subProposals.push({
               proposalIndex: proposalIndex.toString(),
@@ -579,27 +580,28 @@ export const ProposalHandler = {
               transactionHash: info.transactionHash,
               blockNumber: info.blockNumber,
             })
-          }
 
-          const subProposalDb = await Models.Proposal.findByProposalIndex(
-            proposalIndex.toString(),
-            address,
-            plugin.network,
-          )
-          if (subProposalDb) {
-            await subProposalDb.update({
-              parentProposal: {
-                pluginAddress: proposal.pluginAddress,
-                proposalIndex: proposal.proposalIndex,
-                stageIndex: proposal.stageIndex,
-                transactionHash: info.transactionHash,
-                blockNumber: info.blockNumber,
-              },
-            })
-          } else {
-            logger.warn('Sub proposal not found', llo({ proposalIndex, address, plugin }))
+            const subProposalDb = await Models.Proposal.findByProposalIndex(
+              proposalIndex.toString(),
+              address,
+              plugin.network,
+            )
+
+            if (subProposalDb) {
+              await subProposalDb.update({
+                parentProposal: {
+                  pluginAddress: proposal.pluginAddress,
+                  proposalIndex: proposal.proposalIndex,
+                  stageIndex: proposal.stageIndex,
+                  transactionHash: info.transactionHash,
+                  blockNumber: info.blockNumber,
+                },
+              })
+            } else {
+              logger.warn('Sub proposal not found', llo({ proposalIndex, address, plugin }))
+            }
           }
-        })
+        }
 
         hasChanges = true
       }
