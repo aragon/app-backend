@@ -552,6 +552,7 @@ export default class Proposal extends Model {
                 executed: 1,
                 actions: 1,
                 media: 1,
+                metrics: 1,
               },
             },
           ],
