@@ -148,15 +148,19 @@ export const AggregationQueryHelper = {
     }
   },
 
-  // TODO: for spp plugin check interface https://aragonassociation.atlassian.net/browse/APP-3661
   plugin: (
-    { daoAddress, pluginAddress, network, status }: IAggPluginParams,
+    { addresses, daoAddress, pluginAddress, network, status }: IAggPluginParams,
     as: string = 'plugin',
     project?: IAggPluginProjectFields,
     includeSubDocuments?: IAggPluginInclude,
   ) => {
     const letVariables: any = {}
     const matchConditions: any[] = []
+
+    if (addresses && addresses.length > 0) {
+      letVariables.addresses = addresses
+      matchConditions.push({ $in: ['$address', '$$addresses'] })
+    }
 
     if (pluginAddress) {
       letVariables.pluginAddress = pluginAddress
