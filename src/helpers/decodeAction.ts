@@ -215,14 +215,18 @@ class DecodeActions {
     })
 
     const [membersInfo, currentMembersInfo] = await Promise.all([
-      decodedData.parameters[0].value.map(async (address: HexAddress) => {
-        const member = await ProxyMember.createMember(address)
-        return { address: member.address, ens: member.ens, avatar: member.avatar }
-      }),
-      currentMembers.map(async (memberInfo: DaoMemberMapping) => {
-        const member = await ProxyMember.createMember(memberInfo.memberAddress)
-        return { address: member.address, ens: member.ens, avatar: member.avatar }
-      }),
+      Promise.all(
+        decodedData.parameters[0].value.map(async (address: HexAddress) => {
+          const member = await ProxyMember.createMember(address)
+          return { address: member.address, ens: member.ens, avatar: member.avatar }
+        }),
+      ),
+      Promise.all(
+        currentMembers.map(async (memberInfo: DaoMemberMapping) => {
+          const member = await ProxyMember.createMember(memberInfo.memberAddress)
+          return { address: member.address, ens: member.ens, avatar: member.avatar }
+        }),
+      ),
     ])
 
     return {
@@ -249,14 +253,18 @@ class DecodeActions {
     })
 
     const [membersInfo, currentMembersInfo] = await Promise.all([
-      decodedData.parameters[0].value.map(async (address: HexAddress) => {
-        const member = await ProxyMember.createMember(address)
-        return { address: member.address, ens: member.ens, avatar: member.avatar }
-      }),
-      currentMembers.map(async (memberInfo: DaoMemberMapping) => {
-        const member = await ProxyMember.createMember(memberInfo.memberAddress)
-        return { address: member.address, ens: member.ens, avatar: member.avatar }
-      }),
+      Promise.all(
+        decodedData.parameters[0].value.map(async (address: HexAddress) => {
+          const member = await ProxyMember.createMember(address)
+          return { address: member.address, ens: member.ens, avatar: member.avatar }
+        }),
+      ),
+      Promise.all(
+        currentMembers.map(async (memberInfo: DaoMemberMapping) => {
+          const member = await ProxyMember.createMember(memberInfo.memberAddress)
+          return { address: member.address, ens: member.ens, avatar: member.avatar }
+        }),
+      ),
     ])
 
     return {

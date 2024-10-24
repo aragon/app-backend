@@ -8,8 +8,11 @@ export const ToolsManualSyncProposalAction: IService = {
 
   start: async () => {
     await ProviderModule.connectToAllNetworks()
-
-    const proposals = await Models.Proposal.find([])
+    // if the rawAction length is greator then 0
+    const proposals = await Models.Proposal.find({
+      'rawActions.0': { $exists: true },
+      'actions.type': { $in: ['MultisigAddMembers', 'MultisigRemoveMembers'] },
+    })
 
     for (const proposal of proposals) {
       await ProposalHandler.parseActions(proposal)
