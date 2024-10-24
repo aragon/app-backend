@@ -502,7 +502,62 @@ export default class Proposal extends Model {
           allPluginDocs: 0,
         },
       },
-
+      {
+        $lookup: {
+          from: 'Proposal',
+          let: {
+            pluginAddr: {
+              $ifNull: ['$subProposals.pluginAddress', []],
+            },
+            proposalIdx: {
+              $ifNull: ['$subProposals.proposalIndex', []],
+            },
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {
+                      $in: ['$pluginAddress', '$$pluginAddr'],
+                    },
+                    {
+                      $in: ['$proposalIndex', '$$proposalIdx'],
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                id: 1,
+                transactionHash: 1,
+                blockNumber: 1,
+                blockTimestamp: 1,
+                proposalIndex: 1,
+                stageIndex: 1,
+                creator: 1,
+                parentProposal: 1,
+                pluginAddress: 1,
+                pluginSubdomain: 1,
+                daoAddress: 1,
+                startDate: 1,
+                endDate: 1,
+                metadataUri: 1,
+                title: 1,
+                description: 1,
+                summary: 1,
+                resources: 1,
+                executed: 1,
+                actions: 1,
+                media: 1,
+              },
+            },
+          ],
+          as: 'subProposals',
+        },
+      },
       {
         $project: {
           _id: 0,
