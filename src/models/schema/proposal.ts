@@ -553,6 +553,7 @@ export default class Proposal extends Model {
                 actions: 1,
                 media: 1,
                 metrics: 1,
+                settings: 1,
               },
             },
           ],
