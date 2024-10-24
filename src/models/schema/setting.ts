@@ -3,7 +3,6 @@ import {
   HexAddress,
   ICollectionNames,
   type IPaginationParams,
-  IPluginProposalType,
   type ISettingExtraParams,
   type ISettingIdParams,
   ISettingStatus,
@@ -27,8 +26,8 @@ export class PluginSetting {
   @prop({ type: () => String, default: null })
   public allowedBody!: HexAddress
 
-  @prop({ type: () => String, enum: IPluginProposalType })
-  public proposalType!: IPluginProposalType
+  @prop({ type: () => Number })
+  public proposalType!: number
 }
 
 export class Stages {
@@ -264,7 +263,6 @@ export default class Setting extends Model {
     return results?.[0]
   }
 
-  // TODO: for spp plugin check interface https://aragonassociation.atlassian.net/browse/APP-3661
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
