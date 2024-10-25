@@ -213,7 +213,7 @@ export const PluginSettingHandler = {
             address: plugin.pluginAddress,
             isManual: plugin.isManual,
             allowedBody: plugin.allowedBody,
-            proposalType: Number(plugin.proposalType),
+            proposalType: Number(plugin.resultType || plugin.proposalType),
           }
         }),
       })),
