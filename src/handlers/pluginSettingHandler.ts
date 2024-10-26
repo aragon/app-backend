@@ -10,7 +10,7 @@ import { Multisig } from '@artifacts/Multisig'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { ProxyToken } from '@modules/proxyToken'
-import utils from "@helpers/utils";
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
 

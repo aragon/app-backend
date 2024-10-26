@@ -29,7 +29,7 @@ class EventListener {
       topicChunks.push(topics.slice(i, i + this.maxTopicsPerBatch))
     }
 
-    topicChunks.map((topicSubset: string[]) => {
+    for (const topicSubset of topicChunks) {
       const filter: { topics: string[][] } = { topics: [topicSubset] }
       try {
         ProviderModule.subscribeToEvent(this.network, filter, this.handleEvent.bind(this))
@@ -37,7 +37,7 @@ class EventListener {
       } catch (error) {
         logger.error('Event listener error', llo({ error, network: this.network, filter }))
       }
-    })
+    }
   }
 
   async handleEvent(txLog: Log) {
