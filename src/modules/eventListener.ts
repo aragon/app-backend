@@ -16,7 +16,7 @@ class EventListener {
     this.configLogs = configLogs
   }
 
-  subscribeToEvents() {
+  async subscribeToEvents() {
     const topics = this.configLogs.map(config => config.topic).filter(topic => topic)
 
     if (topics.length === 0) {
@@ -29,15 +29,20 @@ class EventListener {
       topicChunks.push(topics.slice(i, i + this.maxTopicsPerBatch))
     }
 
-    for (const topicSubset of topicChunks) {
-      const filter: { topics: string[][] } = { topics: [topicSubset] }
-      try {
-        ProviderModule.subscribeToEvent(this.network, filter, this.handleEvent.bind(this))
-        logger.verbose('Start real-time listening', llo({ network: this.network, filter }))
-      } catch (error) {
-        logger.error('Event listener error', llo({ error, network: this.network, filter }))
-      }
-    }
+    await Promise.all(
+      topicChunks.map((topicSubset: string[]) => {
+        const filter: { topics: string[][] } = { topics: [topicSubset] }
+        return new Promise((resolve, reject) => {
+          try {
+            ProviderModule.subscribeToEvent(this.network, filter, this.handleEvent.bind(this))
+            logger.verbose('Start real-time listening', llo({ network: this.network, filter }))
+          } catch (error) {
+            logger.error('Event listener error', llo({ error, network: this.network, filter }))
+          }
+          resolve(null)
+        })
+      })
+    )
   }
 
   async handleEvent(txLog: Log) {
