@@ -575,6 +575,7 @@ export const ProposalHandler = {
 
         if (proposalInfo) {
           proposal.stageIndex = Math.max(Number(proposalInfo.currentStage) - 1, 0)
+          proposal.lastStageTransition = Number(proposalInfo.lastStageTransition)
         }
 
         const subPlugins = plugin.subPlugins.find(async subPlugin => subPlugin.stageIndex === proposal.stageIndex)
