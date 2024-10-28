@@ -429,7 +429,15 @@ export const ProposalHandler = {
         }),
       )
 
-      const subProposals: any = []
+      const subProposals: any = proposal.subProposals.map((subProposal: any) => {
+        return {
+          proposalIndex: subProposal.proposalIndex,
+          stageIndex: subProposal.stageIndex,
+          pluginAddress: subProposal.pluginAddress,
+          transactionHash: subProposal.transactionHash,
+          blockNumber: subProposal.blockNumber,
+        }
+      })
 
       for (const address of subPlugins.addresses) {
         const proposalIndex = await ProposalHelper.getSppSubPluginProposals(
@@ -476,7 +484,7 @@ export const ProposalHandler = {
             },
           },
           { logId: proposal.id },
-          'Update subProposal',
+          'Update subProposal with length: ' + subProposals.length,
           llo,
         )
       }
