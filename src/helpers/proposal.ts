@@ -77,10 +77,7 @@ const ProposalHelper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(proposalIndex)),
       )
     } catch (error) {
-      logger.error(
-        'Error getting proposal SPP',
-        llo({ proposalIndex, pluginAddress, network, error }),
-      )
+      logger.error('Error getting proposal SPP', llo({ proposalIndex, pluginAddress, network, error }))
     }
     return null
   },

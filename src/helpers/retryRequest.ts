@@ -30,8 +30,8 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         await Utils.wait(retryDelay(retryCount))
         retryCount++
       } else if (
-        ['future lookup'].some(reason => error?.reason?.includes(reason)) ||
-        ['invalid length for result data', 'invalid length for result data'].includes(error?.message)
+        error?.reason?.includes('future lookup') ||
+        error?.message?.includes('invalid length for result data')
       ) {
         logger.warn(
           'ForceRetry, retrying...',
