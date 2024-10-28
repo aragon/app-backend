@@ -386,13 +386,6 @@ export const ProposalHandler = {
 
       const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, info.network)
       const newStage = Number(parsedEvent.args.stageId)
-
-      const proposalInfo = (await ProposalHelper.getProposal({
-        plugin,
-        proposalIndex: proposal.proposalIndex,
-        network: proposal.network,
-      })) as IProposalSPPOnChain
-
       const subPlugins = plugin.subPlugins.find((subPlugin: { stageIndex: any }) => subPlugin.stageIndex === newStage)
 
       /**
@@ -489,6 +482,19 @@ export const ProposalHandler = {
         )
       }
 
+      const proposalInfo = (await ProposalHelper.getProposal({
+        plugin,
+        proposalIndex: proposal.proposalIndex,
+        network: proposal.network,
+      })) as IProposalSPPOnChain
+
+      if (!proposalInfo) {
+        logger.error(
+          'Error ProposalAdvanced - proposalInfo not found missing lastStageTransition',
+          llo({ ...info, proposalId: proposal.id }),
+        )
+      }
+
       await DbOperations.updateDocument(
         proposal,
         {
@@ -572,6 +578,13 @@ export const ProposalHandler = {
           proposalIndex: proposal.proposalIndex,
           network: proposal.network,
         })) as IProposalSPPOnChain
+
+        if (!proposalInfo) {
+          logger.error(
+            'Error ProposalAdvanced - proposalInfo not found missing currentStage and lastStageTransition',
+            llo({ ...info, proposalId: proposal.id }),
+          )
+        }
 
         if (proposalInfo) {
           proposal.stageIndex = Math.max(Number(proposalInfo.currentStage) - 1, 0)
