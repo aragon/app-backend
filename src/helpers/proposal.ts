@@ -78,26 +78,11 @@ const ProposalHelper = {
       )
     } catch (error) {
       logger.error(
-        'Error getting proposal SPP with proposalIndex as number',
+        'Error getting proposal SPP',
         llo({ proposalIndex, pluginAddress, network, error }),
       )
     }
-
-    try {
-      const bigNumber = new BigNumber(proposalIndex)
-      const hexString = bigNumber.toString(16)
-      const paddedHex = hexString.padStart(64, '0')
-      const bytes32Value = '0x' + paddedHex
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(bytes32Value)),
-      )
-    } catch (error) {
-      logger.error(
-        'Error getting proposal SPP with proposalIndex as bytes32',
-        llo({ proposalIndex, pluginAddress, network, error }),
-      )
-      return null
-    }
+    return null
   },
 
   async getProposalTokenVoting({
