@@ -73,6 +73,13 @@ export interface IAggTokenProjectFields {
   lastUpdatedAt?: 1
 }
 
+export interface IAggProposalParams {
+  proposalIndex?: string | string[]
+  pluginAddress?: string | string[]
+  network?: string
+  as?: string
+}
+
 export interface IAggDaoMemberMappingParams {
   tokenAddress?: string
   memberAddress?: string

@@ -12,6 +12,7 @@ import {
   type IAggPluginInclude,
   type IAggPluginParams,
   type IAggPluginProjectFields,
+  type IAggProposalParams,
   type IAggSettingParams,
   type IAggSettingProjectFields,
   type IAggTokenParams,
@@ -119,6 +120,108 @@ export const AggregationQueryHelper = {
     return {
       $lookup: {
         from: 'DaoMemberMapping',
+        let: letVariables,
+        pipeline,
+        as,
+      },
+    }
+  },
+
+  proposals: ({ proposalIndex, pluginAddress, network, as = 'proposals' }: IAggProposalParams) => {
+    const letVariables: any = {}
+    const matchConditions: any[] = []
+
+    if (proposalIndex) {
+      letVariables.proposalIndex = proposalIndex
+      matchConditions.push({ $in: ['$proposalIndex', '$$proposalIndex'] })
+    }
+
+    if (pluginAddress) {
+      letVariables.pluginAddress = pluginAddress
+      matchConditions.push({ $in: ['$pluginAddress', '$$pluginAddress'] })
+    }
+
+    if (network) {
+      letVariables.network = network
+      matchConditions.push({ $eq: ['$network', '$$network'] })
+    }
+
+    const pipeline: any[] = []
+
+    if (matchConditions.length > 0) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $and: matchConditions,
+          },
+        },
+      })
+    }
+
+    pipeline.push(
+      AggregationQueryHelper.token({ address: '$settings.tokenAddress', network: '$$network' }, 'token', {
+        _id: 0,
+        network: 1,
+        address: 1,
+        symbol: 1,
+        name: 1,
+        decimals: 1,
+        logo: 1,
+        type: 1,
+        totalSupply: 1,
+      }),
+      {
+        $addFields: {
+          settings: {
+            $mergeObjects: [
+              '$settings',
+              { token: { $arrayElemAt: ['$token', 0] } },
+              { historicalMembersCount: '$snapshot.membersCount' },
+              { historicalTotalSupply: '$snapshot.totalSupply' },
+            ],
+          },
+        },
+      },
+      {
+        $addFields: {
+          token: '$$REMOVE',
+        },
+      },
+    )
+
+    pipeline.push({
+      $project: {
+        _id: 0,
+        id: 1,
+        transactionHash: 1,
+        blockNumber: 1,
+        blockTimestamp: 1,
+        proposalIndex: 1,
+        stageIndex: 1,
+        lastStageTransition: 1,
+        creator: 1,
+        parentProposal: 1,
+        pluginAddress: 1,
+        pluginSubdomain: 1,
+        daoAddress: 1,
+        startDate: 1,
+        endDate: 1,
+        metadataUri: 1,
+        title: 1,
+        description: 1,
+        summary: 1,
+        resources: 1,
+        executed: 1,
+        actions: 1,
+        media: 1,
+        metrics: 1,
+        settings: 1,
+      },
+    })
+
+    return {
+      $lookup: {
+        from: 'Proposal',
         let: letVariables,
         pipeline,
         as,
