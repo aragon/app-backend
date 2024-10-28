@@ -150,7 +150,6 @@ export interface IAggPluginProjectFields {
   totalStages: 1
   subPlugins: 1
   stageIndex: 1
-  lastStageTransition: 1
   parentPlugin: 1
   permissions?: 1
   uninstalled?: 1
