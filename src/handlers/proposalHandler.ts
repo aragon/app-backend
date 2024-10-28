@@ -1,7 +1,6 @@
 import logger from '@logger'
 import {
   EnumQueueName,
-  type HexAddress,
   type ILogInfo,
   IMetricAction,
   IPluginInterfaceType,
@@ -432,57 +431,55 @@ export const ProposalHandler = {
 
       const subProposals: any = []
 
-      await Promise.all(
-        subPlugins?.addresses?.map(async (address: HexAddress) => {
-          const proposalIndex = await ProposalHelper.getSppSubPluginProposals(
-            proposal.proposalIndex,
-            newStage,
-            address,
-            plugin.address,
-            proposal.network,
-          )
+      for (const address of subPlugins.addresses) {
+        const proposalIndex = await ProposalHelper.getSppSubPluginProposals(
+          proposal.proposalIndex,
+          newStage,
+          address,
+          plugin.address,
+          proposal.network,
+        )
 
-          if (!proposalIndex || proposalIndex === 0) {
-            logger.error('Error SPP Proposal index not found', llo({ proposalIndex, address, plugin }))
-            return
-          }
+        if (!proposalIndex || proposalIndex === 0) {
+          logger.error('Error SPP Proposal index not found', llo({ proposalIndex, address, plugin }))
+          continue
+        }
 
-          subProposals.push({
-            proposalIndex,
-            stageIndex: newStage,
-            pluginAddress: address,
-            transactionHash: info.transactionHash,
-            blockNumber: info.blockNumber,
-          })
+        subProposals.push({
+          proposalIndex,
+          stageIndex: newStage,
+          pluginAddress: address,
+          transactionHash: info.transactionHash,
+          blockNumber: info.blockNumber,
+        })
 
-          const subProposalDb = await Models.Proposal.findByProposalIndex(
-            proposalIndex.toString(),
-            address,
-            plugin.network,
-          )
+        const subProposalDb = await Models.Proposal.findByProposalIndex(
+          proposalIndex.toString(),
+          address,
+          plugin.network,
+        )
 
-          if (!subProposalDb) {
-            logger.error('Error Sub Proposal not not found', llo({ proposalIndex, address, plugin }))
-            return
-          }
+        if (!subProposalDb) {
+          logger.error('Error Sub Proposal not not found', llo({ proposalIndex, address, plugin }))
+          continue
+        }
 
-          await DbOperations.updateDocument(
-            subProposalDb,
-            {
-              parentProposal: {
-                pluginAddress: proposal.pluginAddress,
-                proposalIndex: proposal.proposalIndex,
-                stageIndex: newStage,
-                transactionHash: info.transactionHash,
-                blockNumber: info.blockNumber,
-              },
+        await DbOperations.updateDocument(
+          subProposalDb,
+          {
+            parentProposal: {
+              pluginAddress: proposal.pluginAddress,
+              proposalIndex: proposal.proposalIndex,
+              stageIndex: newStage,
+              transactionHash: info.transactionHash,
+              blockNumber: info.blockNumber,
             },
-            { logId: proposal.id },
-            'Update subProposal',
-            llo,
-          )
-        }),
-      )
+          },
+          { logId: proposal.id },
+          'Update subProposal',
+          llo,
+        )
+      }
 
       await DbOperations.updateDocument(
         proposal,
