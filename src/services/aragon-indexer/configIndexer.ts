@@ -54,22 +54,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     topic: new Interface(PluginSetupProcessor.abi).getEvent('InstallationApplied')?.topicHash!,
   },
   {
-    event: 'UninstallationApplied',
-    abi: PluginSetupProcessor.abi,
-    handler: PluginSetupProcessorHandler.uninstallationApplied,
-    enableHistorical: true,
-    enableRealtime: true,
-    topic: new Interface(PluginSetupProcessor.abi).getEvent('UninstallationApplied')?.topicHash!,
-  },
-  {
-    event: 'UninstallationPrepared',
-    abi: PluginSetupProcessor.abi,
-    handler: PluginSetupProcessorHandler.uninstallationPrepared,
-    enableHistorical: true,
-    enableRealtime: true,
-    topic: new Interface(PluginSetupProcessor.abi).getEvent('UninstallationPrepared')?.topicHash!,
-  },
-  {
     event: 'UpdateApplied',
     abi: PluginSetupProcessor.abi,
     handler: PluginSetupProcessorHandler.updateApplied,
@@ -84,6 +68,22 @@ const IndexerEventConfig: IIndexerConfig[] = [
     enableHistorical: true,
     enableRealtime: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('UpdatePrepared')?.topicHash!,
+  },
+  {
+    event: 'UninstallationApplied',
+    abi: PluginSetupProcessor.abi,
+    handler: PluginSetupProcessorHandler.uninstallationApplied,
+    enableHistorical: true,
+    enableRealtime: true,
+    topic: new Interface(PluginSetupProcessor.abi).getEvent('UninstallationApplied')?.topicHash!,
+  },
+  {
+    event: 'UninstallationPrepared',
+    abi: PluginSetupProcessor.abi,
+    handler: PluginSetupProcessorHandler.uninstallationPrepared,
+    enableHistorical: true,
+    enableRealtime: true,
+    topic: new Interface(PluginSetupProcessor.abi).getEvent('UninstallationPrepared')?.topicHash!,
   },
 
   // only realtime on startup
