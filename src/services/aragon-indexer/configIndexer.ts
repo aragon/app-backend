@@ -85,14 +85,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     enableRealtime: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('UpdatePrepared')?.topicHash!,
   },
-  {
-    event: 'MetadataSet',
-    abi: DAO.abi,
-    handler: MetadataHandler.metadataSet,
-    enableHistorical: true,
-    enableRealtime: true,
-    topic: new Interface(DAO.abi).getEvent('MetadataSet')?.topicHash!,
-  },
 
   // only realtime on startup
   {
@@ -150,6 +142,14 @@ const IndexerEventConfig: IIndexerConfig[] = [
     enableHistorical: false,
     enableRealtime: true,
     topic: new Interface(Multisig.abi).getEvent('ProposalExecuted')?.topicHash!,
+  },
+  {
+    event: 'MetadataSet',
+    abi: DAO.abi,
+    handler: MetadataHandler.metadataSet,
+    enableHistorical: true,
+    enableRealtime: true,
+    topic: new Interface(DAO.abi).getEvent('MetadataSet')?.topicHash!,
   },
   {
     event: 'VotingSettingsUpdated',
