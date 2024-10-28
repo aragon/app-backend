@@ -7,6 +7,7 @@ export interface IProviderProxy {
   alchemy: Alchemy
   reconnectAttempts: number
   subscriptions: any
+  coreProvider: WebSocketProvider
 }
 
 export interface IWebSocketProvider extends WebSocketProvider {

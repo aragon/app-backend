@@ -3,6 +3,7 @@ import { Alchemy, type AlchemySettings, Network } from 'alchemy-sdk'
 import config from '@config'
 import logger from '@logger'
 import { assert } from '@errors'
+import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
@@ -66,10 +67,13 @@ const ProviderModule = {
       const alchemy = new Alchemy(alchemySettings)
       const provider = alchemy.core
 
+      const coreProvider = new ethers.WebSocketProvider(nodeUrl)
+
       ProviderModule.providerProxies[network] = {
         ...existingProxy,
         provider,
         alchemy,
+        coreProvider,
       }
 
       ProviderModule.providerProxies[network].alchemy.ws.on('open', () => {
@@ -96,6 +100,15 @@ const ProviderModule = {
     }
 
     return provider
+  },
+
+  getCoreProvider(network: NetworksEnum) {
+    const coreProvider = ProviderModule.providerProxies[network]?.coreProvider
+    if (!coreProvider) {
+      return
+    }
+
+    return coreProvider
   },
 
   subscribeToEvent(network: NetworksEnum, filter: any, listener: any) {

@@ -10,6 +10,7 @@ class EventListener {
   public network: NetworksEnum
   public configLogs: IIndexerConfig[]
   public maxTopicsPerBatch = 4
+  public isProcessingBlock = 0
 
   constructor(network: NetworksEnum, configLogs: IIndexerConfig[]) {
     this.network = network
@@ -50,10 +51,57 @@ class EventListener {
 
     const info = Web3Helper.parseInfoLog(txLog, event.name, this.network)
 
+    logger.verbose('Event received', llo({ event: event.name }))
+
     if (eventConfig && eventConfig.enableRealtime) {
       await eventConfig.handler(event, info)
     } else {
       logger.warn(`No handler found for event: ${event.name}`, llo({ event, network: this.network }))
+    }
+  }
+
+  subscribeEventsByNewBlock() {
+    const provider = ProviderModule.getCoreProvider(this.network)
+
+    provider.on('block', async (blockNumber: number) => {
+      await this.handleOnNewBlock(blockNumber)
+    })
+  }
+
+  async handleOnNewBlock(blockNumber: number) {
+    if (this.isProcessingBlock === blockNumber) {
+      logger.verbose('Skipping block as another process is ongoing', llo({ blockNumber, network: this.network }))
+      return
+    }
+
+    logger.verbose('New block received', llo({ blockNumber, network: this.network }))
+
+    this.isProcessingBlock = blockNumber
+    try {
+      const provider = ProviderModule.getCoreProvider(this.network)
+      const transactionReceipt = await provider.send('eth_getBlockReceipts', ['0x' + Number(blockNumber).toString(16)])
+
+      if (!transactionReceipt?.map) {
+        logger.warn('No transaction receipt found', llo({ blockNumber, network: this.network }))
+        return
+      }
+
+      const priorityTopics = this.configLogs.map(config => config.topic)
+      const logs = transactionReceipt.map((tx: any) => tx.logs).flat()
+      const sortedLogs = logs
+        .filter((log: Log) => priorityTopics.includes(log.topics[0]))
+        .sort((a: Log, b: Log) => priorityTopics.indexOf(a.topics[0]) - priorityTopics.indexOf(b.topics[0]))
+
+      if (sortedLogs.length === 0) {
+        logger.verbose('No logs found for topics', llo({ blockNumber, network: this.network }))
+        return
+      }
+
+      for (const log of sortedLogs) {
+        await this.handleEvent(log)
+      }
+    } finally {
+      this.isProcessingBlock = 0
     }
   }
 }
