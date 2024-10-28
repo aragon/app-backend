@@ -77,7 +77,10 @@ const ProposalHelper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(proposalIndex)),
       )
     } catch (error) {
-      logger.error('Error getting proposal SPP with proposalIndex as number', llo({ proposalIndex, pluginAddress, network, error }))
+      logger.error(
+        'Error getting proposal SPP with proposalIndex as number',
+        llo({ proposalIndex, pluginAddress, network, error }),
+      )
     }
 
     try {
@@ -89,7 +92,10 @@ const ProposalHelper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(bytes32Value)),
       )
     } catch (error) {
-      logger.error('Error getting proposal SPP with proposalIndex as bytes32', llo({ proposalIndex, pluginAddress, network, error }))
+      logger.error(
+        'Error getting proposal SPP with proposalIndex as bytes32',
+        llo({ proposalIndex, pluginAddress, network, error }),
+      )
       return null
     }
   },
