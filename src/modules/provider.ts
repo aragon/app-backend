@@ -48,7 +48,7 @@ const ProviderModule = {
             item?.[1]?.WS,
           )
         } catch (error) {
-          logger.warn(`Node URL for ${ProviderModule.parseNetwork(item[0])} is not configured.`, llo({ item }))
+          logger.warn(`Node URL for ${ProviderModule.parseNetwork(item[0])} is not configured.`, llo())
           return Promise.resolve()
         }
       }),
