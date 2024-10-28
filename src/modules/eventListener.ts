@@ -95,7 +95,7 @@ class EventListener {
         .sort((a: Log, b: Log) => priorityTopics.indexOf(a.topics[0]) - priorityTopics.indexOf(b.topics[0]))
 
       if (sortedLogs.length === 0) {
-        logger.verbose('No logs found for topics', llo({ blockNumber, network: this.network }))
+        logger.silly('No logs found for topics', llo({ blockNumber, network: this.network }))
         return
       }
 
