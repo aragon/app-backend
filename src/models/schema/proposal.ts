@@ -505,65 +505,12 @@ export default class Proposal extends Model {
           allPluginDocs: 0,
         },
       },
-      {
-        $lookup: {
-          from: 'Proposal',
-          let: {
-            pluginAddr: {
-              $ifNull: ['$subProposals.pluginAddress', []],
-            },
-            proposalIdx: {
-              $ifNull: ['$subProposals.proposalIndex', []],
-            },
-          },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    {
-                      $in: ['$pluginAddress', '$$pluginAddr'],
-                    },
-                    {
-                      $in: ['$proposalIndex', '$$proposalIdx'],
-                    },
-                  ],
-                },
-              },
-            },
-            {
-              $project: {
-                _id: 0,
-                id: 1,
-                transactionHash: 1,
-                blockNumber: 1,
-                blockTimestamp: 1,
-                proposalIndex: 1,
-                stageIndex: 1,
-                lastStageTransition: 1,
-                creator: 1,
-                parentProposal: 1,
-                pluginAddress: 1,
-                pluginSubdomain: 1,
-                daoAddress: 1,
-                startDate: 1,
-                endDate: 1,
-                metadataUri: 1,
-                title: 1,
-                description: 1,
-                summary: 1,
-                resources: 1,
-                executed: 1,
-                actions: 1,
-                media: 1,
-                metrics: 1,
-                settings: 1,
-              },
-            },
-          ],
-          as: 'subProposals',
-        },
-      },
+      AggregationQueryHelper.proposals({
+        pluginAddress: '$subProposals.pluginAddress',
+        proposalIndex: '$subProposals.proposalIndex',
+        network: '$network',
+        as: 'subProposals',
+      }),
       {
         $project: {
           _id: 0,
@@ -593,31 +540,7 @@ export default class Proposal extends Model {
           executed: 1,
           actions: 1,
           media: 1,
-          settings: {
-            $mergeObjects: [
-              {
-                stages: '$settings.stages',
-                onlyListed: '$settings.onlyListed',
-                minApprovals: '$settings.minApprovals',
-                votingMode: '$settings.votingMode',
-                supportThreshold: '$settings.supportThreshold',
-                minParticipation: '$settings.minParticipation',
-                minDuration: '$settings.minDuration',
-                minProposerVotingPower: '$settings.minProposerVotingPower',
-                token: {
-                  $cond: {
-                    if: '$settings.token',
-                    then: '$settings.token',
-                    else: '$$REMOVE',
-                  },
-                },
-              },
-              {
-                historicalMembersCount: '$snapshot.membersCount',
-                historicalTotalSupply: '$snapshot.totalSupply',
-              },
-            ],
-          },
+          settings: 1,
           metrics: 1,
         },
       },
@@ -885,31 +808,32 @@ export default class Proposal extends Model {
           executed: 1,
           actions: 1,
           media: 1,
-          settings: {
-            $mergeObjects: [
-              {
-                stages: '$settings.stages',
-                onlyListed: '$settings.onlyListed',
-                minApprovals: '$settings.minApprovals',
-                votingMode: '$settings.votingMode',
-                supportThreshold: '$settings.supportThreshold',
-                minParticipation: '$settings.minParticipation',
-                minDuration: '$settings.minDuration',
-                minProposerVotingPower: '$settings.minProposerVotingPower',
-                token: {
-                  $cond: {
-                    if: '$settings.token',
-                    then: '$settings.token',
-                    else: '$$REMOVE',
-                  },
-                },
-              },
-              {
-                historicalMembersCount: '$snapshot.membersCount',
-                historicalTotalSupply: '$snapshot.totalSupply',
-              },
-            ],
-          },
+          settings: 1,
+          // settings: {
+          //   $mergeObjects: [
+          //     {
+          //       stages: '$settings.stages',
+          //       onlyListed: '$settings.onlyListed',
+          //       minApprovals: '$settings.minApprovals',
+          //       votingMode: '$settings.votingMode',
+          //       supportThreshold: '$settings.supportThreshold',
+          //       minParticipation: '$settings.minParticipation',
+          //       minDuration: '$settings.minDuration',
+          //       minProposerVotingPower: '$settings.minProposerVotingPower',
+          //       token: {
+          //         $cond: {
+          //           if: '$settings.token',
+          //           then: '$settings.token',
+          //           else: '$$REMOVE',
+          //         },
+          //       },
+          //     },
+          //     {
+          //       historicalMembersCount: '$snapshot.membersCount',
+          //       historicalTotalSupply: '$snapshot.totalSupply',
+          //     },
+          //   ],
+          // },
           metrics: 1,
           ...(extraParams.daoInfo && { dao: 1 }),
         },
