@@ -461,6 +461,18 @@ const Web3Helper = {
     }
   },
 
+  async getBlock(blockNumber: number, network: NetworksEnum) {
+    try {
+      const provider = ProviderModule.getProvider(network)!
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber)),
+      )
+    } catch (error) {
+      logger.error('Error getBlock', llo({ blockNumber, network, error }))
+      return null
+    }
+  },
+
   async getBlockTimestamp(blockNumber: number, network: NetworksEnum): Promise<number> {
     try {
       const provider = ProviderModule.getProvider(network)!
