@@ -271,7 +271,7 @@ const Web3Helper = {
     return {
       network,
       address: ethers.getAddress(txLog.address),
-      blockNumber: txLog.blockNumber,
+      blockNumber: Number(txLog.blockNumber),
       transactionHash: txLog.transactionHash || txLog.hash,
       transactionIndex: txLog.transactionIndex,
       logIndex: txLog.index || txLog.logIndex,
