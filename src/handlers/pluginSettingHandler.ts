@@ -10,6 +10,7 @@ import { Multisig } from '@artifacts/Multisig'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { ProxyToken } from '@modules/proxyToken'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
 
@@ -185,12 +186,7 @@ export const PluginSettingHandler = {
       pluginAddress,
     })
 
-    /**
-     * //TODO
-     * If we have already existed metadata then we need to copy the name of the stages
-     * From the metadata
-     */
-
+    // TODO If we have already existed metadata then we need to copy the name of the stages
     const settingLog = {
       blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
@@ -213,7 +209,7 @@ export const PluginSettingHandler = {
             address: plugin.pluginAddress,
             isManual: plugin.isManual,
             allowedBody: plugin.allowedBody,
-            proposalType: Number(plugin.proposalType),
+            proposalType: utils.parseNumber(plugin.resultType ?? plugin.proposalType),
           }
         }),
       })),

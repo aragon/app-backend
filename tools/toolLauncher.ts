@@ -6,19 +6,23 @@ import ManualSyncPluginEvents from '@tools/manualSyncPluginEvents'
 import ManualSyncProposals from '@tools/manualSyncProposals'
 import ManualSyncTokens from '@tools/manualSyncTokens'
 import ManualSyncProposalAction from '@tools/manualSyncProposalAction'
-import ToolsManualTrigger from '@tools/maulaTrigger'
+import ManualTrigger from '@tools/maulaTrigger'
+import ManualSyncProposalType from '@tools/manualSyncProposalType'
+import ManualSyncProposalTotalSupply from '@tools/manualSyncProposalTotalSupply'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
 
 const runners = {
+  ManualSyncProposalTotalSupply,
   ManualSyncDaoAssets,
   ManualSyncDaoTransactions,
   ManualSyncPluginEvents,
   ManualSyncProposals,
   ManualSyncTokens,
   ManualSyncProposalAction,
-  ToolsManualTrigger,
+  ManualTrigger,
+  ManualSyncProposalType,
 }
 
 const appToRun = runners[TOOL_RUN!]
