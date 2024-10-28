@@ -82,7 +82,7 @@ class EventListener {
       const provider = ProviderModule.getCoreProvider(this.network)
       const transactionReceipt = await provider.send('eth_getBlockReceipts', ['0x' + Number(blockNumber).toString(16)])
 
-      if (!transactionReceipt?.map) {
+      if (!transactionReceipt) {
         logger.warn('No transaction receipt found', llo({ blockNumber, network: this.network }))
         return
       }
