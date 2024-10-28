@@ -492,7 +492,7 @@ export const ProposalHandler = {
       await DbOperations.updateDocument(
         proposal,
         {
-          lastStageTransition: proposalInfo.lastStageTransition,
+          lastStageTransition: Number(proposalInfo.lastStageTransition),
           stageIndex: newStage,
           subProposals,
         },
