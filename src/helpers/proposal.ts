@@ -1,10 +1,10 @@
 import {
   type HexAddress,
+  IPluginInterfaceType,
   type IProposalMultisigOnChain,
   type IProposalOnChain,
   type IProposalSPPOnChain,
   type IProposalTokenVotingOnChain,
-  IPluginInterfaceType,
   type NetworksEnum,
 } from '@types'
 import { Contract } from 'ethers'
@@ -16,6 +16,7 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 import { Multisig } from '@artifacts/Multisig'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import type Plugin from '@models/schema/plugin'
+import BigNumber from 'bignumber.js'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProposalHelper' })
 
@@ -76,7 +77,19 @@ const ProposalHelper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(proposalIndex)),
       )
     } catch (error) {
-      logger.error('Error getting proposal SPP', llo({ proposalIndex, pluginAddress, network, error }))
+      logger.error('Error getting proposal SPP with proposalIndex as number', llo({ proposalIndex, pluginAddress, network, error }))
+    }
+
+    try {
+      const bigNumber = new BigNumber(proposalIndex)
+      const hexString = bigNumber.toString(16)
+      const paddedHex = hexString.padStart(64, '0')
+      const bytes32Value = '0x' + paddedHex
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(bytes32Value)),
+      )
+    } catch (error) {
+      logger.error('Error getting proposal SPP with proposalIndex as bytes32', llo({ proposalIndex, pluginAddress, network, error }))
       return null
     }
   },
