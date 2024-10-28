@@ -269,6 +269,9 @@ export default class Proposal extends Model {
   @prop({ type: () => Number })
   public stageIndex?: number
 
+  @prop({ type: () => Number })
+  public lastStageTransition?: number
+
   @prop({ type: () => [SubProposal], _id: false })
   public subProposals!: SubProposal[]
 
