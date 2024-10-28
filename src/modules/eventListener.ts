@@ -65,6 +65,7 @@ class EventListener {
 
   subscribeEventsByNewBlock() {
     const provider = ProviderModule.getCoreProvider(this.network)
+    logger.verbose('Start real-time listening', llo({ network: this.network }))
 
     provider.on('block', async (blockNumber: number) => {
       await this.handleOnNewBlock(blockNumber)
