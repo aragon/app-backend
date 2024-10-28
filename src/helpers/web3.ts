@@ -270,7 +270,7 @@ const Web3Helper = {
   parseInfoLog(txLog: Log | any, eventName: string, network: NetworksEnum): ILogInfo {
     return {
       network,
-      address: txLog.address,
+      address: ethers.getAddress(txLog.address),
       blockNumber: txLog.blockNumber,
       transactionHash: txLog.transactionHash || txLog.hash,
       transactionIndex: txLog.transactionIndex,
