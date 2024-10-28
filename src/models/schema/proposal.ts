@@ -808,32 +808,22 @@ export default class Proposal extends Model {
           executed: 1,
           actions: 1,
           media: 1,
-          settings: 1,
-          // settings: {
-          //   $mergeObjects: [
-          //     {
-          //       stages: '$settings.stages',
-          //       onlyListed: '$settings.onlyListed',
-          //       minApprovals: '$settings.minApprovals',
-          //       votingMode: '$settings.votingMode',
-          //       supportThreshold: '$settings.supportThreshold',
-          //       minParticipation: '$settings.minParticipation',
-          //       minDuration: '$settings.minDuration',
-          //       minProposerVotingPower: '$settings.minProposerVotingPower',
-          //       token: {
-          //         $cond: {
-          //           if: '$settings.token',
-          //           then: '$settings.token',
-          //           else: '$$REMOVE',
-          //         },
-          //       },
-          //     },
-          //     {
-          //       historicalMembersCount: '$snapshot.membersCount',
-          //       historicalTotalSupply: '$snapshot.totalSupply',
-          //     },
-          //   ],
-          // },
+          settings: {
+            $mergeObjects: [
+              '$settings',
+              {
+                token: {
+                  $cond: {
+                    if: '$settings.token',
+                    then: '$settings.token',
+                    else: '$$REMOVE',
+                  },
+                },
+              },
+              { historicalMembersCount: '$snapshot.membersCount' },
+              { historicalTotalSupply: '$snapshot.totalSupply' },
+            ],
+          },
           metrics: 1,
           ...(extraParams.daoInfo && { dao: 1 }),
         },
