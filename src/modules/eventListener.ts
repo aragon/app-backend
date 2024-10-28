@@ -31,7 +31,7 @@ class EventListener {
     }
 
     await Promise.all(
-      topicChunks.map((topicSubset: string[]) => {
+      topicChunks.map(async (topicSubset: string[]) => {
         const filter: { topics: string[][] } = { topics: [topicSubset] }
         return new Promise((resolve, reject) => {
           try {
@@ -42,7 +42,7 @@ class EventListener {
           }
           resolve(null)
         })
-      })
+      }),
     )
   }
 
@@ -55,8 +55,6 @@ class EventListener {
     if (!event) return
 
     const info = Web3Helper.parseInfoLog(txLog, event.name, this.network)
-
-    logger.verbose('Event received', llo({ event: event.name }))
 
     if (eventConfig && eventConfig.enableRealtime) {
       await eventConfig.handler(event, info)
@@ -78,8 +76,6 @@ class EventListener {
       logger.verbose('Skipping block as another process is ongoing', llo({ blockNumber, network: this.network }))
       return
     }
-
-    logger.verbose('New block received', llo({ blockNumber, network: this.network }))
 
     this.isProcessingBlock = blockNumber
     try {
