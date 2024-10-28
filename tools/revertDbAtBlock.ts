@@ -36,9 +36,8 @@ export const ToolsRevertDbAtBlock: IService = {
                   network: networkName,
                   blockNumber: { $gt: atBlockNumber },
                 })
-                console.log(
-                  `Deleted ${result.deletedCount} documents in model ${modelName} for ${networkName} with blockNumber > ${atBlockNumber}`,
-                ) // eslint-disable-line no-console
+                const msg = `Deleted ${result.deletedCount} documents in model ${modelName} for ${networkName} with blockNumber > ${atBlockNumber}`
+                console.log(msg) // eslint-disable-line no-console
               } catch (err) {
                 console.error(`Error deleting documents in model ${modelName} for ${networkName}:`, err) // eslint-disable-line no-console
               }
@@ -52,9 +51,8 @@ export const ToolsRevertDbAtBlock: IService = {
             { network: networkName },
             { $set: { lastSync: atBlockNumber } },
           )
-          console.log(
-            `Updated lastSync to ${atBlockNumber} in ConfigIndexer for ${networkName}, matched ${updateResult.matchedCount}, modified ${updateResult.modifiedCount}`,
-          ) // eslint-disable-line no-console
+          const msg = `Updated lastSync to ${atBlockNumber} in ConfigIndexer for ${networkName}, matched ${updateResult.matchedCount}, modified ${updateResult.modifiedCount}`
+          console.log(msg) // eslint-disable-line no-console
         } catch (err) {
           console.error(`Error updating lastSync in ConfigIndexer for ${networkName}:`, err) // eslint-disable-line no-console
         }

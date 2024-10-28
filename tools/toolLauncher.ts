@@ -9,6 +9,7 @@ import ManualSyncProposalAction from '@tools/manualSyncProposalAction'
 import ManualTrigger from '@tools/maulaTrigger'
 import ManualSyncProposalType from '@tools/manualSyncProposalType'
 import ManualSyncProposalTotalSupply from '@tools/manualSyncProposalTotalSupply'
+import ToolsRevertDbAtBlock from '@tools/revertDbAtBlock'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -23,6 +24,7 @@ const runners = {
   ManualSyncProposalAction,
   ManualTrigger,
   ManualSyncProposalType,
+  ToolsRevertDbAtBlock,
 }
 
 const appToRun = runners[TOOL_RUN!]
