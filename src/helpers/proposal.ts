@@ -16,7 +16,6 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 import { Multisig } from '@artifacts/Multisig'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import type Plugin from '@models/schema/plugin'
-import BigNumber from 'bignumber.js'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProposalHelper' })
 

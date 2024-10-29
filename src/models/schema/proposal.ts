@@ -540,7 +540,22 @@ export default class Proposal extends Model {
           executed: 1,
           actions: 1,
           media: 1,
-          settings: 1,
+          settings: {
+            $mergeObjects: [
+              '$settings',
+              {
+                token: {
+                  $cond: {
+                    if: '$settings.token',
+                    then: '$settings.token',
+                    else: '$$REMOVE',
+                  },
+                },
+              },
+              { historicalMembersCount: '$snapshot.membersCount' },
+              { historicalTotalSupply: '$snapshot.totalSupply' },
+            ],
+          },
           metrics: 1,
         },
       },
