@@ -186,7 +186,6 @@ export const PluginSettingHandler = {
       pluginAddress,
     })
 
-    // TODO If we have already existed metadata then we need to copy the name of the stages
     const settingLog = {
       blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
@@ -213,6 +212,15 @@ export const PluginSettingHandler = {
           }
         }),
       })),
+    }
+
+    // TODO If we have already existed metadata then we need to copy the name of the stages
+    const sppMetadata = await Models.LogMetadata.getLatestMetadata(network, pluginAddress)
+
+    if (sppMetadata?.stageNames && sppMetadata.stageNames.length === settingLog.stages.length) {
+      settingLog.stages.forEach((stage: any, index: number) => {
+        stage.name = sppMetadata.stageNames[index]
+      })
     }
 
     const settings = await DbOperations.createDocument(

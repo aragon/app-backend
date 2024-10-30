@@ -143,6 +143,25 @@ export default class LogMetadata extends Model {
     return await this.model(customName).findById(this._id, tOpts)
   }
 
+  static async getLatestMetadata(network: NetworksEnum, address: HexAddress, key: string = 'pluginAddress') {
+    const response = await this.aggregate([
+      {
+        $match: {
+          network,
+          [key]: address,
+        },
+      },
+      {
+        $sort: {
+          blockNumber: -1,
+        },
+      },
+      { $limit: 1 },
+    ])
+
+    return response[0] ?? {}
+  }
+
   static async getMetadataAtBlockNumber(daoAddress: string, blockNumber: number, network: NetworksEnum) {
     const response = await this.aggregate([
       {
