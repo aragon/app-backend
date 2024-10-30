@@ -79,6 +79,9 @@ class EventListener {
     }
 
     this.isProcessingBlock = blockNumber
+
+    logger.verbose('Processing new block', llo({ blockNumber, network: this.network }))
+
     try {
       const provider = ProviderModule.getCoreProvider(this.network)
       const transactionReceipt = await provider.send('eth_getBlockReceipts', ['0x' + Number(blockNumber).toString(16)])
