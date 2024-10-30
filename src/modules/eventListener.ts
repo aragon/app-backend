@@ -64,12 +64,8 @@ class EventListener {
   }
 
   subscribeEventsByNewBlock() {
-    const provider = ProviderModule.getCoreProvider(this.network)
     logger.verbose('Start real-time listening', llo({ network: this.network }))
-
-    provider.on('block', async (blockNumber: number) => {
-      await this.handleOnNewBlock(blockNumber)
-    })
+    ProviderModule.subscribeToNewBlock(this.network, this.handleOnNewBlock.bind(this))
   }
 
   async handleOnNewBlock(blockNumber: number) {
@@ -83,7 +79,7 @@ class EventListener {
     logger.verbose('Processing new block', llo({ blockNumber, network: this.network }))
 
     try {
-      const provider = ProviderModule.getCoreProvider(this.network)
+      const provider = ProviderModule.getProvider(this.network)
       const transactionReceipt = await provider.send('eth_getBlockReceipts', ['0x' + Number(blockNumber).toString(16)])
 
       if (!transactionReceipt) {
