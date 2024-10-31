@@ -36,6 +36,7 @@ import {
   PluginRepoFactory,
   PluginRepoRegistry,
   TokenVoting,
+  StagedProposalProcessor,
 } from '@src/aragonContracts'
 
 import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
@@ -553,6 +554,10 @@ class DecodeActions {
       AddresslistVoting.abi,
       'AddresslistVoting',
     )
+    const sppPluginSignatures: Signature[] = this._getSignaturesFromAbi(
+      StagedProposalProcessor.abi,
+      'StagedProposalProcessor',
+    )
 
     this.allSignatures = [
       { contractName: 'TokenVoting', signatures: tokenVotingSignatures, abi: TokenVoting.abi },
@@ -570,6 +575,7 @@ class DecodeActions {
       { contractName: 'DAORegistry', signatures: daoRegistrySignatures, abi: DAORegistry.abi },
       { contractName: 'MultiSigSetup', signatures: multisigSetupSignatures, abi: MultiSigSetup.abi },
       { contractName: 'AddresslistVoting', signatures: addresslistVotingSignatures, abi: AddresslistVoting.abi },
+      { contractName: 'StagedProposalProcessor', signatures: sppPluginSignatures, abi: StagedProposalProcessor.abi },
       {
         contractName: 'IERC20MintableUpgradeable',
         signatures: erc20MintableSignatures,
