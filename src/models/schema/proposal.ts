@@ -701,6 +701,10 @@ export default class Proposal extends Model {
           stageIndex: 1,
           parentPlugin: 1,
         },
+        {
+          settings: true,
+          token: true,
+        },
       ),
       {
         $addFields: {
@@ -771,6 +775,12 @@ export default class Proposal extends Model {
           allPluginDocs: 0,
         },
       },
+      AggregationQueryHelper.proposals({
+        pluginAddress: '$subProposals.pluginAddress',
+        proposalIndex: '$subProposals.proposalIndex',
+        network: '$network',
+        as: 'subProposals',
+      }),
     ]
 
     if (extraParams.daoInfo) {
