@@ -30,6 +30,10 @@ const DbTx = {
     return error.message.includes('Current topology does not support sessions')
   },
 
+  isErrorDuplicateKey(error: any) {
+    return error.message.includes('duplicate key error collection')
+  },
+
   async executeTxFn(fn: any, options?: { stopRetry?: boolean }) {
     async function tryFn() {
       const session = await DbTx.transactionOptions()
@@ -86,6 +90,8 @@ const DbTx = {
     } else if (DbTx.isErrorNotSupported(error)) {
       logger.error('error atomic transaction not supported', llo({ error, index: i }))
       throw error
+    } else if (DbTx.isErrorDuplicateKey(error)) {
+      logger.error('Duplicate key error', llo({ error, index: i }))
     } else {
       logger.error('error after all retry', llo({ error, index: i }))
       throw error
