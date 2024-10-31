@@ -10,7 +10,7 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:EtherscanHelper' })
 const EtherscanHelper = {
   axiosInstance: (network: NetworksEnum) =>
     axios.create({
-      baseURL: EtherscanHelper._parseNetworkToConfig(network).ETHERSCAN_API_KEY,
+      baseURL: EtherscanHelper._parseNetworkToConfig(network).ETHERSCAN_API_URL,
       headers: { 'Content-Type': 'application/json' },
     }),
 
