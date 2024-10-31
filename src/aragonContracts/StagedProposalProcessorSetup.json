@@ -1,63 +1,35 @@
 {
-  "contractName": "TokenVotingSetup",
+  "contractName": "StagedProposalProcessorSetup",
   "abi": [
     {
-      "inputs": [
-        {
-          "internalType": "contract GovernanceERC20",
-          "name": "_governanceERC20Base",
-          "type": "address"
-        },
-        {
-          "internalType": "contract GovernanceWrappedERC20",
-          "name": "_governanceWrappedERC20Base",
-          "type": "address"
-        }
-      ],
+      "inputs": [],
       "stateMutability": "nonpayable",
       "type": "constructor"
     },
     {
       "inputs": [
         {
-          "internalType": "address",
-          "name": "token",
-          "type": "address"
-        }
-      ],
-      "name": "TokenNotContract",
-      "type": "error"
-    },
-    {
-      "inputs": [
+          "internalType": "uint16",
+          "name": "fromBuild",
+          "type": "uint16"
+        },
         {
-          "internalType": "address",
-          "name": "token",
-          "type": "address"
+          "internalType": "uint16",
+          "name": "thisBuild",
+          "type": "uint16"
         }
       ],
-      "name": "TokenNotERC20",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "length",
-          "type": "uint256"
-        }
-      ],
-      "name": "WrongHelpersArrayLength",
+      "name": "InvalidUpdatePath",
       "type": "error"
     },
     {
       "inputs": [],
-      "name": "governanceERC20Base",
+      "name": "EXECUTE_PERMISSION_ID",
       "outputs": [
         {
-          "internalType": "address",
+          "internalType": "bytes32",
           "name": "",
-          "type": "address"
+          "type": "bytes32"
         }
       ],
       "stateMutability": "view",
@@ -65,12 +37,51 @@
     },
     {
       "inputs": [],
-      "name": "governanceWrappedERC20Base",
+      "name": "SET_METADATA_PERMISSION_ID",
       "outputs": [
         {
-          "internalType": "address",
+          "internalType": "bytes32",
           "name": "",
-          "type": "address"
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "SET_TARGET_CONFIG_PERMISSION_ID",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "SET_TRUSTED_FORWARDER_PERMISSION_ID",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "UPDATE_STAGES_PERMISSION_ID",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
         }
       ],
       "stateMutability": "view",
@@ -109,7 +120,7 @@
       "outputs": [
         {
           "internalType": "address",
-          "name": "plugin",
+          "name": "spp",
           "type": "address"
         },
         {
@@ -228,7 +239,7 @@
           "type": "tuple[]"
         }
       ],
-      "stateMutability": "view",
+      "stateMutability": "pure",
       "type": "function",
       "notice": "Prepares the uninstallation of a plugin."
     },
@@ -242,7 +253,7 @@
         },
         {
           "internalType": "uint16",
-          "name": "_currentBuild",
+          "name": "_fromBuild",
           "type": "uint16",
           "notice": "The build number of the plugin to update from."
         },
@@ -274,7 +285,7 @@
       "outputs": [
         {
           "internalType": "bytes",
-          "name": "initData",
+          "name": "",
           "type": "bytes"
         },
         {
@@ -318,21 +329,34 @@
             }
           ],
           "internalType": "struct IPluginSetup.PreparedSetupData",
-          "name": "preparedSetupData",
+          "name": "",
           "type": "tuple"
         }
       ],
-      "stateMutability": "nonpayable",
+      "stateMutability": "pure",
       "type": "function",
       "notice": "Prepares the update of a plugin."
+    },
+    {
+      "inputs": [],
+      "name": "protocolVersion",
+      "outputs": [
+        {
+          "internalType": "uint8[3]",
+          "name": "",
+          "type": "uint8[3]"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function",
+      "notice": "Returns the semantic Aragon OSx protocol version number that the implementing contract is associated with."
     },
     {
       "inputs": [
         {
           "internalType": "bytes4",
           "name": "_interfaceId",
-          "type": "bytes4",
-          "notice": "The ID of the interface."
+          "type": "bytes4"
         }
       ],
       "name": "supportsInterface",
@@ -344,10 +368,9 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function",
-      "notice": "Checks if this or the parent contract supports an interface by its ID."
+      "type": "function"
     }
   ],
-  "implAddress": "0x0749047B49B472a7f80C1c8f0a4dbBcecBc54339",
-  "address": "0xadAdd899F1096B77B6fE601748be1A7a9ADB714B"
+  "implAddress": "0xBCA19979925222812eDC11A31ac3e4e4cB837daB",
+  "address": "0xc325750d32dc0bBfc890D10B8D49BA55648eEF72"
 }
