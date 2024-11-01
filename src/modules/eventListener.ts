@@ -123,7 +123,7 @@ class EventListener {
           network: this.network,
         },
         'update last block',
-        llo({ blockNumber, network: this.network }),
+        llo,
       )
 
       this.isProcessingBlock = 0
