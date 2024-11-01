@@ -3,6 +3,8 @@ import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { type IIndexerConfig, type NetworksEnum } from '@types'
+import { Models } from '@dbModels'
+import DbOperations from '@models/utils/dbOperations'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
@@ -80,15 +82,21 @@ class EventListener {
 
     try {
       const provider = ProviderModule.getProvider(this.network)
-      const transactionReceipt = await provider.send('eth_getBlockReceipts', ['0x' + Number(blockNumber).toString(16)])
+      const blockHex = '0x' + Number(blockNumber).toString(16)
 
-      if (!transactionReceipt) {
-        logger.warn('No transaction receipt found', llo({ blockNumber, network: this.network }))
+      const filter = {
+        fromBlock: blockHex,
+        toBlock: blockHex,
+      }
+
+      const logs = await provider.send('eth_getLogs', [filter])
+
+      if (!logs || logs.length === 0) {
+        logger.warn('No logs found', llo({ blockNumber, network: this.network }))
         return
       }
 
       const priorityTopics = this.configLogs.map(config => config.topic)
-      const logs = transactionReceipt.map((tx: any) => tx.logs).flat()
       const sortedLogs = logs
         .filter((log: Log) => priorityTopics.includes(log.topics[0]))
         .sort((a: Log, b: Log) => priorityTopics.indexOf(a.topics[0]) - priorityTopics.indexOf(b.topics[0]))
@@ -102,6 +110,22 @@ class EventListener {
         await this.handleEvent(log)
       }
     } finally {
+      const existingConfig = await Models.ConfigIndexer.findExistingLog({
+        network: this.network,
+        service: `Indexer-${this.network}`,
+      })
+
+      await DbOperations.updateDocument(
+        existingConfig,
+        { lastSync: blockNumber },
+        {
+          blockNumber,
+          network: this.network,
+        },
+        'update last block',
+        llo({ blockNumber, network: this.network }),
+      )
+
       this.isProcessingBlock = 0
     }
   }
