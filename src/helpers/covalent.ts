@@ -30,6 +30,7 @@ const CovalentHelper = {
     },
   }),
 
+  // https://goldrush.dev/docs/networks/
   networksMap: {
     [NetworksEnum.polygonMainnet]: 'matic-mainnet',
     [NetworksEnum.ethereumMainnet]: 'eth-mainnet',
