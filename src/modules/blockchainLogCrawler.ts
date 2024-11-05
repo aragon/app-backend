@@ -85,30 +85,6 @@ class BlockchainLogCrawler {
     return Math.floor(SECONDS_IN_MONTH / blockIntervalTime)
   }
 
-  async getBlockNumber(blockNumber: string | number | undefined): Promise<number> {
-    if (blockNumber === 'latest' || blockNumber === undefined) {
-      try {
-        return await retryRequest(async () =>
-          BottleneckModule.getNodeLimiter(this.crawlParams.network)!.schedule(async () =>
-            this.getProvider().getBlockNumber(),
-          ),
-        )
-      } catch (error) {
-        logger.error(
-          'Error get block number',
-          llo({
-            ...this.parseCrawlerInfoLog(),
-            blockNumber,
-            error,
-          }),
-        )
-        return -1
-      }
-    } else {
-      return Number(blockNumber)
-    }
-  }
-
   async updateAndCheckConditions(currentBlock: number, latestBlock: number): Promise<boolean> {
     return (
       this.crawlSetting.crawling &&
