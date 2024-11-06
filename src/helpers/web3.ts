@@ -778,9 +778,7 @@ const Web3Helper = {
 
     let version: [number, number, number]
     try {
-      version = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.protocolVersion()),
-      )
+      version = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.protocolVersion())
     } catch (error) {
       version = [1, 0, 0]
     }
