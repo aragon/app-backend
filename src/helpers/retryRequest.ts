@@ -30,8 +30,9 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         await Utils.wait(retryDelay(retryCount))
         retryCount++
       } else if (
-        error?.reason?.includes('future lookup') ||
-        error?.message?.includes('invalid length for result data')
+        error?.reason?.includes('future lookup')
+        // TODO: without this on realtime we are not able to fetch past total supply and past votes
+        // || error?.message?.includes('invalid length for result data')
       ) {
         logger.warn(
           'ForceRetry, retrying...',
