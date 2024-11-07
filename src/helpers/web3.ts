@@ -55,6 +55,7 @@ const Web3Helper = {
 
   handleAlchemyCrazyBalance: (amount: number | string, decimals: number = 0, tx?: any): string => {
     try {
+      // TODO: 5.999999999999993e-20, 2e-18, 1.2e-20
       if (typeof amount === 'string' && amount.includes('0x')) {
         return ethers.formatUnits(amount, decimals)
       } else if (utils.isScientificNumber(amount)) {
