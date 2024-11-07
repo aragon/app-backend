@@ -10,7 +10,6 @@ interface RetryOptions {
 
 enum RETRY_REVERTS {
   ERROR_SIG = '0x08c379a0',
-  RESERVE_LOOKUP_SIG = '0x7199966d',
 }
 
 export async function retryRequest<T>(requestFunction: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
@@ -62,9 +61,5 @@ function canBeRetried(error: any): boolean {
 
   const errorValueSig = error?.value?.slice(0, 10)
 
-  if (Object.values(RETRY_REVERTS).includes(errorValueSig)) {
-    return true
-  }
-
-  return false
+  return Object.values(RETRY_REVERTS).includes(errorValueSig)
 }
