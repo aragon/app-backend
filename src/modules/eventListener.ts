@@ -57,12 +57,7 @@ class EventListener {
     if (!event) return
 
     const info = Web3Helper.parseInfoLog(txLog, event.name, this.network)
-
-    if (eventConfig && eventConfig.enableRealtime) {
-      await eventConfig.handler(event, info)
-    } else {
-      logger.warn(`No handler found for event: ${event.name}`, llo({ event, network: this.network }))
-    }
+    await eventConfig.handler(event, info)
   }
 
   subscribeEventsByNewBlock() {

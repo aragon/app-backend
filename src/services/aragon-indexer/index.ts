@@ -36,8 +36,7 @@ const IndexerService: IService = {
 
     await Promise.all(
       networks.map(async ({ networkName }) => {
-        const realtimeConfigLogs = utils.filterArrayByProperty(configIndexer, 'enableRealtime')
-        const eventListener = new EventListener(networkName, realtimeConfigLogs)
+        const eventListener = new EventListener(networkName, configIndexer)
         eventListener.subscribeEventsByNewBlock()
       }),
     )

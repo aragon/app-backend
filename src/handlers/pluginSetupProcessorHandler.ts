@@ -53,7 +53,7 @@ export const PluginSetupProcessorHandler = {
     }
   },
 
-  installationPrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  installationPrepared: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     const daoAddress = parsedEvent.args.dao
     const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
 
@@ -110,6 +110,8 @@ export const PluginSetupProcessorHandler = {
       }),
     )
 
+    if (!isHistorical) return
+
     const plugins = await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
 
     await Promise.all([
@@ -158,7 +160,7 @@ export const PluginSetupProcessorHandler = {
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.preInstall, logDb)
   },
 
-  installationApplied: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  installationApplied: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     const daoAddress = parsedEvent.args.dao
     const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
 
@@ -201,19 +203,23 @@ export const PluginSetupProcessorHandler = {
     const pluginDb = await Models.Plugin.findByAddress(parsedEvent.args.plugin, info.network)
 
     if (pluginDb?.interfaceType === IPluginInterfaceType.spp) {
-      const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-      await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
+      if (isHistorical) {
+        const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+        await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
 
-      await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-        id: pluginDb.address,
-        params: { address: pluginDb.address, network: pluginDb.network },
-      })
+        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+          id: pluginDb.address,
+          params: { address: pluginDb.address, network: pluginDb.network },
+        })
+      }
     } else if (pluginDb?.interfaceType === IPluginInterfaceType.admin) {
       await PluginSettingHandler.isSupported(pluginDb, info)
-      await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-        id: pluginDb.address,
-        params: { address: pluginDb.address, network: pluginDb.network },
-      })
+      if (isHistorical) {
+        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+          id: pluginDb.address,
+          params: { address: pluginDb.address, network: pluginDb.network },
+        })
+      }
     }
   },
 
