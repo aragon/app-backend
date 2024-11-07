@@ -224,7 +224,7 @@ class BlockchainLogCrawler {
         }
 
         const info = Web3Helper.parseInfoLog(log, eventSetting.event, this.crawlParams.network)
-        await eventSetting.handler(event, info)
+        await eventSetting.handler(event, info, true)
 
         this.crawlSetting.nbSuccess++
         if (log.blockNumber) {

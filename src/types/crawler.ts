@@ -6,9 +6,8 @@ import { type Filter, type Log, type LogDescription } from 'ethers'
 export interface IIndexerConfig {
   event: string
   abi: any[]
-  handler: (event: LogDescription, info: ILogInfo) => Promise<any>
+  handler: (event: LogDescription, info: ILogInfo, isHistorical?: boolean) => Promise<any>
   enableHistorical: boolean
-  enableRealtime: boolean
   topic: string
 }
 

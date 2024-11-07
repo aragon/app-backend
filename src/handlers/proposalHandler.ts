@@ -23,11 +23,13 @@ import DbOperations from '@models/utils/dbOperations'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import DbTx from '@modules/dbTx'
 import ProposalHelper from '@helpers/proposal'
+import utils from '@helpers/utils'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 
 export const ProposalHandler = {
-  proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     try {
       const pluginAddress = info.address
       const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, info.network)
@@ -112,6 +114,11 @@ export const ProposalHandler = {
       }
 
       if (document?.settings?.tokenAddress && relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
+        if (!isHistorical) {
+          // wait next block
+          await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000)
+        }
+
         const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
           document.blockNumber!,
           document?.settings.tokenAddress,
@@ -563,7 +570,6 @@ export const ProposalHandler = {
   },
 
   pairSppProposals: async (proposal: Proposal, plugin: Plugin, info: ILogInfo) => {
-    logger.verbose('pair spp proposals', llo({ proposal, plugin, info }))
     let hasChanges = false
 
     try {

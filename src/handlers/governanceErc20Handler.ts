@@ -10,36 +10,33 @@ import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
 import { RabbitMQHelper } from '@helpers/redditMQ'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:GovernanceErc20Handler' })
 
 export const GovernanceErc20Handler = {
   // is trigger once for all user - (from user increase balance and 1 user decrease balance)
-  transfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
+  transfer: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     // when realtime the plugin is undefined, check if related to aragon dao
-    if (!plugin) {
-      plugin = await Models.Plugin.findByTokenAddress(info.address, info.network)
-      if (!plugin) return
-    }
+    const plugin = await Models.Plugin.findByTokenAddress(info.address, info.network)
+    if (!plugin) return
 
     // outgoing transfer for 'from' user
     if (parsedEvent.args.from !== utils.zeroAddress) {
-      await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info, plugin)
+      await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info, plugin, isHistorical)
     }
 
     // incoming transfer for 'to' user
     if (parsedEvent.args.to !== utils.zeroAddress) {
-      await GovernanceErc20Handler._incomingTransfer(parsedEvent, info, plugin)
+      await GovernanceErc20Handler._incomingTransfer(parsedEvent, info, plugin, isHistorical)
     }
   },
 
   // it triggers for each user the previous and new votingPower
-  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo, plugin?: Plugin) => {
+  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
     // when realtime the plugin is undefined, check if related to aragon dao
-    if (!plugin) {
-      plugin = await Models.Plugin.findByTokenAddress(info.address, info.network)
-      if (!plugin) return
-    }
+    const plugin = await Models.Plugin.findByTokenAddress(info.address, info.network)
+    if (!plugin) return
 
     if (parsedEvent.args.delegate === utils.zeroAddress) {
       return
@@ -158,7 +155,7 @@ export const GovernanceErc20Handler = {
     }
   },
 
-  _outgoingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin) => {
+  _outgoingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin, isHistorical?: boolean) => {
     const memberAddress = parsedEvent.args.from
     await ProxyMember.createMember(parsedEvent.args.from)
 
@@ -195,6 +192,12 @@ export const GovernanceErc20Handler = {
 
     const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+
+      if (!isHistorical) {
+        // wait next block
+        await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000)
+      }
+
       const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
         memberAddress,
         info.address,
@@ -245,7 +248,7 @@ export const GovernanceErc20Handler = {
     })
   },
 
-  _incomingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin) => {
+  _incomingTransfer: async (parsedEvent: LogDescription, info: ILogInfo, plugin: Plugin, isHistorical?: boolean) => {
     const memberAddress = parsedEvent.args.to
     await ProxyMember.createMember(parsedEvent.args.to)
 
@@ -282,6 +285,12 @@ export const GovernanceErc20Handler = {
 
     await DbTx.executeTxFn(async ({ session }) => {
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+
+      if (!isHistorical) {
+        // wait next block
+        await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000)
+      }
+
       const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
         memberAddress,
         info.address,

@@ -26,7 +26,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: PluginRepoRegistry.abi,
     handler: PluginRepoRegistryHandler.pluginRepoRegistered,
     enableHistorical: true,
-    enableRealtime: true,
     topic: new Interface(PluginRepoRegistry.abi).getEvent('PluginRepoRegistered')?.topicHash!,
   },
   {
@@ -34,7 +33,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: DAORegistry.abi,
     handler: DaoRegistryHandler.daoRegistered,
     enableHistorical: true,
-    enableRealtime: true,
     topic: new Interface(DAORegistry.abi).getEvent('DAORegistered')?.topicHash!,
   },
   {
@@ -42,7 +40,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: PluginSetupProcessor.abi,
     handler: PluginSetupProcessorHandler.installationPrepared,
     enableHistorical: true,
-    enableRealtime: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('InstallationPrepared')?.topicHash!,
   },
   {
@@ -50,7 +47,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: PluginSetupProcessor.abi,
     handler: PluginSetupProcessorHandler.installationApplied,
     enableHistorical: true,
-    enableRealtime: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('InstallationApplied')?.topicHash!,
   },
   {
@@ -58,7 +54,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: PluginSetupProcessor.abi,
     handler: PluginSetupProcessorHandler.updateApplied,
     enableHistorical: true,
-    enableRealtime: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('UpdateApplied')?.topicHash!,
   },
   {
@@ -66,7 +61,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: PluginSetupProcessor.abi,
     handler: PluginSetupProcessorHandler.updatePrepared,
     enableHistorical: true,
-    enableRealtime: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('UpdatePrepared')?.topicHash!,
   },
   {
@@ -74,7 +68,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: PluginSetupProcessor.abi,
     handler: PluginSetupProcessorHandler.uninstallationApplied,
     enableHistorical: true,
-    enableRealtime: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('UninstallationApplied')?.topicHash!,
   },
   {
@@ -82,7 +75,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: PluginSetupProcessor.abi,
     handler: PluginSetupProcessorHandler.uninstallationPrepared,
     enableHistorical: true,
-    enableRealtime: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('UninstallationPrepared')?.topicHash!,
   },
 
@@ -92,7 +84,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: Multisig.abi,
     handler: PluginSettingHandler.multisigSettingsUpdated,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(Multisig.abi).getEvent('MultisigSettingsUpdated')?.topicHash!,
   },
   {
@@ -100,7 +91,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: TokenVoting.abi,
     handler: PluginSettingHandler.votingSettingsUpdated,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(TokenVoting.abi).getEvent('VotingSettingsUpdated')?.topicHash!,
   },
   {
@@ -108,7 +98,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: StagedProposalProcessor.abi,
     handler: PluginSettingHandler.sppSettingsUpdated,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(StagedProposalProcessor.abi).getEvent('StagesUpdated')?.topicHash!,
   },
   {
@@ -116,7 +105,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: Multisig.abi,
     handler: MultisigHandler.membersAdded,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(Multisig.abi).getEvent('MembersAdded')?.topicHash!,
   },
   {
@@ -124,7 +112,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: Multisig.abi,
     handler: MultisigHandler.membersRemoved,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(Multisig.abi).getEvent('MembersRemoved')?.topicHash!,
   },
   {
@@ -132,7 +119,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: SharedLogs.abi,
     handler: ProposalHandler.proposalCreated,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(Multisig.abi).getEvent('ProposalCreated')?.topicHash!,
   },
   {
@@ -140,7 +126,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: SharedLogs.abi,
     handler: ProposalHandler.proposalExecuted,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(Multisig.abi).getEvent('ProposalExecuted')?.topicHash!,
   },
   {
@@ -148,7 +133,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: StagedProposalProcessor.abi,
     handler: ProposalHandler.proposalAdvanced,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(StagedProposalProcessor.abi).getEvent('ProposalAdvanced')?.topicHash!,
   },
   {
@@ -156,7 +140,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: Multisig.abi,
     handler: ProposalHandler.approved,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(Multisig.abi).getEvent('Approved')?.topicHash!,
   },
   {
@@ -164,7 +147,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: TokenVoting.abi,
     handler: ProposalHandler.voteCast,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(TokenVoting.abi).getEvent('VoteCast')?.topicHash!,
   },
   {
@@ -172,7 +154,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: DAO.abi,
     handler: MetadataHandler.metadataSet,
     enableHistorical: true,
-    enableRealtime: true,
     topic: new Interface(DAO.abi).getEvent('MetadataSet')?.topicHash!,
   },
   {
@@ -180,7 +161,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: GovernanceERC20.abi,
     handler: GovernanceErc20Handler.delegateVotesChanged,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(GovernanceERC20.abi).getEvent('DelegateVotesChanged')?.topicHash!,
   },
   {
@@ -188,7 +168,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: GovernanceERC20.abi,
     handler: GovernanceErc20Handler.transfer,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
   },
   {
@@ -196,7 +175,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: DAO.abi,
     handler: PermissionHandler.handleGrantOnDao,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(DAO.abi).getEvent('Granted')?.topicHash!,
   },
   {
@@ -204,7 +182,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     abi: DAO.abi,
     handler: PermissionHandler.handleRevokeOnDao,
     enableHistorical: false,
-    enableRealtime: true,
     topic: new Interface(DAO.abi).getEvent('Revoked')?.topicHash!,
   },
 ]

@@ -16,8 +16,6 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:Plugi
 
 export const PluginSettingHandler = {
   handleFromReceipt: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
-    // TODO: handle admin plugin
-
     const multisigSettings = Web3Helper.findLogsByName(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
     const plugins: Plugin[] = []
 

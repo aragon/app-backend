@@ -143,7 +143,6 @@ class DecodeActions {
     }
 
     const contractNetspec = await this.parseContractNetspec(decoded.function, action.to, document.network!)
-    logger.info('ContractNetspec', llo({ contractNetspec }))
 
     if (contractNetspec?.inputs) {
       decoded.notice = contractNetspec.notice
