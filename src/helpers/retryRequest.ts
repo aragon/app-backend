@@ -8,6 +8,11 @@ interface RetryOptions {
   maxRetries?: number
 }
 
+enum RETRY_REVERTS {
+  ERROR_SIG = '0x08c379a0',
+  RESERVE_LOOKUP_SIG = '0x7199966d',
+}
+
 export async function retryRequest<T>(requestFunction: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   const { maxRetries = 10 } = options
   const retryDelay = (retryCount: number) => Math.pow(2, retryCount) * 1000
@@ -29,10 +34,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
-      } else if (
-        error?.reason?.includes('future lookup') ||
-        error?.message?.includes('invalid length for result data')
-      ) {
+      } else if (canBeRetried(error)) {
         logger.warn(
           'ForceRetry, retrying...',
           llo({ retryCount, wait: retryDelay(retryCount), fn: requestFunction.toString(), error }),
@@ -47,4 +49,22 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
   }
 
   throw new Error(`Request failed after ${maxRetries} retries`)
+}
+
+function canBeRetried(error: any): boolean {
+  if (error?.reason?.includes('future lookup')) {
+    return true
+  }
+
+  if (error?.code === 'CALL_EXCEPTION') {
+    return false
+  }
+
+  const errorValueSig = error?.value?.slice(0, 10)
+
+  if (Object.values(RETRY_REVERTS).includes(errorValueSig)) {
+    return true
+  }
+
+  return false
 }
