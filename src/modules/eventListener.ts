@@ -5,6 +5,8 @@ import logger from '@logger'
 import { type IIndexerConfig, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import DbOperations from '@models/utils/dbOperations'
+import { retryRequest } from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
@@ -82,7 +84,9 @@ class EventListener {
         toBlock: blockHex,
       }
 
-      const logs = await provider.send('eth_getLogs', [filter])
+      const logs = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(this.network)!.schedule(async () => provider.getLogs(filter)),
+      )
 
       if (!logs || logs.length === 0) {
         logger.warn('No logs found', llo({ blockNumber, network: this.network }))
