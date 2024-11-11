@@ -176,7 +176,12 @@ class DecodeActions {
     }
 
     const [currentBalance, tokenInfo, token] = await Promise.all([
-      Web3Helper.getERC20Balance(receiver, action.to, document.network!),
+      Web3Helper.getTokenBalanceAtBlock({
+        tokenAddress: action.to,
+        address: receiver,
+        network: document.network!,
+        blockNumber: document.blockNumber!,
+      }),
       Covalent.getTokenInfo(action.to, document.network!, document.blockNumber),
       ProxyToken.saveAndGetToken(action.to, document.network!),
     ])
@@ -189,7 +194,7 @@ class DecodeActions {
         address: receiver,
         ens: member?.ens,
         currentBalance: currentBalance.toString(),
-        newBalance: decodedData.parameters[1].value.toString(),
+        newBalance: (BigInt(decodedData.parameters[1].value) + BigInt(currentBalance)).toString(),
       },
       totalSupply: tokenInfo?.totalSupply,
       holdersCount: tokenInfo?.totalHolders,
