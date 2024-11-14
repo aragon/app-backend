@@ -313,7 +313,7 @@ class DecodeActions {
       inputData: decodedData,
       type: ProposalActionType.UpdateMultiSigSettings,
       proposedSettings: {
-        minApprovals: decodedData.parameters[0].value[1],
+        minApprovals: Number(decodedData.parameters[0].value[1]),
         onlyListed: decodedData.parameters[0].value[0],
       },
     }
@@ -329,11 +329,11 @@ class DecodeActions {
       inputData: decodedData,
       type: ProposalActionType.UpdateVoteSettings,
       proposedSettings: {
-        votingMode: decodedData.parameters[0].value[0],
-        supportThreshold: decodedData.parameters[0].value[1],
-        minParticipation: decodedData.parameters[0].value[2],
-        minDuration: decodedData.parameters[0].value[3],
-        minProposerVotingPower: decodedData.parameters[0].value[4],
+        votingMode: Number(decodedData.parameters[0].value[0]),
+        supportThreshold: Number(decodedData.parameters[0].value[1]),
+        minParticipation: Number(decodedData.parameters[0].value[2]),
+        minDuration: Number(decodedData.parameters[0].value[3]),
+        minProposerVotingPower: Number(decodedData.parameters[0].value[4]),
       },
     }
   }
