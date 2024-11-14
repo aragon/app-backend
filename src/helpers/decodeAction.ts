@@ -328,6 +328,7 @@ class DecodeActions {
       type: ProposalActionType.UpdateMultiSigSettings,
       proposedSettings: {
         minApprovals: decodedData.parameters[0].value[1],
+        onlyListed: decodedData.parameters[0].value[0],
       },
     }
   }
