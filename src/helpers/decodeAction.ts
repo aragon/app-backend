@@ -214,11 +214,6 @@ class DecodeActions {
       return null
     }
 
-    const currentMembers = await Models.DaoMemberMapping.findAllMembersOfPlugin({
-      pluginAddress: document.pluginAddress!,
-      network: document.network!,
-    })
-
     const [membersInfo, currentMembersInfo] = await Promise.all([
       Promise.all(
         decodedData.parameters[0].value.map(async (address: HexAddress) => {
@@ -226,12 +221,10 @@ class DecodeActions {
           return { address: member.address, ens: member.ens, avatar: member.avatar }
         }),
       ),
-      Promise.all(
-        currentMembers.map(async (memberInfo: DaoMemberMapping) => {
-          const member = await ProxyMember.createMember(memberInfo.memberAddress)
-          return { address: member.address, ens: member.ens, avatar: member.avatar }
-        }),
-      ),
+      Models.DaoMemberMapping.findAllMembersOfPlugin({
+        pluginAddress: document.pluginAddress!,
+        network: document.network!,
+      }),
     ])
 
     return {
@@ -239,7 +232,7 @@ class DecodeActions {
       inputData: decodedData,
       type: ProposalActionType.MultisigAddMembers,
       members: membersInfo,
-      currentMembers: currentMembersInfo,
+      currentMembers: currentMembersInfo.length,
     }
   }
 
@@ -252,11 +245,6 @@ class DecodeActions {
       return null
     }
 
-    const currentMembers = await Models.DaoMemberMapping.findAllMembersOfPlugin({
-      pluginAddress: document.pluginAddress,
-      network: document.network,
-    })
-
     const [membersInfo, currentMembersInfo] = await Promise.all([
       Promise.all(
         decodedData.parameters[0].value.map(async (address: HexAddress) => {
@@ -264,12 +252,10 @@ class DecodeActions {
           return { address: member.address, ens: member.ens, avatar: member.avatar }
         }),
       ),
-      Promise.all(
-        currentMembers.map(async (memberInfo: DaoMemberMapping) => {
-          const member = await ProxyMember.createMember(memberInfo.memberAddress)
-          return { address: member.address, ens: member.ens, avatar: member.avatar }
-        }),
-      ),
+      Models.DaoMemberMapping.findAllMembersOfPlugin({
+        pluginAddress: document.pluginAddress!,
+        network: document.network!,
+      }),
     ])
 
     return {
