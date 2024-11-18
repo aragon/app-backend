@@ -50,12 +50,8 @@ const ProposalRouter = {
     const params = {
       id: ctx.params.id,
     }
-    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const [formattedValues] = await Promise.all([
-      ValidationSchema.validateParams(ProposalSchema.getProposalById, params),
-      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
-    ])
+    const formattedValues = await ValidationSchema.validateParams(ProposalSchema.getProposalById, params)
 
     ctx.body = await ProposalController.getProposalById(formattedValues.id)
   },
@@ -66,12 +62,8 @@ const ProposalRouter = {
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       network: ctx.query.network as NetworksEnum,
     }
-    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const [formattedValues] = await Promise.all([
-      ValidationSchema.validateParams(ProposalSchema.canCreateProposal, params),
-      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
-    ])
+    const formattedValues = await ValidationSchema.validateParams(ProposalSchema.canCreateProposal, params)
 
     ctx.body = await ProposalController.canCreateProposal(formattedValues)
   },
@@ -91,6 +83,13 @@ const ProposalRouter = {
     router.get('/', ProposalRouter.getWithPagination)
 
     /**
+     * @api {get} /proposal/canCreateProposal
+     * @apiDescription Check if the user is allowed to create the proposal
+     */
+
+    router.get('/can-create-proposal', ProposalRouter.canCreateProposal)
+
+    /**
      * @api {get} /:id Get Proposal by Id
      * @apiName Proposals
      * @apiGroup Proposals
@@ -99,13 +98,6 @@ const ProposalRouter = {
      * @apiSampleRequest /:id
      */
     router.get('/:id', ProposalRouter.getProposalById)
-
-    /**
-     * @api {get} /proposal/canCreateProposal
-     * @apiDescription Check if the user is allowed to create the proposal
-     */
-
-    router.get('/can-create-proposal', ProposalRouter.canCreateProposal)
 
     return router
   },
