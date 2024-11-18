@@ -165,6 +165,28 @@ export const PluginSettingHandler = {
     return relatedPlugin
   },
 
+  formatSppSetings(stageUpdate: any) {
+    return stageUpdate.map((stage: any, index: number) => {
+      const plugins = stage.bodies || stage.plugins
+      return {
+        stageIndex: index,
+        minAdvance: Number(stage.minAdvance),
+        maxAdvance: Number(stage.maxAdvance),
+        voteDuration: stage.voteDuration ? Number(stage.voteDuration) : Number(stage.stageDuration || 0),
+        approvalThreshold: Number(stage.approvalThreshold),
+        vetoThreshold: Number(stage.vetoThreshold),
+        plugins: plugins.map((plugin: any) => {
+          return {
+            address: plugin.pluginAddress,
+            isManual: plugin.isManual,
+            allowedBody: plugin.allowedBody || plugin.tryAdvance,
+            proposalType: utils.parseNumber(plugin.resultType ?? plugin.proposalType),
+          }
+        }),
+      }
+    })
+  },
+
   sppSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
     const { address: pluginAddress, transactionHash, blockNumber, network } = info
     const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, network)
@@ -196,22 +218,7 @@ export const PluginSettingHandler = {
       pluginSubdomain: relatedPlugin.subdomain,
       tokenAddress: relatedPlugin.tokenAddress,
       network,
-      stages: parsedEvent.args.stages.map((stage: any, index: number) => ({
-        stageIndex: index,
-        minAdvance: Number(stage.minAdvance),
-        maxAdvance: Number(stage.maxAdvance),
-        voteDuration: stage.voteDuration ? Number(stage.voteDuration) : Number(stage.stageDuration || 0),
-        approvalThreshold: Number(stage.approvalThreshold),
-        vetoThreshold: Number(stage.vetoThreshold),
-        plugins: stage.plugins.map((plugin: any) => {
-          return {
-            address: plugin.pluginAddress,
-            isManual: plugin.isManual,
-            allowedBody: plugin.allowedBody,
-            proposalType: utils.parseNumber(plugin.resultType ?? plugin.proposalType),
-          }
-        }),
-      })),
+      stages: PluginSettingHandler.formatSppSetings(parsedEvent.args.stages),
     }
 
     // TODO If we have already existed metadata then we need to copy the name of the stages
