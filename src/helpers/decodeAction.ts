@@ -263,7 +263,7 @@ class DecodeActions {
       inputData: decodedData,
       type: ProposalActionType.MultisigRemoveMembers,
       members: membersInfo,
-      currentMembers: currentMembersInfo,
+      currentMembers: currentMembersInfo.length,
     }
   }
 
