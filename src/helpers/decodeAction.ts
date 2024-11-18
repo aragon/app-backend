@@ -343,7 +343,7 @@ class DecodeActions {
     if (decodedData.textSignature !== KnownActionSignature.StagesUpdated) {
       return null
     }
-    let stages: any = []
+    let stages: any
     try {
       stages = decodedData.parameters[0].value.map((stageValue: any, index: number) => {
         const plugins = stageValue[0].map((plugin: any) => {
