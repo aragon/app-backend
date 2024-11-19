@@ -8,7 +8,7 @@ module.exports = {
       cwd: path.resolve(__dirname, ''),
       script: 'yarn',
       args: 'service:aragon-api',
-      autorestart: true,
+      restart_delay: 15000,
       env: {
         INSTANCE_ID: 'aragon-api',
         ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-api') }).parsed,
@@ -19,7 +19,7 @@ module.exports = {
       cwd: path.resolve(__dirname, ''),
       script: 'yarn',
       args: 'service:aragon-indexer',
-      autorestart: true,
+      restart_delay: 5000,
       env: {
         INSTANCE_ID: 'aragon-indexer',
         ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-indexer') }).parsed,
@@ -68,6 +68,6 @@ module.exports = {
         INSTANCE_ID: 'aragon-rates',
         ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-rates') }).parsed,
       },
-    }
+    },
   ],
 }

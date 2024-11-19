@@ -154,13 +154,13 @@ describe('Indexer: MetadataHandler', () => {
         update: sandbox.stub(),
       } as any)
 
-      const verboseStub = sandbox.stub(Logger, 'verbose')
+      const stubUpdate = sandbox.stub(DbOperations, 'updateDocument')
 
       await MetadataHandler._updateDaoMetadata(fakeLogDB as any)
 
+      expect(stubUpdate.calledOnce).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
-
-      expect(verboseStub.args[0][0]).to.be.eq('Updated document - Update Dao Metadata')
+      expect(findExistingLogStub.calledOnce).to.be.true
     })
   })
 })

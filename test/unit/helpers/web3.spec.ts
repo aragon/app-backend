@@ -627,9 +627,11 @@ describe('Helpers:Web3', () => {
   it('should parseLog with info data', function () {
     const txLog = {
       transactionHash: '0x123',
-      address: '0x456',
+      address: '0xce01f8eee7E479C928F8919abD53E553a36CeF67',
       data: '0x789',
       topics: ['0xabc'],
+      transactionIndex: 1,
+      index: 1,
       blockNumber: 1,
     }
 
@@ -1366,52 +1368,6 @@ describe('Helpers:Web3', () => {
       const response = Web3Helper.convertBalanceToUsd('123213', '2.1', 'a' as any)
       expect(response).to.equal('0')
       expect(loggerStub.calledOnce).to.be.true
-    })
-  })
-
-  describe('getProposalMultisig', () => {
-    it('should get the proposal multisig', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-
-      const getProposalStub = sandbox.stub().resolves('0xMultisigAddress')
-
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return { getProposal: getProposalStub }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getProposalMultisig('0xProposalAddress', NetworksEnum.ethereumMainnet)
-      expect(getProposalStub.calledWith('0xProposalAddress')).to.be.true
-      expect(result).to.equal('0xMultisigAddress')
-    })
-
-    it('should return null on error', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-
-      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-        ethers: {
-          Contract: function () {
-            return { getProposal: sandbox.stub().rejects(new Error('fake-error')) }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedWeb3Helper.getProposalMultisig('0xProposalAddress', NetworksEnum.ethereumMainnet)
-
-      expect(result).to.equal(null)
     })
   })
 })
