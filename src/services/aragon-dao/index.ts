@@ -42,6 +42,12 @@ const DaoSyncService: IService = {
       await ProposalMetrics.proposalTokenVotingMetrics({ proposalIndex, pluginAddress, network })
     })
 
+    await RabbitMQHelper.process(EnumQueueName.proposalTokenVotingMetrics, 10, async job => {
+      const { proposalIndex, pluginAddress, network } = job.params as IQueueProposalMetrics
+
+      await ProposalMetrics.proposalTokenVotingMetrics({ proposalIndex, pluginAddress, network })
+    })
+
     logger.info('DaoSyncService service started', llo({}))
   },
 
