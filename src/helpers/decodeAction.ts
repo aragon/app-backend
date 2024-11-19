@@ -274,10 +274,23 @@ class DecodeActions {
     if (decodedData.textSignature !== KnownActionSignature.MetadataUpdate) {
       return null
     }
+
+    const [pluginMetadata, daoMetadata] = await Promise.all([
+      Models.Dao.findByAddress(action.to, document.network!),
+      Models.Plugin.findByAddress(action.to, document.network!),
+    ])
+
+    if (!!pluginMetadata && !!daoMetadata) {
+      return null
+    }
+
+    const metadataOriginKey = document.daoAddress === action.to ? 'daoAddress' : 'pluginAddress'
+
     const existingMetadata = await Models.LogMetadata.getMetadataAtBlockNumber(
-      document.daoAddress!,
+      action.to,
       document.blockNumber!,
       document.network!,
+      metadataOriginKey,
     )
 
     const ipfsUrl = Web3Helper.extractMetadataUri(decodedData.parameters[0].value)
@@ -429,7 +442,7 @@ class DecodeActions {
       ),
     )
 
-    if (contractDetails && contractDetails.length > 0) {
+    if (contractDetails && contractDetails.length > 0 && contractDetails[0].SourceCode !== '') {
       const results = ContractNetspecHelper.parseNetspec(
         contractDetails[0].SourceCode,
         contractDetails[0].ContractName,
