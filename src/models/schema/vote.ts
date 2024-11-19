@@ -264,6 +264,8 @@ export default class Vote extends Model {
         transactionHash: 1,
         blockNumber: 1,
         blockTimestamp: 1,
+        daoAddress: 1,
+        pluginAddress: 1,
         network: 1,
         member: 1,
         proposalIndex: 1,
@@ -289,7 +291,6 @@ export default class Vote extends Model {
       this.aggregate([
         { $match: filter },
         { $match: { ...(extraParams.highlightUser ? { memberAddress: { $ne: extraParams.highlightUser } } : {}) } },
-        ...query,
         { $count: 'totalRecords' },
       ]),
     ])
