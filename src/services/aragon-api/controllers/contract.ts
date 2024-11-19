@@ -1,58 +1,20 @@
-import { type IContractAbi, type NetworksEnum } from '@types'
-import ProxyContract from '@helpers/proxyContract'
-import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
-import Etherscan from '@helpers/etherscan'
-import * as ContractNetspecHelper from '@helpers/contractNetspec'
+import { type NetworksEnum, EnumQueueName } from '@types'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 const ContractController = {
   getContractDetails: async ({ network, address }: { network: NetworksEnum; address: string }) => {
-    const response: IContractAbi = {
-      implementationAddress: null,
-      name: '',
-      functions: [],
-    }
-
-    let implementationAddress = await ProxyContract.getImplementationAddress(address, network)
-
-    if (!implementationAddress) {
-      implementationAddress = address
-    } else {
-      response.implementationAddress = implementationAddress
-    }
-
-    const contractDetails = await retryRequest(async () =>
-      BottleneckModule.getNodeLimiter(network)!.schedule(
-        async () =>
-          Etherscan.fetchContractSourceCode({
-            contractAddress: implementationAddress,
-            network,
-          }),
-        { retryRequest: true },
-      ),
-    )
-
-    if (contractDetails && contractDetails.length > 0) {
-      const results = ContractNetspecHelper.parseNetspec(
-        contractDetails[0].SourceCode,
-        contractDetails[0].ContractName,
-        JSON.parse(contractDetails[0].ABI),
+    try {
+      return await RabbitMQHelper.sendMessage(
+        EnumQueueName.contractInfo,
+        {
+          id: `contractInfo-${network}-${address}`,
+          params: { network, address },
+        },
+        { waitResponse: true, timeout: 15000 },
       )
-
-      if (results?.length) {
-        response.name = contractDetails[0].ContractName
-        // adjust the component stuffs
-        response.functions = results.filter(
-          (action: any) =>
-            action.type === 'function' &&
-            action.stateMutability !== 'view' &&
-            action.stateMutability !== 'pure' &&
-            action.stateMutability !== 'constructor',
-        )
-      }
+    } catch (e) {
+      return { error: true }
     }
-
-    return response
   },
 }
 

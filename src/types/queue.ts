@@ -8,12 +8,18 @@ export enum EnumQueueName {
   proposalTokenVotingMetrics = 'proposal.token.metrics',
   plugins = 'log.plugins',
   logDao = 'log.dao',
+  contractInfo = 'contract.info',
 }
 
 export interface IQueueDao {
   address: HexAddress
   network: NetworksEnum
   blockNumber?: number
+}
+
+export interface IQueueContractInfo {
+  address: HexAddress
+  network: NetworksEnum
 }
 
 export interface IQueueProposalMetrics {

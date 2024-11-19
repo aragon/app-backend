@@ -1,10 +1,18 @@
 import logger from '@logger'
-import { EnumConnection, EnumQueueName, type IQueueDao, type IQueueProposalMetrics, type IService } from '@types'
+import {
+  EnumConnection,
+  EnumQueueName,
+  type IQueueContractInfo,
+  type IQueueDao,
+  type IQueueProposalMetrics,
+  type IService,
+} from '@types'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
+import getContractInfo from '@services/aragon-dao/contractInfo'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
@@ -40,6 +48,11 @@ const DaoSyncService: IService = {
       const { proposalIndex, pluginAddress, network } = job.params as IQueueProposalMetrics
 
       await ProposalMetrics.proposalTokenVotingMetrics({ proposalIndex, pluginAddress, network })
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.contractInfo, 10, async (job: any) => {
+      const { address, network } = job.params as IQueueContractInfo
+      return await getContractInfo(network, address)
     })
 
     logger.info('DaoSyncService service started', llo({}))
