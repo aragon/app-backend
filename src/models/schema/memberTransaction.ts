@@ -299,7 +299,6 @@ export default class MemberTransaction extends Model {
       this.aggregate(aggQuery),
       this.aggregate([
         ...(Object.values(filter).length > 0 ? [{ $match: filter }] : []),
-        ...query,
         { $count: 'totalRecords' },
       ]).then(results => (results[0] ? results[0].totalRecords : 0)),
     ])
