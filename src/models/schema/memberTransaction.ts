@@ -111,8 +111,7 @@ export default class MemberTransaction extends Model {
   }
 
   static getEntityId(params: IMemberTransactionIdParams) {
-    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.address}`
-    return entityId
+    return `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.address}`
   }
 
   static async findExistingLog(params: IMemberTransactionIdParams, tOpts?: SaveOptions) {
