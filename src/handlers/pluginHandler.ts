@@ -267,6 +267,7 @@ export const PluginHandler = {
       build: plugin.build,
       permissions: plugin.permissions,
       subdomain: plugin.subdomain,
+      tokenAddress: plugin.tokenAddress,
     }
 
     const pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)

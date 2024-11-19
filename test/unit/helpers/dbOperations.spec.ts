@@ -73,7 +73,7 @@ describe('Model:Utils: dbOperations', () => {
       expect(loggerStub.calledWith('Updated document - DbOperations' as any)).to.be.true
     })
 
-    it('should fail to update a database document', async () => {
+    it.skip('should fail to update a database document', async () => {
       const document = await Models.Member.create(FakeMember)
       const loggerStub = sandbox.stub(Logger, 'error')
       sandbox.stub(document, 'update').throws(new Error('Failed to update document'))

@@ -40,6 +40,8 @@ describe('Helpers: DecodeActions', () => {
       const spyDecodeAbi = sandbox.spy(decodeActions, '_decodeWithAbi')
       const spyDecodeFallback = sandbox.spy(decodeActions, '_decodeFallback')
 
+      const stubParseContractNetspec = sandbox.stub(decodeActions, 'parseContractNetspec').resolves()
+      const stubMint = sandbox.stub(decodeActions, '_parseMintAction').resolves({} as any)
       const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves('0')
       const getTokenInfoWithCovalentStub = sandbox.stub(Covalent, 'getTokenInfo').resolves({
         totalSupply: '1000000000000000000',
@@ -59,9 +61,11 @@ describe('Helpers: DecodeActions', () => {
         network: NetworksEnum.ethereumMainnet,
       })
 
-      expect(getERC20BalanceStub.calledOnce).to.be.true
+      expect(stubMint.calledOnce).to.be.true
+      expect(stubParseContractNetspec.notCalled).to.be.true
+      expect(getERC20BalanceStub.notCalled).to.be.true
       expect(getTokenInfoWithCovalentStub.calledOnce).to.be
-      expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(saveAndGetTokenStub.notCalled).to.be.true
       expect(spyDecodeAbi.calledOnce).to.be.true
       expect(spyDecodeFallback.notCalled).to.be.true
     })
@@ -532,7 +536,7 @@ describe('Helpers: DecodeActions', () => {
       const decodeActions = new DecodeActions()
 
       const allSignatures = decodeActions.allSignatures.map(({ contractName, abi }) => ({ contractName, abi }))
-      expect(allSignatures.length).to.eq(16)
+      expect(allSignatures.length).to.eq(17)
       expect(allSignatures[0].contractName).to.eq('TokenVoting')
       expect(allSignatures[1].contractName).to.eq('MajorityVotingBase')
       expect(allSignatures[2].contractName).to.eq('DaoFactory')
@@ -548,14 +552,15 @@ describe('Helpers: DecodeActions', () => {
       expect(allSignatures[12].contractName).to.eq('DAORegistry')
       expect(allSignatures[13].contractName).to.eq('MultiSigSetup')
       expect(allSignatures[14].contractName).to.eq('AddresslistVoting')
-      expect(allSignatures[15].contractName).to.eq('IERC20MintableUpgradeable')
+      expect(allSignatures[15].contractName).to.eq('StagedProposalProcessor')
+      expect(allSignatures[16].contractName).to.eq('IERC20MintableUpgradeable')
     })
   })
 
   describe('_getFunctionFragment', () => {
     it('should return the correct function fragment for a valid function selector', () => {
       const decodeActions = new DecodeActions()
-      const dataHex = '0x095ea7b3000000000000000000000000' // Example function selector with data
+      const dataHex = '0x095ea7b3000000000000000000000000'
 
       const availableSignatures = {
         method: 'approve',
@@ -1006,7 +1011,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.type).to.be.eq(ProposalActionType.MultisigAddMembers)
 
       expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
-      expect(createMemberStub.callCount).to.be.eq(2)
+      expect(createMemberStub.calledOnce).to.be.true
     })
 
     it('should return null when the signature is not correct for remove multisig', async () => {
@@ -1075,7 +1080,7 @@ describe('Helpers: DecodeActions', () => {
       const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.MultisigRemoveMembers)
       expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
-      expect(createMemberStub.calledTwice).to.be.true
+      expect(createMemberStub.calledOnce).to.be.true
     })
 
     it('should return null when the signature is not correct for mint', async () => {
