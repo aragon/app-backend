@@ -859,7 +859,6 @@ export default class Proposal extends Model {
       {
         $match: filter,
       },
-      ...query,
       {
         $project: {
           _id: 0,
