@@ -148,6 +148,7 @@ describe('Helpers:ProxyContractHelper', () => {
         getCode: getCodeStub,
       }
       sandbox.stub(ProviderModule, 'getProvider').callsFake(_ => providerStub as any)
+      sandbox.stub(ProxyContractHelper, 'getAddressFromStorage').resolves(`0x${hexAddress}`)
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.equal(getAddress(`0x${hexAddress}`))
@@ -171,6 +172,7 @@ describe('Helpers:ProxyContractHelper', () => {
         getCode: getCodeStub,
       }
       sandbox.stub(ProviderModule, 'getProvider').callsFake(_ => providerStub as any)
+      sandbox.stub(ProxyContractHelper, 'getAddressFromStorage').resolves(`0x${hexAddress}`)
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.equal(getAddress(`0x${hexAddress}`))
