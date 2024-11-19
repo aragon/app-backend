@@ -25,7 +25,9 @@
       "@rates/*": ["./src/services/aragon-rates/*"],
       "@tools/*": ["./tools/*"],
       "@test/*": ["./test/*"],
-      "@aragonContracts/*": ["./src/services/aragonContracts/*"]
+      "@aragonContracts/*": ["./src/services/aragonContracts/*"],
+      "@handlers/*": ["./src/handlers/*"],
+      "@plugins/*": ["./src/services/aragon-plugins/*"]
     },
     "esModuleInterop": true,
     "resolveJsonModule": true

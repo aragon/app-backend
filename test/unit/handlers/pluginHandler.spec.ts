@@ -1,15 +1,16 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { PluginHandler } from '@indexer/handlers/pluginHandler'
+import { PluginHandler } from '@handlers/pluginHandler'
 import { Models } from '@dbModels'
-import { IEventLogPluginType, IPluginRawStatus, IPluginStatus } from '@types'
+import { IEventLogPluginType, IPluginInterfaceType, IPluginRawStatus, IPluginStatus } from '@types'
 import { ListLogPluginSetupProcessor } from '@test/mock/fakeLogPluginSetupProcessor'
 import { ListLogPluginRepo } from '@test/mock/fakeLogPluginRepo'
 import DbOperations from '@models/utils/dbOperations'
 import logger from '@logger'
 import ProxyContractHelper from '@helpers/proxyContract'
 import Web3Helper from '@helpers/web3'
+import PluginDetector from '@helpers/pluginDetector'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -60,17 +61,30 @@ describe('Indexer:Plugin', () => {
   describe('_createPlugin', () => {
     it('should not update a plugin if it does not exist', async () => {
       const stubLogger = sandbox.stub(logger, 'warn')
-      await PluginHandler.createPlugin(ListLogPluginSetupProcessor[2] as any)
-
-      expect(stubLogger.calledOnce).to.be.true
+      const findExistingLogStub = sandbox.stub(Models.Plugin, 'findExistingLog').resolves(true)
+      await PluginHandler._createPlugin({
+        ...ListLogPluginSetupProcessor[2],
+        address: '0x00',
+      } as any)
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(stubLogger.calledOnce).to.be.false
     })
 
     it('_createPlugin', async () => {
       const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
       const spyCreateDocument = sandbox.spy(DbOperations, 'createDocument')
 
+      const detectPluginTypeStub = sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+      })
+
+      const logVersboseStub = sandbox.stub(logger, 'verbose')
+
       await PluginHandler._createPlugin(rawPlugin as any)
 
+      expect(detectPluginTypeStub.calledOnce).to.be.true
       expect(spyFindExistingLog.calledOnce).to.be.true
       expect(
         spyFindExistingLog.calledWith({
@@ -80,6 +94,7 @@ describe('Indexer:Plugin', () => {
         }),
       ).to.be.true
       expect(spyCreateDocument.calledOnce).to.be.true
+      expect(logVersboseStub.calledOnceWith('Created new document - New Create Plugin' as any)).to.be.true
 
       const createdPlugin = await Models.Plugin.findOne({
         address: ListLogPluginSetupProcessor[1].pluginAddress,

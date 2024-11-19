@@ -12,12 +12,12 @@ import {
   type IAggPluginInclude,
   type IAggPluginParams,
   type IAggPluginProjectFields,
+  type IAggProposalParams,
   type IAggSettingParams,
   type IAggSettingProjectFields,
   type IAggTokenParams,
   type IAggTokenProjectFields,
   ISettingStatus,
-  type NetworksEnum,
 } from '@types'
 
 export const AggregationQueryHelper = {
@@ -127,6 +127,108 @@ export const AggregationQueryHelper = {
     }
   },
 
+  proposals: ({ proposalIndex, pluginAddress, network, as = 'proposals' }: IAggProposalParams) => {
+    const letVariables: any = {}
+    const matchConditions: any[] = []
+
+    if (proposalIndex) {
+      letVariables.proposalIndex = proposalIndex
+      matchConditions.push({ $in: ['$proposalIndex', '$$proposalIndex'] })
+    }
+
+    if (pluginAddress) {
+      letVariables.pluginAddress = pluginAddress
+      matchConditions.push({ $in: ['$pluginAddress', '$$pluginAddress'] })
+    }
+
+    if (network) {
+      letVariables.network = network
+      matchConditions.push({ $eq: ['$network', '$$network'] })
+    }
+
+    const pipeline: any[] = []
+
+    if (matchConditions.length > 0) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $and: matchConditions,
+          },
+        },
+      })
+    }
+
+    pipeline.push(
+      AggregationQueryHelper.token({ address: '$settings.tokenAddress', network: '$$network' }, 'token', {
+        _id: 0,
+        network: 1,
+        address: 1,
+        symbol: 1,
+        name: 1,
+        decimals: 1,
+        logo: 1,
+        type: 1,
+        totalSupply: 1,
+      }),
+      {
+        $addFields: {
+          settings: {
+            $mergeObjects: [
+              '$settings',
+              { token: { $arrayElemAt: ['$token', 0] } },
+              { historicalMembersCount: '$snapshot.membersCount' },
+              { historicalTotalSupply: '$snapshot.totalSupply' },
+            ],
+          },
+        },
+      },
+      {
+        $addFields: {
+          token: '$$REMOVE',
+        },
+      },
+    )
+
+    pipeline.push({
+      $project: {
+        _id: 0,
+        id: 1,
+        transactionHash: 1,
+        blockNumber: 1,
+        blockTimestamp: 1,
+        proposalIndex: 1,
+        stageIndex: 1,
+        lastStageTransition: 1,
+        creator: 1,
+        parentProposal: 1,
+        pluginAddress: 1,
+        pluginSubdomain: 1,
+        daoAddress: 1,
+        startDate: 1,
+        endDate: 1,
+        metadataUri: 1,
+        title: 1,
+        description: 1,
+        summary: 1,
+        resources: 1,
+        executed: 1,
+        actions: 1,
+        media: 1,
+        metrics: 1,
+        settings: 1,
+      },
+    })
+
+    return {
+      $lookup: {
+        from: 'Proposal',
+        let: letVariables,
+        pipeline,
+        as,
+      },
+    }
+  },
+
   pluginRepo: (pluginSetupRepoAddress: string, network: string, as: string = 'pluginRepo') => {
     return {
       $lookup: {
@@ -150,13 +252,18 @@ export const AggregationQueryHelper = {
   },
 
   plugin: (
-    { daoAddress, pluginAddress, network, status }: IAggPluginParams,
+    { addresses, daoAddress, pluginAddress, network, status }: IAggPluginParams,
     as: string = 'plugin',
     project?: IAggPluginProjectFields,
     includeSubDocuments?: IAggPluginInclude,
   ) => {
     const letVariables: any = {}
     const matchConditions: any[] = []
+
+    if (addresses && addresses.length > 0) {
+      letVariables.addresses = addresses
+      matchConditions.push({ $in: ['$address', '$$addresses'] })
+    }
 
     if (pluginAddress) {
       letVariables.pluginAddress = pluginAddress
@@ -204,6 +311,7 @@ export const AggregationQueryHelper = {
             minParticipation: 1,
             minDuration: 1,
             minProposerVotingPower: 1,
+            stages: 1,
           },
         ),
         // Fetch token only if settings are included and plugin has tokenAddress
@@ -527,78 +635,5 @@ export const AggregationQueryHelper = {
         as,
       },
     }
-  },
-
-  memberOrDaoInfo: ({ address, network }: { address: HexAddress; network?: NetworksEnum }) => {
-    return [
-      AggregationQueryHelper.member({ memberAddress: address }, 'memberInfo', { address: 1, ens: 1, avatar: 1 }),
-      {
-        $addFields: {
-          creatorAddress: {
-            $cond: {
-              if: { $gt: [{ $size: '$memberInfo' }, 0] },
-              then: {
-                address: { $arrayElemAt: ['$memberInfo.address', 0] },
-                ens: { $arrayElemAt: ['$memberInfo.ens', 0] },
-                avatar: { $arrayElemAt: ['$memberInfo.avatar', 0] },
-              },
-              else: '$$REMOVE', // Remove field if member is not found
-            },
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: 'Dao',
-          let: { daoAddress: address, network },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [{ $eq: ['$address', '$$daoAddress'] }, { $eq: ['$network', '$$network'] }],
-                },
-              },
-            },
-            {
-              $project: { address: 1, ens: 1, avatar: 1 },
-            },
-          ],
-          as: 'daoInfo',
-        },
-      },
-      {
-        $addFields: {
-          creatorAddress: {
-            $cond: {
-              if: {
-                $and: [{ $lte: [{ $size: '$memberInfo' }, 0] }, { $gt: [{ $size: '$daoInfo' }, 0] }],
-              },
-              then: {
-                address: { $arrayElemAt: ['$daoInfo.address', 0] },
-                ens: { $arrayElemAt: ['$daoInfo.ens', 0] },
-                avatar: { $arrayElemAt: ['$daoInfo.avatar', 0] },
-              },
-              else: {
-                $cond: {
-                  if: { $lte: [{ $size: '$memberInfo' }, 0] },
-                  then: {
-                    address,
-                    ens: null,
-                    avatar: null,
-                  },
-                  else: '$creatorAddress', // Retain existing creatorAddress if already set
-                },
-              },
-            },
-          },
-        },
-      },
-      {
-        $addFields: {
-          memberInfo: '$$REMOVE',
-          daoInfo: '$$REMOVE',
-        },
-      },
-    ]
   },
 }

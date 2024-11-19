@@ -14,6 +14,7 @@ import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
 import { PluginList } from '@test/mock/fakePlugins'
 import MemberBalance from '@models/schema/memberBalance'
 import MemberMetrics from '@models/schema/memberMetrics'
+import { IPluginInterfaceType } from '@types'
 
 describe('Model: Member', () => {
   let sandbox: SinonSandbox
@@ -38,6 +39,7 @@ describe('Model: Member', () => {
     rawPlugin = {
       ...PluginList[0],
       daoAddress: rawDaoMapping.daoAddress,
+      interfaceType: IPluginInterfaceType.multisig,
     } as any
 
     rawMemberBalance = {

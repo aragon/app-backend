@@ -73,7 +73,7 @@ const PairDataModule = {
       daoAddress?: HexAddress
       memberAddress?: HexAddress
       pluginAddress?: HexAddress
-      proposalIndex?: number
+      proposalIndex?: string
     },
   >(
     extraParams: T,

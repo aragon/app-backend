@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { NetworksEnum } from '@types'
+import { IPluginInterfaceType, NetworksEnum } from '@types'
 import Dao from '@models/schema/dao'
 import { Models } from '@dbModels'
 import { PluginList } from '@test/mock/fakePlugins'
@@ -175,6 +175,7 @@ describe('Model: Dao', () => {
 
       const fakePlugin = {
         ...PluginList[0],
+        interfaceType: IPluginInterfaceType.multisig,
       }
 
       fakePlugin.daoAddress = fakeDaos[0].address

@@ -11,7 +11,7 @@ export const ProposalMetrics = {
     pluginAddress,
     network,
   }: {
-    proposalIndex: number
+    proposalIndex: string
     pluginAddress: string
     network: string
   }) => {
@@ -49,7 +49,7 @@ export const ProposalMetrics = {
     pluginAddress,
     network,
   }: {
-    proposalIndex: number
+    proposalIndex: string
     pluginAddress: string
     network: string
   }) => {

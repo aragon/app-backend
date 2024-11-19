@@ -2,8 +2,8 @@ import {
   type ENS,
   type HexAddress,
   type IAlchemyTokenBalance,
-  type IDaoMetadata,
   type ILogInfo,
+  type IMetadata,
   type IProposalMetadata,
   ITransactionType,
   type NetworksEnum,
@@ -27,7 +27,6 @@ import BottleneckModule from '@modules/bottleneck'
 import { ENSRegistry } from '@artifacts/ENSRegistry'
 import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
-import { Multisig } from '@artifacts/Multisig'
 import { ProxyToken } from '@modules/proxyToken'
 import BigNumber from 'bignumber.js'
 import utils from '@helpers/utils'
@@ -56,6 +55,7 @@ const Web3Helper = {
 
   handleAlchemyCrazyBalance: (amount: number | string, decimals: number = 0, tx?: any): string => {
     try {
+      // TODO: 5.999999999999993e-20, 2e-18, 1.2e-20
       if (typeof amount === 'string' && amount.includes('0x')) {
         return ethers.formatUnits(amount, decimals)
       } else if (utils.isScientificNumber(amount)) {
@@ -271,11 +271,11 @@ const Web3Helper = {
   parseInfoLog(txLog: Log | any, eventName: string, network: NetworksEnum): ILogInfo {
     return {
       network,
-      address: txLog.address,
-      blockNumber: txLog.blockNumber,
+      address: ethers.getAddress(txLog.address),
+      blockNumber: utils.parseNumber(txLog.blockNumber),
       transactionHash: txLog.transactionHash || txLog.hash,
-      transactionIndex: txLog.transactionIndex,
-      logIndex: txLog.index || txLog.logIndex,
+      transactionIndex: utils.parseNumber(txLog.transactionIndex),
+      logIndex: utils.parseNumber(txLog.index ?? txLog.logIndex),
       eventName,
     }
   },
@@ -339,12 +339,14 @@ const Web3Helper = {
     }
   },
 
-  parseDaoMetadata(metadata: IDaoMetadata): IDaoMetadata {
-    const parsedMetadata: IDaoMetadata = {
+  parseDaoMetadata(metadata: IMetadata): IMetadata {
+    const parsedMetadata: IMetadata = {
       name: null,
       description: null,
       avatar: null,
       links: [],
+      stageNames: [],
+      processKey: null,
     }
 
     if (!metadata) {
@@ -365,6 +367,14 @@ const Web3Helper = {
 
     if (metadata.links && metadata.links.length > 0) {
       parsedMetadata.links = metadata.links
+    }
+
+    if (metadata.stageNames && metadata.stageNames.length > 0) {
+      parsedMetadata.stageNames = metadata.stageNames
+    }
+
+    if (metadata.processKey) {
+      parsedMetadata.processKey = metadata.processKey
     }
 
     return parsedMetadata
@@ -433,6 +443,35 @@ const Web3Helper = {
       return
     }
     return '0x' + number?.toString(16)
+  },
+
+  async getBlockNumber(blockNumber: string | number | undefined, network: NetworksEnum): Promise<number> {
+    if (blockNumber === 'latest' || blockNumber === undefined) {
+      try {
+        const provider = ProviderModule.getProvider(network)!
+
+        return await retryRequest(async () =>
+          BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlockNumber()),
+        )
+      } catch (error) {
+        logger.error('Error getBlockNumber', llo({ blockNumber, network, error }))
+        return -1
+      }
+    } else {
+      return Number(blockNumber)
+    }
+  },
+
+  async getBlock(blockNumber: number, network: NetworksEnum) {
+    try {
+      const provider = ProviderModule.getProvider(network)!
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber)),
+      )
+    } catch (error) {
+      logger.error('Error getBlock', llo({ blockNumber, network, error }))
+      return null
+    }
   },
 
   async getBlockTimestamp(blockNumber: number, network: NetworksEnum): Promise<number> {
@@ -692,26 +731,6 @@ const Web3Helper = {
     }
 
     return { txReceipt, events }
-  },
-
-  async getProposalMultisig(
-    pluginAddress: string,
-    network: NetworksEnum,
-  ): Promise<{
-    executed: boolean
-    approvals: bigint
-    allowFailureMap: bigint
-    parameters: { minApprovals: bigint; snapshotBlock: bigint; startDate: bigint; endDate: bigint }
-  } | null> {
-    const provider = ProviderModule.getProvider(network)!
-    const contract = new Contract(pluginAddress, Multisig.abi, provider)
-    try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(pluginAddress)),
-      )
-    } catch (error) {
-      return null
-    }
   },
 
   async getERC20Balance(address: string, tokenAddress: string, network: NetworksEnum): Promise<string> {

@@ -16,25 +16,45 @@ import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Setting
 
-// export class Stages {
-//   @prop({ type: () => Number, default: null })
-//   public id!: number
-//
-//   @prop({ type: () => String, default: null })
-//   public name!: string // fetch from ipfs
-//
-//   @prop({ type: () => String, default: null })
-//   public pluginIds!: HexAddress[]
-//
-//   @prop({ type: () => Boolean, default: null })
-//   public isManual!: boolean
-//
-//   @prop({ type: () => Boolean, default: null })
-//   public allowedBody!: boolean
-//
-//   @prop({ type: () => String, default: null })
-//   public proposalType!: string // Approval | Veto TODO: enum
-// }
+export class PluginSetting {
+  @prop({ type: () => String, default: null })
+  public address!: HexAddress
+
+  @prop({ type: () => Boolean, default: null })
+  public isManual!: boolean
+
+  @prop({ type: () => String, default: null })
+  public allowedBody!: HexAddress
+
+  @prop({ type: () => Number })
+  public proposalType!: number
+}
+
+export class Stages {
+  @prop({ type: () => Number })
+  public stageIndex!: number
+
+  @prop({ type: () => Number })
+  public minAdvance!: number
+
+  @prop({ type: () => Number })
+  public maxAdvance!: number
+
+  @prop({ type: () => Number })
+  public voteDuration!: number
+
+  @prop({ type: () => Number })
+  public approvalThreshold!: number
+
+  @prop({ type: () => Number })
+  public vetoThreshold!: number
+
+  @prop({ type: () => [PluginSetting], _id: false, default: [] })
+  public plugins!: PluginSetting[]
+
+  @prop({ type: () => String, default: null })
+  public name!: string
+}
 
 @modelOptions({
   schemaOptions: {
@@ -110,23 +130,8 @@ export default class Setting extends Model {
   public minProposerVotingPower!: string
 
   // SPP plugin
-  // @prop({ type: () => [Stages], _id: false, default: [] })
-  // public stages!: Stages[]
-
-  // @prop({ type: () => Number })
-  // public minAdvance!: number
-  //
-  // @prop({ type: () => Number })
-  // public maxAdvance!: number
-  //
-  // @prop({ type: () => Number })
-  // public voteDuration!: number
-  //
-  // @prop({ type: () => Number })
-  // public approvalThreshold!: number
-  //
-  // @prop({ type: () => Number })
-  // public vetoThreshold!: number
+  @prop({ type: () => [Stages], _id: false })
+  public stages!: Stages[]
 
   static async create(rawData: Partial<Setting>, tOpts?: SaveOptions) {
     if (!rawData.id) {

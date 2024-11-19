@@ -10,6 +10,7 @@ import { PluginList } from '@test/mock/fakePlugins'
 import Dao from '@models/schema/dao'
 import Plugin from '@models/schema/plugin'
 import Member from '@models/schema/member'
+import { IPluginInterfaceType } from '@types'
 
 describe('Model: DaoMemberMappings', () => {
   let sandbox: SinonSandbox
@@ -28,6 +29,7 @@ describe('Model: DaoMemberMappings', () => {
       ...(PluginList[0] as any),
       address: FakeDaoMemberMappings[0].pluginAddress,
       daoAddress: FakeDaoMemberMappings[0].daoAddress,
+      interfaceType: IPluginInterfaceType.multisig,
     }
     rawMember = {
       ...(FakeMember as any),
@@ -128,6 +130,17 @@ describe('Model: DaoMemberMappings', () => {
     })
 
     expect(result.data.length).to.eq(1)
+    expect(stubPaginateAndSort.calledTwice).to.be.true
+  })
+
+  it('should find empty transfer by member with pagination', async () => {
+    const stubPaginateAndSort = sandbox.stub(Models.DaoMemberMapping, 'aggregate').resolves([])
+    const result = await Models.DaoMemberMapping.findTransferByMemberWithPagination({
+      extraParams: { memberAddress: rawMember.address, network: rawDao.network },
+      paginationParams: { page: 1, pageSize: 10 },
+    })
+
+    expect(result.data.length).to.eq(0)
     expect(stubPaginateAndSort.calledTwice).to.be.true
   })
 })

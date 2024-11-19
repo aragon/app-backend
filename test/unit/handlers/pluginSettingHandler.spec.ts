@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
-import { PluginSettingHandler } from '@services/aragon-indexer/handlers/pluginSettingHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 
@@ -178,12 +178,15 @@ describe('Indexer: PluginSettingHandler', () => {
         logIndex: 1,
         network: NetworksEnum.ethereumMainnet,
       }
-      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        update: sandbox.stub(),
+      })
       const stubFindExistingLog = sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
       const stubFindActive = sandbox.stub(Models.Setting, 'findActive').resolves(false)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      const stubIsSupported = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
 
       await PluginSettingHandler.multisigSettingsUpdated(parsedEvent as any, info as any)
 
@@ -198,8 +201,8 @@ describe('Indexer: PluginSettingHandler', () => {
       ).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
-
       expect(getBlockTimestampStub.calledOnce).to.be.true
+      expect(stubIsSupported.calledOnce).to.be.true
     })
   })
 })

@@ -23,7 +23,7 @@ class BlockchainTransferCrawler {
   private readonly toBlock: number | string
   private readonly filter: IAlchemyTransferOptions
   private readonly stopOnError: boolean
-  private readonly logService: IEnumIndexerService | null
+  private readonly logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
   private runCount: number
   originalBatchSize: number = 0
   batchSize: number = 0
@@ -50,7 +50,7 @@ class BlockchainTransferCrawler {
     onError?: (error: Error, log?: IAlchemyTransferResponse) => void
     stopOnError?: boolean
     shutdown?: boolean
-    logService?: IEnumIndexerService
+    logService?: IEnumIndexerService | IEnumIndexerServiceStatic | null
   }) {
     this.network = opts.network
     this.filter = {
@@ -185,7 +185,7 @@ class BlockchainTransferCrawler {
     }
 
     this.crawling = false
-    logger.verbose('Finished crawling logs', llo({ crawlResult: this.crawlResult, filter: this.filter }))
+    logger.verbose('Finished crawling logs', llo({ crawlResult: this.crawlResult }))
   }
 
   async handleErrors(error: any) {
@@ -245,7 +245,7 @@ class BlockchainTransferCrawler {
     })
     return existingConfig
       ? existingConfig.lastSync
-      : config.ARAGON_SUPPORTED_BLOCK[utils.networkToAragon(this.crawlResult.network)]
+      : config.NODES[utils.networkToAragon(this.crawlResult.network)].FROM_BLOCK
   }
 
   async onSaveProgress(blockNumber: number) {

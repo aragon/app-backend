@@ -2,9 +2,16 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { EnumQueueName, IEventLogMember, IEventLogPluginType, IPluginStatus, NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  IEventLogMember,
+  IEventLogPluginType,
+  IPluginInterfaceType,
+  IPluginStatus,
+  NetworksEnum,
+} from '@types'
 import { beforeEach } from 'mocha'
-import { MultisigHandler } from '@indexer/handlers/multisigHandler'
+import { MultisigHandler } from '@handlers/multisigHandler'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
 import { RabbitMQHelper } from '@helpers/redditMQ'
@@ -19,6 +26,7 @@ describe('Indexer: MemberHandler', () => {
 
     let rawPlugin = {
       transactionHash,
+      interfaceType: IPluginInterfaceType.tokenVoting,
       blockNumber: 3,
       transactionIndex: 1,
       logIndex: 1,

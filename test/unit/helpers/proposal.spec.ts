@@ -2,8 +2,9 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
-import { NetworksEnum, IProposalType } from '@types'
+import { NetworksEnum, IPluginInterfaceType } from '@types'
 import logger from '@logger'
+import ProposalHelper from '@helpers/proposal'
 
 describe('Helpers: ProposalHelper', () => {
   let sandbox: SinonSandbox
@@ -33,49 +34,33 @@ describe('Helpers: ProposalHelper', () => {
   describe('getProposal', () => {
     it('should call getProposalTokenVoting when proposalType is tokenVoting', async () => {
       const mockParams = {
+        plugin: {
+          address: '0xpluginAddress',
+          interfaceType: IPluginInterfaceType.tokenVoting,
+        },
         proposalIndex: 1,
-        pluginAddress: '0xpluginAddress',
-        proposalType: IProposalType.tokenVoting,
         network: NetworksEnum.ethereumMainnet,
       }
 
-      const getProposalTokenVotingStub = sandbox.stub().resolves({})
-      const { default: ProposalHelper } = proxyquire.noCallThru()('@helpers/proposal', {
-        '@helpers/retryRequest': {
-          retryRequest: (fn: any) => fn(),
-        },
-        ethers: {
-          Contract: function () {
-            return { getProposal: getProposalTokenVotingStub }
-          },
-        },
-      })
+      const getProposalTokenVotingStub = sandbox.stub(ProposalHelper, 'getProposalTokenVoting').resolves(true as any)
 
-      await ProposalHelper.getProposal(mockParams)
+      await ProposalHelper.getProposal(mockParams as any)
       expect(getProposalTokenVotingStub.calledOnce).to.be.true
     })
 
     it('should call getProposalMultisig when proposalType is multisig', async () => {
       const mockParams = {
+        plugin: {
+          address: '0xpluginAddress',
+          interfaceType: IPluginInterfaceType.multisig,
+        },
         proposalIndex: 1,
-        pluginAddress: '0xpluginAddress',
-        proposalType: IProposalType.multisig,
         network: NetworksEnum.ethereumMainnet,
       }
 
-      const getProposalMultisigStub = sandbox.stub().resolves({})
-      const { default: ProposalHelper } = proxyquire.noCallThru()('@helpers/proposal', {
-        '@helpers/retryRequest': {
-          retryRequest: (fn: any) => fn(),
-        },
-        ethers: {
-          Contract: function () {
-            return { getProposal: getProposalMultisigStub }
-          },
-        },
-      })
+      const getProposalMultisigStub = sandbox.stub(ProposalHelper, 'getProposalMultisig').resolves(true as any)
 
-      await ProposalHelper.getProposal(mockParams)
+      await ProposalHelper.getProposal(mockParams as any)
       expect(getProposalMultisigStub.calledOnce).to.be.true
     })
   })

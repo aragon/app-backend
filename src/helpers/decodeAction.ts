@@ -36,6 +36,7 @@ import {
   PluginRepoFactory,
   PluginRepoRegistry,
   TokenVoting,
+  StagedProposalProcessor,
 } from '@src/aragonContracts'
 
 import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
@@ -45,7 +46,6 @@ import { ERC721 } from '@artifacts/ERC721'
 import { ERC1155 } from '@artifacts/ERC1155'
 import Utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
-import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -142,9 +142,8 @@ class DecodeActions {
     }
 
     const contractNetspec = await this.parseContractNetspec(decoded.function, action.to, document.network!)
-    logger.info('ContractNetspec', llo({ contractNetspec }))
 
-    if (contractNetspec) {
+    if (contractNetspec?.inputs) {
       decoded.notice = contractNetspec.notice
       decoded.contract = contractNetspec.contractName
       decoded.parameters = decoded.parameters.map((param, index) => {
@@ -176,7 +175,12 @@ class DecodeActions {
     }
 
     const [currentBalance, tokenInfo, token] = await Promise.all([
-      Web3Helper.getERC20Balance(receiver, action.to, document.network!),
+      Web3Helper.getTokenBalanceAtBlock({
+        tokenAddress: action.to,
+        address: receiver,
+        network: document.network!,
+        blockNumber: document.blockNumber!,
+      }),
       Covalent.getTokenInfo(action.to, document.network!, document.blockNumber),
       ProxyToken.saveAndGetToken(action.to, document.network!),
     ])
@@ -189,7 +193,7 @@ class DecodeActions {
         address: receiver,
         ens: member?.ens,
         currentBalance: currentBalance.toString(),
-        newBalance: decodedData.parameters[1].value.toString(),
+        newBalance: (BigInt(decodedData.parameters[1].value) + BigInt(currentBalance)).toString(),
       },
       totalSupply: tokenInfo?.totalSupply,
       holdersCount: tokenInfo?.totalHolders,
@@ -209,23 +213,25 @@ class DecodeActions {
       return null
     }
 
-    const currentMembers = await Models.DaoMemberMapping.findAllMembersOfPlugin({
-      pluginAddress: document.pluginAddress!,
-      network: document.network!,
-    })
+    const [membersInfo, currentMembersInfo] = await Promise.all([
+      Promise.all(
+        decodedData.parameters[0].value.map(async (address: HexAddress) => {
+          const member = await ProxyMember.createMember(address)
+          return { address: member.address, ens: member.ens, avatar: member.avatar }
+        }),
+      ),
+      Models.DaoMemberMapping.findAllMembersOfPlugin({
+        pluginAddress: document.pluginAddress!,
+        network: document.network!,
+      }),
+    ])
 
     return {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigAddMembers,
-      members: decodedData.parameters[0].value.map(async (address: HexAddress) => {
-        const member = await ProxyMember.createMember(address)
-        return { address: member.address, ens: member.ens, avatar: member.avatar }
-      }),
-      currentMembers: currentMembers.map(async (memberInfo: DaoMemberMapping) => {
-        const member = await ProxyMember.createMember(memberInfo.memberAddress)
-        return { address: member.address, ens: member.ens, avatar: member.avatar }
-      }),
+      members: membersInfo,
+      currentMembers: currentMembersInfo.length,
     }
   }
 
@@ -238,23 +244,25 @@ class DecodeActions {
       return null
     }
 
-    const currentMembers = await Models.DaoMemberMapping.findAllMembersOfPlugin({
-      pluginAddress: document.pluginAddress,
-      network: document.network,
-    })
+    const [membersInfo, currentMembersInfo] = await Promise.all([
+      Promise.all(
+        decodedData.parameters[0].value.map(async (address: HexAddress) => {
+          const member = await ProxyMember.createMember(address)
+          return { address: member.address, ens: member.ens, avatar: member.avatar }
+        }),
+      ),
+      Models.DaoMemberMapping.findAllMembersOfPlugin({
+        pluginAddress: document.pluginAddress!,
+        network: document.network!,
+      }),
+    ])
 
     return {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigRemoveMembers,
-      members: decodedData.parameters[0].value.map(async (address: HexAddress) => {
-        const member = await ProxyMember.createMember(address)
-        return { address: member.address, ens: member.ens, avatar: member.avatar }
-      }),
-      currentMembers: currentMembers.map(async (memberInfo: DaoMemberMapping) => {
-        const member = await ProxyMember.createMember(memberInfo.memberAddress)
-        return { address: member.address, ens: member.ens, avatar: member.avatar }
-      }),
+      members: membersInfo,
+      currentMembers: currentMembersInfo.length,
     }
   }
 
@@ -266,7 +274,7 @@ class DecodeActions {
     if (decodedData.textSignature !== KnownActionSignature.MetadataUpdate) {
       return null
     }
-    const existingMetadata = await Models.LogDaoMetadata.getMetadataAtBlockNumber(
+    const existingMetadata = await Models.LogMetadata.getMetadataAtBlockNumber(
       document.daoAddress!,
       document.blockNumber!,
       document.network!,
@@ -304,7 +312,8 @@ class DecodeActions {
       inputData: decodedData,
       type: ProposalActionType.UpdateMultiSigSettings,
       proposedSettings: {
-        minApprovals: decodedData.parameters[0].value[1],
+        minApprovals: Number(decodedData.parameters[0].value[1]),
+        onlyListed: decodedData.parameters[0].value[0],
       },
     }
   }
@@ -319,11 +328,11 @@ class DecodeActions {
       inputData: decodedData,
       type: ProposalActionType.UpdateVoteSettings,
       proposedSettings: {
-        votingMode: decodedData.parameters[0].value[0],
-        supportThreshold: decodedData.parameters[0].value[1],
-        minParticipation: decodedData.parameters[0].value[2],
-        minDuration: decodedData.parameters[0].value[3],
-        minProposerVotingPower: decodedData.parameters[0].value[4],
+        votingMode: Number(decodedData.parameters[0].value[0]),
+        supportThreshold: Number(decodedData.parameters[0].value[1]),
+        minParticipation: Number(decodedData.parameters[0].value[2]),
+        minDuration: Number(decodedData.parameters[0].value[3]),
+        minProposerVotingPower: Number(decodedData.parameters[0].value[4]),
       },
     }
   }
@@ -535,6 +544,10 @@ class DecodeActions {
       AddresslistVoting.abi,
       'AddresslistVoting',
     )
+    const sppPluginSignatures: Signature[] = this._getSignaturesFromAbi(
+      StagedProposalProcessor.abi,
+      'StagedProposalProcessor',
+    )
 
     this.allSignatures = [
       { contractName: 'TokenVoting', signatures: tokenVotingSignatures, abi: TokenVoting.abi },
@@ -552,6 +565,7 @@ class DecodeActions {
       { contractName: 'DAORegistry', signatures: daoRegistrySignatures, abi: DAORegistry.abi },
       { contractName: 'MultiSigSetup', signatures: multisigSetupSignatures, abi: MultiSigSetup.abi },
       { contractName: 'AddresslistVoting', signatures: addresslistVotingSignatures, abi: AddresslistVoting.abi },
+      { contractName: 'StagedProposalProcessor', signatures: sppPluginSignatures, abi: StagedProposalProcessor.abi },
       {
         contractName: 'IERC20MintableUpgradeable',
         signatures: erc20MintableSignatures,

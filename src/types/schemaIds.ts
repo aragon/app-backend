@@ -28,12 +28,11 @@ export interface IDaoIdParams {
   address: HexAddress
 }
 
-export interface ILogDaoMetadataIdParams {
+export interface ILogMetadataIdParams {
   network: NetworksEnum
   transactionHash: HexAddress
   transactionIndex: number
   logIndex: number
-  daoAddress: HexAddress
 }
 
 export interface IPluginRepoIdParams {
@@ -89,7 +88,7 @@ export interface IPluginIdParams {
 export interface IProposalIdParams {
   transactionHash: HexAddress
   pluginAddress: HexAddress
-  proposalIndex: number
+  proposalIndex: string
 }
 
 export interface ITokenIdParams {
@@ -101,4 +100,12 @@ export interface ITransactionIdParams {
   transactionHash: HexAddress
   category: ITransactionCategory
   network: NetworksEnum
+}
+
+export interface IDaoPermissionId {
+  network: NetworksEnum
+  daoAddress: HexAddress
+  transactionHash: HexAddress
+  transactionIndex: number
+  logIndex: number
 }

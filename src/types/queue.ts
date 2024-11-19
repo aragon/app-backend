@@ -6,22 +6,25 @@ export enum EnumQueueName {
   daoMetrics = 'dao.metrics',
   proposalMultisigMetrics = 'proposal.multisig.metrics',
   proposalTokenVotingMetrics = 'proposal.token.metrics',
+  plugins = 'log.plugins',
+  logDao = 'log.dao',
 }
 
 export interface IQueueDao {
   address: HexAddress
   network: NetworksEnum
+  blockNumber?: number
 }
 
 export interface IQueueProposalMetrics {
   network: NetworksEnum
-  proposalIndex: number
+  proposalIndex: string
   pluginAddress: HexAddress
 }
 
 export interface IQueueMessage {
   id: string
-  params: IQueueProposalMetrics | IQueueDao
+  params: IQueueProposalMetrics | IQueueDao | any
 }
 
 export interface ISendOptions {

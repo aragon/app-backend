@@ -9,6 +9,7 @@ export interface ILogInfo {
   transactionHash: HexAddress
   address: HexAddress
   eventName: string
+  interfaceType?: string
 }
 
 export interface ILogAction {

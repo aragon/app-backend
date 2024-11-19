@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
-import { MetadataHandler } from '@services/aragon-indexer/handlers/metadataHandler'
+import { MetadataHandler } from '@handlers/metadataHandler'
 import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
 import Web3Helper from '@helpers/web3'
@@ -55,7 +55,7 @@ describe('Indexer: MetadataHandler', () => {
 
       expect(fetchHelper.calledOnce).to.be.true
       expect(fetchHelper.calledWith('ipfs://fake-uri')).to.be.true
-      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Metadata Set')
+      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Dao Metadata Set')
     })
 
     it('should store DAO metadata with hash', async () => {
@@ -92,7 +92,7 @@ describe('Indexer: MetadataHandler', () => {
 
       expect(fetchHelper.calledOnce).to.be.true
       expect(fetchHelper.calledWith('ipfs://fake-uri')).to.be.true
-      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Metadata Set')
+      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Dao Metadata Set')
     })
 
     it('should _updateDaoMetadata if logDb successfully created', async () => {
@@ -131,7 +131,7 @@ describe('Indexer: MetadataHandler', () => {
 
       expect(fetchHelper.calledOnce).to.be.true
       expect(fetchHelper.calledWith('ipfs://fake-uri')).to.be.true
-      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Metadata Set')
+      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Dao Metadata Set')
       expect(createDocumentStub.calledOnce).to.be.true
       expect(updateDaoMetadataStub.calledOnce).to.be.true
     })
@@ -154,13 +154,13 @@ describe('Indexer: MetadataHandler', () => {
         update: sandbox.stub(),
       } as any)
 
-      const verboseStub = sandbox.stub(Logger, 'verbose')
+      const stubUpdate = sandbox.stub(DbOperations, 'updateDocument')
 
       await MetadataHandler._updateDaoMetadata(fakeLogDB as any)
 
+      expect(stubUpdate.calledOnce).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
-
-      expect(verboseStub.args[0][0]).to.be.eq('Updated document - Update Dao Metadata')
+      expect(findExistingLogStub.calledOnce).to.be.true
     })
   })
 })

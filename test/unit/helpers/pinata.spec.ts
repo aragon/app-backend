@@ -68,6 +68,8 @@ describe('Helpers: Pinata', () => {
         name: 'Your DAO Name',
         description: 'Description of your DAO',
         avatar: 'avatar of your DAO',
+        stageNames: ['stage1', 'stage2'],
+        processKey: 'processKey',
         links: [
           { name: 'Link 1', url: 'https://example.com/link1' },
           { name: 'Link 2', url: 'https://example.com/link2' },
@@ -114,6 +116,8 @@ describe('Helpers: Pinata', () => {
         description: null,
         avatar: null,
         links: [],
+        stageNames: [],
+        processKey: null,
       })
       expect(stubPinata.args[0][1]).to.deep.eq({
         pinataMetadata: {

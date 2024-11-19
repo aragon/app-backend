@@ -1,6 +1,5 @@
 import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 import { type ITokenType } from '@src/types/token'
-import { type IPluginSubdomain } from '@src/types/plugin'
 import { type IActionMetadata } from '@src/types/proposalAction'
 import { type ITransferSide, type ITransferType } from '@src/types/transfer'
 
@@ -50,7 +49,7 @@ export interface IMembersResponse {
   fromTxHash?: HexAddress
   address: HexAddress
   ens: ENS
-  pluginSubdomain: IPluginSubdomain
+  pluginSubdomain: string
   pluginAddress: HexAddress
   tokenAddress: HexAddress
   daoAddress: HexAddress

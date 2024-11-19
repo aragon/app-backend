@@ -54,15 +54,11 @@ const VoteRouter = {
     const params: ICanVoteParams = {
       memberAddress: ctx.query.memberAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
-      proposalIndex: Number(ctx.query.proposalIndex ?? -1),
+      proposalIndex: ctx.query.proposalIndex?.toString()!,
       network: ctx.query.network as NetworksEnum,
     }
-    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const [formattedValues] = await Promise.all([
-      ValidationSchema.validateParams(VoteSchema.canVote, params),
-      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
-    ])
+    const formattedValues = await ValidationSchema.validateParams(VoteSchema.canVote, params)
 
     ctx.body = await VoteController.canVote(formattedValues)
   },
@@ -71,15 +67,11 @@ const VoteRouter = {
     const params: ICanVoteParams = {
       memberAddress: ctx.query.memberAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
-      proposalIndex: Number(ctx.query.proposalIndex ?? -1),
+      proposalIndex: ctx.query.proposalIndex?.toString()!,
       network: ctx.query.network as NetworksEnum,
     }
-    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
 
-    const [formattedValues] = await Promise.all([
-      ValidationSchema.validateParams(VoteSchema.canVote, params),
-      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
-    ])
+    const formattedValues = await ValidationSchema.validateParams(VoteSchema.canVote, params)
 
     ctx.body = await VoteController.memberVotesInfo(formattedValues)
   },

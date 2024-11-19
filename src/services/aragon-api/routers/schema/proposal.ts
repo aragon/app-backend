@@ -4,7 +4,7 @@ import { NetworksEnum } from '@types'
 
 const ProposalSchema = {
   getExtraParams: Joi.object({
-    proposalIndex: Joi.number().integer().min(0).optional(),
+    proposalIndex: Joi.string().optional(),
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .optional(),

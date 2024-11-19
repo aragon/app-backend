@@ -5,7 +5,6 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
-  type IProposalsResponse,
   type ISettingExtraParams,
   type ISettingResponse,
   ISettingStatus,
@@ -26,14 +25,14 @@ const SettingController = {
     return result
   },
 
-  getActiveSettingByDaoId: async (daoId: HexAddress): Promise<IProposalsResponse> => {
+  getActiveSettingByDaoId: async (daoId: HexAddress): Promise<ISettingResponse> => {
     const daoDb = await Models.Dao.findByEntityId(daoId)
     assertExposable(daoDb, ErrorKeyEnum.notFound)
 
     return SettingController.getActiveSettingByDaoAddress(daoDb.address, daoDb.network)
   },
 
-  getActiveSettingByDaoAddress: async (daoAddress: HexAddress, network: NetworksEnum): Promise<IProposalsResponse> => {
+  getActiveSettingByDaoAddress: async (daoAddress: HexAddress, network: NetworksEnum): Promise<ISettingResponse> => {
     const setting = await Models.Setting.findSetting({ daoAddress, network, status: ISettingStatus.active })
     assertExposable(setting, ErrorKeyEnum.notFound)
     return setting

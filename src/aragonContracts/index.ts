@@ -13,6 +13,7 @@ import PluginRepo from './PluginRepo.json'
 import PluginRepoFactory from './PluginRepoFactory.json'
 import PluginRepoRegistry from './PluginRepoRegistry.json'
 import DAORegistry from './DAORegistry.json'
+import StagedProposalProcessor from './StagedProposalProcessor.json'
 
 export {
   AddresslistVoting,
@@ -30,4 +31,5 @@ export {
   PluginRepoFactory,
   PluginRepoRegistry,
   DAORegistry,
+  StagedProposalProcessor,
 }

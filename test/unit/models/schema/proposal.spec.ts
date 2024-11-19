@@ -73,7 +73,7 @@ describe('Model: Proposal', () => {
       proposalIndex: 2,
     })
 
-    expect(createdProposal.proposalIndex).to.eq(2)
+    expect(createdProposal.proposalIndex).to.eq('2')
   })
 
   it('Should getEntityId', async () => {
@@ -92,7 +92,7 @@ describe('Model: Proposal', () => {
       proposalIndex: 2,
     })
 
-    expect(createdProposal.proposalIndex).to.eq(2)
+    expect(createdProposal.proposalIndex).to.eq('2')
   })
 
   it('Should getEntityId', async () => {

@@ -1,7 +1,7 @@
 import Pinata, { type PinataPin, type PinataPinOptions } from '@pinata/sdk'
 import config from '@config'
 import logger from '@logger'
-import { type IDaoMetadata } from '@types'
+import { type IMetadata } from '@types'
 import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:PinataHelper' })
@@ -23,13 +23,15 @@ const PinataHelper = {
     }
   },
 
-  async uploadAndPinMetadata(metadata: IDaoMetadata): Promise<string | null> {
+  async uploadAndPinMetadata(metadata: IMetadata): Promise<string | null> {
     try {
       const body = {
         name: metadata.name || null,
         description: metadata.description || null,
         avatar: metadata.avatar || null,
         links: metadata.links || [],
+        processKey: metadata.processKey || null,
+        stageNames: metadata.stageNames || [],
       }
 
       const options: PinataPinOptions = {
