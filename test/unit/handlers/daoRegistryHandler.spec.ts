@@ -14,6 +14,7 @@ import { MetadataHandler } from '@handlers/metadataHandler'
 import { ProxyMember } from '@modules/proxyMember'
 import Utils from '@helpers/utils'
 import { RabbitMQHelper } from '@helpers/redditMQ'
+import utils from '@helpers/utils'
 
 describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
@@ -199,7 +200,20 @@ describe('Indexer: DaoRegistryHandler', () => {
       }
 
       const stubMetadata = sandbox.stub(MetadataHandler, 'metadataSet').resolves()
-      const stubFind = sandbox.stub(Web3Helper, 'findLogsByName').returns([{ parsed: 'test', txLog: 'test2' }] as any)
+      const stubFind = sandbox.stub(Web3Helper, 'findLogsByName').returns([
+        {
+          parsed: 'test',
+          txLog: {
+            network: NetworksEnum.ethereumMainnet,
+            address: '0x0000000000000000000000000000000000000000',
+            blockNumber: 122,
+            transactionHash: '0x0123123',
+            transactionIndex: 1,
+            logIndex: 1,
+            eventName: 'test',
+          },
+        },
+      ] as any)
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -207,7 +221,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         logIndex: 1,
         blockNumber: 3,
         transactionHash: '0x0123123',
-        address: '0x0123123',
+        address: '0x0000000000000000000000000000000000000000',
         eventName: 'test',
       }
 
@@ -236,7 +250,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         transactionHash: '0x0123123',
-        address: '0x0123123',
+        address: '0x0000000000000000000000000000000000000000',
         eventName: 'test',
       }
 

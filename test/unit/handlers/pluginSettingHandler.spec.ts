@@ -186,6 +186,7 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      const stubIsSupported = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
 
       await PluginSettingHandler.multisigSettingsUpdated(parsedEvent as any, info as any)
 
@@ -199,9 +200,9 @@ describe('Indexer: PluginSettingHandler', () => {
         }),
       ).to.be.true
 
-      expect(stubLogger.calledTwice).to.be.true
-
+      expect(stubLogger.calledOnce).to.be.true
       expect(getBlockTimestampStub.calledOnce).to.be.true
+      expect(stubIsSupported.calledOnce).to.be.true
     })
   })
 })
