@@ -46,7 +46,6 @@ import { ERC721 } from '@artifacts/ERC721'
 import { ERC1155 } from '@artifacts/ERC1155'
 import Utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
-import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
