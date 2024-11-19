@@ -41,13 +41,22 @@ export const getContractInfo = async (network: NetworksEnum, address: string) =>
     if (results?.length) {
       response.name = contractDetails[0].ContractName
       // adjust the component stuffs
-      response.functions = results.filter(
-        (action: any) =>
-          action.type === 'function' &&
-          action.stateMutability !== 'view' &&
-          action.stateMutability !== 'pure' &&
-          action.stateMutability !== 'constructor',
-      )
+      response.functions = results
+        .filter(
+          (action: any) =>
+            action.type === 'function' &&
+            action.stateMutability !== 'view' &&
+            action.stateMutability !== 'pure' &&
+            action.stateMutability !== 'constructor',
+        )
+        .map((_function: any) => {
+          return {
+            name: _function.name,
+            parameters: _function.inputs,
+            notice: _function.notice,
+            type: _function.type,
+          }
+        })
     }
   }
 
