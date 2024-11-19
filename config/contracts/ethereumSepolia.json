@@ -179,6 +179,26 @@
       "address": "0x2C9c5e8F559DBBEc962f7CCd295DBc4183cd2168",
       "blockNumber": 4421517,
       "deploymentTx": "0xcbfcb1b5d907ebda07123addf97f5440981347a5e70b219bcb38f667608c5901"
+    },
+    "StagedProposalProcessorRepoProxy": {
+      "address": "0xE67b8E026d190876704292442A38163Ce6945d6b",
+      "blockNumber": 6421862,
+      "deploymentTx": "0xc9eec74e6c05b9ae7ec4b30322d11e3328056d494fc98fd8ee0b32d29e15ad96"
+    },
+    "StagedProposalProcessorRepoImplementation": {
+      "address": "0x9C61D4266815bdd32f4D2885B6CF5763F449050B",
+      "blockNumber": 6415644,
+      "deploymentTx": "0xd16d911f1b49d959bb37d1b5356805c22a22481922ca798e43381b4e954e90e2"
+    },
+    "StagedProposalProcessorSetup": {
+      "address": "0xc325750d32dc0bBfc890D10B8D49BA55648eEF72",
+      "blockNumber": 6921914,
+      "deploymentTx": "0x966ea3d5d87c41a6da36c819f893459893e1dc331708904d72093d2c02cf0bc5"
+    },
+    "StagedProposalProcessorSetupImplementation": {
+      "address": "0xBCA19979925222812eDC11A31ac3e4e4cB837daB",
+      "blockNumber": 6921914,
+      "deploymentTx": "0x966ea3d5d87c41a6da36c819f893459893e1dc331708904d72093d2c02cf0bc5"
     }
   }
 }

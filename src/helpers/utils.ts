@@ -1,7 +1,8 @@
-import { type HexAddress, type IPermission, NetworksEnum } from '@types'
+import { type HexAddress, type IIndexerConfig, type IPermission, NetworksEnum } from '@types'
 import { assert } from '@errors'
 import async from 'async'
 import dayjs from '@helpers/dayjs'
+import type Plugin from '@models/schema/plugin'
 
 const Utils = {
   noop: (): number => 0,
@@ -286,6 +287,21 @@ const Utils = {
   isDecimalNumber: (value: number) => {
     const decimalPattern = /^\d+\.\d+$/
     return decimalPattern.test(value.toString())
+  },
+
+  mergeAndRemoveDuplicatePlugins: (installedPlugins: Plugin[] = [], settingPlugins: Plugin[] = []) => {
+    const mergedArray = installedPlugins.concat(settingPlugins)
+
+    // Use a Map to remove duplicates based on 'address'
+    const uniqueArray = mergedArray.filter(
+      (plugin: Plugin, index, self: Plugin[]) => index === self.findIndex(p => p.address === plugin.address),
+    )
+
+    return uniqueArray
+  },
+
+  filterArrayByProperty: (configArray: IIndexerConfig[], propertyName: string) => {
+    return configArray.filter(eventConfig => eventConfig[propertyName])
   },
 }
 

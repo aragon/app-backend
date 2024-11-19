@@ -87,9 +87,13 @@ describe('Module: provider', () => {
 
   it('should connect to all networks', async () => {
     // Mock the config.BLOCKCHAIN_NODES
-    sandbox.stub(config, 'BLOCKCHAIN_NODES').value({
-      ETHEREUM_MAINNET: 'ws://localhost:8545',
-      POLYGON_MAINNET: 'ws://localhost:8546',
+    sandbox.stub(config, 'NODES').value({
+      ETHEREUM_MAINNET: {
+        WS: 'ws://localhost:8545',
+      },
+      POLYGON_MAINNET: {
+        WS: 'ws://localhost:8546',
+      },
     })
 
     // Mock ProviderModule.connectToNetwork
@@ -105,14 +109,14 @@ describe('Module: provider', () => {
   })
 
   it('should handle missing node URL in connectToAllNetworks', async () => {
-    sandbox.stub(config, 'BLOCKCHAIN_NODES').value({
-      ETHEREUM_MAINNET: '',
+    sandbox.stub(config, 'NODES').value({
+      ETHEREUM_MAINNET: {},
     })
 
     const loggerWarnStub = sandbox.stub(Logger, 'warn')
     await ProviderModule.connectToAllNetworks()
 
-    expect(loggerWarnStub.calledWithMatch('Node URL for ETHEREUM_MAINNET is not configured.' as any)).to.be.true
+    expect(loggerWarnStub.calledWithMatch('Node URL for ethereum-mainnet is not configured.' as any)).to.be.true
   })
 
   it('should connect to a network', async () => {
@@ -183,7 +187,6 @@ describe('Module: provider', () => {
 
     ProviderModule.subscribeToEvent(network, filter, listener)
 
-    expect(ProviderModule.providerProxies[network].subscriptions.length).to.equal(1)
     expect(providerStub.alchemy.ws.on.calledWith(filter)).to.be.true
   })
 

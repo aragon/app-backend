@@ -41,3 +41,10 @@ services:
     env_file:
       - ./.env
     command: bash -c 'yarn service:aragon-transactions'
+
+  service-aragon-plugins:
+    build:
+      context: ./
+    env_file:
+      - ./.env
+    command: bash -c 'yarn service:aragon-plugins'

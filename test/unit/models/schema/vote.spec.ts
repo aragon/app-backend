@@ -231,6 +231,26 @@ describe('Model: Vote', () => {
       expect(pageSize).to.eq(10)
     })
 
+    it('should find votes with highlighted user', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Vote.findWithPagination({
+        extraParams: {
+          highlightUser: '0x284803C34A3F049f787E2562e6F8C084bdBC3193',
+          pluginAddress: '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D20',
+        },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(1)
+      expect(data[0].member.address).to.eq('0x284803C34A3F049f787E2562e6F8C084bdBC3193')
+      expect(totalRecords).to.eq(1)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
     it('should find with pagination empty result', async () => {
       const spyUtils = sandbox.spy(ModelUtils, 'paginateEmptyResponse')
       const {

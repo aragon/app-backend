@@ -4,7 +4,7 @@
 // import logger from '@logger'
 // import { ILogInfo, NetworksEnum } from '@types'
 // import { beforeEach } from 'mocha'
-// import { ProposalHandler } from '@services/aragon-indexer/handlers/proposalHandler'
+// import { ProposalHandler } from '@handlers/proposalHandler'
 // import Web3Helper from '@helpers/web3'
 // import { Models } from '@dbModels'
 // import IPFSModule from '@modules/ipfs'

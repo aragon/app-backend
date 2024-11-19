@@ -38,8 +38,9 @@ describe('Manual: Etherscan', () => {
       return contract.address
     })
 
-    config.ETHERSCAN_API.ETHEREUM_SEPOLIA.API_KEY = ''
-    config.BLOCKCHAIN_NODES.ETHEREUM_SEPOLIA = ''
+    config.NODES.ETHEREUM_SEPOLIA.ETHERSCAN_API_KEY = ''
+    config.NODES.ETHEREUM_SEPOLIA.WS = ''
+
     await ProviderModule.connectToAllNetworks()
     await Utils.wait(2000)
 
@@ -49,7 +50,7 @@ describe('Manual: Etherscan', () => {
         implementationAddress = contract
       }
 
-      const response = await EtherscanHelper.fetchContractSourceCode({
+      const response: any = await EtherscanHelper.fetchContractSourceCode({
         contractAddress: contract,
         network: NetworksEnum.ethereumSepolia,
       })

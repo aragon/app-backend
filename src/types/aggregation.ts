@@ -73,6 +73,13 @@ export interface IAggTokenProjectFields {
   lastUpdatedAt?: 1
 }
 
+export interface IAggProposalParams {
+  proposalIndex?: string | string[]
+  pluginAddress?: string | string[]
+  network?: string
+  as?: string
+}
+
 export interface IAggDaoMemberMappingParams {
   tokenAddress?: string
   memberAddress?: string
@@ -105,6 +112,7 @@ export interface IAggSettingProjectFields {
   minParticipation?: 1
   minDuration?: 1
   minProposerVotingPower?: 1
+  stages?: 1
 }
 
 export interface IAggMemberParams {
@@ -112,6 +120,7 @@ export interface IAggMemberParams {
 }
 
 export interface IAggPluginParams {
+  addresses?: string | string[]
   daoAddress?: string
   pluginAddress?: string
   network: string | undefined
@@ -130,12 +139,25 @@ export interface IAggPluginProjectFields {
   blockTimestamp?: 1
   network?: 1
   address?: 1
+  name: 1
+  description: 1
+  processKey: 1
+  links: 1
   implementationAddress?: 1
   status?: 1
+  isSupported: 1
+  interfaceType: 1
   tokenAddress?: 1
   release?: 1
   build?: 1
   subdomain?: 1
+  isProcess: 1
+  isBody: 1
+  isSubPlugin: 1
+  totalStages: 1
+  subPlugins: 1
+  stageIndex: 1
+  parentPlugin: 1
   permissions?: 1
   uninstalled?: 1
   createdAt?: 1

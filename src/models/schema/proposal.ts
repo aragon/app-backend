@@ -4,6 +4,7 @@ import {
   ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginStatus,
   type IProposalExtraParams,
   type IProposalIdParams,
   type IProposalsResponse,
@@ -14,8 +15,26 @@ import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
+import { Stages } from '@models/schema/setting'
 
 const customName = ICollectionNames.Proposal
+
+export class SubProposal {
+  @prop({ type: () => String })
+  public pluginAddress!: HexAddress
+
+  @prop({ type: () => String })
+  public proposalIndex?: string
+
+  @prop({ type: () => Number })
+  public stageIndex?: number
+
+  @prop({ type: () => String })
+  public transactionHash?: string
+
+  @prop({ type: () => Number })
+  public blockNumber?: number
+}
 
 class Resource {
   @prop({ type: () => String, default: null })
@@ -45,25 +64,25 @@ class Media {
 }
 
 class Settings {
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String })
   public id!: string
 
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String })
   public transactionHash!: HexAddress
 
-  @prop({ type: () => Number, required: true })
+  @prop({ type: () => Number })
   public blockNumber!: number
 
   @prop({ type: () => Number })
   public blockTimestamp!: number
 
-  @prop({ type: () => String, enum: NetworksEnum, required: true })
+  @prop({ type: () => String, enum: NetworksEnum })
   public network!: NetworksEnum
 
   @prop({ type: () => String, default: null })
   public daoAddress!: HexAddress
 
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, default: null })
   public pluginAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
@@ -92,6 +111,9 @@ class Settings {
 
   @prop({ type: () => Number })
   public minProposerVotingPower!: number
+
+  @prop({ type: () => [Stages], _id: false })
+  public stages!: Stages[]
 }
 
 export class ProposalExecuted {
@@ -109,7 +131,7 @@ export class ProposalExecuted {
 }
 
 export class VotesByOption {
-  @prop({ type: () => Number, required: true })
+  @prop({ type: () => Number })
   public type!: number
 
   @prop({ type: () => Number, default: 0 })
@@ -179,8 +201,8 @@ export default class Proposal extends Model {
   @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
 
-  @prop({ type: () => Number, required: true })
-  public proposalIndex!: number
+  @prop({ type: () => String, required: true })
+  public proposalIndex!: string
 
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress
@@ -233,11 +255,31 @@ export default class Proposal extends Model {
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics!: Metrics
 
+  // SPP Proposal
+  @prop({ type: () => Number })
+  public totalStages?: number
+
+  // if SubProposal
+  @prop({ type: () => SubProposal, _id: false })
+  public parentProposal!: SubProposal
+
+  @prop({ type: () => Boolean, default: false })
+  public isSubProposal?: boolean
+
+  @prop({ type: () => Number })
+  public stageIndex?: number
+
+  @prop({ type: () => Number })
+  public lastStageTransition?: number
+
+  @prop({ type: () => [SubProposal], _id: false })
+  public subProposals!: SubProposal[]
+
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
-      assert(rawData?.proposalIndex! >= 0, 'proposalIndex is required')
+      assert(!!rawData?.proposalIndex, 'proposalIndex is required')
       rawData.id = this.getEntityId({
         transactionHash: rawData?.transactionHash!,
         pluginAddress: rawData?.pluginAddress!,
@@ -263,7 +305,7 @@ export default class Proposal extends Model {
   }
 
   static async findByProposalIndex(
-    proposalIndex: number,
+    proposalIndex: string,
     pluginAddress: HexAddress,
     network: NetworksEnum,
     tOpts?: SaveOptions,
@@ -334,6 +376,141 @@ export default class Proposal extends Model {
           token: '$$REMOVE',
         },
       },
+
+      // populate plugin in settings
+      {
+        $addFields: {
+          allPluginAddresses: {
+            $reduce: {
+              input: { $ifNull: ['$settings.stages', []] },
+              initialValue: [],
+              in: {
+                $concatArrays: [
+                  '$$value',
+                  {
+                    $map: {
+                      input: { $ifNull: ['$$this.plugins', []] },
+                      as: 'stagePlugin',
+                      in: '$$stagePlugin.address',
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      AggregationQueryHelper.plugin(
+        {
+          addresses: '$allPluginAddresses',
+          network: '$network',
+          status: IPluginStatus.installed,
+        },
+        'allPluginDocs',
+        {
+          _id: 0,
+          transactionHash: 1,
+          blockTimestamp: 1,
+          address: 1,
+          implementationAddress: 1,
+          name: 1,
+          description: 1,
+          processKey: 1,
+          links: 1,
+          isSupported: 1,
+          interfaceType: 1,
+          // status: 1,
+          release: 1,
+          build: 1,
+          subdomain: 1,
+          isProcess: 1,
+          isBody: 1,
+          isSubPlugin: 1,
+          totalStages: 1,
+          subPlugins: 1,
+          stageIndex: 1,
+          parentPlugin: 1,
+        },
+        {
+          settings: true,
+          token: true,
+        },
+      ),
+      {
+        $addFields: {
+          'settings.stages': {
+            $map: {
+              input: { $ifNull: ['$settings.stages', []] },
+              as: 'stage',
+              in: {
+                $mergeObjects: [
+                  '$$stage',
+                  {
+                    plugins: {
+                      $map: {
+                        input: { $ifNull: ['$$stage.plugins', []] },
+                        as: 'stagePlugin',
+                        in: {
+                          $let: {
+                            vars: {
+                              // Remove unwanted fields from $$stagePlugin
+                              stagePluginClean: {
+                                $arrayToObject: {
+                                  $filter: {
+                                    input: {
+                                      $objectToArray: '$$stagePlugin',
+                                    },
+                                    as: 'field',
+                                    cond: {
+                                      $not: {
+                                        $in: ['$$field.k', ['isManual', 'allowedBody']],
+                                      },
+                                    },
+                                  },
+                                },
+                              },
+                              // Find the matched plugin document
+                              matchedPlugin: {
+                                $arrayElemAt: [
+                                  {
+                                    $filter: {
+                                      input: '$allPluginDocs',
+                                      as: 'pluginDoc',
+                                      cond: {
+                                        $eq: ['$$pluginDoc.address', '$$stagePlugin.address'],
+                                      },
+                                    },
+                                  },
+                                  0,
+                                ],
+                              },
+                            },
+                            in: {
+                              $mergeObjects: ['$$stagePluginClean', '$$matchedPlugin'],
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          allPluginAddresses: 0,
+          allPluginDocs: 0,
+        },
+      },
+      AggregationQueryHelper.proposals({
+        pluginAddress: '$subProposals.pluginAddress',
+        proposalIndex: '$subProposals.proposalIndex',
+        network: '$network',
+        as: 'subProposals',
+      }),
       {
         $project: {
           _id: 0,
@@ -346,6 +523,12 @@ export default class Proposal extends Model {
           pluginSubdomain: 1,
           daoAddress: 1,
           proposalIndex: 1,
+          totalStages: 1,
+          parentProposal: 1,
+          isSubProposal: 1,
+          stageIndex: 1,
+          lastStageTransition: 1,
+          subProposals: 1,
           creator: 1,
           startDate: 1,
           endDate: 1,
@@ -359,14 +542,8 @@ export default class Proposal extends Model {
           media: 1,
           settings: {
             $mergeObjects: [
+              '$settings',
               {
-                onlyListed: '$settings.onlyListed',
-                minApprovals: '$settings.minApprovals',
-                votingMode: '$settings.votingMode',
-                supportThreshold: '$settings.supportThreshold',
-                minParticipation: '$settings.minParticipation',
-                minDuration: '$settings.minDuration',
-                minProposerVotingPower: '$settings.minProposerVotingPower',
                 token: {
                   $cond: {
                     if: '$settings.token',
@@ -375,10 +552,8 @@ export default class Proposal extends Model {
                   },
                 },
               },
-              {
-                historicalMembersCount: '$snapshot.membersCount',
-                historicalTotalSupply: '$snapshot.totalSupply',
-              },
+              { historicalMembersCount: '$snapshot.membersCount' },
+              { historicalTotalSupply: '$snapshot.totalSupply' },
             ],
           },
           metrics: 1,
@@ -471,6 +646,141 @@ export default class Proposal extends Model {
           token: '$$REMOVE',
         },
       },
+
+      // populate plugin in settings
+      {
+        $addFields: {
+          allPluginAddresses: {
+            $reduce: {
+              input: { $ifNull: ['$settings.stages', []] },
+              initialValue: [],
+              in: {
+                $concatArrays: [
+                  '$$value',
+                  {
+                    $map: {
+                      input: { $ifNull: ['$$this.plugins', []] },
+                      as: 'stagePlugin',
+                      in: '$$stagePlugin.address',
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      AggregationQueryHelper.plugin(
+        {
+          addresses: '$allPluginAddresses',
+          network: '$network',
+          status: IPluginStatus.installed,
+        },
+        'allPluginDocs',
+        {
+          _id: 0,
+          transactionHash: 1,
+          blockTimestamp: 1,
+          address: 1,
+          implementationAddress: 1,
+          name: 1,
+          description: 1,
+          processKey: 1,
+          links: 1,
+          isSupported: 1,
+          interfaceType: 1,
+          // status: 1,
+          release: 1,
+          build: 1,
+          subdomain: 1,
+          isProcess: 1,
+          isBody: 1,
+          isSubPlugin: 1,
+          totalStages: 1,
+          subPlugins: 1,
+          stageIndex: 1,
+          parentPlugin: 1,
+        },
+        {
+          settings: true,
+          token: true,
+        },
+      ),
+      {
+        $addFields: {
+          'settings.stages': {
+            $map: {
+              input: { $ifNull: ['$settings.stages', []] },
+              as: 'stage',
+              in: {
+                $mergeObjects: [
+                  '$$stage',
+                  {
+                    plugins: {
+                      $map: {
+                        input: { $ifNull: ['$$stage.plugins', []] },
+                        as: 'stagePlugin',
+                        in: {
+                          $let: {
+                            vars: {
+                              // Remove unwanted fields from $$stagePlugin
+                              stagePluginClean: {
+                                $arrayToObject: {
+                                  $filter: {
+                                    input: {
+                                      $objectToArray: '$$stagePlugin',
+                                    },
+                                    as: 'field',
+                                    cond: {
+                                      $not: {
+                                        $in: ['$$field.k', ['isManual', 'allowedBody']],
+                                      },
+                                    },
+                                  },
+                                },
+                              },
+                              // Find the matched plugin document
+                              matchedPlugin: {
+                                $arrayElemAt: [
+                                  {
+                                    $filter: {
+                                      input: '$allPluginDocs',
+                                      as: 'pluginDoc',
+                                      cond: {
+                                        $eq: ['$$pluginDoc.address', '$$stagePlugin.address'],
+                                      },
+                                    },
+                                  },
+                                  0,
+                                ],
+                              },
+                            },
+                            in: {
+                              $mergeObjects: ['$$stagePluginClean', '$$matchedPlugin'],
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          allPluginAddresses: 0,
+          allPluginDocs: 0,
+        },
+      },
+      AggregationQueryHelper.proposals({
+        pluginAddress: '$subProposals.pluginAddress',
+        proposalIndex: '$subProposals.proposalIndex',
+        network: '$network',
+        as: 'subProposals',
+      }),
     ]
 
     if (extraParams.daoInfo) {
@@ -506,6 +816,12 @@ export default class Proposal extends Model {
           pluginSubdomain: 1,
           daoAddress: 1,
           proposalIndex: 1,
+          totalStages: 1,
+          parentProposal: 1,
+          isSubProposal: 1,
+          stageIndex: 1,
+          lastStageTransition: 1,
+          subProposals: 1,
           creator: 1,
           startDate: 1,
           endDate: 1,
@@ -519,14 +835,8 @@ export default class Proposal extends Model {
           media: 1,
           settings: {
             $mergeObjects: [
+              '$settings',
               {
-                onlyListed: '$settings.onlyListed',
-                minApprovals: '$settings.minApprovals',
-                votingMode: '$settings.votingMode',
-                supportThreshold: '$settings.supportThreshold',
-                minParticipation: '$settings.minParticipation',
-                minDuration: '$settings.minDuration',
-                minProposerVotingPower: '$settings.minProposerVotingPower',
                 token: {
                   $cond: {
                     if: '$settings.token',
@@ -535,10 +845,8 @@ export default class Proposal extends Model {
                   },
                 },
               },
-              {
-                historicalMembersCount: '$snapshot.membersCount',
-                historicalTotalSupply: '$snapshot.totalSupply',
-              },
+              { historicalMembersCount: '$snapshot.membersCount' },
+              { historicalTotalSupply: '$snapshot.totalSupply' },
             ],
           },
           metrics: 1,

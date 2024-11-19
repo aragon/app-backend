@@ -28,7 +28,7 @@ export const MultisigHandler = {
           network,
         }),
         // Dao metrics
-        RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
           id: pluginExisted.daoAddress,
           params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
         }),
@@ -56,7 +56,7 @@ export const MultisigHandler = {
           network,
         }),
         // Dao metrics
-        RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
           id: pluginExisted.daoAddress,
           params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
         }),

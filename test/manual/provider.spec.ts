@@ -48,7 +48,7 @@ describe('Manual: Provider', () => {
           setTimeout(() => {
             fakeWebSocket.readyState = IWebSocketStatus.OPEN
             provider.updateProvider(
-              new WebSocketProvider(config.BLOCKCHAIN_NODES.ARBITRUM_MAINNET as any) as IWebSocketProvider,
+              new WebSocketProvider(config.NODES.ARBITRUM_MAINNET.WS as any) as IWebSocketProvider,
             )
           }, 2000) // Simulate reconnection after 2 seconds
         }, 2000) // Simulate disconnection after 2 seconds

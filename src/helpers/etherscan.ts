@@ -10,13 +10,13 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:EtherscanHelper' })
 const EtherscanHelper = {
   axiosInstance: (network: NetworksEnum) =>
     axios.create({
-      baseURL: EtherscanHelper._parseNetworkToConfig(network).API_URL,
+      baseURL: EtherscanHelper._parseNetworkToConfig(network).ETHERSCAN_API_URL,
       headers: { 'Content-Type': 'application/json' },
     }),
 
   _parseNetworkToConfig: (network: NetworksEnum) => {
     const networkConfigKey = network.replace('-', '_').toUpperCase()
-    const etherscanConfig = config.ETHERSCAN_API[networkConfigKey]
+    const etherscanConfig = config.NODES[networkConfigKey]
     return etherscanConfig
   },
 
@@ -35,7 +35,7 @@ const EtherscanHelper = {
   },
 
   fetchAllTransactions: async ({ contractAddress, startBlock = 0, endBlock = 'latest', network }) => {
-    const apiKey = EtherscanHelper._parseNetworkToConfig(network).API_KEY
+    const apiKey = EtherscanHelper._parseNetworkToConfig(network).ETHERSCAN_API_KEY
     const params = {
       module: 'account',
       action: 'txlist',
@@ -58,7 +58,7 @@ const EtherscanHelper = {
     contractAddress,
     network,
   }): Promise<[{ address: HexAddress; txHash: HexAddress }] | []> => {
-    const apiKey = EtherscanHelper._parseNetworkToConfig(network).API_KEY
+    const apiKey = EtherscanHelper._parseNetworkToConfig(network).ETHERSCAN_API_KEY
     const params = {
       module: 'contract',
       action: 'getcontractcreation',
@@ -75,7 +75,7 @@ const EtherscanHelper = {
   },
 
   fetchContractSourceCode: async ({ contractAddress, network }): Promise<IEtherScanSource[] | null> => {
-    const apiKey = EtherscanHelper._parseNetworkToConfig(network).API_KEY
+    const apiKey = EtherscanHelper._parseNetworkToConfig(network).ETHERSCAN_API_KEY
     const params = {
       module: 'contract',
       action: 'getsourcecode',
@@ -86,7 +86,7 @@ const EtherscanHelper = {
     try {
       return await EtherscanHelper._rpCall(params, network)
     } catch (error) {
-      logger.error('Error fetchContractSourceCode', llo({ error }))
+      logger.error('Error fetchContractSourceCode', llo({ params, network, error }))
       return null
     }
   },

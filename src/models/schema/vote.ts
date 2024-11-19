@@ -70,8 +70,8 @@ export default class Vote extends Model {
   @prop({ type: () => String, default: null })
   public tokenAddress!: HexAddress
 
-  @prop({ type: () => Number })
-  public proposalIndex!: number
+  @prop({ type: () => String })
+  public proposalIndex!: string
 
   @prop({ type: () => Number })
   public voteOption?: number
@@ -118,7 +118,7 @@ export default class Vote extends Model {
     pluginAddress,
     network,
   }: {
-    proposalIndex: number
+    proposalIndex: string
     pluginAddress: HexAddress
     network: NetworksEnum
   }) {
@@ -134,9 +134,13 @@ export default class Vote extends Model {
     memberAddress: HexAddress
     pluginAddress: HexAddress
     network: NetworksEnum
-    proposalIndex: number
+    proposalIndex: string
   }) {
-    return this.findOne({ memberAddress, pluginAddress, proposalIndex, network }, {}, { sort: { blockNumber: -1 } })
+    return await this.findOne(
+      { memberAddress, pluginAddress, proposalIndex, network },
+      {},
+      { sort: { blockNumber: -1 } },
+    )
   }
 
   static async findWithPagination({
