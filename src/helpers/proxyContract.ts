@@ -50,32 +50,44 @@ const ProxyContractHelper = {
     return null
   },
 
+  async getAddressFromStorage(
+    provider: any,
+    address: string,
+    slot: string,
+    network: NetworksEnum,
+  ): Promise<HexAddress | null> {
+    try {
+      const storageValue = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getStorageAt(address, slot)),
+      )
+      const addressFromStorage = getAddress('0x' + storageValue.slice(-40))
+      return addressFromStorage === ZeroAddress ? null : addressFromStorage
+    } catch (error) {
+      return null
+    }
+  },
+
   async getImplementationAddress(address: string, network: NetworksEnum): Promise<HexAddress | null> {
     const provider = ProviderModule.getProvider(network)!
 
     // Helper function to extract an address from a storage slot
-    async function getAddressFromStorage(slot: string): Promise<HexAddress | null> {
-      try {
-        const storageValue = await retryRequest(async () =>
-          BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getStorageAt(address, slot)),
-        )
-        const addressFromStorage = getAddress('0x' + storageValue.slice(-40))
-        return addressFromStorage === ZeroAddress ? null : addressFromStorage
-      } catch (error) {
-        return null
-      }
-    }
 
     try {
       // Check EIP-1967 slot first
-      let implementationAddress = await getAddressFromStorage(
+      let implementationAddress = await ProxyContractHelper.getAddressFromStorage(
+        provider,
+        address,
         '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc',
+        network,
       )
 
       // Check FiatProxy slot if EIP-1967 slot is not valid
       if (!implementationAddress) {
-        implementationAddress = await getAddressFromStorage(
+        implementationAddress = await ProxyContractHelper.getAddressFromStorage(
+          provider,
+          address,
           '0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3',
+          network,
         )
       }
 

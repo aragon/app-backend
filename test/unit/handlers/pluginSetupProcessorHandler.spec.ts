@@ -145,7 +145,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         interfaceType: IPluginInterfaceType.admin,
       })
 
-      const logAdminStartStub = sandbox.stub(LogAdmin, 'start')
+      sandbox.stub(LogAdmin, 'start')
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
 
       const rabbiMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
@@ -177,7 +177,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(existingLog.pluginAddress).to.eq(fakeEvent.args.plugin)
       expect(isSupportedStub.calledOnce).to.be.true
       expect(findByAddressStub.calledOnce).to.be.true
-      expect(rabbiMqStub.calledOnce).to.be.true
+      expect(rabbiMqStub.notCalled).to.be.true
     })
 
     it('should create new log installationApplied when spp plugin', async () => {
@@ -207,7 +207,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         interfaceType: IPluginInterfaceType.spp,
       })
 
-      const logSppStartStub = sandbox.stub(LogSpp, 'start')
+      sandbox.stub(LogSpp, 'start')
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'handleFromReceipt')
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
 
@@ -238,10 +238,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(existingLog.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
       expect(existingLog.appliedSetupId).to.eq(fakeEvent.args.appliedSetupId)
       expect(existingLog.pluginAddress).to.eq(fakeEvent.args.plugin)
-      expect(isSupportedStub.calledOnce).to.be.true
+      expect(isSupportedStub.notCalled).to.be.true
       expect(findByAddressStub.calledOnce).to.be.true
-      expect(getTransactionReceiptStub.calledOnce).to.be.true
-      expect(rabbiMqStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.notCalled).to.be.true
+      expect(rabbiMqStub.notCalled).to.be.true
     })
   })
 
@@ -329,10 +329,9 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(parseLogInfoStub.calledOnce).to.be.true
       expect(handleSingleInstallationPreparedStub.calledOnce).to.be.true
       expect(handleSingleInstallationPreparedStub.args[0][0].parsed.args[0]).to.be.eq('0x00')
-      expect(handleFromReceiptStub.calledOnce).to.be.true
+      expect(handleFromReceiptStub.notCalled).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
-
-      expect(rabbiMqStub.calledTwice).to.be.true
+      expect(rabbiMqStub.notCalled).to.be.true
     })
 
     it('dao not found error', async () => {

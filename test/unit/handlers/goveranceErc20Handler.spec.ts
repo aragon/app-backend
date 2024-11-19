@@ -57,7 +57,7 @@ describe('GovernanceErc20Handler', () => {
         network: NetworksEnum.polygonMainnet,
       }
 
-      const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo, plugin as any)
+      const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
       expect(handlerResponse).to.be.undefined
     })
 
