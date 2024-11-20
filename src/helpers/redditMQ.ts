@@ -5,7 +5,7 @@ import RabbitMQ from '@modules/rabbitMQ'
 import { type EnumQueueName, type IQueueMessage, type ISendOptions } from '@types'
 import logger from '@logger'
 
-type MessageHandler = (message: IQueueMessage) => Promise<void>
+type MessageHandler = (message: IQueueMessage) => Promise<any>
 
 const llo = logger.logMeta.bind(null, { service: 'RabbitMQHelper' })
 
@@ -47,7 +47,12 @@ export const RabbitMQHelper = {
         release()
 
         try {
-          await messageHandler(message) // Process the message using the handler
+          const response = await messageHandler(message) // Process the message using the handler
+          if (msg.properties.replyTo && msg.properties.correlationId) {
+            channel.sendToQueue(msg.properties.replyTo, Buffer.from(JSON.stringify(response)), {
+              correlationId: msg.properties.correlationId,
+            })
+          }
         } catch (error) {
           logger.error('Error processing message:', llo({ error }))
         } finally {

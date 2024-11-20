@@ -10,6 +10,7 @@ export enum ProposalActionType {
   MetadataUpdate = 'MetadataUpdate',
   UpdateMultiSigSettings = 'UpdateMultiSigSettings',
   UpdateVoteSettings = 'UpdateVoteSettings',
+  StagesUpdated = 'StagesUpdated',
 }
 
 export interface IRawAction {
@@ -29,6 +30,7 @@ export enum KnownActionSignature {
   MetadataUpdate = 'setMetadata(bytes)',
   UpdateMultiSigSettings = 'updateMultisigSettings(tuple)',
   UpdateVoteSettings = 'updateVotingSettings(tuple)',
+  StagesUpdated = 'updateStages(tuple[])',
 }
 
 export interface IProposalRawAction {

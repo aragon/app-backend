@@ -1,0 +1,26 @@
+export interface IContractAbiFunction {
+  // Name of the function
+  name: string
+  // Parameters of the function
+  parameters: IContractAbiFunctionParams[]
+}
+
+export interface IContractAbiFunctionParams {
+  // Name of the parameter
+  name: string
+  // Type of the parameter
+  type: string
+  // NatSpec comment for the parameter
+  notice?: string
+  // Array of parameters for typle and typle[] types
+  components?: IContractAbiFunctionParams[]
+}
+
+export interface IContractAbi {
+  // Address of the implementation contract
+  implementationAddress: string | null
+  // Name of the contract
+  name: string
+  // Functions of the contract
+  functions: IContractAbiFunction[]
+}
