@@ -1,8 +1,14 @@
-name: Postman API Monitoring
+name: AppBackend API Monitoring
 
 on:
   schedule:
     - cron: '*/30 * * * *' # Run every 30 minutes
+  workflow_dispatch:
+    inputs:
+      discordWebhookUrl:
+        description: 'Discord Webhook URL'
+        required: true
+        type: string
 
 jobs:
   test:
@@ -50,7 +56,7 @@ jobs:
       - name: Notify Discord on Failure
         if: failure()
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL: ${{ github.event.inputs.discordWebhookUrl }}
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
