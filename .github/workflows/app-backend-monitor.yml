@@ -34,18 +34,17 @@ jobs:
           cat test-output.log
           echo "=============================="
 
-          # Extract the failing section of the output
+          # Extract full details of failures
           RAW_FAILURES=$(awk '/#  failure/{flag=1; next} /==============================/{flag=0} flag' test-output.log)
-
           if [ -z "$RAW_FAILURES" ]; then
             echo "FAILURES=None" >> $GITHUB_ENV
           else
-            # Escape JSON-unfriendly characters for Discord
+            # Escape newlines and special characters
             SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
             echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
           fi
 
-          # Set the test status
+          # Determine test status
           if [ -z "$RAW_FAILURES" ]; then
             echo "TEST_STATUS=success" >> $GITHUB_ENV
           else
@@ -53,9 +52,6 @@ jobs:
           fi
 
       - name: Notify Discord on Test Results
-        env:
-          FAILURES: ${{ env.FAILURES }}
-          TEST_STATUS: ${{ env.TEST_STATUS }}
         run: |
           if [ "$TEST_STATUS" == "success" ]; then
             curl -H "Content-Type: application/json" \
@@ -73,3 +69,7 @@ jobs:
               -X POST \
               -d "{\"content\": \"❌ **Postman Performance Test Failed**\\n**Failing Tests:**\\n$FAILURES_MESSAGE\"}" \
               https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
+          fi
+        env:
+          TEST_STATUS: ${{ env.TEST_STATUS }}
+          FAILURES: ${{ env.FAILURES }}
