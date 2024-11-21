@@ -33,7 +33,12 @@ jobs:
             --timeout-request 5000 \
             > test-output.log
           TEST_OUTPUT=$(cat test-output.log)
-          echo "TEST_OUTPUT=$TEST_OUTPUT" >> $GITHUB_ENV
+
+          # Safely store output in GitHub Actions environment
+          echo "TEST_OUTPUT<<EOF" >> $GITHUB_ENV
+          echo "$TEST_OUTPUT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
           if grep -q "failure" test-output.log; then
             echo "Performance tests failed!"
             exit 1
