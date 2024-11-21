@@ -2,7 +2,7 @@ name: AppBackend API Monitoring
 
 on:
   schedule:
-    - cron: '*/30 * * * *' # Run performance tests every 30 minutes
+    - cron: '0 * * * *' # Run performance tests every hour
     - cron: '0 0 * * 1' # Send success message every Monday at 00:00
   workflow_dispatch:
   push:
