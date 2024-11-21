@@ -34,21 +34,26 @@ jobs:
             --timeout-request 5000 \
             > test-output.log || true
 
-          # Extract content starting with "GET https://api.aragon-backend.com" and stopping before "=============================="
-          MESSAGE_CONTENT=$(awk '/GET https:\/\/api.aragon-backend.com/,/==============================/{if (!/==============================/) print}' test-output.log)
-          if [ -z "$MESSAGE_CONTENT" ]; then
-            echo "MESSAGE_CONTENT=None" >> $GITHUB_ENV
+          # Display test output for debugging
+          echo "===== Newman Test Output ====="
+          cat test-output.log
+          echo "=============================="
+
+          # Extract the summary section
+          NOTIFICATION_SECTION=$(awk '/GET https:\/\/api.aragon-backend.com/,/┌─────────────────────────/' test-output.log | sed '$d')
+          if [ -z "$NOTIFICATION_SECTION" ]; then
+            echo "NOTIFICATION_SECTION=None" >> $GITHUB_ENV
           else
-            SANITIZED_CONTENT=$(echo "$MESSAGE_CONTENT" | jq -Rs .)
-            echo "MESSAGE_CONTENT=$SANITIZED_CONTENT" >> $GITHUB_ENV
+            SANITIZED_SECTION=$(echo "$NOTIFICATION_SECTION" | jq -Rsa .)
+            echo "NOTIFICATION_SECTION=$SANITIZED_SECTION" >> $GITHUB_ENV
           fi
 
-          # Extract detailed failure messages
+          # Extract full details of failures
           RAW_FAILURES=$(awk '/#  failure/{flag=1; next} /==============================/{flag=0} flag' test-output.log)
           if [ -z "$RAW_FAILURES" ]; then
             echo "FAILURES=None" >> $GITHUB_ENV
           else
-            SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | jq -Rs .)
+            SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | jq -Rsa .)
             echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
           fi
 
@@ -64,11 +69,11 @@ jobs:
           if [ "${{ env.TEST_STATUS }}" == "failed" ]; then
             curl -H "Content-Type: application/json" \
               -X POST \
-              -d "{\"content\": \"❌ **Postman Performance Test Failed**\\n**Details:**\\n${{ env.MESSAGE_CONTENT }}\\n**Failing Tests:**\\n${{ env.FAILURES }}\"}" \
+              -d "{\"content\": \"❌ **Postman Performance Test Failed**\\n**Summary:**\\n${{ env.NOTIFICATION_SECTION }}\\n**Failing Tests:**\\n${{ env.FAILURES }}\"}" \
               https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
           else
             curl -H "Content-Type: application/json" \
               -X POST \
-              -d "{\"content\": \"✅ **Postman Performance Test Succeeded**\\n**Details:**\\n${{ env.MESSAGE_CONTENT }}\"}" \
+              -d "{\"content\": \"✅ **Postman Performance Test Succeeded**\\n**Summary:**\\n${{ env.NOTIFICATION_SECTION }}\"}" \
               https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
           fi
