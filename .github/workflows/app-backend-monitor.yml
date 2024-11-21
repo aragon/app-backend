@@ -27,22 +27,38 @@ jobs:
       - name: Run Performance Tests Only
         id: postman-test
         run: |
+          # Run Newman tests and save output
           newman run postman/postman-backend-collection.json \
             --env-var "host=https://api.aragon-backend.com" \
             --reporters cli \
             --timeout-request 5000 \
             > test-output.log
-          TEST_OUTPUT=$(cat test-output.log)
+
+          # Display test output for debugging
+          echo "===== Newman Test Output ====="
+          cat test-output.log
+          echo "=============================="
 
           # Safely store output in GitHub Actions environment
           echo "TEST_OUTPUT<<EOF" >> $GITHUB_ENV
-          echo "$TEST_OUTPUT" >> $GITHUB_ENV
+          cat test-output.log >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
+          # Check for failures
           if grep -q "failure" test-output.log; then
             echo "Performance tests failed!"
             exit 1
           fi
+
+      - name: Notify Discord on Success
+        if: success()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ github.event.inputs.discordWebhookUrl }}
+        run: |
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d "{\"content\": \"✅ **Postman Performance Test Succeeded**\n\`\`\`${{ env.TEST_OUTPUT }}\`\`\`\"}" \
+            $DISCORD_WEBHOOK_URL
 
       - name: Notify Discord on Failure
         if: failure()
