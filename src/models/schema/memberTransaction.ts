@@ -137,6 +137,7 @@ export default class MemberTransaction extends Model {
     extraQueryData: IExtraQueryData
   }): Promise<IPaginatedResult<IDelegatesResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
+
     const filter = {
       ...ModelUtils.createFilter(paginationParams, [
         'transactionHash',
@@ -150,6 +151,14 @@ export default class MemberTransaction extends Model {
 
     if (extraQueryData?.memberAddresses?.length! > 0) {
       filter.address = { $in: extraQueryData.memberAddresses }
+    }
+
+    if (extraParams.tokenAddress) {
+      filter.tokenAddress = extraParams.tokenAddress
+    }
+
+    if (extraParams.network) {
+      filter.network = extraParams.network
     }
 
     if (extraParams.memberAddress) {
