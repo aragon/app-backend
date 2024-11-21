@@ -24,7 +24,7 @@ jobs:
       - name: Install Newman
         run: npm install -g newman
 
-      - name: Run Performance Tests Only
+      - name: Run Performance Tests
         id: postman-test
         run: |
           # Run Newman tests and save output
@@ -39,17 +39,18 @@ jobs:
           cat test-output.log
           echo "=============================="
 
-          # Extract full details of failures
+          # Extract the failing section of the output
           RAW_FAILURES=$(awk '/#  failure/{flag=1; next} /==============================/{flag=0} flag' test-output.log)
+
           if [ -z "$RAW_FAILURES" ]; then
             echo "FAILURES=None" >> $GITHUB_ENV
           else
-            # Escape newlines and special characters
+            # Escape JSON-unfriendly characters for Discord
             SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
             echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
           fi
 
-          # Determine test status
+          # Set the test status
           if [ -z "$RAW_FAILURES" ]; then
             echo "TEST_STATUS=success" >> $GITHUB_ENV
           else
@@ -57,21 +58,25 @@ jobs:
           fi
 
       - name: Notify Discord on Test Results
+        env:
+          DISCORD_WEBHOOK_URL: ${{ github.event.inputs.discordWebhookUrl || secrets.DISCORD_WEBHOOK_URL }}
+          FAILURES: ${{ env.FAILURES }}
+          TEST_STATUS: ${{ env.TEST_STATUS }}
         run: |
-          if [ "${{ env.TEST_STATUS }}" == "success" ]; then
+          if [ "$TEST_STATUS" == "success" ]; then
             curl -H "Content-Type: application/json" \
               -X POST \
               -d '{"content": "✅ **Postman Performance Test Succeeded**"}' \
-              https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
+              "$DISCORD_WEBHOOK_URL"
           else
-            if [ "${{ env.FAILURES }}" == "None" ]; then
+            if [ "$FAILURES" == "None" ]; then
               FAILURES_MESSAGE="No detailed failure messages were found."
             else
-              FAILURES_MESSAGE="${{ env.FAILURES }}"
+              FAILURES_MESSAGE="$FAILURES"
             fi
 
             curl -H "Content-Type: application/json" \
               -X POST \
               -d "{\"content\": \"❌ **Postman Performance Test Failed**\\n**Failing Tests:**\\n$FAILURES_MESSAGE\"}" \
-              https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
+              "$DISCORD_WEBHOOK_URL"
           fi
