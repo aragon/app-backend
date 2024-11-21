@@ -9,6 +9,9 @@ on:
         description: 'Discord Webhook URL'
         required: true
         type: string
+  push:
+    branches:
+      - feature/monitor # Trigger on this branch only
 
 jobs:
   test:
