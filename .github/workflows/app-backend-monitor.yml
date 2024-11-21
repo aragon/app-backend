@@ -57,7 +57,6 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
-            # -d "{\"content\": \"✅ **Postman Performance Test Succeeded**\n\`\`\`${{ env.TEST_OUTPUT }}\`\`\`\"}" \
             -d "{\"content\": \"✅ **Postman Performance Test Succeeded**\"}" \
             https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
 
