@@ -55,6 +55,7 @@ export const getContractInfo = async (network: NetworksEnum, address: string) =>
             parameters: _function.inputs,
             notice: _function.notice,
             type: _function.type,
+            stateMutability: _function.stateMutability,
           }
         })
     }
