@@ -54,7 +54,7 @@ describe('Router: MainRouter', () => {
     const mainRouter = MainRouter.router()
     expect(mainRouter instanceof Router).to.be.true
 
-    expect(use.callCount).to.be.eq(10)
+    expect(use.callCount).to.be.eq(11)
     expect(use.calledWith(`statusRoutes`, `statusAllowedMethod`)).to.be.true
 
     function expectRouter(name: string) {
