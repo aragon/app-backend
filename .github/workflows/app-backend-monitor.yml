@@ -1,0 +1,58 @@
+name: Postman API Monitoring
+
+on:
+  schedule:
+    - cron: '*/30 * * * *' # Run every 30 minutes
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install OpenSSL 1.1 (if needed for Newman)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+          sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+          sudo apt-get install -f  # Install dependencies if needed
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --pure-lockfile
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Run Performance Tests Only
+        id: postman-test
+        run: |
+          newman run ./path/to/your-collection.json \
+            --reporters cli \
+            --timeout-request 5000 \
+            --filter "performance" \
+            > test-output.log
+          TEST_OUTPUT=$(cat test-output.log)
+          echo "TEST_OUTPUT=$TEST_OUTPUT" >> $GITHUB_ENV
+          if grep -q "failure" test-output.log; then
+            echo "Performance tests failed!"
+            exit 1
+          fi
+
+      - name: Notify Discord on Failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d "{\"content\": \"❌ **Postman Performance Test Failed**\n\`\`\`${{ env.TEST_OUTPUT }}\`\`\`\"}" \
+            $DISCORD_WEBHOOK_URL
