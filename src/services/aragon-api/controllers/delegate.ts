@@ -19,10 +19,10 @@ const DelegateController = {
     const mapping = await PairDataModule.pairFromDaoMemberMapping({
       daoAddress: extraParams.daoAddress,
       pluginAddress: extraParams.pluginAddress,
-      network: extraParams.network,
     })
 
     const memberAddresses = mapping.map((w: DaoMemberMapping) => w.memberAddress)
+    // remove duplicates
 
     const result = await Models.MemberTransaction.findWithPagination({
       extraParams,
