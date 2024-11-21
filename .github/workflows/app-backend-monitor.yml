@@ -34,21 +34,21 @@ jobs:
             --timeout-request 5000 \
             > test-output.log || true
 
-          # Extract content starting from "GET https://api.aragon-backend.com" and stopping before "=============================="
+          # Extract content starting with "GET https://api.aragon-backend.com" and stopping before "=============================="
           MESSAGE_CONTENT=$(awk '/GET https:\/\/api.aragon-backend.com/,/==============================/{if (!/==============================/) print}' test-output.log)
           if [ -z "$MESSAGE_CONTENT" ]; then
             echo "MESSAGE_CONTENT=None" >> $GITHUB_ENV
           else
-            SANITIZED_CONTENT=$(echo "$MESSAGE_CONTENT" | jq -Rsa .)
+            SANITIZED_CONTENT=$(echo "$MESSAGE_CONTENT" | jq -Rs .)
             echo "MESSAGE_CONTENT=$SANITIZED_CONTENT" >> $GITHUB_ENV
           fi
 
-          # Extract full details of failures
+          # Extract detailed failure messages
           RAW_FAILURES=$(awk '/#  failure/{flag=1; next} /==============================/{flag=0} flag' test-output.log)
           if [ -z "$RAW_FAILURES" ]; then
             echo "FAILURES=None" >> $GITHUB_ENV
           else
-            SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | jq -Rsa .)
+            SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | jq -Rs .)
             echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
           fi
 
