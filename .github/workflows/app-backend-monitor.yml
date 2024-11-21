@@ -44,7 +44,7 @@ jobs:
           if [ -z "$NOTIFICATION_SECTION" ]; then
             echo "NOTIFICATION_SECTION=None" >> $GITHUB_ENV
           else
-            SANITIZED_SECTION=$(echo "$NOTIFICATION_SECTION" | sed ':a;N;$!ba;s/\n/\\n/g')
+            SANITIZED_SECTION=$(echo "$NOTIFICATION_SECTION" | jq -Rsa .)
             echo "NOTIFICATION_SECTION=$SANITIZED_SECTION" >> $GITHUB_ENV
           fi
 
@@ -53,7 +53,7 @@ jobs:
           if [ -z "$RAW_FAILURES" ]; then
             echo "FAILURES=None" >> $GITHUB_ENV
           else
-            SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | sed ':a;N;$!ba;s/\n/\\n/g')
+            SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | jq -Rsa .)
             echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
           fi
 
