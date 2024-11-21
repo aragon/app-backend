@@ -31,7 +31,7 @@ jobs:
           newman run postman/postman-backend-collection.json \
             --env-var "host=https://api.aragon-backend.com" \
             --reporters cli \
-            --timeout-request 20000 \
+            --timeout-request 5000 \
             > test-output.log
 
           # Display test output for debugging
