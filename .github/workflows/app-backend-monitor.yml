@@ -44,7 +44,8 @@ jobs:
           if [ -z "$RAW_FAILURES" ]; then
             echo "FAILURES=None" >> $GITHUB_ENV
           else
-            SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | sed ':a;N;$!ba;s/\n/\\n/g')
+            # Escape newlines and special characters
+            SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
             echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
           fi
 
@@ -63,11 +64,12 @@ jobs:
               -d '{"content": "✅ **Postman Performance Test Succeeded**"}' \
               https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
           else
-            if [ "$FAILURES" == "None" ]; then
+            if [ "${{ env.FAILURES }}" == "None" ]; then
               FAILURES_MESSAGE="No detailed failure messages were found."
             else
-              FAILURES_MESSAGE="$FAILURES"
+              FAILURES_MESSAGE="${{ env.FAILURES }}"
             fi
+
             curl -H "Content-Type: application/json" \
               -X POST \
               -d "{\"content\": \"❌ **Postman Performance Test Failed**\\n**Failing Tests:**\\n$FAILURES_MESSAGE\"}" \
