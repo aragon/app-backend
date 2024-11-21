@@ -32,7 +32,7 @@ jobs:
             --env-var "host=https://api.aragon-backend.com" \
             --reporters cli \
             --timeout-request 5000 \
-            > test-output.log
+            > test-output.log || true
 
           # Display test output for debugging
           echo "===== Newman Test Output ====="
@@ -47,30 +47,28 @@ jobs:
             echo "FAILURES=$FAILURES" >> $GITHUB_ENV
           fi
 
-          # Exit with failure if any tests failed
+          # Set overall test status
           if grep -q "✗" test-output.log; then
-            echo "Performance tests failed!"
-            exit 1
-          fi
-
-      - name: Notify Discord on Success
-        if: success()
-        run: |
-          curl -H "Content-Type: application/json" \
-            -X POST \
-            -d '{"content": "✅ **Postman Performance Test Succeeded**"}' \
-            https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
-
-      - name: Notify Discord on Failure
-        if: failure()
-        run: |
-          if [ "$FAILURES" == "None" ]; then
-            FAILURES_MESSAGE="No detailed failure messages were found."
+            echo "TEST_STATUS=failed" >> $GITHUB_ENV
           else
-            FAILURES_MESSAGE="$FAILURES"
+            echo "TEST_STATUS=success" >> $GITHUB_ENV
           fi
 
-          curl -H "Content-Type: application/json" \
-            -X POST \
-            -d "{\"content\": \"❌ **Postman Performance Test Failed**\n**Failing Tests:**\n$FAILURES_MESSAGE\"}" \
-            https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
+      - name: Notify Discord on Test Results
+        run: |
+          if [ "${{ env.TEST_STATUS }}" == "success" ]; then
+            curl -H "Content-Type: application/json" \
+              -X POST \
+              -d '{"content": "✅ **Postman Performance Test Succeeded**"}' \
+              https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
+          else
+            if [ "$FAILURES" == "None" ]; then
+              FAILURES_MESSAGE="No detailed failure messages were found."
+            else
+              FAILURES_MESSAGE="$FAILURES"
+            fi
+            curl -H "Content-Type: application/json" \
+              -X POST \
+              -d "{\"content\": \"❌ **Postman Performance Test Failed**\n**Failing Tests:**\n$FAILURES_MESSAGE\"}" \
+              https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
+          fi
