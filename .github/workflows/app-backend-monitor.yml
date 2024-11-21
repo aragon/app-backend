@@ -4,11 +4,6 @@ on:
   schedule:
     - cron: '*/30 * * * *' # Run every 30 minutes
   workflow_dispatch:
-    inputs:
-      discordWebhookUrl:
-        description: 'Discord Webhook URL'
-        required: true
-        type: string
   push:
     branches:
       - feature/monitor # Trigger on this branch only
@@ -59,7 +54,6 @@ jobs:
 
       - name: Notify Discord on Test Results
         env:
-          DISCORD_WEBHOOK_URL: ${{ github.event.inputs.discordWebhookUrl || secrets.DISCORD_WEBHOOK_URL }}
           FAILURES: ${{ env.FAILURES }}
           TEST_STATUS: ${{ env.TEST_STATUS }}
         run: |
@@ -67,7 +61,7 @@ jobs:
             curl -H "Content-Type: application/json" \
               -X POST \
               -d '{"content": "✅ **Postman Performance Test Succeeded**"}' \
-              "$DISCORD_WEBHOOK_URL"
+              https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
           else
             if [ "$FAILURES" == "None" ]; then
               FAILURES_MESSAGE="No detailed failure messages were found."
@@ -78,5 +72,4 @@ jobs:
             curl -H "Content-Type: application/json" \
               -X POST \
               -d "{\"content\": \"❌ **Postman Performance Test Failed**\\n**Failing Tests:**\\n$FAILURES_MESSAGE\"}" \
-              "$DISCORD_WEBHOOK_URL"
-          fi
+              https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
