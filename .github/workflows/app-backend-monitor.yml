@@ -39,15 +39,6 @@ jobs:
           cat test-output.log
           echo "=============================="
 
-          # Extract the summary section
-          NOTIFICATION_SECTION=$(awk '/GET https:\/\/api.aragon-backend.com/,/┌─────────────────────────/' test-output.log | sed '$d')
-          if [ -z "$NOTIFICATION_SECTION" ]; then
-            echo "NOTIFICATION_SECTION=None" >> $GITHUB_ENV
-          else
-            SANITIZED_SECTION=$(echo "$NOTIFICATION_SECTION" | sed ':a;N;$!ba;s/\n/\\n/g')
-            echo "NOTIFICATION_SECTION=$SANITIZED_SECTION" >> $GITHUB_ENV
-          fi
-
           # Extract full details of failures
           RAW_FAILURES=$(awk '/#  failure/{flag=1; next} /==============================/{flag=0} flag' test-output.log)
           if [ -z "$RAW_FAILURES" ]; then
@@ -64,16 +55,21 @@ jobs:
             echo "TEST_STATUS=failed" >> $GITHUB_ENV
           fi
 
-      - name: Notify Discord
+      - name: Notify Discord on Test Results
         run: |
-          if [ "${{ env.TEST_STATUS }}" == "failed" ]; then
+          if [ "${{ env.TEST_STATUS }}" == "success" ]; then
             curl -H "Content-Type: application/json" \
               -X POST \
-              -d "{\"content\": \"❌ **Postman Performance Test Failed**\\n**Summary:**\\n${{ env.NOTIFICATION_SECTION }}\\n**Failing Tests:**\\n${{ env.FAILURES }}\"}" \
+              -d '{"content": "✅ **Postman Performance Test Succeeded**"}' \
               https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
           else
+            if [ "$FAILURES" == "None" ]; then
+              FAILURES_MESSAGE="No detailed failure messages were found."
+            else
+              FAILURES_MESSAGE="$FAILURES"
+            fi
             curl -H "Content-Type: application/json" \
               -X POST \
-              -d "{\"content\": \"✅ **Postman Performance Test Succeeded**\\n**Summary:**\\n${{ env.NOTIFICATION_SECTION }}\"}" \
+              -d "{\"content\": \"❌ **Postman Performance Test Failed**\\n**Failing Tests:**\\n$FAILURES_MESSAGE\"}" \
               https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
           fi
