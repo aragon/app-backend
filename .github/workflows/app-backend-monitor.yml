@@ -47,7 +47,7 @@ jobs:
           newman run postman/postman-backend-collection.json \
             --reporters cli \
             --timeout-request 5000 \
-            --filter "status|time" \
+            --folder "status|time" \
             > test-output.log
           TEST_OUTPUT=$(cat test-output.log)
           echo "TEST_OUTPUT=$TEST_OUTPUT" >> $GITHUB_ENV
