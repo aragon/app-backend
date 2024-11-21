@@ -39,16 +39,17 @@ jobs:
           cat test-output.log
           echo "=============================="
 
-          # Extract failed assertions from the '# failure' section
-          FAILURES=$(grep -A 2 '^ *# *failure' test-output.log | sed 's/^/• /')
-          if [ -z "$FAILURES" ]; then
+          # Extract failed assertions from the '# failure' section and sanitize
+          RAW_FAILURES=$(grep -A 2 '^ *# *failure' test-output.log | sed 's/^/• /')
+          if [ -z "$RAW_FAILURES" ]; then
             echo "FAILURES=None" >> $GITHUB_ENV
           else
-            echo "FAILURES=$FAILURES" >> $GITHUB_ENV
+            SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | tr '\n' ' ' | sed 's/  */ /g')
+            echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
           fi
 
           # Determine test status
-          if [ "$FAILURES" != "None" ]; then
+          if [ "$RAW_FAILURES" ]; then
             echo "TEST_STATUS=failed" >> $GITHUB_ENV
           else
             echo "TEST_STATUS=success" >> $GITHUB_ENV
