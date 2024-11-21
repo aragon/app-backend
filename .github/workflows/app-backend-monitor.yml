@@ -21,18 +21,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install OpenSSL 1.1 (if needed for Newman)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget
-          wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
-          sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
-          sudo apt-get install -f  # Install dependencies if needed
+      #   - name: Install OpenSSL 1.1 (if needed for Newman)
+      #     run: |
+      #       sudo apt-get update
+      #       sudo apt-get install -y wget
+      #       wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+      #       sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+      #       sudo apt-get install -f  # Install dependencies if needed
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version-file: '.nvmrc'
           cache: 'yarn'
 
       - name: Install dependencies
@@ -44,10 +44,10 @@ jobs:
       - name: Run Performance Tests Only
         id: postman-test
         run: |
-          newman run ./path/to/your-collection.json \
+          newman run postman/postman-backend-collection.json \
             --reporters cli \
             --timeout-request 5000 \
-            --filter "performance" \
+            --filter "status|time" \
             > test-output.log
           TEST_OUTPUT=$(cat test-output.log)
           echo "TEST_OUTPUT=$TEST_OUTPUT" >> $GITHUB_ENV
