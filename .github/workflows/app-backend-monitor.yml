@@ -63,7 +63,7 @@ jobs:
       - name: Notify Discord on Failure
         if: failure()
         env:
-          DISCORD_WEBHOOK_URL: ${{ github.event.inputs.discordWebhookUrl }}
+          DISCORD_WEBHOOK_URL: https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
