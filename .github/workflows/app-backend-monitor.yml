@@ -2,7 +2,8 @@ name: AppBackend API Monitoring
 
 on:
   schedule:
-    - cron: '*/30 * * * *' # Run every 30 minutes
+    - cron: '*/30 * * * *' # Run performance tests every 30 minutes
+    - cron: '0 0 * * 1' # Send success message every Monday at 00:00
   workflow_dispatch:
   push:
     branches:
@@ -10,6 +11,7 @@ on:
 
 jobs:
   test:
+    if: github.event.schedule == '*/30 * * * *' || github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
@@ -53,12 +55,7 @@ jobs:
 
       - name: Notify Discord on Test Results
         run: |
-          if [ "$TEST_STATUS" == "success" ]; then
-            curl -H "Content-Type: application/json" \
-              -X POST \
-              -d '{"content": "✅ **Postman Performance Test Succeeded**"}' \
-              https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
-          else
+          if [ "$TEST_STATUS" == "failed" ]; then
             if [ "$FAILURES" == "None" ]; then
               FAILURES_MESSAGE="No detailed failure messages were found."
             else
@@ -73,3 +70,15 @@ jobs:
         env:
           TEST_STATUS: ${{ env.TEST_STATUS }}
           FAILURES: ${{ env.FAILURES }}
+
+  weekly_success:
+    if: github.event.schedule == '0 0 * * 1'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Notify Discord Weekly Success Message
+        run: |
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d '{"content": "✅ **Weekly Report: All Postman Performance Tests Succeeded!**"}' \
+            https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
