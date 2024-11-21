@@ -57,7 +57,8 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
-            -d "{\"content\": \"✅ **Postman Performance Test Succeeded**\n\`\`\`${{ env.TEST_OUTPUT }}\`\`\`\"}" \
+            # -d "{\"content\": \"✅ **Postman Performance Test Succeeded**\n\`\`\`${{ env.TEST_OUTPUT }}\`\`\`\"}" \
+            -d "{\"content\": \"✅ **Postman Performance Test Succeeded**\"}" \
             $DISCORD_WEBHOOK_URL
 
       - name: Notify Discord on Failure
