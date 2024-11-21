@@ -162,11 +162,16 @@ export default class LogMetadata extends Model {
     return response[0] ?? {}
   }
 
-  static async getMetadataAtBlockNumber(daoAddress: string, blockNumber: number, network: NetworksEnum) {
+  static async getMetadataAtBlockNumber(
+    address: string,
+    blockNumber: number,
+    network: NetworksEnum,
+    metadataOrigin: string = 'daoAddress',
+  ) {
     const response = await this.aggregate([
       {
         $match: {
-          daoAddress,
+          [metadataOrigin]: address,
           network,
         },
       },
@@ -187,6 +192,7 @@ export default class LogMetadata extends Model {
           name: 1,
           description: 1,
           links: 1,
+          resources: 1,
           logo: '$avatar',
         },
       },
