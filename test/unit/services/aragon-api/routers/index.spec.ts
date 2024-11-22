@@ -16,6 +16,7 @@ import SettingRouter from '@api/routers/setting'
 import TransactionRouter from '@api/routers/transaction'
 import DelegateRouter from '@api/routers/delegate'
 import VoteRouter from '@api/routers/vote'
+import Contract from "@api/routers/contract";
 
 describe('Router: MainRouter', () => {
   let sandbox: SinonSandbox
@@ -48,6 +49,7 @@ describe('Router: MainRouter', () => {
     stubRouter(TokenRouter, 'tokens')
     stubRouter(TransactionRouter, 'transactions')
     stubRouter(StatusRouter, 'status')
+    stubRouter(Contract, 'contract')
 
     await utils.wait(1000)
 
@@ -70,6 +72,7 @@ describe('Router: MainRouter', () => {
     expectRouter('settings')
     expectRouter('tokens')
     expectRouter('transactions')
+    expectRouter('contract')
   })
 
   it('Should setup main router with all child routers', async () => {
