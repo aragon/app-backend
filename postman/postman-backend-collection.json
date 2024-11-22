@@ -5847,7 +5847,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": ""
+						"url": "{{host}}/contract/ethereum-sepolia/0x774679A5648da9f02ffdeBA8AF4EFF3a0A8DfC3f"
 					},
 					"response": []
 				}
