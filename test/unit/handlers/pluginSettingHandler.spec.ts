@@ -9,7 +9,7 @@ import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import {ProxyToken} from "@modules/proxyToken";
 
-describe.only('Indexer: PluginSettingHandler', () => {
+describe('Indexer: PluginSettingHandler', () => {
   let sandbox: SinonSandbox
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
