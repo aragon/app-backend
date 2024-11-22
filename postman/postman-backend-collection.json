@@ -5836,6 +5836,25 @@
 			"id": "00266e79-c392-48da-89cb-f2e5f227a1bf"
 		},
 		{
+			"name": "Contracts",
+			"item": [
+				{
+					"name": "get contracts",
+					"id": "ea799832-e7e8-45b6-93b1-e3895fe242d3",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": ""
+					},
+					"response": []
+				}
+			],
+			"id": "7268a2d0-7472-4efd-b2b0-c4e2119b29f2"
+		},
+		{
 			"name": "status",
 			"id": "e699389b-72fe-4cba-83b4-3a476fad44fd",
 			"protocolProfileBehavior": {
