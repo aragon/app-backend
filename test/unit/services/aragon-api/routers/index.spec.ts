@@ -16,7 +16,7 @@ import SettingRouter from '@api/routers/setting'
 import TransactionRouter from '@api/routers/transaction'
 import DelegateRouter from '@api/routers/delegate'
 import VoteRouter from '@api/routers/vote'
-import Contract from "@api/routers/contract";
+import Contract from '@api/routers/contract'
 
 describe('Router: MainRouter', () => {
   let sandbox: SinonSandbox
