@@ -2,13 +2,14 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { NetworksEnum } from '@types'
+import {ITokenType, NetworksEnum} from '@types'
 import { beforeEach } from 'mocha'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
+import {ProxyToken} from "@modules/proxyToken";
 
-describe('Indexer: PluginSettingHandler', () => {
+describe.only('Indexer: PluginSettingHandler', () => {
   let sandbox: SinonSandbox
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -37,12 +38,15 @@ describe('Indexer: PluginSettingHandler', () => {
       }
       const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(false)
       const stubLogger = sandbox.stub(logger, 'warn')
-
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.GovernanceERC20
+      } as any)
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
 
       expect(stubFindByAddress.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledOnceWith('Plugin not found' as any)).to.be.true
+      expect(saveAndGetTokenStub.calledOnce).to.be.false
     })
 
     it('should return if already existing log', async () => {
@@ -93,7 +97,10 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubFindActive = sandbox.stub(Models.Setting, 'findActive').resolves(false)
       const stubLogger = sandbox.stub(logger, 'verbose')
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
-
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.GovernanceERC20
+      } as any)
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
 
       expect(stubFindByAddress.calledOnce).to.be.true
@@ -108,6 +115,8 @@ describe('Indexer: PluginSettingHandler', () => {
 
       expect(stubLogger.calledOnce).to.be.true
       expect(getBlockTimestampStub.calledOnce).to.be.true
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(isSupportedStub.calledOnce).to.be.true
     })
   })
 
