@@ -177,7 +177,7 @@ export const PluginSettingHandler = {
         vetoThreshold: Number(stage.vetoThreshold),
         plugins: plugins.map((plugin: any) => {
           return {
-            address: plugin.pluginAddress,
+            address: plugin.pluginAddress || plugin.addr,
             isManual: plugin.isManual,
             allowedBody: plugin.allowedBody || plugin.tryAdvance,
             proposalType: utils.parseNumber(plugin.resultType ?? plugin.proposalType),
