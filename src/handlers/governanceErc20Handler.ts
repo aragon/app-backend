@@ -195,7 +195,7 @@ export const GovernanceErc20Handler = {
 
       if (!isHistorical) {
         // wait next block
-        await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000)
+        await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000 * 2)
       }
 
       const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
@@ -288,7 +288,7 @@ export const GovernanceErc20Handler = {
 
       if (!isHistorical) {
         // wait next block
-        await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000)
+        await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000 * 2)
       }
 
       const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
