@@ -121,6 +121,7 @@ class DecodeActions {
       setMetadata: this._parseUpdateDaoMetadata.bind(this),
       updateMultisigSettings: this._parseMultiSigSettingUpdateAction.bind(this),
       updateVotingSettings: this._parseTokenVotingSettingUpdateAction.bind(this),
+      updateStages: this._parseStageUpdatedOnSppAction.bind(this),
     }
 
     for (const pattern in actionHandlers) {
@@ -347,6 +348,44 @@ class DecodeActions {
         minDuration: Number(decodedData.parameters[0].value[3]),
         minProposerVotingPower: Number(decodedData.parameters[0].value[4]),
       },
+    }
+  }
+
+  async _parseStageUpdatedOnSppAction(decodedData: IProposalActionInputData, action: IRawAction) {
+    if (decodedData.textSignature !== KnownActionSignature.StagesUpdated) {
+      return null
+    }
+    let stages: any
+    try {
+      stages = decodedData.parameters[0].value.map((stageValue: any, index: number) => {
+        const plugins = stageValue[0].map((plugin: any) => {
+          return {
+            address: plugin[0],
+            isManual: plugin[1],
+            allowedBody: plugin[2],
+            proposalType: plugin[3],
+          }
+        })
+
+        return {
+          plugins,
+          stageIndex: index,
+          maxAdvance: Number(stageValue[1]),
+          minAdvance: Number(stageValue[2]),
+          voteDuration: stageValue[3] ? Number(stageValue[3]) : Number(stageValue[3] || 0),
+          approvalThreshold: Number(stageValue[4]),
+          vetoThreshold: Number(stageValue[5]),
+        }
+      })
+    } catch (e) {
+      stages = []
+    }
+
+    return {
+      ...action,
+      inputData: decodedData,
+      type: ProposalActionType.StagesUpdated,
+      proposedSettings: stages,
     }
   }
 

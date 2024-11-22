@@ -16,6 +16,7 @@ import SettingRouter from '@api/routers/setting'
 import TransactionRouter from '@api/routers/transaction'
 import DelegateRouter from '@api/routers/delegate'
 import VoteRouter from '@api/routers/vote'
+import Contract from '@api/routers/contract'
 
 describe('Router: MainRouter', () => {
   let sandbox: SinonSandbox
@@ -48,13 +49,14 @@ describe('Router: MainRouter', () => {
     stubRouter(TokenRouter, 'tokens')
     stubRouter(TransactionRouter, 'transactions')
     stubRouter(StatusRouter, 'status')
+    stubRouter(Contract, 'contract')
 
     await utils.wait(1000)
 
     const mainRouter = MainRouter.router()
     expect(mainRouter instanceof Router).to.be.true
 
-    expect(use.callCount).to.be.eq(10)
+    expect(use.callCount).to.be.eq(11)
     expect(use.calledWith(`statusRoutes`, `statusAllowedMethod`)).to.be.true
 
     function expectRouter(name: string) {
@@ -70,6 +72,7 @@ describe('Router: MainRouter', () => {
     expectRouter('settings')
     expectRouter('tokens')
     expectRouter('transactions')
+    expectRouter('contract')
   })
 
   it('Should setup main router with all child routers', async () => {
