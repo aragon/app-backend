@@ -2,12 +2,12 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import {ITokenType, NetworksEnum} from '@types'
+import { ITokenType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
-import {ProxyToken} from "@modules/proxyToken";
+import { ProxyToken } from '@modules/proxyToken'
 
 describe('Indexer: PluginSettingHandler', () => {
   let sandbox: SinonSandbox
@@ -39,7 +39,7 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(false)
       const stubLogger = sandbox.stub(logger, 'warn')
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20
+        type: ITokenType.GovernanceERC20,
       } as any)
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
 
@@ -98,7 +98,7 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20
+        type: ITokenType.GovernanceERC20,
       } as any)
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
