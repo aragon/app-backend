@@ -23,16 +23,26 @@ export const ProposalMetrics = {
     }
 
     const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network })
+    let missingVotes = 0
+    if (!proposal.settings?.minApprovals) {
+      logger.error(
+        'Proposal minApprovals not found - multisig metrics ',
+        llo({ proposalIndex, pluginAddress, network }),
+      )
+      return
+    } else {
+      missingVotes =
+        votes.length >= proposal.settings.minApprovals
+          ? votes.length - proposal.settings.minApprovals
+          : proposal.settings.minApprovals - votes.length
+    }
 
     const rawMetrics = {
       // TODO: add this feature to know if approvalReached
       // approvalReached: votes.length >= proposal.settings.minApprovals,
       metrics: {
         totalVotes: votes.length,
-        missingVotes:
-          votes.length >= proposal.settings.minApprovals
-            ? votes.length - proposal.settings.minApprovals
-            : proposal.settings.minApprovals - votes.length,
+        missingVotes,
       },
     }
     return await DbOperations.updateDocument(
