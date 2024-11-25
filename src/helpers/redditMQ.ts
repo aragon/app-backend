@@ -54,7 +54,7 @@ export const RabbitMQHelper = {
             })
           }
         } catch (error) {
-          logger.error('Error processing message:', llo({ error }))
+          logger.error('Error processing message:', llo({ error, queueName }))
         } finally {
           const release = await this.mutex.acquire()
           this.activeJobs.delete(uniqueJobKey) // Remove the job from active jobs map
