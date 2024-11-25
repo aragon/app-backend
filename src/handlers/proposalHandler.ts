@@ -116,7 +116,7 @@ export const ProposalHandler = {
       if (document?.settings?.tokenAddress && relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
         if (!isHistorical) {
           // wait next block
-          await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000)
+          await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000 * 2)
         }
 
         const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
