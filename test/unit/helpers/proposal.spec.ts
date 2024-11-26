@@ -21,6 +21,7 @@ describe('Helpers: ProposalHelper', () => {
 
     contractStub = {
       getProposal: sandbox.stub(),
+      getBodyProposalId: sandbox.stub(),
     }
 
     // Mock ProviderModule.getProvider to return a mocked provider
@@ -62,6 +63,77 @@ describe('Helpers: ProposalHelper', () => {
 
       await ProposalHelper.getProposal(mockParams as any)
       expect(getProposalMultisigStub.calledOnce).to.be.true
+    })
+
+    it('should call getSppSubPluginProposals when proposalType is spp', async () => {
+      const mockParams = {
+        plugin: {
+          address: '0xpluginAddress',
+          interfaceType: IPluginInterfaceType.spp,
+        },
+        proposalIndex: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const getSppSubPluginProposalsStub = sandbox.stub(ProposalHelper, 'getProposalSpp').resolves(true as any)
+
+      await ProposalHelper.getProposal(mockParams as any)
+      expect(getSppSubPluginProposalsStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('getSppSubPluginProposals', () => {
+    it('should return the proposal for spp sub plugin', async () => {
+      const mockParams = {
+        proposalIndex: 1,
+        stage: 1,
+        pluginAddress: '0xpluginAddress',
+        sppPluginAddress: '0xsppPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const mockProposal = { id: 1, title: 'SPP Proposal' }
+
+      contractStub.getBodyProposalId.resolves(mockProposal)
+
+      const { default: ProposalHelper } = proxyquire.noCallThru()('@helpers/proposal', {
+        '@helpers/retryRequest': {
+          retryRequest: (fn: any) => fn(),
+        },
+        ethers: {
+          Contract: function () {
+            return contractStub
+          },
+        },
+      })
+
+      const result = await ProposalHelper.getSppSubPluginProposals(mockParams)
+      expect(result).to.deep.equal(mockProposal)
+    })
+
+    it('should return false if spp sub plugin proposal fetch fails', async () => {
+      const mockParams = {
+        proposalIndex: 1,
+        stage: 1,
+        pluginAddress: '0xpluginAddress',
+        sppPluginAddress: '0xsppPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      contractStub.getBodyProposalId.rejects(new Error('Contract call failed'))
+
+      const { default: ProposalHelper } = proxyquire.noCallThru()('@helpers/proposal', {
+        '@helpers/retryRequest': {
+          retryRequest: (fn: any) => fn(),
+        },
+        ethers: {
+          Contract: function () {
+            return contractStub
+          },
+        },
+      })
+
+      const result = await ProposalHelper.getSppSubPluginProposals(mockParams)
+      expect(result).to.be.false
     })
   })
 

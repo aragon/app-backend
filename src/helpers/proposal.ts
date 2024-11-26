@@ -52,7 +52,7 @@ const ProposalHelper = {
     try {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-          contract.bodyProposalIds(proposalIndex, stage, pluginAddress),
+          contract.getBodyProposalId(proposalIndex, stage, pluginAddress),
         ),
       )
     } catch (error) {
