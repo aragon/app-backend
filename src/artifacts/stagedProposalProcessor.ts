@@ -131,6 +131,7 @@ export const StagedProposalProcessor = {
       inputs: [
         { indexed: true, internalType: 'uint256', name: 'proposalId', type: 'uint256' },
         { indexed: true, internalType: 'uint16', name: 'stageId', type: 'uint16' },
+        { indexed: true, internalType: 'address', name: 'sender', type: 'address' },
       ],
       name: 'ProposalAdvanced',
       type: 'event',
