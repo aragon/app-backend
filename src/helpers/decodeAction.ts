@@ -301,7 +301,7 @@ class DecodeActions {
     }
 
     try {
-      const proposedMetadata = await IPFSModule.fetchMetadata(ipfsUrl)
+      const proposedMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
       if (!proposedMetadata) {
         return null
       }
