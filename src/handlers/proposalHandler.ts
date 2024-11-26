@@ -655,4 +655,95 @@ export const ProposalHandler = {
       logger.error('Error pairSppProposals', llo({ error, proposalId: proposal.id }))
     }
   },
+  proposalCanceled: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    try {
+      const proposal = await Models.Proposal.findByProposalIndex(
+        parsedEvent.args.proposalId.toString(),
+        info.address,
+        info.network,
+      )
+
+      if (!proposal) {
+        logger.warn('Proposal not found', llo(info))
+        return
+      }
+
+      const rawUpdate: Partial<Proposal> = {
+        cancelTxInfo: {
+          blockNumber: info.blockNumber,
+          transactionHash: info.transactionHash,
+          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || null,
+        },
+      }
+
+      await DbOperations.updateDocument(
+        proposal,
+        rawUpdate,
+        { logId: proposal.id, info },
+        'Update proposalCanceled',
+        llo,
+      )
+    } catch (error) {
+      logger.error('Error proposalCanceled', llo({ ...info, error, parsedEvent }))
+    }
+  },
+  proposalEdited: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    try {
+      const proposal = await Models.Proposal.findByProposalIndex(
+        parsedEvent.args.proposalId.toString(),
+        info.address,
+        info.network,
+      )
+
+      if (!proposal) {
+        logger.warn('Proposal not found', llo(info))
+        return
+      }
+
+      const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
+      const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
+
+      const rawUpdate: Partial<Proposal> = {
+        title: proposalMetadata?.title!,
+        description: proposalMetadata?.description!,
+        summary: proposalMetadata?.summary!,
+        resources: proposalMetadata?.resources as any,
+        media: proposalMetadata?.media as any,
+        rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({
+          to: w.to,
+          value: w.value,
+          data: w.data,
+        })),
+        editedTxInfo: {
+          blockNumber: info.blockNumber,
+          transactionHash: info.transactionHash,
+          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || null,
+        },
+      }
+
+      const decodeActions = new DecodeActions()
+
+      rawUpdate.actions = await Promise.all(
+        rawUpdate.rawActions!.map(async (action: any) => {
+          let decodeData: any
+
+          if (action.data?.length >= 10) {
+            decodeData = await decodeActions.decodeData(action, proposal)
+          } else {
+            decodeData = await decodeActions.decodeTransfer(action, proposal)
+          }
+
+          if (decodeData) {
+            return decodeData
+          }
+
+          return []
+        }),
+      )
+
+      await DbOperations.updateDocument(proposal, rawUpdate, { logId: proposal.id, info }, 'Update proposalEdited', llo)
+    } catch (error) {
+      logger.error('Error proposalEdited', llo({ ...info, error, parsedEvent }))
+    }
+  },
 }

@@ -160,6 +160,17 @@ class Snapshot {
   public membersCount?: number // memberCount (only needed for multisig, rm from token)
 }
 
+class TxInfo {
+  @prop({ type: () => String })
+  public transactionHash!: string
+
+  @prop({ type: () => Number })
+  public blockNumber!: number
+
+  @prop({ type: () => Number, default: null })
+  public blockTimestamp!: number | null
+}
+
 @modelOptions({
   schemaOptions: {
     id: false,
@@ -274,6 +285,12 @@ export default class Proposal extends Model {
 
   @prop({ type: () => [SubProposal], _id: false })
   public subProposals!: SubProposal[]
+
+  @prop({ type: () => TxInfo, default: null })
+  public editedTxInfo!: TxInfo | null
+
+  @prop({ type: () => Boolean, default: false })
+  public cancelTxInfo!: TxInfo | null
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
