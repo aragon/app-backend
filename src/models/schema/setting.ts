@@ -54,6 +54,12 @@ export class Stages {
 
   @prop({ type: () => String, default: null })
   public name!: string
+
+  @prop({ type: () => Boolean, default: null })
+  public cancelable!: boolean
+
+  @prop({ type: () => Boolean, default: null })
+  public editable!: boolean
 }
 
 @modelOptions({

@@ -175,6 +175,8 @@ export const PluginSettingHandler = {
         voteDuration: stage.voteDuration ? Number(stage.voteDuration) : Number(stage.stageDuration || 0),
         approvalThreshold: Number(stage.approvalThreshold),
         vetoThreshold: Number(stage.vetoThreshold),
+        cancelable: stage.cancelable,
+        editable: stage.editable,
         plugins: plugins.map((plugin: any) => {
           return {
             address: plugin.pluginAddress || plugin.addr,
