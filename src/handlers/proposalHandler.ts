@@ -372,7 +372,7 @@ export const ProposalHandler = {
 
   fetchProposalMetadata: async (metadataUri: string): Promise<IProposalMetadata | null> => {
     try {
-      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 1 })
+      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 4 })
       return Web3Helper.parseProposalMetadata(ipfsMetadata!)
     } catch (error) {
       return null

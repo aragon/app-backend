@@ -31,7 +31,7 @@ export const MetadataHandler = {
     if (!daoExists && !pluginExists) return
 
     const metadataUri = Web3Helper.extractMetadataUri(parsedEvent.args.metadata)
-    const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 1 })
+    const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
 
     const logMetadata = {
       network,
