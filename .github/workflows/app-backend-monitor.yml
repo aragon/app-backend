@@ -5,13 +5,12 @@ on:
     - cron: '0 * * * *' # Run performance tests every hour
     - cron: '0 0 * * 1' # Send success message every Monday at 00:00
   workflow_dispatch:
-  push:
-    branches:
-      - feature/monitor # Trigger on this branch only
+
+env:
+  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
 jobs:
   test:
-    if: github.event.schedule == '*/30 * * * *' || github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
@@ -64,7 +63,7 @@ jobs:
 
             curl -H "Content-Type: application/json" \
               -X POST \
-              -d "{\"content\": \"❌ **Postman Performance Test Failed**\\n**Failing Tests:**\\n$FAILURES_MESSAGE\"}" \
+              -d "{\"content\": \"❌ **API Monitoring Test Failed**\\n**Failing Tests:**\\n$FAILURES_MESSAGE\"}" \
               https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
           fi
         env:
@@ -80,5 +79,5 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
-            -d '{"content": "✅ **Weekly Report: All Postman Performance Tests Succeeded!**"}' \
+            -d '{"content": "✅ **Weekly Report: All API Monitoring Tests Succeeded!**"}' \
             https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
