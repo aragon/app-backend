@@ -1,0 +1,83 @@
+name: AppBackend API Monitoring
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Run performance tests every hour
+    - cron: '0 0 * * 1' # Send success message every Monday at 00:00
+  workflow_dispatch:
+
+env:
+  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Run Performance Tests
+        id: postman-test
+        run: |
+          # Run Newman tests and save output
+          newman run postman/postman-backend-collection.json \
+            --env-var "host=https://api.aragon-backend.com" \
+            --reporters cli \
+            --timeout-request 5000 \
+            > test-output.log || true
+
+          # Display test output for debugging
+          echo "===== Newman Test Output ====="
+          cat test-output.log
+          echo "=============================="
+
+          # Extract full details of failures
+          RAW_FAILURES=$(awk '/#  failure/{flag=1; next} /==============================/{flag=0} flag' test-output.log)
+          if [ -z "$RAW_FAILURES" ]; then
+            echo "FAILURES=None" >> $GITHUB_ENV
+          else
+            # Escape newlines and special characters
+            SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
+            echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
+          fi
+
+          # Determine test status
+          if [ -z "$RAW_FAILURES" ]; then
+            echo "TEST_STATUS=success" >> $GITHUB_ENV
+          else
+            echo "TEST_STATUS=failed" >> $GITHUB_ENV
+          fi
+
+      - name: Notify Discord on Test Results
+        run: |
+          if [ "$TEST_STATUS" == "failed" ]; then
+            if [ "$FAILURES" == "None" ]; then
+              FAILURES_MESSAGE="No detailed failure messages were found."
+            else
+              FAILURES_MESSAGE="$FAILURES"
+            fi
+
+            curl -H "Content-Type: application/json" \
+              -X POST \
+              -d "{\"content\": \"❌ **API Monitoring Test Failed**\\n**Failing Tests:**\\n$FAILURES_MESSAGE\"}" \
+              https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
+          fi
+        env:
+          TEST_STATUS: ${{ env.TEST_STATUS }}
+          FAILURES: ${{ env.FAILURES }}
+
+  weekly_success:
+    if: github.event.schedule == '0 0 * * 1'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Notify Discord Weekly Success Message
+        run: |
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d '{"content": "✅ **Weekly Report: All API Monitoring Tests Succeeded!**"}' \
+            https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
