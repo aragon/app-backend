@@ -25,6 +25,7 @@ class BlockchainLogCrawler {
       events: opts.events,
       stopOnError: opts.stopOnError,
       logService: opts.logService,
+      onlyHistorical: opts.onlyHistorical,
       onError: opts.onError || BlockchainLogCrawler.defaultOnError,
     }
 
@@ -224,7 +225,7 @@ class BlockchainLogCrawler {
         }
 
         const info = Web3Helper.parseInfoLog(log, eventSetting.event, this.crawlParams.network)
-        await eventSetting.handler(event, info, true)
+        await eventSetting.handler(event, info, this.crawlParams.onlyHistorical)
 
         this.crawlSetting.nbSuccess++
         if (log.blockNumber) {
