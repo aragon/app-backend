@@ -69,5 +69,16 @@ module.exports = {
         ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-rates') }).parsed,
       },
     },
+    {
+      name: 'aragon-tools',
+      cwd: path.resolve(__dirname, ''),
+      script: 'yarn',
+      args: 'tools',
+      autorestart: false,
+      env: {
+        INSTANCE_ID: 'aragon-tools',
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-tools') }).parsed,
+      },
+    },
   ],
 }
