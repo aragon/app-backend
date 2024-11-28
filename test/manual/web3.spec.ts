@@ -16,6 +16,17 @@ describe('Manual: Web3', () => {
     sandbox && sandbox.restore()
   })
 
+  it('should getTokenBalance', async function () {
+    this.timeout(60000) // Increase timeout for the test
+    await ProviderModule.connectToAllNetworks()
+
+    const token = await Web3Helper.getTokenBalances(
+      '0x55da37AF02c4e7e0Ce01964A68692f7e32575eFA',
+      NetworksEnum.ethereumMainnet,
+    )
+    console.log(token)
+  })
+
   it('should getTokenBalanceAtBlock', async () => {
     await ProviderModule.connectToAllNetworks()
 
