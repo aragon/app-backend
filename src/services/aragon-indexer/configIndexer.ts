@@ -129,6 +129,20 @@ const IndexerEventConfig: IIndexerConfig[] = [
     topic: new Interface(Multisig.abi).getEvent('ProposalExecuted')?.topicHash!,
   },
   {
+    event: 'ProposalCanceled',
+    abi: StagedProposalProcessor.abi,
+    handler: ProposalHandler.proposalCanceled,
+    enableHistorical: false,
+    topic: new Interface(StagedProposalProcessor.abi).getEvent('ProposalCanceled')?.topicHash!,
+  },
+  {
+    event: 'ProposalEdited',
+    abi: StagedProposalProcessor.abi,
+    handler: ProposalHandler.proposalEdited,
+    enableHistorical: false,
+    topic: new Interface(StagedProposalProcessor.abi).getEvent('ProposalEdited')?.topicHash!,
+  },
+  {
     event: 'ProposalAdvanced',
     abi: StagedProposalProcessor.abi,
     handler: ProposalHandler.proposalAdvanced,

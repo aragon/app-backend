@@ -1,35 +1,34 @@
 import { EnumConnection, type IService, NetworksEnum } from '@types'
 import ProviderModule from '@modules/provider'
-// import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
-import Web3Helper from '@helpers/web3'
-// import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
-// import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
-import { Interface } from 'ethers'
-import { DAO } from '@artifacts/dao'
-import { MetadataHandler } from '@src/handlers/metadataHandler'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import utils from '@helpers/utils'
+import configIndexer from '@indexer/configIndexer'
+import logger from '@logger'
+
+const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
 export const ToolsManualTrigger: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   start: async () => {
     await ProviderModule.connectToAllNetworks()
-
-    const transactionHash = ''
     const network = NetworksEnum.ethereumSepolia
 
-    const txReceipt = await Web3Helper.getTransactionReceipt(transactionHash, network)
+    const fromBlock = 7149126
+    const toBlock = 'latest'
+    const configLogs = utils.filterArrayByProperty(configIndexer, 'enableHistorical')
 
-    const installationPreparingLogs = Web3Helper.findLogsByName(txReceipt!, 'MetadataSet', DAO.abi)
+    const logCrawler = new BlockchainLogCrawler({
+      fromBlock,
+      toBlock,
+      events: configLogs,
+      network,
+      onError: async (error: any) => logger.error('Error Indexer', llo(error)),
+      logService: `Indexer-${network}`,
+      stopOnError: true,
+    })
 
-    const iFace = new Interface(DAO.abi)
-
-    for (const log of installationPreparingLogs) {
-      const logInfo = Web3Helper.parseLog(log.txLog, iFace)
-
-      const info = Web3Helper.parseInfoLog(log.txLog, 'MetadataSet', network)
-
-      await MetadataHandler.metadataSet(logInfo!, info)
-    }
+    await logCrawler.crawl()
   },
 
   stop: async () => {},
