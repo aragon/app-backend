@@ -78,12 +78,41 @@ export const GovernanceErc20Handler = {
 
       const { from, to } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
 
+      const memberBalance = await Web3Helper.getTokenBalanceAtBlock({
+        address: member.address,
+        tokenAddress: info.address,
+        blockNumber: info.blockNumber,
+        network: info.network,
+      })
+
+      // we always check if member receive or send the delegation to add and remove from the dao
+      if (newVotingPower > 0n) {
+        // add to dao
+        await ProxyMember.addToDao({
+          memberAddress: member?.address,
+          daoAddress: plugin.daoAddress,
+          pluginAddress: plugin.address,
+          network: info.network,
+        })
+      } else {
+        if (BigInt(memberBalance) === 0n && newVotingPower === 0n) {
+          // member not part of the dao anymore
+          await ProxyMember.removeFromDao({
+            memberAddress: member?.address,
+            daoAddress: plugin.daoAddress,
+            pluginAddress: plugin.address,
+            network: info.network,
+          })
+        }
+      }
+
       if (from === utils.zeroAddress || to === utils.zeroAddress) {
         // Note we skip all delegation happened on transfer, mint, burn, etc
         return
       }
 
-      const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
+      // only if a member have delegate we store the delegate transaction
+      await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await Models.MemberTransaction.create(
           {
             network: info.network,
@@ -99,12 +128,7 @@ export const GovernanceErc20Handler = {
             to,
             amount: BigInt(parsedEvent.args.value || 0).toString(),
             tokenAddress: info.address,
-            memberBalance: await Web3Helper.getTokenBalanceAtBlock({
-              address: member.address,
-              tokenAddress: info.address,
-              blockNumber: info.blockNumber,
-              network: info.network,
-            }),
+            memberBalance,
             memberVotingPower: newVotingPower.toString(),
           },
           { session },
@@ -128,26 +152,6 @@ export const GovernanceErc20Handler = {
           pluginAddress: plugin.address,
           network: info.network,
         })
-      }
-
-      if (newVotingPower > 0n) {
-        // add to dao
-        await ProxyMember.addToDao({
-          memberAddress: member?.address,
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          network: info.network,
-        })
-      } else {
-        if (BigInt(memberTransaction.memberBalance) === 0n && newVotingPower === 0n) {
-          // member not part of the dao anymore
-          await ProxyMember.removeFromDao({
-            memberAddress: member?.address,
-            daoAddress: plugin.daoAddress,
-            pluginAddress: plugin.address,
-            network: info.network,
-          })
-        }
       }
 
       // Dao metrics
