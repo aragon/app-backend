@@ -97,6 +97,10 @@ export const ProxyToken = {
     existingToken.totalSupply = tokenMetrics.totalSupply
     existingToken.lastUpdatedAt = dayjs.utc().toDate()
 
+    if (existingToken.totalSupply === '0') {
+      existingToken.totalSupply = await Web3Helper.getTokenTotalSupply(existingToken.address, existingToken.network)
+    }
+
     // Update rate-related fields
     existingToken.priceUsd = tokenRate.priceUsd
     existingToken.priceChangeOnDayUsd = tokenRate.priceChangeOnDayUsd
