@@ -3,7 +3,7 @@ import { type IPluginInfo, IPluginInterfaceType, type NetworksEnum } from '@type
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
 
-export const SPP_FUNCTIONS = ['getStages()']
+export const SPP_FUNCTIONS = ['getStages(uint256)']
 
 export const TOKEN_VOTING_FUNCTIONS = ['getVotingToken()', 'totalVotingPower(uint256)']
 

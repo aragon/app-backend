@@ -149,6 +149,7 @@ class DecodeActions {
       decoded.contract = contractNetspec.contractName
       decoded.parameters = decoded.parameters.map((param, index) => {
         param.notice = contractNetspec.inputs[index].notice
+        param.name = contractNetspec.inputs[index].name
         return param
       })
     }
@@ -300,7 +301,7 @@ class DecodeActions {
     }
 
     try {
-      const proposedMetadata = await IPFSModule.fetchMetadata(ipfsUrl)
+      const proposedMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
       if (!proposedMetadata) {
         return null
       }

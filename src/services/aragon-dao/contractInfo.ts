@@ -31,7 +31,7 @@ export const getContractInfo = async (network: NetworksEnum, address: string) =>
     ),
   )
 
-  if (contractDetails && contractDetails.length > 0) {
+  if (contractDetails && contractDetails.length > 0 && contractDetails[0].SourceCode !== '') {
     const results = ContractNetspecHelper.parseNetspec(
       contractDetails[0].SourceCode,
       contractDetails[0].ContractName,

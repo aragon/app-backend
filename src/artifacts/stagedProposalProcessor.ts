@@ -48,12 +48,28 @@ export const StagedProposalProcessor = {
     },
     {
       inputs: [{ internalType: 'uint256', name: 'proposalId', type: 'uint256' }],
-      name: 'ProposalAlreadyExists',
+      name: 'ProposalAdvanceForbidden',
       type: 'error',
     },
     {
       inputs: [{ internalType: 'uint256', name: 'proposalId', type: 'uint256' }],
-      name: 'ProposalCannotAdvance',
+      name: 'ProposalAlreadyExists',
+      type: 'error',
+    },
+    {
+      inputs: [
+        { internalType: 'uint256', name: 'proposalId', type: 'uint256' },
+        { internalType: 'uint16', name: 'stageId', type: 'uint16' },
+      ],
+      name: 'ProposalCanNotBeCancelled',
+      type: 'error',
+    },
+    {
+      inputs: [
+        { internalType: 'uint256', name: 'proposalId', type: 'uint256' },
+        { internalType: 'uint16', name: 'stageId', type: 'uint16' },
+      ],
+      name: 'ProposalCanNotBeEdited',
       type: 'error',
     },
     {
@@ -73,6 +89,16 @@ export const StagedProposalProcessor = {
     },
     { inputs: [], name: 'StageThresholdsInvalid', type: 'error' },
     { inputs: [{ internalType: 'uint64', name: '', type: 'uint64' }], name: 'StartDateInvalid', type: 'error' },
+    { inputs: [], name: 'Uint16MaxSizeExceeded', type: 'error' },
+    {
+      inputs: [
+        { internalType: 'uint256', name: 'proposalId', type: 'uint256' },
+        { internalType: 'uint8', name: 'currentState', type: 'uint8' },
+        { internalType: 'bytes32', name: 'allowedStates', type: 'bytes32' },
+      ],
+      name: 'UnexpectedProposalState',
+      type: 'error',
+    },
     {
       anonymous: false,
       inputs: [
@@ -104,9 +130,20 @@ export const StagedProposalProcessor = {
       anonymous: false,
       inputs: [
         { indexed: true, internalType: 'uint256', name: 'proposalId', type: 'uint256' },
-        { indexed: true, internalType: 'uint256', name: 'stageId', type: 'uint256' },
+        { indexed: true, internalType: 'uint16', name: 'stageId', type: 'uint16' },
+        { indexed: true, internalType: 'address', name: 'sender', type: 'address' },
       ],
       name: 'ProposalAdvanced',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: true, internalType: 'uint256', name: 'proposalId', type: 'uint256' },
+        { indexed: true, internalType: 'uint16', name: 'stageId', type: 'uint16' },
+        { indexed: true, internalType: 'address', name: 'sender', type: 'address' },
+      ],
+      name: 'ProposalCanceled',
       type: 'event',
     },
     {
@@ -131,6 +168,28 @@ export const StagedProposalProcessor = {
         { indexed: false, internalType: 'uint256', name: 'allowFailureMap', type: 'uint256' },
       ],
       name: 'ProposalCreated',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: true, internalType: 'uint256', name: 'proposalId', type: 'uint256' },
+        { indexed: true, internalType: 'uint16', name: 'stageId', type: 'uint16' },
+        { indexed: true, internalType: 'address', name: 'sender', type: 'address' },
+        { indexed: false, internalType: 'bytes', name: 'metadata', type: 'bytes' },
+        {
+          components: [
+            { internalType: 'address', name: 'to', type: 'address' },
+            { internalType: 'uint256', name: 'value', type: 'uint256' },
+            { internalType: 'bytes', name: 'data', type: 'bytes' },
+          ],
+          indexed: false,
+          internalType: 'struct Action[]',
+          name: 'actions',
+          type: 'tuple[]',
+        },
+      ],
+      name: 'ProposalEdited',
       type: 'event',
     },
     {
@@ -170,6 +229,8 @@ export const StagedProposalProcessor = {
             { internalType: 'uint64', name: 'voteDuration', type: 'uint64' },
             { internalType: 'uint16', name: 'approvalThreshold', type: 'uint16' },
             { internalType: 'uint16', name: 'vetoThreshold', type: 'uint16' },
+            { internalType: 'bool', name: 'cancelable', type: 'bool' },
+            { internalType: 'bool', name: 'editable', type: 'bool' },
           ],
           indexed: false,
           internalType: 'struct StagedProposalProcessor.Stage[]',
@@ -233,20 +294,6 @@ export const StagedProposalProcessor = {
     },
     {
       inputs: [],
-      name: 'CREATE_PROPOSAL_PERMISSION_ID',
-      outputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
-      stateMutability: 'view',
-      type: 'function',
-    },
-    {
-      inputs: [],
-      name: 'EXECUTE_PROPOSAL_PERMISSION_ID',
-      outputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
-      stateMutability: 'view',
-      type: 'function',
-    },
-    {
-      inputs: [],
       name: 'SET_METADATA_PERMISSION_ID',
       outputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
       stateMutability: 'view',
@@ -255,20 +302,6 @@ export const StagedProposalProcessor = {
     {
       inputs: [],
       name: 'SET_TARGET_CONFIG_PERMISSION_ID',
-      outputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
-      stateMutability: 'view',
-      type: 'function',
-    },
-    {
-      inputs: [],
-      name: 'SET_TRUSTED_FORWARDER_PERMISSION_ID',
-      outputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
-      stateMutability: 'view',
-      type: 'function',
-    },
-    {
-      inputs: [],
-      name: 'UPDATE_STAGES_PERMISSION_ID',
       outputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
       stateMutability: 'view',
       type: 'function',
@@ -288,17 +321,6 @@ export const StagedProposalProcessor = {
       type: 'function',
     },
     {
-      inputs: [
-        { internalType: 'uint256', name: 'proposalId', type: 'uint256' },
-        { internalType: 'uint16', name: 'stageId', type: 'uint16' },
-        { internalType: 'address', name: 'body', type: 'address' },
-      ],
-      name: 'bodyProposalIds',
-      outputs: [{ internalType: 'uint256', name: 'subProposalId', type: 'uint256' }],
-      stateMutability: 'view',
-      type: 'function',
-    },
-    {
       inputs: [{ internalType: 'uint256', name: '_proposalId', type: 'uint256' }],
       name: 'canExecute',
       outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
@@ -310,6 +332,13 @@ export const StagedProposalProcessor = {
       name: 'canProposalAdvance',
       outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
       stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [{ internalType: 'uint256', name: '_proposalId', type: 'uint256' }],
+      name: 'cancel',
+      outputs: [],
+      stateMutability: 'nonpayable',
       type: 'function',
     },
     {
@@ -371,10 +400,41 @@ export const StagedProposalProcessor = {
       type: 'function',
     },
     {
+      inputs: [
+        { internalType: 'uint256', name: '_proposalId', type: 'uint256' },
+        { internalType: 'bytes', name: '_metadata', type: 'bytes' },
+        {
+          components: [
+            { internalType: 'address', name: 'to', type: 'address' },
+            { internalType: 'uint256', name: 'value', type: 'uint256' },
+            { internalType: 'bytes', name: 'data', type: 'bytes' },
+          ],
+          internalType: 'struct Action[]',
+          name: '_actions',
+          type: 'tuple[]',
+        },
+      ],
+      name: 'edit',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
       inputs: [{ internalType: 'uint256', name: '_proposalId', type: 'uint256' }],
       name: 'execute',
       outputs: [],
       stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      inputs: [
+        { internalType: 'uint256', name: '_proposalId', type: 'uint256' },
+        { internalType: 'uint16', name: '_stageId', type: 'uint16' },
+        { internalType: 'address', name: '_body', type: 'address' },
+      ],
+      name: 'getBodyProposalId',
+      outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+      stateMutability: 'view',
       type: 'function',
     },
     {
@@ -441,6 +501,8 @@ export const StagedProposalProcessor = {
             { internalType: 'uint16', name: 'currentStage', type: 'uint16' },
             { internalType: 'uint16', name: 'stageConfigIndex', type: 'uint16' },
             { internalType: 'bool', name: 'executed', type: 'bool' },
+            { internalType: 'bool', name: 'canceled', type: 'bool' },
+            { internalType: 'address', name: 'creator', type: 'address' },
             {
               components: [
                 { internalType: 'address', name: 'to', type: 'address' },
@@ -470,7 +532,10 @@ export const StagedProposalProcessor = {
       type: 'function',
     },
     {
-      inputs: [{ internalType: 'uint256', name: '_proposalId', type: 'uint256' }],
+      inputs: [
+        { internalType: 'uint256', name: '_proposalId', type: 'uint256' },
+        { internalType: 'uint16', name: '_stageId', type: 'uint16' },
+      ],
       name: 'getProposalTally',
       outputs: [
         { internalType: 'uint256', name: 'approvals', type: 'uint256' },
@@ -480,7 +545,7 @@ export const StagedProposalProcessor = {
       type: 'function',
     },
     {
-      inputs: [],
+      inputs: [{ internalType: 'uint256', name: '_index', type: 'uint256' }],
       name: 'getStages',
       outputs: [
         {
@@ -501,6 +566,8 @@ export const StagedProposalProcessor = {
             { internalType: 'uint64', name: 'voteDuration', type: 'uint64' },
             { internalType: 'uint16', name: 'approvalThreshold', type: 'uint16' },
             { internalType: 'uint16', name: 'vetoThreshold', type: 'uint16' },
+            { internalType: 'bool', name: 'cancelable', type: 'bool' },
+            { internalType: 'bool', name: 'editable', type: 'bool' },
           ],
           internalType: 'struct StagedProposalProcessor.Stage[]',
           name: '',
@@ -535,7 +602,14 @@ export const StagedProposalProcessor = {
       type: 'function',
     },
     {
-      inputs: [],
+      inputs: [{ internalType: 'address', name: '_account', type: 'address' }],
+      name: 'hasAdvancePermission',
+      outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [{ internalType: 'address', name: '_account', type: 'address' }],
       name: 'hasExecutePermission',
       outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
       stateMutability: 'view',
@@ -577,6 +651,8 @@ export const StagedProposalProcessor = {
             { internalType: 'uint64', name: 'voteDuration', type: 'uint64' },
             { internalType: 'uint16', name: 'approvalThreshold', type: 'uint16' },
             { internalType: 'uint16', name: 'vetoThreshold', type: 'uint16' },
+            { internalType: 'bool', name: 'cancelable', type: 'bool' },
+            { internalType: 'bool', name: 'editable', type: 'bool' },
           ],
           internalType: 'struct StagedProposalProcessor.Stage[]',
           name: '_stages',
@@ -670,6 +746,13 @@ export const StagedProposalProcessor = {
       type: 'function',
     },
     {
+      inputs: [{ internalType: 'uint256', name: '_proposalId', type: 'uint256' }],
+      name: 'state',
+      outputs: [{ internalType: 'enum StagedProposalProcessor.ProposalState', name: '', type: 'uint8' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
       inputs: [{ internalType: 'bytes4', name: '_interfaceId', type: 'bytes4' }],
       name: 'supportsInterface',
       outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
@@ -696,6 +779,8 @@ export const StagedProposalProcessor = {
             { internalType: 'uint64', name: 'voteDuration', type: 'uint64' },
             { internalType: 'uint16', name: 'approvalThreshold', type: 'uint16' },
             { internalType: 'uint16', name: 'vetoThreshold', type: 'uint16' },
+            { internalType: 'bool', name: 'cancelable', type: 'bool' },
+            { internalType: 'bool', name: 'editable', type: 'bool' },
           ],
           internalType: 'struct StagedProposalProcessor.Stage[]',
           name: '_stages',
