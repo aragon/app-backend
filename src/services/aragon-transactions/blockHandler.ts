@@ -8,7 +8,7 @@ import { Models } from '@dbModels'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Dao from '@models/schema/dao'
 import utils from '@helpers/utils'
-import config from '../../../aws-new/backend-prod/config'
+import config from "@config";
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-transactions:BlockHandler' })
 
