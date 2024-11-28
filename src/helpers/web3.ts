@@ -563,15 +563,20 @@ const Web3Helper = {
       )
 
       const balances = await Promise.all(
-        response?.tokenBalances?.map(async (alchemyBalance: any) => {
-          const token = await ProxyToken.saveAndGetToken(alchemyBalance.contractAddress, network)
-          const result: IAlchemyTokenBalance = {
-            contractAddress: Web3Helper.parseAddress(alchemyBalance.contractAddress) || alchemyBalance.contractAddress,
-            tokenBalance: Web3Helper.handleAlchemyCrazyBalance(alchemyBalance.tokenBalance, token?.decimals),
-            originalBalance: alchemyBalance.tokenBalance,
-          }
-          return result
-        }),
+        response?.tokenBalances
+          ?.filter(
+            (token: any) => token.tokenBalance !== '0x0000000000000000000000000000000000000000000000000000000000000000',
+          )
+          ?.map(async (alchemyBalance: any) => {
+            const token = await ProxyToken.saveAndGetToken(alchemyBalance.contractAddress, network)
+            const result: IAlchemyTokenBalance = {
+              contractAddress:
+                Web3Helper.parseAddress(alchemyBalance.contractAddress) || alchemyBalance.contractAddress,
+              tokenBalance: Web3Helper.handleAlchemyCrazyBalance(alchemyBalance.tokenBalance, token?.decimals),
+              originalBalance: alchemyBalance.tokenBalance,
+            }
+            return result
+          }),
       )
 
       return balances.filter((token: any) => token.tokenBalance !== '0')
