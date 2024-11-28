@@ -18,6 +18,7 @@ export interface ICrawlParam {
   address?: HexAddress | HexAddress[] | string | string[]
   events: IIndexerConfig[]
   stopOnError: boolean
+  onlyHistorical?: boolean
   logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
   onError: (error: Error, log?: Log) => void
 }
