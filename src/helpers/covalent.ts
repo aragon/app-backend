@@ -94,7 +94,7 @@ const CovalentHelper = {
   getToken: async (
     tokenContractAddress: string,
     network: NetworksEnum,
-    pastDays: number = 2,
+    pastDays: number = 1,
   ): Promise<Partial<IToken> | false> => {
     let isNativeToken = false
 
