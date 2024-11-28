@@ -92,6 +92,8 @@ export interface IConfig {
     COINGECKO_MIN_TIME: number
     COVALENT_MAX_CONCURRENT: number
     COVALENT_MIN_TIME: number
+    OCTAV_MAX_CONCURRENT: number
+    OCTAV_MIN_TIME: number
     FOUR_BYTE_MAX_CONCURRENT: number
     FOUR_BYTE_MIN_TIME: number
     ALCHEMY_ENS_MAX_CONCURRENT: number
@@ -129,6 +131,11 @@ export interface IConfig {
 
   FOUR_BYTE: {
     URI: string
+  }
+
+  OCTAV: {
+    URI: string
+    TOKEN: string
   }
 
   PINATA: {
