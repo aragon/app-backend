@@ -4,7 +4,7 @@ import ProviderModule from '@modules/provider'
 import { NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 
-describe('Manual: Provider', () => {
+describe('Manual: Token', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -16,10 +16,10 @@ describe('Manual: Provider', () => {
   })
 
   it('should handle reconnection during a loop', async function () {
-    this.timeout(60000) // Increase timeout for the test
+    this.timeout(160000) // Increase timeout for the test
 
     await ProviderModule.connectToAllNetworks()
 
-    await ProxyToken.saveAndGetToken('0xD3596C81FcAb699192dc79C8e25f1362E3dFf89A', NetworksEnum.polygonMainnet)
+    await ProxyToken.saveAndGetToken('0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0', NetworksEnum.ethereumMainnet)
   })
 })

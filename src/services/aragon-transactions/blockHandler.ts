@@ -8,6 +8,7 @@ import { Models } from '@dbModels'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Dao from '@models/schema/dao'
 import utils from '@helpers/utils'
+import config from '../../../aws-new/backend-prod/config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-transactions:BlockHandler' })
 
@@ -35,8 +36,8 @@ export const BlockHandler = {
             }),
           )
 
-          // alchemy instance node not always up-to-date
-          await utils.wait(7000)
+          // wait 2 block confirmations
+          await utils.wait(config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME * 1000 * 2)
           await BlockHandler.sendDaoMessages(dao)
 
           logger.verbose(

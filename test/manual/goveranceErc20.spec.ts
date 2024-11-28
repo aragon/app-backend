@@ -2,7 +2,6 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
-import config from '@config'
 import { NetworksEnum } from '@types'
 
 describe('Manual: GoveranceErc20', () => {
