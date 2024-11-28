@@ -658,6 +658,22 @@ const Web3Helper = {
     }
   },
 
+  async getTokenTotalSupply(address: HexAddress, network: NetworksEnum): Promise<string> {
+    const provider = ProviderModule.getProvider(network)!
+    const tokenInstance = new Contract(address, ERC20.abi, provider)
+
+    try {
+      const totalSupply = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.totalSupply()),
+      )
+      return BigInt(totalSupply).toString()
+    } catch (error) {
+      logger.warn('Error getting token total supply:', llo({ error, address }))
+    }
+
+    return '0'
+  },
+
   async getTokenInfo(
     address: HexAddress,
     network: NetworksEnum,
