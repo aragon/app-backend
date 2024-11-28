@@ -76,7 +76,12 @@ export const GovernanceErc20Handler = {
         return logDb
       })
 
-      const { from, to } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info, side)
+      const { from, to } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
+
+      if (from === utils.zeroAddress || to === utils.zeroAddress) {
+        // Note we skip all delegation happened on transfer, mint, burn, etc
+        return
+      }
 
       const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await Models.MemberTransaction.create(
@@ -340,7 +345,7 @@ export const GovernanceErc20Handler = {
     })
   },
 
-  _findDelegatorsFromReceipt: async (parsedEvent: LogDescription, info: ILogInfo, side: ITransferSide) => {
+  _findDelegatorsFromReceipt: async (parsedEvent: LogDescription, info: ILogInfo) => {
     let from = utils.zeroAddress
     let to = utils.zeroAddress
 
@@ -363,56 +368,6 @@ export const GovernanceErc20Handler = {
 
       if (log?.parsed?.args?.toDelegate) {
         to = log.parsed.args.toDelegate
-      }
-
-      if (!log) {
-        // log delegator not match
-
-        const findEventByIndex = (logs: any, index: number) =>
-          logs.find(
-            (w: { parsed: LogDescription | null; txLog: any }) => w.txLog.logIndex === index || w.txLog.index === index,
-          )
-
-        const nextIndexLog = info.logIndex + 1
-        const prevIndexLog = info.logIndex - 1
-
-        if (delegationChangedLogs.length > 0) {
-          const nextEvent = findEventByIndex(delegationChangedLogs, nextIndexLog)
-          const prevEvent = findEventByIndex(delegationChangedLogs, prevIndexLog)
-
-          if (nextEvent) {
-            from = parsedEvent.args?.delegate
-            to = nextEvent.parsed?.args?.toDelegate
-          } else if (prevEvent) {
-            from = parsedEvent.args?.delegate
-            to = prevEvent.parsed?.args?.toDelegate
-          } else {
-            logger.error('Error DelegateVotesChanged - from and to not found', { info, delegationChangedLogs })
-          }
-        } else {
-          // DelegateChanges event not exits
-
-          const delegationVotesChangedLogs = Web3Helper.findLogsByName(
-            txReceipt,
-            IEventLogMember.DelegateVotesChanged,
-            GovernanceERC20.abi,
-          )
-
-          if (delegationVotesChangedLogs.length > 0) {
-            const nextEvent = findEventByIndex(delegationVotesChangedLogs, nextIndexLog)
-            const prevEvent = findEventByIndex(delegationVotesChangedLogs, prevIndexLog)
-
-            if (prevEvent && side === ITransferSide.incoming) {
-              from = prevEvent.parsed?.args?.delegate
-              to = parsedEvent.args?.delegate
-            } else if (nextEvent && side === ITransferSide.outgoing) {
-              from = parsedEvent.args?.delegate
-              to = nextEvent.parsed?.args?.delegate
-            } else {
-              logger.error('Error DelegateVotesChanged - from and to not found', { info, delegationChangedLogs })
-            }
-          }
-        }
       }
     }
 
