@@ -30,7 +30,12 @@ export const ProxyToken = {
 
     if (existingToken) {
       const sixHoursAgo = dayjs().subtract(6, 'hours').toDate()
-      if ((!existingToken.skipFetchRate && existingToken.lastUpdatedAt < sixHoursAgo) || forceUpdate) {
+      if (
+        (!existingToken.skipFetchRate && existingToken.lastUpdatedAt < sixHoursAgo) ||
+        existingToken.totalSupply === '0' || // update if total supply is 0
+        existingToken.holders === 0 || // update if holders is 0
+        forceUpdate
+      ) {
         existingToken = await ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network)
       }
       return existingToken
