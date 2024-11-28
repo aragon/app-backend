@@ -19,9 +19,16 @@ const IndexerService: IService = {
 
     await Promise.all(
       networks.map(async ({ networkName }) => {
+        // const logService = `Indexer-${networkName}`
+        // const existingConfig = await Models.ConfigIndexer.findExistingLog({
+        //   network: networkName,
+        //   service: logService,
+        // })
+
         const configLogs = utils.filterArrayByProperty(configIndexer, 'enableHistorical')
 
         const crawler = new BlockchainLogCrawler({
+          onlyHistorical: true,
           network: networkName,
           events: configLogs,
           onError: async (error: any) => logger.error('Error Indexer', llo(error)),
@@ -34,6 +41,7 @@ const IndexerService: IService = {
 
     logger.info('IndexerService historical logs end', llo({}))
 
+    // latest block
     await Promise.all(
       networks.map(async ({ networkName }) => {
         const eventListener = new EventListener(networkName, configIndexer)
