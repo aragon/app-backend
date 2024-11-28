@@ -146,6 +146,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       COINGECKO_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COINGECKO_MIN_TIME', 2000),
       COVALENT_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COVALENT_MAX_CONCURRENT', 1),
       COVALENT_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_COVALENT_MIN_TIME', 50),
+      OCTAV_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_OCTAV_MAX_CONCURRENT', 1),
+      OCTAV_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_OCTAV_MIN_TIME', 50),
       FOUR_BYTE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_FOUR_BYTE_MAX_CONCURRENT', 1),
       FOUR_BYTE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_FOUR_BYTE_MIN_TIME', 50),
       ALCHEMY_ENS_MAX_CONCURRENT: utils.configParser(
@@ -200,6 +202,11 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     FOUR_BYTE: {
       URI: utils.configParser(sourceConfig, 'string', 'FOUR_BYTE_URI', 'https://www.4byte.directory/api/v1'),
+    },
+
+    OCTAV: {
+      URI: utils.configParser(sourceConfig, 'string', 'OCTAV_URI', 'https://octav-api.hasura.app'),
+      TOKEN: utils.configParser(sourceConfig, 'string', 'OCTAV_TOKEN', null),
     },
 
     PINATA: {
