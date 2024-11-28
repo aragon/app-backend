@@ -73,7 +73,7 @@ module.exports = {
       name: 'aragon-tools',
       cwd: path.resolve(__dirname, ''),
       script: 'yarn',
-      args: 'tools',
+      args: 'tool',
       autorestart: false,
       env: {
         INSTANCE_ID: 'aragon-tools',
