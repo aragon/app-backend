@@ -6,7 +6,6 @@ import configIndexer from '@indexer/configIndexer'
 import utils from '@helpers/utils'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import EventListener from '@modules/eventListener'
-import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -18,21 +17,18 @@ const IndexerService: IService = {
 
     const networks = NetworkHelper.supportedNetworks()
 
-    // only first time to index from scratch then sync all events, it may be slow but is necessary
     await Promise.all(
       networks.map(async ({ networkName }) => {
-        const logService = `Indexer-${networkName}`
-        const existingConfig = await Models.ConfigIndexer.findExistingLog({
-          network: networkName,
-          service: logService,
-        })
+        // const logService = `Indexer-${networkName}`
+        // const existingConfig = await Models.ConfigIndexer.findExistingLog({
+        //   network: networkName,
+        //   service: logService,
+        // })
 
-        const configLogs = existingConfig
-          ? configIndexer
-          : utils.filterArrayByProperty(configIndexer, 'enableHistorical')
+        const configLogs = utils.filterArrayByProperty(configIndexer, 'enableHistorical')
 
         const crawler = new BlockchainLogCrawler({
-          onlyHistorical: !existingConfig,
+          onlyHistorical: true,
           network: networkName,
           events: configLogs,
           onError: async (error: any) => logger.error('Error Indexer', llo(error)),
