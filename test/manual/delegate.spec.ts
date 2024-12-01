@@ -43,6 +43,6 @@ describe('Manual: Delegate', () => {
     const iFace = new Interface(GovernanceERC20.abi)
     const event = Web3Helper.parseLog(delegationVotesChangedLogs[0].txLog, iFace)!
 
-    await GovernanceErc20Handler._findDelegatorsFromReceipt(event, logInfo, ITransferSide.incoming)
+    await GovernanceErc20Handler._findDelegatorsFromReceipt(event, logInfo)
   })
 })
