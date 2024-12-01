@@ -4,7 +4,6 @@ import { type IMetadata } from '@types'
 import { retry } from '@helpers/fetchRetry'
 import PinataHelper from '@helpers/pinata'
 import config from '@config'
-import axios from 'axios'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:IPFSModule' })
 
@@ -52,8 +51,24 @@ const IPFSModule = {
 
       return await retry(
         async () => {
-          const response = await axios.get(url)
-          return IPFSModule._parseDaoMetadata(response.data)
+          const controller = new AbortController()
+          const timeout = opts?.timeout || config.IPFS.METADATA_FETCH_DELAY
+          const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+          try {
+            const response = await fetch(url, {
+              signal: controller.signal,
+            })
+
+            if (!response.ok) {
+              throw new Error(`HTTP error! Status: ${response.status}`)
+            }
+
+            const data = await response.json()
+            return IPFSModule._parseDaoMetadata(data)
+          } finally {
+            clearTimeout(timeoutId)
+          }
         },
         {
           retries: opts?.retries || config.IPFS.METADATA_FETCH_RETRY,
