@@ -306,6 +306,23 @@ class DecodeActions {
         return null
       }
 
+      /**
+       * If the metadata is for a plugin, we need to fetch the contract netspec
+       * If we don't fetch for plugin, the netspec would be wrong.
+       */
+      if (metadataOriginKey === 'pluginAddress') {
+        const contractNetspec = await this.parseContractNetspec(decodedData.function, action.to, document.network!)
+        if (contractNetspec?.inputs) {
+          decodedData.notice = contractNetspec.notice
+          decodedData.contract = contractNetspec.contractName
+          decodedData.parameters = decodedData.parameters.map((param, index) => {
+            param.notice = contractNetspec.inputs[index].notice
+            param.name = contractNetspec.inputs[index].name
+            return param
+          })
+        }
+      }
+
       return {
         ...action,
         type: ProposalActionType.MetadataUpdate,
