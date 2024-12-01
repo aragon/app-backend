@@ -89,9 +89,14 @@ describe('Modules: IPFS', () => {
 
   describe('_fetchMetadata', function () {
     it('should _fetchMetadata', async () => {
-      const stubReq = sandbox.stub(axios, 'get').returns({ data: 'ok' } as any)
+      const stubReq = sandbox.stub(global, 'fetch').resolves({
+        ok: true,
+        json: async () => 'ok',
+      } as any)
+
       const stubParseMetadata = sandbox.stub(IPFSModule, '_parseDaoMetadata').returns(true as any)
       const cid = 'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
+
       const metadata = await IPFSModule._fetchMetadata(cid)
 
       expect(metadata).to.be.true
@@ -101,7 +106,7 @@ describe('Modules: IPFS', () => {
       expect(stubParseMetadata.calledWith('ok' as any)).to.be.true
     })
 
-    it('should log an error when _fetchMetadata', async () => {
+    it('should log an error when _fetchMetadata fails', async () => {
       const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
       const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
 
@@ -109,7 +114,8 @@ describe('Modules: IPFS', () => {
       config.IPFS.METADATA_FETCH_DELAY = 0
 
       const error = new Error('Network error')
-      sandbox.stub(axios, 'get').rejects(error)
+      sandbox.stub(global, 'fetch').rejects(error)
+
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
       const result = await IPFSModule._fetchMetadata('cid')
