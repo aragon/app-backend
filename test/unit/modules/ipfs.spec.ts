@@ -89,38 +89,46 @@ describe('Modules: IPFS', () => {
 
   describe('_fetchMetadata', function () {
     it('should _fetchMetadata', async () => {
-      const stubReq = sandbox.stub(axios, 'get').returns({ data: 'ok' } as any)
-      const stubParseMetadata = sandbox.stub(IPFSModule, '_parseDaoMetadata').returns(true as any)
-      const cid = 'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
-      const metadata = await IPFSModule._fetchMetadata(cid)
+      const stubReq = sandbox.stub(global, 'fetch').resolves({
+        ok: true,
+        json: async () => 'ok',
+      } as any);
 
-      expect(metadata).to.be.true
-      expect(stubReq.calledOnce).to.be.true
-      expect(stubReq.calledWith(`https://ipfs.io/ipfs/${cid}`)).to.be.true
-      expect(stubParseMetadata.calledOnce).to.be.true
-      expect(stubParseMetadata.calledWith('ok' as any)).to.be.true
-    })
+      const stubParseMetadata = sandbox.stub(IPFSModule, '_parseDaoMetadata').returns(true as any);
+      const cid = 'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme';
 
-    it('should log an error when _fetchMetadata', async () => {
-      const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
-      const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
+      const metadata = await IPFSModule._fetchMetadata(cid);
 
-      config.IPFS.METADATA_FETCH_RETRY = 0
-      config.IPFS.METADATA_FETCH_DELAY = 0
+      expect(metadata).to.be.true;
+      expect(stubReq.calledOnce).to.be.true;
+      expect(stubReq.calledWith(`https://ipfs.io/ipfs/${cid}`)).to.be.true;
+      expect(stubParseMetadata.calledOnce).to.be.true;
+      expect(stubParseMetadata.calledWith('ok' as any)).to.be.true;
 
-      const error = new Error('Network error')
-      sandbox.stub(axios, 'get').rejects(error)
-      const loggerErrorStub = sandbox.stub(logger, 'error')
+    });
 
-      const result = await IPFSModule._fetchMetadata('cid')
+    it('should log an error when _fetchMetadata fails', async () => {
+      const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY;
+      const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY;
 
-      expect(result).to.be.null
-      expect(loggerErrorStub.args[0][0]).to.eq('Failed to fetch metadata from IPFS')
+      config.IPFS.METADATA_FETCH_RETRY = 0;
+      config.IPFS.METADATA_FETCH_DELAY = 0;
 
-      config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
-      config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
-    })
-  })
+      const error = new Error('Network error');
+      sandbox.stub(global, 'fetch').rejects(error);
+
+      const loggerErrorStub = sandbox.stub(logger, 'error');
+
+      const result = await IPFSModule._fetchMetadata('cid');
+
+      expect(result).to.be.null;
+      expect(loggerErrorStub.args[0][0]).to.eq('Failed to fetch metadata from IPFS');
+
+      config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry;
+      config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay;
+    });
+  });
+
 
   describe('fetchMetadata', function () {
     it('should call fetchMetadata for CIDv1 and fallback to old gateway if necessary', async function () {
