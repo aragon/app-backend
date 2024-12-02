@@ -193,6 +193,7 @@ export const AggregationQueryHelper = {
       $project: {
         _id: 0,
         id: 1,
+        network: 1,
         transactionHash: 1,
         blockNumber: 1,
         blockTimestamp: 1,
