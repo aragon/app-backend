@@ -57,7 +57,7 @@ describe('Helpers: DecodeActions', () => {
         type: 'ERC20',
       } as any)
 
-       await decodeActions.decodeData(action, {
+      await decodeActions.decodeData(action, {
         network: NetworksEnum.ethereumMainnet,
       })
 
