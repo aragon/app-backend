@@ -46,11 +46,11 @@
         },
         {
           "internalType": "address",
-          "name": "plugin",
+          "name": "body",
           "type": "address"
         }
       ],
-      "name": "DuplicatePluginAddress",
+      "name": "DuplicateBodyAddress",
       "type": "error"
     },
     {
@@ -99,7 +99,7 @@
           "type": "uint256"
         }
       ],
-      "name": "ProposalAlreadyExists",
+      "name": "NonexistentProposal",
       "type": "error"
     },
     {
@@ -110,23 +110,71 @@
           "type": "uint256"
         }
       ],
-      "name": "ProposalCannotAdvance",
+      "name": "ProposalAdvanceForbidden",
       "type": "error"
     },
     {
       "inputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "proposalId",
           "type": "uint256"
         }
       ],
-      "name": "ProposalNotExists",
+      "name": "ProposalAlreadyExists",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "proposalId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint16",
+          "name": "stageId",
+          "type": "uint16"
+        }
+      ],
+      "name": "ProposalCanNotBeCancelled",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "proposalId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint16",
+          "name": "stageId",
+          "type": "uint16"
+        }
+      ],
+      "name": "ProposalCanNotBeEdited",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "proposalId",
+          "type": "uint256"
+        }
+      ],
+      "name": "ProposalExecutionForbidden",
       "type": "error"
     },
     {
       "inputs": [],
       "name": "StageCountZero",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "StageDurationsInvalid",
       "type": "error"
     },
     {
@@ -143,6 +191,48 @@
         }
       ],
       "name": "StageIdInvalid",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "StageThresholdsInvalid",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        }
+      ],
+      "name": "StartDateInvalid",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "Uint16MaxSizeExceeded",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "proposalId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint8",
+          "name": "currentState",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "allowedStates",
+          "type": "bytes32"
+        }
+      ],
+      "name": "UnexpectedProposalState",
       "type": "error"
     },
     {
@@ -214,12 +304,43 @@
         },
         {
           "indexed": true,
-          "internalType": "uint256",
+          "internalType": "uint16",
           "name": "stageId",
-          "type": "uint256"
+          "type": "uint16"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
         }
       ],
       "name": "ProposalAdvanced",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "proposalId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint16",
+          "name": "stageId",
+          "type": "uint16"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        }
+      ],
+      "name": "ProposalCanceled",
       "type": "event"
     },
     {
@@ -296,6 +417,60 @@
           "internalType": "uint256",
           "name": "proposalId",
           "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint16",
+          "name": "stageId",
+          "type": "uint16"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes",
+          "name": "metadata",
+          "type": "bytes"
+        },
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "indexed": false,
+          "internalType": "struct Action[]",
+          "name": "actions",
+          "type": "tuple[]"
+        }
+      ],
+      "name": "ProposalEdited",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "proposalId",
+          "type": "uint256"
         }
       ],
       "name": "ProposalExecuted",
@@ -319,7 +494,7 @@
         {
           "indexed": true,
           "internalType": "address",
-          "name": "plugin",
+          "name": "body",
           "type": "address"
         }
       ],
@@ -335,7 +510,7 @@
               "components": [
                 {
                   "internalType": "address",
-                  "name": "pluginAddress",
+                  "name": "addr",
                   "type": "address"
                 },
                 {
@@ -344,9 +519,9 @@
                   "type": "bool"
                 },
                 {
-                  "internalType": "address",
-                  "name": "allowedBody",
-                  "type": "address"
+                  "internalType": "bool",
+                  "name": "tryAdvance",
+                  "type": "bool"
                 },
                 {
                   "internalType": "enum StagedProposalProcessor.ResultType",
@@ -354,8 +529,8 @@
                   "type": "uint8"
                 }
               ],
-              "internalType": "struct StagedProposalProcessor.Plugin[]",
-              "name": "plugins",
+              "internalType": "struct StagedProposalProcessor.Body[]",
+              "name": "bodies",
               "type": "tuple[]"
             },
             {
@@ -382,6 +557,16 @@
               "internalType": "uint16",
               "name": "vetoThreshold",
               "type": "uint16"
+            },
+            {
+              "internalType": "bool",
+              "name": "cancelable",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "editable",
+              "type": "bool"
             }
           ],
           "indexed": false,
@@ -391,6 +576,68 @@
         }
       ],
       "name": "StagesUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "proposalId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint16",
+          "name": "stageId",
+          "type": "uint16"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "body",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "bodyProposalId",
+          "type": "uint256"
+        }
+      ],
+      "name": "SubProposalCreated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "proposalId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint16",
+          "name": "stageId",
+          "type": "uint16"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "body",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes",
+          "name": "reason",
+          "type": "bytes"
+        }
+      ],
+      "name": "SubProposalNotCreated",
       "type": "event"
     },
     {
@@ -446,19 +693,6 @@
     },
     {
       "inputs": [],
-      "name": "CREATE_PROPOSAL_PERMISSION_ID",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
       "name": "SET_METADATA_PERMISSION_ID",
       "outputs": [
         {
@@ -473,32 +707,6 @@
     {
       "inputs": [],
       "name": "SET_TARGET_CONFIG_PERMISSION_ID",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "SET_TRUSTED_FORWARDER_PERMISSION_ID",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "UPDATE_STAGES_PERMISSION_ID",
       "outputs": [
         {
           "internalType": "bytes32",
@@ -535,7 +743,7 @@
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function",
-      "notice": "Advances the proposal to the next stage in case it's allowed.\nUseful for plugin uninstallation when revoked from ANY_ADDR, leaving no one with this permission."
+      "notice": "Advances the specified proposal to the next stage if allowed."
     },
     {
       "inputs": [
@@ -543,7 +751,7 @@
           "internalType": "uint256",
           "name": "_proposalId",
           "type": "uint256",
-          "notice": "The proposal Id."
+          "notice": "The ID of the proposal to be checked."
         }
       ],
       "name": "canExecute",
@@ -556,7 +764,7 @@
       ],
       "stateMutability": "view",
       "type": "function",
-      "notice": "Necessary to abide the rules of IProposal interface."
+      "notice": "Checks if a proposal can be executed."
     },
     {
       "inputs": [
@@ -564,7 +772,7 @@
           "internalType": "uint256",
           "name": "_proposalId",
           "type": "uint256",
-          "notice": "The ID of the proposal."
+          "notice": "The unique identifier of the proposal to check."
         }
       ],
       "name": "canProposalAdvance",
@@ -577,14 +785,30 @@
       ],
       "stateMutability": "view",
       "type": "function",
-      "notice": "Decides if the proposal can be advanced to the next stage."
+      "notice": "Determines whether the specified proposal can be advanced to the next stage."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_proposalId",
+          "type": "uint256",
+          "notice": "The id of the proposal."
+        }
+      ],
+      "name": "cancel",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Cancels the proposal."
     },
     {
       "inputs": [
         {
           "internalType": "bytes",
           "name": "_metadata",
-          "type": "bytes"
+          "type": "bytes",
+          "notice": "The metadata of the proposal."
         },
         {
           "components": [
@@ -606,17 +830,19 @@
           ],
           "internalType": "struct Action[]",
           "name": "_actions",
-          "type": "tuple[]"
+          "type": "tuple[]",
+          "notice": "The actions that will be executed after the proposal passes."
         },
         {
-          "internalType": "uint256",
+          "internalType": "uint128",
           "name": "_allowFailureMap",
-          "type": "uint256"
+          "type": "uint128"
         },
         {
           "internalType": "uint64",
           "name": "_startDate",
-          "type": "uint64"
+          "type": "uint64",
+          "notice": "The start date of the proposal."
         },
         {
           "internalType": "bytes[][]",
@@ -641,7 +867,8 @@
         {
           "internalType": "bytes",
           "name": "_metadata",
-          "type": "bytes"
+          "type": "bytes",
+          "notice": "The metadata of the proposal."
         },
         {
           "components": [
@@ -663,12 +890,14 @@
           ],
           "internalType": "struct Action[]",
           "name": "_actions",
-          "type": "tuple[]"
+          "type": "tuple[]",
+          "notice": "The actions that will be executed after the proposal passes."
         },
         {
           "internalType": "uint64",
           "name": "_startDate",
-          "type": "uint64"
+          "type": "uint64",
+          "notice": "The start date of the proposal."
         },
         {
           "internalType": "uint64",
@@ -678,7 +907,8 @@
         {
           "internalType": "bytes",
           "name": "_data",
-          "type": "bytes"
+          "type": "bytes",
+          "notice": "The additional abi-encoded data to include more necessary fields."
         }
       ],
       "name": "createProposal",
@@ -727,17 +957,144 @@
           "internalType": "uint256",
           "name": "_proposalId",
           "type": "uint256",
+          "notice": "The id of the proposal."
+        },
+        {
+          "internalType": "bytes",
+          "name": "_metadata",
+          "type": "bytes",
+          "notice": "The metadata of the proposal."
+        },
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct Action[]",
+          "name": "_actions",
+          "type": "tuple[]",
+          "notice": "The actions that will be executed after the proposal passes."
+        }
+      ],
+      "name": "edit",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Edits the proposal."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_proposalId",
+          "type": "uint256",
+          "notice": "The ID of the proposal to be executed."
+        }
+      ],
+      "name": "execute",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Executes a proposal."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_proposalId",
+          "type": "uint256",
           "notice": "The ID of the proposal."
         },
         {
           "internalType": "uint16",
           "name": "_stageId",
-          "type": "uint16"
+          "type": "uint16",
+          "notice": "The stage index."
+        },
+        {
+          "internalType": "address",
+          "name": "_body",
+          "type": "address",
+          "notice": "The address of the sub-body."
+        }
+      ],
+      "name": "getBodyProposalId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Retrieves the sub proposal id."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_proposalId",
+          "type": "uint256",
+          "notice": "The ID of the proposal."
+        },
+        {
+          "internalType": "uint16",
+          "name": "_stageId",
+          "type": "uint16",
+          "notice": "The stage index."
+        },
+        {
+          "internalType": "address",
+          "name": "_body",
+          "type": "address",
+          "notice": "The address of the sub-body."
+        }
+      ],
+      "name": "getBodyResult",
+      "outputs": [
+        {
+          "internalType": "enum StagedProposalProcessor.ResultType",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Retrieves the result type submitted by a body for a specific proposal and stage."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_proposalId",
+          "type": "uint256",
+          "notice": "The ID of the proposal."
+        },
+        {
+          "internalType": "uint16",
+          "name": "_stageId",
+          "type": "uint16",
+          "notice": "The stage index."
         },
         {
           "internalType": "uint256",
           "name": "_index",
-          "type": "uint256"
+          "type": "uint256",
+          "notice": "The index of the body within the stage."
         }
       ],
       "name": "getCreateProposalParams",
@@ -749,7 +1106,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "notice": "Retrieves the `data` parameter encoded for a sub-body's `createProposal` function in a specific stage.\nExcludes sub-bodies from the first stage, as their parameters are not stored for efficiency."
     },
     {
       "inputs": [],
@@ -763,7 +1121,7 @@
       ],
       "stateMutability": "view",
       "type": "function",
-      "notice": "Returns the current config index at which current configurations of stages are stored."
+      "notice": "Retrieves the current configuration index at which the current configurations of stages are stored."
     },
     {
       "inputs": [],
@@ -812,38 +1170,6 @@
           "name": "_proposalId",
           "type": "uint256",
           "notice": "The ID of the proposal."
-        },
-        {
-          "internalType": "uint16",
-          "name": "_stageId",
-          "type": "uint16",
-          "notice": "Stage number in the stages array."
-        },
-        {
-          "internalType": "address",
-          "name": "_body",
-          "type": "address"
-        }
-      ],
-      "name": "getPluginResult",
-      "outputs": [
-        {
-          "internalType": "enum StagedProposalProcessor.ResultType",
-          "name": "",
-          "type": "uint8"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function",
-      "notice": "Returns whether the plugin has submitted its result or not."
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "_proposalId",
-          "type": "uint256",
-          "notice": "The ID of the proposal."
         }
       ],
       "name": "getProposal",
@@ -851,14 +1177,9 @@
         {
           "components": [
             {
-              "internalType": "uint256",
+              "internalType": "uint128",
               "name": "allowFailureMap",
-              "type": "uint256"
-            },
-            {
-              "internalType": "address",
-              "name": "creator",
-              "type": "address"
+              "type": "uint128"
             },
             {
               "internalType": "uint64",
@@ -866,9 +1187,29 @@
               "type": "uint64"
             },
             {
-              "internalType": "bytes",
-              "name": "metadata",
-              "type": "bytes"
+              "internalType": "uint16",
+              "name": "currentStage",
+              "type": "uint16"
+            },
+            {
+              "internalType": "uint16",
+              "name": "stageConfigIndex",
+              "type": "uint16"
+            },
+            {
+              "internalType": "bool",
+              "name": "executed",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "canceled",
+              "type": "bool"
+            },
+            {
+              "internalType": "address",
+              "name": "creator",
+              "type": "address"
             },
             {
               "components": [
@@ -891,21 +1232,6 @@
               "internalType": "struct Action[]",
               "name": "actions",
               "type": "tuple[]"
-            },
-            {
-              "internalType": "uint16",
-              "name": "currentStage",
-              "type": "uint16"
-            },
-            {
-              "internalType": "uint16",
-              "name": "stageConfigIndex",
-              "type": "uint16"
-            },
-            {
-              "internalType": "bool",
-              "name": "executed",
-              "type": "bool"
             },
             {
               "components": [
@@ -932,7 +1258,7 @@
       ],
       "stateMutability": "view",
       "type": "function",
-      "notice": "Returns all information for a proposal by its ID."
+      "notice": "Retrieves all information associated with a proposal by its ID."
     },
     {
       "inputs": [
@@ -940,14 +1266,20 @@
           "internalType": "uint256",
           "name": "_proposalId",
           "type": "uint256",
-          "notice": "The ID of the proposal."
+          "notice": "The proposal ID."
+        },
+        {
+          "internalType": "uint16",
+          "name": "_stageId",
+          "type": "uint16",
+          "notice": "The stage index."
         }
       ],
       "name": "getProposalTally",
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "votes",
+          "name": "approvals",
           "type": "uint256"
         },
         {
@@ -958,10 +1290,17 @@
       ],
       "stateMutability": "view",
       "type": "function",
-      "notice": "Calculates the votes and vetoes for a proposal."
+      "notice": "Calculates and retrieves the number of approvals and vetoes for a proposal on the stage."
     },
     {
-      "inputs": [],
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_index",
+          "type": "uint256",
+          "notice": "The index from which to get the stages configuration."
+        }
+      ],
       "name": "getStages",
       "outputs": [
         {
@@ -970,7 +1309,7 @@
               "components": [
                 {
                   "internalType": "address",
-                  "name": "pluginAddress",
+                  "name": "addr",
                   "type": "address"
                 },
                 {
@@ -979,9 +1318,9 @@
                   "type": "bool"
                 },
                 {
-                  "internalType": "address",
-                  "name": "allowedBody",
-                  "type": "address"
+                  "internalType": "bool",
+                  "name": "tryAdvance",
+                  "type": "bool"
                 },
                 {
                   "internalType": "enum StagedProposalProcessor.ResultType",
@@ -989,8 +1328,8 @@
                   "type": "uint8"
                 }
               ],
-              "internalType": "struct StagedProposalProcessor.Plugin[]",
-              "name": "plugins",
+              "internalType": "struct StagedProposalProcessor.Body[]",
+              "name": "bodies",
               "type": "tuple[]"
             },
             {
@@ -1017,6 +1356,16 @@
               "internalType": "uint16",
               "name": "vetoThreshold",
               "type": "uint16"
+            },
+            {
+              "internalType": "bool",
+              "name": "cancelable",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "editable",
+              "type": "bool"
             }
           ],
           "internalType": "struct StagedProposalProcessor.Stage[]",
@@ -1026,7 +1375,7 @@
       ],
       "stateMutability": "view",
       "type": "function",
-      "notice": "Returns the current stages."
+      "notice": "Retrieves the stages stored on the `_index` in the `stages` configuration."
     },
     {
       "inputs": [],
@@ -1065,7 +1414,71 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "notice": "Retrieves the address of the trusted forwarder."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_account",
+          "type": "address",
+          "notice": "The address on which the `ADVANCE_PERMISSION_ID` is checked."
+        }
+      ],
+      "name": "hasAdvancePermission",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Checks whether the caller has the required permission to advance a proposal."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_account",
+          "type": "address",
+          "notice": "The address on which the `EXECUTE_PERMISSION_ID` is checked."
+        }
+      ],
+      "name": "hasExecutePermission",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Checks whether the caller has the required permission to execute a proposal at the last stage."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_proposalId",
+          "type": "uint256",
+          "notice": "The id of the proposal."
+        }
+      ],
+      "name": "hasSucceeded",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Whether proposal succeeded or not."
     },
     {
       "inputs": [],
@@ -1101,7 +1514,7 @@
               "components": [
                 {
                   "internalType": "address",
-                  "name": "pluginAddress",
+                  "name": "addr",
                   "type": "address"
                 },
                 {
@@ -1110,9 +1523,9 @@
                   "type": "bool"
                 },
                 {
-                  "internalType": "address",
-                  "name": "allowedBody",
-                  "type": "address"
+                  "internalType": "bool",
+                  "name": "tryAdvance",
+                  "type": "bool"
                 },
                 {
                   "internalType": "enum StagedProposalProcessor.ResultType",
@@ -1120,8 +1533,8 @@
                   "type": "uint8"
                 }
               ],
-              "internalType": "struct StagedProposalProcessor.Plugin[]",
-              "name": "plugins",
+              "internalType": "struct StagedProposalProcessor.Body[]",
+              "name": "bodies",
               "type": "tuple[]"
             },
             {
@@ -1148,6 +1561,16 @@
               "internalType": "uint16",
               "name": "vetoThreshold",
               "type": "uint16"
+            },
+            {
+              "internalType": "bool",
+              "name": "cancelable",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "editable",
+              "type": "bool"
             }
           ],
           "internalType": "struct StagedProposalProcessor.Stage[]",
@@ -1176,7 +1599,8 @@
           ],
           "internalType": "struct IPlugin.TargetConfig",
           "name": "_targetConfig",
-          "type": "tuple"
+          "type": "tuple",
+          "notice": "The target to which this contract will pass actions with an operation type."
         }
       ],
       "name": "initialize",
@@ -1184,35 +1608,6 @@
       "stateMutability": "nonpayable",
       "type": "function",
       "notice": "Initializes the component."
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        },
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "pluginProposalIds",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
     },
     {
       "inputs": [],
@@ -1280,26 +1675,27 @@
         {
           "internalType": "uint16",
           "name": "_stageId",
-          "type": "uint16"
+          "type": "uint16",
+          "notice": "The index of the stage, being reported on. Must not exceed the current stage of the proposal."
         },
         {
           "internalType": "enum StagedProposalProcessor.ResultType",
           "name": "_resultType",
           "type": "uint8",
-          "notice": "Whether to include report as a veto or approval."
+          "notice": "The result type being reported (`Approval` or `Veto`)."
         },
         {
           "internalType": "bool",
           "name": "_tryAdvance",
           "type": "bool",
-          "notice": "If true, tries to advance the proposal if it can be advanced."
+          "notice": "Whether to attempt advancing the proposal to the next stage if conditions are met."
         }
       ],
       "name": "reportProposalResult",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function",
-      "notice": "Reports and records the result."
+      "notice": "Reports and records the result for a proposal at a specific stage."
     },
     {
       "inputs": [
@@ -1348,7 +1744,7 @@
           "internalType": "address",
           "name": "_forwarder",
           "type": "address",
-          "notice": "The trusted forwarder."
+          "notice": "The new trusted forwarder address."
         }
       ],
       "name": "setTrustedForwarder",
@@ -1360,9 +1756,31 @@
     {
       "inputs": [
         {
+          "internalType": "uint256",
+          "name": "_proposalId",
+          "type": "uint256",
+          "notice": "The proposal id."
+        }
+      ],
+      "name": "state",
+      "outputs": [
+        {
+          "internalType": "enum StagedProposalProcessor.ProposalState",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Current state of a proposal."
+    },
+    {
+      "inputs": [
+        {
           "internalType": "bytes4",
           "name": "_interfaceId",
-          "type": "bytes4"
+          "type": "bytes4",
+          "notice": "The ID of the interface."
         }
       ],
       "name": "supportsInterface",
@@ -1374,7 +1792,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "notice": "Checks if this or the parent contract supports an interface by its ID."
     },
     {
       "inputs": [
@@ -1384,7 +1803,7 @@
               "components": [
                 {
                   "internalType": "address",
-                  "name": "pluginAddress",
+                  "name": "addr",
                   "type": "address"
                 },
                 {
@@ -1393,9 +1812,9 @@
                   "type": "bool"
                 },
                 {
-                  "internalType": "address",
-                  "name": "allowedBody",
-                  "type": "address"
+                  "internalType": "bool",
+                  "name": "tryAdvance",
+                  "type": "bool"
                 },
                 {
                   "internalType": "enum StagedProposalProcessor.ResultType",
@@ -1403,8 +1822,8 @@
                   "type": "uint8"
                 }
               ],
-              "internalType": "struct StagedProposalProcessor.Plugin[]",
-              "name": "plugins",
+              "internalType": "struct StagedProposalProcessor.Body[]",
+              "name": "bodies",
               "type": "tuple[]"
             },
             {
@@ -1431,12 +1850,22 @@
               "internalType": "uint16",
               "name": "vetoThreshold",
               "type": "uint16"
+            },
+            {
+              "internalType": "bool",
+              "name": "cancelable",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "editable",
+              "type": "bool"
             }
           ],
           "internalType": "struct StagedProposalProcessor.Stage[]",
           "name": "_stages",
           "type": "tuple[]",
-          "notice": "The stages configuration."
+          "notice": "The new stage configuration as an array of `Stage` structs."
         }
       ],
       "name": "updateStages",
@@ -1477,6 +1906,6 @@
       "type": "function"
     }
   ],
-  "implAddress": "0x0000000000000000000000000000000000000000",
-  "address": "0xBCA19979925222812eDC11A31ac3e4e4cB837daB"
+  "implAddress": "0xcE3586925f4c168b4B445D5774C78adc9A566537",
+  "address": "0x876C828192b935a4C0643CE470AdFB4f8c56DB8a"
 }
