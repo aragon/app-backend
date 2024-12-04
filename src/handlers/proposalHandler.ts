@@ -395,6 +395,7 @@ export const ProposalHandler = {
       const newStage = Number(parsedEvent.args.stageId)
       const subPlugins = plugin.subPlugins.find((subPlugin: { stageIndex: any }) => subPlugin.stageIndex === newStage)
 
+      const timestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
       /**
        * We need to mark as executed all the sub proposals of the previous stage
        */
@@ -416,7 +417,7 @@ export const ProposalHandler = {
             status: true,
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
-            blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+            blockTimestamp: timestamp,
           }
 
           return await DbOperations.updateDocument(
@@ -501,6 +502,13 @@ export const ProposalHandler = {
           llo({ ...info, proposalId: proposal.id }),
         )
       }
+
+      proposal.stageExecutions.push({
+        stageIndex: newStage - 1,
+        transactionHash: info.transactionHash,
+        blockNumber: info.blockNumber,
+        blockTimestamp: timestamp,
+      })
 
       await DbOperations.updateDocument(
         proposal,
