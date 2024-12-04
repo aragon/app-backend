@@ -541,6 +541,8 @@ class DecodeActions {
           const paramsInfo = fragment.inputs.map((input: any, index: number) => ({
             name: input.name,
             type: input.type,
+            components:
+              input.type === 'tuple' ? input.components.map((c: any) => ({ name: c.name, type: c.type })) : undefined,
             value: Array.isArray(decodedFormatted[index])
               ? JSON.parse(Utils.JSONStringifyCircular(decodedFormatted[index]))
               : decodedFormatted[index],
