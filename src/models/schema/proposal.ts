@@ -130,6 +130,23 @@ export class ProposalExecuted {
   public blockTimestamp!: number | null
 }
 
+export class StageExecuted {
+  @prop({ type: () => Boolean, default: false })
+  public status!: boolean
+
+  @prop({ type: () => String, default: null })
+  public transactionHash!: HexAddress | null
+
+  @prop({ type: () => Number, default: null })
+  public blockNumber!: number | null
+
+  @prop({ type: () => Number, default: null })
+  public blockTimestamp!: number | null
+
+  @prop({ type: () => Number, default: null })
+  public stageIndex!: number | null
+}
+
 export class VotesByOption {
   @prop({ type: () => Number })
   public type!: number
@@ -291,6 +308,9 @@ export default class Proposal extends Model {
 
   @prop({ type: () => Boolean, default: false })
   public cancelTxInfo!: TxInfo | null
+
+  @prop({ type: () => [StageExecuted], _id: false })
+  public stageExecutions!: StageExecuted[]
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -556,6 +576,7 @@ export default class Proposal extends Model {
           resources: 1,
           executed: 1,
           actions: 1,
+          stageExecutions: 1,
           media: 1,
           settings: {
             $mergeObjects: [
@@ -850,6 +871,7 @@ export default class Proposal extends Model {
           executed: 1,
           actions: 1,
           media: 1,
+          stageExecutions: 1,
           settings: {
             $mergeObjects: [
               '$settings',
