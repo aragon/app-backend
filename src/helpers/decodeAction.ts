@@ -538,15 +538,22 @@ class DecodeActions {
            * As the decoded data can be a nested array inside array when there is tuple as paramter
            * JSON strigify circular will convert the big int to string as well.
            */
-          const paramsInfo = fragment.inputs.map((input: any, index: number) => ({
-            name: input.name,
-            type: input.type,
-            components:
-              input.type === 'tuple' ? input.components.map((c: any) => ({ name: c.name, type: c.type })) : undefined,
-            value: Array.isArray(decodedFormatted[index])
-              ? JSON.parse(Utils.JSONStringifyCircular(decodedFormatted[index]))
-              : decodedFormatted[index],
-          })) as IProposalActionInputDataParameter[]
+          const paramsInfo = fragment.inputs.map((input: any, index: number) => {
+            let components: any
+            if (input.type.startsWith('tuple')) {
+              components = input.components
+                ? input.components.map((c: any) => ({ name: c.name, type: c.type }))
+                : input.arrayChildren
+            }
+            return {
+              name: input.name,
+              type: input.type,
+              components,
+              value: Array.isArray(decodedFormatted[index])
+                ? JSON.parse(Utils.JSONStringifyCircular(decodedFormatted[index]))
+                : decodedFormatted[index],
+            }
+          }) as IProposalActionInputDataParameter[]
 
           inputs.forEach((input: any, index: number) => {
             paramsInfo[index].notice = input.notice
