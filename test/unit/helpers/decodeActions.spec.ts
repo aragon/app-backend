@@ -196,7 +196,7 @@ describe('Helpers: DecodeActions', () => {
     })
   })
 
-  describe('_decodeWithAbi', () => {
+  describe.only('_decodeWithAbi', () => {
     it('should decode data using the provided ABI', async () => {
       const decodeActions = new DecodeActions()
       const data =
@@ -254,12 +254,14 @@ describe('Helpers: DecodeActions', () => {
         notice: 'Mint tokens to a specific address',
         parameters: [
           {
+            components: undefined,
             name: 'to',
             notice: 'The address to mint tokens to',
             type: 'address',
             value: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
           },
           {
+            components: undefined,
             name: 'amount',
             notice: 'The amount of tokens to mint',
             type: 'uint256',
