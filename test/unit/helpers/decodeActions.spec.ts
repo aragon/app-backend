@@ -57,10 +57,6 @@ describe('Helpers: DecodeActions', () => {
         type: 'ERC20',
       } as any)
 
-      const result = await decodeActions.decodeData(action, {
-        network: NetworksEnum.ethereumMainnet,
-      })
-
       expect(stubMint.calledOnce).to.be.true
       expect(stubParseContractNetspec.notCalled).to.be.true
       expect(getERC20BalanceStub.notCalled).to.be.true
