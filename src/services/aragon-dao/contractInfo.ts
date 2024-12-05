@@ -1,15 +1,18 @@
-import { type IContractAbi, type NetworksEnum } from '@types'
+import { type HexAddress, type IContractAbi, type NetworksEnum } from '@types'
 import ProxyContract from '@helpers/proxyContract'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import Etherscan from '@helpers/etherscan'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
+import { ethers } from 'ethers'
 
-export const getContractInfo = async (network: NetworksEnum, address: string) => {
+export const getContractInfo = async (network: NetworksEnum, address: HexAddress) => {
   const response: IContractAbi = {
     implementationAddress: null,
     name: '',
     functions: [],
+    address,
+    network,
   }
 
   let implementationAddress = await ProxyContract.getImplementationAddress(address, network)
@@ -18,6 +21,10 @@ export const getContractInfo = async (network: NetworksEnum, address: string) =>
     implementationAddress = address
   } else {
     response.implementationAddress = implementationAddress
+  }
+
+  if (implementationAddress === ethers.ZeroAddress) {
+    return null
   }
 
   const contractDetails = await retryRequest(async () =>
@@ -59,9 +66,11 @@ export const getContractInfo = async (network: NetworksEnum, address: string) =>
           }
         })
     }
+
+    return response
   }
 
-  return response
+  return null
 }
 
 export default getContractInfo
