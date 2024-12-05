@@ -504,7 +504,7 @@ export const ProposalHandler = {
       }
 
       proposal.stageExecutions = proposal.stageExecutions || []
-      
+
       const stageExecutions = proposal.stageExecutions.map((exec: any) => ({
         stageIndex: exec.stageIndex,
         transactionHash: exec.transactionHash,
