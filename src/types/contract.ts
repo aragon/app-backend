@@ -1,3 +1,5 @@
+import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+
 export interface IContractAbiFunction {
   // Name of the function
   name: string
@@ -23,4 +25,8 @@ export interface IContractAbi {
   name: string
   // Functions of the contract
   functions: IContractAbiFunction[]
+
+  address: HexAddress
+
+  network: NetworksEnum
 }
