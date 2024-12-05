@@ -503,11 +503,13 @@ export const ProposalHandler = {
         )
       }
 
+      proposal.stageExecutions = proposal.stageExecutions || []
       proposal.stageExecutions.push({
         stageIndex: newStage - 1,
         transactionHash: info.transactionHash,
         blockNumber: info.blockNumber,
         blockTimestamp: timestamp,
+        status: true,
       })
 
       await DbOperations.updateDocument(
