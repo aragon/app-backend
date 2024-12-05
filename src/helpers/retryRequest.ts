@@ -40,6 +40,9 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
+      } else if (error?.code === 'SERVER_ERROR' && error?.status === 503) {
+        logger.warn('Server Error, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
+        await Utils.wait(retryDelay(retryCount))
       } else {
         // logger.warn('Error in Retry Request', llo({ error }))
         throw error
