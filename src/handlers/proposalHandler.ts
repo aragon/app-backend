@@ -504,7 +504,16 @@ export const ProposalHandler = {
       }
 
       proposal.stageExecutions = proposal.stageExecutions || []
-      proposal.stageExecutions.push({
+
+      const stageExecutions = proposal.stageExecutions.map((exec: any) => ({
+        stageIndex: exec.stageIndex,
+        transactionHash: exec.transactionHash,
+        blockNumber: exec.blockNumber,
+        blockTimestamp: exec.blockTimestamp,
+        status: exec.status,
+      }))
+
+      stageExecutions.push({
         stageIndex: newStage - 1,
         transactionHash: info.transactionHash,
         blockNumber: info.blockNumber,
@@ -518,6 +527,7 @@ export const ProposalHandler = {
           lastStageTransition: Number(proposalInfo.lastStageTransition),
           stageIndex: newStage,
           subProposals,
+          stageExecutions,
         },
         { logId: proposal.id },
         'Proposal Updated - lastStageTransition',
