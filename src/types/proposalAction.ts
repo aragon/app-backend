@@ -87,6 +87,7 @@ export type IActionMetadata =
  */
 
 export interface IProposalActionInputDataParameter {
+  components?: any
   /**
    * The type of the parameter (e.g. address, uint256, uint32, ..).
    */
