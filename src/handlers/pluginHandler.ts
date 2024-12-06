@@ -436,6 +436,24 @@ export const PluginHandler = {
       }
 
       await DbOperations.updateDocument(existingPlugin, document, { logId: existingPlugin.id }, 'Update plugin', llo)
+
+      /**
+       * After the plugin is updated we have to copy the existing plugin token.
+       * We need to be sure that both updated and current plugin is token voting
+       */
+      if (
+        plugin.interfaceType === IPluginInterfaceType.tokenVoting &&
+        existingPlugin.interfaceType === IPluginInterfaceType.tokenVoting &&
+        !plugin.tokenAddress
+      ) {
+        await DbOperations.updateDocument(
+          plugin,
+          { tokenAddress: existingPlugin.tokenAddress },
+          { logId: plugin.id },
+          'Add plugin token address during updateApplied',
+          llo,
+        )
+      }
     }
   },
 
