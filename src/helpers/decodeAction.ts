@@ -150,6 +150,7 @@ class DecodeActions {
       decoded.parameters = decoded.parameters.map((param, index) => {
         param.notice = contractNetspec.inputs[index].notice
         param.name = contractNetspec.inputs[index].name
+        param.components = contractNetspec.inputs[index].components
         return param
       })
     }
