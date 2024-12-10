@@ -16,6 +16,7 @@ import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
 import CovalentHelper from '@helpers/covalent'
 import EtherscanHelper from '@helpers/etherscan'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -97,7 +98,7 @@ export const ProxyToken = {
     existingToken.totalSupply = tokenMetrics.totalSupply
     existingToken.lastUpdatedAt = dayjs.utc().toDate()
 
-    if (existingToken.totalSupply === '0') {
+    if (existingToken.totalSupply === '0' && existingToken.address !== utils.zeroAddress) {
       existingToken.totalSupply = await Web3Helper.getTokenTotalSupply(existingToken.address, existingToken.network)
     }
 
