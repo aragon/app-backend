@@ -157,6 +157,7 @@ export interface IConfig {
     ARAGON_INDEXER: {
       NAME: string
       DAO_INTERVAL: number
+      PLUGIN_INTERVAL: number
     }
     ARAGON_RATES: {
       NAME: string
