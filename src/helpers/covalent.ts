@@ -122,8 +122,8 @@ const CovalentHelper = {
 
     const mostRecentPrice = validPrices?.[0]?.price ?? 0
     const dayBeforePrice = validPrices?.[1]?.price ?? mostRecentPrice
-    const priceChangeOnDayUsd = mostRecentPrice - dayBeforePrice
     const type = CovalentHelper.getTokenType(token)
+    const percentageChange = dayBeforePrice !== 0 ? ((mostRecentPrice - dayBeforePrice) / dayBeforePrice) * 100 : 0
 
     return {
       address: isNativeToken ? utils.zeroAddress : Web3Helper.parseAddress(token.contract_address)!,
@@ -134,7 +134,7 @@ const CovalentHelper = {
       symbol: token.contract_ticker_symbol,
       decimals: token.contract_decimals,
       priceUsd: mostRecentPrice.toString(),
-      priceChangeOnDayUsd,
+      priceChangeOnDayUsd: percentageChange,
       lastUpdatedAt: dayjs().utc().toDate(),
     }
   },
