@@ -6,11 +6,14 @@ import configIndexer from '@indexer/configIndexer'
 import utils from '@helpers/utils'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import EventListener from '@modules/eventListener'
+import { SyncAll } from '@indexer/syncAll'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
-const IndexerService: IService = {
+const IndexerService: IService & { repeaters: any } = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
+  repeaters: {},
 
   start: async function () {
     logger.info('IndexerService historical started', llo({}))
@@ -19,12 +22,6 @@ const IndexerService: IService = {
 
     await Promise.all(
       networks.map(async ({ networkName }) => {
-        // const logService = `Indexer-${networkName}`
-        // const existingConfig = await Models.ConfigIndexer.findExistingLog({
-        //   network: networkName,
-        //   service: logService,
-        // })
-
         const configLogs = utils.filterArrayByProperty(configIndexer, 'enableHistorical')
 
         const crawler = new BlockchainLogCrawler({
@@ -41,18 +38,30 @@ const IndexerService: IService = {
 
     logger.info('IndexerService historical logs end', llo({}))
 
-    // latest block
+    // realtime
     await Promise.all(
       networks.map(async ({ networkName }) => {
         const eventListener = new EventListener(networkName, configIndexer)
         eventListener.subscribeEventsByNewBlock()
       }),
     )
+
+    // re-sync all installed plugins
+    const taskOptions = {
+      fn: () => [[{ aggregatorPlugin: SyncAll.start }]],
+      interval: config.SERVICES.ARAGON_INDEXER.PLUGIN_INTERVAL,
+      runNow: true,
+      stopOnError: false,
+      onError: (error: any) => logger.error('Error sync all plugins', llo({ error })),
+    }
+
+    const scheduler = TaskSchedulerState.getInstance()
+    await scheduler.startTask('allPlugins', taskOptions)
   },
 
   async stop() {
     const scheduler = TaskSchedulerState.getInstance()
-    scheduler.stopTask('indexer')
+    scheduler.stopTask('allPlugins')
 
     logger.info('IndexerService service stopped', llo({}))
   },
