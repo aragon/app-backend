@@ -1,6 +1,7 @@
 import logger from '@logger'
 import Utils from '@helpers/utils'
 import { assert } from '@errors'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'RetryRequestHelper' })
 
@@ -13,7 +14,7 @@ enum RETRY_REVERTS {
 }
 
 export async function retryRequest<T>(requestFunction: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
-  const { maxRetries = 10 } = options
+  const { maxRetries = config.RETRY_REQUEST.COUNT } = options
   const retryDelay = (retryCount: number) => Math.pow(2, retryCount) * 1000
 
   let retryCount = 0
@@ -41,7 +42,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         await Utils.wait(retryDelay(retryCount))
         retryCount++
       } else if (error?.code === 'SERVER_ERROR' && error?.status === 503) {
-        logger.warn('Server Error, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
+        logger.warn('Warn, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
         await Utils.wait(retryDelay(retryCount))
       } else {
         // logger.warn('Error in Retry Request', llo({ error }))

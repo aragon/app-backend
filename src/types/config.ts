@@ -146,6 +146,10 @@ export interface IConfig {
     METADATA_FETCH_TIMEOUT: number
   }
 
+  RETRY_REQUEST: {
+    COUNT: number
+  }
+
   SERVICES: {
     ARAGON_API: {
       BASE_URL: string
