@@ -11,6 +11,7 @@ export enum ProposalActionType {
   UpdateMultiSigSettings = 'UpdateMultiSigSettings',
   UpdateVoteSettings = 'UpdateVoteSettings',
   StagesUpdated = 'StagesUpdated',
+  MetadataPluginUpdate = 'MetadataPluginUpdate',
 }
 
 export interface IRawAction {
