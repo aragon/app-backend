@@ -618,7 +618,7 @@ describe('Helpers: DecodeActions', () => {
         },
       ])
 
-      const result = await decodeActions.parseContractNetspec('mint', contractAddress, network)
+      const result = await decodeActions.parseContractNetspec('mint(address,uint256)', contractAddress, network)
       expect(result).to.deep.equal({
         contractName: 'IERC20MintableUpgradeable',
         inputs: [
