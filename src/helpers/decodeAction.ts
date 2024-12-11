@@ -142,15 +142,15 @@ class DecodeActions {
       }
     }
 
-    const contractNetspec = await this.parseContractNetspec(decoded.function, action.to, document.network!)
+    const contractNetspec = await this.parseContractNetspec(decoded.textSignature!, action.to, document.network!)
 
     if (contractNetspec?.inputs) {
       decoded.notice = contractNetspec.notice
       decoded.contract = contractNetspec.contractName
       decoded.parameters = decoded.parameters.map((param, index) => {
-        param.notice = contractNetspec.inputs[index].notice
-        param.name = contractNetspec.inputs[index].name
-        param.components = contractNetspec.inputs[index].components
+        param.notice = contractNetspec.inputs![index].notice
+        param.name = contractNetspec.inputs![index].name
+        param.components = contractNetspec.inputs![index].components
         return param
       })
     }
@@ -317,8 +317,8 @@ class DecodeActions {
           decodedData.notice = contractNetspec.notice
           decodedData.contract = contractNetspec.contractName
           decodedData.parameters = decodedData.parameters.map((param, index) => {
-            param.notice = contractNetspec.inputs[index].notice
-            param.name = contractNetspec.inputs[index].name
+            param.notice = contractNetspec.inputs![index].notice
+            param.name = contractNetspec.inputs![index].name
             return param
           })
         }
@@ -518,11 +518,13 @@ class DecodeActions {
         JSON.parse(contractDetails[0].ABI),
       )
 
-      const abiWithNetspec = results.find((action: any) => action.name === functionName)
+      const signatures = this._getSignaturesFromAbi(results, contractDetails[0].ContractName)
+      const abiWithNetSpec = signatures.find((action: any) => action.sig === ethers.id(functionName).slice(0, 10))
+
       return {
         contractName: contractDetails[0].ContractName,
-        inputs: abiWithNetspec?.inputs,
-        notice: abiWithNetspec?.notice,
+        inputs: abiWithNetSpec?.inputs,
+        notice: abiWithNetSpec?.notice,
       }
     }
 
