@@ -358,7 +358,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": "{{host}}/daos/ethereum-sepolia-0x452d22f3324C239325dE422710d41B909642365b"
+						"url": "{{host}}/daos/ethereum-sepolia-0x1Aee907d709Af951edEaAE6EAE6241b591E97d45"
 					},
 					"response": [
 						{
