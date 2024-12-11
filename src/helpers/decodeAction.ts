@@ -474,10 +474,13 @@ class DecodeActions {
       const decoded = iface.decodeFunctionData(signatureInfo.text_signature, data as any)
       const decodedFormatted = JSON.parse(Utils.JSONStringifyCircular(decoded.toArray()))
       const paramters = signatureInfo.text_signature.split('(')[1].split(')')[0]
-      const parametersWithValue = paramters.split(',').map((item, index) => ({
-        type: item,
-        value: decodedFormatted[index],
-      })) as IProposalActionInputDataParameter[]
+      const parametersWithValue =
+        paramters !== ''
+          ? (paramters.split(',').map((item, index) => ({
+              type: item,
+              value: decodedFormatted[index],
+            })) as IProposalActionInputDataParameter[])
+          : []
 
       return {
         function: signatureInfo.text_signature.split('(')[0],
