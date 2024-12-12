@@ -25,8 +25,9 @@ const PluginSyncService: IService = {
       const { address, network } = job.params as IQueueDao
       const plugin = await Models.Plugin.findByAddress(address, network)
 
-      if (!plugin) {
-        logger.error('PluginSyncService: plugin not found', llo({ plugin }))
+      if (!plugin?.interfaceType) {
+        logger.error('PluginSyncService: plugin not found', llo({ plugin, address, network }))
+        return
       }
 
       switch (plugin.interfaceType) {
