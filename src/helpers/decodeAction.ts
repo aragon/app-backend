@@ -106,9 +106,18 @@ class DecodeActions {
   }
 
   public async decodeData(action: IRawAction, document: Partial<Proposal>): Promise<IProposalAction | null> {
-    const decoded = (await this._decodeWithAbi(action)) || (await this._decodeFallback(action.data))
+    const decoded = (await this._decodeWithAbi(action)) || (await this._decodeFallback(action, document.network!))
 
-    if (!decoded) return null
+    if (!decoded) {
+      return {
+        from: document?.daoAddress!,
+        to: action.to,
+        data: action.data,
+        value: action.value,
+        type: ProposalActionType.Unknown,
+        inputData: null,
+      }
+    }
 
     const actionHandlers: Record<
       string,
@@ -125,7 +134,7 @@ class DecodeActions {
     }
 
     for (const pattern in actionHandlers) {
-      if (decoded.textSignature!.toLowerCase().includes(pattern.toLowerCase())) {
+      if (decoded.textSignature && decoded.textSignature.toLowerCase().includes(pattern.toLowerCase())) {
         const parsedAction = await actionHandlers[pattern](
           decoded,
           {
@@ -142,17 +151,23 @@ class DecodeActions {
       }
     }
 
-    const contractNetspec = await this.parseContractNetspec(decoded.textSignature!, action.to, document.network!)
+    /**
+     * If we don't have the contract name, we can fetch the contract netspec.
+     * The case where contract will be when the 4byte doesn't fetch but the etherscan does.
+     */
+    if (!decoded.contract) {
+      const contractNetspec = await this.parseContractNetspec(decoded.textSignature!, action.to, document.network!)
 
-    if (contractNetspec?.inputs) {
-      decoded.notice = contractNetspec.notice
-      decoded.contract = contractNetspec.contractName
-      decoded.parameters = decoded.parameters.map((param, index) => {
-        param.notice = contractNetspec.inputs![index].notice
-        param.name = contractNetspec.inputs![index].name
-        param.components = contractNetspec.inputs![index].components
-        return param
-      })
+      if (contractNetspec?.inputs) {
+        decoded.notice = contractNetspec.notice
+        decoded.contract = contractNetspec.contractName
+        decoded.parameters = decoded.parameters.map((param, index) => {
+          param.notice = contractNetspec.inputs![index].notice
+          param.name = contractNetspec.inputs![index].name
+          param.components = contractNetspec.inputs![index].components
+          return param
+        })
+      }
     }
 
     return {
@@ -458,20 +473,30 @@ class DecodeActions {
     }
   }
 
-  async _decodeFallback(data: string): Promise<IProposalActionInputData | null> {
+  async _decodeFallback(action: IRawAction, network: NetworksEnum): Promise<IProposalActionInputData | null> {
     try {
-      const dataHex = hexlify(data)
+      const dataHex = hexlify(action.data)
       const functionSelector = dataHex.substring(0, 10)
       const response = await FourByte.getSignatures(functionSelector)
 
       if (!response || response.count === 0) {
+        const functionDetails = await this.parseContractNetspec(functionSelector, action.to, network)
+        if (functionDetails) {
+          return {
+            function: functionDetails.functionName,
+            contract: functionDetails.contractName,
+            parameters: functionDetails.inputs,
+            notice: functionDetails.notice,
+            textSignature: functionDetails.functionName,
+          } as any
+        }
         return null
       }
 
       const signatureInfo = response.results[response.results.length - 1]
 
       const iface = new Interface([`function ${signatureInfo.text_signature}`])
-      const decoded = iface.decodeFunctionData(signatureInfo.text_signature, data as any)
+      const decoded = iface.decodeFunctionData(signatureInfo.text_signature, action.data as any)
       const decodedFormatted = JSON.parse(Utils.JSONStringifyCircular(decoded.toArray()))
       const paramters = signatureInfo.text_signature.split('(')[1].split(')')[0]
       const parametersWithValue =
@@ -488,7 +513,7 @@ class DecodeActions {
         parameters: parametersWithValue,
       }
     } catch (error) {
-      logger.error('Error decoding action data', llo({ error, data }))
+      logger.error('Error decoding action data', llo({ error, action }))
       return null
     }
   }
@@ -519,9 +544,12 @@ class DecodeActions {
       )
 
       const signatures = this._getSignaturesFromAbi(results, contractDetails[0].ContractName)
-      const abiWithNetSpec = signatures.find((action: any) => action.sig === ethers.id(functionName).slice(0, 10))
+      const abiWithNetSpec = signatures.find(
+        (action: any) => action.sig === ethers.id(functionName).slice(0, 10) || action.sig === functionName,
+      )
 
       return {
+        functionName: abiWithNetSpec?.method,
         contractName: contractDetails[0].ContractName,
         inputs: abiWithNetSpec?.inputs,
         notice: abiWithNetSpec?.notice,
