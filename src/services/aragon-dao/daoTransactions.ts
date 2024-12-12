@@ -146,6 +146,9 @@ export const DaoTransactions = {
       const tokenAddress = tx.rawContract?.address || utils.zeroAddress
       const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)
 
+      // check if alchemy return strange balance
+      Web3Helper.alchemyCrazyBalanceOnError(daoAddress, token?.address!, dao.network, tx.value, token?.decimals!)
+
       await DbTx.executeTxFn(async ({ session }) => {
         const rawTx: Partial<Transaction> = {
           transactionHash: tx.hash,

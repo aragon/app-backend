@@ -1,13 +1,6 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import {
-  type HexAddress,
-  type ITokenInfo,
-  type ITokenMetrics,
-  type ITokenRate,
-  ITokenType,
-  type NetworksEnum,
-} from '@types'
+import { type HexAddress, type ITokenMetrics, type ITokenRate, ITokenType, type NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -16,9 +9,14 @@ import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
 import CovalentHelper from '@helpers/covalent'
 import EtherscanHelper from '@helpers/etherscan'
-import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
+
+interface ContractDeployInfo {
+  blockNumber: number
+  transactionHash: HexAddress | null
+  address: HexAddress
+}
 
 export const ProxyToken = {
   saveAndGetToken: async (
@@ -27,161 +25,122 @@ export const ProxyToken = {
     forceUpdate = false,
   ): Promise<null | Token> => {
     const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
-    let existingToken = await Models.Token.findExistingLog({ address: parsedTokenAddress, network })
+
+    // Check for existing token
+    const existingToken = await Models.Token.findExistingLog({
+      address: parsedTokenAddress,
+      network,
+    })
 
     if (existingToken) {
-      const sixHoursAgo = dayjs().subtract(6, 'hours').toDate()
-      if (
-        existingToken.type === ITokenType.GovernanceERC20 &&
-        ((!existingToken.skipFetchRate && existingToken.lastUpdatedAt < sixHoursAgo) ||
-          existingToken.totalSupply === '0' || // update if total supply is 0
-          existingToken.holders === 0 || // update if holders is 0
-          forceUpdate)
-      ) {
-        existingToken = await ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network)
-      }
-      return existingToken
+      return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate)
     }
 
-    const tokenTypeInfo = await TokenDetector.detectTokenType(parsedTokenAddress, network)
-    const tokenRate = await RateModule.fetchRate(parsedTokenAddress, network)
+    // Create a new token
+    return await ProxyToken.createNewToken(parsedTokenAddress, network)
+  },
 
-    let tokenMetrics: any = {}
-    let contractDeployInfo: any = {}
+  updateTokenMetrics: async (
+    token: Token,
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    forceUpdate: boolean,
+  ): Promise<Token> => {
+    const shouldUpdate = !token.skipFetchRate && token.lastUpdatedAt < dayjs().subtract(6, 'hours').toDate()
+
+    if (shouldUpdate || forceUpdate) {
+      const tokenRate = await RateModule.fetchRate(tokenAddress, network)
+      Object.assign(token, {
+        priceUsd: tokenRate.priceUsd,
+        priceChangeOnDayUsd: tokenRate.priceChangeOnDayUsd,
+      })
+
+      if (token.type === ITokenType.GovernanceERC20) {
+        const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
+        Object.assign(token, {
+          holders: metrics.totalHolders,
+          totalSupply: metrics.totalSupply,
+          lastUpdatedAt: dayjs.utc().toDate(),
+        })
+      }
+
+      await token.save()
+      logger.verbose('Updated Token Metrics', llo({ logId: token.id }))
+    }
+
+    return token
+  },
+
+  createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<Token> => {
+    const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
+    const tokenRate = await RateModule.fetchRate(tokenAddress, network)
+    const contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
+
+    let tokenMetrics: ITokenMetrics = { totalHolders: 0, totalSupply: '0' }
 
     if (tokenTypeInfo?.type === ITokenType.GovernanceERC20) {
-      tokenMetrics = ProxyToken.getTokenMetrics(tokenTypeInfo?.type, parsedTokenAddress, network)
-      // this slow down a lot due to the rate limiting of etherscan
-      contractDeployInfo = await ProxyToken.getContractCreationInfo(parsedTokenAddress, network)
+      tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
     }
 
-    const rawToken: Partial<Token> = ProxyToken.constructRawToken(
-      parsedTokenAddress,
-      tokenTypeInfo!,
-      tokenMetrics,
-      tokenRate,
+    const rawToken: Partial<Token> = {
+      ...tokenRate,
+      transactionHash: contractDeployInfo.transactionHash,
+      blockNumber: contractDeployInfo.blockNumber,
+      holders: tokenMetrics.totalHolders,
+      totalSupply: tokenMetrics.totalSupply,
+      address: tokenAddress,
+      type: tokenTypeInfo?.type || ITokenType.unknown,
+      implementationAddress: tokenTypeInfo?.implementationAddress!,
       network,
-    )
-    rawToken.lastUpdatedAt = dayjs.utc().toDate()
-
-    if (ProxyToken.skipFetchToken(rawToken, tokenRate)) {
-      rawToken.skipFetchRate = true
+      lastUpdatedAt: dayjs.utc().toDate(),
+      skipFetchRate: ProxyToken.shouldSkipFetch(
+        {
+          ...tokenRate,
+          holders: tokenMetrics.totalHolders,
+          totalSupply: tokenMetrics.totalSupply,
+          address: tokenAddress,
+          type: tokenTypeInfo?.type || ITokenType.unknown,
+          network,
+        },
+        tokenRate,
+      ),
     }
 
     if (rawToken.type === ITokenType.unknown && tokenRate.type !== ITokenType.unknown) {
       rawToken.type = tokenRate.type
     }
 
-    if (contractDeployInfo) {
-      rawToken.blockNumber = contractDeployInfo.blockNumber
-      rawToken.transactionHash = contractDeployInfo?.txHash
-    }
-
-    const token = await DbTx.executeTxFn(
-      async ({ session }) => {
-        const logDb = await Models.Token.create(rawToken, { session } as any)
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('New Token', llo({ logId: logDb.id }))
-        return logDb
-      },
-      { stopRetry: true },
-    )
-
-    return token
+    return DbTx.executeTxFn(async ({ session }) => {
+      const savedToken = await Models.Token.create(rawToken, { session })
+      await session.commitTransaction()
+      logger.verbose('New Token Created', llo({ logId: savedToken.id }))
+      return savedToken
+    })
   },
 
-  updateTokenMetrics: async (existingToken: Token, tokenAddress: HexAddress, network: NetworksEnum): Promise<Token> => {
-    const [tokenMetrics, tokenRate] = await Promise.all([
-      ProxyToken.getTokenMetrics(existingToken.type, tokenAddress, network),
-      RateModule.fetchRate(tokenAddress, network),
-    ])
+  shouldSkipFetch: (token: Partial<Token>, tokenRate: ITokenRate): boolean =>
+    (!token.symbol ||
+      token.type === ITokenType.GovernanceERC20 ||
+      token.type === ITokenType.unknown ||
+      CovalentHelper.skipTestNetworks.includes(token.network!)) &&
+    tokenRate.priceUsd === '0',
 
-    existingToken.holders = tokenMetrics.totalHolders
-    existingToken.totalSupply = tokenMetrics.totalSupply
-    existingToken.lastUpdatedAt = dayjs.utc().toDate()
-
-    if (existingToken.totalSupply === '0' && existingToken.address !== utils.zeroAddress) {
-      existingToken.totalSupply = await Web3Helper.getTokenTotalSupply(existingToken.address, existingToken.network)
-    }
-
-    // Update rate-related fields
-    existingToken.priceUsd = tokenRate.priceUsd
-    existingToken.priceChangeOnDayUsd = tokenRate.priceChangeOnDayUsd
-    // existingToken.name = tokenRate.name ?? existingToken.name
-    // existingToken.decimals = tokenRate.decimals ?? existingToken.decimals
-    // existingToken.symbol = tokenRate.symbol ?? existingToken.symbol
-    // existingToken.logo = tokenRate.logo ?? existingToken.logo
-
-    await existingToken.save()
-    logger.verbose('Updated Token Metrics', llo({ logId: existingToken.id }))
-
-    return existingToken
-  },
-
-  getTokenMetrics: async (
-    tokenType: ITokenType,
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<ITokenMetrics> => {
-    const base = { totalHolders: 0, totalSupply: '0' }
-    if (tokenType === ITokenType.native) {
-      return base
-    }
-    const metrics = await CovalentHelper.getTokenInfo(tokenAddress, network)
-    return metrics || base
-  },
-
-  constructRawToken: (
-    tokenAddress: HexAddress,
-    tokenTypeInfo: ITokenInfo,
-    tokenMetrics: ITokenMetrics,
-    tokenRate: ITokenRate,
-    network: NetworksEnum,
-  ) => {
-    return {
-      ...tokenRate,
-      holders: tokenMetrics?.totalHolders,
-      totalSupply: tokenMetrics.totalSupply,
-      address: tokenAddress,
-      type: tokenTypeInfo?.type,
-      implementationAddress: tokenTypeInfo?.implementationAddress!,
-      network,
-    }
-  },
-
-  skipFetchToken: (token: Partial<Token>, tokenRate: ITokenRate): boolean => {
-    return (
-      (!token.symbol ||
-        token.type === ITokenType.GovernanceERC20 ||
-        token.type === ITokenType.unknown ||
-        CovalentHelper.skipTestNetworks.includes(token?.network!)) &&
-      tokenRate.priceUsd === '0'
-    )
-  },
-
-  getContractCreationInfo: async (
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<{ txHash: HexAddress | null; address: HexAddress; blockNumber: number }> => {
-    const result = {
-      blockNumber: 0,
-      txHash: null,
-      address: tokenAddress,
-    }
-    const contractInfo = (await EtherscanHelper.fetchContractCreation({
+  getContractCreationInfo: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<ContractDeployInfo> => {
+    const contractInfo = await EtherscanHelper.fetchContractCreation({
       contractAddress: tokenAddress,
       network,
-    })) as any
+    })
 
-    if (contractInfo && contractInfo.length > 0) {
-      result.txHash = contractInfo[0].txHash!
-      const txReceipt = await Web3Helper.getTransaction(contractInfo[0].txHash, network)
-
-      if (txReceipt) {
-        result.blockNumber = txReceipt.blockNumber!
+    if (contractInfo?.length) {
+      const txHash = contractInfo[0].txHash
+      const txReceipt = await Web3Helper.getTransaction(txHash, network)
+      return {
+        blockNumber: txReceipt?.blockNumber || 0,
+        transactionHash: txHash,
+        address: tokenAddress,
       }
     }
-    return result
+
+    return { blockNumber: 0, transactionHash: null, address: tokenAddress }
   },
 }

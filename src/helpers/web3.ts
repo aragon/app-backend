@@ -53,9 +53,20 @@ const Web3Helper = {
   ERC1155_safeTransferFrom: '0xf242432a',
   ERC1155_safeBatchTransferFrom: '0x2eb2c2d6',
 
+  alchemyCrazyBalanceOnError: (
+    address: string,
+    tokenAddress: string,
+    network: NetworksEnum,
+    amount: any,
+    decimals: number,
+  ) => {
+    if (!amount.includes('0x')) {
+      logger.error('Error alchemyCrazyBalance wrong format', llo({ address, tokenAddress, network, amount, decimals }))
+    }
+  },
+
   handleAlchemyCrazyBalance: (amount: number | string, decimals: number = 0, tx?: any): string => {
     try {
-      // TODO: 5.999999999999993e-20, 2e-18, 1.2e-20
       if (typeof amount === 'string' && amount.includes('0x')) {
         return ethers.formatUnits(amount, decimals)
       } else if (utils.isScientificNumber(amount)) {
@@ -545,6 +556,8 @@ const Web3Helper = {
 
       const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, network)
       const balance = Web3Helper.handleAlchemyCrazyBalance(response, token?.decimals)
+      // check if alchemy return strange balance
+      Web3Helper.alchemyCrazyBalanceOnError(address, token?.address!, network, response, token?.decimals!)
       return balance
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
@@ -569,6 +582,14 @@ const Web3Helper = {
           )
           ?.map(async (alchemyBalance: any) => {
             const token = await ProxyToken.saveAndGetToken(alchemyBalance.contractAddress, network)
+            // check if alchemy return strange balance
+            Web3Helper.alchemyCrazyBalanceOnError(
+              alchemyBalance.contractAddress,
+              token?.address!,
+              network,
+              alchemyBalance.tokenBalance,
+              token?.decimals!,
+            )
             const result: IAlchemyTokenBalance = {
               contractAddress:
                 Web3Helper.parseAddress(alchemyBalance.contractAddress) || alchemyBalance.contractAddress,
