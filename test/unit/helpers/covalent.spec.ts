@@ -28,7 +28,7 @@ describe('Helpers: Covalent', () => {
       '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     )
     expect(CovalentHelper.nativeTokens[NetworksEnum.polygonMainnet]).to.equal(
-      '0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0',
+      '0x0000000000000000000000000000000000001010',
     )
     expect(CovalentHelper.nativeTokens[NetworksEnum.arbitrumMainnet]).to.equal(
       '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
@@ -288,7 +288,7 @@ describe('Helpers: Covalent', () => {
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const network = NetworksEnum.ethereumMainnet
 
-      const holders = await CovalentHelper.getTokenInfo(address, network, 12345)
+      const holders = await CovalentHelper.getTokenSupplyAndHolders(address, network, 12345)
       expect(rpcCallStub.calledOnce).to.be.true
       expect(holders).to.deep.eq({
         totalSupply: '12',
