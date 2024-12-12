@@ -46,7 +46,7 @@ const CovalentHelper = {
   nativeTokens: {
     [NetworksEnum.ethereumMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     [NetworksEnum.ethereumSepolia]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    [NetworksEnum.polygonMainnet]: '0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0',
+    [NetworksEnum.polygonMainnet]: '0x0000000000000000000000000000000000001010',
     [NetworksEnum.arbitrumMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     [NetworksEnum.baseMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     [NetworksEnum.zksyncMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
@@ -183,11 +183,11 @@ const CovalentHelper = {
     }
   },
 
-  async getTokenInfo(
+  async getTokenSupplyAndHolders(
     address: HexAddress,
     network: NetworksEnum,
     blockHeight: number | undefined = undefined,
-  ): Promise<ITokenMetrics | null> {
+  ): Promise<ITokenMetrics | { totalHolders: number; totalSupply: string }> {
     const networkId = CovalentHelper.networkToCovalent(network)
     const path = `/${networkId}/tokens/${address}/token_holders_v2/?${blockHeight ? `block-height=${blockHeight}` : ''}`
     try {
@@ -202,7 +202,7 @@ const CovalentHelper = {
         totalHolders,
       }
     } catch (error) {
-      return null
+      return { totalHolders: 0, totalSupply: '0' }
     }
   },
 }
