@@ -27,6 +27,7 @@ const PluginSyncService: IService = {
 
       if (!plugin || !plugin?.interfaceType) {
         logger.error('PluginSyncService: plugin not found', llo({ plugin }))
+        return
       }
 
       switch (plugin.interfaceType) {
