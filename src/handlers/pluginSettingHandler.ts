@@ -287,6 +287,11 @@ export const PluginSettingHandler = {
       return
     }
 
+    if (activePluginSetting.length !== stageNames.length) {
+      logger.error('Stage names length mismatch', llo({ stageNames, activePluginSetting }))
+      return
+    }
+
     const settingLog = {
       blockNumber: info.blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
