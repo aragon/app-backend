@@ -55,7 +55,7 @@ export const FetchRates = {
     const rawTokenUpdateRate = await RateModule.fetchRate(token.address, token.network)
 
     // skip governance tokens with no price or unsupported token networks
-    if (ProxyToken.skipFetchToken(token, rawTokenUpdateRate)) {
+    if (ProxyToken.shouldSkipFetch(token, rawTokenUpdateRate)) {
       rawTokenUpdateRate.lastUpdatedAt = dayjs.utc().toDate()
       rawTokenUpdateRate.skipFetchRate = true
     }

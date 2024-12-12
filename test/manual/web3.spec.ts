@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
 import EnsHelper from '@helpers/ens'
 import Web3Helper from '@helpers/web3'
-import { NetworksEnum } from '@types'
+import { type IAlchemyTokenBalance, NetworksEnum } from '@types'
 
 describe('Manual: Web3', () => {
   let sandbox: SinonSandbox
@@ -16,15 +16,65 @@ describe('Manual: Web3', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should getTokenBalance', async function () {
-    this.timeout(60000) // Increase timeout for the test
+  it('getBalance - handleAlchemyCrazyBalance', async function () {
+    this.timeout(1600000)
     await ProviderModule.connectToAllNetworks()
 
-    const token = await Web3Helper.getTokenBalances(
-      '0x55da37AF02c4e7e0Ce01964A68692f7e32575eFA',
-      NetworksEnum.ethereumMainnet,
-    )
-    console.log(token)
+    const testCases = [
+      { address: '0x9c25a6b1bf3F6Fd2F68a62169c043045C2460482', network: NetworksEnum.ethereumMainnet },
+      { address: '0x35a0db8c6F2903Bc21C45d582B167e19Faf60d43', network: NetworksEnum.ethereumMainnet },
+      { address: '0xC432356F9f2da794DDA3DF10706eA34DC18A725d', network: NetworksEnum.ethereumMainnet },
+
+      { address: '0x8474A43DBC168d4D7cC10432E1b3267Dc16974d5', network: NetworksEnum.polygonMainnet },
+      { address: '0x1234567890abcdef1234567890abcdef12345678', network: NetworksEnum.polygonMainnet },
+      { address: '0xD8981e488Dc62bc0f7aE6ce4bec09db0786aC2Db', network: NetworksEnum.polygonMainnet },
+
+      { address: '0x5B98a0c38d3684644A9Ada0baaeAae452aE3267B', network: NetworksEnum.ethereumSepolia },
+    ]
+
+    for (const testCase of testCases) {
+      const { address, network } = testCase
+      try {
+        const balance = await Web3Helper.getBalance(address, network)
+        console.log(`Balance for ${address} on ${network}:`, balance)
+      } catch (error) {
+        console.error(`Error fetching balance for ${address} on ${network}:`, error)
+      }
+    }
+  })
+
+  it('getTokenBalance - handleAlchemyCrazyBalance', async function () {
+    this.timeout(1600000)
+    await ProviderModule.connectToAllNetworks()
+
+    const testCases = [
+      { address: '0x9c25a6b1bf3F6Fd2F68a62169c043045C2460482', network: NetworksEnum.ethereumMainnet },
+      { address: '0x35a0db8c6F2903Bc21C45d582B167e19Faf60d43', network: NetworksEnum.ethereumMainnet },
+      { address: '0xC432356F9f2da794DDA3DF10706eA34DC18A725d', network: NetworksEnum.ethereumMainnet },
+
+      { address: '0x8474A43DBC168d4D7cC10432E1b3267Dc16974d5', network: NetworksEnum.polygonMainnet },
+      { address: '0x1234567890abcdef1234567890abcdef12345678', network: NetworksEnum.polygonMainnet },
+      { address: '0xD8981e488Dc62bc0f7aE6ce4bec09db0786aC2Db', network: NetworksEnum.polygonMainnet },
+
+      { address: '0x5B98a0c38d3684644A9Ada0baaeAae452aE3267B', network: NetworksEnum.ethereumSepolia },
+    ]
+
+    for (const testCase of testCases) {
+      const { address, network } = testCase
+      try {
+        const balances = await Web3Helper.getTokenBalances(address, network)
+
+        balances.map((tk: IAlchemyTokenBalance) => {
+          console.log(
+            `Balance for ${address} of ${tk.contractAddress} on ${network}:`,
+            tk.originalBalance,
+            tk.tokenBalance,
+          )
+        })
+      } catch (error) {
+        console.error(`Error fetching balance for ${address} on ${network}:`, error)
+      }
+    }
   })
 
   it('should getTokenBalanceAtBlock', async () => {

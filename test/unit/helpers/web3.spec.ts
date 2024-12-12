@@ -8,8 +8,6 @@ import Logger from '@logger'
 import logger from '@logger'
 import proxyquire from 'proxyquire'
 import ProviderModule from '@modules/provider'
-import { RateModule } from '@modules/rates'
-import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 import BigNumber from 'bignumber.js'
 
@@ -746,24 +744,15 @@ describe('Helpers:Web3', () => {
         send: sandbox.stub().resolves(fakeResponse),
       }
       sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
-      const stubRate = sandbox.stub(RateModule, 'fetchRate').resolves({
-        address: utils.zeroAddress,
-        name: 'TokenName',
-        decimals: 18,
-        symbol: 'ETH',
-        priceUsd: '0',
-        priceChangeOnDayUsd: '0',
-        logo: null,
-      } as any)
-
       sandbox.stub(logger, 'verbose')
-      sandbox.spy(ProxyToken, 'saveAndGetToken')
+      sandbox.stub(ProxyToken, 'saveAndGetToken').returns({
+        decimals: 18,
+      } as any)
 
       const balance = await Web3Helper.getBalance(fakeAddress, fakeNetwork)
       expect(balance).to.equal('2.0') // Check if conversion from wei to ether is correct
       expect(providerStub.send.calledOnce).to.be.true
       expect(providerStub.send.calledWith('eth_getBalance', [fakeAddress])).to.be.true
-      expect(stubRate.calledOnce).to.be.true
     })
 
     it('should return "0" on error', async () => {
