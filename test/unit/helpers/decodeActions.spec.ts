@@ -100,7 +100,8 @@ describe('Helpers: DecodeActions', () => {
       type: ProposalActionType.Unknown,
     })
     expect(stubDecodeAbi.calledOnceWith(action)).to.be.true
-    expect(stubDecodeFallback.calledOnceWith(action.data)).to.be.true
+    expect(stubDecodeAbi.calledOnceWith(action)).to.be.true
+    expect(stubDecodeFallback.calledOnceWith(action)).to.be.true
     expect(stubNetspec.calledOnce).to.be.true
   })
 
@@ -115,12 +116,22 @@ describe('Helpers: DecodeActions', () => {
 
     const spyDecodeAbi = sandbox.spy(decodeActions, '_decodeWithAbi')
     const spyDecodeFallback = sandbox.spy(decodeActions, '_decodeFallback')
+    const parseContractNetspecStub = sandbox.stub(decodeActions, 'parseContractNetspec').resolves(null as any)
 
     const result = await decodeActions.decodeData(action, {
       network: NetworksEnum.ethereumMainnet,
+      daoAddress: 'xxx',
     })
 
-    expect(result).to.be.eq(null)
+    expect(result).to.deep.eq({
+      from: 'xxx',
+      data: action.data,
+      value: action.value,
+      to: action.to,
+      type: ProposalActionType.Unknown,
+      inputData: null,
+    })
+    expect(parseContractNetspecStub.calledOnce).to.be.true
     expect(spyDecodeAbi.calledOnce).to.be.true
     expect(spyDecodeFallback.calledOnce).to.be.true
   })
@@ -346,7 +357,7 @@ describe('Helpers: DecodeActions', () => {
         ],
       })
 
-      const result = await decodeActions._decodeFallback(data)
+      const result = await decodeActions._decodeFallback({ data, value: 123, to: '0xx' }, NetworksEnum.ethereumSepolia)
       expect(result).to.deep.equal({
         function: 'setMetadata',
         textSignature: 'setMetadata(bytes)',
@@ -381,7 +392,7 @@ describe('Helpers: DecodeActions', () => {
       })
 
       const loggerStub = sandbox.stub(Logger, 'error')
-      const result = await decodeActions._decodeFallback(data)
+      const result = await decodeActions._decodeFallback({ data, to: '0x12', value: 123 }, NetworksEnum.ethereumSepolia)
       expect(loggerStub.calledOnceWith('Error decoding action data' as any)).to.be.true
       expect(result).to.be.null
       expect(stubFourByte.calledOnce).to.be.true
@@ -398,9 +409,19 @@ describe('Helpers: DecodeActions', () => {
         results: [],
       })
 
-      const result = await decodeActions._decodeFallback(data)
+      const parseContractNetspecStub = sandbox.stub(decodeActions, 'parseContractNetspec').resolves(null as any)
+
+      const result = await decodeActions._decodeFallback(
+        {
+          data,
+          to: '0x12',
+          value: 123,
+        },
+        NetworksEnum.ethereumSepolia,
+      )
       expect(result).to.be.null
       expect(stubFourByte.calledOnce).to.be.true
+      expect(parseContractNetspecStub.calledOnce).to.be.true
     })
 
     it('should return null if fail to getSignatures', async () => {
@@ -409,8 +430,17 @@ describe('Helpers: DecodeActions', () => {
 
       const stubLogger = sandbox.stub(Logger, 'error')
       const stubFourByte = sandbox.stub(FourByte, 'getSignatures').rejects(new Error('fake-error'))
+      const parseContractNetspecStub = sandbox.stub(decodeActions, 'parseContractNetspec').resolves(null as any)
+      const result = await decodeActions._decodeFallback(
+        {
+          data,
+          to: '0x12',
+          value: 123,
+        },
+        NetworksEnum.ethereumSepolia,
+      )
 
-      const result = await decodeActions._decodeFallback(data)
+      expect(parseContractNetspecStub.notCalled).to.be.true
       expect(result).to.be.null
       expect(stubFourByte.calledOnce).to.be.true
       expect(stubLogger.calledOnceWith('Error decoding action data' as any)).to.be.true
@@ -620,6 +650,7 @@ describe('Helpers: DecodeActions', () => {
 
       const result = await decodeActions.parseContractNetspec('mint(address,uint256)', contractAddress, network)
       expect(result).to.deep.equal({
+        functionName: 'mint',
         contractName: 'IERC20MintableUpgradeable',
         inputs: [
           {
@@ -1167,12 +1198,21 @@ describe('Helpers: DecodeActions', () => {
         totalHolders: 1,
       })
 
+      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        ens: 'abc.eth',
+      } as any)
+
+      const tokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1000000000000000000')
+
       const result = await decodeActions._parseMintAction(baseAction, action, document as any)
+      expect(createMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true
       expect(covalentTokenInfo.calledOnce).to.be.true
       expect(result!.totalSupply).to.be.eq('1000000000000000000')
       expect(result!.holdersCount).to.be.eq(1)
+      expect(tokenBalanceAtBlockStub.calledOnce).to.be.true
     })
 
     it('should retunr null if the signature is not correct for updateDaoMetadata', async () => {
