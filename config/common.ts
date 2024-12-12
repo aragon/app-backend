@@ -227,6 +227,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       METADATA_FETCH_TIMEOUT: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_TIMEOUT', 10000),
     },
 
+    RETRY_REQUEST: {
+      COUNT: utils.configParser(sourceConfig, 'number', 'RETRY_REQUEST_COUNT', 5),
+    },
+
     SERVICES: {
       ARAGON_API: {
         BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
@@ -244,6 +248,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_INDEXER_DAO_INTERVAL',
           3 * 60 * 60 * 1000,
         ), // 3 hours
+        PLUGIN_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_INDEXER_PLUGIN_INTERVAL',
+          6 * 60 * 60 * 1000,
+        ), // 6 hours
       },
 
       ARAGON_RATES: {

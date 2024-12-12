@@ -146,6 +146,10 @@ export interface IConfig {
     METADATA_FETCH_TIMEOUT: number
   }
 
+  RETRY_REQUEST: {
+    COUNT: number
+  }
+
   SERVICES: {
     ARAGON_API: {
       BASE_URL: string
@@ -157,6 +161,7 @@ export interface IConfig {
     ARAGON_INDEXER: {
       NAME: string
       DAO_INTERVAL: number
+      PLUGIN_INTERVAL: number
     }
     ARAGON_RATES: {
       NAME: string
