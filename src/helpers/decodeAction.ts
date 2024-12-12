@@ -199,7 +199,7 @@ class DecodeActions {
         network: document.network!,
         blockNumber: document.blockNumber!,
       }),
-      Covalent.getTokenInfo(action.to, document.network!, document.blockNumber),
+      Covalent.getTokenSupplyAndHolders(action.to, document.network!, document.blockNumber),
       ProxyToken.saveAndGetToken(action.to, document.network!),
     ])
 

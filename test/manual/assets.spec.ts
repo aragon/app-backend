@@ -27,6 +27,7 @@ describe('Manual: Assets', () => {
     await DaoAssets.assets({ address: daoAddress, network: network } as any)
 
     const assets = await Models.Asset.find({ daoAddress, network })
-    console.log(assets)
+    console.log(assets.map(w => ({ address: w.tokenAddress, amount: w.amount, usd: w.amountUsd })))
+    console.log(assets.map(w => ({ address: w.tokenAddress, amount: w.amount, usd: w.amountUsd })))
   })
 })
