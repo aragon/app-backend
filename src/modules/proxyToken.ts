@@ -32,10 +32,11 @@ export const ProxyToken = {
     if (existingToken) {
       const sixHoursAgo = dayjs().subtract(6, 'hours').toDate()
       if (
-        (!existingToken.skipFetchRate && existingToken.lastUpdatedAt < sixHoursAgo) ||
-        existingToken.totalSupply === '0' || // update if total supply is 0
-        existingToken.holders === 0 || // update if holders is 0
-        forceUpdate
+        existingToken.type === ITokenType.GovernanceERC20 &&
+        ((!existingToken.skipFetchRate && existingToken.lastUpdatedAt < sixHoursAgo) ||
+          existingToken.totalSupply === '0' || // update if total supply is 0
+          existingToken.holders === 0 || // update if holders is 0
+          forceUpdate)
       ) {
         existingToken = await ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network)
       }
@@ -43,14 +44,16 @@ export const ProxyToken = {
     }
 
     const tokenTypeInfo = await TokenDetector.detectTokenType(parsedTokenAddress, network)
-    const tokenMetrics = await ProxyToken.getTokenMetrics(tokenTypeInfo?.type!, parsedTokenAddress, network)
     const tokenRate = await RateModule.fetchRate(parsedTokenAddress, network)
 
-    // this slow down a lot due to the rate limiting of etherscan
-    const contractDeployInfo =
-      tokenTypeInfo?.type === ITokenType.GovernanceERC20
-        ? await ProxyToken.getContractCreationInfo(parsedTokenAddress, network)
-        : null
+    let tokenMetrics: any = {}
+    let contractDeployInfo: any = {}
+
+    if (tokenTypeInfo?.type === ITokenType.GovernanceERC20) {
+      tokenMetrics = ProxyToken.getTokenMetrics(tokenTypeInfo?.type, parsedTokenAddress, network)
+      // this slow down a lot due to the rate limiting of etherscan
+      contractDeployInfo = await ProxyToken.getContractCreationInfo(parsedTokenAddress, network)
+    }
 
     const rawToken: Partial<Token> = ProxyToken.constructRawToken(
       parsedTokenAddress,
