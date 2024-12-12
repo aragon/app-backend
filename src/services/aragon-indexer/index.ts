@@ -48,7 +48,7 @@ const IndexerService: IService & { repeaters: any } = {
 
     // re-sync all installed plugins
     const taskOptions = {
-      fn: () => [[{ aggregatorPlugin: SyncAll.start }]],
+      fn: () => [[{ syncAllPlugins: SyncAll }]],
       interval: config.SERVICES.ARAGON_INDEXER.PLUGIN_INTERVAL,
       runNow: true,
       stopOnError: false,
