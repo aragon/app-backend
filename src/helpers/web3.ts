@@ -60,7 +60,7 @@ const Web3Helper = {
     amount: any,
     decimals: number,
   ) => {
-    if (!amount.includes('0x')) {
+    if (!amount?.includes('0x')) {
       logger.error('Error alchemyCrazyBalance wrong format', llo({ address, tokenAddress, network, amount, decimals }))
     }
   },
