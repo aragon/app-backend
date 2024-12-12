@@ -26,7 +26,7 @@ const PluginSyncService: IService = {
       const plugin = await Models.Plugin.findByAddress(address, network)
 
       if (!plugin || !plugin?.interfaceType) {
-        logger.error('PluginSyncService: plugin not found', llo({ plugin }))
+        logger.error('PluginSyncService: plugin not found', llo({ plugin, address, network }))
         return
       }
 
