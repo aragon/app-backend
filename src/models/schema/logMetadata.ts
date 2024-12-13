@@ -194,6 +194,8 @@ export default class LogMetadata extends Model {
           links: 1,
           resources: 1,
           logo: '$avatar',
+          processKey: 1,
+          stageNames: 1,
         },
       },
       { $limit: 1 },
