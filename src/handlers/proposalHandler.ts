@@ -389,6 +389,7 @@ export const ProposalHandler = {
 
       if (!proposal) {
         logger.warn('Proposal not found', llo(info))
+        return
       }
 
       const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, info.network)
@@ -454,6 +455,20 @@ export const ProposalHandler = {
           continue
         }
 
+        const isAlreadyAdded = subProposals.some(
+          (subProposal: any) =>
+            subProposal.proposalIndex === proposalIndex &&
+            subProposal.stageIndex === newStage &&
+            subProposal.transactionHash === info.transactionHash &&
+            subProposal.blockNumber === info.blockNumber &&
+            subProposal.pluginAddress === address,
+        )
+
+        if (isAlreadyAdded) {
+          logger.warn('Sub-proposal already exists in the array', llo({ proposalIndex, address }))
+          continue
+        }
+
         subProposals.push({
           proposalIndex,
           stageIndex: newStage,
@@ -512,6 +527,20 @@ export const ProposalHandler = {
         blockTimestamp: exec.blockTimestamp,
         status: exec.status,
       }))
+
+      const isStageExecutionAlreadyAdded = stageExecutions.some(
+        (exec: any) =>
+          exec.stageIndex === newStage - 1 &&
+          exec.transactionHash === info.transactionHash &&
+          exec.blockNumber === info.blockNumber &&
+          exec.blockTimestamp === timestamp &&
+          exec.status === true,
+      )
+
+      if (isStageExecutionAlreadyAdded) {
+        logger.warn('Stage execution already exists in the array', llo({ stageIndex: newStage - 1 }))
+        return
+      }
 
       stageExecutions.push({
         stageIndex: newStage - 1,
