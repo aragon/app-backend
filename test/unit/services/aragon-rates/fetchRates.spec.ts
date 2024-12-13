@@ -55,7 +55,7 @@ describe('Rates: FetchRates', () => {
     const stubFetchRates = sandbox.stub(RateModule, 'fetchRate').resolves(fakeRate as any)
     const stubLogger = sandbox.stub(logger, 'verbose')
 
-    sandbox.stub(ProxyToken, 'skipFetchToken').returns(true)
+    sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(true)
 
     const tokenDb = await Models.Token.create({
       network: NetworksEnum.ethereumMainnet,
