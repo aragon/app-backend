@@ -1,5 +1,5 @@
 import { type ITokenMetadata } from '@src/types/token'
-import type { HexAddress } from '@src/types/networks'
+import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
 export enum ProposalActionType {
   Transfer = 'Transfer',
@@ -19,6 +19,7 @@ export interface IRawAction {
   data: string
   value: any
   from?: string
+  network?: NetworksEnum
 }
 
 export enum KnownActionSignature {
