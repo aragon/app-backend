@@ -41,8 +41,11 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
-      } else if (error?.code === 'SERVER_ERROR' && error?.status === 503) {
-        logger.warn('Warn, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
+      } else if (error?.code === 'SERVER_ERROR' && isErrorRelatedToRealtime(error)) {
+        logger.warn(
+          'Warn, retrying on alchemy server error...',
+          llo({ retryCount, wait: retryDelay(retryCount), error }),
+        )
         await Utils.wait(retryDelay(retryCount))
       } else {
         // logger.warn('Error in Retry Request', llo({ error }))
@@ -66,4 +69,17 @@ function canBeRetried(error: any): boolean {
   const errorValueSig = error?.value?.slice(0, 10)
 
   return Object.values(RETRY_REVERTS).includes(errorValueSig)
+}
+
+function isErrorRelatedToRealtime(error: any): boolean {
+  try {
+    const parsedReqBody = JSON.parse(error?.requestBody || '{}')
+    return (
+      parsedReqBody?.method === 'eth_getLogs' &&
+      parsedReqBody?.params?.[0]?.fromBlock === parsedReqBody?.params?.[0]?.toBlock
+    )
+  } catch (e) {
+    logger.warn('Error parsing request body for isErrorRelatedToRealtime when alchemy server error', { error, e })
+    return false
+  }
 }
