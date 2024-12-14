@@ -36,6 +36,9 @@ export default class DaoPermission extends Model {
   @prop({ type: () => Number, required: true })
   public transactionIndex!: number
 
+  @prop({ type: () => String, required: true })
+  public transactionHash!: string
+
   @prop({ type: () => Number, required: true })
   public logIndex!: number
 
