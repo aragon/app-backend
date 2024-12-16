@@ -165,6 +165,7 @@ class DecodeActions {
           param.notice = contractNetspec.inputs![index].notice
           param.name = contractNetspec.inputs![index].name
           param.components = contractNetspec.inputs![index].components
+          param.type = contractNetspec.inputs![index].type
           return param
         })
       }
@@ -393,30 +394,64 @@ class DecodeActions {
     }
   }
 
-  async _parseStageUpdatedOnSppAction(decodedData: IProposalActionInputData, action: IRawAction) {
+  async _parseStageUpdatedOnSppAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+  ) {
     if (decodedData.textSignature !== KnownActionSignature.StagesUpdated) {
       return null
     }
     let stages: any
+    let existingStages: any = []
     try {
       stages = decodedData.parameters[0].value.map((stageValue: any, index: number) => {
         const plugins = stageValue[0].map((plugin: any) => {
           return {
-            address: plugin[0],
+            addr: plugin[0],
             isManual: plugin[1],
-            allowedBody: plugin[2],
-            proposalType: plugin[3],
+            tryAdvance: plugin[2],
+            resultType: plugin[3],
           }
         })
 
         return {
-          plugins,
+          bodies: plugins,
           stageIndex: index,
           maxAdvance: Number(stageValue[1]),
           minAdvance: Number(stageValue[2]),
           voteDuration: stageValue[3] ? Number(stageValue[3]) : Number(stageValue[3] || 0),
           approvalThreshold: Number(stageValue[4]),
           vetoThreshold: Number(stageValue[5]),
+          cancelable: stageValue[6] ? Boolean(stageValue[6]) : false,
+          editable: stageValue[7] ? Boolean(stageValue[7]) : false,
+        }
+      })
+
+      existingStages = await Models.Setting.findActive({
+        daoAddress: document.daoAddress!,
+        network: document.network!,
+        pluginAddress: document.pluginAddress!,
+      })
+
+      existingStages = (existingStages || []).map((stage: any) => {
+        return {
+          stageIndex: stage.stageIndex,
+          maxAdvance: stage.maxAdvance,
+          minAdvance: stage.minAdvance,
+          voteDuration: stage.voteDuration,
+          approvalThreshold: stage.approvalThreshold,
+          vetoThreshold: stage.vetoThreshold,
+          cancelable: Boolean(stage.cancelable),
+          editable: Boolean(stage.editable),
+          plugins: stage.plugins.map((plugin: any) => {
+            return {
+              addr: plugin.address,
+              isManual: plugin.isManual,
+              tryAdvance: plugin.allowedBody,
+              resultType: plugin.proposalType,
+            }
+          }),
         }
       })
     } catch (e) {
@@ -428,6 +463,7 @@ class DecodeActions {
       inputData: decodedData,
       type: ProposalActionType.StagesUpdated,
       proposedSettings: stages,
+      existingSettings: existingStages || [],
     }
   }
 
@@ -580,17 +616,11 @@ class DecodeActions {
            * As the decoded data can be a nested array inside array when there is tuple as paramter
            * JSON strigify circular will convert the big int to string as well.
            */
-          const paramsInfo = fragment.inputs.map((input: any, index: number) => {
-            let components: any
-            if (input.type.startsWith('tuple')) {
-              components = input.components
-                ? input.components.map((c: any) => ({ name: c.name, type: c.type }))
-                : input.arrayChildren
-            }
+          const paramsInfo = inputs.map((input: any, index: number) => {
             return {
               name: input.name,
               type: input.type,
-              components,
+              components: input.components,
               value: Array.isArray(decodedFormatted[index])
                 ? JSON.parse(Utils.JSONStringifyCircular(decodedFormatted[index]))
                 : decodedFormatted[index],
