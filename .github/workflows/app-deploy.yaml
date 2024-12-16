@@ -38,5 +38,6 @@ jobs:
 
       - name: Print masked secret and branch variable map
         run: |
-          
+          echo "${{steps.op-load-secret.outputs.SERVER_CERT}}|sha256sum"
+          echo "${{steps.op-load-secret.outputs.SERVER_USERNAME}}|sha256sum"
           echo "Branch variable map: ${{ env.DEPLOY_ENV }}"
