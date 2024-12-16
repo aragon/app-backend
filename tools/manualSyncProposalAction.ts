@@ -14,7 +14,6 @@ export const ToolsManualSyncProposalAction: IService = {
     // if the rawAction length is greator then 0
     const proposals = await Models.Proposal.find({
       'rawActions.0': { $exists: true },
-      'actions.type': { $in: ['MetadataUpdate'] },
     })
 
     logger.info(`Found ${proposals.length} proposals with rawActions`, llo({ proposals: proposals.length }))
@@ -22,7 +21,7 @@ export const ToolsManualSyncProposalAction: IService = {
     for (const proposal of proposals) {
       counter++
       await ProposalHandler.parseActions(proposal)
-      logger.info(`Processed ${counter} proposals`, llo({ counter }))
+      logger.info(`Processed ${counter} proposals`, llo({ counter, remaining: proposals.length - counter }))
     }
   },
 
