@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
-describe.only('Dao Permission', () => {
+describe('Dao Permission', () => {
   let sandbox: SinonSandbox
   beforeEach(() => {
     sandbox = sinon.createSandbox()
