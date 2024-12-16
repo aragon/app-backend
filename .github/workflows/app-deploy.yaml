@@ -31,7 +31,7 @@ jobs:
         with:
           export-env: false
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP }}
           SERVER_USERNAME: op://apikeys_nonprod/backend2_server_${{env.DEPLOY_ENV}}/username
           SERVER_URL: op://apikeys_nonprod/backend2_server_${{env.DEPLOY_ENV}}/URL
           SERVER_CERT: op://apikeys_nonprod/backend2_server_${{env.DEPLOY_ENV}}/deploy_backend2_${{env.DEPLOY_ENV}}
