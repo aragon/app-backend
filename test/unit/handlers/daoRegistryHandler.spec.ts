@@ -14,7 +14,6 @@ import { MetadataHandler } from '@handlers/metadataHandler'
 import { ProxyMember } from '@modules/proxyMember'
 import Utils from '@helpers/utils'
 import { RabbitMQHelper } from '@helpers/redditMQ'
-import utils from '@helpers/utils'
 
 describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
