@@ -53,8 +53,6 @@ export const MetadataHandler = {
       await MetadataHandler._handleDaoMetadata(daoExists, logMetadata, info)
     } else if (pluginExists) {
       await MetadataHandler._handlePluginMetadata(pluginExists, logMetadata, ipfsMetadata, info)
-    } else {
-      logger.error('Metadata Set: Dao or Plugin not found', llo({ address, network }))
     }
   },
 
