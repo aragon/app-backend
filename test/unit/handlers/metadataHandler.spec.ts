@@ -137,6 +137,47 @@ describe('Indexer: MetadataHandler', () => {
       expect(verboseStub.args[0][0]).to.be.eq('Created new document - Plugin Metadata Set')
     })
 
+    it('should store DAO metadata - dao not exists', async () => {
+      const verboseStub = sandbox.stub(Logger, 'verbose')
+      const fakeMetadata = {
+        name: 'test',
+        description: 'fake-description',
+      }
+      const fakeEvent = {
+        args: { metadata: 'fake-metadata' },
+      }
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0x0123123',
+        address: '0x0123123',
+        eventName: 'test',
+      }
+
+      const pluginFindStub = sandbox.stub(Models.Plugin, 'findByAddress').callsFake(async (...args) => {
+        pluginFindStub.restore() // Restore the original method after the first call
+        return Promise.resolve({
+          address: '0x123',
+          interfaceType: IPluginInterfaceType.spp,
+          network: NetworksEnum.ethereumMainnet,
+        } as any)
+      })
+
+      const decodeHelper = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://fake-uri')
+      const fetchHelper = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
+
+      await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
+
+      expect(decodeHelper.calledOnce).to.be.true
+      expect(decodeHelper.calledWith(fakeEvent.args.metadata)).to.be.true
+
+      expect(fetchHelper.calledOnce).to.be.true
+      expect(fetchHelper.calledWith('ipfs://fake-uri')).to.be.true
+      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Plugin Metadata Set')
+    })
+
     it('should _updateDaoMetadata if logDb successfully created', async () => {
       const fakeMetadata = {
         name: 'test',
