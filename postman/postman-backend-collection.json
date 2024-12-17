@@ -2963,7 +2963,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": "{{host}}/proposals/0xf01c9b505ad8e00c4f774268bd1866d9088591a10332afcc7bcb1daaa5bae25e-0x9486A57A8989522A4d540CCE21910E9BC353A2d6-1"
+						"url": "{{host}}/proposals/0xb42065c62e61fc1dc49bbdb5411a440673d55e5ae10864ea0e1aab4d9ce8e5d3-0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7-0"
 					},
 					"response": []
 				},
