@@ -127,6 +127,13 @@ class BlockchainLogCrawler {
       const topicChunks = utils.chunkArray(this.crawlSetting.filter.topics, 4)
       let allLogs: Log[] = []
 
+      // const filters = topicChunks.map((topics: any) => ({
+      //   address: this.crawlSetting.filter.address,
+      //   topics,
+      //   fromBlock: currentBlock,
+      //   toBlock,
+      // }))
+
       for (const topics of topicChunks) {
         let success = false
         while (!success) {
