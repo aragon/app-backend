@@ -649,8 +649,8 @@ describe('Indexer: PluginSettingHandler', () => {
 
       await PluginSettingHandler.updateStageNamesOnSppSettings(plugin, stageNames, info)
 
-      expect(createDocumentStub.calledOnceWith('New Setting - sppSettingsUpdated')).to.be.true
-      expect(updateDocumentStub.calledOnceWith('Update SPP inactive plugin')).to.be.true
+      expect(createDocumentStub.args[0][3]).to.eq('New Setting - sppSettingsUpdated')
+      expect(updateDocumentStub.args[0][3]).to.eq('Update SPP inactive plugin')
     })
   })
 
