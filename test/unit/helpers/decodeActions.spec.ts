@@ -58,11 +58,11 @@ describe('Helpers: DecodeActions', () => {
       } as any)
 
       await decodeActions.decodeData(action, {
-        network: NetworksEnum.ethereumMainnet,
+        network: NetworksEnum.ethereumSepolia,
       })
 
       expect(stubMint.calledOnce).to.be.true
-      expect(stubParseContractNetspec.notCalled).to.be.true
+      expect(stubParseContractNetspec.calledOnce).to.be.true
       expect(getERC20BalanceStub.notCalled).to.be.true
       expect(getTokenInfoWithCovalentStub.calledOnce).to.be
       expect(saveAndGetTokenStub.notCalled).to.be.true
@@ -252,11 +252,16 @@ describe('Helpers: DecodeActions', () => {
         },
       ]
 
-      const result = await decodeActions._decodeWithAbi({
-        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        data: data,
-        value: '0',
-      })
+      const netsepecStub = sandbox.stub(decodeActions, 'parseContractNetspec').resolves(null as any)
+
+      const result = await decodeActions._decodeWithAbi(
+        {
+          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          data: data,
+          value: '0',
+        },
+        NetworksEnum.ethereumSepolia,
+      )
 
       expect(result).to.deep.equal({
         contract: 'IERC20MintableUpgradeable',
@@ -280,6 +285,8 @@ describe('Helpers: DecodeActions', () => {
           },
         ],
       })
+
+      expect(netsepecStub.calledOnce).to.be.true
     })
 
     it('should return null if no matching ABI is found', async () => {
@@ -290,11 +297,14 @@ describe('Helpers: DecodeActions', () => {
       // No ABI setup
       decodeActions.allSignatures = []
 
-      const result = await decodeActions._decodeWithAbi({
-        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        data: data,
-        value: '0',
-      })
+      const result = await decodeActions._decodeWithAbi(
+        {
+          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          data: data,
+          value: '0',
+        },
+        NetworksEnum.ethereumSepolia,
+      )
 
       expect(result).to.be.null
     })
@@ -326,11 +336,14 @@ describe('Helpers: DecodeActions', () => {
       ]
 
       const stubLogger = sandbox.stub(Logger, 'error')
-      const result = await decodeActions._decodeWithAbi({
-        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        data: data,
-        value: '0',
-      })
+      const result = await decodeActions._decodeWithAbi(
+        {
+          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          data: data,
+          value: '0',
+        },
+        NetworksEnum.ethereumSepolia,
+      )
       expect(result).to.be.null
       expect(stubLogger.calledWith('Error decoding action data with abi' as any)).to.be.true
     })

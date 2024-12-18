@@ -14,6 +14,7 @@ import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
 import MemberBalance from '@models/schema/memberBalance'
 import { HexAddress } from '@types'
 import { NetworksEnum } from '@types'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 describe('Controller: Member', () => {
   let sandbox: SinonSandbox
@@ -273,5 +274,37 @@ describe('Controller: Member', () => {
 
     expect(response.address).to.eq(rawMember.address)
     expect(response.ens).to.eq(rawMember.ens)
+  })
+
+  it('should get member by address when token address is also provided', async () => {
+    const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').returns({
+      votingPower: '1',
+      balance: '1',
+    } as any)
+
+    const response = await MemberController.getMemberByAddress(
+      rawMember.address as HexAddress,
+      {
+        daoAddress: rawDaoMemberMapping.daoAddress,
+        network: rawDaoMemberMapping.network,
+        pluginAddress: rawDaoMemberMapping.pluginAddress,
+        tokenAddress: rawDaoMemberMapping.tokenAddress,
+      },
+      {},
+    )
+
+    expect(rabbitMqStub.calledOnce).to.be.true
+    expect(rabbitMqStub.args[0][1]).to.deep.eq({
+      id: `memberBalance-${rawMember.address}-${rawDaoMemberMapping.tokenAddress}-${rawDaoMemberMapping.network}`,
+      params: {
+        userAddress: rawMember.address,
+        tokenAddress: rawDaoMemberMapping.tokenAddress,
+        network: rawDaoMemberMapping.network,
+      },
+    })
+    expect(response.address).to.eq(rawMember.address)
+    expect(response.ens).to.eq(rawMember.ens)
+    expect(response.balance).to.eq('1')
+    expect(response.votingPower).to.eq('1')
   })
 })

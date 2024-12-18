@@ -30,6 +30,7 @@ import ProviderModule from '@modules/provider'
 import { ProxyToken } from '@modules/proxyToken'
 import BigNumber from 'bignumber.js'
 import utils from '@helpers/utils'
+import { Multisig } from '@artifacts/Multisig'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -828,6 +829,26 @@ const Web3Helper = {
       version = [1, 0, 0]
     }
     return version.join('.')
+  },
+
+  async isMultisigMemberAtBlock(
+    pluginAddress: HexAddress,
+    memberAddress: HexAddress,
+    blockNumber: number,
+    network: NetworksEnum,
+  ) {
+    const provider = ProviderModule.getProvider(network)!
+    const contract = new Contract(pluginAddress, Multisig.abi, provider)
+
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+          contract.isListedAtBlock(memberAddress, blockNumber),
+        ),
+      )
+    } catch (error) {
+      return false
+    }
   },
 }
 
