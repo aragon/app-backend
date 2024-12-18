@@ -1,0 +1,55 @@
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import { expect } from 'chai'
+import ContractController from '@services/aragon-api/controllers/contract'
+import { EnumQueueName, NetworksEnum } from '@types'
+import { RabbitMQHelper } from '@helpers/redditMQ'
+import config from '@config'
+
+describe('Controller: Contract', () => {
+  let sandbox: SinonSandbox
+
+  beforeEach(async () => {
+    sandbox = sinon.createSandbox()
+  })
+
+  afterEach(() => {
+    sandbox?.restore()
+  })
+
+  describe('getContractDetails', () => {
+    it('should return contract details when RabbitMQ returns a response', async () => {
+      const mockResponse = { contractName: 'MyContract', address: '0x123' } as any
+      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(mockResponse)
+
+      const result = await ContractController.getContractDetails({
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x123',
+      })
+
+      expect(
+        rabbitMqStub.calledOnceWith(
+          EnumQueueName.contractInfo,
+          {
+            id: 'contractInfo-ethereum-mainnet-0x123',
+            params: { network: NetworksEnum.ethereumMainnet, address: '0x123' },
+          },
+          { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+        ),
+      ).to.be.true
+
+      expect(result).to.deep.equal(mockResponse)
+    })
+
+    it('should return an error response if RabbitMQ throws an exception', async () => {
+      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ Error'))
+
+      const result = await ContractController.getContractDetails({
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x123',
+      })
+
+      expect(result).to.deep.equal({ error: true })
+    })
+  })
+})

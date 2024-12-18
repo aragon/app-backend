@@ -9,7 +9,7 @@ const securityMiddleware = () => async (ctx: Koa.Context, next: Koa.Next) => {
   ctx.response.set('x-xss-protection', '1; mode=block')
   ctx.response.set('strict-transport-security', 'max-age=2592000; includeSubDomains')
 
-  await next()
+  return await next()
 }
 
 export default securityMiddleware

@@ -4,12 +4,13 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { Models } from '@dbModels'
 import type Proposal from '@models/schema/proposal'
 import type Plugin from '@models/schema/plugin'
+
 interface IVoteInfo {
   proposalId: string
   userAddress: string
 }
 
-const VoteInfo = {
+export const VoteInfo = {
   getVoteInfo: async (voteInfo: IVoteInfo) => {
     try {
       const proposalInfo = await Models.Proposal.findOne({
@@ -77,5 +78,3 @@ const VoteInfo = {
     return await Web3Helper.isMultisigMemberAtBlock(userAddress, address, blockNumber, network)
   },
 }
-
-export default VoteInfo

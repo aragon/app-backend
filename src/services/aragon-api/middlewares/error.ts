@@ -17,7 +17,9 @@ export default () => async (ctx: RouterContext, next: Next) => {
 
     if (error.exposeCustom_) {
       const customError = error as ICustomError
-      status = ERRORS[customError.message || ErrorKeyEnum.unknownError].status
+
+      const errorMsg = ERRORS[customError.message]
+      status = errorMsg?.status ?? ERRORS[ErrorKeyEnum.unknownError].status
       response.code = (ErrorKeyEnum as any)[customError.message] || ErrorKeyEnum.unknownError
 
       if (customError.description) {
