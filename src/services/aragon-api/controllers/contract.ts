@@ -1,5 +1,6 @@
 import { type NetworksEnum, EnumQueueName } from '@types'
 import { RabbitMQHelper } from '@helpers/redditMQ'
+import config from '@config'
 
 const ContractController = {
   getContractDetails: async ({ network, address }: { network: NetworksEnum; address: string }) => {
@@ -10,7 +11,7 @@ const ContractController = {
           id: `contractInfo-${network}-${address}`,
           params: { network, address },
         },
-        { waitResponse: true, timeout: 15000 },
+        { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
       )
     } catch (e) {
       return { error: true }

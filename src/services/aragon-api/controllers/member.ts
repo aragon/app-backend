@@ -14,6 +14,7 @@ import PairDataModule from '@modules/pairData'
 import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 import ModelUtils from '@models/utils/models'
 import { RabbitMQHelper } from '@helpers/redditMQ'
+import config from '@config'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -64,7 +65,7 @@ const MemberController = {
               network: extraParams.network,
             },
           },
-          { waitResponse: true, timeout: 15000 },
+          { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
         )) as unknown as { balance: string; votingPower: string }
         member.balance = balanceInfo.balance
         member.votingPower = balanceInfo.votingPower

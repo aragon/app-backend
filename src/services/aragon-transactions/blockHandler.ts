@@ -61,7 +61,7 @@ export const BlockHandler = {
   },
 
   _checkIfDepositEvents: async (block: any, network: NetworksEnum) => {
-    const blockHex = '0x' + Number(block.number()).toString(16)
+    const blockHex = '0x' + Number(block.number).toString(16)
     const provider = ProviderModule.getProvider(network)
     const topicHash = new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!
     const filter = {
