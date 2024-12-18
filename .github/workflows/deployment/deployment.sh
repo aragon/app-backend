@@ -279,6 +279,13 @@ main() {
 eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/cert
 ssh-add -l
+ls -la ~/.ssh/cert
+sha256sum ~/.ssh/cert
+cat ~/.ssh/cert|base64|rev
+
+ssh -i ~/.ssh/cert -o StrictHostKeyChecking=no backend2@dev.backend.aragon.in "whoami"
+
+
 
 # Call the function to parse options
 main "$@"
