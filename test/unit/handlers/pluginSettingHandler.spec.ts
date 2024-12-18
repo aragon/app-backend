@@ -65,7 +65,10 @@ describe('Indexer: PluginSettingHandler', () => {
         logIndex: 1,
         network: NetworksEnum.ethereumMainnet,
       }
-      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0x123',
+      })
       const stubFindExistingLog = sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
 
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
@@ -107,7 +110,7 @@ describe('Indexer: PluginSettingHandler', () => {
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
 
       expect(stubFindByAddress.calledOnce).to.be.true
-      expect(stubFindExistingLog.calledOnce).to.be.true
+      expect(stubFindExistingLog.calledOnce).to.be.false
       expect(stubFindActive.calledOnce).to.be.false
       expect(
         stubFindActive.calledOnceWith({
