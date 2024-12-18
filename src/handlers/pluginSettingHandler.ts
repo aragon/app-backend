@@ -59,17 +59,17 @@ export const PluginSettingHandler = {
       return
     }
 
+    if (relatedPlugin.interfaceType !== IPluginInterfaceType.tokenVoting || relatedPlugin.tokenAddress === null) {
+      logger.warn('Plugin is not a token voting', llo(info))
+      return
+    }
+
     const existingLog = await Models.Setting.findExistingLog({
       transactionHash,
       pluginAddress,
     })
 
     if (existingLog) return
-
-    if (relatedPlugin.interfaceType !== IPluginInterfaceType.tokenVoting || relatedPlugin.tokenAddress === null) {
-      logger.warn('Plugin is not a token voting', llo(info))
-      return
-    }
 
     const activePluginSetting = await Models.Setting.findActive({
       network: info.network,
