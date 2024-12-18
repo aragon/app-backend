@@ -457,8 +457,8 @@ export const ProposalHandler = {
 
         const isAlreadyAdded = subProposals.some(
           (subProposal: any) =>
-            subProposal.proposalIndex === proposalIndex &&
-            subProposal.stageIndex === newStage &&
+            subProposal.proposalIndex?.toString() === proposalIndex?.toString() &&
+            subProposal.stageIndex?.toString() === newStage?.toString() &&
             subProposal.transactionHash === info.transactionHash &&
             subProposal.blockNumber === info.blockNumber &&
             subProposal.pluginAddress === address,
@@ -646,7 +646,7 @@ export const ProposalHandler = {
           proposal.lastStageTransition = Number(proposalInfo.lastStageTransition)
         }
 
-        const subPlugins = plugin.subPlugins.find(async subPlugin => subPlugin.stageIndex === proposal.stageIndex)
+        const subPlugins = plugin.subPlugins?.find(async subPlugin => subPlugin.stageIndex === proposal.stageIndex)
         for (const address of subPlugins?.addresses!) {
           const proposalIndex = await ProposalHelper.getSppSubPluginProposals(
             proposal.proposalIndex,
@@ -704,6 +704,7 @@ export const ProposalHandler = {
       logger.error('Error pairSppProposals', llo({ error, proposalId: proposal.id }))
     }
   },
+
   proposalCanceled: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const proposal = await Models.Proposal.findByProposalIndex(
@@ -736,6 +737,7 @@ export const ProposalHandler = {
       logger.error('Error proposalCanceled', llo({ ...info, error, parsedEvent }))
     }
   },
+
   proposalEdited: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const proposal = await Models.Proposal.findByProposalIndex(
