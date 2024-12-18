@@ -17,6 +17,7 @@ import Setting from '@models/schema/setting'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { PluginList } from '@test/mock/fakePlugins'
 import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 describe('Controller: Proposal', () => {
   let sandbox: SinonSandbox
@@ -471,6 +472,24 @@ describe('Controller: Proposal', () => {
           network: rawProposal.network,
         }),
       ).to.be.true
+    })
+  })
+
+  it('should call rabbitMq to get the cast vote info', async () => {
+    const params = {
+      proposalId: '0x00123213',
+      userAddress: rawMember.address,
+    }
+
+    const rabbitmQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(true as any)
+
+    const response = await ProposalController.canCastVote(params)
+
+    expect(response).to.be.true
+    expect(rabbitmQStub.calledOnce).to.be.true
+    expect(rabbitmQStub.args[0][1]).to.deep.eq({
+      id: `voteInfo-${params.proposalId}-${params.userAddress}`,
+      params,
     })
   })
 })

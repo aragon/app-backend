@@ -41,7 +41,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
-      } else if (error?.code === 'SERVER_ERROR' && isErrorRelatedToRealtime(error)) {
+      } else if (['SERVER_ERROR' || 'TIMEOUT'].includes(error?.code) && isErrorRelatedToRealtime(error)) {
         logger.warn(
           'Warn, retrying on alchemy server error...',
           llo({ retryCount, wait: retryDelay(retryCount), error }),
