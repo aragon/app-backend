@@ -76,8 +76,9 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
           SERVER_CERT: ${{ env.OP_SERVER_CERT }}
         run: |
-          op read ${{ env.SERVER_CERT }} > ../cert
-          chmod 640 ../cert
+          mkdir ~/.ssh/ -p
+          op read ${{ env.SERVER_CERT }} > ~/.ssh/cert
+          chmod 600 ~/.ssh/cert
           
 
       - name: Download config files
