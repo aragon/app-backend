@@ -76,6 +76,8 @@ export interface IConfig {
   DEFAULT_CURRENCY: string
   RABBITMQ: {
     URI: string
+    TIMEOUT: number
+    DEFAULT_CONCURRENCY: number
   }
   NODE_CONFIG: {
     MAX_RECONNECT_ATTEMPTS: number

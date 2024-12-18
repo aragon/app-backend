@@ -34,33 +34,6 @@ describe('GovernanceErc20Handler', () => {
   })
 
   describe('delegateVotesChanged', () => {
-    it('should return if the delegate event is from zero address', async () => {
-      const fakeLog = {
-        args: {
-          delegate: utils.zeroAddress,
-        },
-      }
-
-      const logInfo = {
-        network: NetworksEnum.polygonMainnet,
-        blockNumber: 12313123,
-        transactionIndex: 1,
-        logIndex: 1,
-        transactionHash: utils.zeroAddress,
-        address: utils.zeroAddress,
-        eventName: 'DelegateVotesChanged',
-      }
-
-      const plugin = {
-        daoAddress: '0xDaoAddress',
-        address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
-      }
-
-      const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
-      expect(handlerResponse).to.be.undefined
-    })
-
     it('should return if plugin is not found', async () => {
       const fakeLog = {
         args: {
@@ -87,6 +60,41 @@ describe('GovernanceErc20Handler', () => {
       expect(handlerResponse).to.be.undefined
       expect(findPluginStub.calledOnce).to.be.true
       expect(findPluginStub.calledWith(logInfo.address, logInfo.network)).to.be.true
+    })
+
+    it('should return if delegate is zero address', async () => {
+      const fakeLog = {
+        args: {
+          delegate: '0x0000000000000000000000000000000000000000',
+          previousBalance: '1000',
+          newBalance: '2000',
+        },
+      }
+
+      const logInfo = {
+        network: NetworksEnum.polygonMainnet,
+        blockNumber: 12345678,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0xTransactionHash',
+        address: '0xTokenAddress',
+        eventName: 'DelegateVotesChanged',
+      }
+
+      const plugin = {
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.polygonMainnet,
+      } as any
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+
+      const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
+
+      const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
+
+      expect(handlerResponse).to.be.undefined
+      expect(createMemberStub.notCalled).to.be.true
     })
 
     it('should return if existing log is found', async () => {
@@ -131,27 +139,6 @@ describe('GovernanceErc20Handler', () => {
       expect(createMemberStub.calledOnce).to.be.true
       expect(existingLogStub.calledOnce).to.be.true
       expect(existingPlugintub.calledOnce).to.be.true
-    })
-
-    it('should return if the delegate event is from zero address', async () => {
-      const fakeLog = {
-        args: {
-          delegate: utils.zeroAddress,
-        },
-      }
-
-      const logInfo = {
-        network: NetworksEnum.polygonMainnet,
-        blockNumber: 12313123,
-        transactionIndex: 1,
-        logIndex: 1,
-        transactionHash: utils.zeroAddress,
-        address: utils.zeroAddress,
-        eventName: 'DelegateVotesChanged',
-      }
-
-      const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
-      expect(handlerResponse).to.be.undefined
     })
 
     it('should handle incoming delegateVotesChanged event and add member to DAO', async () => {

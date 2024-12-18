@@ -6,10 +6,13 @@ import {
   type IPaginationParams,
   type IProposalExtraParams,
   type IPairParams,
+  EnumQueueName,
 } from '@types'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import { type ICanCreateProposal } from '@src/types/voting'
+import { RabbitMQHelper } from '@helpers/redditMQ'
+import config from '@config'
 
 const ProposalController = {
   getProposalById: async (id: string): Promise<IProposalsResponse> => {
@@ -75,6 +78,21 @@ const ProposalController = {
     }
 
     return false
+  },
+
+  async canCastVote({ userAddress, proposalId }) {
+    try {
+      return await RabbitMQHelper.sendMessage(
+        EnumQueueName.voteInfo,
+        {
+          id: `voteInfo-${proposalId}-${userAddress}`,
+          params: { proposalId, userAddress },
+        },
+        { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+      )
+    } catch (e) {
+      return false
+    }
   },
 }
 

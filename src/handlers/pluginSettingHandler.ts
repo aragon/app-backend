@@ -59,6 +59,11 @@ export const PluginSettingHandler = {
       return
     }
 
+    if (relatedPlugin.interfaceType !== IPluginInterfaceType.tokenVoting || relatedPlugin.tokenAddress === null) {
+      logger.warn('Plugin is not a token voting', llo(info))
+      return
+    }
+
     const existingLog = await Models.Setting.findExistingLog({
       transactionHash,
       pluginAddress,
@@ -165,30 +170,6 @@ export const PluginSettingHandler = {
     return relatedPlugin
   },
 
-  formatSppSetings(stageUpdate: any) {
-    return stageUpdate.map((stage: any, index: number) => {
-      const plugins = stage.bodies || stage.plugins
-      return {
-        stageIndex: index,
-        minAdvance: Number(stage.minAdvance),
-        maxAdvance: Number(stage.maxAdvance),
-        voteDuration: stage.voteDuration ? Number(stage.voteDuration) : Number(stage.stageDuration || 0),
-        approvalThreshold: Number(stage.approvalThreshold),
-        vetoThreshold: Number(stage.vetoThreshold),
-        cancelable: stage.cancelable,
-        editable: stage.editable,
-        plugins: plugins.map((plugin: any) => {
-          return {
-            address: plugin.pluginAddress || plugin.addr,
-            isManual: plugin.isManual,
-            allowedBody: plugin.allowedBody || plugin.tryAdvance,
-            proposalType: utils.parseNumber(plugin.resultType ?? plugin.proposalType),
-          }
-        }),
-      }
-    })
-  },
-
   sppSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
     const { address: pluginAddress, transactionHash, blockNumber, network } = info
     const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, network)
@@ -259,6 +240,30 @@ export const PluginSettingHandler = {
     return relatedPlugin
   },
 
+  formatSppSetings(stageUpdate: any) {
+    return stageUpdate.map((stage: any, index: number) => {
+      const plugins = stage.bodies || stage.plugins
+      return {
+        stageIndex: index,
+        minAdvance: Number(stage.minAdvance),
+        maxAdvance: Number(stage.maxAdvance),
+        voteDuration: stage.voteDuration ? Number(stage.voteDuration) : Number(stage.stageDuration || 0),
+        approvalThreshold: Number(stage.approvalThreshold),
+        vetoThreshold: Number(stage.vetoThreshold),
+        cancelable: stage.cancelable,
+        editable: stage.editable,
+        plugins: plugins.map((plugin: any) => {
+          return {
+            address: plugin.pluginAddress || plugin.addr,
+            isManual: plugin.isManual,
+            allowedBody: plugin.allowedBody || plugin.tryAdvance,
+            proposalType: utils.parseNumber(plugin.resultType ?? plugin.proposalType),
+          }
+        }),
+      }
+    })
+  },
+
   /**
    * Update stage names on SPP settings
    * We mark the current settings as inactive and create a new one with the updated stage names
@@ -287,7 +292,7 @@ export const PluginSettingHandler = {
       return
     }
 
-    if (activePluginSetting.length !== stageNames.length) {
+    if (activePluginSetting?.stages?.length !== stageNames.length) {
       logger.error('Stage names length mismatch', llo({ stageNames, activePluginSetting }))
       return
     }

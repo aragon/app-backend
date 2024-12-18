@@ -4,8 +4,13 @@ import { expect } from 'chai'
 import IndexerService from '@services/aragon-indexer/index'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import logger from '@logger'
+import EventListener from '@modules/eventListener'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import Utils from '@helpers/utils'
+import { NetworkHelper } from '@helpers/network'
+import { NetworksEnum } from '@types'
 
-describe('Indexer: index', () => {
+describe('aragon-indexer: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -16,57 +21,73 @@ describe('Indexer: index', () => {
     sandbox?.restore()
   })
 
-  // it('should start the indexer service', async () => {
-  //   const runCrawlersInOrderStub = sandbox.stub(IndexerService, 'runCrawlersInOrder')
-  //   const startRealtimeListenersStub = sandbox.stub(IndexerService, 'startRealtimeListeners')
-  //
-  //   const loggerStub = sandbox.stub(logger, 'info')
-  //
-  //   await IndexerService.start()
-  //
-  //   expect(runCrawlersInOrderStub.calledOnce).to.be.true
-  //   expect(startRealtimeListenersStub.calledOnce).to.be.true
-  //   expect(loggerStub.calledTwice).to.be.true
-  // })
+  describe('start', () => {
+    it('should start the indexer service and execute historical crawlers', async () => {
+      const loggerStub = sandbox.stub(logger, 'info')
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
+      sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
 
-  // it('should the indexer service', async () => {
-  //   const scheduler = TaskSchedulerState.getInstance()
-  //   const stopTaskStub = sandbox.stub(scheduler, 'stopTask')
-  //   const loggerStub = sandbox.stub(logger, 'info')
-  //
-  //   await IndexerService.stop()
-  //
-  //   expect(stopTaskStub.calledOnce).to.be.true
-  //   expect(loggerStub.calledOnce).to.be.true
-  // })
-  //
-  // it('should initialize event listeners', async () => {
-  //   const networks = [{ networkName: 'mainnet' }]
-  //   const eventListeners = IndexerService.initializeEventListeners(networks)
-  //
-  //   expect(eventListeners.length).to.eq(7)
-  // })
-  //
-  // it('should run crawlers in order', async () => {
-  //   const eventListeners = [
-  //     { name: 'proposal', start: sandbox.stub().resolves(true), listen: [{ enableHistorical: true }] },
-  //   ]
-  //   const orderedServices = [['proposal']]
-  //
-  //   // await IndexerService.runCrawlersInOrder(eventListeners as any, orderedServices as any)
-  //
-  //   expect(eventListeners[0].start.calledOnce).to.be.true
-  // })
-  //
-  // it('should start real-time listeners', async () => {
-  //   const eventListeners = [
-  //     { name: 'proposal', start: sandbox.stub().resolves(true), listen: [{ enableRealtime: true }] },
-  //     { name: 'vote', start: sandbox.stub().resolves(true), listen: [{ enableRealtime: false }] },
-  //   ]
-  //
-  //   // await IndexerService.startRealtimeListeners(eventListeners as any)
-  //
-  //   expect(eventListeners[0].start.calledOnce).to.be.true
-  //   expect(eventListeners[1].start.notCalled).to.be.true
-  // })
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+
+      const subscribeStub = sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock')
+      const schedulerStartStub = sandbox.stub(TaskSchedulerState.getInstance(), 'startTask').resolves()
+
+      await IndexerService.start()
+
+      expect(loggerStub.calledWith('IndexerService historical started' as any)).to.be.true
+      expect(crawlStub.calledOnce).to.be.true
+      expect(subscribeStub.calledOnce).to.be.true
+      expect(schedulerStartStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('IndexerService historical logs end' as any)).to.be.true
+    })
+  })
+
+  describe('stop', () => {
+    it('should stop the indexer service', async () => {
+      const schedulerStub = sandbox.stub(TaskSchedulerState.getInstance(), 'stopTask')
+      const loggerStub = sandbox.stub(logger, 'info')
+
+      await IndexerService.stop()
+
+      expect(schedulerStub.calledOnceWith('allPlugins')).to.be.true
+      expect(loggerStub.calledOnceWith('IndexerService service stopped' as any)).to.be.true
+    })
+  })
+
+  describe('historical crawlers', () => {
+    it('should execute crawlers for historical logs', async () => {
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
+      sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const subscribeStub = sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock').resolves()
+
+      await IndexerService.start()
+
+      expect(crawlStub.calledOnce).to.be.true // Ensure the crawl method was called once
+      expect(subscribeStub.calledOnce).to.be.true // Ensure the subscribe method was stubbed and not executed
+    })
+  })
+
+  describe('real-time listeners', () => {
+    it('should initialize and subscribe to real-time events', async () => {
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
+      const subscribeStub = sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock')
+
+      await IndexerService.start()
+
+      expect(subscribeStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('re-sync plugins', () => {
+    it('should start the re-sync task for all plugins', async () => {
+      const schedulerStub = sandbox.stub(TaskSchedulerState.getInstance(), 'startTask').resolves()
+
+      await IndexerService.start()
+
+      expect(schedulerStub.calledOnce).to.be.true
+      expect(schedulerStub.args[0][0]).to.eq('allPlugins')
+    })
+  })
 })
