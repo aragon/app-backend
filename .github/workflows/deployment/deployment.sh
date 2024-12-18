@@ -280,6 +280,7 @@ eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/cert
 ssh-add -l
 ls -la ~/.ssh/cert
+ls -la ~/.ssh
 sha256sum ~/.ssh/cert
 
 
