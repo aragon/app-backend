@@ -143,7 +143,7 @@ jobs:
           ssh-keyscan -t rsa "${{ steps.op-server-secrets.outputs.SERVER_URL }}" >> ~/.ssh/known_hosts
           
           echo 'ssh -i ~/.ssh/cert -o StrictHostKeyChecking=no backend2@dev.backend.aragon.in' |sha256sum
-          ssh backend2@dev.backend.aragon.in "whoami"
+          ssh backend2@dev.backend.aragon.in 'whoami'
           nslookup dev.backend.aragon.in
           bash app-backend/.github/workflows/deployment/deployment.sh -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
           
