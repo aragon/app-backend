@@ -17,6 +17,7 @@ import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import getContractInfo from '@services/aragon-dao/contractInfo'
 import VoteInfo from '@services/aragon-dao/voteInfo'
 import MemberInfo from '@services/aragon-dao/memberInfo'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
@@ -24,47 +25,55 @@ const DaoSyncService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   start: async function () {
-    await RabbitMQHelper.process(EnumQueueName.daoTransactions, 10, async job => {
+    await RabbitMQHelper.process(EnumQueueName.daoTransactions, config.RABBITMQ.DEFAULT_CONCURRENCY, async job => {
       const { address, network } = job.params as IQueueDao
 
       await DaoTransactions.start({ daoAddress: address, network })
     })
 
-    await RabbitMQHelper.process(EnumQueueName.daoAssets, 10, async job => {
+    await RabbitMQHelper.process(EnumQueueName.daoAssets, config.RABBITMQ.DEFAULT_CONCURRENCY, async job => {
       const { address, network } = job.params as IQueueDao
 
       await DaoAssets.start({ daoAddress: address, network })
     })
 
-    await RabbitMQHelper.process(EnumQueueName.daoMetrics, 10, async job => {
+    await RabbitMQHelper.process(EnumQueueName.daoMetrics, config.RABBITMQ.DEFAULT_CONCURRENCY, async job => {
       const { address, network } = job.params as IQueueDao
 
       await DaoMetrics.start({ daoAddress: address, network })
     })
 
-    await RabbitMQHelper.process(EnumQueueName.proposalMultisigMetrics, 10, async job => {
-      const { proposalIndex, pluginAddress, network } = job.params as IQueueProposalMetrics
+    await RabbitMQHelper.process(
+      EnumQueueName.proposalMultisigMetrics,
+      config.RABBITMQ.DEFAULT_CONCURRENCY,
+      async job => {
+        const { proposalIndex, pluginAddress, network } = job.params as IQueueProposalMetrics
 
-      await ProposalMetrics.proposalMultisigMetrics({ proposalIndex, pluginAddress, network })
-    })
+        await ProposalMetrics.proposalMultisigMetrics({ proposalIndex, pluginAddress, network })
+      },
+    )
 
-    await RabbitMQHelper.process(EnumQueueName.proposalTokenVotingMetrics, 10, async job => {
-      const { proposalIndex, pluginAddress, network } = job.params as IQueueProposalMetrics
+    await RabbitMQHelper.process(
+      EnumQueueName.proposalTokenVotingMetrics,
+      config.RABBITMQ.DEFAULT_CONCURRENCY,
+      async job => {
+        const { proposalIndex, pluginAddress, network } = job.params as IQueueProposalMetrics
 
-      await ProposalMetrics.proposalTokenVotingMetrics({ proposalIndex, pluginAddress, network })
-    })
+        await ProposalMetrics.proposalTokenVotingMetrics({ proposalIndex, pluginAddress, network })
+      },
+    )
 
-    await RabbitMQHelper.process(EnumQueueName.contractInfo, 10, async (job: any) => {
+    await RabbitMQHelper.process(EnumQueueName.contractInfo, config.RABBITMQ.DEFAULT_CONCURRENCY, async (job: any) => {
       const { address, network } = job.params as IQueueContractInfo
       return await getContractInfo(network, address)
     })
 
-    await RabbitMQHelper.process(EnumQueueName.voteInfo, 10, async (job: any) => {
+    await RabbitMQHelper.process(EnumQueueName.voteInfo, config.RABBITMQ.DEFAULT_CONCURRENCY, async (job: any) => {
       const { proposalId, userAddress } = job.params as IQueueVoteInfo
       return await VoteInfo.getVoteInfo({ proposalId, userAddress })
     })
 
-    await RabbitMQHelper.process(EnumQueueName.memberBalance, 10, async (job: any) => {
+    await RabbitMQHelper.process(EnumQueueName.memberBalance, config.RABBITMQ.DEFAULT_CONCURRENCY, async (job: any) => {
       const { userAddress, tokenAddress, network } = job.params as IQueueMemberBalanceInfo
       return await MemberInfo.getByTokenAddress(userAddress, tokenAddress, network)
     })
