@@ -280,7 +280,13 @@ describe('Indexer: PluginSettingHandler', () => {
 
       const activeSetting = { id: 'active-setting-id' }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ daoAddress: '0xdao', tokenAddress: '0xtoken' } as any)
+      sandbox
+        .stub(Models.Plugin, 'findByAddress')
+        .resolves({
+          daoAddress: '0xdao',
+          tokenAddress: '0xtoken',
+          interfaceType: IPluginInterfaceType.tokenVoting,
+        } as any)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
       sandbox.stub(Models.Setting, 'findActive').resolves(activeSetting)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
