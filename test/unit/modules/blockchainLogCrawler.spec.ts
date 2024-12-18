@@ -5,17 +5,18 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
-import { Models } from '@dbModels'
-import config from '@config'
-import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
+import config from '@config'
+import utils from '@helpers/utils'
+import Web3Helper from '@helpers/web3'
+import { Models } from '@dbModels'
+import DbTx from '@modules/dbTx'
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
   let mockProvider: any
   let logError: any
   let logVerbose: any
-  let logWarn: any
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
@@ -24,7 +25,6 @@ describe('Module: blockchainLogCrawler', () => {
       getLogs: sandbox.stub(),
     }
     logVerbose = sandbox.stub(logger, 'verbose')
-    logWarn = sandbox.stub(logger, 'warn')
     logError = sandbox.stub(logger, 'error')
   })
 
@@ -33,456 +33,555 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   it('should crawl logs correctly', async () => {
-    // sandbox.stub(ProviderModule, 'getProvider').callsFake(network => mockProvider as any)
-    //
-    // mockProvider.getBlockNumber.resolves(10)
-    // mockProvider.getLogs
-    //   .onFirstCall()
-    //   .resolves([{ transactionHash: '0x1' }, { transactionHash: '0x2' }])
-    //   .onSecondCall()
-    //   .resolves([])
-    //
-    // const onLogStub = sandbox.stub().resolves()
-    // const crawler = new BlockchainLogCrawler({
-    //   network: NetworksEnum.ethereumMainnet,
-    //   filter: {},
-    //   batchSize: 10,
-    //   onLog: onLogStub,
-    // })
-    //
-    // await crawler.crawl()
-    //
-    // expect(onLogStub.calledTwice).to.be.true
-    // expect(onLogStub.calledTwice).to.be.true
-    // expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+
+    mockProvider.getBlockNumber
+      .onFirstCall()
+      .resolves(100) // Starting block number
+      .onSecondCall()
+      .resolves(200) // Latest block number
+    mockProvider.getLogs
+      .onFirstCall()
+      .resolves([
+        { transactionHash: '0x1', blockNumber: 101, transactionIndex: 1 },
+        { transactionHash: '0x2', blockNumber: 102, transactionIndex: 2 },
+      ])
+      .onSecondCall()
+      .resolves([])
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events: [],
+      stopOnError: false,
+      logService: null,
+      onError: () => {},
+    })
+
+    const updateAndCheckConditionsStub = sandbox
+      .stub(crawler, 'updateAndCheckConditions')
+      .onFirstCall()
+      .resolves(true)
+      .onSecondCall()
+      .resolves(false)
+
+    const processLogsSpy = sandbox.spy(crawler, 'processLogs')
+
+    await crawler.crawl()
+
+    expect(updateAndCheckConditionsStub.calledOnce).to.be.true
+    expect(mockProvider.getLogs.calledOnce).to.be.true
+    expect(processLogsSpy.calledOnceWith(sandbox.match.array)).to.be.true
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
-  // it('should crawl logs correctly with logService', async () => {
-  //   const stubSaveProgress = sandbox.stub(BlockchainLogCrawler.prototype, 'onSaveProgress').resolves()
-  //   sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
-  //   mockProvider.getBlockNumber.resolves(16721863 + 10)
-  //   mockProvider.getLogs
-  //     .onFirstCall()
-  //     .resolves([
-  //       { transactionHash: '0x1', blockNumber: 2 },
-  //       { transactionHash: '0x2', blockNumber: 3 },
-  //     ])
-  //     .onSecondCall()
-  //     .resolves([])
-  //
-  //   const onLogStub = sandbox.stub().resolves()
-  //   const crawler = new BlockchainLogCrawler({
-  //     network: NetworksEnum.ethereumMainnet,
-  //     filter: {},
-  //     batchSize: 10,
-  //     onLog: onLogStub,
-  //     logService: 'testService' as any,
-  //   })
-  //
-  //   await crawler.crawl()
-  //
-  //   expect(onLogStub.calledTwice).to.be.true
-  //   expect(onLogStub.calledTwice).to.be.true
-  //   expect(stubSaveProgress.callCount).to.equal(4)
-  //   expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
-  // })
-  //
-  // it('should handle continuous crawling with new blocks added', async () => {
-  //   sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
-  //   let blockNumber = 10
-  //   mockProvider.getBlockNumber.callsFake(() => Promise.resolve(blockNumber++))
-  //   mockProvider.getLogs.resolves([{ transactionHash: `0x${blockNumber}` }])
-  //
-  //   const onLogStub = sandbox.stub().resolves()
-  //   const crawler = new BlockchainLogCrawler({
-  //     network: NetworksEnum.ethereumMainnet,
-  //     filter: {},
-  //     batchSize: 1,
-  //     onLog: onLogStub,
-  //   })
-  //   sandbox
-  //     .stub(crawler, 'updateAndCheckConditions')
-  //     .onFirstCall()
-  //     .resolves(true)
-  //     .onSecondCall()
-  //     .resolves(true)
-  //     .onThirdCall()
-  //     .resolves(false)
-  //
-  //   const stubProcessLogs = sandbox.spy(crawler, 'processLogs')
-  //
-  //   await crawler.crawl()
-  //
-  //   expect(stubProcessLogs.callCount).to.be.eq(2)
-  //   expect(stubProcessLogs.args[0][0][0].transactionHash).to.exist
-  //   expect(stubProcessLogs.args[1][0][0].transactionHash).to.exist
-  //   expect(onLogStub.callCount).to.be.eq(2)
-  //   expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
-  // })
-  //
-  // it('should handle rate limiting by pausing and retrying', async () => {
-  //   sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
-  //
-  //   const rateLimitError = new Error('Your app has exceeded its compute units per second capacity')
-  //   rateLimitError.message = 'Your app has exceeded its compute units per second capacity'
-  //   const waitStub = sandbox.stub(Utils, 'wait').resolves()
-  //
-  //   mockProvider.getBlockNumber.resolves(10)
-  //   mockProvider.getLogs
-  //     .onFirstCall()
-  //     .rejects(rateLimitError)
-  //     .onSecondCall()
-  //     .resolves([{ transactionHash: '0x1' }, { transactionHash: '0x2' }])
-  //     .onThirdCall()
-  //     .resolves([])
-  //
-  //   const onLogStub = sandbox.stub().resolves()
-  //   const crawler = new BlockchainLogCrawler({
-  //     network: NetworksEnum.ethereumMainnet,
-  //     filter: {},
-  //     batchSize: 10,
-  //     onLog: onLogStub,
-  //   })
-  //
-  //   await crawler.crawl()
-  //
-  //   expect(waitStub.calledOnce).to.be.true
-  //   expect(onLogStub.calledTwice).to.be.true
-  //   expect(onLogStub.calledTwice).to.be.true
-  //   expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
-  // })
-  //
-  // it('should reduce batch size and retry on batch size error, restore batch size on next batch', async () => {
-  //   sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
-  //   const error = new Error('Log response size exceeded')
-  //   error.message = 'Log response size exceeded'
-  //   mockProvider.getBlockNumber.onFirstCall().resolves(300).onSecondCall().resolves(300)
-  //   mockProvider.getLogs
-  //     .onCall(0)
-  //     .rejects(error)
-  //     .onCall(1)
-  //     .resolves([1])
-  //     .onCall(2)
-  //     .resolves([1])
-  //     .onCall(3)
-  //     .resolves([1])
-  //   const onLogStub = sandbox.stub().resolves()
-  //   const onErrorStub = sandbox.stub()
-  //   const crawler = new BlockchainLogCrawler({
-  //     network: NetworksEnum.ethereumMainnet,
-  //     filter: {},
-  //     batchSize: 100,
-  //     onLog: onLogStub,
-  //     onError: onErrorStub,
-  //   })
-  //
-  //   await crawler.crawl()
-  //
-  //   expect(onErrorStub.callCount).to.eq(1)
-  //   expect(onLogStub.callCount).to.eq(3)
-  // })
-  //
-  // it('should reduce batch size and retry on batch size error with default error', async () => {
-  //   sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
-  //   const error = new Error('Log response size exceeded')
-  //   error.message = 'Log response size exceeded'
-  //   mockProvider.getBlockNumber.onFirstCall().resolves(2000).onSecondCall().resolves(100)
-  //   mockProvider.getLogs.onFirstCall().rejects(error).onSecondCall().resolves([])
-  //   const onLogStub = sandbox.stub().resolves()
-  //   const onErrorSpy = sandbox.spy(BlockchainLogCrawler, 'defaultOnError')
-  //   const crawler = new BlockchainLogCrawler({
-  //     network: NetworksEnum.ethereumMainnet,
-  //     filter: {},
-  //     batchSize: 1000,
-  //     onLog: onLogStub,
-  //     onError: BlockchainLogCrawler.defaultOnError,
-  //   })
-  //
-  //   await crawler.crawl()
-  //
-  //   expect(logError.calledWith('Error in BlockchainLogCrawler')).to.be.true
-  //   expect(onErrorSpy.calledOnce).to.be.true
-  // })
-  //
-  // it('should handle empty log responses', async () => {
-  //   sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
-  //   mockProvider.getBlockNumber.resolves(100)
-  //   mockProvider.getLogs.resolves([])
-  //
-  //   const onLogStub = sandbox.stub().resolves()
-  //   const crawler = new BlockchainLogCrawler({
-  //     network: NetworksEnum.ethereumMainnet,
-  //     filter: {},
-  //     batchSize: 2000,
-  //     onLog: onLogStub,
-  //   })
-  //
-  //   await crawler.crawl()
-  //
-  //   expect(onLogStub.callCount).to.equal(0)
-  //   expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
-  // })
-  //
-  // it('should properly handle network errors', async () => {
-  //   sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
-  //   const networkError = new Error('Network failure')
-  //   mockProvider.getBlockNumber.rejects(networkError)
-  //
-  //   const crawler = new BlockchainLogCrawler({
-  //     network: NetworksEnum.ethereumMainnet,
-  //     filter: {},
-  //     batchSize: 2000,
-  //     onLog: async () => {},
-  //     onError: async () => {},
-  //   })
-  //
-  //   await crawler.crawl()
-  //
-  //   expect(logError.calledOnce).to.be.true
-  //   expect(logError.calledWith('Error get block number')).to.be.true
-  // })
-  //
-  // it('should throw an error if crawl is invoked while already crawling', async () => {
-  //   const provider = {
-  //     getBlockNumber: sandbox.stub().resolves(10),
-  //     getLogs: sandbox.stub().resolves([]),
-  //   }
-  //   sandbox.stub(ProviderModule, 'getProvider').returns(provider as any)
-  //   const crawler = new BlockchainLogCrawler({
-  //     network: NetworksEnum.ethereumMainnet,
-  //     filter: {},
-  //     batchSize: 2000,
-  //     onLog: async () => {},
-  //   })
-  //
-  //   const crawlPromise = crawler.crawl()
-  //
-  //   await expect(crawler.crawl()).to.be.rejectedWith('Already crawling')
-  //   await crawlPromise
-  // })
-  //
-  // it('should handle errors in processLogs correctly', async () => {
-  //   const provider = {
-  //     getBlockNumber: sandbox.stub().resolves(10),
-  //     getLogs: sandbox.stub().resolves([]),
-  //   }
-  //   sandbox.stub(ProviderModule, 'getProvider').returns(provider as any)
-  //   const mockOnError = sandbox.stub()
-  //   const crawler = new BlockchainLogCrawler({
-  //     network: NetworksEnum.ethereumMainnet,
-  //     filter: {},
-  //     batchSize: 5,
-  //     onLog: async () => {},
-  //     onError: mockOnError,
-  //     stopOnError: true,
-  //   })
-  //
-  //   const testLogs = [{ transactionHash: '0x123' }, { transactionHash: '0x456' }]
-  //   const processingError = new Error('Test processing error')
-  //
-  //   sandbox
-  //     .stub(crawler, 'onLog' as any)
-  //     .onFirstCall()
-  //     .resolves()
-  //     .onSecondCall()
-  //     .rejects(processingError)
-  //
-  //   await crawler.processLogs(testLogs as any)
-  //
-  //   expect(mockOnError.calledOnceWith(processingError, testLogs[1]))
-  //   expect((crawler as any).crawlResult.nbError).to.equal(1)
-  //   expect((crawler as any).isOnError).to.be.true
-  // })
-  //
-  // it('should stop crawling if batch size becomes too small', async () => {
-  //   sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
-  //   const error = new Error('Log response size exceeded')
-  //   error.message = 'Log response size exceeded'
-  //   mockProvider.getBlockNumber.onFirstCall().resolves(300).onSecondCall().resolves(300)
-  //   mockProvider.getLogs.onFirstCall().rejects(error).onSecondCall().rejects(error).onThirdCall().rejects(error)
-  //
-  //   const onLogStub = sandbox.stub().resolves()
-  //   const onErrorStub = sandbox.stub()
-  //   const crawler = new BlockchainLogCrawler({
-  //     network: NetworksEnum.ethereumMainnet,
-  //     filter: {},
-  //     batchSize: 2,
-  //     onLog: onLogStub,
-  //     onError: onErrorStub,
-  //   })
-  //
-  //   await crawler.crawl()
-  //
-  //   expect(onErrorStub.callCount).to.eq(1)
-  //   expect(logError.calledWith('Batch size too small, stopping crawl')).to.be.true
-  //   expect(onLogStub.callCount).to.eq(0)
-  // })
-  //
-  // describe('calculateBatchSize', () => {
-  //   let crawler
-  //   const BLOCK_TIME_SECONDS = {
-  //     ethereum: 12,
-  //     zkSync: 15,
-  //     arbitrum: 3,
-  //     base: 12,
-  //     polygon: 2,
-  //   }
-  //
-  //   beforeEach(() => {
-  //     // Initialize the crawler instance
-  //     crawler = new BlockchainLogCrawler({
-  //       network: NetworksEnum.ethereumMainnet,
-  //       filter: {},
-  //       onLog: async () => {},
-  //     })
-  //   })
-  //
-  //   it('should calculate the correct batch size for Ethereum networks', () => {
-  //     const days = 30 * 4
-  //     const secondsInMonth = days * 24 * 3600
-  //     const expectedBatchSize = Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.ethereum)
-  //
-  //     expect(crawler.calculateBatchSize(NetworksEnum.ethereumMainnet)).to.equal(expectedBatchSize)
-  //     expect(crawler.calculateBatchSize(NetworksEnum.ethereumSepolia)).to.equal(expectedBatchSize)
-  //   })
-  //
-  //   it('should calculate the correct batch size for zkSync networks', () => {
-  //     const days = 30 * 4
-  //     const secondsInMonth = days * 24 * 3600
-  //     const expectedBatchSize = Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.zkSync)
-  //
-  //     expect(crawler.calculateBatchSize(NetworksEnum.zksyncMainnet)).to.equal(expectedBatchSize)
-  //     expect(crawler.calculateBatchSize(NetworksEnum.zksyncSepolia)).to.equal(expectedBatchSize)
-  //   })
-  //
-  //   it('should calculate the correct batch size for arbitrumMainnet', () => {
-  //     const days = 30 * 4
-  //     const secondsInMonth = days * 24 * 3600
-  //     const expectedBatchSize = Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.arbitrum)
-  //
-  //     expect(crawler.calculateBatchSize(NetworksEnum.arbitrumMainnet)).to.equal(expectedBatchSize)
-  //   })
-  //
-  //   it('should calculate the correct batch size for baseMainnet', () => {
-  //     const days = 30 * 4
-  //     const secondsInMonth = days * 24 * 3600
-  //     const expectedBatchSize = Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.base)
-  //
-  //     expect(crawler.calculateBatchSize(NetworksEnum.baseMainnet)).to.equal(expectedBatchSize)
-  //   })
-  //
-  //   it('should calculate the correct batch size for polygonMainnet', () => {
-  //     const days = 30 * 4
-  //     const secondsInMonth = days * 24 * 3600
-  //     const expectedBatchSize = Math.floor(secondsInMonth / BLOCK_TIME_SECONDS.polygon)
-  //
-  //     expect(crawler.calculateBatchSize(NetworksEnum.polygonMainnet)).to.equal(expectedBatchSize)
-  //   })
-  //
-  //   it('should throw an error for an unsupported network', () => {
-  //     const unsupportedNetwork = 'unknown' // Assume 'unknown' is not in NetworksEnum
-  //     expect(() => crawler.calculateBatchSize(unsupportedNetwork as NetworksEnum)).to.throw(
-  //       `Unsupported network: ${unsupportedNetwork}`,
-  //     )
-  //   })
-  // })
-  //
-  // describe('onSaveProgress', () => {
-  //   it('should onSaveProgress - create', async () => {
-  //     sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
-  //     const blockNumber = 10
-  //
-  //     const crawler = new BlockchainLogCrawler({
-  //       network: NetworksEnum.ethereumMainnet,
-  //       filter: {},
-  //       batchSize: 5,
-  //       onLog: async () => {},
-  //       onError: () => {},
-  //       stopOnError: true,
-  //       logService: 'testService' as any,
-  //     })
-  //
-  //     const spyModelFind = sandbox.spy(Models.ConfigIndexer, 'findExistingLog')
-  //     const spyModelCreate = sandbox.spy(Models.ConfigIndexer, 'create')
-  //
-  //     await crawler.onSaveProgress(blockNumber)
-  //
-  //     expect(spyModelFind.calledOnceWith({ network: NetworksEnum.ethereumMainnet, service: 'testService' })).to.be.true
-  //     expect(spyModelCreate.calledOnce).to.be.true
-  //   })
-  //
-  //   it('should onSaveProgress - update', async () => {
-  //     sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
-  //     const blockNumber = 10
-  //
-  //     const crawler = new BlockchainLogCrawler({
-  //       network: NetworksEnum.ethereumMainnet,
-  //       filter: {},
-  //       batchSize: 5,
-  //       onLog: async () => {},
-  //       onError: () => {},
-  //       stopOnError: true,
-  //       logService: 'testService' as any,
-  //     })
-  //
-  //     const fakeModel = { update: sandbox.stub().resolves() }
-  //     const spyModelFind = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(fakeModel)
-  //     const spyModelCreate = sandbox.spy(Models.ConfigIndexer, 'create')
-  //
-  //     await crawler.onSaveProgress(blockNumber)
-  //
-  //     expect(spyModelFind.calledOnceWith({ network: NetworksEnum.ethereumMainnet, service: 'testService' })).to.be.true
-  //     expect(fakeModel.update.calledOnce).to.be.true
-  //     expect(spyModelCreate.notCalled).to.be.true
-  //   })
-  // })
-  //
-  // describe('getServiceStartBlock', () => {
-  //   it('should getServiceStartBlock', async () => {
-  //     const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
-  //     sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
-  //
-  //     const mockLogService = 'testService'
-  //     const mockNetwork = NetworksEnum.ethereumMainnet
-  //     const mockLastSync = 123456
-  //     const findExistingLogStub = sandbox
-  //       .stub(Models.ConfigIndexer, 'findExistingLog')
-  //       .resolves({ lastSync: mockLastSync })
-  //
-  //     const crawler = new BlockchainLogCrawler({
-  //       network: mockNetwork,
-  //       filter: {},
-  //       batchSize: 5,
-  //       onLog: async () => {},
-  //       onError: () => {},
-  //       stopOnError: true,
-  //       logService: mockLogService as any,
-  //     })
-  //
-  //     const result = await crawler.getServiceStartBlock()
-  //     expect(findExistingLogStub.calledOnceWith({ network: mockNetwork, service: mockLogService })).to.be.true
-  //     expect(result).to.equal(mockLastSync)
-  //   })
-  //
-  //   it('should getServiceStartBlock from config', async () => {
-  //     const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
-  //     sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
-  //
-  //     const mockLogService = 'testService'
-  //     const mockNetwork = NetworksEnum.ethereumMainnet
-  //
-  //     const crawler = new BlockchainLogCrawler({
-  //       network: mockNetwork,
-  //       filter: {},
-  //       batchSize: 5,
-  //       onLog: async () => {},
-  //       onError: () => {},
-  //       stopOnError: true,
-  //       logService: mockLogService as any,
-  //     })
-  //
-  //     const result = await crawler.getServiceStartBlock()
-  //     expect(result).to.equal(config.NODES.ETHEREUM_MAINNET.FROM_BLOCK)
-  //   })
-  // })
+  it('should sort logs, process and parse', async () => {
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+
+    // Mock the logs to simulate input
+    const unsortedLogs = [
+      { blockNumber: 102, transactionIndex: 2, index: 0, topics: ['0xTopic1'], data: '0xData1' },
+      { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic2'], data: '0xData2' },
+      { blockNumber: 101, transactionIndex: 1, index: 1, topics: ['0xTopic3'], data: '0xData3' },
+      { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic4'], data: '0xData4' },
+    ] as any
+
+    // Expected sorted logs
+    const sortedLogs = [
+      { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic4'], data: '0xData4' },
+      { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic2'], data: '0xData2' },
+      { blockNumber: 101, transactionIndex: 1, index: 1, topics: ['0xTopic3'], data: '0xData3' },
+      { blockNumber: 102, transactionIndex: 2, index: 0, topics: ['0xTopic1'], data: '0xData1' },
+    ] as any
+
+    // Mock event settings
+    const events = [
+      { topic: '0xTopic1', abi: ['event Test1()'], event: 'Test1', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic2', abi: ['event Test2()'], event: 'Test2', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic3', abi: ['event Test3()'], event: 'Test3', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic4', abi: ['event Test4()'], event: 'Test4', handler: sandbox.stub().resolves() },
+    ] as any
+
+    const parseLogStub = sandbox.stub(Web3Helper, 'parseLog').callsFake(
+      (log, iface) =>
+        ({
+          event: iface.fragments[0].name,
+          args: {},
+        }) as any,
+    )
+    const parseInfoLogStub = sandbox.stub(Web3Helper, 'parseInfoLog').returns({} as any)
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events,
+      stopOnError: false,
+      logService: null,
+      onError: sandbox.stub(),
+    })
+
+    const processLogsSpy = sandbox.spy(crawler, 'processLogs')
+
+    await crawler.processLogs(unsortedLogs)
+
+    const processedLogs = processLogsSpy.args[0][0]
+    expect(processedLogs.length).to.deep.equal(sortedLogs.length)
+    expect(parseLogStub.callCount).to.equal(4)
+    expect(parseInfoLogStub.callCount).to.equal(4)
+    expect(crawler.crawlSetting.nbSuccess).to.equal(4)
+
+    for (const event of events) {
+      expect(event.handler.calledOnce).to.be.true
+    }
+  })
+
+  it('should sort logs by transactionIndex and index within the same block', async () => {
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+
+    // Mock logs with the same blockNumber but different transactionIndex and index
+    const unsortedLogs = [
+      { blockNumber: 101, transactionIndex: 1, index: 1, topics: ['0xTopic1'], data: '0xData1' },
+      { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic2'], data: '0xData2' },
+      { blockNumber: 101, transactionIndex: 0, index: 1, topics: ['0xTopic3'], data: '0xData3' },
+      { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic4'], data: '0xData4' },
+    ] as any
+
+    // Expected sorted logs
+    const sortedLogs = [
+      { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic4'], data: '0xData4' },
+      { blockNumber: 101, transactionIndex: 0, index: 1, topics: ['0xTopic3'], data: '0xData3' },
+      { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic2'], data: '0xData2' },
+      { blockNumber: 101, transactionIndex: 1, index: 1, topics: ['0xTopic1'], data: '0xData1' },
+    ] as any
+
+    // Mock event settings
+    const events = [
+      { topic: '0xTopic1', abi: ['event Test1()'], event: 'Test1', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic2', abi: ['event Test2()'], event: 'Test2', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic3', abi: ['event Test3()'], event: 'Test3', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic4', abi: ['event Test4()'], event: 'Test4', handler: sandbox.stub().resolves() },
+    ] as any
+
+    const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').callsFake(log => log as any)
+    const stubParseInfoLog = sandbox.stub(Web3Helper, 'parseInfoLog').resolves(true)
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events,
+      stopOnError: false,
+      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      onError: sandbox.stub(),
+    })
+    const stubSaveProgress = sandbox.stub(crawler, 'onSaveProgress').resolves()
+    const processLogsSpy = sandbox.spy(crawler, 'processLogs')
+
+    await crawler.processLogs(unsortedLogs)
+
+    const processedLogs = processLogsSpy.args[0][0]
+    expect(processedLogs.length).to.deep.equal(sortedLogs.length)
+    expect(sortedLogs[0].data).to.equal(processedLogs[3].data)
+    expect(sortedLogs[1].blockNumber).to.equal(processedLogs[2].blockNumber)
+    expect(sortedLogs[2].blockNumber).to.equal(processedLogs[1].blockNumber)
+    expect(sortedLogs[3].blockNumber).to.equal(processedLogs[0].blockNumber)
+
+    expect(stubParseLog.callCount).to.equal(4)
+    expect(stubParseInfoLog.callCount).to.equal(4)
+
+    for (const event of events) {
+      expect(event.handler.calledOnce).to.be.true
+    }
+
+    expect(stubSaveProgress.callCount).to.equal(4)
+    expect(stubSaveProgress.calledWith(sortedLogs[0].blockNumber)).to.be.true
+  })
+
+  it('should log an error when event setting is not found', async () => {
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+
+    // Mock logs with a topic not present in events
+    const logs = [
+      { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xUnknownTopic'], data: '0xData1' },
+    ] as any
+
+    const events = [
+      { topic: '0xTopic1', abi: ['event Test1()'], event: 'Test1', handler: sandbox.stub().resolves() },
+    ] as any
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events,
+      stopOnError: false,
+      logService: null,
+      onError: sandbox.stub(),
+    })
+
+    await crawler.processLogs(logs)
+
+    expect(logError.calledOnce).to.be.true
+    expect(logError.calledWith('Error event setting not found in blockchainCrawler')).to.be.true
+
+    for (const event of events) {
+      expect(event.handler.notCalled).to.be.true
+    }
+  })
+
+  it('should stop processing logs on parse log error when stopOnError is true', async () => {
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+
+    const logs = [
+      { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], data: '0xData1' },
+      { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic2'], data: '0xData2' },
+    ] as any
+
+    const events = [
+      { topic: '0xTopic1', abi: ['event Test1()'], event: 'Test1', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic2', abi: ['event Test2()'], event: 'Test2', handler: sandbox.stub().resolves() },
+    ] as any
+
+    const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').callsFake((log: any) => {
+      if (log.topics[0] === '0xTopic2') return null as any
+      return { event: 'Test1', args: {} } as any // Simulate successful parsing for the first log
+    })
+
+    const stubParseInfoLog = sandbox.stub(Web3Helper, 'parseInfoLog').returns({} as any)
+    const stubSaveProgress = sandbox.stub(BlockchainLogCrawler.prototype, 'onSaveProgress').resolves()
+
+    const onErrorStub = sandbox.stub()
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events,
+      stopOnError: true,
+      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      onError: onErrorStub,
+    })
+
+    await crawler.processLogs(logs)
+
+    expect(events[0].handler.calledOnce).to.be.true
+    expect(stubParseLog.calledTwice).to.be.true
+    expect(stubParseInfoLog.calledOnce).to.be.true
+    expect(stubSaveProgress.calledOnceWith(logs[0].blockNumber)).to.be.true
+
+    expect(logError.calledOnce).to.be.true
+    expect(logError.calledWith('Error parse log in blockchainCrawler')).to.be.true
+    expect(onErrorStub.calledOnce).to.be.true
+    expect(events[1].handler.notCalled).to.be.true
+
+    expect(crawler.crawlSetting.isOnError).to.be.true
+    expect(crawler.crawlSetting.nbError).to.equal(1)
+    expect(crawler.crawlSetting.nbSuccess).to.equal(1)
+  })
+
+  it('should handle rate limiting by pausing and retrying', async () => {
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+
+    const rateLimitError = new Error('Your app has exceeded its compute units per second capacity')
+    mockProvider.getBlockNumber.resolves(100)
+    mockProvider.getLogs
+      .onFirstCall()
+      .rejects(rateLimitError)
+      .onSecondCall()
+      .resolves([
+        { transactionHash: '0x1', blockNumber: 101 },
+        { transactionHash: '0x2', blockNumber: 102 },
+      ])
+
+    const waitStub = sandbox.stub(Utils, 'wait').resolves()
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events: [],
+      stopOnError: false,
+      logService: null,
+      onError: () => {},
+    })
+
+    await crawler.crawl()
+
+    expect(waitStub.calledOnce).to.be.true
+    expect(mockProvider.getLogs.calledTwice).to.be.true
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+  })
+
+  it('should reduce batch size and retry on batch size error', async () => {
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+
+    const batchSizeError = new Error('Log response size exceeded')
+    mockProvider.getBlockNumber.resolves(200)
+    mockProvider.getLogs
+      .onFirstCall()
+      .rejects(batchSizeError)
+      .onSecondCall()
+      .resolves([{ transactionHash: '0x1', blockNumber: 101 }])
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events: [],
+      stopOnError: false,
+      logService: null,
+      onError: () => {},
+    })
+
+    const originalBatchSize = crawler.crawlSetting.originalBatchSize
+
+    await crawler.crawl()
+
+    expect(crawler.crawlSetting.batchSize).to.be.lessThanOrEqual(originalBatchSize)
+    expect(mockProvider.getLogs.calledTwice).to.be.true
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+  })
+
+  it('should stop crawling if batch size becomes too small', async () => {
+    const batchSizeError = new Error('Log response size exceeded')
+    mockProvider.getBlockNumber.resolves(300)
+    mockProvider.getLogs.rejects(batchSizeError)
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 300,
+      address: '0xAddress',
+      events: [],
+      stopOnError: false,
+      logService: null,
+      onError: () => {},
+    })
+    sandbox.stub(crawler, 'getProvider').returns(mockProvider as any)
+
+    let batchSize = crawler.crawlSetting.batchSize
+    sandbox.stub(crawler.crawlSetting, 'batchSize').get(() => batchSize)
+    sandbox.stub(crawler.crawlSetting, 'batchSize').set(value => {
+      batchSize = value
+    })
+
+    await crawler.crawl()
+
+    expect(logError.calledWith('Batch size too small, stopping crawl')).to.be.true
+    expect(crawler.crawlSetting.batchSize).to.eq(1)
+    expect(mockProvider.getLogs.callCount).to.eq(20)
+  })
+
+  it('should throw an error if block interval time is not found for the network', () => {
+    sandbox.stub(utils, 'networkToAragon').returns('FAKE_NETWORK')
+
+    // Mock the entire config.NODES object to include a fake network with undefined INTERVAL_BLOCK_TIME
+    sandbox.stub(config, 'NODES').value({
+      ...config.NODES,
+      FAKE_NETWORK: {
+        WS: '',
+        FROM_BLOCK: 0,
+        INTERVAL_BLOCK_TIME: undefined,
+        ETHERSCAN_API_KEY: '',
+        ETHERSCAN_API_URL: '',
+      },
+    })
+
+    expect(() => {
+      new BlockchainLogCrawler({
+        network: NetworksEnum.ethereumMainnet,
+        fromBlock: 100,
+        toBlock: 200,
+        address: '0xAddress',
+        events: [],
+        stopOnError: false,
+        logService: null,
+        onError: () => {},
+      })
+    }).to.throw(Error, 'Block interval time not found for network: ethereum-mainnet')
+  })
+
+  it('should log an error when a topic hash is missing in the event', () => {
+    const events = [
+      { event: 'EventWithoutTopic' }, // Missing 'topic' property
+    ] as any
+
+    new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events,
+      stopOnError: false,
+      logService: null,
+      onError: () => {},
+    })
+
+    expect(logError.calledOnce).to.be.true
+    expect(logError.calledWithMatch('Topic hash not found for event EventWithoutTopic' as any)).to.be.true
+  })
+
+  it('should update an existing config with the new block number', async () => {
+    const blockNumber = 100
+
+    const existingConfig = {
+      update: sandbox.stub().resolves(),
+    }
+
+    const stubFindLog = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(existingConfig)
+
+    const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async fn => {
+      await fn({ session: { commitTransaction: sandbox.stub(), endSession: sandbox.stub() } })
+    })
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events: [],
+      stopOnError: false,
+      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      onError: () => {},
+    })
+
+    await crawler.onSaveProgress(blockNumber)
+
+    expect(executeTxFnStub.calledOnce).to.be.true
+    expect(existingConfig.update.calledOnceWith({ lastSync: blockNumber })).to.be.true
+    expect(
+      stubFindLog.calledOnceWith({
+        network: NetworksEnum.ethereumMainnet,
+        service: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      }),
+    ).to.be.true
+  })
+
+  it('should create a new config if none exists', async () => {
+    const blockNumber = 100
+
+    const stubFindLog = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(null)
+
+    const createStub = sandbox.stub(Models.ConfigIndexer, 'create').resolves()
+    const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async fn => {
+      await fn({ session: { commitTransaction: sandbox.stub(), endSession: sandbox.stub() } })
+    })
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events: [],
+      stopOnError: false,
+      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      onError: () => {},
+    })
+
+    await crawler.onSaveProgress(blockNumber)
+
+    expect(Models.ConfigIndexer.findExistingLog.calledOnce).to.be.true
+    expect(createStub.calledOnce).to.be.true
+    expect(executeTxFnStub.calledOnce).to.be.true
+    expect(
+      stubFindLog.calledOnceWith({
+        network: NetworksEnum.ethereumMainnet,
+        service: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      }),
+    ).to.be.true
+  })
+
+  it('should return the lastSync value from existingConfig if it exists', async () => {
+    const lastSync = 150
+    const stubFindLog = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({ lastSync })
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events: [],
+      stopOnError: false,
+      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      onError: () => {},
+    })
+
+    const startBlock = await crawler.getServiceStartBlock()
+
+    expect(
+      stubFindLog.calledOnceWith({
+        network: NetworksEnum.ethereumMainnet,
+        service: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      }),
+    ).to.be.true
+    expect(startBlock).to.equal(lastSync)
+  })
+
+  it('should return the fromBlock value if no existingConfig is found and fromBlock > 0', async () => {
+    const stubFindLog = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(null)
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events: [],
+      stopOnError: false,
+      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      onError: () => {},
+    })
+
+    const startBlock = await crawler.getServiceStartBlock()
+
+    expect(
+      stubFindLog.calledOnceWith({
+        network: NetworksEnum.ethereumMainnet,
+        service: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      }),
+    ).to.be.true
+    expect(startBlock).to.equal(100)
+  })
+
+  it('should return the FROM_BLOCK value from config if no existingConfig is found and fromBlock is 0', async () => {
+    const defaultFromBlock = 50
+    const stubFindLog = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(null)
+
+    sandbox.stub(config, 'NODES').value({
+      ...config.NODES,
+      ETHEREUM_MAINNET: {
+        ...config.NODES.ETHEREUM_MAINNET,
+        FROM_BLOCK: defaultFromBlock,
+      },
+    })
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 0,
+      toBlock: 200,
+      address: '0xAddress',
+      events: [],
+      stopOnError: false,
+      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      onError: () => {},
+    })
+
+    const startBlock = await crawler.getServiceStartBlock()
+
+    expect(
+      stubFindLog.calledOnceWith({
+        network: NetworksEnum.ethereumMainnet,
+        service: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      }),
+    ).to.be.true
+    expect(startBlock).to.equal(defaultFromBlock)
+  })
 })
