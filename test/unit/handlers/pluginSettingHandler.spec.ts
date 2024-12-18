@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { ISettingStatus, ITokenType, NetworksEnum } from '@types'
+import {IPluginInterfaceType, ISettingStatus, ITokenType, NetworksEnum} from '@types'
 import { beforeEach } from 'mocha'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { Models } from '@dbModels'
@@ -153,13 +153,64 @@ describe('Indexer: PluginSettingHandler', () => {
         logIndex: 1,
         network: NetworksEnum.ethereumMainnet,
       }
-      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0x123',
+      })
       const stubFindExistingLog = sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
 
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
 
       expect(stubFindByAddress.calledOnce).to.be.true
       expect(stubFindExistingLog.calledOnce).to.be.true
+    })
+
+    it('should return if the plugin is not supported when votingSettingsUpdated', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 2n,
+          supportThreshold: 150n,
+          minParticipation: 222n,
+          minDuration: 1312312125n,
+          minProposerVotingPower: 10n,
+        },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        transactionIndex: 1,
+        logIndex: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.unknown,
+        tokenAddress: '0x123',
+      })
+      const stubFindExistingLog = sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      const stubFindActive = sandbox.stub(Models.Setting, 'findActive').resolves(false)
+      const stubWarn = sandbox.stub(logger, 'warn')
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.GovernanceERC20,
+      } as any)
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+      await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(stubFindByAddress.calledOnce).to.be.true
+      expect(stubFindExistingLog.calledOnce).to.be.false
+      expect(stubFindActive.calledOnce).to.be.false
+      expect(
+        stubFindActive.calledOnceWith({
+          network: NetworksEnum.ethereumMainnet,
+          pluginAddress: '0x456',
+        }),
+      ).to.be.false
+
+      expect(stubWarn.calledOnceWith('Plugin is not a token voting' as any)).to.be.true
+      expect(getBlockTimestampStub.calledOnce).to.be.false
+      expect(saveAndGetTokenStub.calledOnce).to.be.false
+      expect(isSupportedStub.calledOnce).to.be.false
     })
 
     it('should handle votingSettingsUpdated', async () => {
@@ -180,7 +231,10 @@ describe('Indexer: PluginSettingHandler', () => {
         logIndex: 1,
         network: NetworksEnum.ethereumMainnet,
       }
-      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0x123',
+      })
       const stubFindExistingLog = sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
       const stubFindActive = sandbox.stub(Models.Setting, 'findActive').resolves(false)
       const stubLogger = sandbox.stub(logger, 'verbose')

@@ -9,6 +9,8 @@ export enum EnumQueueName {
   plugins = 'log.plugins',
   logDao = 'log.dao',
   contractInfo = 'contract.info',
+  voteInfo = 'vote.info',
+  memberBalance = 'member.balance',
 }
 
 export interface IQueueDao {
@@ -19,6 +21,17 @@ export interface IQueueDao {
 
 export interface IQueueContractInfo {
   address: HexAddress
+  network: NetworksEnum
+}
+
+export interface IQueueVoteInfo {
+  proposalId: string
+  userAddress: string
+}
+
+export interface IQueueMemberBalanceInfo {
+  userAddress: HexAddress
+  tokenAddress: HexAddress
   network: NetworksEnum
 }
 
