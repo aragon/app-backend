@@ -68,6 +68,7 @@ cleanup_local() {
 
 # Ensure known_hosts file is updated to avoid host key verification failure
 update_known_hosts(){
+    mkdir -p ~/.ssh/
     if [ -n "$REMOTE_HOST" ]; then
         echo "Updating known_hosts to avoid host key verification failure..."
         ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts 2>/dev/null

@@ -124,8 +124,7 @@ jobs:
           pwd
           ls
           echo create cert
-          echo "${{ steps.op-server-secrets.outputs.SERVER_CERT }}" >cert && chmod 400 cert
           eval "$(ssh-agent -s)"
-          ssh-add cert
+          ssh-add - <<< "${{ steps.op-server-secrets.outputs.SERVER_CERT }}"
           bash app-backend/.github/workflows/deployment/deployment.sh -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
           
