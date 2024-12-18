@@ -276,6 +276,10 @@ main() {
     main_functions
 }
 
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/cert
+ssh-add -l
+
 # Call the function to parse options
 main "$@"
 
