@@ -81,7 +81,7 @@ jobs:
           op item get --vault ${{env.OP_VAULT}} "${{env.OP_VAULT_ITEM}}" --format json | jq -r '.fields.[].label'|sed 1d > configs
           while IFS= read -r line; do
           	echo $line
-          	#op item get --vault temporal_backend2 "configs_app_backend2_dev" --fields "$line" | sed '1s/^"//;;$s/"$//' > temp_file
+          	op item get --vault temporal_backend2 "configs_app_backend2_dev" --fields "$line" | sed '1s/^"//;;$s/"$//' > temp_file
           	IFS=';' read -ra CONFIG_FILES <<< "$line"
           	for conf_single in "${CONFIG_FILES[@]}"; do
           		CONFIG_FILE_NAME="env.$conf_single"
