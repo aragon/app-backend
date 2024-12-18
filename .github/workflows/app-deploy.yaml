@@ -20,7 +20,7 @@ jobs:
 
               echo "OP_SERVER_USERNAME=op://apikeys_production/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
               echo "OP_SERVER_URL=op://apikeys_production/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=op://apikeys_production/backend2_server_${DEPLOY_ENV}/private_cert" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_production/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
               ;;
@@ -32,7 +32,7 @@ jobs:
 
               echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
               echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/private_cert" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
               ;;
@@ -44,7 +44,7 @@ jobs:
 
               echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
               echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/private_cert" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
               ;;
@@ -64,12 +64,21 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
           SERVER_USERNAME: ${{ env.OP_SERVER_USERNAME }}
           SERVER_URL: ${{ env.OP_SERVER_URL }}
-          SERVER_CERT: ${{ env.OP_SERVER_CERT }}
+          
 
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
         with:
           version: latest-beta
+
+      - name: Download certfile
+        env: 
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
+          SERVER_CERT: ${{ env.OP_SERVER_CERT }}
+        run: |
+          op read ${{ env.SERVER_CERT }} > ../cert
+          chmod 400 ../cert
+          
 
       - name: Download config files
         env: 
@@ -123,13 +132,7 @@ jobs:
           cd ..
           pwd
           ls
-          echo create cert
-          
-          echo -n "${{ steps.op-server-secrets.outputs.SERVER_CERT }}" |sha256sum
-          echo '-----BEGIN OPENSSH PRIVATE KEY-----' > cert
-          echo "${{ steps.op-server-secrets.outputs.SERVER_CERT }}" |sed 's/-----BEGIN OPENSSH PRIVATE KEY----- //g' |sed 's/-----END OPENSSH PRIVATE KEY-----//g' | fold -w 71 >> cert
-          echo '-----END OPENSSH PRIVATE KEY-----' >> cert
-          chmod 400 cert
+          echo create certs
           eval "$(ssh-agent -s)"
           ssh-add cert
           bash app-backend/.github/workflows/deployment/deployment.sh -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
