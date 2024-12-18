@@ -7,6 +7,8 @@ import AragonTransactionsService from '@services/aragon-transactions/index'
 import ProviderModule from '@modules/provider'
 import { NetworkHelper } from '@helpers/network'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
+import BottleneckModule from '@modules/bottleneck'
+import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 
 describe('aragon-transactions: index', () => {
   let sandbox: SinonSandbox
@@ -32,6 +34,7 @@ describe('aragon-transactions: index', () => {
       const providerMock = { getBlock: sandbox.stub() } as any
       const getProviderStub = sandbox.stub(ProviderModule, 'getProvider').returns(providerMock)
       const subscribeStub = sandbox.stub(ProviderModule, 'subscribeToNewBlock')
+      const processNewBlockStub = sandbox.stub(AragonTransactionsService, 'processNewBlock').resolves()
 
       await AragonTransactionsService.start()
 
@@ -40,6 +43,7 @@ describe('aragon-transactions: index', () => {
       expect(getProviderStub.calledOnceWith(NetworksEnum.ethereumMainnet)).to.be.true
       expect(subscribeStub.calledOnce).to.be.true
       expect(loggerVerboseStub.calledWith('Listening to new block events' as any)).to.be.true
+      expect(processNewBlockStub.notCalled).to.be.true
       expect(loggerErrorStub.notCalled).to.be.true
     })
 
@@ -51,6 +55,44 @@ describe('aragon-transactions: index', () => {
       await AragonTransactionsService.start()
 
       expect(loggerErrorStub.calledOnceWith('Provider not available for network' as any)).to.be.true
+    })
+  })
+
+  describe('processNewBlock', () => {
+    it('should fetch a block and call BlockHandler.processNewBlock', async () => {
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+
+      const blockMock = { blockNumber: 12345 }
+      const providerMock = { getBlock: sandbox.stub().resolves(blockMock) } as any
+      const bottleneckStub = sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({
+        schedule: sandbox.stub().callsFake(callback => callback()),
+      } as any)
+
+      const blockHandlerStub = sandbox.stub(BlockHandler, 'processNewBlock').resolves()
+
+      await AragonTransactionsService.processNewBlock(providerMock, 12345, NetworksEnum.ethereumMainnet)
+
+      expect(bottleneckStub.calledOnceWith(NetworksEnum.ethereumMainnet)).to.be.true
+      expect(providerMock.getBlock.calledOnceWith(12345)).to.be.true
+      expect(loggerVerboseStub.calledWith('New block' as any)).to.be.true
+      expect(blockHandlerStub.calledOnceWith(blockMock, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(loggerWarnStub.notCalled).to.be.true
+    })
+
+    it('should log a warning if fetching a block fails', async () => {
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+
+      const providerMock = { getBlock: sandbox.stub().rejects(new Error('Fetch failed')) } as any
+      const bottleneckStub = sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({
+        schedule: sandbox.stub().callsFake(callback => callback()),
+      } as any)
+
+      await AragonTransactionsService.processNewBlock(providerMock, 12345, NetworksEnum.ethereumMainnet)
+
+      expect(bottleneckStub.calledOnceWith(NetworksEnum.ethereumMainnet)).to.be.true
+      expect(providerMock.getBlock.calledOnceWith(12345)).to.be.true
+      expect(loggerWarnStub.calledOnceWith('Error fetching block data' as any)).to.be.true
     })
   })
 
