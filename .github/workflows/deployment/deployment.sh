@@ -153,7 +153,7 @@ start_app_first_time() {
 main() {
     
     install_dependencies
-    start_app_first_time
+    #start_app_first_time
 }
 
 main
