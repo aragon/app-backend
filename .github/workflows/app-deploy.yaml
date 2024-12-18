@@ -77,7 +77,7 @@ jobs:
           SERVER_CERT: ${{ env.OP_SERVER_CERT }}
         run: |
           op read ${{ env.SERVER_CERT }} > ../cert
-          chmod 400 ../cert
+          chmod 640 ../cert
           
 
       - name: Download config files
@@ -135,5 +135,6 @@ jobs:
           echo create certs
           eval "$(ssh-agent -s)"
           ssh-add cert
+          ssh-add -l
           bash app-backend/.github/workflows/deployment/deployment.sh -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
           
