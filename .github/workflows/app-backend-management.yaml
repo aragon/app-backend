@@ -54,7 +54,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
-          path: backend
       
       - name: Load secrets
         id: op-server-secrets
@@ -85,7 +84,7 @@ jobs:
           	op item get --vault temporal_backend2 "configs_app_backend2_dev" --fields "$line" | sed '1s/^"//;;$s/"$//' > temp_file
           	IFS=';' read -ra CONFIG_FILES <<< "$line"
           	for conf_single in "${CONFIG_FILES[@]}"; do
-          		CONFIG_FILE_NAME="env.$conf_single"
+          		CONFIG_FILE_NAME=".env.$conf_single"
           		cp temp_file "$CONFIG_FILE_NAME"
           		case "${{env.DEPLOY_ENV}}" in
               	prd)
@@ -113,6 +112,20 @@ jobs:
 
       - name: Print masked secret and branch variable map
         run: |
-          echo "${{steps.op-load-secret.outputs.SERVER_CERT}}"|sha256sum
-          echo "${{steps.op-load-secret.outputs.SERVER_USERNAME}}"|sha256sum
           echo "Branch variable map: ${{ env.DEPLOY_ENV }}"
+      
+      - name: Execute deployment script
+        env:
+          IS_A_GITHUB_ACTION: true
+        run: |
+          pwd
+          ls
+          cd ..
+          pwd
+          ls
+          echo create cert
+          echo "${{ steps.op-server-secrets.outputs.SERVER_CERT }}" >cert
+          eval "$(ssh-agent -s)"
+          ssh-add cert
+          bash app-backend/.github/workflows/app-backend-management.yaml -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
+          
