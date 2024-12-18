@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import {
+  EnumQueueName,
   ErrorKeyEnum,
   type HexAddress,
   type IMemberExtraParams,
@@ -12,6 +13,7 @@ import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 import ModelUtils from '@models/utils/models'
+import { RabbitMQHelper } from '@helpers/redditMQ'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -50,7 +52,26 @@ const MemberController = {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
     const member = await Models.Member.findMemberByAddress(address, extraParams)
     assertExposable(member, ErrorKeyEnum.notFound)
-
+    if (extraParams.tokenAddress && extraParams.network) {
+      try {
+        const balanceInfo = (await RabbitMQHelper.sendMessage(
+          EnumQueueName.memberBalance,
+          {
+            id: `memberBalance-${address}-${extraParams.tokenAddress}-${extraParams.network}`,
+            params: {
+              userAddress: address,
+              tokenAddress: extraParams.tokenAddress,
+              network: extraParams.network,
+            },
+          },
+          { waitResponse: true, timeout: 15000 },
+        )) as unknown as { balance: string; votingPower: string }
+        member.balance = balanceInfo.balance
+        member.votingPower = balanceInfo.votingPower
+      } catch (error) {
+        return member
+      }
+    }
     return member
   },
 

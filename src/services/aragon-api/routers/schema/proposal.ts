@@ -31,6 +31,10 @@ const ProposalSchema = {
       .valid(...Object.values(NetworksEnum))
       .required(),
   }),
+  canCastVote: Joi.object({
+    proposalId: Joi.string().required(),
+    userAddress: ValidationSchema.joiAddress.required(),
+  }),
 }
 
 export default ProposalSchema
