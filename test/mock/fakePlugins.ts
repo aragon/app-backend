@@ -1,4 +1,4 @@
-import { IPluginStatus, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 
 export const PluginList = [
   {
@@ -9,6 +9,7 @@ export const PluginList = [
     address: '0xBf8dE4316E2778E26b12dad8906467b23BB9A293',
     implementationAddress: '0xEce3e18F5CC70214a6AAa25674444A63683478cE',
     status: IPluginStatus.installed,
+    interfaceType: IPluginInterfaceType.tokenVoting,
     daoAddress: '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA',
     tokenAddress: '0x03bD27B6FE4f0B3F2C2C9a4289cA2bfcE1DDE95c',
     pluginSetupRepoAddress: '0x0650EE961514C90D927F302b374d52344E8C62BF',

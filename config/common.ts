@@ -21,6 +21,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     RABBITMQ: {
       URI: utils.configParser(sourceConfig, 'string', 'RABBITMQ_URI', 'amqp://localhost:5672'),
+      TIMEOUT: utils.configParser(sourceConfig, 'number', 'RABBITMQ_TIMEOUT', 15000),
+      DEFAULT_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'RABBITMQ_DEFAULT_CONCURRENCY', 10),
     },
 
     NODE_CONFIG: {
