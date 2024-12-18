@@ -1,15 +1,15 @@
 import Utils from '@helpers/utils'
 import { EnumConnection, type IService } from '@types'
-import app from '@services/aragon-api/app'
+import App from '@services/aragon-api/app'
 
-const APIService: IService = {
+const AragonAPIService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.RABBITMQ],
 
   async start() {
-    return await app()
+    return await App()
   },
 
   stop: Utils.noop,
 }
 
-export default APIService
+export default AragonAPIService
