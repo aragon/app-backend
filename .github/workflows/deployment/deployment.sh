@@ -281,9 +281,9 @@ ssh-add ~/.ssh/cert
 ssh-add -l
 ls -la ~/.ssh/cert
 sha256sum ~/.ssh/cert
-cat ~/.ssh/cert|base64|rev
 
-ssh -i ~/.ssh/cert -o StrictHostKeyChecking=no backend2@dev.backend.aragon.in "whoami"
+
+ssh -vT -i ~/.ssh/cert -o StrictHostKeyChecking=no backend2@dev.backend.aragon.in "whoami"
 
 
 
