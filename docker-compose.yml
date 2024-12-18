@@ -3,7 +3,7 @@ version: '3.7'
 services:
   ### Services
 
-  service-api:
+  service-aragon-api:
     build:
       context: ./
     ports:
@@ -14,11 +14,12 @@ services:
       - mongo1
       - mongo2
       - mongo3
+      - rabbitmq
     env_file:
       - ./docker.env
-    command: bash -c 'yarn wait:db & wait && yarn service:api'
+    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-api'
 
-  service-data-sync:
+  service-aragon-indexer:
     build:
       context: ./
     depends_on:
@@ -27,17 +28,72 @@ services:
       - mongo3
     env_file:
       - ./docker.env
-    command: bash -c 'yarn wait:db & wait && yarn service:data-sync'
+    command: bash -c 'yarn wait:db & wait && yarn service:aragon-indexer'
+
+  service-aragon-dao:
+    build:
+      context: ./
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+      - rabbitmq
+    env_file:
+      - ./docker.env
+    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-dao'
+
+  service-aragon-rates:
+    build:
+      context: ./
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    env_file:
+      - ./docker.env
+    command: bash -c 'yarn wait:db & wait && yarn service:aragon-rates'
+
+  service-aragon-transactions:
+    build:
+      context: ./
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    env_file:
+      - ./docker.env
+    command: bash -c 'yarn wait:db & wait && yarn service:aragon-transactions'
+
+  service-aragon-plugins:
+    build:
+      context: ./
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    env_file:
+      - ./docker.env
+    command: bash -c 'yarn wait:db & wait && yarn service:aragon-plugins'
 
   ### Dependencies
+
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # Port for RabbitMQ
+      - "15672:15672" # Port for RabbitMQ Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: user # default username
+      RABBITMQ_DEFAULT_PASS: password # default password
 
   mongo1:
     image: mongo:7.0.0
     ports:
-      - "27017:27017"
-    command: ["mongod", "--replSet", "rs0", "--port", "27017", "--bind_ip_all"]
+      - '27017:27017'
+    command: ['mongod', '--replSet', 'rs0', '--port', '27017', '--bind_ip_all']
     healthcheck:
-      test: ["CMD", "mongosh", "--port", "27017", "--eval", "db.runCommand('ping').ok"]
+      test: ['CMD', 'mongosh', '--port', '27017', '--eval', "db.runCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -45,10 +101,10 @@ services:
   mongo2:
     image: mongo:7.0.0
     ports:
-      - "27018:27017"
-    command: ["mongod", "--replSet", "rs0", "--port", "27017", "--bind_ip_all"]
+      - '27018:27017'
+    command: ['mongod', '--replSet', 'rs0', '--port', '27017', '--bind_ip_all']
     healthcheck:
-      test: ["CMD", "mongosh", "--port", "27017", "--eval", "db.runCommand('ping').ok"]
+      test: ['CMD', 'mongosh', '--port', '27017', '--eval', "db.runCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,10 +112,10 @@ services:
   mongo3:
     image: mongo:7.0.0
     ports:
-      - "27019:27017"
-    command: ["mongod", "--replSet", "rs0", "--port", "27017", "--bind_ip_all"]
+      - '27019:27017'
+    command: ['mongod', '--replSet', 'rs0', '--port', '27017', '--bind_ip_all']
     healthcheck:
-      test: ["CMD", "mongosh", "--port", "27017", "--eval", "db.runCommand('ping').ok"]
+      test: ['CMD', 'mongosh', '--port', '27017', '--eval', "db.runCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5

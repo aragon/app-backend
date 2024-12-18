@@ -1,0 +1,52 @@
+import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+
+export enum EnumQueueName {
+  daoTransactions = 'dao.transactions',
+  daoAssets = 'dao.assets',
+  daoMetrics = 'dao.metrics',
+  proposalMultisigMetrics = 'proposal.multisig.metrics',
+  proposalTokenVotingMetrics = 'proposal.token.metrics',
+  plugins = 'log.plugins',
+  logDao = 'log.dao',
+  contractInfo = 'contract.info',
+  voteInfo = 'vote.info',
+  memberBalance = 'member.balance',
+}
+
+export interface IQueueDao {
+  address: HexAddress
+  network: NetworksEnum
+  blockNumber?: number
+}
+
+export interface IQueueContractInfo {
+  address: HexAddress
+  network: NetworksEnum
+}
+
+export interface IQueueVoteInfo {
+  proposalId: string
+  userAddress: string
+}
+
+export interface IQueueMemberBalanceInfo {
+  userAddress: HexAddress
+  tokenAddress: HexAddress
+  network: NetworksEnum
+}
+
+export interface IQueueProposalMetrics {
+  network: NetworksEnum
+  proposalIndex: string
+  pluginAddress: HexAddress
+}
+
+export interface IQueueMessage {
+  id: string
+  params: IQueueProposalMetrics | IQueueDao | any
+}
+
+export interface ISendOptions {
+  waitResponse?: boolean
+  timeout?: number // reject response after timeout
+}

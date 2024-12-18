@@ -6,6 +6,7 @@ import Formats from '@src/logger/format'
 import config from '@config'
 import * as logNodejs from 'logzio-nodejs'
 import * as sentry from '@sentry/node'
+import Transport from 'winston-transport'
 
 const sentryInitOriginal = sentry.init
 
@@ -67,9 +68,7 @@ describe('Logger: ExternalLogger', () => {
         log: sandbox.stub(),
       }
 
-      const stubLogzioCreateLogger = sandbox
-        .stub(logNodejs, 'createLogger')
-        .returns(mockLogzio as any)
+      const stubLogzioCreateLogger = sandbox.stub(logNodejs, 'createLogger').returns(mockLogzio as any)
 
       const externalLogger: any = new ExternalLogger({
         name: 'external-logger',
@@ -125,9 +124,7 @@ describe('Logger: ExternalLogger', () => {
         }
 
         stubSentryInit =
-          sentry.init === sentryInitOriginal
-            ? sandbox.stub(sentry, 'init').returns(mockSentry)
-            : sentry.init
+          sentry.init === sentryInitOriginal ? sandbox.stub(sentry, 'init').returns(mockSentry) : sentry.init
 
         externalLogger = new ExternalLogger({
           name: 'external-logger',
@@ -207,9 +204,7 @@ describe('Logger: ExternalLogger', () => {
         expect(mockSentry.setExtra.args[0][1]).to.be.deep.eq(log)
 
         expect(mockSentry.captureMessage.calledOnce).to.be.true
-        expect(mockSentry.captureMessage.args[0][0].message).to.eq(
-          'message1 - fake-error1',
-        )
+        expect(mockSentry.captureMessage.args[0][0].message).to.eq('message1 - fake-error1')
         expect(stubCallback.calledOnce).to.be.true
       })
 
@@ -224,16 +219,19 @@ describe('Logger: ExternalLogger', () => {
           userId: 'userId1',
         }
 
+        externalLogger.logzioLogger = {
+          log: sandbox.stub(),
+        }
+
         externalLogger.log(log, stubCallback)
 
+        expect(externalLogger.logzioLogger.log.calledOnce).to.be.true
         expect(mockSentry.setExtra.calledOnce).to.be.true
         expect(mockSentry.setExtra.args[0][0]).to.eq('info')
         expect(mockSentry.setExtra.args[0][1]).to.be.deep.eq(log)
 
         expect(mockSentry.captureMessage.calledOnce).to.be.true
-        expect(mockSentry.captureMessage.args[0][0].message).to.eq(
-          'message1 - fake-error1',
-        )
+        expect(mockSentry.captureMessage.args[0][0].message).to.eq('message1 - fake-error1')
         expect(stubCallback.calledOnce).to.be.true
       })
     })
@@ -270,5 +268,17 @@ describe('Logger: ExternalLogger', () => {
 
       expect(externalLogger.sentry.close.calledOnce).to.be.true
     })
+  })
+
+  it('end', () => {
+    const stubWinston = sandbox.stub(Transport.prototype, 'end')
+
+    const externalLogger = new ExternalLogger()
+    const testArgs = ['arg1', 'arg2']
+
+    externalLogger.end(...testArgs)
+    expect(stubWinston.calledOnce).to.be.true
+    expect(stubWinston.args[0][0]).to.eq(testArgs[0])
+    expect(stubWinston.args[0][1]).to.eq(testArgs[1])
   })
 })

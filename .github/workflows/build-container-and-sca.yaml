@@ -1,0 +1,314 @@
+name: build-container-and-sca
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'develop'
+      - 'main'
+      - 'DOPS-*'
+    paths-ignore:
+      - '.gitignore'
+      #- '.github/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      BRANCH_NAME: ${{ steps.myvars.outputs.BRANCH_NAME }}
+      GIT_HASH_SHORT: ${{ steps.myvars.outputs.GIT_HASH_SHORT }}
+      DATE_IN_SECS: ${{ steps.myvars.outputs.DATE_IN_SECS }}
+      CONTAINER_TAG: ${{ steps.myvars.outputs.CONTAINER_TAG }}
+      LASTEST_DOCKER_IMAGE: ${{ steps.myvars.outputs.LASTEST_DOCKER_IMAGE }}
+      SHORT_ENV_OUT: ${{ steps.myvars.outputs.SHORT_ENV_OUT }}
+      DOCKER_STAGE_TARGET: ${{ steps.myvars.outputs.DOCKER_STAGE_TARGET }}
+      TRIVY_EXIT_CODE: ${{ steps.myvars.outputs.TRIVY_EXIT_CODE }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set myvars
+        id: myvars
+        run: |
+          branchname=$(echo ${GITHUB_REF#refs/heads/} | tr '/' '-' )
+          dateinsecs=$(date +%s)
+          githashshort=$(git rev-parse --short HEAD)
+          echo "GIT_HASH_SHORT=$githashshort" >> $GITHUB_OUTPUT
+          echo "DATE_IN_SECS=$dateinsecs" >> $GITHUB_OUTPUT
+          if [ "$branchname" = "develop" ]; then
+            echo "CURRENT_ENVIRONMENT=development" >> $GITHUB_OUTPUT
+            echo "SHORT_ENV_OUT=DEV" >> $GITHUB_OUTPUT
+            echo "LASTEST_DOCKER_IMAGE=" >> $GITHUB_OUTPUT
+            # echo "DOCKER_STAGE_TARGET=dev" >> $GITHUB_OUTPUT
+            echo "DOCKER_STAGE_TARGET=release" >> $GITHUB_OUTPUT
+            echo "TRIVY_EXIT_CODE=0" >> $GITHUB_OUTPUT
+          elif [ "$branchname" = "main" ] || [ "$branchname" = "master" ]; then
+            echo "CURRENT_ENVIRONMENT=production" >> $GITHUB_OUTPUT
+            echo "SHORT_ENV_OUT=PROD" >> $GITHUB_OUTPUT
+            echo "LASTEST_DOCKER_IMAGE=ghcr.io/${{ github.repository }}:latest" >> $GITHUB_OUTPUT
+            # echo "DOCKER_STAGE_TARGET=prod" >> $GITHUB_OUTPUT
+            echo "DOCKER_STAGE_TARGET=release" >> $GITHUB_OUTPUT
+            echo "TRIVY_EXIT_CODE=1" >> $GITHUB_OUTPUT
+          else
+            branchname='test'
+            echo "CURRENT_ENVIRONMENT=testing" >> $GITHUB_OUTPUT
+            echo "SHORT_ENV_OUT=TEST" >> $GITHUB_OUTPUT
+            echo "LASTEST_DOCKER_IMAGE=" >> $GITHUB_OUTPUT
+            # echo "DOCKER_STAGE_TARGET=dev" >> $GITHUB_OUTPUT
+            echo "DOCKER_STAGE_TARGET=release" >> $GITHUB_OUTPUT
+            echo "TRIVY_EXIT_CODE=0" >> $GITHUB_OUTPUT
+          fi
+          echo "BRANCH_NAME=$branchname" >> $GITHUB_OUTPUT
+          containertag="$branchname-$githashshort"
+          echo "CONTAINER_TAG=$containertag" >> $GITHUB_OUTPUT
+
+      - name: Build Container Img Tarball ( ${{ steps.myvars.outputs.SHORT_ENV_OUT }} )
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          target: ${{ steps.myvars.outputs.DOCKER_STAGE_TARGET }}
+          build-args: |
+            COMMIT_SHA=${{ steps.myvars.outputs.GIT_HASH_SHORT }}
+            ENVIRONMENT=${{ steps.myvars.outputs.CURRENT_ENVIRONMENT }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ steps.myvars.outputs.LASTEST_DOCKER_IMAGE }}
+            ghcr.io/${{ github.repository }}:${{ steps.myvars.outputs.BRANCH_NAME }}
+            ghcr.io/${{ github.repository }}:${{ steps.myvars.outputs.BRANCH_NAME }}-${{ steps.myvars.outputs.GIT_HASH_SHORT }}
+          outputs: type=docker,dest=docker-oci-tar-${{ steps.myvars.outputs.CONTAINER_TAG }}
+
+      - name: Upload Container Img Tarball as Artifact
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: docker-img-${{ steps.myvars.outputs.CONTAINER_TAG }}
+          path: docker-oci-tar-${{ steps.myvars.outputs.CONTAINER_TAG }}
+
+  scan-vulns-repo:
+    runs-on: ubuntu-latest
+    needs: [build]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Vuln scan in Repo (html)
+        uses: aquasecurity/trivy-action@master
+        if: success() || failure()
+        with:
+          scan-type: fs
+          scanners: vuln,secret,config
+          scan-ref: .
+          format: template
+          template: '@/contrib/html.tpl'
+          output: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.html
+        env:
+          TRIVY_USERNAME: ${{ github.repository_owner }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Vuln scan in Repo (junit)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scanners: vuln,secret,config
+          image-ref: ghcr.io/${{ github.repository }}:${{ needs.build.outputs.CONTAINER_TAG }}
+          format: template
+          template: '@/contrib/junit.tpl'
+          output: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.junit
+
+      - name: Vuln scan in Repo (json)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scanners: vuln,secret,config
+          image-ref: ghcr.io/${{ github.repository }}:${{ needs.build.outputs.CONTAINER_TAG }}
+          format: json
+          output: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.json
+
+      - name: Setup Python before transforming Trivy report to SonarQube
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Setup Trivy and Plugin before transforming Trivy report to SonarQube
+        run: |
+          wget -q https://github.com/aquasecurity/trivy/releases/download/v0.49.1/trivy_0.49.1_Linux-64bit.deb
+          sudo dpkg -i trivy_0.49.1_Linux-64bit.deb
+          trivy plugin install github.com/umax/trivy-plugin-sonarqube
+          trivy plugin list
+
+      - name: Transform Trivy report to SonarQube
+        run: |
+          trivy sonarqube trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.json --filePath=Dockerfile > trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.sonarqube.json
+
+      - name: Upload Repo scan results as Artifacts
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: trivy-reports-repo-${{ needs.build.outputs.DATE_IN_SECS }}
+          path: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.*
+
+      - name: Load Repo scan results to Github (junit)
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        id: trivy-results-junit
+        if: always()
+        with:
+          files: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.junit
+          check_name: 'List of vulns in Repo'
+          comment_mode: always
+          job_summary: true
+          compare_to_earlier_commit: true
+          report_individual_runs: true
+          report_suite_logs: any
+          ignore_runs: false
+
+  scan-vulns-docker-tarball:
+    runs-on: ubuntu-latest
+    needs: [build]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Container Img Tarball as Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-img-${{ needs.build.outputs.CONTAINER_TAG }}
+          path: _tmp/
+
+      - name: Check Container Image Tarball
+        run: |
+          cd _tmp/
+          mkdir _tar/
+          file docker-oci-tar-${{ needs.build.outputs.CONTAINER_TAG }}
+          tar -xvf docker-oci-tar-${{ needs.build.outputs.CONTAINER_TAG }} -C _tar/
+          ls -la _tar/
+
+      ## Generation of multiple repos is not supported as actions yet, only in cli:
+      ## https://github.com/aquasecurity/trivy/issues/3243
+      - name: Vuln scan in Docker (table)
+        uses: aquasecurity/trivy-action@master
+        if: always()
+        with:
+          scan-type: image
+          scanners: vuln,secret
+          input: _tmp/_tar/
+          format: table
+        env:
+          TRIVY_USERNAME: ${{ github.repository_owner }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Vuln scan in Docker (html)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          scanners: vuln,secret
+          input: _tmp/_tar/
+          format: template
+          template: '@/contrib/html.tpl'
+          output: trivy-results-docker-${{ needs.build.outputs.GIT_HASH_SHORT }}.html
+        env:
+          TRIVY_USERNAME: ${{ github.repository_owner }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Vulns scan in Docker (junit)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          scanners: vuln,secret
+          input: _tmp/_tar/
+          format: template
+          template: '@/contrib/junit.tpl'
+          output: trivy-results-docker-${{ needs.build.outputs.GIT_HASH_SHORT }}.junit
+        env:
+          TRIVY_USERNAME: ${{ github.repository_owner }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Docker scan results as Artifact
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: trivy-reports-docker-${{ needs.build.outputs.DATE_IN_SECS }}
+          path: trivy-results-docker-${{ needs.build.outputs.GIT_HASH_SHORT }}.*
+
+      - name: Load Docker scan results to Github (junit)
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        id: trivy-results-junit
+        if: always()
+        with:
+          files: trivy-results-docker-${{ needs.build.outputs.GIT_HASH_SHORT }}.junit
+          check_name: 'List of vulns in Docker'
+          comment_mode: always
+          job_summary: true
+          compare_to_earlier_commit: true
+          report_individual_runs: true
+          report_suite_logs: any
+          ignore_runs: false
+
+  push-docker-tarball:
+    runs-on: ubuntu-latest
+    needs: [build, scan-vulns-repo, scan-vulns-docker-tarball]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download Container Img Tarball as Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-img-${{ needs.build.outputs.CONTAINER_TAG }}
+          path: _tmp/
+
+      - name: Delete uploaded Docker Tarball from Github Artifact
+        uses: geekyeggo/delete-artifact@v4
+        with:
+          name: docker-img-*
+          failOnError: false ## 'false' avoids stop execution and errors are logged
+
+      - name: Vuln scan in Docker again (table)
+        uses: aquasecurity/trivy-action@master
+        if: always()
+        with:
+          scan-type: image
+          scanners: vuln,secret
+          input: _tmp/docker-oci-tar-${{ needs.build.outputs.CONTAINER_TAG }}
+          format: table
+          hide-progress: true
+          exit-code: ${{ needs.build.outputs.TRIVY_EXIT_CODE }} ## if trivy found vulns, the next steps never will be executed because 'exit-code=1' (branch main/master)
+        env:
+          TRIVY_USERNAME: ${{ github.repository_owner }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.ARABOT_PKG_WRITE_PAT_APPBE }}
+
+      - name: Build and Push Container ( ${{ needs.build.outputs.SHORT_ENV_OUT }} )
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          target: ${{ needs.build.outputs.DOCKER_STAGE_TARGET }}
+          build-args: |
+            COMMIT_SHA=${{ needs.build.outputs.GIT_HASH_SHORT }}
+            ENVIRONMENT=${{ needs.build.outputs.CURRENT_ENVIRONMENT }}
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ needs.build.outputs.LASTEST_DOCKER_IMAGE }}
+            ghcr.io/${{ github.repository }}:${{ needs.build.outputs.BRANCH_NAME }}
+            ghcr.io/${{ github.repository }}:${{ needs.build.outputs.BRANCH_NAME }}-${{ needs.build.outputs.GIT_HASH_SHORT }}

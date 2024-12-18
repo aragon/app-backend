@@ -1,0 +1,74 @@
+import { type IContractAbi, type NetworksEnum } from '@types'
+import ProxyContract from '@helpers/proxyContract'
+import { retryRequest } from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
+import Etherscan from '@helpers/etherscan'
+import * as ContractNetspecHelper from '@helpers/contractNetspec'
+
+export const ContractInfo = {
+  getContractInfo: async (network: NetworksEnum, address: string): Promise<IContractAbi | null> => {
+    const mainData = await ContractInfo.fetchVerifiedContractData(network, address)
+    if (!mainData) return null
+
+    const implementationAddress = (await ProxyContract.getImplementationAddress(address, network)) || address
+    const isProxy = implementationAddress !== address
+
+    let implementationData: { name: string; functions: any[] } | null = null
+    if (isProxy) {
+      implementationData = await ContractInfo.fetchVerifiedContractData(network, implementationAddress)
+    }
+
+    return {
+      implementationAddress: isProxy ? implementationAddress : null,
+      address,
+      network,
+      name: implementationData?.name || mainData.name,
+      functions: isProxy ? [...mainData.functions, ...(implementationData?.functions || [])] : mainData.functions,
+    } satisfies IContractAbi
+  },
+
+  fetchVerifiedContractData: async (
+    network: NetworksEnum,
+    contractAddress: string,
+  ): Promise<{ name: string; functions: any[] } | null> => {
+    const contractDetails = await retryRequest(async () =>
+      BottleneckModule.getNodeLimiter(network)!.schedule(
+        async () => Etherscan.fetchContractSourceCode({ contractAddress, network }),
+        { retryRequest: true },
+      ),
+    )
+
+    if (!contractDetails?.length || !contractDetails[0].SourceCode) return null
+
+    const parsed = ContractNetspecHelper.parseNetspec(
+      contractDetails[0].SourceCode,
+      contractDetails[0].ContractName,
+      JSON.parse(contractDetails[0].ABI || '[]'),
+    )
+
+    if (!parsed?.length) return null
+
+    return {
+      name: contractDetails[0].ContractName,
+      functions: ContractInfo.parseContractAbi(parsed),
+    }
+  },
+
+  parseContractAbi: (abiResult: any[]) => {
+    return abiResult
+      .filter(
+        fn =>
+          fn.type === 'function' &&
+          fn.stateMutability !== 'view' &&
+          fn.stateMutability !== 'pure' &&
+          fn.type !== 'constructor',
+      )
+      .map(fn => ({
+        name: fn.name,
+        parameters: fn.inputs,
+        notice: fn.notice,
+        type: fn.type,
+        stateMutability: fn.stateMutability,
+      }))
+  },
+}

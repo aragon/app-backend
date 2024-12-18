@@ -1,0 +1,196 @@
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import logger from '@logger'
+import { SinonSandbox } from 'sinon'
+import { PermissionHandler } from '@handlers/permissionHandler'
+import { RabbitMQHelper } from '@helpers/redditMQ'
+import { Models } from '@dbModels'
+import { NetworksEnum } from '@types'
+import { ethers } from 'ethers'
+import { ProxyMember } from '@modules/proxyMember'
+
+describe('Indexer: Permission Handler', () => {
+  let sandbox: SinonSandbox
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+  })
+  afterEach(() => {
+    sandbox.restore()
+  })
+
+  describe('handleGrantOnDao', () => {
+    it('should handle grant on dao', async () => {
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: 'permissionId',
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const loggerVerbose = sandbox.stub(logger, 'verbose')
+
+      const handleForAdminPlugin = sandbox.stub(PermissionHandler, 'handleForAdminPlugin')
+      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(handleForAdminPlugin.calledOnce).to.be.false
+      expect(findExistingLog.called).to.be.true
+      expect(loggerVerbose.calledOnce).to.be.true
+    })
+
+    it('should handle grant on dao and the admin member as well', async () => {
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: ethers.id('EXECUTE_PROPOSAL_PERMISSION'),
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const loggerVerbose = sandbox.stub(logger, 'verbose')
+
+      const handleForAdminPlugin = sandbox.stub(PermissionHandler, 'handleForAdminPlugin')
+      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(handleForAdminPlugin.calledOnce).to.be.true
+      expect(findExistingLog.called).to.be.true
+      expect(loggerVerbose.calledOnce).to.be.true
+    })
+  })
+
+  describe('handleRevokeOnDao', () => {
+    it('should handle revoke on dao', async () => {
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: 'permissionId',
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const loggerVerbose = sandbox.stub(logger, 'verbose')
+
+      const handleForAdminPlugin = sandbox.stub(PermissionHandler, 'handleForAdminPlugin')
+      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+
+      await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
+
+      expect(handleForAdminPlugin.calledOnce).to.be.false
+      expect(findExistingLog.called).to.be.true
+      expect(loggerVerbose.calledOnce).to.be.true
+    })
+
+    it('should handle revoke on dao and the admin member as well', async () => {
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: ethers.id('EXECUTE_PROPOSAL_PERMISSION'),
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const loggerVerbose = sandbox.stub(logger, 'verbose')
+
+      const handleForAdminPlugin = sandbox.stub(PermissionHandler, 'handleForAdminPlugin')
+      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+
+      await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
+
+      expect(handleForAdminPlugin.calledOnce).to.be.true
+      expect(findExistingLog.called).to.be.true
+      expect(loggerVerbose.calledOnce).to.be.true
+    })
+  })
+
+  describe('handleForAdminPlugin', () => {
+    it('should handle for admin plugin when adding', async () => {
+      const daoAddress = '0xaddress'
+      const pluginAddress = '0xpluginAddress'
+      const network = NetworksEnum.ethereumSepolia
+      const where = 'where'
+      const add = true
+
+      const findExistingLog = sandbox.stub(Models.Plugin, 'findOne').returns({
+        daoAddress,
+        network,
+        address: pluginAddress,
+        interfaceType: 'admin',
+      })
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao')
+      const loggerInfo = sandbox.stub(logger, 'info')
+
+      await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
+
+      expect(findExistingLog.calledOnce).to.be.true
+      expect(addToDaoStub.calledOnce).to.be.true
+      expect(sendMessage.calledOnce).to.be.true
+      expect(loggerInfo.calledOnce).to.be.true
+    })
+
+    it('should handle for admin plugin when removing', async () => {
+      const daoAddress = '0xaddress'
+      const pluginAddress = '0xpluginAddress'
+      const network = NetworksEnum.ethereumSepolia
+      const where = 'where'
+      const add = false
+
+      const findExistingLog = sandbox.stub(Models.Plugin, 'findOne').returns({
+        daoAddress,
+        network,
+        address: pluginAddress,
+        interfaceType: 'admin',
+      })
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao')
+      const loggerInfo = sandbox.stub(logger, 'info')
+
+      await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
+
+      expect(findExistingLog.calledOnce).to.be.true
+      expect(removeFromDaoStub.calledOnce).to.be.true
+      expect(sendMessage.calledOnce).to.be.true
+      expect(loggerInfo.calledOnce).to.be.true
+    })
+  })
+})

@@ -1,51 +1,20 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { NetworksEnum, EnumPluginType } from '@types'
+import { IPluginInterfaceType, NetworksEnum } from '@types'
 import Dao from '@models/schema/dao'
-import Network from '@models/schema/network'
 import { Models } from '@dbModels'
-import dayjs from 'dayjs'
-
+import { PluginList } from '@test/mock/fakePlugins'
+import { DaoList } from '@test/mock/fakeDao'
 describe('Model: Dao', () => {
   let sandbox: SinonSandbox
   let rawDao: Partial<Dao>
-  let ethereumNetwork: Network
-  let polygonNetwork: Network
-  let arbitrumNetwork: Network
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    ethereumNetwork = await Models.Network.create({
-      name: NetworksEnum.ethereum,
-      status: 'healthy',
-    })
-    polygonNetwork = await Models.Network.create({
-      name: NetworksEnum.polygon,
-      status: 'healthy',
-    })
-    arbitrumNetwork = await Models.Network.create({
-      name: NetworksEnum.arbitrum,
-      status: 'healthy',
-    })
-
     rawDao = {
-      avatar: 'fake-avatar',
-      name: 'fake-name',
-      description: 'fake-description',
-      daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-      creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-      network: ethereumNetwork.name,
-      members: 10,
-      proposalsCreated: 5,
-      proposalsExecuted: 3,
-      tvlUSD: 10000,
-      uniqueVoters: 100,
-      votes: 500,
-      pluginName: EnumPluginType.MultisigPlugin,
-      hideDao: false,
-      txHash: '0x0',
+      ...(DaoList[0] as any),
     }
   })
 
@@ -53,232 +22,362 @@ describe('Model: Dao', () => {
     sandbox?.restore()
   })
 
-  it('Should create DAO', async () => {
-    const createdDao = await Models.Dao.create(rawDao)
+  describe('Create DAO', async () => {
+    it('Should create DAO', async () => {
+      const entityId = Models.Dao.getEntityId({
+        network: rawDao.network!,
+        address: rawDao.address!,
+      })
+      const createdDao = await Models.Dao.create(rawDao)
 
-    expect(createdDao.id).to.exist
-    expect(createdDao).to.have.property('avatar', rawDao.avatar)
-    expect(createdDao).to.have.property('name', rawDao.name)
-    expect(createdDao).to.have.property('description', rawDao.description)
-    expect(createdDao).to.have.property('daoAddress', rawDao.daoAddress)
-    expect(createdDao).to.have.property('creatorAddress', rawDao.creatorAddress)
-    expect(createdDao).to.have.property('network', ethereumNetwork.name)
-    expect(createdDao).to.have.property('members', rawDao.members)
-    expect(createdDao).to.have.property(
-      'proposalsCreated',
-      rawDao.proposalsCreated,
-    )
-    expect(createdDao).to.have.property(
-      'proposalsExecuted',
-      rawDao.proposalsExecuted,
-    )
-    expect(createdDao).to.have.property('tvlUSD', rawDao.tvlUSD)
-    expect(createdDao).to.have.property('uniqueVoters', rawDao.uniqueVoters)
-    expect(createdDao).to.have.property('votes', rawDao.votes)
-    expect(createdDao).to.have.property('pluginName', rawDao.pluginName)
-    expect(createdDao).to.have.property('hideDao', rawDao.hideDao)
-    expect(createdDao).to.have.property('txHash', rawDao.txHash)
-    expect(createdDao).to.have.property('metadataIpfs', null)
-    expect(createdDao).to.have.property('lastUpdatedAt', null)
+      expect(createdDao.id).to.eq(entityId)
+      expect(createdDao.network).to.eq(rawDao.network)
+      expect(createdDao.transactionHash).to.eq(rawDao.transactionHash)
+      expect(createdDao.blockNumber).to.eq(rawDao.blockNumber)
+      expect(createdDao.blockTimestamp).to.eq(rawDao.blockTimestamp)
+      expect(createdDao.address).to.eq(rawDao.address)
+      expect(createdDao.implementationAddress).to.eq(rawDao.implementationAddress)
+      expect(createdDao.creatorAddress).to.eq(rawDao.creatorAddress)
+      expect(createdDao.ens).to.eq(rawDao.ens)
+      expect(createdDao.subdomain).to.eq(rawDao.subdomain)
+      expect(createdDao.metadataIpfs).to.eq(rawDao.metadataIpfs)
+      expect(createdDao.name).to.eq(rawDao.name)
+      expect(createdDao.description).to.eq(rawDao.description)
+      expect(createdDao.avatar).to.eq(rawDao.avatar)
+      expect(createdDao.links[0].name).to.eq(rawDao.links?.[0].name)
+      expect(createdDao.links[0].url).to.eq(rawDao.links?.[0].url)
+      expect(createdDao.metrics.members).to.eq(rawDao.metrics?.members)
+      expect(createdDao.metrics.proposalsCreated).to.eq(rawDao.metrics?.proposalsCreated)
+      expect(createdDao.metrics.proposalsExecuted).to.eq(rawDao.metrics?.proposalsExecuted)
+      expect(createdDao.metrics?.uniqueVoters).to.eq(rawDao.metrics?.uniqueVoters)
+      expect(createdDao.metrics?.votes).to.eq(rawDao.metrics?.votes)
+      expect(createdDao.isHidden).to.eq(rawDao.isHidden)
+      expect(createdDao.isActive).to.eq(rawDao.isActive)
+    })
+  })
+
+  it('Should getEntityId', async () => {
+    const address = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+    const network = NetworksEnum.ethereumMainnet
+    const entityId = Models.Dao.getEntityId({
+      network,
+      address,
+    })
+    expect(entityId).to.eq(`${network}-${address}`)
+  })
+
+  it('Should findExistingLog', async () => {
+    const createdLogDao = await Models.Dao.create(rawDao)
+    const foundLogDao = await Models.Dao.findExistingLog({
+      network: createdLogDao.network,
+      address: createdLogDao.address,
+    })
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
+  })
+
+  it('Should findByEntityId', async () => {
+    const createdLogDao = await Models.Dao.create(rawDao)
+    const foundLogDao = await Models.Dao.findByEntityId(createdLogDao.id)
+    expect(foundLogDao?.id).to.eq(createdLogDao.id)
+  })
+
+  it('Should findByAddress', async () => {
+    const createdLogDao = await Models.Dao.create(rawDao)
+    const foundLogDao = await Models.Dao.findByAddress(createdLogDao.address, createdLogDao.network)
+    expect(foundLogDao?.address).to.eq(createdLogDao.address)
   })
 
   it('Should update DAO', async () => {
     const createdDao = await Models.Dao.create(rawDao)
-    expect(createdDao).to.have.property('members', rawDao.members)
 
     await createdDao.update({
-      members: 30,
+      network: NetworksEnum.baseMainnet,
+      creatorAddress: '0x558c9997f8d382f02dfce79e275af637d8bb19e6',
     })
 
-    expect(createdDao).to.have.property('members', 30)
-  })
-
-  it('Should find DAO by address', async () => {
-    const createdDao = await Models.Dao.create(rawDao)
-    const dao = await Models.Dao.findByDaoAddress(createdDao.daoAddress)
-    expect(dao?.daoAddress).to.eq(createdDao.daoAddress)
+    expect(createdDao.network).to.eq(NetworksEnum.baseMainnet)
+    expect(createdDao.id).to.eq(`${NetworksEnum.baseMainnet}-${rawDao.address}`)
+    expect(createdDao.creatorAddress).to.eq('0x558c9997f8d382f02dfce79e275af637d8bb19e6')
   })
 
   it('Should reload', async () => {
     const createdDao = await Models.Dao.create(rawDao)
     await createdDao.reload()
 
-    expect(createdDao.members).to.eq(10)
+    expect(createdDao.id).to.eq(rawDao.id)
   })
 
   describe('Pagination', () => {
     beforeEach(async () => {
       const fakeDaos = [
         {
+          blockTimestamp: 1919577224,
           avatar: 'fake-avatar',
           name: 'fake-name',
           description: 'fake-description',
-          daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+          address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
           creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
-          network: ethereumNetwork.name,
+          network: NetworksEnum.polygonMainnet,
           members: 10,
-          proposalsCreated: 5,
-          proposalsExecuted: 3,
-          tvlUSD: 10000,
-          uniqueVoters: 100,
-          votes: 500,
-          pluginName: EnumPluginType.MultisigPlugin,
-          hideDao: false,
+          metrics: {
+            members: 15,
+            proposalsCreated: 5,
+            proposalsExecuted: 3,
+            uniqueVoters: 100,
+            votes: 500,
+            tvlUSD: 10000,
+          },
+          isHidden: false,
+          isActive: true,
           txHash: '0x0',
         },
         {
+          blockTimestamp: 1819577224,
           avatar: 'fake-avatar',
           name: 'fake-name',
           description: 'fake-description',
-          daoAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+          address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
           creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
-          network: polygonNetwork.name,
-          members: 15,
-          proposalsCreated: 7,
-          proposalsExecuted: 5,
-          tvlUSD: 20000,
-          uniqueVoters: 130,
-          votes: 700,
-          pluginName: EnumPluginType.TokenVotingPlugin,
-          hideDao: false,
+          network: NetworksEnum.polygonMainnet,
+          metrics: {
+            members: 15,
+            proposalsCreated: 5,
+            proposalsExecuted: 3,
+            uniqueVoters: 100,
+            votes: 500,
+            tvlUSD: 20000,
+          },
+          isHidden: false,
+          isActive: true,
           txHash: '0x0',
         },
         {
+          blockTimestamp: 1719577224,
           avatar: 'fake-avatar',
           name: 'fake-name',
           description: 'fake-description',
-          daoAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
+          address: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
           creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
-          network: arbitrumNetwork.name,
-          members: 15,
-          proposalsCreated: 7,
-          proposalsExecuted: 5,
-          tvlUSD: 20000,
-          uniqueVoters: 130,
-          votes: 700,
-          pluginName: EnumPluginType.TokenVotingPlugin,
-          hideDao: false,
+          network: NetworksEnum.arbitrumMainnet,
+          metrics: {
+            members: 15,
+            proposalsCreated: 5,
+            proposalsExecuted: 3,
+            uniqueVoters: 100,
+            votes: 500,
+            tvlUSD: 20000,
+          },
+          isActive: true,
+          isHidden: false,
           txHash: '0x0',
         },
       ]
 
+      const fakePlugin = {
+        ...PluginList[0],
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+
+      fakePlugin.daoAddress = fakeDaos[0].address
+
+      await Models.Plugin.create(fakePlugin)
       await Promise.all(fakeDaos.map(w => Models.Dao.create(w)))
     })
 
     it('Should find Pagination', async () => {
-      const { data, totRecords, currentPage, totPages } =
-        await Models.Dao.findWithPagination(
-          { networks: [], pluginNames: [] },
-          {},
-        )
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Dao.findWithPagination({
+        extraParams: {},
+        paginationParams: {},
+      })
 
       expect(data.length).to.eq(3)
-      expect(totRecords).to.eq(3)
-      expect(currentPage).to.eq(1)
-      expect(totPages).to.eq(1)
+      expect(totalRecords).to.eq(3)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
+    })
+
+    it('Should find Pagination with networks and plugin', async () => {
+      const {
+        data,
+        metadata: { totalRecords, page, pageSize, totalPages },
+      } = await Models.Dao.findWithPagination({
+        extraParams: {
+          network: NetworksEnum.polygonMainnet,
+          pluginAddress: PluginList[0].address,
+        },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(1)
+      expect(totalRecords).to.eq(2)
+      expect(page).to.eq(1)
+      expect(totalPages).to.eq(1)
+      expect(pageSize).to.eq(10)
     })
 
     it('Should find Pagination with from to date', async () => {
       await Models.Dao.create({
-        daoAddress: '0xee0627bA21e9114336977482372486d084497efa',
+        blockTimestamp: 1719577230,
+        address: '0xee0627bA21e9114336977482372486d084497efa',
         creatorAddress: '0xEFbB4E6e5CF4bB4Ae8Cdc2c109da90D2a2433B50',
-        network: polygonNetwork.name,
-        members: 15,
-        proposalsCreated: 7,
-        proposalsExecuted: 5,
-        tvlUSD: 20000,
-        uniqueVoters: 130,
-        votes: 700,
-        pluginName: EnumPluginType.TokenVotingPlugin,
-        hideDao: false,
-        txHash: '0x0',
-        createdAt: dayjs().subtract(5, 'day').toDate(),
-      })
-
-      const result = await Models.Dao.findWithPagination(
-        { networks: [], pluginNames: [] },
-        { fromDate: dayjs().subtract(4, 'day').toString() },
-      )
-
-      expect(result.data.length).to.eq(3)
-      expect(result.totRecords).to.eq(3)
-      expect(result.currentPage).to.eq(1)
-      expect(result.totPages).to.eq(1)
-
-      const result2 = await Models.Dao.findWithPagination(
-        { networks: [], pluginNames: [] },
-        {
-          fromDate: dayjs().subtract(6, 'days').toString(),
-          toDate: dayjs().add(6, 'days').toString(),
+        network: NetworksEnum.polygonMainnet,
+        metrics: {
+          members: 15,
+          proposalsCreated: 5,
+          proposalsExecuted: 3,
+          uniqueVoters: 100,
+          votes: 500,
+          tvlUSD: 20000,
         },
-      )
+        isHidden: false,
+        isActive: true,
+        txHash: '0x0',
+      } as any)
+
+      const result = await Models.Dao.findWithPagination({
+        extraParams: {},
+        paginationParams: {
+          startDateProp: 'blockTimestamp',
+          endDateProp: 'blockTimestamp',
+          startDate: 1719577230,
+          endDate: 1719577230,
+        },
+      } as any)
+
+      expect(result.data.length).to.eq(1)
+      expect(result.metadata.totalRecords).to.eq(1)
+      expect(result.metadata.page).to.eq(1)
+      expect(result.metadata.totalPages).to.eq(1)
+
+      const result2 = await Models.Dao.findWithPagination({
+        extraParams: {},
+        paginationParams: {
+          startDateProp: 'blockTimestamp',
+          endDateProp: 'blockTimestamp',
+          startDate: 719577230,
+          endDate: 9719577230,
+        },
+      } as any)
 
       expect(result2.data.length).to.eq(4)
-      expect(result2.totRecords).to.eq(4)
-      expect(result2.currentPage).to.eq(1)
-      expect(result2.totPages).to.eq(1)
+      expect(result2.metadata.totalRecords).to.eq(4)
+      expect(result2.metadata.page).to.eq(1)
+      expect(result2.metadata.totalPages).to.eq(1)
 
-      const result3 = await Models.Dao.findWithPagination(
-        { networks: [], pluginNames: [] },
-        {
-          fromDate: new Date().setDate(new Date().getDate() - 4).toString(),
+      const result3 = await Models.Dao.findWithPagination({
+        extraParams: {},
+        paginationParams: {
+          startDateProp: 'blockTimestamp',
+          startDate: 719577230,
         },
-      )
+      } as any)
 
       expect(result3.data.length).to.eq(4)
-      expect(result3.totRecords).to.eq(4)
-      expect(result3.currentPage).to.eq(1)
-      expect(result3.totPages).to.eq(1)
+      expect(result3.metadata.totalRecords).to.eq(4)
+      expect(result3.metadata.page).to.eq(1)
+      expect(result3.metadata.totalPages).to.eq(1)
+
+      const result4 = await Models.Dao.findWithPagination({
+        extraParams: {},
+        paginationParams: {
+          endDateProp: 'blockTimestamp',
+          endDate: 9719577230,
+        },
+      } as any)
+
+      expect(result4.data.length).to.eq(4)
+      expect(result4.metadata.totalRecords).to.eq(4)
+      expect(result4.metadata.page).to.eq(1)
+      expect(result4.metadata.totalPages).to.eq(1)
     })
 
-    it('Should find Pagination with limit', async () => {
+    it('Should find Pagination with pageSize', async () => {
       const params = {
-        limit: 2,
+        pageSize: 2,
       }
 
-      const result = await Models.Dao.findWithPagination(
-        { networks: [], pluginNames: [] },
-        params,
-      )
+      const result = await Models.Dao.findWithPagination({
+        extraParams: {},
+        paginationParams: params,
+      })
 
       expect(result.data.length).to.eq(2)
-      expect(result.totRecords).to.eq(3)
-      expect(result.totPages).to.eq(2)
-      expect(result.currentPage).to.eq(1)
+      expect(result.metadata.totalRecords).to.eq(3)
+      expect(result.metadata.totalPages).to.eq(2)
+      expect(result.metadata.page).to.eq(1)
     })
 
-    it('Should find Pagination with offset and limit', async () => {
+    it('Should find Pagination with page and pageSize', async () => {
       const opts = {
-        offset: 1,
-        limit: 2,
+        page: 1,
+        pageSize: 2,
       }
 
-      const result = await Models.Dao.findWithPagination(
-        { networks: [], pluginNames: [] },
-        opts,
-      )
+      const result = await Models.Dao.findWithPagination({
+        extraParams: {},
+        paginationParams: opts,
+      })
 
       expect(result.data.length).to.eq(2)
-      expect(result.totRecords).to.eq(3)
-      expect(result.currentPage).to.eq(1)
-      expect(result.totPages).to.eq(2)
+      expect(result.metadata.totalRecords).to.eq(3)
+      expect(result.metadata.page).to.eq(1)
+      expect(result.metadata.totalPages).to.eq(2)
     })
 
     it('Should not found documents', async () => {
       const opts = {
-        offset: 7,
-        limit: 2,
+        page: 7,
+        pageSize: 2,
       }
 
-      const result = await Models.Dao.findWithPagination(
-        { networks: [], pluginNames: [] },
-        opts,
-      )
+      const result = await Models.Dao.findWithPagination({
+        extraParams: {},
+        paginationParams: opts,
+      })
 
       expect(result.data.length).to.eq(0)
-      expect(result.totRecords).to.eq(0)
-      expect(result.currentPage).to.eq(1)
-      expect(result.totPages).to.eq(1)
+      expect(result.metadata.totalRecords).to.eq(0)
+      expect(result.metadata.page).to.eq(1)
+      expect(result.metadata.totalPages).to.eq(1)
     })
+  })
+
+  it('should getDaoDetails', async () => {
+    const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').returns([{ a: 1 }])
+    await Models.Dao.getDaoDetails('0x17366cae2b9c6c3055e9e3c78936a69006be5409')
+
+    expect(aggregateStub.calledOnce).to.be.true
+    expect(aggregateStub.args[0][0][0].$match).to.deep.eq({
+      address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      isActive: {
+        $eq: true,
+      },
+      isHidden: {
+        $ne: true,
+      },
+    })
+  })
+
+  it('should update the dao metrics', async () => {
+    const createdDao = await Models.Dao.create(rawDao)
+    await createdDao.updateMetrics({
+      members: 100,
+      proposalsCreated: 50,
+      proposalsExecuted: 30,
+      uniqueVoters: 200,
+      votes: 1000,
+      tvlUSD: 100000,
+    })
+
+    expect(createdDao.metrics.members).to.eq(100)
+    expect(createdDao.metrics.proposalsCreated).to.eq(50)
+    expect(createdDao.metrics.proposalsExecuted).to.eq(30)
+    expect(createdDao.metrics.uniqueVoters).to.eq(200)
+    expect(createdDao.metrics.votes).to.eq(1000)
+    expect(createdDao.metrics.tvlUSD).to.eq(100000)
   })
 })

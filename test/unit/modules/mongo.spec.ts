@@ -5,6 +5,7 @@ import mongoose from 'mongoose'
 import Mongo from '@modules/mongo'
 import config from '@config'
 import { ModelProxy } from '@dbModels'
+import Logger from '@logger'
 
 describe('Module: mongo', () => {
   let sandbox: SinonSandbox
@@ -20,13 +21,52 @@ describe('Module: mongo', () => {
   it('connects to MongoDB and syncs indexes', async () => {
     const stubSetModels = sandbox.stub(ModelProxy, 'setMongoModels').resolves()
     const stubConnect = sandbox.stub(mongoose, 'connect').resolves()
+    const loggerInfoStub = sandbox.stub(Logger, 'info')
+    const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+
+    Object.values(mongoose.models).forEach(model => {
+      sandbox.stub(model, 'syncIndexes').resolves()
+    })
+
+    sandbox.stub(mongoose.connection, 'on').callsFake((event, callback) => {
+      if (event === 'connected') {
+        process.nextTick(callback)
+      }
+      return mongoose.connection
+    })
 
     await Mongo.connect()
 
+    expect(loggerInfoStub.calledOnce).to.be.true
+    expect(loggerVerboseStub.calledOnce).to.be.true
     expect(stubSetModels.calledOnce).to.be.true
     expect(stubConnect.calledOnce).to.be.true
-    expect(stubConnect.calledWith(config.MONGO_DB.URI, sandbox.match.object)).to
-      .be.true
+    expect(stubConnect.calledWith(config.MONGO_DB.URI, sandbox.match.object)).to.be.true
+  })
+
+  it('handles connection error to MongoDB', async () => {
+    const stubSetModels = sandbox.stub(ModelProxy, 'setMongoModels').resolves()
+    const stubConnect = sandbox.stub(mongoose, 'connect').resolves()
+    const loggerVerboseStub = sandbox.stub(Logger, 'warn')
+
+    Object.values(mongoose.models).map(model => {
+      sandbox.stub(model, 'syncIndexes').resolves()
+    })
+
+    sandbox.stub(mongoose.connection, 'on').callsFake((event, callback) => {
+      if (event === 'error') {
+        process.nextTick(() => callback(new Error('Connection error')))
+      }
+      return mongoose.connection
+    })
+
+    try {
+      await Mongo.connect()
+    } catch (err) {}
+
+    expect(loggerVerboseStub.calledWith('MongoDB connection error' as any)).to.be.true
+    expect(stubSetModels.calledOnce).to.be.true
+    expect(stubConnect.calledOnce).to.be.false
   })
 
   it('disconnects from MongoDB', async () => {
@@ -47,62 +87,42 @@ describe('Module: mongo', () => {
     expect(deleteMany.calledOnce).to.be.true
   })
 
-  it('isErrorConflict', async () => {
-    const res = Mongo.isErrorConflict({ message: 'WriteConflict' })
-    expect(res).to.be.true
-  })
+  it('handles syncIndexes error during connection', async () => {
+    const connectionRetry = config.MONGO_DB.CONNECTION_RETRY
+    const connectionTimeout = config.MONGO_DB.CONNECTION_TIMEOUT
+    const connectionDelay = config.MONGO_DB.CONNECTION_DELAY
+    config.MONGO_DB.CONNECTION_RETRY = 1
+    config.MONGO_DB.CONNECTION_TIMEOUT = 10
+    config.MONGO_DB.CONNECTION_DELAY = 5
 
-  it('isErrorNotSupported', async () => {
-    const res = Mongo.isErrorNotSupported({
-      message: 'Current topology does not support sessions',
+    const stubSetModels = sandbox.stub(ModelProxy, 'setMongoModels').resolves()
+    sandbox.stub(mongoose, 'connect').resolves()
+    const loggerWarnStub = sandbox.stub(Logger, 'warn')
+    const loggerInfoStub = sandbox.stub(Logger, 'info')
+
+    Object.values(mongoose.models).forEach(model => {
+      sandbox.stub(model, 'syncIndexes').rejects(new Error('Sync indexes error'))
     })
-    expect(res).to.be.true
-  })
 
-  it('transactionOptions', async () => {
-    const stubStart = sandbox
-      .stub(mongoose.connection, 'startSession')
-      .returns({
-        startTransaction: sandbox.stub().resolves(),
-        commitTransaction: sandbox.stub().resolves(),
-        abortTransaction: sandbox.stub().resolves(),
-        endSession: sandbox.stub().resolves(),
-      } as any)
-
-    await Mongo.transactionOptions()
-
-    expect(stubStart.calledOnce).to.be.true
-    expect(
-      stubStart.calledWith({
-        readConcern: { level: 'snapshot' },
-        writeConcern: { w: 'majority' },
-      } as any),
-    ).to.be.true
-  })
-
-  it('executeTxFn', async () => {
-    const fn = sandbox.stub().resolves('result')
-    const result = await Mongo.executeTxFn(fn)
-    expect(result).to.equal('result')
-    expect(fn.called).to.be.true
-  })
-
-  it('executeTxFn retries on conflict error', async () => {
-    const error = new Error('WriteConflict')
-    const fn = sandbox.stub().rejects(error)
-    const stubError = sandbox
-      .stub(Mongo, 'handleTxError')
-      .callsFake(async () => {
-        throw error
-      })
+    sandbox.stub(mongoose.connection, 'on').callsFake((event, callback) => {
+      if (event === 'connected') {
+        process.nextTick(callback)
+      }
+      return mongoose.connection
+    })
 
     try {
-      await Mongo.executeTxFn(fn)
-      throw new Error('Expected to throw')
-    } catch (caughtError) {
-      expect(caughtError).to.equal(error)
-      expect(fn.called).to.be.true
-      expect(stubError.calledWith(error, sandbox.match.func)).to.be.true
+      await Mongo.connect()
+    } catch (err: any) {
+      expect(err.message).to.equal('Timeout after 5000ms')
     }
+
+    expect(loggerWarnStub.notCalled).to.be.true
+    expect(loggerInfoStub.notCalled).to.be.true
+    expect(stubSetModels.calledOnce).to.be.true
+
+    config.MONGO_DB.CONNECTION_RETRY = connectionRetry
+    config.MONGO_DB.CONNECTION_TIMEOUT = connectionTimeout
+    config.MONGO_DB.CONNECTION_DELAY = connectionDelay
   })
 })

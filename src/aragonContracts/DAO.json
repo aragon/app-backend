@@ -1,0 +1,1224 @@
+{
+  "contractName": "DAO",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "index",
+          "type": "uint256"
+        }
+      ],
+      "name": "ActionFailed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "AnyAddressDisallowedForWhoAndWhere",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "contract IPermissionCondition",
+          "name": "condition",
+          "type": "address"
+        }
+      ],
+      "name": "ConditionInterfacNotSupported",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "contract IPermissionCondition",
+          "name": "condition",
+          "type": "address"
+        }
+      ],
+      "name": "ConditionNotAContract",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "GrantWithConditionNotSupported",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InsufficientGas",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "expected",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "actual",
+          "type": "uint256"
+        }
+      ],
+      "name": "NativeTokenDepositAmountMismatch",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "where",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "who",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "permissionId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "currentCondition",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "newCondition",
+          "type": "address"
+        }
+      ],
+      "name": "PermissionAlreadyGrantedForDifferentCondition",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "PermissionsForAnyAddressDisallowed",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint8[3]",
+          "name": "protocolVersion",
+          "type": "uint8[3]"
+        }
+      ],
+      "name": "ProtocolVersionUpgradeNotSupported",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ReentrantCall",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TooManyActions",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "where",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "who",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "permissionId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "Unauthorized",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "callbackSelector",
+          "type": "bytes4"
+        },
+        {
+          "internalType": "bytes4",
+          "name": "magicNumber",
+          "type": "bytes4"
+        }
+      ],
+      "name": "UnkownCallback",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ZeroAmount",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "previousAdmin",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "newAdmin",
+          "type": "address"
+        }
+      ],
+      "name": "AdminChanged",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "beacon",
+          "type": "address"
+        }
+      ],
+      "name": "BeaconUpgraded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes4",
+          "name": "sig",
+          "type": "bytes4"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes",
+          "name": "data",
+          "type": "bytes"
+        }
+      ],
+      "name": "CallbackReceived",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "_reference",
+          "type": "string"
+        }
+      ],
+      "name": "Deposited",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "actor",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "callId",
+          "type": "bytes32"
+        },
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "indexed": false,
+          "internalType": "struct IDAO.Action[]",
+          "name": "actions",
+          "type": "tuple[]"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "allowFailureMap",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "failureMap",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes[]",
+          "name": "execResults",
+          "type": "bytes[]"
+        }
+      ],
+      "name": "Executed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "permissionId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "here",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "where",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "who",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "condition",
+          "type": "address"
+        }
+      ],
+      "name": "Granted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint8",
+          "name": "version",
+          "type": "uint8"
+        }
+      ],
+      "name": "Initialized",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "bytes",
+          "name": "metadata",
+          "type": "bytes"
+        }
+      ],
+      "name": "MetadataSet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "NativeTokenDeposited",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "daoURI",
+          "type": "string"
+        }
+      ],
+      "name": "NewURI",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "permissionId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "here",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "where",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "who",
+          "type": "address"
+        }
+      ],
+      "name": "Revoked",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "signatureValidator",
+          "type": "address"
+        }
+      ],
+      "name": "SignatureValidatorSet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "bytes4",
+          "name": "interfaceId",
+          "type": "bytes4"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes4",
+          "name": "callbackSelector",
+          "type": "bytes4"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes4",
+          "name": "magicNumber",
+          "type": "bytes4"
+        }
+      ],
+      "name": "StandardCallbackRegistered",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "forwarder",
+          "type": "address"
+        }
+      ],
+      "name": "TrustedForwarderSet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "implementation",
+          "type": "address"
+        }
+      ],
+      "name": "Upgraded",
+      "type": "event"
+    },
+    {
+      "stateMutability": "nonpayable",
+      "type": "fallback"
+    },
+    {
+      "inputs": [],
+      "name": "EXECUTE_PERMISSION_ID",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "REGISTER_STANDARD_CALLBACK_PERMISSION_ID",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "ROOT_PERMISSION_ID",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "SET_METADATA_PERMISSION_ID",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "SET_SIGNATURE_VALIDATOR_PERMISSION_ID",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "SET_TRUSTED_FORWARDER_PERMISSION_ID",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "UPGRADE_DAO_PERMISSION_ID",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "enum PermissionLib.Operation",
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "internalType": "address",
+              "name": "where",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "who",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "condition",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "permissionId",
+              "type": "bytes32"
+            }
+          ],
+          "internalType": "struct PermissionLib.MultiTargetPermission[]",
+          "name": "_items",
+          "type": "tuple[]",
+          "notice": "The array of multi-targeted permission operations to apply."
+        }
+      ],
+      "name": "applyMultiTargetPermissions",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Applies an array of permission operations on multiple target contracts `items[i].where`."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_where",
+          "type": "address",
+          "notice": "The address of the single target contract."
+        },
+        {
+          "components": [
+            {
+              "internalType": "enum PermissionLib.Operation",
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "internalType": "address",
+              "name": "who",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "permissionId",
+              "type": "bytes32"
+            }
+          ],
+          "internalType": "struct PermissionLib.SingleTargetPermission[]",
+          "name": "items",
+          "type": "tuple[]",
+          "notice": "The array of single-targeted permission operations to apply."
+        }
+      ],
+      "name": "applySingleTargetPermissions",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Applies an array of permission operations on a single target contracts `_where`."
+    },
+    {
+      "inputs": [],
+      "name": "daoURI",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "A distinct Uniform Resource Identifier (URI) pointing to a JSON object following the \"EIP-4824 DAO JSON-LD Schema\". This JSON file splits into four URIs: membersURI, proposalsURI, activityLogURI, and governanceURI. The membersURI should point to a JSON file that conforms to the \"EIP-4824 Members JSON-LD Schema\". The proposalsURI should point to a JSON file that conforms to the \"EIP-4824 Proposals JSON-LD Schema\". The activityLogURI should point to a JSON file that conforms to the \"EIP-4824 Activity Log JSON-LD Schema\". The governanceURI should point to a flatfile, normatively a .md file. Each of the JSON files named above can be statically hosted or dynamically-generated."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_token",
+          "type": "address",
+          "notice": "The address of the token or address(0) in case of the native token."
+        },
+        {
+          "internalType": "uint256",
+          "name": "_amount",
+          "type": "uint256",
+          "notice": "The amount of tokens to deposit."
+        },
+        {
+          "internalType": "string",
+          "name": "_reference",
+          "type": "string",
+          "notice": "The reference describing the deposit reason."
+        }
+      ],
+      "name": "deposit",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function",
+      "notice": "Deposits (native) tokens to the DAO contract with a reference string."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "_callId",
+          "type": "bytes32",
+          "notice": "The ID of the call. The definition of the value of `callId` is up to the calling contract and can be used, e.g., as a nonce."
+        },
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct IDAO.Action[]",
+          "name": "_actions",
+          "type": "tuple[]",
+          "notice": "The array of actions."
+        },
+        {
+          "internalType": "uint256",
+          "name": "_allowFailureMap",
+          "type": "uint256",
+          "notice": "A bitmap allowing execution to succeed, even if individual actions might revert. If the bit at index `i` is 1, the execution succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert."
+        }
+      ],
+      "name": "execute",
+      "outputs": [
+        {
+          "internalType": "bytes[]",
+          "name": "execResults",
+          "type": "bytes[]"
+        },
+        {
+          "internalType": "uint256",
+          "name": "failureMap",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Executes a list of actions. If a zero allow-failure map is provided, a failing action reverts the entire execution. If a non-zero allow-failure map is provided, allowed actions can fail without the entire call being reverted."
+    },
+    {
+      "inputs": [],
+      "name": "getTrustedForwarder",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Getter for the trusted forwarder verifying the meta transaction."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_where",
+          "type": "address",
+          "notice": "The address of the target contract for which `_who` receives permission."
+        },
+        {
+          "internalType": "address",
+          "name": "_who",
+          "type": "address",
+          "notice": "The address (EOA or contract) receiving the permission."
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_permissionId",
+          "type": "bytes32",
+          "notice": "The permission identifier."
+        }
+      ],
+      "name": "grant",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Grants permission to an address to call methods in a contract guarded by an auth modifier with the specified permission identifier."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_where",
+          "type": "address",
+          "notice": "The address of the target contract for which `_who` receives permission."
+        },
+        {
+          "internalType": "address",
+          "name": "_who",
+          "type": "address",
+          "notice": "The address (EOA or contract) receiving the permission."
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_permissionId",
+          "type": "bytes32",
+          "notice": "The permission identifier."
+        },
+        {
+          "internalType": "contract IPermissionCondition",
+          "name": "_condition",
+          "type": "address",
+          "notice": "The `PermissionCondition` that will be asked for authorization on calls connected to the specified permission identifier."
+        }
+      ],
+      "name": "grantWithCondition",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Grants permission to an address to call methods in a target contract guarded by an auth modifier with the specified permission identifier if the referenced condition permits it."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_where",
+          "type": "address",
+          "notice": "The address of the contract."
+        },
+        {
+          "internalType": "address",
+          "name": "_who",
+          "type": "address",
+          "notice": "The address of a EOA or contract to give the permissions."
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_permissionId",
+          "type": "bytes32",
+          "notice": "The permission identifier."
+        },
+        {
+          "internalType": "bytes",
+          "name": "_data",
+          "type": "bytes",
+          "notice": "The optional data passed to the `PermissionCondition` registered."
+        }
+      ],
+      "name": "hasPermission",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Checks if an address has permission on a contract via a permission identifier and considers if `ANY_ADDRESS` was used in the granting process."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "_metadata",
+          "type": "bytes",
+          "notice": "IPFS hash that points to all the metadata (logo, description, tags, etc.) of a DAO."
+        },
+        {
+          "internalType": "address",
+          "name": "_initialOwner",
+          "type": "address",
+          "notice": "The initial owner of the DAO having the `ROOT_PERMISSION_ID` permission."
+        },
+        {
+          "internalType": "address",
+          "name": "_trustedForwarder",
+          "type": "address",
+          "notice": "The trusted forwarder responsible for verifying meta transactions."
+        },
+        {
+          "internalType": "string",
+          "name": "daoURI_",
+          "type": "string",
+          "notice": "The DAO URI required to support [ERC-4824](https://eips.ethereum.org/EIPS/eip-4824)."
+        }
+      ],
+      "name": "initialize",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Initializes the DAO by\n- setting the reentrancy status variable to `_NOT_ENTERED`\n- registering the [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID\n- setting the trusted forwarder for meta transactions\n- giving the `ROOT_PERMISSION_ID` permission to the initial owner (that should be revoked and transferred to the DAO after setup)."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint8[3]",
+          "name": "_previousProtocolVersion",
+          "type": "uint8[3]",
+          "notice": "The semantic protocol version number of the previous DAO implementation contract this upgrade is transitioning from."
+        },
+        {
+          "internalType": "bytes",
+          "name": "_initData",
+          "type": "bytes",
+          "notice": "The initialization data to be passed to via `upgradeToAndCall` (see [ERC-1967](https://docs.openzeppelin.com/contracts/4.x/api/proxy#ERC1967Upgrade))."
+        }
+      ],
+      "name": "initializeFrom",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Initializes the DAO after an upgrade from a previous protocol version."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_where",
+          "type": "address",
+          "notice": "The address of the target contract for which `_who` receives permission."
+        },
+        {
+          "internalType": "address",
+          "name": "_who",
+          "type": "address",
+          "notice": "The address (EOA or contract) for which the permission is checked."
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_permissionId",
+          "type": "bytes32",
+          "notice": "The permission identifier."
+        },
+        {
+          "internalType": "bytes",
+          "name": "_data",
+          "type": "bytes",
+          "notice": "The optional data passed to the `PermissionCondition` registered."
+        }
+      ],
+      "name": "isGranted",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Checks if an address has permission on a contract via a permission identifier and considers if `ANY_ADDRESS` was used in the granting process."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "_hash",
+          "type": "bytes32",
+          "notice": "The hash of the data to be signed."
+        },
+        {
+          "internalType": "bytes",
+          "name": "_signature",
+          "type": "bytes",
+          "notice": "The signature byte array associated with `_hash`."
+        }
+      ],
+      "name": "isValidSignature",
+      "outputs": [
+        {
+          "internalType": "bytes4",
+          "name": "",
+          "type": "bytes4"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Checks whether a signature is valid for the provided hash by forwarding the call to the set [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271) signature validator contract."
+    },
+    {
+      "inputs": [],
+      "name": "protocolVersion",
+      "outputs": [
+        {
+          "internalType": "uint8[3]",
+          "name": "",
+          "type": "uint8[3]"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function",
+      "notice": "Returns the protocol version at which the current contract was built. Use it to check for future upgrades that might be applicable."
+    },
+    {
+      "inputs": [],
+      "name": "proxiableUUID",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "_interfaceId",
+          "type": "bytes4",
+          "notice": "The ID of the interface."
+        },
+        {
+          "internalType": "bytes4",
+          "name": "_callbackSelector",
+          "type": "bytes4",
+          "notice": "The selector of the callback function."
+        },
+        {
+          "internalType": "bytes4",
+          "name": "_magicNumber",
+          "type": "bytes4",
+          "notice": "The magic number to be registered for the function signature."
+        }
+      ],
+      "name": "registerStandardCallback",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Registers an ERC standard having a callback by registering its [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID and callback function signature."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_where",
+          "type": "address",
+          "notice": "The address of the target contract for which `_who` loses permission."
+        },
+        {
+          "internalType": "address",
+          "name": "_who",
+          "type": "address",
+          "notice": "The address (EOA or contract) losing the permission."
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_permissionId",
+          "type": "bytes32",
+          "notice": "The permission identifier."
+        }
+      ],
+      "name": "revoke",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Revokes permission from an address to call methods in a target contract guarded by an auth modifier with the specified permission identifier."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "newDaoURI",
+          "type": "string",
+          "notice": "The new DAO URI to be set."
+        }
+      ],
+      "name": "setDaoURI",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Updates the set DAO URI to a new value."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "_metadata",
+          "type": "bytes",
+          "notice": "The IPFS hash of the new metadata object."
+        }
+      ],
+      "name": "setMetadata",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Updates the DAO metadata (e.g., an IPFS hash)."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_signatureValidator",
+          "type": "address",
+          "notice": "The address of the signature validator."
+        }
+      ],
+      "name": "setSignatureValidator",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Setter for the [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271) signature validator contract."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_newTrustedForwarder",
+          "type": "address"
+        }
+      ],
+      "name": "setTrustedForwarder",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Setter for the trusted forwarder verifying the meta transaction."
+    },
+    {
+      "inputs": [],
+      "name": "signatureValidator",
+      "outputs": [
+        {
+          "internalType": "contract IERC1271",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "interfaceId",
+          "type": "bytes4"
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newImplementation",
+          "type": "address"
+        }
+      ],
+      "name": "upgradeTo",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newImplementation",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes",
+          "name": "data",
+          "type": "bytes"
+        }
+      ],
+      "name": "upgradeToAndCall",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "stateMutability": "payable",
+      "type": "receive"
+    }
+  ],
+  "implAddress": "0x2C9c5e8F559DBBEc962f7CCd295DBc4183cd2168",
+  "address": "0x2C9c5e8F559DBBEc962f7CCd295DBc4183cd2168"
+}

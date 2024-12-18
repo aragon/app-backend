@@ -1,0 +1,38 @@
+name: AppBackend Test
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore: ## Ignore develop and main branches to avoid an unneeded 2nd build.
+      - 'develop'
+      - 'main'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Install OpenSSL 1.1 and create symlink for libcrypto.so.1.1
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+          sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+          sudo apt-get install -f  # Install dependencies if needed
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'yarn'
+      - name: Install dependencies
+        run: yarn install --pure-lockfile
+      - name: Format
+        run: yarn format:check
+      - name: Lint
+        run: yarn lint
+      - name: Dot only
+        run: yarn test:dotonly
+      - name: Test Unit
+        run: yarn test:unit:coverage
+      - name: Unit Coverage
+        run: yarn test:coverage:check

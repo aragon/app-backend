@@ -1,18 +1,31 @@
-export type HexAddress = `0x${string}`
+import { type WebSocketProvider } from 'ethers'
+export type HexAddress = `0x${string}` | string
 export type ENS = `${string}.eth`
 
-export type INetworks = keyof typeof NetworksEnum
+export enum IWebSocketStatus {
+  CONNECTING = 0,
+  OPEN = 1,
+  CLOSING = 2,
+  CLOSED = 3,
+}
+
+export interface ISupportedNetwork {
+  provider: WebSocketProvider
+  networkName: NetworksEnum
+}
+
+export enum SupportedEnsNetworksEnum {
+  ethereumMainnet = 'ethereum-mainnet',
+}
 
 export enum NetworksEnum {
-  ethereum = 'ethereum',
-  goerli = 'goerli',
-  sepolia = 'sepolia',
-  mumbai = 'mumbai',
-  polygon = 'polygon',
-  base = 'base',
-  baseGoerli = 'baseGoerli',
-  arbitrum = 'arbitrum',
-  arbitrumGoerli = 'arbitrumGoerli',
+  ethereumMainnet = 'ethereum-mainnet',
+  ethereumSepolia = 'ethereum-sepolia',
+  polygonMainnet = 'polygon-mainnet',
+  baseMainnet = 'base-mainnet',
+  arbitrumMainnet = 'arbitrum-mainnet',
+  zksyncSepolia = 'zksync-sepolia',
+  zksyncMainnet = 'zksync-mainnet',
 }
 
 export enum StatusNetworkEnum {
@@ -21,10 +34,22 @@ export enum StatusNetworkEnum {
   offline = 'offline',
 }
 
-export const TestNetworks = [
-  NetworksEnum.goerli,
-  NetworksEnum.sepolia,
-  NetworksEnum.mumbai,
-  NetworksEnum.arbitrumGoerli,
-  NetworksEnum.baseGoerli,
-]
+export const TestNetworks = [NetworksEnum.ethereumSepolia]
+
+export interface IBlock {
+  provider: WebSocketProvider
+  hash: string
+  parentHash: string
+  number: number
+  timestamp: number
+  nonce: string
+  difficulty: bigint
+  gasLimit: bigint
+  gasUsed: bigint
+  baseFeePerGas: bigint
+  miner: string
+  extraData: string
+  currentFeeInNextBlock: bigint
+  baseFeeInNextBlock: bigint
+  transactions: string[]
+}

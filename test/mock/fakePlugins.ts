@@ -1,0 +1,52 @@
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+
+export const PluginList = [
+  {
+    transactionHash: '0x6f3e8a941b2140d72e402e35078fd459478222e146aa6d6bd6832d322de5dd71',
+    blockNumber: 42368043,
+    blockTimestamp: 1683363232,
+    network: NetworksEnum.polygonMainnet,
+    address: '0xBf8dE4316E2778E26b12dad8906467b23BB9A293',
+    implementationAddress: '0xEce3e18F5CC70214a6AAa25674444A63683478cE',
+    status: IPluginStatus.installed,
+    interfaceType: IPluginInterfaceType.tokenVoting,
+    daoAddress: '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA',
+    tokenAddress: '0x03bD27B6FE4f0B3F2C2C9a4289cA2bfcE1DDE95c',
+    pluginSetupRepoAddress: '0x0650EE961514C90D927F302b374d52344E8C62BF',
+    sender: '0x51Ead12DEcD31ea75e1046EdFAda14dd639789b8',
+    release: '1',
+    build: '3',
+    subdomain: 'lens',
+    permissions: [
+      {
+        operation: 0,
+        where: '0xBf8dE4316E2778E26b12dad8906467b23BB9A293',
+        who: '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA',
+        condition: '0x0000000000000000000000000000000000000000',
+        permissionId: '0xbba35d41610b7d25c8e486006535c76bd423091563e694d206ae3d71ce949fe5',
+      },
+      {
+        operation: 0,
+        where: '0xBf8dE4316E2778E26b12dad8906467b23BB9A293',
+        who: '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA',
+        condition: '0x0000000000000000000000000000000000000000',
+        permissionId: '0x821b6e3a557148015a918c89e5d092e878a69854a2d1a410635f771bd5a8a3f5',
+      },
+      {
+        operation: 0,
+        where: '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA',
+        who: '0xBf8dE4316E2778E26b12dad8906467b23BB9A293',
+        condition: '0x0000000000000000000000000000000000000000',
+        permissionId: '0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d',
+      },
+    ],
+    uninstalled: {
+      status: false,
+      transactionHash: null,
+      blockNumber: null,
+      blockTimestamp: null,
+    },
+    createdAt: '2024-08-15T22:58:04.751+0000',
+    updatedAt: '2024-08-15T22:58:04.751+0000',
+  },
+]

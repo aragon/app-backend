@@ -1,47 +1,49 @@
-import {
-  ErrorKey,
-  type IErrorMap,
-  type IErrorDetail,
-  type IErrorConfig,
-  type IExposableError,
-} from '@types'
+import { ErrorKeyEnum, type IErrorMap, type IErrorDetail, type IErrorConfig, type IExposableError } from '@types'
 
 const ERRORS: IErrorMap = {
-  [ErrorKey.invalidOrigin]: {
+  [ErrorKeyEnum.invalidOrigin]: {
     status: 503,
     description: 'Not authorised',
   },
-  [ErrorKey.tooBusy]: {
+  [ErrorKeyEnum.tooBusy]: {
     status: 503,
     description: 'Server too busy',
   },
-  [ErrorKey.unknownError]: {
+  [ErrorKeyEnum.unknownError]: {
     status: 500,
     description: 'Unknown error',
   },
-  [ErrorKey.entityTooLarge]: {
+  [ErrorKeyEnum.entityTooLarge]: {
     status: 413,
     description: 'The files you are trying to upload are too big',
   },
-  [ErrorKey.accessDenied]: {
+  [ErrorKeyEnum.accessDenied]: {
     status: 400,
     description: 'access denied',
   },
-  [ErrorKey.notImplemented]: {
+  [ErrorKeyEnum.notImplemented]: {
     status: 501,
     description: 'Not implemented',
   },
-  [ErrorKey.alreadyExists]: {
+  [ErrorKeyEnum.alreadyExists]: {
     status: 400,
     description: 'The Entity already exists.',
   },
-  [ErrorKey.methodNotAllowed]: {
+  [ErrorKeyEnum.methodNotAllowed]: {
     status: 405,
     description: 'The action you want to do is not allowed',
   },
-  [ErrorKey.badParams]: {
+  [ErrorKeyEnum.badParams]: {
     status: 400,
     description: 'Bad parameters',
+  },
+  [ErrorKeyEnum.notFound]: {
+    status: 400,
+    description: 'Not found',
+  },
+  [ErrorKeyEnum.pluginNotFound]: {
+    status: 400,
+    description: 'Plugin not found',
   },
 }
 
@@ -53,15 +55,10 @@ const throwError = (message: string, detail: IErrorDetail = {}) => {
   throw err
 }
 
-const throwExposable = (
-  code: string,
-  status?: number | null,
-  description?: string | null,
-  exposeMeta?: any,
-) => {
+const throwExposable = (code: string, status?: number | null, description?: string | null, exposeMeta?: any) => {
   const error: IErrorConfig = ERRORS[code]
   if (!error) {
-    throwError(ErrorKey.unknownErrorCode, {
+    throwError(ErrorKeyEnum.unknownErrorCode, {
       code,
       status,
       description,
@@ -86,11 +83,7 @@ function castExposable(error: Error) {
     throw error
   }
 
-  throwExposable(
-    error.message,
-    (error as IExposableError).status,
-    (error as IExposableError).description,
-  )
+  throwExposable(error.message, (error as IExposableError).status, (error as IExposableError).description)
 }
 
 function assert(condition: boolean, message: string, detail?: IErrorDetail) {
@@ -113,22 +106,13 @@ function assertExposable(
 
 function bodyParserError(error: any) {
   if (error.type === 'entity.too.large') {
-    throwExposable(ErrorKey.entityTooLarge)
+    throwExposable(ErrorKeyEnum.entityTooLarge)
   } else {
-    throwExposable(ErrorKey.badParams, 400, error.message as string)
+    throwExposable(ErrorKeyEnum.badParams, 400, error.message as string)
   }
 }
 
-export {
-  throwError,
-  throwExposable,
-  bodyParserError,
-  assert,
-  assertExposable,
-  castExposable,
-  ErrorKey,
-  ERRORS,
-}
+export { throwError, throwExposable, bodyParserError, assert, assertExposable, castExposable, ERRORS }
 
 /****
  HTTP ERROR CODES

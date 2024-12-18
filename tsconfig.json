@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    "typeRoots": ["./node_modules/@types"],
     "outDir": "./dist",
     "rootDir": "./",
     "baseUrl": "./",
@@ -9,6 +10,7 @@
       "@src/*": ["./src/*"],
       "@config": ["./config/index"],
       "@types": ["./src/types/index"],
+      "@artifacts/*": ["./src/artifacts/*"],
       "@helpers/*": ["./src/helpers/*"],
       "@dbModels": ["./src/models/index"],
       "@logger": ["./src/logger/index"],
@@ -17,12 +19,19 @@
       "@models/*": ["./src/models/*"],
       "@modules/*": ["./src/modules/*"],
       "@services/*": ["./src/services/*"],
-      "@api/*": ["./src/services/api/*"],
-      "@test/*": ["./test/*"]
+      "@state/*": ["./src/state/*"],
+      "@api/*": ["./src/services/aragon-api/*"],
+      "@indexer/*": ["./src/services/aragon-indexer/*"],
+      "@rates/*": ["./src/services/aragon-rates/*"],
+      "@tools/*": ["./tools/*"],
+      "@test/*": ["./test/*"],
+      "@aragonContracts/*": ["./src/services/aragonContracts/*"],
+      "@handlers/*": ["./src/handlers/*"],
+      "@plugins/*": ["./src/services/aragon-plugins/*"]
     },
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["./**/*", "./utils/**/*"],
-  "exclude": ["node_modules", "types"],
+  "include": ["./**/*"],
+  "exclude": ["node_modules", "types"]
 }

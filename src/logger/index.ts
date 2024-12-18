@@ -3,15 +3,9 @@ import ExternalLogger from './external'
 import config from '@config'
 import Formats from './format'
 import Utils from '@helpers/utils'
-import {EnumLogLevel, type ILogger} from '@types'
+import { EnumLogLevel, type ILogger } from '@types'
 
-const format = winston.format.combine(
-  ...[
-    Formats.formatError(),
-    winston.format.timestamp(),
-    Formats.formatMachine(),
-  ],
-)
+const format = winston.format.combine(...[Formats.formatError(), winston.format.timestamp(), Formats.formatMachine()])
 
 const externalLogger: any = new ExternalLogger({
   name: 'external-logger',
@@ -19,10 +13,7 @@ const externalLogger: any = new ExternalLogger({
 })
 
 const consoleFormat = winston.format.combine(
-  ...[
-    winston.format.colorize(),
-    Formats.consoleFormat({ showDetails: true }),
-  ].filter(f => f !== null),
+  ...[winston.format.colorize(), Formats.consoleFormat({ showDetails: true })].filter(f => f !== null),
 )
 
 const consoleLogLevel = config.REMOTE_EXECUTION ? 'warn' : config.LOG.LEVEL
@@ -41,6 +32,7 @@ const logger: ILogger = winston.createLogger({
 })
 
 logger.purge = () => {
+  /* istanbul ignore next */
   externalLogger.purge()
 }
 

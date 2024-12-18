@@ -4,7 +4,7 @@ import { type IMongoModel } from '@types'
 export let Models: IMongoModel | any = {}
 
 export const ModelProxy = {
-  setMongoModels: async() => {
+  setMongoModels: async () => {
     const models = await setMongoModels()
     Models = { ...Models, ...models }
   },

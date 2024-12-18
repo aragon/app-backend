@@ -1,0 +1,75 @@
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import { expect } from 'chai'
+import logger from '@logger'
+import { NetworksEnum } from '@types'
+import { beforeEach } from 'mocha'
+import { PluginRepoRegistryHandler } from '@handlers/pluginRepoRegistryHandler'
+import { Models } from '@dbModels'
+import Web3Helper from '@helpers/web3'
+
+describe('Indexer: PluginRepoRegistryHandler', () => {
+  let sandbox: SinonSandbox
+  beforeEach(async () => {
+    sandbox = sinon.createSandbox()
+  })
+
+  afterEach(async () => {
+    sandbox?.restore()
+  })
+
+  describe('pluginRepoRegistered', () => {
+    it('should pluginRepoRegistered', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+
+      const fakeEvent = {
+        args: {
+          pluginRepo: '0x456',
+          subdomain: 'test',
+        },
+      }
+
+      const findTxHashSpy = sandbox.spy(Models.PluginRepo, 'findExistingLog')
+      const loggerStub = sandbox.stub(logger, 'verbose')
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1123213)
+
+      await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, logInfo)
+
+      expect(findTxHashSpy.calledOnce).to.be.true
+      expect(
+        findTxHashSpy.calledWith({
+          network: logInfo.network,
+          logIndex: logInfo.logIndex,
+          transactionIndex: logInfo.transactionIndex,
+          transactionHash: logInfo.transactionHash,
+        }),
+      ).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
+
+      const savedPluginRepoLog = await Models.PluginRepo.findExistingLog({
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
+      })
+      expect(!!savedPluginRepoLog).to.be.true
+
+      expect(getBlockTimestampStub.calledOnce).to.eq(true)
+      expect(savedPluginRepoLog.network).to.eq(logInfo.network)
+      expect(savedPluginRepoLog.pluginRepo).to.eq(fakeEvent.args.pluginRepo)
+      expect(savedPluginRepoLog.subdomain).to.eq(fakeEvent.args.subdomain)
+      expect(savedPluginRepoLog.blockNumber).to.eq(logInfo.blockNumber)
+      expect(savedPluginRepoLog.transactionHash).to.eq(logInfo.transactionHash)
+      expect(savedPluginRepoLog.transactionIndex).to.eq(logInfo.transactionIndex)
+      expect(savedPluginRepoLog.logIndex).to.eq(logInfo.logIndex)
+    })
+  })
+})
