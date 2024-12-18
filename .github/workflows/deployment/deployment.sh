@@ -9,7 +9,7 @@ set_vars(){
     REPO_BRANCH="${REPO_BRANCH:-develop}"
     REPO_URL="${REPO_URL:-git@github.com:aragon/app-backend.git}"
 
-    TARGET_DIR="backend"
+    TARGET_DIR="app-backend"
     ARCHIVE_NAME="backend.tar"
     REMOTE_DIR="/home/${REMOTE_USER}"
     REMOTE_SCRIPT_NAME='remote_script.sh'
@@ -185,6 +185,7 @@ main_functions(){
         remote_remove_logs
         copy_tar_to_remote
         remote_extract_files
+        remote_upload_execute_script
         remote_execute_script
     else
         echo "This script is NOT being executed in a GitHub Actions environment."
