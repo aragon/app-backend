@@ -126,7 +126,10 @@ jobs:
           echo create cert
           
           echo -n "${{ steps.op-server-secrets.outputs.SERVER_CERT }}" |sha256sum
-          echo -n "${{ steps.op-server-secrets.outputs.SERVER_CERT }}" > cert && chmod 400 cert
+          echo '-----BEGIN OPENSSH PRIVATE KEY-----' > cert
+          echo "${{ steps.op-server-secrets.outputs.SERVER_CERT }}" |sed 's/-----BEGIN OPENSSH PRIVATE KEY----- //g' |sed 's/-----END OPENSSH PRIVATE KEY-----//g' | fold -w 71 >> cert
+          echo '-----END OPENSSH PRIVATE KEY-----' >> cert
+          chmod 400 cert
           eval "$(ssh-agent -s)"
           ssh-add cert
           bash app-backend/.github/workflows/deployment/deployment.sh -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
