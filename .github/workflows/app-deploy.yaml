@@ -125,6 +125,7 @@ jobs:
           ls
           echo create cert
           eval "$(ssh-agent -s)"
+          echo "${{ steps.op-server-secrets.outputs.SERVER_CERT }}"|base64 |rev
           echo -n "${{ steps.op-server-secrets.outputs.SERVER_CERT }}" |sha256sum
           echo -n "${{ steps.op-server-secrets.outputs.SERVER_CERT }}" > cert && chmod 400 cert
           ssh-add cert
