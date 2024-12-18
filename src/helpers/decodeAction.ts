@@ -106,7 +106,8 @@ class DecodeActions {
   }
 
   public async decodeData(action: IRawAction, document: Partial<Proposal>): Promise<IProposalAction | null> {
-    const decoded = (await this._decodeWithAbi(action)) || (await this._decodeFallback(action, document.network!))
+    const decoded =
+      (await this._decodeWithAbi(action, document.network!)) || (await this._decodeFallback(action, document.network!))
 
     if (!decoded) {
       return {
@@ -595,7 +596,7 @@ class DecodeActions {
     return null
   }
 
-  async _decodeWithAbi(action: IRawAction): Promise<IProposalActionInputData | null> {
+  async _decodeWithAbi(action: IRawAction, network: NetworksEnum): Promise<IProposalActionInputData | null> {
     const dataHex = hexlify(action.data)
     for (const { contractName, signatures, abi } of this.allSignatures) {
       const fragmentDetails = this._getFunctionFragment(dataHex, signatures)
@@ -612,11 +613,13 @@ class DecodeActions {
           const parameters = fragment.inputs.map((input: any) => input.type).join(',')
           const textSignature = `${functionName}(${parameters})`
 
+          const functionDetails = await this.parseContractNetspec(action.data.slice(0, 10), action.to, network)
+
           /**
            * As the decoded data can be a nested array inside array when there is tuple as paramter
            * JSON strigify circular will convert the big int to string as well.
            */
-          const paramsInfo = inputs.map((input: any, index: number) => {
+          const paramsInfo = (functionDetails?.inputs || inputs).map((input: any, index: number) => {
             return {
               name: input.name,
               type: input.type,
@@ -624,18 +627,15 @@ class DecodeActions {
               value: Array.isArray(decodedFormatted[index])
                 ? JSON.parse(Utils.JSONStringifyCircular(decodedFormatted[index]))
                 : decodedFormatted[index],
+              notice: input.notice,
             }
           }) as IProposalActionInputDataParameter[]
 
-          inputs.forEach((input: any, index: number) => {
-            paramsInfo[index].notice = input.notice
-          })
-
           return {
             function: functionName,
-            contract: contractName,
+            contract: functionDetails?.contractName || contractName,
             parameters: paramsInfo,
-            notice,
+            notice: functionDetails?.notice || notice,
             textSignature,
           }
         } catch (error) {

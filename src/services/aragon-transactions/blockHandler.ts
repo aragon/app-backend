@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type TransactionResponse } from 'ethers'
+import { Interface, type Log, type TransactionResponse } from 'ethers'
 import { EnumQueueName, type HexAddress, type IWebSocketProvider, type NetworksEnum } from '@types'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
@@ -9,6 +9,7 @@ import { RabbitMQHelper } from '@helpers/redditMQ'
 import type Dao from '@models/schema/dao'
 import utils from '@helpers/utils'
 import config from '@config'
+import { DAO } from '@artifacts/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-transactions:BlockHandler' })
 
@@ -24,31 +25,62 @@ export const BlockHandler = {
         const tx = await BlockHandler.fetchTransaction(txHash, network, provider)
         if (!tx?.to) return null
 
-        const dao = await Models.Dao.findByAddress(tx.to, network)
+        await BlockHandler.processReceiver(txHash, tx.to, network)
+      }),
+    )
 
-        if (dao) {
-          logger.verbose(
-            'New pending incoming transaction',
-            llo({
-              network,
-              daoAddress: dao,
-              transactionHas: tx.hash,
-            }),
-          )
+    await BlockHandler._checkIfDepositEvents(block, network)
+  },
 
-          // wait 2 block confirmations
-          await utils.wait(config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME * 1000 * 2)
-          await BlockHandler.sendDaoMessages(dao)
+  processReceiver: async (transactionHash: string, to: HexAddress, network: NetworksEnum) => {
+    const dao = await Models.Dao.findByAddress(to, network)
 
-          logger.verbose(
-            'New confirmed incoming transaction',
-            llo({
-              network,
-              daoAddress: dao,
-              transactionHas: tx.hash,
-            }),
-          )
-        }
+    if (dao) {
+      logger.verbose(
+        'New pending incoming transaction',
+        llo({
+          network,
+          daoAddress: dao,
+          transactionHash,
+        }),
+      )
+
+      // wait 2 block confirmations
+      await utils.wait(config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME * 1000 * 2)
+      await BlockHandler.sendDaoMessages(dao)
+
+      logger.verbose(
+        'New confirmed incoming transaction',
+        llo({
+          network,
+          daoAddress: dao,
+          transactionHash,
+        }),
+      )
+    }
+  },
+
+  _checkIfDepositEvents: async (block: any, network: NetworksEnum) => {
+    const blockHex = '0x' + Number(block.number).toString(16)
+    const provider = ProviderModule.getProvider(network)
+    const topicHash = new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!
+    const filter = {
+      fromBlock: blockHex,
+      toBlock: blockHex,
+      topics: [topicHash],
+    }
+
+    const logs = await retryRequest(async () =>
+      BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getLogs(filter)),
+    )
+
+    if (!logs || logs.length === 0) {
+      return
+    }
+
+    await Promise.all(
+      logs.map(async (log: Log) => {
+        await BlockHandler.processReceiver(log.transactionHash, log.address, network)
       }),
     )
   },
