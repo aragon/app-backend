@@ -1,0 +1,42 @@
+name: App deploy new version
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set branch-based variable map
+        id: set-branch-var-map
+        run: |
+          BRANCH_NAME=${GITHUB_REF##*/}
+          case "$BRANCH_NAME" in
+            main)
+              echo "DEPLOY_ENV=prd" >> $GITHUB_ENV
+              ;;
+            staging)
+              echo "DEPLOY_ENV=stg" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "DEPLOY_ENV=dev" >> $GITHUB_ENV
+              ;;
+          esac
+      
+      - name: Load secrets
+        id: op-load-secret
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD }}
+          SERVER_USERNAME: op://apikeys_nonprod/backend2_server_${{env.DEPLOY_ENV}}/username
+          SERVER_URL: op://apikeys_nonprod/backend2_server_${{env.DEPLOY_ENV}}/URL
+          SERVER_CERT: op://apikeys_nonprod/backend2_server_${{env.DEPLOY_ENV}}/deploy_backend2_${{env.DEPLOY_ENV}}
+
+      - name: Print masked secret and branch variable map
+        run: |
+          
+          echo "Branch variable map: ${{ env.DEPLOY_ENV }}"

@@ -27,11 +27,17 @@ const customName = ICollectionNames.DaoPermission
   type: 1,
 })
 export default class DaoPermission extends Model {
+  @prop({ type: () => String, required: true })
+  public id!: string
+
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
   @prop({ type: () => Number, required: true })
   public blockNumber!: number
+
+  @prop({ type: () => String, required: true })
+  public transactionHash!: string
 
   @prop({ type: () => Number, required: true })
   public transactionIndex!: number

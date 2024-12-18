@@ -127,6 +127,13 @@ class BlockchainLogCrawler {
       const topicChunks = utils.chunkArray(this.crawlSetting.filter.topics, 4)
       let allLogs: Log[] = []
 
+      // const filters = topicChunks.map((topics: any) => ({
+      //   address: this.crawlSetting.filter.address,
+      //   topics,
+      //   fromBlock: currentBlock,
+      //   toBlock,
+      // }))
+
       for (const topics of topicChunks) {
         let success = false
         while (!success) {
@@ -222,6 +229,7 @@ class BlockchainLogCrawler {
 
         if (!event) {
           logger.error('Error parse log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
+          throw new Error('Error parse log in blockchainCrawler')
         }
 
         const info = Web3Helper.parseInfoLog(log, eventSetting.event, this.crawlParams.network)

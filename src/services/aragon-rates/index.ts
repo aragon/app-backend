@@ -6,7 +6,7 @@ import { FetchRates } from '@services/aragon-rates/fetchRates'
 
 const llo = logger.logMeta.bind(null, { service: 'service:RatesService' })
 
-const RatesService: IService = {
+const AragonRatesService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async function () {
@@ -38,4 +38,4 @@ const RatesService: IService = {
   },
 }
 
-export default RatesService
+export default AragonRatesService

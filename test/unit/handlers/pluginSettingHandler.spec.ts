@@ -2,12 +2,16 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { ITokenType, NetworksEnum } from '@types'
+import { IPluginInterfaceType, ISettingStatus, ITokenType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
+import { Multisig } from '@artifacts/Multisig'
+import { TokenVoting } from '@artifacts/TokenVoting'
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { ProxyToken } from '@modules/proxyToken'
+import DbOperations from '@models/utils/dbOperations'
 
 describe('Indexer: PluginSettingHandler', () => {
   let sandbox: SinonSandbox
@@ -17,6 +21,90 @@ describe('Indexer: PluginSettingHandler', () => {
 
   afterEach(async () => {
     sandbox?.restore()
+  })
+
+  describe('handleFromReceipt', () => {
+    it('should process multisig, voting, and spp settings logs', async () => {
+      const txReceipt = {
+        logs: [
+          { topics: ['0xmultisig'], data: '0x01' },
+          { topics: ['0xvoting'], data: '0x02' },
+          { topics: ['0xspp'], data: '0x03' },
+        ],
+      } as any
+
+      const info = {
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0x123',
+        blockNumber: 1,
+        transactionIndex: 1,
+        logIndex: 1,
+      }
+
+      const multisigLogsStub = sandbox
+        .stub(Web3Helper, 'findLogsByName')
+        .withArgs(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
+        .returns([{ parsed: 'multisigLog', txLog: 'tx1' }] as any)
+        .withArgs(txReceipt, 'VotingSettingsUpdated', TokenVoting.abi)
+        .returns([{ parsed: 'votingLog', txLog: 'tx2' }] as any)
+        .withArgs(txReceipt, 'StagesUpdated', StagedProposalProcessor.abi)
+        .returns([{ parsed: 'sppLog', txLog: 'tx3' }] as any)
+
+      const parseInfoStub = sandbox
+        .stub(Web3Helper, 'parseInfoLog')
+        .withArgs('tx1', 'MultisigSettingsUpdated', info.network)
+        .returns('multisigInfo' as any)
+        .withArgs('tx2', 'VotingSettingsUpdated', info.network)
+        .returns('votingInfo' as any)
+        .withArgs('tx3', 'StagesUpdated', info.network)
+        .returns('sppInfo' as any)
+
+      const multisigStub = sandbox.stub(PluginSettingHandler, 'multisigSettingsUpdated').resolves({
+        address: '0xmultisig-plugin',
+      } as any)
+      const votingStub = sandbox.stub(PluginSettingHandler, 'votingSettingsUpdated').resolves({
+        address: '0xvoting-plugin',
+      } as any)
+      const sppStub = sandbox.stub(PluginSettingHandler, 'sppSettingsUpdated').resolves({
+        address: '0xspp-plugin',
+      } as any)
+
+      const result = await PluginSettingHandler.handleFromReceipt(txReceipt as any, info as any)
+
+      expect(multisigLogsStub.calledOnce).to.be.true
+      expect(parseInfoStub.calledOnce).to.be.true
+
+      expect(multisigStub.calledOnceWith('multisigLog' as any, 'multisigInfo' as any)).to.be.true
+      expect(votingStub.calledOnceWith('votingLog' as any, 'votingInfo' as any)).to.be.true
+      expect(sppStub.calledOnceWith('sppLog' as any, 'sppInfo' as any)).to.be.true
+
+      expect(result).to.deep.equal([
+        { address: '0xmultisig-plugin' },
+        { address: '0xvoting-plugin' },
+        { address: '0xspp-plugin' },
+      ])
+    })
+
+    it('should return an empty array if no logs are found', async () => {
+      const txReceipt = { logs: [] } as any
+      const info = {
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0x123',
+        blockNumber: 1,
+      }
+
+      sandbox.stub(Web3Helper, 'findLogsByName').returns([]) // No logs
+      const multisigStub = sandbox.stub(PluginSettingHandler, 'multisigSettingsUpdated').resolves(undefined)
+      const votingStub = sandbox.stub(PluginSettingHandler, 'votingSettingsUpdated').resolves(undefined)
+      const sppStub = sandbox.stub(PluginSettingHandler, 'sppSettingsUpdated').resolves(undefined)
+
+      const result = await PluginSettingHandler.handleFromReceipt(txReceipt as any, info as any)
+
+      expect(result).to.deep.equal([])
+      expect(multisigStub.notCalled).to.be.true
+      expect(votingStub.notCalled).to.be.true
+      expect(sppStub.notCalled).to.be.true
+    })
   })
 
   describe('votingSettingsUpdated', () => {
@@ -65,13 +153,64 @@ describe('Indexer: PluginSettingHandler', () => {
         logIndex: 1,
         network: NetworksEnum.ethereumMainnet,
       }
-      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0x123',
+      })
       const stubFindExistingLog = sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
 
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
 
       expect(stubFindByAddress.calledOnce).to.be.true
       expect(stubFindExistingLog.calledOnce).to.be.true
+    })
+
+    it('should return if the plugin is not supported when votingSettingsUpdated', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 2n,
+          supportThreshold: 150n,
+          minParticipation: 222n,
+          minDuration: 1312312125n,
+          minProposerVotingPower: 10n,
+        },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        transactionIndex: 1,
+        logIndex: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.unknown,
+        tokenAddress: '0x123',
+      })
+      const stubFindExistingLog = sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      const stubFindActive = sandbox.stub(Models.Setting, 'findActive').resolves(false)
+      const stubWarn = sandbox.stub(logger, 'warn')
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.GovernanceERC20,
+      } as any)
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+      await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(stubFindByAddress.calledOnce).to.be.true
+      expect(stubFindExistingLog.calledOnce).to.be.false
+      expect(stubFindActive.calledOnce).to.be.false
+      expect(
+        stubFindActive.calledOnceWith({
+          network: NetworksEnum.ethereumMainnet,
+          pluginAddress: '0x456',
+        }),
+      ).to.be.false
+
+      expect(stubWarn.calledOnceWith('Plugin is not a token voting' as any)).to.be.true
+      expect(getBlockTimestampStub.calledOnce).to.be.false
+      expect(saveAndGetTokenStub.calledOnce).to.be.false
+      expect(isSupportedStub.calledOnce).to.be.false
     })
 
     it('should handle votingSettingsUpdated', async () => {
@@ -92,7 +231,10 @@ describe('Indexer: PluginSettingHandler', () => {
         logIndex: 1,
         network: NetworksEnum.ethereumMainnet,
       }
-      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0x123',
+      })
       const stubFindExistingLog = sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
       const stubFindActive = sandbox.stub(Models.Setting, 'findActive').resolves(false)
       const stubLogger = sandbox.stub(logger, 'verbose')
@@ -117,6 +259,85 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(getBlockTimestampStub.calledOnce).to.be.true
       expect(saveAndGetTokenStub.calledOnce).to.be.true
       expect(isSupportedStub.calledOnce).to.be.true
+    })
+
+    it('should update active plugin setting to inactive', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 2n,
+          supportThreshold: 150n,
+          minParticipation: 222n,
+          minDuration: 1312312125n,
+          minProposerVotingPower: 10n,
+        },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const activeSetting = { id: 'active-setting-id' }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xdao',
+        tokenAddress: '0xtoken',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      } as any)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      sandbox.stub(Models.Setting, 'findActive').resolves(activeSetting)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.GovernanceERC20 } as any)
+
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+
+      await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(createDocumentStub.calledOnce).to.be.true
+      expect(updateDocumentStub.calledOnce).to.be.true
+      expect(
+        updateDocumentStub.calledWith(
+          activeSetting,
+          { inactiveAtBlockNumber: 1, status: ISettingStatus.inactive },
+          { logId: 'active-setting-id', info },
+          'Update tokenVoting inactive plugin',
+        ),
+      ).to.be.true
+      expect(isSupportedStub.calledOnce).to.be.true
+    })
+
+    it('should not call isSupported if tokenDb is null', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 2n,
+          supportThreshold: 150n,
+          minParticipation: 222n,
+          minDuration: 1312312125n,
+          minProposerVotingPower: 10n,
+        },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ daoAddress: '0xdao', tokenAddress: '0xtoken' } as any)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      sandbox.stub(Models.Setting, 'findActive').resolves(false)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      sandbox.stub(DbOperations, 'createDocument').resolves()
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
+
+      await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(isSupportedStub.notCalled).to.be.true
     })
   })
 
@@ -212,6 +433,380 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(stubLogger.calledOnce).to.be.true
       expect(getBlockTimestampStub.calledOnce).to.be.true
       expect(stubIsSupported.calledOnce).to.be.true
+    })
+
+    it('should update active multisig setting to inactive and mark plugin as supported', async () => {
+      const parsedEvent = {
+        args: { onlyListed: true, minApprovals: 3n },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const activeSetting = { id: 'active-setting-id' }
+      const relatedPlugin = { daoAddress: '0xdao', isSupported: false, id: 'plugin-id' }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(relatedPlugin)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      sandbox.stub(Models.Setting, 'findActive').resolves(activeSetting)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+
+      await PluginSettingHandler.multisigSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(createDocumentStub.calledOnce).to.be.true
+      expect(updateDocumentStub.calledTwice).to.be.true
+      expect(
+        updateDocumentStub.firstCall.calledWith(
+          activeSetting,
+          { inactiveAtBlockNumber: 1, status: ISettingStatus.inactive },
+          { logId: 'active-setting-id', info },
+          'Update multisig inactive plugin',
+        ),
+      ).to.be.true
+
+      expect(
+        updateDocumentStub.secondCall.calledWith(
+          relatedPlugin,
+          { isSupported: true },
+          { logId: 'plugin-id', info },
+          'Update plugin isSupported',
+        ),
+      ).to.be.true
+    })
+  })
+
+  describe('sppSettingsUpdated', () => {
+    it('should return if the plugin is not found', async () => {
+      const parsedEvent = { args: { stages: [] } } as any
+      const info = { address: '0xplugin', network: 'ethereum' } as any
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const loggerStub = sandbox.stub(logger, 'warn')
+
+      const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
+
+      expect(loggerStub.calledOnceWith('Plugin not found' as any)).to.be.true
+      expect(result).to.be.undefined
+    })
+
+    it('should return if an existing log is found', async () => {
+      const parsedEvent = { args: { stages: [] } } as any
+      const info = { transactionHash: '0x123', address: '0xplugin', network: 'ethereum' } as any
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin' } as any)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
+
+      const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
+
+      expect(createDocumentStub.notCalled).to.be.true
+      expect(result).to.be.undefined
+    })
+
+    it('should handle metadata stage names and create a new setting', async () => {
+      const parsedEvent = {
+        args: {
+          stages: [
+            {
+              minAdvance: 10,
+              maxAdvance: 20,
+              approvalThreshold: 50,
+              vetoThreshold: 60,
+              cancelable: true,
+              plugins: [{ address: '0xsub-plugin', isManual: false, allowedBody: true, proposalType: 1 }],
+            },
+          ],
+        },
+      } as any
+
+      const info = {
+        address: '0xplugin',
+        transactionHash: '0x123',
+        blockNumber: 1,
+        network: 'ethereum',
+      } as any
+
+      const plugin = {
+        address: '0xplugin',
+        daoAddress: '0xdao',
+        subdomain: 'sub.plugin',
+        tokenAddress: '0xtoken',
+      } as any
+
+      const sppMetadata = {
+        stageNames: ['Stage 1'],
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findActive').resolves({ id: 'active-setting-id' })
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
+      sandbox.stub(Models.LogMetadata, 'getLatestMetadata').resolves(sppMetadata)
+
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'new-setting-id' })
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      const pairSppPluginsStub = sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+
+      const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
+
+      expect(createDocumentStub.args[0][3]).to.eq('New Setting - sppSettingsUpdated')
+      expect(updateDocumentStub.args[0][3]).to.eq('Update SPP inactive plugin')
+      expect(pairSppPluginsStub.calledOnce).to.be.true
+      expect(isSupportedStub.calledOnce).to.be.true
+      expect(result).to.deep.equal(plugin)
+    })
+  })
+
+  describe('formatSppSetings', () => {
+    it('should format SPP settings correctly', () => {
+      const inputStages = [
+        {
+          minAdvance: '10',
+          maxAdvance: '20',
+          stageDuration: '30',
+          approvalThreshold: '50',
+          vetoThreshold: '60',
+          cancelable: true,
+          editable: false,
+          plugins: [
+            { pluginAddress: '0xplugin1', isManual: true, allowedBody: true, resultType: '1' },
+            { pluginAddress: '0xplugin2', isManual: false, tryAdvance: false, proposalType: '2' },
+          ],
+        },
+        {
+          minAdvance: '15',
+          maxAdvance: '25',
+          voteDuration: '35',
+          approvalThreshold: '55',
+          vetoThreshold: '65',
+          cancelable: false,
+          editable: true,
+          plugins: [{ addr: '0xplugin3', isManual: true, resultType: '3' }],
+        },
+      ]
+
+      const result = PluginSettingHandler.formatSppSetings(inputStages)
+
+      expect(result).to.deep.equal([
+        {
+          stageIndex: 0,
+          minAdvance: 10,
+          maxAdvance: 20,
+          voteDuration: 30,
+          approvalThreshold: 50,
+          vetoThreshold: 60,
+          cancelable: true,
+          editable: false,
+          plugins: [
+            { address: '0xplugin1', isManual: true, allowedBody: true, proposalType: 1 },
+            { address: '0xplugin2', isManual: false, allowedBody: false, proposalType: 2 },
+          ],
+        },
+        {
+          stageIndex: 1,
+          minAdvance: 15,
+          maxAdvance: 25,
+          voteDuration: 35,
+          approvalThreshold: 55,
+          vetoThreshold: 65,
+          cancelable: false,
+          editable: true,
+          plugins: [{ address: '0xplugin3', isManual: true, allowedBody: undefined, proposalType: 3 }],
+        },
+      ])
+    })
+  })
+
+  describe('updateStageNamesOnSppSettings', () => {
+    it('should return if an existing log is found', async () => {
+      const plugin = { address: '0xplugin-address' } as any
+      const stageNames = ['Stage 1', 'Stage 2']
+      const info = { transactionHash: '0x123', network: 'ethereum' } as any
+
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves({} as any)
+      const findActiveStub = sandbox.stub(Models.Setting, 'findActive')
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await PluginSettingHandler.updateStageNamesOnSppSettings(plugin, stageNames, info)
+
+      expect(findActiveStub.notCalled).to.be.true
+      expect(createDocumentStub.notCalled).to.be.true
+      expect(updateDocumentStub.notCalled).to.be.true
+    })
+
+    it('should return if no active plugin setting is found', async () => {
+      const plugin = { address: '0xplugin-address' } as any
+      const stageNames = ['Stage 1', 'Stage 2']
+      const info = { transactionHash: '0x123', network: 'ethereum' } as any
+
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await PluginSettingHandler.updateStageNamesOnSppSettings(plugin, stageNames, info)
+
+      expect(createDocumentStub.notCalled).to.be.true
+      expect(updateDocumentStub.notCalled).to.be.true
+    })
+
+    it('should log an error if stage names length mismatches', async () => {
+      const plugin = { address: '0xplugin-address' } as any
+      const stageNames = ['Stage 1']
+      const info = { transactionHash: '0x123', network: 'ethereum' } as any
+
+      const activePluginSetting = {
+        stages: [{ stageIndex: 0 }, { stageIndex: 1 }],
+      }
+
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findActive').resolves(activePluginSetting)
+      const loggerStub = sandbox.stub(logger, 'error')
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await PluginSettingHandler.updateStageNamesOnSppSettings(plugin, stageNames, info)
+
+      expect(loggerStub.calledOnceWith('Stage names length mismatch' as any)).to.be.true
+      expect(createDocumentStub.notCalled).to.be.true
+      expect(updateDocumentStub.notCalled).to.be.true
+    })
+
+    it('should update stage names and mark active settings as inactive', async () => {
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'plugin.subdomain',
+      } as any
+
+      const stageNames = ['Stage 1', 'Stage 2']
+      const info = {
+        transactionHash: '0x123',
+        network: 'ethereum',
+        blockNumber: 100,
+      } as any
+
+      const activePluginSetting = {
+        id: 'active-setting-id',
+        stages: [{ stageIndex: 0 }, { stageIndex: 1 }],
+      }
+
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findActive').resolves(activePluginSetting)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+
+      await PluginSettingHandler.updateStageNamesOnSppSettings(plugin, stageNames, info)
+
+      expect(createDocumentStub.args[0][3]).to.eq('New Setting - sppSettingsUpdated')
+      expect(updateDocumentStub.args[0][3]).to.eq('Update SPP inactive plugin')
+    })
+  })
+
+  describe('pairSppPlugins', () => {
+    it('should update the main plugin and its sub-plugins', async () => {
+      const plugin = {
+        id: 'plugin-id',
+        address: '0xmain-plugin',
+        parentPlugin: null,
+      } as any
+
+      const settings = {
+        stages: [
+          {
+            stageIndex: 0,
+            plugins: [{ address: '0xsub-plugin1' }, { address: '0xsub-plugin2' }],
+          },
+          {
+            stageIndex: 1,
+            plugins: [{ address: '0xsub-plugin3' }],
+          },
+        ],
+      } as any
+
+      const info = { network: 'ethereum', blockNumber: 1 } as any
+
+      sandbox
+        .stub(Models.Plugin, 'findByAddress')
+        .onFirstCall()
+        .resolves({ id: 'sub-plugin1', interfaceType: 'spp' })
+        .onSecondCall()
+        .resolves({ id: 'sub-plugin2', interfaceType: 'spp' })
+        .onThirdCall()
+        .resolves({ id: 'sub-plugin3', interfaceType: 'custom' })
+
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+
+      await PluginSettingHandler.pairSppPlugins(plugin, settings, info)
+
+      expect(updateDocumentStub.firstCall.args[3]).to.equal('Update spp plugin')
+      expect(updateDocumentStub.secondCall.args[3]).to.equal('Update sub-plugin')
+      expect(updateDocumentStub.thirdCall.args[3]).to.deep.equal('Update sub-plugin')
+    })
+
+    it('should log an error if sub-plugin is not found', async () => {
+      const plugin = { address: '0xmain-plugin' } as any
+      const settings = {
+        stages: [
+          {
+            stageIndex: 0,
+            plugins: [{ address: '0xmissing-plugin' }],
+          },
+        ],
+      } as any
+
+      const info = { network: 'ethereum' } as any
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const loggerStub = sandbox.stub(logger, 'error')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await PluginSettingHandler.pairSppPlugins(plugin, settings, info)
+
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.firstCall.args[0]).to.equal('Plugin not found - pairSppPlugins')
+      expect(updateDocumentStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('isSupported', () => {
+    it('should update plugin to be supported', async () => {
+      const plugin = {
+        id: 'plugin-id',
+        isSupported: false,
+      } as any
+
+      const info = { blockNumber: 1 } as any
+
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+
+      await PluginSettingHandler.isSupported(plugin, info)
+
+      expect(updateDocumentStub.args[0][3]).to.equal
+    })
+
+    it('should not update plugin if already supported', async () => {
+      const plugin = {
+        id: 'plugin-id',
+        isSupported: true,
+      } as any
+
+      const info = { blockNumber: 1 } as any
+
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await PluginSettingHandler.isSupported(plugin, info)
+
+      expect(updateDocumentStub.notCalled).to.be.true
     })
   })
 })
