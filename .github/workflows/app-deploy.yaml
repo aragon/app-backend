@@ -78,7 +78,7 @@ jobs:
         run: |
           mkdir ~/.ssh/ -p
           chmod 700 ~/.ssh/
-          op read ${{ env.SERVER_CERT }} > ~/.ssh/cert
+          op read ${{ env.SERVER_CERT }} > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           sha256sum ~/.ssh/id_rsa
           
