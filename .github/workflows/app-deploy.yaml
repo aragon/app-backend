@@ -137,6 +137,7 @@ jobs:
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/cert
           ssh-add -l
-          ssh -o StrictHostKeyChecking=no backend2@dev.backend.aragon.in
+          echo 'ssh -i ~/.ssh/cert -o StrictHostKeyChecking=no backend2@dev.backend.aragon.in' |sha256sum
+          ssh -i ~/.ssh/cert -o StrictHostKeyChecking=no backend2@dev.backend.aragon.in
           bash app-backend/.github/workflows/deployment/deployment.sh -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
           
