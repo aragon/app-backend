@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import VoteInfo from '@services/aragon-dao/voteInfo'
+import { VoteInfo } from '@services/aragon-dao/voteInfo'
 import { ProposalList } from '@test/mock/fakeProposal'
 import { PluginList } from '@test/mock/fakePlugins'
 import { Models } from '@dbModels'
