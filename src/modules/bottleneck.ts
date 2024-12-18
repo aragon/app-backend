@@ -1,0 +1,96 @@
+import Bottleneck from 'bottleneck'
+import config from '@config'
+import { type NetworksEnum } from '@types'
+
+class BottleneckModule {
+  static nodeLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static transferLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static coinGeckoLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static covalentLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static fourBytesLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static alchemyENSLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static alchemyBalanceLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static etherScanLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+
+  static getNodeLimiter(network: NetworksEnum) {
+    if (!this.nodeLimiters[network]) {
+      this.nodeLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.NODE_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.NODE_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.nodeLimiters[network]
+  }
+
+  static getNodeTransferLimiter(network: NetworksEnum) {
+    if (!this.transferLimiters[network]) {
+      this.transferLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.NODE_TRANSFER_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.NODE_TRANSFER_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.transferLimiters[network]
+  }
+
+  static getCoinGeckoLimiter(network: NetworksEnum) {
+    if (!this.coinGeckoLimiters[network]) {
+      this.coinGeckoLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.COINGECKO_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.COINGECKO_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.coinGeckoLimiters[network]
+  }
+
+  static getCovalentLimiter(network: NetworksEnum) {
+    if (!this.covalentLimiters[network]) {
+      this.covalentLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.COVALENT_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.COVALENT_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.covalentLimiters[network]
+  }
+
+  static get4ByteLimiter(network: NetworksEnum) {
+    if (!this.fourBytesLimiters[network]) {
+      this.fourBytesLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.FOUR_BYTE_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.FOUR_BYTE_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.fourBytesLimiters[network]
+  }
+
+  static getAlchemyENSLimiter(network: NetworksEnum) {
+    if (!this.alchemyENSLimiters[network]) {
+      this.alchemyENSLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.ALCHEMY_ENS_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.ALCHEMY_ENS_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.alchemyENSLimiters[network]
+  }
+
+  static getAlchemyBalanceLimiter(network: NetworksEnum) {
+    if (!this.alchemyBalanceLimiters[network]) {
+      this.alchemyBalanceLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.ALCHEMY_BALANCE_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.ALCHEMY_BALANCE_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.alchemyBalanceLimiters[network]
+  }
+
+  static getEtherScanLimiter(network: NetworksEnum) {
+    if (!this.etherScanLimiters[network]) {
+      this.etherScanLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.ETHERSCAN_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.ETHERSCAN_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.etherScanLimiters[network]
+  }
+}
+
+export default BottleneckModule

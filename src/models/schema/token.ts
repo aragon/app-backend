@@ -1,0 +1,179 @@
+import { index, modelOptions, prop } from '@typegoose/typegoose'
+import {
+  HexAddress,
+  ICollectionNames,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type IToken,
+  type ITokenExtraParams,
+  type ITokenIdParams,
+  type ITokenResponse,
+  ITokenType,
+  NetworksEnum,
+} from '@types'
+import { Model, type SaveOptions } from 'mongoose'
+import * as _ from 'lodash'
+import ModelUtils, { utcDateProp } from '@models/utils/models'
+import { assert } from '@errors'
+
+const customName = ICollectionNames.Token
+
+@modelOptions({
+  schemaOptions: {
+    id: false,
+    timestamps: true,
+    collection: customName,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
+  options: {
+    customName,
+  },
+})
+@index({
+  address: 1,
+  network: 1,
+})
+export default class Token extends Model {
+  @prop({ type: () => String, required: true, unique: true })
+  public id!: string
+
+  @prop({ type: () => String, enum: NetworksEnum, required: true })
+  public network!: NetworksEnum
+
+  @prop({ type: () => String, default: null })
+  public transactionHash!: HexAddress | null
+
+  @prop({ type: () => Number })
+  public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
+
+  @prop({ type: () => String, enum: ITokenType, required: true })
+  public type!: ITokenType
+
+  @prop({ type: () => String, required: true })
+  public address!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public implementationAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public logo!: string
+
+  @prop({ type: () => Boolean, default: false })
+  public skipFetchRate!: boolean
+
+  @prop({ type: () => String, default: null })
+  public name!: string
+
+  @prop({ type: () => String, default: null, uppercase: true })
+  public symbol!: string
+
+  @prop({ type: () => Number, default: 18 })
+  public decimals!: number
+
+  @prop({ type: () => Number, default: 0 })
+  public holders!: number
+
+  @prop({ type: () => String, default: '0' })
+  public totalSupply!: string
+
+  @prop({ type: () => String, default: '0' })
+  public priceChangeOnDayUsd!: string
+
+  @prop({ type: () => String, default: '0' })
+  public priceUsd!: string
+
+  @utcDateProp({ default: null })
+  public lastUpdatedAt!: Date
+
+  static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
+    if (!rawData.id) {
+      assert(!!rawData.address, 'address is required')
+      assert(!!rawData.network, 'network is required')
+      rawData.id = this.getEntityId({ address: rawData?.address!, network: rawData?.network! })
+    }
+    const data = new this(rawData)
+    return data.save(tOpts)
+  }
+
+  static getEntityId(params: ITokenIdParams) {
+    const entityId = `${params.address}-${params.network}`
+    return entityId
+  }
+
+  static async findExistingLog(params: ITokenIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
+    return await this.findByEntityId(entityId, tOpts)
+  }
+
+  static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
+    return await this.findOne({ id: entityId }, tOpts)
+  }
+
+  static async findByTokenAddressAndNetwork(address: HexAddress, network: NetworksEnum) {
+    return await this.findOne({ address, network })
+  }
+
+  static async findWithPagination({
+    extraParams = {},
+    paginationParams = {},
+  }: {
+    extraParams?: ITokenExtraParams
+    paginationParams?: IPaginationParams
+  }): Promise<IPaginatedResult<ITokenResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([_, v]) => v !== undefined))
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, ['network', 'address', 'implementationAddress', 'name', 'symbol']),
+      ...dynamicFilter,
+    }
+
+    const currentPage = request.skip / request.limit + 1
+    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data: data as any,
+    }
+  }
+
+  async update(params: Partial<Token>, tOpts?: SaveOptions) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (this.schema.tree[key]) {
+        if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
+          const parsedObj = this.toObject()
+
+          if (!_.isEqual(parsedObj[key], value)) {
+            this[key] = value
+          }
+        }
+      }
+    })
+
+    return this.save(tOpts)
+  }
+
+  async reload(tOpts?: SaveOptions) {
+    return this.model(customName).findById(this._id, tOpts)
+  }
+
+  filterKeys() {
+    const obj = this.toObject()
+    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'skipFetchRate', 'updatedAt')
+    return filtered as IToken
+  }
+}

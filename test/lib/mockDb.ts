@@ -12,7 +12,7 @@ const MockDB = {
   mongoOptions: {
     dbName: `${config.MONGO_DB.NAME}`,
     retryWrites: false,
-    autoIndex: false,
+    autoIndex: true,
   },
 
   connect: async () => {

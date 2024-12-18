@@ -1,0 +1,195 @@
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import { expect } from 'chai'
+import logger from '@logger'
+import { NetworksEnum } from '@types'
+import proxyquire from 'proxyquire'
+
+describe('Helpers: GovernanceErc20', () => {
+  let sandbox: SinonSandbox
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+  })
+
+  afterEach(() => {
+    sandbox && sandbox.restore()
+  })
+
+  describe('getPastVotes', () => {
+    it('Should make a successful getPastVotes call', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const getPastVotesStub = sandbox.stub().resolves(1)
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { getPastVotes: getPastVotesStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, NetworksEnum.ethereumMainnet)
+      expect(result).to.eq(1)
+    })
+
+    it('should handle errors in getPastVotes', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const getPastVotesStub = sandbox.stub().rejects(expectedResult)
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { getPastVotes: getPastVotesStub }
+          },
+        },
+      })
+
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, NetworksEnum.ethereumMainnet)
+      expect(result).to.eq('0')
+      expect(loggerStub.calledTwice).to.be.true
+      expect(loggerStub.calledWith('Error getting past votes - blockNumber' as any)).to.be.true
+      expect(loggerStub.calledWith('Error getting past votes - blockTimestamp' as any)).to.be.true
+    })
+  })
+
+  describe('getVotes', () => {
+    it('Should make a successful getVotes call', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const getVotesStub = sandbox.stub().resolves(1)
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { getVotes: getVotesStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGoveranceErc20Helper.getVotes('0x123', '0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq(1)
+    })
+
+    it('should handle errors in getVotes', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const getVotesStub = sandbox.stub().rejects(expectedResult)
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { getVotes: getVotesStub }
+          },
+        },
+      })
+
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await MockedGoveranceErc20Helper.getVotes('0x123', '0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq('0')
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('Error getting votes' as any)).to.be.true
+    })
+  })
+
+  describe('getPastTotalSupply', () => {
+    it('Should make a successful getPastTotalSupply call', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const getPastTotalSupplyStub = sandbox.stub().resolves(1)
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { getPastTotalSupply: getPastTotalSupplyStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGoveranceErc20Helper.getPastTotalSupply(1, '0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq(1)
+    })
+
+    it('should handle errors in getPastTotalSupply', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const getPastTotalSupplyStub = sandbox.stub().rejects(expectedResult)
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { getPastTotalSupply: getPastTotalSupplyStub }
+          },
+        },
+      })
+
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await MockedGoveranceErc20Helper.getPastTotalSupply(1, '0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq('0')
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('Error getting pastTotalSupply' as any)).to.be.true
+    })
+  })
+
+  describe('getDelegates', () => {
+    it('Should make a successful getDelegates call', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const getDelegatesStub = sandbox.stub().resolves(1)
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { delegates: getDelegatesStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGoveranceErc20Helper.getDelegates('0x123', '0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq(1)
+    })
+
+    it('should handle errors in getDelegates', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const getDelegatesStub = sandbox.stub().rejects(expectedResult)
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { delegates: getDelegatesStub }
+          },
+        },
+      })
+
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await MockedGoveranceErc20Helper.getDelegates('0x123', '0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq('0')
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('Error getting delegates' as any)).to.be.true
+    })
+  })
+})

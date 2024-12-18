@@ -1,0 +1,502 @@
+import { Models } from '@dbModels'
+import logger from '@logger'
+import {
+  type HexAddress,
+  IEventLogPluginType,
+  IPluginInterfaceType,
+  IPluginRawStatus,
+  IPluginStatus,
+  type IQueryGetPlugin,
+  type NetworksEnum,
+} from '@types'
+import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
+import type Plugin from '@models/schema/plugin'
+import Web3Helper from '@helpers/web3'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
+import DbOperations from '@models/utils/dbOperations'
+import PluginDetector from '@helpers/pluginDetector'
+
+const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PluginHandler' })
+
+export const PluginHandler = {
+  async _queryGetPlugin({
+    daoAddress,
+    pluginAddress,
+    network,
+    events = [],
+  }: {
+    daoAddress: HexAddress
+    pluginAddress: HexAddress
+    network: NetworksEnum
+    events: IEventLogPluginType[]
+  }): Promise<IQueryGetPlugin | undefined> {
+    const filter: any = { event: { $in: events } }
+
+    if (pluginAddress && events[0] !== IEventLogPluginType.UninstallationPrepared) {
+      filter.pluginAddress = pluginAddress
+    }
+    if (daoAddress) {
+      filter.daoAddress = daoAddress
+    }
+    if (network) {
+      filter.network = network
+    }
+
+    const query = [
+      {
+        $match: filter,
+      },
+      {
+        $sort: {
+          preparedSetupId: 1,
+          event: 1,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            preparedSetupId: '$preparedSetupId',
+            network: '$network',
+          },
+          events: {
+            $push: {
+              eventType: '$event',
+              document: '$$ROOT',
+            },
+          },
+        },
+      },
+      {
+        $match: {
+          $expr: {
+            $gte: [{ $size: '$events' }, 2],
+          },
+        },
+      },
+      {
+        $project: {
+          mergedEvent: {
+            $reduce: {
+              input: '$events.document',
+              initialValue: {},
+              in: {
+                $mergeObjects: [
+                  '$$value',
+                  {
+                    eventCombination: {
+                      $concat: [{ $ifNull: ['$$this.event', ''] }, '|', { $ifNull: ['$$value.event', ''] }],
+                    },
+                    event: '$$this.event',
+                    transactionHash: { $ifNull: ['$$value.transactionHash', '$$this.transactionHash'] },
+                    blockNumber: { $ifNull: ['$$value.blockNumber', '$$this.blockNumber'] },
+                    network: { $ifNull: ['$$this.network', '$$value.network'] },
+                    address: { $ifNull: ['$$this.pluginAddress', '$$value.pluginAddress'] },
+                    daoAddress: { $ifNull: ['$$this.daoAddress', '$$value.daoAddress'] },
+                    preparedSetupId: { $ifNull: ['$$this.preparedSetupId', '$$value.preparedSetupId'] },
+                    appliedSetupId: { $ifNull: ['$$this.appliedSetupId', '$$value.appliedSetupId'] },
+                    pluginSetupRepoAddress: { $ifNull: ['$$this.pluginSetupRepo', '$$value.pluginSetupRepo'] },
+                    sender: { $ifNull: ['$$this.sender', '$$value.sender'] },
+                    release: { $ifNull: ['$$this.release', '$$value.release'] },
+                    build: { $ifNull: ['$$this.build', '$$value.build'] },
+                    tokenAddress: { $ifNull: ['$$this.tokenAddress', '$$value.tokenAddress'] },
+                    permissions: {
+                      $cond: {
+                        if: {
+                          $or: [
+                            {
+                              $gt: [
+                                { $size: { $ifNull: ['$$this.permissions', []] } },
+                                { $size: { $ifNull: ['$$value.permissions', []] } },
+                              ],
+                            },
+                            { $eq: [{ $size: { $ifNull: ['$$value.permissions', []] } }, 0] },
+                          ],
+                        },
+                        then: '$$this.permissions',
+                        else: '$$value.permissions',
+                      },
+                    },
+                    action: {
+                      $switch: {
+                        branches: [
+                          {
+                            case: {
+                              $and: [
+                                { $in: ['InstallationPrepared', ['$$this.event']] },
+                                { $in: ['InstallationApplied', ['$$value.event']] },
+                              ],
+                            },
+                            then: IPluginRawStatus.install,
+                          },
+                          {
+                            case: {
+                              $and: [
+                                { $in: ['UpdatePrepared', ['$$this.event']] },
+                                { $in: ['UpdateApplied', ['$$value.event']] },
+                              ],
+                            },
+                            then: IPluginRawStatus.update,
+                          },
+                          {
+                            case: {
+                              $and: [
+                                { $in: ['UninstallationPrepared', ['$$this.event']] },
+                                { $in: ['UninstallationApplied', ['$$value.event']] },
+                              ],
+                            },
+                            then: IPluginRawStatus.uninstall,
+                          },
+                        ],
+                        default: null,
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+          eventType: { $arrayElemAt: ['$events.eventType', 1] },
+        },
+      },
+      {
+        $replaceRoot: { newRoot: '$mergedEvent' },
+      },
+      {
+        $match: { action: { $ne: null } },
+      },
+      AggregationQueryHelper.pluginRepo('$pluginSetupRepoAddress', '$network'),
+      {
+        $unwind: {
+          path: '$pluginRepo',
+        },
+      },
+      {
+        $project: {
+          action: 1,
+          transactionHash: 1,
+          blockNumber: 1,
+          network: 1,
+          address: 1,
+          daoAddress: 1,
+          tokenAddress: 1,
+          preparedSetupId: 1,
+          appliedSetupId: 1,
+          pluginSetupRepoAddress: 1,
+          sender: 1,
+          release: 1,
+          build: 1,
+          permissions: 1,
+          subdomain: '$pluginRepo.subdomain',
+        },
+      },
+
+      // uninstall
+      //        {
+      //            $group: {
+      //                _id: {
+      //                    address: "$address",
+      //                    network: "$network",
+      //                },
+      //                documents: { $push: "$$ROOT" },
+      //                hasUninstall: {
+      //                    $max: {
+      //                        $cond: [{ $eq: ["$action", "uninstall"] }, 1, 0],
+      //                    },
+      //                },
+      //                maxBlockNumber: { $max: "$blockNumber" },
+      //            },
+      //        },
+      //        {
+      //            $match: {
+      //                hasUninstall: 0, // Exclude groups that have an uninstall action
+      //            },
+      //        },
+      //        {
+      //            $project: {
+      //                document: {
+      //                    $filter: {
+      //                        input: "$documents",
+      //                        as: "doc",
+      //                        cond: {
+      //                            $eq: ["$$doc.blockNumber", "$maxBlockNumber"],
+      //                        },
+      //                    },
+      //                },
+      //            },
+      //        },
+      //        {
+      //            $unwind: "$document",
+      //        },
+      //        {
+      //            $replaceRoot: {
+      //                newRoot: "$document",
+      //            },
+      //        },
+    ]
+    const plugins = await Models.LogPluginSetupProcessor.aggregate(query)
+
+    if (!plugins || plugins.length === 0) {
+      return
+    }
+
+    return plugins[0]
+  },
+
+  _createPlugin: async (plugin: IQueryGetPlugin): Promise<Plugin | undefined> => {
+    const existingLog = await Models.Plugin.findExistingLog({
+      network: plugin.network,
+      transactionHash: plugin.transactionHash,
+      address: plugin.address,
+    })
+
+    if (existingLog) {
+      return
+    }
+
+    const document: Partial<Plugin> = {
+      status: IPluginStatus.installed,
+      network: plugin.network,
+      blockNumber: plugin.blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(plugin.blockNumber, plugin.network)) || undefined,
+      transactionHash: plugin.transactionHash,
+      address: plugin.address,
+      daoAddress: plugin.daoAddress,
+      pluginSetupRepoAddress: plugin.pluginSetupRepoAddress,
+      sender: plugin.sender,
+      release: plugin.release,
+      build: plugin.build,
+      permissions: plugin.permissions,
+      subdomain: plugin.subdomain,
+      tokenAddress: plugin.tokenAddress,
+    }
+
+    const pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)
+    document.interfaceType = pluginInfo?.type
+
+    if (document.interfaceType === IPluginInterfaceType.tokenVoting) {
+      // maybe the token is not a erc20 governance
+      document.tokenAddress = plugin.tokenAddress
+    }
+
+    if (pluginInfo?.implementationAddress) {
+      document.implementationAddress = pluginInfo.implementationAddress
+    }
+
+    if (document.interfaceType === IPluginInterfaceType.spp) {
+      document.isProcess = true
+      document.isBody = false
+      document.isSubPlugin = false
+    } else {
+      document.isProcess = true
+      document.isBody = true
+      document.isSubPlugin = false
+    }
+
+    const info = {
+      network: plugin.network,
+      transactionHash: plugin.transactionHash,
+      address: plugin.address,
+    }
+    return await DbOperations.createDocument(Models.Plugin, document, info, 'New Create Plugin', llo)
+  },
+
+  preInstallPlugin: async (pluginLog: LogPluginSetupProcessor) => {
+    const dao = await Models.Dao.findByAddress(pluginLog.daoAddress, pluginLog.network)
+    if (!dao) {
+      logger.warn('Create Plugin - dao not found', llo({ pluginLog }))
+      return
+    }
+
+    const existingLog = await Models.Plugin.findExistingLog({
+      network: pluginLog.network,
+      transactionHash: pluginLog.transactionHash,
+      address: pluginLog.pluginAddress,
+    })
+
+    if (existingLog) {
+      return
+    }
+
+    const pluginRepo = await Models.PluginRepo.findSubdomain(pluginLog.pluginSetupRepo, pluginLog.network)
+
+    const document: Partial<Plugin> = {
+      status: IPluginStatus.preInstall,
+      network: pluginLog.network,
+      blockNumber: pluginLog.blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(pluginLog.blockNumber, pluginLog.network)) || undefined,
+      transactionHash: pluginLog.transactionHash,
+      address: pluginLog.pluginAddress,
+      daoAddress: pluginLog.daoAddress,
+      pluginSetupRepoAddress: pluginLog.pluginSetupRepo,
+      sender: pluginLog.sender,
+      release: pluginLog.release,
+      build: pluginLog.build,
+      permissions: pluginLog.permissions,
+      subdomain: pluginRepo?.subdomain,
+    }
+
+    const pluginInfo = await PluginDetector.detectPluginType(pluginLog.pluginAddress, pluginLog.network)
+    document.interfaceType = pluginInfo?.type
+
+    if (document.interfaceType === IPluginInterfaceType.tokenVoting) {
+      document.tokenAddress = pluginLog.tokenAddress
+    }
+
+    if (pluginInfo?.implementationAddress) {
+      document.implementationAddress = pluginInfo.implementationAddress
+    }
+
+    if (document.interfaceType === IPluginInterfaceType.spp) {
+      document.isProcess = true
+      document.isBody = false
+      document.isSubPlugin = false
+    } else {
+      document.isProcess = true
+      document.isBody = true
+      document.isSubPlugin = false
+    }
+
+    const info = {
+      network: pluginLog.network,
+      transactionHash: pluginLog.transactionHash,
+      address: pluginLog.pluginAddress,
+    }
+
+    await DbOperations.createDocument(Models.Plugin, document, info, 'New PreInstall Plugin', llo)
+  },
+
+  installPlugin: async (pluginLog: LogPluginSetupProcessor) => {
+    const rawPlugin = await PluginHandler._queryGetPlugin({
+      daoAddress: pluginLog.daoAddress,
+      pluginAddress: pluginLog.pluginAddress,
+      network: pluginLog.network,
+      ...{ events: [IEventLogPluginType.InstallationPrepared, IEventLogPluginType.InstallationApplied] },
+    })
+
+    const preInstalledPlugin = await Models.Plugin.findOne({
+      network: pluginLog.network,
+      address: pluginLog.pluginAddress,
+      status: IPluginStatus.preInstall,
+    })
+
+    if (!preInstalledPlugin) {
+      logger.error('PreInstalledPlugin not found', llo({ pluginLog }))
+      return
+    }
+
+    const document = {
+      status: IPluginStatus.installed,
+      pluginSetupRepoAddress: rawPlugin?.pluginSetupRepoAddress,
+    }
+
+    await DbOperations.updateDocument(
+      preInstalledPlugin,
+      document,
+      { logId: preInstalledPlugin.id },
+      'Installed plugin',
+      llo,
+    )
+  },
+
+  updatePlugin: async (pluginLog: LogPluginSetupProcessor) => {
+    const rawPlugin = await PluginHandler._queryGetPlugin({
+      daoAddress: pluginLog.daoAddress,
+      pluginAddress: pluginLog.pluginAddress,
+      network: pluginLog.network,
+      ...{ events: [IEventLogPluginType.UpdatePrepared, IEventLogPluginType.UpdateApplied] },
+    })
+
+    if (!rawPlugin) {
+      logger.warn('Update Plugin event not found', llo({ pluginLog }))
+      return
+    }
+
+    // we should be able to find out the plugin that was updated
+    // newPlugin.release > actualPlugin.release | newPlugin.build > actualPlugin.build
+    const existingPlugin = await Models.Plugin.findOne({
+      network: pluginLog.network,
+      daoAddress: rawPlugin.daoAddress,
+      pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+      address: rawPlugin.address,
+      status: IPluginStatus.installed,
+    })
+
+    const plugin = await PluginHandler._createPlugin(rawPlugin as any)
+    if (!plugin) return
+
+    if (existingPlugin) {
+      const document = {
+        status: IPluginStatus.deprecated,
+        uninstalled: {
+          status: true,
+          blockNumber: plugin.blockNumber,
+          blockTimestamp: plugin.blockTimestamp,
+          transactionHash: plugin.transactionHash,
+        },
+      }
+
+      await DbOperations.updateDocument(existingPlugin, document, { logId: existingPlugin.id }, 'Update plugin', llo)
+
+      /**
+       * After the plugin is updated we have to copy the existing plugin token.
+       * We need to be sure that both updated and current plugin is token voting
+       */
+      if (
+        plugin.interfaceType === IPluginInterfaceType.tokenVoting &&
+        existingPlugin.interfaceType === IPluginInterfaceType.tokenVoting &&
+        !plugin.tokenAddress
+      ) {
+        await DbOperations.updateDocument(
+          plugin,
+          { tokenAddress: existingPlugin.tokenAddress },
+          { logId: plugin.id },
+          'Add plugin token address during updateApplied',
+          llo,
+        )
+      }
+    }
+  },
+
+  uninstallPlugin: async (pluginLog: LogPluginSetupProcessor) => {
+    const plugin = await PluginHandler._queryGetPlugin({
+      daoAddress: pluginLog.daoAddress,
+      pluginAddress: pluginLog.pluginAddress,
+      network: pluginLog.network,
+      ...{ events: [IEventLogPluginType.UninstallationPrepared, IEventLogPluginType.UninstallationApplied] },
+    })
+
+    if (!plugin) {
+      logger.warn('Uninstall Plugin event not found', llo({ pluginLog }))
+      return
+    }
+
+    const existingPlugin = await Models.Plugin.findOne({
+      network: pluginLog.network,
+      daoAddress: plugin.daoAddress,
+      pluginSetupRepoAddress: plugin.pluginSetupRepoAddress,
+      address: plugin.address,
+      status: IPluginStatus.installed,
+    })
+
+    if (!existingPlugin) return
+
+    const blockTimestamp = (await Web3Helper.getBlockTimestamp(plugin.blockNumber, plugin.network)) || undefined
+    const updatePlugin: Partial<Plugin> = {
+      status: IPluginStatus.uninstalled,
+      uninstalled: {
+        status: true,
+        transactionHash: plugin.transactionHash,
+        blockNumber: plugin.blockNumber,
+        blockTimestamp: blockTimestamp!,
+      },
+    }
+
+    return await DbOperations.updateDocument(
+      existingPlugin,
+      updatePlugin,
+      { logId: existingPlugin.id },
+      'Uninstall plugin',
+      llo,
+    )
+  },
+}

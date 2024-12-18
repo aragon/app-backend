@@ -1,72 +1,109 @@
-import _ from 'lodash'
-import { type ItxOpts } from '@types'
-import dayjs from 'dayjs'
+import { type RouterContext } from '@koa/router'
+import { type IPaginatedResult, type IPaginationParams } from '@types'
+import dayjs from '@helpers/dayjs'
+import { prop } from '@typegoose/typegoose'
+import { getAddress } from 'ethers'
+
+export function utcDateProp(options = {}) {
+  return prop({
+    ...options,
+    type: () => Date,
+    // Custom getter
+    get: (val: Date | null) => {
+      if (val) return dayjs.utc(val).toDate()
+      return val
+    },
+    // Custom setter
+    set: (val: Date | string | null) => {
+      if (val) return dayjs.utc(val).toDate()
+      return val
+    },
+  })
+}
 
 const ModelUtils = {
-  parseParams(opts: ItxOpts, searchBy: string[] = []) {
-    const queryParams = _.pick(opts || {}, 'search', 'fromDate', 'toDate')
-    const params = _.defaults(queryParams, {
-      search: undefined,
-      fromDate: undefined,
-      toDate: undefined,
-    })
+  paginateAndSort({ pageSize = 10, page = 1, sort = 'createdAt', order = 'desc' }: IPaginationParams = {}) {
+    const paginationAndSorting: any = {}
 
-    const request: any = {}
+    // Pagination
+    paginationAndSorting.limit = Math.max(1, parseInt(String(pageSize)))
+    paginationAndSorting.skip = (page - 1) * paginationAndSorting.limit
 
-    if (params.search) {
-      // TODO: maybe we can also search by _id model, first should check if its valid mongoId
-      request.$or = searchBy.map(prop => ({
-        [prop]: { $regex: `^${params.search}`, $options: 'i' },
+    // Sorting
+    paginationAndSorting.sort = { [sort]: order === 'desc' ? -1 : 1 }
+
+    return paginationAndSorting
+  },
+
+  createFilter(
+    { search, startDateProp = 'startDate', endDateProp = 'endDate', startDate, endDate }: IPaginationParams = {},
+    searchBy: string[] = [],
+  ) {
+    const filter: any = {}
+
+    // Search functionality using regex
+    if (search && searchBy.length > 0) {
+      filter.$or = searchBy.map(field => ({
+        [field]: { $regex: `^${search}`, $options: 'i' }, // Starts with search term, case-insensitive
       }))
     }
 
-    if (params.fromDate && !params.toDate) {
-      request.createdAt = { $gte: dayjs(opts.fromDate).toISOString() }
-    }
+    // Date range filtering with dayjs and UTC
+    if (startDate || endDate) {
+      if (startDate) {
+        filter[startDateProp] = filter[startDateProp] || {}
+        filter[startDateProp]['$gte'] = Number(startDate) // startDate in seconds
+      }
 
-    if (opts.toDate && !opts.fromDate) {
-      request.createdAt = { $lte: dayjs(opts.toDate).toISOString() }
-    }
-
-    if (opts.toDate && opts.fromDate) {
-      request.createdAt = {
-        $gte: dayjs(opts.fromDate).toISOString(),
-        $lte: dayjs(opts.toDate).toISOString(),
+      if (endDate) {
+        filter[endDateProp] = filter[endDateProp] || {}
+        filter[endDateProp]['$lte'] = Number(endDate) // endDate in seconds
       }
     }
 
-    return request
+    return filter
   },
 
-  requestPaginate(opts: ItxOpts) {
-    const paginateParams = _.pick(
-      opts || {},
-      'limit',
-      'offset',
-      'orderProp',
-      'order',
-    )
-    const params = _.defaults(paginateParams, {
-      limit: 15,
-      offset: 1,
-      orderProp: 'createdAt',
-      order: 'desc',
-    })
+  parsePaginationParams(
+    ctx: RouterContext,
+    defaultParams: {
+      defaultOrder?: 'asc' | 'desc'
+      defaultSort?: string
+    } = {},
+  ): IPaginationParams {
+    const { defaultOrder = 'desc', defaultSort = 'startDate' } = defaultParams
+    const { startDateProp, endDateProp } = ctx.query as any
 
-    const request: any = {}
-
-    if (params.limit) {
-      request.limit = parseInt(String(params.limit))
-    }
-    if (params.offset) {
-      request.skip =
-        parseInt(String(params.limit)) * (parseInt(String(params.offset)) - 1)
-    }
-    if (params.order || params.orderProp) {
-      request.sort = { [params.orderProp]: params.order === 'desc' ? -1 : 1 }
+    let searchAddress = ctx.query.search as string
+    if (searchAddress?.startsWith('0x')) {
+      try {
+        searchAddress = getAddress(searchAddress)
+      } catch (_) {}
     }
 
-    return request
+    return {
+      search: searchAddress,
+      startDateProp,
+      endDateProp,
+      startDate: ctx.query.startDate ? Number(ctx.query.startDate) : undefined,
+      endDate: ctx.query.endDate ? Number(ctx.query.endDate) : undefined,
+      pageSize: Number(ctx.query.pageSize ?? 10),
+      page: Number(ctx.query.page ?? 1),
+      sort: (ctx.query.sort as string) ?? defaultSort,
+      order: (ctx.query.order as 'asc' | 'desc') ?? defaultOrder,
+    }
+  },
+
+  paginateEmptyResponse(pageSize: number): IPaginatedResult<any> {
+    return {
+      metadata: {
+        page: 1,
+        pageSize,
+        totalRecords: 0,
+        totalPages: 1,
+      },
+      data: [],
+    }
   },
 }
 

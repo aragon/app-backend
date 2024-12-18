@@ -6,7 +6,7 @@ import { getModelForClass } from '@typegoose/typegoose'
 
 const llo = logger.logMeta.bind(null, { service: 'db:setMongoModels' })
 
-export const setMongoModels = async(): Promise<any> => {
+export const setMongoModels = async (): Promise<any> => {
   const schemas: IMongoModel | any = {}
 
   const filePath = path.join(__dirname, '..', 'schema/')
@@ -17,14 +17,9 @@ export const setMongoModels = async(): Promise<any> => {
       try {
         const modulePath = path.join(filePath, filename)
         const importedModule = require(modulePath) // eslint-disable-line @typescript-eslint/no-var-requires
-        schemas[importedModule.default.name] = getModelForClass(
-          importedModule.default,
-        )
+        schemas[importedModule.default.name] = getModelForClass(importedModule.default)
       } catch (error) {
-        logger.error(
-          `Error loading Mongo model from file ${filename}:`,
-          llo({ error }),
-        )
+        logger.error(`Error loading Mongo model from file ${filename}:`, llo({ error }))
       }
     }
   }

@@ -1,0 +1,322 @@
+import logger from '@logger'
+import { Interface, type Log, type WebSocketProvider } from 'ethers'
+import { type ICrawlParam, type ICrawlSetting, type NetworksEnum } from '@types'
+import BottleneckModule from '@modules/bottleneck'
+import { Models } from '@dbModels'
+import DbTx from '@modules/dbTx'
+import config from '@config'
+import utils from '@helpers/utils'
+import ProviderModule from '@modules/provider'
+import { retryRequest } from '@helpers/retryRequest'
+import Web3Helper from '@helpers/web3'
+
+const llo = logger.logMeta.bind(null, { service: 'modules:EventCrawler' })
+
+class BlockchainLogCrawler {
+  private readonly crawlParams: ICrawlParam
+  public readonly crawlSetting: ICrawlSetting
+
+  constructor(opts: ICrawlParam) {
+    this.crawlParams = {
+      network: opts.network,
+      fromBlock: opts.fromBlock,
+      toBlock: opts.toBlock,
+      address: opts.address,
+      events: opts.events,
+      stopOnError: opts.stopOnError,
+      logService: opts.logService,
+      onlyHistorical: opts.onlyHistorical,
+      onError: opts.onError || BlockchainLogCrawler.defaultOnError,
+    }
+
+    const topics = opts.events
+      .map(item => {
+        if (!item?.topic) {
+          logger.error(`Topic hash not found for event ${item.event}`, llo({ ...this.parseCrawlerInfoLog(), item }))
+          return null
+        }
+        return item.topic
+      })
+      .filter(Boolean) as string[]
+
+    this.crawlSetting = {
+      shutdown: false,
+      crawling: false,
+      isOnError: false,
+      originalBatchSize: this.calculateBatchSize(opts.network),
+      batchSize: this.calculateBatchSize(opts.network),
+      runCount: 0,
+      filter: {
+        address: opts.address,
+        fromBlock: opts.fromBlock || 0,
+        toBlock: opts.toBlock || 'latest',
+        topics: [topics],
+      },
+      nbSuccess: 0,
+      nbError: 0,
+      nbTotal: 0,
+      lastSync: 0,
+    }
+  }
+
+  static defaultOnError(error: Error, log?: Log): void {
+    logger.error(
+      'Error in EventCrawler',
+      llo({
+        error: error.message,
+        logId: log?.transactionHash ?? null,
+      }),
+    )
+  }
+
+  calculateBatchSize(network: NetworksEnum): number {
+    // Constants for seconds in a 30-day month
+    const days = 120
+    const SECONDS_IN_MONTH = days * 24 * 3600
+
+    // Get the block interval time from the config
+    const blockIntervalTime = config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME
+
+    // Error handling in case blockIntervalTime is undefined or falsy
+    if (!blockIntervalTime) {
+      throw new Error(`Block interval time not found for network: ${network}`)
+    }
+
+    // Calculate the batch size
+    return Math.floor(SECONDS_IN_MONTH / blockIntervalTime)
+  }
+
+  async updateAndCheckConditions(currentBlock: number, latestBlock: number): Promise<boolean> {
+    return (
+      this.crawlSetting.crawling &&
+      !this.crawlSetting.isOnError &&
+      currentBlock >= 0 &&
+      latestBlock > 0 &&
+      currentBlock <= latestBlock
+    )
+  }
+
+  async crawl(): Promise<void> {
+    if (this.crawlSetting.crawling) {
+      throw new Error('Already crawling')
+    }
+
+    this.crawlSetting.crawling = true
+
+    // override when use log service
+    if (!this.crawlSetting.filter.fromBlock) {
+      this.crawlSetting.filter.fromBlock = await this.getServiceStartBlock()
+    }
+
+    let currentBlock = await Web3Helper.getBlockNumber(
+      this.crawlSetting.filter.fromBlock as any,
+      this.crawlParams.network,
+    )
+    const latestBlock = await Web3Helper.getBlockNumber(
+      this.crawlSetting.filter.toBlock as any,
+      this.crawlParams.network,
+    )
+
+    while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
+      this.crawlSetting.runCount++
+      let toBlock = Math.min(
+        currentBlock + this.crawlSetting.batchSize - (this.crawlSetting.runCount > 1 ? 1 : 0),
+        latestBlock,
+      )
+      // Handle topics: use chunks if there are topics, or pass empty for all logs
+      const topicChunks = utils.chunkArray(this.crawlSetting.filter.topics, 4)
+      let allLogs: Log[] = []
+
+      // const filters = topicChunks.map((topics: any) => ({
+      //   address: this.crawlSetting.filter.address,
+      //   topics,
+      //   fromBlock: currentBlock,
+      //   toBlock,
+      // }))
+
+      for (const topics of topicChunks) {
+        let success = false
+        while (!success) {
+          try {
+            const logs = await retryRequest(async () =>
+              BottleneckModule.getNodeLimiter(this.crawlParams.network)!.schedule(async () =>
+                this.getProvider().getLogs({
+                  address: this.crawlSetting.filter.address,
+                  topics,
+                  fromBlock: currentBlock,
+                  toBlock,
+                }),
+              ),
+            )
+
+            allLogs = allLogs.concat(logs) // Collect logs from this chunk
+            this.crawlSetting.nbTotal += logs.length
+            this.crawlSetting.batchSize = this.crawlSetting.originalBatchSize
+            success = true
+            break
+          } catch (error: any) {
+            if (this.isBatchSizeError(error)) {
+              if (this.crawlSetting.batchSize > 1) {
+                this.crawlSetting.batchSize = Math.max(1, Math.floor(this.crawlSetting.batchSize / 2))
+                toBlock = Math.min(
+                  currentBlock + this.crawlSetting.batchSize - (this.crawlSetting.runCount > 1 ? 1 : 0),
+                  latestBlock,
+                )
+              } else {
+                logger.error('Batch size too small, stopping crawl', llo({ ...this.parseCrawlerInfoLog(), error }))
+                this.crawlSetting.shutdown = true
+                this.crawlParams.onError(error)
+                break
+              }
+            } else {
+              await this.handleErrors(error)
+              if (this.crawlParams.stopOnError && this.crawlSetting.shutdown) break
+            }
+          }
+        }
+        if (this.crawlSetting.shutdown) break
+      }
+
+      if (this.crawlSetting.shutdown) break
+
+      await this.processLogs(
+        allLogs.sort((a, b) => {
+          // First, sort by blockNumber in ascending order
+          if (a.blockNumber !== b.blockNumber) {
+            return a.blockNumber - b.blockNumber
+          }
+          // If blockNumbers are the same, sort by transactionIndex in ascending order
+          if (a.transactionIndex !== b.transactionIndex) {
+            return a.transactionIndex - b.transactionIndex
+          }
+          // If both blockNumber and transactionIndex are the same, sort by index in ascending order
+          return a.index - b.index
+        }),
+      )
+
+      if (this.crawlParams.logService) {
+        await this.onSaveProgress(toBlock)
+      }
+      if (this.crawlSetting.shutdown) break
+      currentBlock = toBlock + 1
+      if (currentBlock >= latestBlock) break
+    }
+
+    this.crawlSetting.crawling = false
+    logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
+  }
+
+  async handleErrors(error: any) {
+    if (this.isRateLimited(error)) {
+      await utils.wait(1000)
+    } else {
+      this.crawlSetting.shutdown = true
+      this.crawlParams.onError(error)
+    }
+  }
+
+  async processLogs(logs: Log[]): Promise<void> {
+    for (const log of logs) {
+      try {
+        const eventSetting = this.crawlParams.events.find(item => item.topic === log.topics[0])!
+
+        if (!eventSetting) {
+          logger.error('Error event setting not found in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
+        }
+
+        const iFace = new Interface(eventSetting.abi)
+        const event = Web3Helper.parseLog(log, iFace)!
+
+        if (!event) {
+          logger.error('Error parse log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
+          throw new Error('Error parse log in blockchainCrawler')
+        }
+
+        const info = Web3Helper.parseInfoLog(log, eventSetting.event, this.crawlParams.network)
+        await eventSetting.handler(event, info, this.crawlParams.onlyHistorical)
+
+        this.crawlSetting.nbSuccess++
+        if (log.blockNumber) {
+          this.crawlSetting.lastSync = log?.blockNumber
+        }
+        logger.verbose('Processing log', llo({ ...this.parseCrawlerInfoLog() }))
+        if (this.crawlParams.logService && log.blockNumber) {
+          await this.onSaveProgress(log.blockNumber)
+        }
+      } catch (error: any) {
+        this.crawlParams.onError(error, log)
+        this.crawlSetting.nbError++
+        if (this.crawlParams.stopOnError) {
+          this.crawlSetting.isOnError = true
+          break
+        }
+      }
+    }
+  }
+
+  isRateLimited(error: any): boolean {
+    const messages = ['Your app has exceeded its compute units per second capacity']
+
+    return messages.some(msg => error.message?.includes(msg))
+  }
+
+  isBatchSizeError(error: any): boolean {
+    const messages = ['The query timed out', 'Log response size exceeded']
+
+    return messages.some(msg => error.message?.includes(msg))
+  }
+
+  getProvider(): WebSocketProvider {
+    return ProviderModule.getProvider(this.crawlParams.network)!
+  }
+
+  async getServiceStartBlock() {
+    const existingConfig = await Models.ConfigIndexer.findExistingLog({
+      network: this.crawlParams.network,
+      service: this.crawlParams.logService!,
+    })
+
+    if (!existingConfig && (this.crawlSetting.filter?.fromBlock as number) > 0) {
+      return this.crawlSetting.filter.fromBlock
+    } else if (existingConfig) {
+      return existingConfig.lastSync
+    } else {
+      return config.NODES[utils.networkToAragon(this.crawlParams.network)].FROM_BLOCK
+    }
+  }
+
+  async onSaveProgress(blockNumber: number) {
+    const existingConfig = await Models.ConfigIndexer.findExistingLog({
+      network: this.crawlParams.network,
+      service: this.crawlParams.logService!,
+    })
+
+    await DbTx.executeTxFn(async ({ session }) => {
+      if (existingConfig) {
+        await existingConfig.update({ lastSync: blockNumber })
+      } else {
+        await Models.ConfigIndexer.create(
+          {
+            network: this.crawlParams.network,
+            service: this.crawlParams.logService!,
+            lastSync: blockNumber,
+          },
+          { session } as any,
+        )
+      }
+
+      await session.commitTransaction()
+      await session.endSession()
+    })
+  }
+
+  parseCrawlerInfoLog() {
+    return {
+      network: this.crawlParams.network,
+      address: this.crawlParams.address,
+      logService: this.crawlParams.logService,
+    }
+  }
+}
+
+export default BlockchainLogCrawler

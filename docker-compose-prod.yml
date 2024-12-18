@@ -3,7 +3,7 @@ version: '3.7'
 services:
   ### Services
 
-  service-api:
+  service-aragon-api:
     build:
       context: ./
     ports:
@@ -12,11 +12,39 @@ services:
       PORT: ${SERVICE_API_PORT:-3000}
     env_file:
       - ./.env
-    command: bash -c 'yarn service:api'
+    command: bash -c 'yarn service:aragon-api'
 
-  service-data-sync:
+  service-aragon-indexer:
     build:
       context: ./
     env_file:
       - ./.env
-    command: bash -c 'yarn service:data-sync'
+    command: bash -c 'yarn service:aragon-indexer'
+
+  service-aragon-dao:
+    build:
+      context: ./
+    env_file:
+      - ./.env
+    command: bash -c 'yarn service:aragon-dao'
+
+  service-aragon-rates:
+    build:
+      context: ./
+    env_file:
+      - ./.env
+    command: bash -c 'yarn service:aragon-rates'
+
+  service-aragon-transactions:
+    build:
+      context: ./
+    env_file:
+      - ./.env
+    command: bash -c 'yarn service:aragon-transactions'
+
+  service-aragon-plugins:
+    build:
+      context: ./
+    env_file:
+      - ./.env
+    command: bash -c 'yarn service:aragon-plugins'

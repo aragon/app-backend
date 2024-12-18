@@ -2,7 +2,10 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Utils from '@helpers/utils'
+import utils from '@helpers/utils'
 import logger from '@logger'
+import dayjs from '@helpers/dayjs'
+import { NetworksEnum } from '@types'
 
 describe('Helpers:Utils', () => {
   let sandbox: SinonSandbox
@@ -15,8 +18,76 @@ describe('Helpers:Utils', () => {
     sandbox?.restore()
   })
 
+  describe('extractAdditionalParams', () => {
+    it('should return an empty object if no additional params are present', () => {
+      const knownParams = { a: 1, b: 2 }
+      const queryParams = { a: 1, b: 2 }
+      const result = Utils.extractAdditionalParams(knownParams, queryParams)
+      expect(result).to.deep.equal({})
+    })
+
+    it('should return additional params that are not in knownParams', () => {
+      const knownParams = { a: 1, b: 2 }
+      const queryParams = { a: 1, b: 2, c: 3, d: 4 }
+      const result = Utils.extractAdditionalParams(knownParams, queryParams)
+      expect(result).to.deep.equal({ c: 3, d: 4 })
+    })
+
+    it('should skip keys specified in skipKeys', () => {
+      const knownParams = { a: 1, b: 2 }
+      const queryParams = { a: 1, b: 2, c: 3, d: 4, e: 5 }
+      const skipKeys = ['c', 'e']
+      const result = Utils.extractAdditionalParams(knownParams, queryParams, skipKeys)
+      expect(result).to.deep.equal({ d: 4 })
+    })
+
+    it('should handle empty knownParams and return all queryParams except skipped ones', () => {
+      const knownParams = {}
+      const queryParams = { a: 1, b: 2, c: 3, d: 4 }
+      const skipKeys = ['b', 'd']
+      const result = Utils.extractAdditionalParams(knownParams, queryParams, skipKeys)
+      expect(result).to.deep.equal({ a: 1, c: 3 })
+    })
+
+    it('should handle empty queryParams and return an empty object', () => {
+      const knownParams = { a: 1, b: 2 }
+      const queryParams = {}
+      const result = Utils.extractAdditionalParams(knownParams, queryParams)
+      expect(result).to.deep.equal({})
+    })
+
+    it('should handle both empty knownParams and queryParams and return an empty object', () => {
+      const knownParams = {}
+      const queryParams = {}
+      const result = Utils.extractAdditionalParams(knownParams, queryParams)
+      expect(result).to.deep.equal({})
+    })
+  })
+
   it('Should noop', () => {
     expect(Utils.noop()).to.eq(0)
+  })
+
+  it('aragonNetworkMap', () => {
+    const expectedMap = {
+      'ethereum-mainnet': 'ETHEREUM_MAINNET',
+      'ethereum-sepolia': 'ETHEREUM_SEPOLIA',
+      'polygon-mainnet': 'POLYGON_MAINNET',
+      'base-mainnet': 'BASE_MAINNET',
+      'arbitrum-mainnet': 'ARBITRUM_MAINNET',
+      'zksync-sepolia': 'ZKSYNC_SEPOLIA',
+      'zksync-mainnet': 'ZKSYNC_MAINNET',
+    }
+
+    Object.keys(NetworksEnum).forEach(key => {
+      const enumValue = NetworksEnum[key]
+      expect(Utils.aragonNetworkMap[enumValue]).to.equal(expectedMap[enumValue], `Mismatch for ${enumValue}`)
+    })
+  })
+
+  it('Should lowercaseFirstLetter', () => {
+    expect(Utils.lowercaseFirstLetter('Test')).to.eq('test')
+    expect(Utils.lowercaseFirstLetter(undefined)).to.eq(undefined)
   })
 
   it('Should wait', done => {
@@ -77,8 +148,9 @@ describe('Helpers:Utils', () => {
     expect(rs).to.be.true
     expect(th).to.be.true
 
-    expect(logerror.args[0][0]).to.eq(error.message)
-    expect(logerror.args[0][1].error).to.eq(error)
+    const errorObj = logerror.args[0] as any
+    expect(errorObj[0]).to.eq(error.message)
+    expect(errorObj[1].error).to.eq(error)
   })
 
   it('configParser', () => {
@@ -92,39 +164,23 @@ describe('Helpers:Utils', () => {
       decimal: 12.12,
     }
     expect(Utils.configParser(configSource, 'string', 'string')).to.eq('coucou')
-    expect(Utils.configParser(configSource, 'string', 'string', 'def')).to.eq(
-      'coucou',
-    )
-    expect(Utils.configParser(configSource, 'string', 'array')).to.eq(
-      'coucou,caca',
-    )
+    expect(Utils.configParser(configSource, 'string', 'string', 'def')).to.eq('coucou')
+    expect(Utils.configParser(configSource, 'string', 'array')).to.eq('coucou,caca')
     expect(Utils.configParser(configSource, 'string', 'unknown')).to.eq('')
-    expect(Utils.configParser(configSource, 'string', 'unknown', 'def')).to.eq(
-      'def',
-    )
+    expect(Utils.configParser(configSource, 'string', 'unknown', 'def')).to.eq('def')
 
-    expect(Utils.configParser(configSource, 'array', 'array')).to.deep.eq([
-      'coucou',
-      'caca',
-    ])
-    expect(
-      Utils.configParser(configSource, 'array', 'array', ['def']),
-    ).to.deep.eq(['coucou', 'caca'])
-    expect(Utils.configParser(configSource, 'array', 'string')).to.deep.eq([
-      'coucou',
-    ])
+    expect(Utils.configParser(configSource, 'array', 'array')).to.deep.eq(['coucou', 'caca'])
+    expect(Utils.configParser(configSource, 'array', 'array', ['def'])).to.deep.eq(['coucou', 'caca'])
+    expect(Utils.configParser(configSource, 'array', 'string')).to.deep.eq(['coucou'])
     expect(Utils.configParser(configSource, 'array', 'unknown')).to.deep.eq([])
-    expect(
-      Utils.configParser(configSource, 'array', 'unknown', ['def']),
-    ).to.deep.eq(['def'])
+    expect(Utils.configParser(configSource, 'array', 'unknown', ['def'])).to.deep.eq(['def'])
 
     expect(Utils.configParser(configSource, 'bool', 'boolt')).to.be.true
     expect(Utils.configParser(configSource, 'bool', 'boolt', false)).to.be.true
     expect(Utils.configParser(configSource, 'bool', 'boolf')).to.be.false
     expect(Utils.configParser(configSource, 'bool', 'boolu')).to.be.false
     expect(Utils.configParser(configSource, 'bool', 'boolunnn')).to.be.false
-    expect(Utils.configParser(configSource, 'bool', 'boolunnn', true)).to.be
-      .true
+    expect(Utils.configParser(configSource, 'bool', 'boolunnn', true)).to.be.true
 
     expect(Utils.configParser(configSource, 'number', 'integer')).to.eq(12)
     expect(Utils.configParser(configSource, 'number', 'decimal')).to.eq(12.12)
@@ -132,13 +188,20 @@ describe('Helpers:Utils', () => {
     expect(Utils.configParser(configSource, 'number', 'unkn', 2)).to.eq(2)
   })
 
+  it('configParser should throw error on unknown type', () => {
+    const configSource = {
+      test: 'value',
+    }
+    const key = 'test'
+
+    expect(() => Utils.configParser(configSource, 'unknownType' as any, key)).to.throw('Unknown variable type')
+  })
+
   it('Should parse json circular', () => {
     const child: any = {}
-    const obj = { a: 1, child }
+    const obj = { a: 1, child, b: 22n }
     child.obj = obj
-    expect(Utils.JSONStringifyCircular(obj)).to.be.eq(
-      '{\n  "a": 1,\n  "child": {}\n}',
-    )
+    expect(Utils.JSONStringifyCircular(obj)).to.be.eq('{\n  "a": 1,\n  "child": {},\n  "b": "22"\n}')
   })
 
   it('enum to object', () => {
@@ -175,20 +238,22 @@ describe('Helpers:Utils', () => {
   })
 
   it('Should asyncForEach and break on false', async () => {
-    const stubFn = sandbox
-      .stub()
-      .callsFake(async (item: any, i: number) => i !== 1)
+    const stubFn = sandbox.stub().callsFake(async (_item: any, i: number) => i !== 1)
     await Utils.asyncForEach([0, 1, 2, 3], stubFn, true)
     expect(stubFn.callCount).to.be.eq(2)
   })
 
   describe('setIntervalAsync', () => {
     it('repeats', async () => {
-      const onError = sinon.stub()
-      const fn = sinon.stub().resolves(Utils.wait(50))
+      const onError = sandbox.stub()
+      const fn = sandbox.stub().resolves(Utils.wait(50))
       const delay = 200
 
-      const clear = Utils.setIntervalAsync(fn, delay, onError)
+      const clear = Utils.setIntervalAsync({
+        fn,
+        delay,
+        onError,
+      })
 
       await Utils.wait(100)
       expect(fn.args.length).to.eq(1)
@@ -206,11 +271,15 @@ describe('Helpers:Utils', () => {
     })
 
     it('stops while working', async () => {
-      const onError = sinon.stub()
-      const fn = sinon.stub().resolves(Utils.wait(500))
+      const onError = sandbox.stub()
+      const fn = sandbox.stub().resolves(Utils.wait(500))
       const delay = 100
 
-      const clear = Utils.setIntervalAsync(fn, delay, onError)
+      const clear = Utils.setIntervalAsync({
+        fn,
+        delay,
+        onError,
+      })
 
       await Utils.wait(100)
       expect(fn.args.length).to.eq(1)
@@ -222,11 +291,15 @@ describe('Helpers:Utils', () => {
     })
 
     it('clear waits execution end', async () => {
-      const onError = sinon.stub()
-      const fn = sinon.stub().resolves(Utils.wait(500))
+      const onError = sandbox.stub()
+      const fn = sandbox.stub().resolves(Utils.wait(500))
       const delay = 100
 
-      const clear = Utils.setIntervalAsync(fn, delay, onError)
+      const clear = Utils.setIntervalAsync({
+        fn,
+        delay,
+        onError,
+      })
       await Utils.wait(10)
       expect(fn.args.length).to.eq(1)
 
@@ -238,12 +311,16 @@ describe('Helpers:Utils', () => {
     })
 
     it('throws', async () => {
-      const onError = sinon.stub()
+      const onError = sandbox.stub()
       const e = new Error('pascontent')
-      const fn = sinon.stub().resolves(Utils.wait(100))
+      const fn = sandbox.stub().resolves(Utils.wait(100))
       const delay = 500
 
-      const clear = Utils.setIntervalAsync(fn, delay, onError)
+      const clear = Utils.setIntervalAsync({
+        fn,
+        delay,
+        onError,
+      })
 
       await Utils.wait(200)
       expect(fn.args.length).to.eq(1)
@@ -261,12 +338,16 @@ describe('Helpers:Utils', () => {
     })
 
     it('throws but still continues', async () => {
-      const onError = sinon.stub()
+      const onError = sandbox.stub()
       const e = new Error('pascontent')
-      const fn = sinon.stub().resolves(Utils.wait(50))
+      const fn = sandbox.stub().resolves(Utils.wait(50))
       const delay = 400
 
-      const clear = Utils.setIntervalAsync(fn, delay, onError)
+      const clear = Utils.setIntervalAsync({
+        fn,
+        delay,
+        onError,
+      })
 
       await Utils.wait(200)
       expect(fn.args.length).to.eq(1)
@@ -290,10 +371,13 @@ describe('Helpers:Utils', () => {
       const error = sandbox.stub(logger, 'error')
 
       const e = new Error('pascontent')
-      const fn = sinon.stub().resolves(Utils.wait(100))
+      const fn = sandbox.stub().resolves(Utils.wait(100))
       const delay = 500
 
-      const clear = Utils.setIntervalAsync(fn, delay)
+      const clear = Utils.setIntervalAsync({
+        fn,
+        delay,
+      })
 
       await Utils.wait(200)
       expect(fn.args.length).to.eq(1)
@@ -307,8 +391,10 @@ describe('Helpers:Utils', () => {
 
       expect(fn.args.length).to.eq(2)
       expect(error.calledOnce).to.be.true
-      expect(error.args[0][0]).to.eq('pascontent')
-      expect(error.args[0][1].error).to.eq(e)
+
+      const errorObj = error.args[0] as any
+      expect(errorObj[0]).to.eq('pascontent')
+      expect(errorObj[1].error).to.eq(e)
     })
   })
 
@@ -384,5 +470,238 @@ describe('Helpers:Utils', () => {
     expect(res[1]).to.eq(2)
     expect(onError.args[0][0].message).to.eq('1')
     expect(onError.args[1][0].message).to.eq('2')
+  })
+
+  it('generateRandomName', async () => {
+    const length = 10
+
+    const result = Utils.generateRandomName(length)
+
+    expect(result.length).to.eq(length)
+  })
+
+  describe('parsePermissions', () => {
+    it('should correctly parse and convert permissions array', () => {
+      const permissionsInput = [
+        { toObject: () => ({ id: '1', operation: '2' }) },
+        { toObject: () => ({ id: '2', operation: '3' }) },
+      ]
+
+      const expectedResult = [
+        { id: '1', operation: 2 },
+        { id: '2', operation: 3 },
+      ]
+
+      const result = Utils.parsePermissions(permissionsInput)
+
+      expect(result).to.deep.equal(expectedResult)
+    })
+
+    it('should handle permissions with various data types for operation', () => {
+      // Testing different data types for operation
+      const permissionsInput = [
+        { toObject: () => ({ id: '1', operation: '10' }) },
+        { toObject: () => ({ id: '2', operation: 20 }) }, // Already a number
+        { toObject: () => ({ id: '3', operation: '0x14' }) }, // Hexadecimal string
+      ]
+
+      const expectedResult = [
+        { id: '1', operation: 10 },
+        { id: '2', operation: 20 },
+        { id: '3', operation: 20 }, // Expecting conversion from hex to decimal
+      ]
+
+      const result = Utils.parsePermissions(permissionsInput)
+
+      expect(result).to.deep.equal(expectedResult)
+    })
+
+    it('should return an empty array when no permissions are provided', () => {
+      const permissionsInput = []
+
+      const result = Utils.parsePermissions(permissionsInput)
+
+      expect(result).to.be.an('array').that.is.empty
+    })
+
+    it('should handle null or undefined inputs gracefully', () => {
+      const permissionsInput = null
+
+      const result = Utils.parsePermissions(permissionsInput)
+
+      expect(result).to.be.an('array').that.is.empty
+    })
+
+    it('should return default if permission does not have toObject method', () => {
+      const permissionsInput = [{ id: '1', operation: '2' }]
+
+      const result = Utils.parsePermissions(permissionsInput)
+      expect(result[0].id).to.eq(permissionsInput[0].id)
+      expect(result[0].operation).to.eq(permissionsInput[0].operation)
+    })
+  })
+
+  describe('hasHoursPassed', () => {
+    it('should return true if the specified hours have passed', () => {
+      const pastDate = dayjs().subtract(25, 'hour').toDate()
+      expect(utils.hasHoursPassed(pastDate, 24)).to.be.true
+    })
+
+    it('should return false if the specified hours have not passed', () => {
+      const pastDate = dayjs().subtract(23, 'hour').toDate()
+      expect(utils.hasHoursPassed(pastDate, 24)).to.be.false
+    })
+  })
+
+  describe('calculatePercentageChange', () => {
+    it('should calculate the correct positive percentage change', () => {
+      expect(utils.calculatePercentageChange(200, 100)).to.equal(100.0)
+    })
+
+    it('should calculate the correct negative percentage change', () => {
+      expect(utils.calculatePercentageChange(50, 100)).to.equal(-50.0)
+    })
+
+    it('should handle division by zero when old value is zero', () => {
+      expect(utils.calculatePercentageChange(100, 0)).to.eq(Infinity)
+    })
+  })
+
+  describe('getEpochDayjs', () => {
+    it('should return a Dayjs object set to the Unix Epoch', () => {
+      const epoch = utils.getEpochDayjs()
+      expect(epoch.isValid()).to.be.true
+      expect(epoch.unix()).to.equal(0)
+    })
+  })
+
+  describe('arrayChunk', () => {
+    it('should chunkArray', () => {
+      const array = [1, 2, 3, 4, 5, 6]
+      const size = 2
+      const result = Utils.chunkArray(array, size)
+      expect(result).to.deep.eq([
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ])
+    })
+
+    it('should return empty array if array is empty', () => {
+      const array = []
+      const size = 2
+      const result = Utils.chunkArray(array, size)
+      expect(result).to.deep.eq([[]])
+    })
+  })
+
+  it('hasPropsWithValuesExcludingNetwork', () => {
+    expect(Utils.hasPropsWithValuesExcludingNetwork({ test: undefined, network: 'test' })).to.be.false
+    expect(Utils.hasPropsWithValuesExcludingNetwork({ test: 'test', network: undefined })).to.be.true
+  })
+
+  it('parseBoolean', () => {
+    expect(Utils.parseBoolean(undefined)).to.be.undefined
+    expect(Utils.parseBoolean(true)).to.be.true
+    expect(Utils.parseBoolean('true')).to.be.true
+    expect(Utils.parseBoolean('false')).to.be.false
+    expect(Utils.parseBoolean(false)).to.be.false
+  })
+
+  describe('setImmediateAsyncArray', () => {
+    it('should execute all functions in the array', async () => {
+      const fn1 = sandbox.stub().resolves(1)
+      const fn2 = sandbox.stub().resolves(2)
+      const onError = sandbox.stub()
+
+      await new Promise(resolve => {
+        Utils.setImmediateAsyncArray([fn1, fn2], onError)
+        setImmediate(resolve)
+      })
+
+      sinon.assert.calledOnce(fn1)
+      sinon.assert.calledOnce(fn2)
+      sinon.assert.notCalled(onError)
+    })
+
+    it('should call onError if an error occurs in any function', async () => {
+      const error = new Error('Test Error')
+      const fn1 = sandbox.stub().resolves(1)
+      const fn2 = sandbox.stub().rejects(error)
+      const onError = sandbox.stub()
+
+      await new Promise(resolve => {
+        Utils.setImmediateAsyncArray([fn1, fn2], onError)
+        setImmediate(resolve)
+      })
+
+      sinon.assert.calledOnce(fn1)
+      sinon.assert.calledOnce(fn2)
+      sinon.assert.calledOnceWithExactly(onError, sinon.match(error))
+    })
+
+    it('should continue to execute all functions even if one fails', async () => {
+      const error = new Error('Test Error')
+      const fn1 = sandbox.stub().rejects(error)
+      const fn2 = sandbox.stub().resolves(2)
+      const onError = sandbox.stub()
+
+      await new Promise(resolve => {
+        Utils.setImmediateAsyncArray([fn1, fn2], onError)
+        setImmediate(resolve) // Allow all setImmediate calls to complete
+      })
+
+      sinon.assert.calledOnce(fn1)
+      sinon.assert.calledOnce(fn2)
+      sinon.assert.calledOnce(onError)
+    })
+  })
+
+  describe('calculateDaysDifference', () => {
+    it('should return approximately 0 days when the timestamp is for the current day', () => {
+      const timestampToday = new Date().getTime()
+      const result = Utils.calculateDaysDifference(timestampToday)
+      expect(result).to.be.closeTo(0, 0.1)
+    })
+
+    it('should return approximately 1 day when the timestamp is from 1 day ago', () => {
+      const oneDayInMs = 24 * 60 * 60 * 1000
+      const timestampOneDayAgo = new Date().getTime() - oneDayInMs
+      const result = Utils.calculateDaysDifference(timestampOneDayAgo)
+      expect(result).to.be.closeTo(1, 0.1)
+    })
+
+    it('should return approximately -1 day when the timestamp is 1 day in the future', () => {
+      const oneDayInMs = 24 * 60 * 60 * 1000
+      const timestampOneDayFuture = new Date().getTime() + oneDayInMs
+      const result = Utils.calculateDaysDifference(timestampOneDayFuture)
+      expect(result).to.be.closeTo(-1, 0.1)
+    })
+
+    it('should handle large time differences accurately', () => {
+      const oneHundredDaysInMs = 100 * 24 * 60 * 60 * 1000
+      const timestampOneHundredDaysAgo = new Date().getTime() - oneHundredDaysInMs
+      const result = Utils.calculateDaysDifference(timestampOneHundredDaysAgo)
+      expect(result).to.be.closeTo(100, 0.1)
+    })
+  })
+
+  it('validateString', () => {
+    expect(Utils.validateString('test')).to.eq('test')
+    expect(Utils.validateString('')).to.be.null
+  })
+
+  it('isScientificNumber', () => {
+    expect(Utils.isScientificNumber('7.326e+22')).to.true
+    expect(Utils.isScientificNumber(7.326e22)).to.be.true
+    expect(Utils.isScientificNumber(10.314234324324)).to.be.false
+    expect(Utils.isScientificNumber(1032423423)).to.be.false
+  })
+
+  it('isDecimalNumber', () => {
+    expect(Utils.isDecimalNumber(10.1)).to.true
+    expect(Utils.isDecimalNumber(7.326e22)).to.be.false
+    expect(Utils.isDecimalNumber(10)).to.be.false
+    expect(Utils.isDecimalNumber(1032423423)).to.be.false
   })
 })

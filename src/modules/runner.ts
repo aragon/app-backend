@@ -1,5 +1,6 @@
-import '@helpers/monitoring'
-import { type IService } from '@types'
+/* istanbul ignore file */
+import { TooBusyMonitor } from '@helpers/monitoring'
+import { type EnumConnection, type IService } from '@types'
 import logger from '@logger'
 import Connections from './connections'
 
@@ -7,11 +8,7 @@ const llo = logger.logMeta.bind(null, { service: 'runner' })
 
 let stopping = false
 
-export function stopApps(
-  instances: Array<{ app: IService }>,
-  code: number,
-  timeToKill = 20 * 1000,
-) {
+export function stopApps(instances: Array<{ app: IService }>, code: number, timeToKill = 20 * 1000) {
   setTimeout(() => {
     process.exit(code) // eslint-disable-line no-process-exit
   }, timeToKill) // Force exit after timeout
@@ -28,7 +25,7 @@ export function stopApps(
       return true
     }),
   )
-    .then(async() => {
+    .then(async () => {
       await Connections.close()
     })
     .then(() => process.exit(code)) // eslint-disable-line no-process-exit
@@ -37,9 +34,9 @@ export function stopApps(
 
 async function runApps(instances: Array<{ app: IService }>) {
   try {
-    process.on('exit', stopApps.bind(null, instances))
-    process.on('SIGINT', stopApps.bind(null, instances))
-    process.on('SIGTERM', stopApps.bind(null, instances))
+    process.on('exit', stopApps.bind(null, instances, -1))
+    process.on('SIGINT', stopApps.bind(null, instances, -1))
+    process.on('SIGTERM', stopApps.bind(null, instances, -1))
 
     process.on('unhandledRejection', error => {
       logger.error('Unhandled Promise Rejection', llo({ error }))
@@ -52,19 +49,13 @@ async function runApps(instances: Array<{ app: IService }>) {
     })
 
     const neededConnections = instances.reduce(
-      (acc: string[], instance: { app: IService }) =>
-        instance.app.NEED_CONNECTIONS
-          ? acc.concat(instance.app.NEED_CONNECTIONS)
-          : acc,
+      (acc: EnumConnection[], instance: { app: IService }) =>
+        instance.app.NEED_CONNECTIONS ? acc.concat(instance.app.NEED_CONNECTIONS) : acc,
       [],
     )
     await Connections.open(neededConnections)
 
-    await Promise.all(
-      instances.map(
-        async(instance: { app: IService }) => await instance.app.start(),
-      ),
-    )
+    await Promise.all(instances.map(async (instance: { app: IService }) => await instance.app.start()))
   } catch (error) {
     logger.error('Unable to start application', llo({ error }))
     logger.purge()
@@ -77,7 +68,7 @@ async function runApps(instances: Array<{ app: IService }>) {
 
 function Runner(apps: Array<{ app: IService }>) {
   if (!apps || apps.length === 0) throw new Error('need app')
-
+  new TooBusyMonitor().init()
   runApps(apps).catch(error => logger.error('run error', llo({ error })))
 }
 

@@ -1,60 +1,99 @@
-import { type ENS, type HexAddress } from '@src/types/networks'
+import { type HexAddress } from '@src/types/networks'
 
 export interface DaoResourceLink {
   name: string
   url: string
 }
 
-export interface IDaoDune {
-  block_time: string
-  creator_address: HexAddress
-  dao_address: HexAddress
-  ens: ENS
-  hide_dao: boolean
-  members: number
-  metadata_ipfs: string
-  network: string
-  plugin_name: string
-  proposals_created: number
-  proposals_executed: number
-  tvl_usd: number
-  tx_hash: HexAddress
-  unique_voters: number
-  votes: number
-}
-
-export interface IDaoSatsumaResponse {
-  daos: IDao[]
-  limit: number
-  skip: number
-  results: number
-  nextCursor: number
-  skipResult: number
-  excludedResult: number
-}
-
-export interface IDaoMetadata {
+export interface IMetadata {
   name?: string | null
   description?: string | null
   avatar?: string | null
   links?: DaoResourceLink[]
+  stageNames?: string[]
+  processKey?: string | null
 }
 
-export interface IDao extends IDaoMetadata {
-  creatorAddress: HexAddress
-  daoAddress: HexAddress
-  block: number
-  createdAt: string
-  ens: ENS
-  members: number
-  metadataIpfs: string | null
-  network: string
-  pluginName: string | null
-  proposalsCreated: number
-  proposalsExecuted: number
-  tvlUSD: number
-  txHash: HexAddress
-  uniqueVoters: number
-  votes: number
-  hideDao: boolean
+export interface IProposalMetadata {
+  title?: string | null
+  summary?: string | null
+  description?: string | null
+  resources?: {
+    url?: string
+    name?: string
+  }[]
+  media?: {
+    header?: string | null
+    logo?: string | null
+  }
 }
+
+export interface IPermission {
+  operation: number
+  where: string
+  who: string
+  condition: string
+  permissionId: string
+}
+
+export enum IOperationType {
+  Call = 0,
+  Delegate = 1,
+}
+
+export interface IProposalSPPOnChain {
+  allowFailureMap: string
+  creator: HexAddress
+  lastStageTransition: number
+  metadata: string
+  actions: IProposalActionOnChain[]
+  currentStage: number
+  stageConfigIndex: number
+  executed: boolean
+  targetConfig: {
+    target: HexAddress
+    operation: IOperationType
+  }
+  parameters?: any
+}
+
+export interface IProposalTokenVotingOnChain {
+  open: boolean
+  executed: boolean
+  parameters: {
+    votingMode: number
+    supportThreshold: number
+    startDate: number
+    endDate: number
+    snapshotBlock: number
+    minVotingPower: number
+  }
+  tally: {
+    abstain: 'abstain'
+    yes: 'yes'
+    no: 'no'
+  }
+  actions: IProposalActionOnChain[]
+  allowFailureMap: string
+}
+
+export interface IProposalMultisigOnChain {
+  executed: boolean
+  approvals: number
+  parameters: {
+    minApprovals: number
+    snapshotBlock: number
+    startDate: number
+    endDate: number
+  }
+  actions: IProposalActionOnChain[]
+  allowFailureMap: string
+}
+
+export interface IProposalActionOnChain {
+  to: string
+  value: number
+  data: string
+}
+
+export type IProposalOnChain = IProposalTokenVotingOnChain | IProposalMultisigOnChain | IProposalSPPOnChain | null

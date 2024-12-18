@@ -7,6 +7,7 @@ import { argv } from 'process'
 import Mocha from 'mocha'
 import { MockDB } from '@test/lib/mockDb'
 import logger from '@logger'
+import utils from '@helpers/utils'
 
 logger.transports[0].level = 'silly'
 chai.use(chaiAsPromised)
@@ -26,6 +27,7 @@ if (argv.includes('--unit')) {
 
 async function runTests() {
   const mocha = new Mocha({
+    ui: 'bdd',
     timeout: 60000,
     color: true,
     diff: true,
@@ -36,6 +38,7 @@ async function runTests() {
   console.log('Using MockDB...') // eslint-disable-line no-console
   mocha.suite.beforeAll(async () => {
     await MockDB.connect()
+    await utils.wait(500)
   })
 
   mocha.suite.beforeEach(async () => {

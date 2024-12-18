@@ -6,29 +6,27 @@ const llo = logger.logMeta.bind(null, { service: 'modules: Crawler' })
 
 class DBCrawler {
   private readonly model: Model<Document>
-  private readonly onDocument: (
-    document: Document,
-    stat: { nbWorked: number, nbTotal: number },
-  ) => Promise<void>
+  private readonly onDocument: (document: Document, stat: { nbWorked: number; nbTotal: number }) => Promise<void>
 
   private readonly where: object
   private readonly stopOnError: boolean
   private readonly useAggregate: boolean
-  private readonly aggregate: object[]
+  private readonly disablePagination: boolean
+  private readonly aggregate: (skip: number | undefined, limit: number | undefined) => any[]
   private readonly select: string
-  private readonly offset: number
+  private readonly skip: number
   private readonly sort: string
   private readonly raw: boolean
   private readonly populate: string
-  private readonly onError: (document: Document, error: Error) => void
+  private readonly onError: (error: Error, document: Document) => void
   private readonly concurrency: number
   private readonly batchSize: number
   private crawling: boolean
   private isOnError: boolean
   private nbWorked: number
   private nbTotal: number
-  private crawlResult: { nbSuccess: number, nbError: number, nbTotal: number }
-  private readonly queue: async.AsyncQueue<Document[]>
+  public readonly crawlResult: { nbSuccess: number; nbError: number; nbTotal: number; lastCreatedAt: null | Date }
+  private readonly queue: async.QueueObject<Document[]>
 
   constructor(opts: any) {
     if (!opts.onDocument) {
@@ -66,7 +64,14 @@ class DBCrawler {
      * @param {stopOnError}
      * @example true
      */
-    this.stopOnError = false
+    this.stopOnError = opts.stopOnError
+
+    /**
+     * @description disablePagination
+     * @param {disablePagination}
+     * @example true
+     */
+    this.disablePagination = opts.disablePagination
 
     /**
      * @description useAggregate
@@ -80,7 +85,7 @@ class DBCrawler {
      * @param {aggregate}
      * @example [{$lookup: {from: 'subscriptions'}}]
      */
-    this.aggregate = opts.aggregate || []
+    this.aggregate = opts.aggregate
 
     /**
      * @description select document fields
@@ -90,11 +95,11 @@ class DBCrawler {
     this.select = opts.select || ''
 
     /**
-     * @description set offset documents
-     * @param {offset}
+     * @description set skip documents
+     * @param {skip}
      * @example 100
      */
-    this.offset = opts.offset || 0
+    this.skip = !this.disablePagination ? opts.skip || 0 : undefined
 
     /**
      * @description sort documents
@@ -124,12 +129,12 @@ class DBCrawler {
     this.isOnError = false
     this.nbWorked = 0
     this.nbTotal = 0
-    this.crawlResult = { nbSuccess: 0, nbError: 0, nbTotal: 0 }
+    this.crawlResult = { nbSuccess: 0, nbError: 0, nbTotal: 0, lastCreatedAt: null }
 
     this.queue = async.queue(this._worker.bind(this) as any, this.concurrency)
   }
 
-  static defaultOnError(document: Document, error: Error): void {
+  static defaultOnError(error: Error, document: Document): void {
     logger.error(
       'error on db crawler',
       llo({
@@ -139,30 +144,35 @@ class DBCrawler {
     )
   }
 
-  async _fetchNext(limit = 10, offset = 0): Promise<any> {
+  static aggregatePagination(skip: number | undefined, limit: number | undefined): object[] {
+    if (!skip && !limit) {
+      return []
+    }
+
+    return [{ $skip: skip }, { $limit: limit }]
+  }
+
+  async _fetchNext(limit: number | undefined, skip: number | undefined): Promise<any> {
     const where = this.where
     const select = this.select
     const populate = this.populate
     const useAggregate = this.useAggregate
-    const aggregate = this.aggregate
 
     if (useAggregate) {
-      const aggregateWithSkipLimit: any = [
-        ...aggregate,
-        { $skip: offset },
-        { $limit: limit },
-      ]
-
-      const response = this.model.aggregate(aggregateWithSkipLimit)
-
-      return await response.exec()
+      const aggregatePipeline = this.aggregate(skip, limit)
+      const response = this.model.aggregate(aggregatePipeline)
+      const documents = await response.exec()
+      return documents
     } else {
-      let response = this.model
-        .find(where)
-        .select(select)
-        .populate(populate)
-        .limit(limit)
-        .skip(offset)
+      let response = this.model.find(where).select(select).populate(populate)
+
+      if (limit && !this.disablePagination) {
+        response = response.limit(limit)
+      }
+
+      if (skip && !this.disablePagination) {
+        response = response.skip(skip)
+      }
 
       if (this.sort) {
         response = response.sort(this.sort)
@@ -187,8 +197,9 @@ class DBCrawler {
     try {
       await this.onDocument(document, stat)
       this.crawlResult.nbSuccess++
+      this.crawlResult.lastCreatedAt = ((document as any)?.updatedAt || (document as any)?.createdAt) ?? null
     } catch (error: any) {
-      this.onError(document, error)
+      this.onError(error, document)
       this.crawlResult.nbError++
       if (this.stopOnError) {
         this.isOnError = true
@@ -204,41 +215,42 @@ class DBCrawler {
     this.crawling = true
     const where = this.where || {}
 
-    if (this.useAggregate) {
-      const data: any = [...this.aggregate, { $count: 'count' }]
-      const result = await this.model.aggregate(data)
-      this.nbTotal = result && result.length > 0 ? result[0].count || 0 : 0
-    } else {
+    if (!this.useAggregate) {
       this.nbTotal = await this.model.countDocuments(where)
+    } else {
+      // count with aggregation query
+      // const countAggregatePipeline = [...this.aggregate(undefined, undefined), { $count: 'totalRecords' }]
+      // const countResponse = await this.model.aggregate(countAggregatePipeline).exec()
+      // this.nbTotal = countResponse.length > 0 && countResponse[0]?.totalRecords ? countResponse[0].totalRecords : 0
     }
 
-    this.crawlResult = {
-      nbSuccess: 0,
-      nbError: 0,
-      nbTotal: this.nbTotal,
-    }
+    this.crawlResult.nbTotal = this.nbTotal
 
     return await new Promise((resolve, reject) => {
-      const limit = this.batchSize
-      let offset = this.offset
+      const limit = this.disablePagination ? undefined : this.batchSize
+      let skip = this.disablePagination ? undefined : this.skip
 
-      const fillQueue = async(): Promise<any> => {
+      const fillQueue = async (): Promise<any> => {
         if (this.isOnError || !this.crawling) {
           resolve(this.crawlResult)
           return true
         }
 
-        this._fetchNext(limit, offset)
+        this._fetchNext(limit, skip)
           .then((items: any) => {
-            if (items.length > 0) {
+            if (items?.length > 0) {
               // eslint-disable-next-line
               this.queue.push(items)
-              offset += limit
 
-              logger.silly(`Offset ${offset}`, llo({ offset }))
+              if (this.disablePagination) {
+                this.crawling = false
+                return resolve(this.crawlResult)
+              } else {
+                skip! += limit!
+              }
             } else {
               this.crawling = false
-              resolve(this.crawlResult)
+              return resolve(this.crawlResult)
             }
 
             return true

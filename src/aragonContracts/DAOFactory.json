@@ -1,0 +1,187 @@
+{
+  "contractName": "DAOFactory",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "contract DAORegistry",
+          "name": "_registry",
+          "type": "address"
+        },
+        {
+          "internalType": "contract PluginSetupProcessor",
+          "name": "_pluginSetupProcessor",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "NoPluginProvided",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "trustedForwarder",
+              "type": "address"
+            },
+            {
+              "internalType": "string",
+              "name": "daoURI",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "subdomain",
+              "type": "string"
+            },
+            {
+              "internalType": "bytes",
+              "name": "metadata",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct DAOFactory.DAOSettings",
+          "name": "_daoSettings",
+          "type": "tuple",
+          "notice": "The DAO settings to be set during the DAO initialization."
+        },
+        {
+          "components": [
+            {
+              "components": [
+                {
+                  "components": [
+                    {
+                      "internalType": "uint8",
+                      "name": "release",
+                      "type": "uint8"
+                    },
+                    {
+                      "internalType": "uint16",
+                      "name": "build",
+                      "type": "uint16"
+                    }
+                  ],
+                  "internalType": "struct PluginRepo.Tag",
+                  "name": "versionTag",
+                  "type": "tuple"
+                },
+                {
+                  "internalType": "contract PluginRepo",
+                  "name": "pluginSetupRepo",
+                  "type": "address"
+                }
+              ],
+              "internalType": "struct PluginSetupRef",
+              "name": "pluginSetupRef",
+              "type": "tuple"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct DAOFactory.PluginSettings[]",
+          "name": "_pluginSettings",
+          "type": "tuple[]",
+          "notice": "The array containing references to plugins and their settings to be installed after the DAO has been created."
+        }
+      ],
+      "name": "createDao",
+      "outputs": [
+        {
+          "internalType": "contract DAO",
+          "name": "createdDao",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "notice": "Creates a new DAO, registers it on the  DAO registry, and installs a list of plugins via the plugin setup processor."
+    },
+    {
+      "inputs": [],
+      "name": "daoBase",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "daoRegistry",
+      "outputs": [
+        {
+          "internalType": "contract DAORegistry",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "pluginSetupProcessor",
+      "outputs": [
+        {
+          "internalType": "contract PluginSetupProcessor",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "protocolVersion",
+      "outputs": [
+        {
+          "internalType": "uint8[3]",
+          "name": "",
+          "type": "uint8[3]"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function",
+      "notice": "Returns the protocol version at which the current contract was built. Use it to check for future upgrades that might be applicable."
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "_interfaceId",
+          "type": "bytes4",
+          "notice": "The ID of the interface."
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "notice": "Checks if this or the parent contract supports an interface by its ID."
+    }
+  ],
+  "implAddress": "0x7a62da7B56fB3bfCdF70E900787010Bc4c9Ca42e",
+  "address": "0x7a62da7B56fB3bfCdF70E900787010Bc4c9Ca42e"
+}

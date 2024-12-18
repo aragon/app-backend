@@ -1,0 +1,495 @@
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import { expect } from 'chai'
+import ProposalController from '@services/aragon-api/controllers/proposal'
+import { ErrorKeyEnum, IPluginInterfaceType } from '@types'
+import { Models } from '@dbModels'
+import Proposal from '@models/schema/proposal'
+import PairDataModule from '@modules/pairData'
+import Token from '@models/schema/token'
+import Member from '@models/schema/member'
+import DaoMemberMapping from '@models/schema/daoMemberMapping'
+import { FakeToken } from '@test/mock/fakeToken'
+import { ProposalList } from '@test/mock/fakeProposal'
+import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
+import { FakeMember } from '@test/mock/fakeMember'
+import Setting from '@models/schema/setting'
+import { fakeSettings } from '@test/mock/fakeSettings'
+import { PluginList } from '@test/mock/fakePlugins'
+import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
+import { RabbitMQHelper } from '@helpers/redditMQ'
+
+describe('Controller: Proposal', () => {
+  let sandbox: SinonSandbox
+
+  let rawToken: Partial<Token>
+  let rawProposal: Partial<Proposal>
+  let rawMember: Partial<Member>
+  let rawDaoMemberMappings: Partial<DaoMemberMapping>
+  let rawSettings: Partial<Setting>
+
+  beforeEach(async () => {
+    sandbox = sinon.createSandbox()
+    rawToken = {
+      ...(FakeToken as any),
+    }
+
+    rawProposal = {
+      ...(ProposalList[0] as any),
+      daoAddress: FakeDaoMemberMappings[0].daoAddress,
+      settings: {
+        ...(ProposalList[0].settings as any),
+        tokenAddress: FakeToken.address,
+      },
+    }
+
+    rawMember = {
+      ...(FakeMember as any),
+    }
+
+    rawDaoMemberMappings = {
+      ...(FakeDaoMemberMappings[0] as any),
+      pluginAddress: rawProposal.pluginAddress,
+      daoAddress: rawProposal.daoAddress,
+      memberAddress: FakeMember.address,
+    }
+
+    rawSettings = {
+      ...fakeSettings,
+      pluginAddress: rawProposal.pluginAddress,
+      daoAddress: rawProposal.daoAddress,
+    }
+
+    await Promise.all([
+      Models.Token.create(rawToken),
+      Models.Proposal.create(rawProposal),
+      Models.Member.create(rawMember),
+      Models.DaoMemberMapping.create(rawDaoMemberMappings),
+      Models.Setting.create(rawSettings),
+      Models.Plugin.create({
+        ...PluginList[0],
+        daoAddress: rawProposal.daoAddress,
+        network: rawProposal.network,
+        address: rawProposal.pluginAddress,
+        tokenAddress: FakeToken.address,
+        interfaceType: IPluginInterfaceType.multisig,
+      }),
+      Models.MemberBalance.create({
+        ...fakeMemberBalance,
+        address: FakeMember.address,
+        tokenAddress: FakeToken.address,
+      }),
+    ])
+  })
+
+  afterEach(() => {
+    sandbox?.restore()
+  })
+
+  describe('getProposalsWithPagination', () => {
+    it('should get proposals with pagination - all params', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {
+        network: rawProposal.network,
+        daoAddress: rawProposal.daoAddress,
+        pluginAddress: rawProposal.pluginAddress,
+        creatorAddress: rawProposal.creatorAddress,
+      }
+
+      const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
+
+      const response = await ProposalController.getProposalsWithPagination(paginationParams, filterParams)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: filterParams,
+          paginationParams: {
+            search: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].network).to.eq(rawProposal.network)
+      expect(response.data[0].blockNumber).to.eq(rawProposal.blockNumber)
+      expect(response.data[0].transactionHash).to.eq(rawProposal.transactionHash)
+      expect(response.data[0].daoAddress).to.eq(rawProposal.daoAddress)
+      expect(response.data[0].pluginAddress).to.eq(rawProposal.pluginAddress)
+      expect(response.data[0].proposalId).to.eq(rawProposal.proposalId)
+      expect(response.data[0].title).to.eq(rawProposal.title)
+      expect(response.data[0].executed.status).to.eq(rawProposal.executed?.status)
+      expect(response.data[0].executed.transactionHash).to.eq(rawProposal.executed?.transactionHash)
+      expect(response.data[0].executed.blockNumber).to.eq(rawProposal.executed?.blockNumber)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get proposals no params', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+
+      const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
+
+      const response = await ProposalController.getProposalsWithPagination(paginationParams, filterParams)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: filterParams,
+          paginationParams: {
+            search: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].proposalId).to.eq(rawProposal.proposalId)
+      expect(response.data[0].blockNumber).to.eq(rawProposal.blockNumber)
+      expect(response.data[0].transactionHash).to.eq(rawProposal.transactionHash)
+      expect(response.data[0].daoAddress).to.eq(rawProposal.daoAddress)
+      expect(response.data[0].pluginAddress).to.eq(rawProposal.pluginAddress)
+      expect(response.data[0].network).to.eq(rawProposal.network)
+      expect(response.data[0].title).to.eq(rawProposal.title)
+      expect(response.data[0].executed.status).to.eq(rawProposal.executed?.status)
+      expect(response.data[0].executed.transactionHash).to.eq(rawProposal.executed?.transactionHash)
+      expect(response.data[0].executed.blockNumber).to.eq(rawProposal.executed?.blockNumber)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get proposals with pagination - daoId', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+      const pairParams: any = {
+        daoId: `${rawProposal.network}-${rawProposal.daoAddress}`,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
+        daoAddress: rawProposal.daoAddress,
+        network: rawProposal.network,
+      })
+      const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
+
+      const response = await ProposalController.getProposalsWithPagination(paginationParams, filterParams, pairParams)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: {
+            daoAddress: rawProposal.daoAddress,
+            network: rawProposal.network,
+          },
+          paginationParams: {
+            search: '',
+            pageSize: 10,
+            page: 1,
+            order: 'asc',
+            sort: 'createdAt',
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].network).to.eq(rawProposal.network)
+      expect(response.data[0].blockNumber).to.eq(rawProposal.blockNumber)
+      expect(response.data[0].transactionHash).to.eq(rawProposal.transactionHash)
+      expect(response.data[0].daoAddress).to.eq(rawProposal.daoAddress)
+      expect(response.data[0].pluginAddress).to.eq(rawProposal.pluginAddress)
+      expect(response.data[0].proposalId).to.eq(rawProposal.proposalId)
+      expect(response.data[0].title).to.eq(rawProposal.title)
+      expect(response.data[0].executed.status).to.eq(rawProposal.executed?.status)
+      expect(response.data[0].executed.transactionHash).to.eq(rawProposal.executed?.transactionHash)
+      expect(response.data[0].executed.blockNumber).to.eq(rawProposal.executed?.blockNumber)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should get proposals with pagination - daoId not found', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {}
+      const pairParams: any = {
+        daoId: `${rawProposal.network}-${rawProposal.daoAddress}`,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
+      const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
+
+      const response = await ProposalController.getProposalsWithPagination(paginationParams, filterParams, pairParams)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.have.property('data').with.lengthOf(1)
+    })
+  })
+
+  describe('getProposalById', () => {
+    it('should getProposalById', async () => {
+      const proposalDbId = await Models.Proposal.getEntityId({
+        transactionHash: rawProposal.transactionHash,
+        pluginAddress: rawProposal.pluginAddress,
+        proposalIndex: rawProposal.proposalIndex,
+      })
+
+      const proposal = await ProposalController.getProposalById(proposalDbId)
+      expect(proposal.id).to.eq(proposalDbId)
+    })
+
+    it('should fail to getProposalById', async () => {
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
+      const proposalId = 'test-member'
+      await expect(ProposalController.getProposalById(proposalId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+  })
+
+  describe('canCreateProposal', () => {
+    it('should return true as member can create proposal when the plugin has token address associated', async () => {
+      const params = {
+        memberAddress: rawMember.address,
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      }
+
+      const findMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findMapping')
+      const findActiveSettingSpy = sandbox.spy(Models.Setting, 'findActive')
+      const findByAddressAndTokenSpy = sandbox.spy(Models.MemberBalance, 'findByAddressAndToken')
+
+      const response = await ProposalController.canCreateProposal(params as any)
+      expect(response).to.be.true
+      expect(findMappingSpy.calledOnce).to.be.true
+      expect(findActiveSettingSpy.calledOnce).to.be.true
+      expect(findByAddressAndTokenSpy.calledOnce).to.be.true
+
+      expect(
+        findMappingSpy.calledWith({
+          memberAddress: rawMember.address,
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+
+      expect(
+        findActiveSettingSpy.calledWith({
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+
+      expect(
+        findByAddressAndTokenSpy.calledWith({
+          address: rawMember.address,
+          tokenAddress: rawToken.address,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+    })
+
+    it('should return true as member can create proposal when plugin is multisig and onlyListed is false', async () => {
+      const plugin = await Models.Plugin.findByAddress(rawProposal.pluginAddress, rawProposal.network)
+      plugin.tokenAddress = null
+      await plugin.save()
+
+      const params = {
+        memberAddress: rawMember.address,
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      }
+
+      const findMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findMapping')
+      const findActiveSettingSpy = sandbox.spy(Models.Setting, 'findActive')
+      const findByAddressAndTokenSpy = sandbox.spy(Models.MemberBalance, 'findByAddressAndToken')
+
+      const response = await ProposalController.canCreateProposal(params as any)
+      expect(response).to.be.true
+      expect(findMappingSpy.calledOnce).to.be.true
+      expect(findActiveSettingSpy.calledOnce).to.be.true
+      expect(findByAddressAndTokenSpy.calledOnce).to.be.false
+
+      expect(
+        findMappingSpy.calledWith({
+          memberAddress: rawMember.address,
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+
+      expect(
+        findActiveSettingSpy.calledWith({
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+    })
+
+    it('should return true as member can create proposal when plugin is multisig and onlyListed is true', async () => {
+      const plugin = await Models.Plugin.findByAddress(rawProposal.pluginAddress, rawProposal.network)
+      plugin.tokenAddress = null
+      await plugin.save()
+
+      const settings = await Models.Setting.findActive({
+        daoAddress: rawProposal.daoAddress,
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      } as any)
+      settings.onlyListed = true
+      await settings.save()
+
+      const params = {
+        memberAddress: rawMember.address,
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      }
+
+      const findMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findMapping')
+      const findActiveSettingSpy = sandbox.spy(Models.Setting, 'findActive')
+      const findByAddressAndTokenSpy = sandbox.spy(Models.MemberBalance, 'findByAddressAndToken')
+
+      const response = await ProposalController.canCreateProposal(params as any)
+      expect(response).to.be.true
+      expect(findMappingSpy.calledOnce).to.be.true
+      expect(findActiveSettingSpy.calledOnce).to.be.true
+      expect(findByAddressAndTokenSpy.calledOnce).to.be.false
+
+      expect(
+        findMappingSpy.calledWith({
+          memberAddress: rawMember.address,
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+
+      expect(
+        findActiveSettingSpy.calledWith({
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+    })
+
+    it('should return false if member is not found', async () => {
+      const params = {
+        memberAddress: '0xmember',
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      }
+
+      const findMappingSpy = sandbox.spy(Models.Member, 'findByAddress')
+
+      const response = await ProposalController.canCreateProposal(params as any)
+
+      expect(response).to.be.false
+
+      expect(findMappingSpy.calledOnce).to.be.true
+
+      expect(findMappingSpy.calledWith('0xmember')).to.be.true
+    })
+
+    it('should return false if plugin is not found', async () => {
+      const params = {
+        memberAddress: rawMember.address,
+        pluginAddress: '0xplugin',
+        network: rawProposal.network,
+      }
+
+      const findMappingSpy = sandbox.spy(Models.Plugin, 'findByAddress')
+
+      const response = await ProposalController.canCreateProposal(params as any)
+
+      expect(response).to.be.false
+
+      expect(findMappingSpy.calledOnce).to.be.true
+
+      expect(findMappingSpy.calledWith('0xplugin', rawProposal.network)).to.be.true
+    })
+
+    it('should return false if active settings are not found', async () => {
+      const params = {
+        memberAddress: rawMember.address,
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      }
+
+      const settings = await Models.Setting.findActive({
+        daoAddress: rawProposal.daoAddress,
+        pluginAddress: rawProposal.pluginAddress,
+        network: rawProposal.network,
+      } as any)
+      settings.pluginAddress = '0x00'
+      await settings.save()
+
+      const findActiveSettingSpy = sandbox.spy(Models.Setting, 'findActive')
+
+      const response = await ProposalController.canCreateProposal(params as any)
+
+      expect(response).to.be.false
+
+      expect(
+        findActiveSettingSpy.calledWith({
+          daoAddress: rawProposal.daoAddress,
+          pluginAddress: rawProposal.pluginAddress,
+          network: rawProposal.network,
+        }),
+      ).to.be.true
+    })
+  })
+
+  it('should call rabbitMq to get the cast vote info', async () => {
+    const params = {
+      proposalId: '0x00123213',
+      userAddress: rawMember.address,
+    }
+
+    const rabbitmQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(true as any)
+
+    const response = await ProposalController.canCastVote(params)
+
+    expect(response).to.be.true
+    expect(rabbitmQStub.calledOnce).to.be.true
+    expect(rabbitmQStub.args[0][1]).to.deep.eq({
+      id: `voteInfo-${params.proposalId}-${params.userAddress}`,
+      params,
+    })
+  })
+})
