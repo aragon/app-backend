@@ -20,7 +20,7 @@ jobs:
 
               echo "OP_SERVER_USERNAME=op://apikeys_production/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
               echo "OP_SERVER_URL=op://apikeys_production/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=op://apikeys_production/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_production/backend2_server_${DEPLOY_ENV}/private_cert" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
               ;;
@@ -32,7 +32,7 @@ jobs:
 
               echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
               echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/private_cert" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
               ;;
@@ -44,7 +44,7 @@ jobs:
 
               echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
               echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/private_cert" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
               ;;
