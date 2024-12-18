@@ -211,4 +211,87 @@ describe('Module: provider', () => {
 
     expect(loggerInfoStub.calledWith('WebSocket connection closed for ethereum-mainnet' as any)).to.be.true
   })
+
+  it('should subscribe to new block events', () => {
+    const network = NetworksEnum.ethereumMainnet
+
+    const providerStub = {
+      provider: {
+        core: {},
+      },
+      alchemy: {
+        ws: {
+          on: sandbox.stub(),
+        },
+      },
+    }
+
+    ProviderModule.providerProxies[network] = providerStub
+
+    const listener = sandbox.stub()
+
+    ProviderModule.subscribeToNewBlock(network, listener)
+
+    expect(providerStub.alchemy.ws.on.calledOnce).to.be.true
+    expect(providerStub.alchemy.ws.on.calledWith('block', listener)).to.be.true
+  })
+
+  it('should subscribe to custom events', () => {
+    const network = NetworksEnum.ethereumMainnet
+
+    const providerStub = {
+      provider: {
+        core: {},
+      },
+      alchemy: {
+        ws: {
+          on: sandbox.stub(),
+        },
+      },
+    }
+
+    ProviderModule.providerProxies[network] = providerStub
+
+    const filter = { address: '0xAddress', topics: ['0xTopic'] }
+    const listener = sandbox.stub()
+
+    ProviderModule.subscribeToEvent(network, filter, listener)
+
+    expect(providerStub.alchemy.ws.on.calledOnce).to.be.true
+    expect(providerStub.alchemy.ws.on.calledWith(filter, sinon.match.func)).to.be.true
+
+    const wrappedListener = providerStub.alchemy.ws.on.getCall(0).args[1]
+    wrappedListener('eventData')
+
+    expect(listener.calledOnceWith('eventData')).to.be.true
+  })
+
+  it('should log an error if listener throws during event processing', () => {
+    const network = NetworksEnum.ethereumMainnet
+
+    const providerStub = {
+      provider: {
+        core: {},
+      },
+      alchemy: {
+        ws: {
+          on: sandbox.stub(),
+        },
+      },
+    }
+
+    const logError = sandbox.stub(Logger, 'error')
+    ProviderModule.providerProxies[network] = providerStub
+
+    const filter = { address: '0xAddress', topics: ['0xTopic'] }
+    const listener = sandbox.stub().throws(new Error('Listener error'))
+
+    ProviderModule.subscribeToEvent(network, filter, listener)
+
+    const wrappedListener = providerStub.alchemy.ws.on.getCall(0).args[1]
+    wrappedListener('eventData')
+
+    expect(logError.calledOnce).to.be.true
+    expect(logError.calledWith('Error in event listener' as any)).to.be.true
+  })
 })

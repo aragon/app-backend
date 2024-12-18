@@ -11,7 +11,7 @@ import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
-const IndexerService: IService & { repeaters: any } = {
+const AragonIndexerService: IService & { repeaters: any } = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
   repeaters: {},
 
@@ -67,4 +67,4 @@ const IndexerService: IService & { repeaters: any } = {
   },
 }
 
-export default IndexerService
+export default AragonIndexerService

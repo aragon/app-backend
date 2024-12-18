@@ -14,14 +14,14 @@ import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
-import getContractInfo from '@services/aragon-dao/contractInfo'
-import VoteInfo from '@services/aragon-dao/voteInfo'
-import MemberInfo from '@services/aragon-dao/memberInfo'
+import { ContractInfo } from '@services/aragon-dao/contractInfo'
+import { VoteInfo } from '@services/aragon-dao/voteInfo'
+import { MemberInfo } from '@services/aragon-dao/memberInfo'
 import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
-const DaoSyncService: IService = {
+const AragonDaoService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   start: async function () {
@@ -65,7 +65,7 @@ const DaoSyncService: IService = {
 
     await RabbitMQHelper.process(EnumQueueName.contractInfo, config.RABBITMQ.DEFAULT_CONCURRENCY, async (job: any) => {
       const { address, network } = job.params as IQueueContractInfo
-      return await getContractInfo(network, address)
+      return await ContractInfo.getContractInfo(network, address)
     })
 
     await RabbitMQHelper.process(EnumQueueName.voteInfo, config.RABBITMQ.DEFAULT_CONCURRENCY, async (job: any) => {
@@ -78,12 +78,12 @@ const DaoSyncService: IService = {
       return await MemberInfo.getByTokenAddress(userAddress, tokenAddress, network)
     })
 
-    logger.info('DaoSyncService service started', llo({}))
+    logger.info('AragonDaoService service started', llo({}))
   },
 
   async stop() {
-    logger.info('DaoSyncService service stopped', llo({}))
+    logger.info('AragonDaoService service stopped', llo({}))
   },
 }
 
-export default DaoSyncService
+export default AragonDaoService

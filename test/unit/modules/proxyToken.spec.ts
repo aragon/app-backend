@@ -161,5 +161,20 @@ describe('Modules: ProxyToken', () => {
       expect(result.transactionHash).to.equal('0xabc')
       expect(result.blockNumber).to.equal(123)
     })
+
+    it('should return contract creation info', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(EtherscanHelper, 'fetchContractCreation').resolves(null as any)
+      const stubGetTx = sandbox.stub(Web3Helper, 'getTransaction')
+
+      const result = await ProxyToken.getContractCreationInfo(tokenAddress, network)
+
+      expect(result.blockNumber).to.equal(0)
+      expect(result.transactionHash).to.equal(null)
+      expect(result.address).to.equal(tokenAddress)
+      expect(stubGetTx.notCalled).to.be.true
+    })
   })
 })

@@ -6,6 +6,7 @@ import logger from '@logger'
 import Connections from '@modules/connections'
 import { EnumConnection } from '@types'
 import ProviderModule from '@modules/provider'
+import RabbitMQ from '@modules/rabbitMQ'
 
 describe('Module: connection', () => {
   let sandbox: SinonSandbox
@@ -13,9 +14,13 @@ describe('Module: connection', () => {
   let stubDBDisconnect: any
   let stubBlockchainConnect: any
   let stubBlockchainDisconnect: any
+  let stubRabbitConnect: any
+  let stubRabbitDisconnect: any
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    stubRabbitConnect = sandbox.stub(RabbitMQ, 'connect')
+    stubRabbitDisconnect = sandbox.stub(RabbitMQ, 'close')
     stubBlockchainConnect = sandbox.stub(ProviderModule, 'connectToAllNetworks')
     stubBlockchainDisconnect = sandbox.stub(ProviderModule, 'closeAllNetworks')
     stubDBConnect = sandbox.stub(MongoDB, 'connect')
@@ -40,10 +45,11 @@ describe('Module: connection', () => {
 
     it('Should open all', async () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const res = await Connections.open([EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN])
+      const res = await Connections.open([EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ])
 
       expect(res).to.be.true
       expect(stubDBConnect.calledOnce).to.be.true
+      expect(stubRabbitConnect.calledOnce).to.be.true
       expect(stubBlockchainConnect.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Connections open' as any)).to.be.true
@@ -99,10 +105,11 @@ describe('Module: connection', () => {
     it('Should close all', async () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubLoggerPurge = sandbox.stub(logger, 'purge')
-      Connections.openedConnections = [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN]
+      Connections.openedConnections = [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ]
 
       await Connections.close()
 
+      expect(stubRabbitDisconnect.calledOnce).to.be.true
       expect(stubDBDisconnect.calledOnce).to.be.true
       expect(stubBlockchainDisconnect.calledOnce).to.be.true
 

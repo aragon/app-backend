@@ -11,7 +11,7 @@ import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
 
-const PluginSyncService: IService = {
+const AragonPluginsService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   async start() {
@@ -58,4 +58,4 @@ const PluginSyncService: IService = {
   },
 }
 
-export default PluginSyncService
+export default AragonPluginsService

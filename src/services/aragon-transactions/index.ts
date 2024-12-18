@@ -13,7 +13,7 @@ export interface IExtendedService extends IService {
   processNewBlock: (provider: IWebSocketProvider, blockNumber: number, network: NetworksEnum) => Promise<void>
 }
 
-const IndexerService: IExtendedService = {
+const AragonTransactionsService: IExtendedService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   start: async function () {
@@ -55,4 +55,4 @@ const IndexerService: IExtendedService = {
   },
 }
 
-export default IndexerService
+export default AragonTransactionsService
