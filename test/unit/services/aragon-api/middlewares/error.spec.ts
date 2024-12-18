@@ -35,6 +35,7 @@ describe('middlewares: error', () => {
     expect(ctx.body).to.deep.eq({
       code: ErrorKeyEnum.unknownError,
       description: 'Internal server error',
+      status: 500,
     })
   })
 
