@@ -21,7 +21,8 @@ jobs:
               echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
               echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
               echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
-              echo "OP_ENV_OP_SERVICE_ACCOUNT_TOKEN="
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
               ;;
 
 
@@ -32,6 +33,8 @@ jobs:
               echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
               echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
               echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
               ;;
 
 
@@ -42,6 +45,8 @@ jobs:
               echo "OP_SERVER_USERNAME=op://apikeys_production/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
               echo "OP_SERVER_URL=op://apikeys_production/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
               echo "OP_SERVER_CERT=op://apikeys_production/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
               ;;
           esac
 
@@ -56,7 +61,7 @@ jobs:
         with:
           export-env: false
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets['OP_SERVICE_ACCOUNT_TOKEN_' + (github.ref == 'refs/heads/main' && 'PROD_TEMP' || 'NONPROD_TEMP')] }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
           SERVER_USERNAME: ${{ env.OP_SERVER_USERNAME }}
           SERVER_URL: ${{ env.OP_SERVER_URL }}
           SERVER_CERT: ${{ env.OP_SERVER_CERT }}
@@ -68,7 +73,7 @@ jobs:
 
       - name: Download config files
         env: 
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS] }}
           OP_VAULT: temporal_backend2
           OP_VAULT_ITEM: configs_app_backend2_${{env.DEPLOY_ENV}}
         run: |
