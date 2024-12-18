@@ -66,6 +66,21 @@ cleanup_local() {
     rm -rf "$TARGET_DIR" "$ARCHIVE_NAME"
 }
 
+# Ensure known_hosts file is updated to avoid host key verification failure
+update_known_hosts(){
+    if [ -n "$REMOTE_HOST" ]; then
+        echo "Updating known_hosts to avoid host key verification failure..."
+        ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+        if [ $? -eq 0 ]; then
+            echo "Successfully updated known_hosts with $REMOTE_HOST."
+        else
+            echo "Failed to update known_hosts. Please check the remote host IP and try again."
+        fi
+    else
+        echo "REMOTE_HOST is not set. Skipping known_hosts update."
+    fi
+}
+
 # Function to remove logs on the remote server
 remote_remove_logs() {
     echo -e "\n\n Removing old logs on remote server..."
@@ -84,6 +99,8 @@ remote_extract_files() {
     ssh "$REMOTE_USER@$REMOTE_HOST" "tar -xf $REMOTE_DIR/$ARCHIVE_NAME -C $REMOTE_DIR ; rm $REMOTE_DIR/$ARCHIVE_NAME"
 
 }
+
+
 
 # Function copy in the remote the var files to the dir
 # This is just for testing when you have files locally, GitHub flow will retrieve the config and upload it in the .tar directly
@@ -181,6 +198,7 @@ main_functions(){
         set_vars
         check_vars_exist
         create_tar
+        update_known_hosts
         remote_clean_old_install
         remote_remove_logs
         copy_tar_to_remote
@@ -261,3 +279,5 @@ main() {
 main "$@"
 
 echo "Deployment complete."
+
+
