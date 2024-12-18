@@ -277,14 +277,11 @@ main() {
 }
 
 eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/cert
+ssh-add ~/.ssh/id_rsa
 ssh-add -l
-ls -la ~/.ssh/cert
+ls -la ~/.ssh/id_rsa
 ls -la ~/.ssh
-sha256sum ~/.ssh/cert
-
-
-ssh -vT -i ~/.ssh/cert -o StrictHostKeyChecking=no backend2@dev.backend.aragon.in "whoami"
+sha256sum ~/.ssh/id_rsa
 
 
 
