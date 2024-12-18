@@ -104,7 +104,16 @@ describe('Model: Proposal', () => {
   })
 
   it('Should findExistingLog', async () => {
-    const createdProposal = await Models.Proposal.create(rawProposalMultisig)
+    const id = Models.Proposal.getEntityId({
+      transactionHash: rawProposalMultisig.transactionHash,
+      pluginAddress: rawProposalMultisig.pluginAddress,
+      proposalIndex: rawProposalMultisig.proposalIndex,
+    })
+
+    const createdProposal = await Models.Proposal.create({
+      ...rawProposalMultisig,
+      id,
+    })
     const foundProposal = await Models.Proposal.findExistingLog({
       transactionHash: createdProposal.transactionHash,
       pluginAddress: createdProposal.pluginAddress,
