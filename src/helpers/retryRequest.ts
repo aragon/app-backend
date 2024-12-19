@@ -41,7 +41,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
-      } else if (['SERVER_ERROR' || 'TIMEOUT'].includes(error?.code) && isErrorRelatedToRealtime(error)) {
+      } else if (['SERVER_ERROR' || 'TIMEOUT'].includes(error?.code) && isErrorRelatedToServerIssue(error)) {
         logger.warn(
           'Warn, retrying on alchemy server error...',
           llo({ retryCount, wait: retryDelay(retryCount), error }),
@@ -71,15 +71,19 @@ function canBeRetried(error: any): boolean {
   return Object.values(RETRY_REVERTS).includes(errorValueSig)
 }
 
-function isErrorRelatedToRealtime(error: any): boolean {
+function isErrorRelatedToServerIssue(error: any): boolean {
   try {
     const parsedReqBody = JSON.parse(error?.requestBody || '{}')
-    return (
-      parsedReqBody?.method === 'eth_getLogs' &&
-      parsedReqBody?.params?.[0]?.fromBlock === parsedReqBody?.params?.[0]?.toBlock
-    )
+    const method = parsedReqBody?.method
+    const params = parsedReqBody?.params?.[0]
+
+    const isEthGetLogsWithSameBlock = method === 'eth_getLogs' && params?.fromBlock === params?.toBlock
+    const isEthBlockNumber = method === 'eth_blockNumber'
+    const isAssetTransfers = method === 'alchemy_getAssetTransfers'
+
+    return isEthGetLogsWithSameBlock || isEthBlockNumber || isAssetTransfers
   } catch (e) {
-    logger.warn('Error parsing request body for isErrorRelatedToRealtime when alchemy server error', { error, e })
+    logger.warn('Error parsing request body for isErrorRelatedToServerIssue', { error, e })
     return false
   }
 }
