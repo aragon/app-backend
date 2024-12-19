@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         host:
-          - 'https://api.aragon-backend.com'
+          - 'https://api.aragon-backend.co'
           - 'https://stg.backend.aragon.in'
           - 'https://backend.aragon.in'
           - 'https://dev.backend.aragon.in'
