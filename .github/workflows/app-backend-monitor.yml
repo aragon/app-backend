@@ -25,38 +25,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install Newman
-        run: npm install -g newman
+      - name: Install Newman and Reporter
+        run: npm install -g newman newman-reporter-htmlextra
 
-      - name: Run Performance Tests
+      - name: Run Performance Tests with HTML Report
         id: postman-test
         run: |
           echo "Running tests on environment: ${{ matrix.host }}"
+          SANITIZED_HOST=$(echo "${{ matrix.host }}" | sed 's/https\?:\/\///g' | sed 's/\./-/g')
           newman run postman/postman-backend-collection.json \
             --env-var "host=${{ matrix.host }}" \
-            --reporters cli \
-            --timeout-request 5000 \
-            > test-output.log || true
-
-      - name: Sanitize Host Name
-        id: sanitize-host
-        run: |
-          echo "Sanitizing host name for artifact..."
-          SANITIZED_HOST=$(echo "${{ matrix.host }}" | sed 's/https\?:\/\///g' | sed 's/\./-/g')
+            --reporters htmlextra \
+            --reporter-htmlextra-export newman-report-${SANITIZED_HOST}.html || true
           echo "SANITIZED_HOST=$SANITIZED_HOST" >> $GITHUB_ENV
 
-      - name: Upload Test Report
+      - name: Upload HTML Report
         id: upload_report
         uses: actions/upload-artifact@v3
         with:
-          name: 'test-output-log-${{ env.SANITIZED_HOST }}'
-          path: test-output.log
+          name: 'newman-html-report-${{ env.SANITIZED_HOST }}'
+          path: newman-report-${{ env.SANITIZED_HOST }}.html
 
       - name: Notify Discord on Failure
         if: failure()
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          ARTIFACT_URL: ${{ steps.upload_report.outputs.artifact-url }}
+          REPORT_URL: ${{ steps.upload_report.outputs.artifact-url }}
         run: |
           echo "Sending Discord failure notification..."
           cat <<EOF > payload.json
@@ -69,7 +63,7 @@ jobs:
                 { "name": "Workflow", "value": "${{ github.workflow }}", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
                 { "name": "Environment", "value": "${{ matrix.host }}", "inline": false },
-                { "name": "Artifact Download URL", "value": "[Download Test Report]($ARTIFACT_URL)", "inline": false },
+                { "name": "HTML Report URL", "value": "[Download HTML Report]($REPORT_URL)", "inline": false },
                 { "name": "Details", "value": "[View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
