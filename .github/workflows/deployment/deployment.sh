@@ -276,13 +276,6 @@ main() {
     main_functions
 }
 
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_rsa
-ssh-add -l
-ls -la ~/.ssh/id_rsa
-ls -la ~/.ssh
-sha256sum ~/.ssh/id_rsa
-
 
 
 # Call the function to parse options
