@@ -73,7 +73,7 @@ jobs:
             curl -H "Content-Type: application/json" \
               -X POST \
               -d "{\"content\": \"❌ **API Monitoring Test Failed for ${{ matrix.host }}**\\n**Failing Tests:**\\n$FAILURES_MESSAGE\"}" \
-              $DISCORD_WEBHOOK_URL
+              https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
           fi
         env:
           TEST_STATUS: ${{ env.TEST_STATUS }}
@@ -89,4 +89,4 @@ jobs:
           curl -H "Content-Type: application/json" \
             -X POST \
             -d '{"content": "✅ **Weekly Report: All API Monitoring Tests Succeeded!**"}' \
-            $DISCORD_WEBHOOK_URL
+            https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
