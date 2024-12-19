@@ -81,6 +81,7 @@ describe('Indexer: ProposalHandler', () => {
         tokenAddress: '0xtoken-address',
       }
 
+      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
@@ -165,7 +166,7 @@ describe('Indexer: ProposalHandler', () => {
           endDate: 1800000000n,
           allowFailureMap: 1n,
           metadata: metadataUri,
-          actions: [{ to: '0xadmin-target', value: 0n, data: '0xadmindata' }],
+          actions: [{ to: '0xadmin-target', value: 0n, data: '0x4b3d1223' }],
         },
       }
 
@@ -184,6 +185,8 @@ describe('Indexer: ProposalHandler', () => {
         media: [],
       }
 
+      sandbox.stub(DecodeActions.prototype, 'parseContractNetspec')
+      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'extractMetadataUri').returns(metadataUri)
@@ -214,7 +217,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(savedProposal.pluginAddress).to.eq('0xplugin-address')
       expect(savedProposal.rawActions[0].to).to.eq('0xadmin-target')
       expect(savedProposal.rawActions[0].value).to.eq('0')
-      expect(savedProposal.rawActions[0].data).to.eq('0xadmindata')
+      expect(savedProposal.rawActions[0].data).to.eq('0x4b3d1223')
       expect(savedProposal.snapshot.membersCount).to.eq(0) // Admin plugin has no voting token snapshot
 
       // Assertions on external calls
@@ -302,6 +305,42 @@ describe('Indexer: ProposalHandler', () => {
   })
 
   describe('approved', () => {
+    it('should return when plugin is not supported', async () => {
+      const network = NetworksEnum.ethereumMainnet
+
+      const info: ILogInfo = {
+        transactionHash: '0xApprovedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'Approved',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          approver: '0xapprover-address',
+        },
+      }
+
+      const plugin = {
+        address: '0xplugin-address',
+        network,
+        interfaceType: IPluginInterfaceType.admin,
+        isSupported: false,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+
+      const result = await ProposalHandler.approved(fakeEvent as any, info)
+
+      expect(result).to.be.undefined
+      expect(warnLoggerStub.calledOnceWith('Approved - Plugin not found' as any)).to.be.true
+    })
+
     it('should handle approved event', async () => {
       const network = NetworksEnum.ethereumMainnet
 
@@ -328,6 +367,8 @@ describe('Indexer: ProposalHandler', () => {
         proposalIndex: '1',
       }
 
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
@@ -392,6 +433,8 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
+
       const warnLoggerStub = sandbox.stub(logger, 'warn')
 
       const result = await ProposalHandler.approved(fakeEvent as any, info)
@@ -419,7 +462,7 @@ describe('Indexer: ProposalHandler', () => {
           approver: '0xapprover-address',
         },
       }
-
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').throws(new Error('Database error'))
       const errorLoggerStub = sandbox.stub(logger, 'error')
 
@@ -459,6 +502,8 @@ describe('Indexer: ProposalHandler', () => {
         proposalIndex: '1',
       }
 
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
@@ -540,10 +585,14 @@ describe('Indexer: ProposalHandler', () => {
         deleteOne: sinon.stub().resolves(),
       }
 
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(existingVote as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
+
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
       const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity').resolves()
 
@@ -560,6 +609,36 @@ describe('Indexer: ProposalHandler', () => {
 
       expect(proxyTokenStub.calledOnceWithExactly('0xtoken-address', network)).to.be.true
       expect(updateActivityStub.calledOnce).to.be.true
+    })
+
+    it('should log a warning if the plugin is not found', async () => {
+      const network = NetworksEnum.ethereumMainnet
+
+      const info: ILogInfo = {
+        transactionHash: '0xMissingPluginTx',
+        address: '0xplugin-address',
+        blockNumber: 20,
+        network,
+        eventName: 'voteCast',
+        transactionIndex: 3,
+        logIndex: 4,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 3n,
+          voter: '0xvoter-address',
+          voteOption: 1n,
+          votingPower: 200n,
+        },
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+
+      await ProposalHandler.voteCast(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledOnceWith('VoteCast - Plugin not found' as any)).to.be.true
     })
 
     it('should log a warning if the proposal is not found', async () => {
@@ -584,6 +663,7 @@ describe('Indexer: ProposalHandler', () => {
         },
       }
 
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
       const warnLoggerStub = sandbox.stub(logger, 'warn')
 
@@ -614,6 +694,7 @@ describe('Indexer: ProposalHandler', () => {
         },
       }
 
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').throws(new Error('Database error'))
       const errorLoggerStub = sandbox.stub(logger, 'error')
 
@@ -642,6 +723,7 @@ describe('Indexer: ProposalHandler', () => {
         },
       }
 
+      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -859,7 +941,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({ lastStageTransition: 1800000000 } as any)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any) // Ensure plugin is found
-
+      sandbox.stub(logger, 'verbose')
       // Execute the handler
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
