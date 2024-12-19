@@ -255,7 +255,7 @@ class BlockchainLogCrawler {
   }
 
   isRateLimited(error: any): boolean {
-    const messages = ['Your app has exceeded its compute units per second capacity']
+    const messages = ['Your app has exceeded its compute units per second capacity', 'query exceeds max block range']
 
     return messages.some(msg => error.message?.includes(msg))
   }
