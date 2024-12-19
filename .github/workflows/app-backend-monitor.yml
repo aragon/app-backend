@@ -78,7 +78,6 @@ jobs:
           newman run postman/postman-backend-collection.json \
             --env-var "host=${{ matrix.host }}" \
             --reporters cli \
-            --timeout-request 5000 \
             > test-output.log || true
 
           # Display test output for debugging
@@ -118,7 +117,7 @@ jobs:
           echo "Sending Discord failure notification..."
 
           # Construct the link to the specific step in the workflow logs
-          STEP_LINK="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#step:2"
+          JOB_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/<job_id>
 
           # Create JSON payload
           cat <<EOF > payload.json
@@ -132,6 +131,7 @@ jobs:
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
                 { "name": "Environment", "value": "${{ matrix.host }}", "inline": false },
                 { "name": "Details", "value": "[View Run Performance Tests Step]($STEP_LINK)", "inline": false }
+                { "name": "Details", "value": "[View Run Performance Tests Step]($JOB_URL)", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
             }]
