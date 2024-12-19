@@ -95,11 +95,11 @@ class BlockchainTransferCrawler {
   async getBlockNumber(blockNumber: string | number | undefined): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
-        return await retryRequest(
-          async () =>
-            await BottleneckModule.getNodeTransferLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
-              this.getProvider().getBlockNumber(),
-            ),
+        const provider = this.getProvider()
+        return await retryRequest(async () =>
+          BottleneckModule.getNodeTransferLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+            provider.getBlockNumber(),
+          ),
         )
       } catch (error) {
         logger.error(
@@ -145,9 +145,10 @@ class BlockchainTransferCrawler {
       let success = false
       while (!success) {
         try {
+          const provider = this.getProvider()
           const response = await retryRequest(async () =>
             BottleneckModule.getNodeTransferLimiter(this.network)!.schedule(async () =>
-              this.getProvider().send('alchemy_getAssetTransfers', [
+              provider.send('alchemy_getAssetTransfers', [
                 {
                   fromBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(currentBlock) : undefined,
                   toBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(toBlock) : undefined,
