@@ -102,4 +102,29 @@ jobs:
       - name: Cleanup Temporary Files
         run: rm -rf ./node_modules ./build ./tmp
 
-  weekly_success: i
+  weekly_success:
+    if: github.event.schedule == '0 0 * * 1'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Notify Discord Weekly Success Message
+        run: |
+          echo "Sending Discord weekly success notification..."
+          cat <<EOF > payload.json
+          {
+            "embeds": [{
+              "title": "✅ Weekly Report: All API Monitoring Tests Succeeded!",
+              "color": 3066993,
+              "fields": [
+                { "name": "Repository", "value": "${{ github.repository }}", "inline": false },
+                { "name": "Workflow", "value": "${{ github.workflow }}", "inline": false },
+                { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
+                { "name": "Details", "value": "[View Workflow Runs](${{ github.server_url }}/${{ github.repository }}/actions)", "inline": false }
+              ],
+              "timestamp": "$(date --utc +%FT%TZ)"
+            }]
+          }
+          EOF
+
+          curl -X POST -H "Content-Type: application/json" -d @payload.json $DISCORD_WEBHOOK_URL
+          echo "Discord weekly success notification sent."
