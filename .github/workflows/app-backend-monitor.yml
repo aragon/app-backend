@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         host:
-          - 'https://api.aragon-backend'
+          - 'https://api.aragon-backend.com'
           - 'https://stg.backend.aragon.in'
           - 'https://backend.aragon.in'
           - 'https://dev.backend.aragon.in'
@@ -63,34 +63,12 @@ jobs:
             exit 1
           fi
 
-      - name: Fetch Job ID
-        id: fetch_job_id
-        run: |
-          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/aragon/app-backend/actions/runs/${{ github.run_id }}/jobs")
-
-          echo "API Response: $RESPONSE"
-
-          JOB_NAME="test (${{ matrix.host }})"
-          echo "Looking for job name: $JOB_NAME"
-
-          JOB_ID=$(echo "$RESPONSE" | jq -r ".jobs[] | select(.name == \"$JOB_NAME\") | .id")
-          if [ -z "$JOB_ID" ]; then
-            echo "Error: Job ID not found for $JOB_NAME"
-            exit 1
-          fi
-          echo "JOB_ID=$JOB_ID" >> $GITHUB_ENV
-
       - name: Notify Discord on Failure
         if: failure()
         env:
           FAILURES: ${{ env.FAILURES }}
-          JOB_ID: ${{ env.JOB_ID }}
         run: |
           echo "Sending Discord failure notification..."
-
-          # Construct the link to the specific job logs
-          JOB_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ env.JOB_ID }}"
 
           # Create JSON payload
           cat <<EOF > payload.json
@@ -103,7 +81,7 @@ jobs:
                 { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
                 { "name": "Environment", "value": "${{ matrix.host }}", "inline": false },
-                { "name": "Details", "value": "[View Run Performance Tests Failures]($JOB_URL)", "inline": false }
+                { "name": "Details", "value": "[View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
             }]
