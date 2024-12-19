@@ -2,6 +2,11 @@ name: App deploy new version
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - staging
+      - development
 
 jobs:
   deploy:
@@ -77,11 +82,8 @@ jobs:
           SERVER_CERT: ${{ env.OP_SERVER_CERT }}
         run: |
           mkdir ~/.ssh/ -p
-          chmod 700 ~/.ssh/
           op read ${{ env.SERVER_CERT }} > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          sha256sum ~/.ssh/id_rsa
-          
+          chmod 400 ~/.ssh/id_rsa          
 
       - name: Download config files
         env: 
@@ -130,11 +132,8 @@ jobs:
         env:
           IS_A_GITHUB_ACTION: true
         run: |
-          set -x
           cd ..
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/id_rsa
-          ssh-add -l
-          sha256sum ~/.ssh/id_rsa
           bash app-backend/.github/workflows/deployment/deployment.sh -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
           
