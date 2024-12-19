@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         host:
-          - 'https://api.aragon-backend.com'
+          - 'https://api.aragon-backend'
           - 'https://stg.backend.aragon.in'
           - 'https://backend.aragon.in'
           - 'https://dev.backend.aragon.in'
@@ -30,6 +30,7 @@ jobs:
 
       - name: Run Performance Tests
         id: postman-test
+        timeout-minutes: 1 # Add a timeout of 1 minute
         run: |
           echo "Running tests on environment: ${{ matrix.host }}"
 
