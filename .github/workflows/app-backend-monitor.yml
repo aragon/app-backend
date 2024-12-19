@@ -32,7 +32,12 @@ jobs:
         id: postman-test
         run: |
           echo "Running tests on environment: ${{ matrix.host }}"
-          SANITIZED_HOST=$(echo "${{ matrix.host }}" | sed 's/https\?:\/\///g' | sed 's/\./-/g')
+
+          # Sanitize host for filenames
+          SANITIZED_HOST=$(echo "${{ matrix.host }}" | sed 's/https\?:\/\///g' | sed 's/[:/.]/-/g')
+          echo "Sanitized Host: $SANITIZED_HOST"
+          echo "SANITIZED_HOST=$SANITIZED_HOST" >> $GITHUB_ENV
+
           newman run postman/postman-backend-collection.json \
             --env-var "host=${{ matrix.host }}" \
             --reporters cli,htmlextra \
@@ -66,8 +71,8 @@ jobs:
         id: upload_report
         uses: actions/upload-artifact@v3
         with:
-          name: 'newman-html-report-${{ matrix.host }}'
-          path: newman-report-${{ matrix.host }}.html
+          name: 'newman-html-report-${{ env.SANITIZED_HOST }}'
+          path: 'newman-report-${{ env.SANITIZED_HOST }}.html'
 
       - name: Notify Discord on Failure
         if: failure()
