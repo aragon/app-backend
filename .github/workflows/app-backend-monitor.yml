@@ -36,7 +36,12 @@ jobs:
           newman run postman/postman-backend-collection.json \
             --env-var "host=${{ matrix.host }}" \
             --reporters htmlextra \
-            --reporter-htmlextra-export newman-report-${SANITIZED_HOST}.html || true
+            --reporter-htmlextra-export newman-report-${SANITIZED_HOST}.html \
+            > test-output.log || true
+
+          echo "===== Newman Test Output ====="
+          cat test-output.log
+          echo "=============================="
           echo "SANITIZED_HOST=$SANITIZED_HOST" >> $GITHUB_ENV
 
       - name: Upload HTML Report
