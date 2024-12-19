@@ -173,6 +173,13 @@ export const ProposalHandler = {
   approved: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const proposalIndex = parsedEvent.args.proposalId.toString()
+
+      const plugin = await Models.Plugin.findByAddress(info.address, info.network)
+      if (!plugin || plugin.isSupported === false) {
+        logger.warn('Approved - Plugin not found', llo(info))
+        return
+      }
+
       const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
 
       if (!proposal) {
@@ -235,6 +242,13 @@ export const ProposalHandler = {
   voteCast: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const proposalIndex = parsedEvent.args.proposalId.toString()
+
+      const plugin = await Models.Plugin.findByAddress(info.address, info.network)
+      if (!plugin || plugin.isSupported === false) {
+        logger.warn('VoteCast - Plugin not found', llo(info))
+        return
+      }
+
       const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
 
       if (!proposal) {
