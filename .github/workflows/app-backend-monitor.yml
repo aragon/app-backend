@@ -28,46 +28,6 @@ jobs:
       - name: Install Newman and Reporter
         run: npm install -g newman newman-reporter-htmlextra
 
-      # - name: Run Performance Tests
-      #   id: postman-test
-      #   timeout-minutes: 1 # Add a timeout of 1 minute
-      #   run: |
-      #     echo "Running tests on environment: ${{ matrix.host }}"
-
-      #     # Sanitize host for filenames
-      #     SANITIZED_HOST=$(echo "${{ matrix.host }}" | sed 's/https\?:\/\///g' | sed 's/[:/.]/-/g')
-      #     echo "SANITIZED_HOST=$SANITIZED_HOST" >> $GITHUB_ENV
-
-      #     newman run postman/postman-backend-collection.json \
-      #       --env-var "host=${{ matrix.host }}" \
-      #       --reporters cli,htmlextra \
-      #       --reporter-htmlextra-export newman-report-${SANITIZED_HOST}.html \
-      #       --timeout-request 5000 \
-      #       > test-output.log || true
-
-      #     # Display test output for debugging
-      #     echo "===== Newman Test Output ====="
-      #     cat test-output.log
-      #     echo "=============================="
-
-      #     # Extract full details of failures
-      #     RAW_FAILURES=$(awk '/#  failure/{flag=1; next} /==============================/{flag=0} flag' test-output.log)
-      #     if [ -z "$RAW_FAILURES" ]; then
-      #       echo "FAILURES=None" >> $GITHUB_ENV
-      #       echo "TEST_STATUS=success" >> $GITHUB_ENV
-      #     else
-      #       # Escape newlines and special characters
-      #       SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
-      #       echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
-      #       echo "TEST_STATUS=failed" >> $GITHUB_ENV
-      #     fi
-
-      #     # Fail the step if tests failed
-      #     if [ "$TEST_STATUS" == "failed" ]; then
-      #       echo "Performance tests failed."
-      #       exit 1
-      #     fi
-
       - name: Run Performance Tests
         id: postman-test
         timeout-minutes: 1
@@ -78,7 +38,7 @@ jobs:
           newman run postman/postman-backend-collection.json \
             --env-var "host=${{ matrix.host }}" \
             --reporters cli \
-            --timeout-request 5000 \
+            --timeout-request 60000 \
             > test-output.log || true
 
           # Display test output for debugging
@@ -103,24 +63,29 @@ jobs:
             exit 1
           fi
 
-      # - name: Upload HTML Report
-      #   id: upload_report
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: 'newman-html-report-${{ env.SANITIZED_HOST }}'
-      #     path: 'newman-report-${{ env.SANITIZED_HOST }}.html'
+      - name: Fetch Job ID
+        id: fetch_job_id
+        run: |
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs")
+          JOB_NAME="test (https://${{ matrix.host }})"
+          JOB_ID=$(echo "$RESPONSE" | jq -r ".jobs[] | select(.name == \"$JOB_NAME\") | .id")
+          if [ -z "$JOB_ID" ]; then
+            echo "Error: Job ID not found for $JOB_NAME"
+            exit 1
+          fi
+          echo "JOB_ID=$JOB_ID" >> $GITHUB_ENV
 
       - name: Notify Discord on Failure
         if: failure()
         env:
           FAILURES: ${{ env.FAILURES }}
+          JOB_ID: ${{ env.JOB_ID }}
         run: |
           echo "Sending Discord failure notification..."
 
-          # Construct the link to the specific step in the workflow logs
-          # STEP_LINK="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#step:2"
-          JOB_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/<job_id>#step:2"
-
+          # Construct the link to the specific job logs
+          JOB_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ env.JOB_ID }}"
 
           # Create JSON payload
           cat <<EOF > payload.json
@@ -133,7 +98,7 @@ jobs:
                 { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
                 { "name": "Environment", "value": "${{ matrix.host }}", "inline": false },
-                { "name": "Details", "value": "[View Run Performance Tests Step]($JOB_URL)", "inline": false }
+                { "name": "Details", "value": "[View Run Performance Tests Failures]($JOB_URL)", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
             }]
