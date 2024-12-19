@@ -67,8 +67,13 @@ jobs:
         id: fetch_job_id
         run: |
           RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs")
-          JOB_NAME="test (https://${{ matrix.host }})"
+            "https://api.github.com/repos/aragon/app-backend/actions/runs/${{ github.run_id }}/jobs")
+
+          echo "API Response: $RESPONSE"
+
+          JOB_NAME="test (${{ matrix.host }})"
+          echo "Looking for job name: $JOB_NAME"
+
           JOB_ID=$(echo "$RESPONSE" | jq -r ".jobs[] | select(.name == \"$JOB_NAME\") | .id")
           if [ -z "$JOB_ID" ]; then
             echo "Error: Job ID not found for $JOB_NAME"
