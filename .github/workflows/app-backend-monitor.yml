@@ -130,7 +130,6 @@ jobs:
                 { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
                 { "name": "Environment", "value": "${{ matrix.host }}", "inline": false },
-                { "name": "Failures", "value": "$FAILURES", "inline": false },
                 { "name": "Details", "value": "[View Run Performance Tests Step]($STEP_LINK)", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
