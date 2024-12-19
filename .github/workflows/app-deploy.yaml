@@ -131,10 +131,10 @@ jobs:
           IS_A_GITHUB_ACTION: true
         run: |
           set -x
-          pwd
-          ls
           cd ..
-          pwd
-          ls
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_rsa
+          ssh-add -l
+          sha256sum ~/.ssh/id_rsa
           bash app-backend/.github/workflows/deployment/deployment.sh -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
           
