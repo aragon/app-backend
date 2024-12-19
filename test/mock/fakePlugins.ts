@@ -9,6 +9,7 @@ export const PluginList = [
     address: '0xBf8dE4316E2778E26b12dad8906467b23BB9A293',
     implementationAddress: '0xEce3e18F5CC70214a6AAa25674444A63683478cE',
     status: IPluginStatus.installed,
+    isSupported: true,
     interfaceType: IPluginInterfaceType.tokenVoting,
     daoAddress: '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA',
     tokenAddress: '0x03bD27B6FE4f0B3F2C2C9a4289cA2bfcE1DDE95c',
