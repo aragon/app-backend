@@ -28,11 +28,33 @@ jobs:
       - name: Install Newman and Reporter
         run: npm install -g newman newman-reporter-htmlextra
 
+      - name: Determine Environment Name
+        id: determine-env
+        run: |
+          case "${{ matrix.host }}" in
+            'https://api.aragon-backend.com')
+              ENV_NAME="sandbox v2"
+              ;;
+            'https://stg.backend.aragon.in')
+              ENV_NAME="staging"
+              ;;
+            'https://backend.aragon.in')
+              ENV_NAME="production"
+              ;;
+            'https://dev.backend.aragon.in')
+              ENV_NAME="develop"
+              ;;
+            *)
+              ENV_NAME="unknown"
+              ;;
+          esac
+          echo "ENV_NAME=$ENV_NAME" >> $GITHUB_ENV
+
       - name: Run Performance Tests
         id: postman-test
         timeout-minutes: 1
         run: |
-          echo "Running tests for ${{ matrix.host }}"
+          echo "Running tests for ${{ matrix.host }} (Environment: $ENV_NAME)"
 
           # Run Newman tests and save output
           newman run postman/postman-backend-collection.json \
@@ -67,6 +89,7 @@ jobs:
         if: failure()
         env:
           FAILURES: ${{ env.FAILURES }}
+          ENV_NAME: ${{ env.ENV_NAME }}
         run: |
           echo "Sending Discord failure notification..."
 
@@ -80,8 +103,8 @@ jobs:
                 { "name": "Repository", "value": "aragon/app-backend", "inline": false },
                 { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-                { "name": "Environment", "value": "${{ matrix.host }}", "inline": false },
-                { "name": "Details", "value": "[View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
+                { "name": "Environment", "value": "${{ matrix.host }} (${ENV_NAME})", "inline": false },
+                { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
             }]
@@ -112,8 +135,8 @@ jobs:
                 { "name": "Repository", "value": "aragon/app-backend", "inline": false },
                 { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-                { "name": "Environment", "value": "${{ matrix.host }}", "inline": false },
-                { "name": "Details", "value": "[View Workflow Runs](${{ github.server_url }}/${{ github.repository }}/actions)", "inline": false }
+                { "name": "Environment", "value": "${{ matrix.host }} (${ENV_NAME})", "inline": false },
+                { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
             }]
