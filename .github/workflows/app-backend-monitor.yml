@@ -13,87 +13,82 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        host:
-          - 'https://api.aragon-backend.co'
-          - 'https://stg.backend.aragon.in'
-          - 'https://backend.aragon.in'
-          - 'https://dev.backend.aragon.in'
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install Newman and Reporter
-        run: npm install -g newman newman-reporter-htmlextra
+      - name: Install Newman
+        run: npm install -g newman
 
-      - name: Run Newman Tests
+      - name: Run Performance Tests
         id: postman-test
         run: |
-          echo "Running tests on environment: ${{ matrix.host }}"
-
-          # Sanitize host for filenames
-          SANITIZED_HOST=$(echo "${{ matrix.host }}" | sed 's/https\?:\/\///g' | sed 's/[:/.]/-/g')
-          echo "Sanitized Host: $SANITIZED_HOST"
-          echo "SANITIZED_HOST=$SANITIZED_HOST" >> $GITHUB_ENV
-
+          set -e
           newman run postman/postman-backend-collection.json \
-            --env-var "host=${{ matrix.host }}" \
-            --reporters cli,htmlextra \
-            --reporter-htmlextra-export newman-report-${SANITIZED_HOST}.html \
+            --env-var "host=https://api.aragon-backend.com" \
+            --reporters cli \
             --timeout-request 5000 \
-            > test-output.log || true
+            > test-output.log
 
-          # Display test output for debugging
-          echo "===== Newman Test Output ====="
-          cat test-output.log
-          echo "=============================="
-
-          # Extract full details of failures
           RAW_FAILURES=$(awk '/#  failure/{flag=1; next} /==============================/{flag=0} flag' test-output.log)
           if [ -z "$RAW_FAILURES" ]; then
+            echo "TEST_STATUS=success" >> $GITHUB_ENV
             echo "FAILURES=None" >> $GITHUB_ENV
           else
-            # Escape newlines and special characters
-            SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
-            echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
-          fi
-
-          # Determine test status
-          if [ -z "$RAW_FAILURES" ]; then
-            echo "TEST_STATUS=success" >> $GITHUB_ENV
-          else
+            SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | sed ':a;N;$!ba;s/\\n/\\\\n/g' | sed 's/\"/\\\\\"/g')
             echo "TEST_STATUS=failed" >> $GITHUB_ENV
+            echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
+            exit 1
           fi
-
-      - name: Upload HTML Report
-        id: upload_report
-        uses: actions/upload-artifact@v3
-        with:
-          name: 'newman-html-report-${{ env.SANITIZED_HOST }}'
-          path: 'newman-report-${{ env.SANITIZED_HOST }}.html'
 
       - name: Notify Discord on Failure
-        if: failure()
+        if: always()
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          FAILURES: ${{ env.FAILURES }}
-          REPORT_URL: ${{ steps.upload_report.outputs.artifact-url }}
         run: |
-          echo "Sending Discord failure notification..."
+          if [ "$TEST_STATUS" == "failed" ]; then
+            echo "Sending Discord failure notification..."
+            cat <<EOF > payload.json
+            {
+              "embeds": [{
+                "title": "❌ API Monitoring Test Failed",
+                "color": 15158332,
+                "fields": [
+                  { "name": "Repository", "value": "${{ github.repository }}", "inline": false },
+                  { "name": "Workflow", "value": "${{ github.workflow }}", "inline": false },
+                  { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
+                  { "name": "Details", "value": "[View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false },
+                  { "name": "Failures", "value": "$FAILURES", "inline": false }
+                ],
+                "timestamp": "$(date --utc +%FT%TZ)"
+              }]
+            }
+            EOF
+
+            curl -X POST -H "Content-Type: application/json" -d @payload.json $DISCORD_WEBHOOK_URL
+            echo "Discord notification sent."
+          fi
+
+      - name: Cleanup temporary files
+        run: rm -f test-output.log payload.json
+
+  weekly_success:
+    if: github.event.schedule == '0 0 * * 1'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Notify Discord Weekly Success Message
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          echo "Sending weekly success notification..."
           cat <<EOF > payload.json
           {
             "embeds": [{
-              "title": "❌ API Monitoring Test Failed",
-              "color": 15158332,
+              "title": "✅ Weekly Report",
+              "color": 3066993,
               "fields": [
-                { "name": "Repository", "value": "${{ github.repository }}", "inline": false },
-                { "name": "Workflow", "value": "${{ github.workflow }}", "inline": false },
-                { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-                { "name": "Environment", "value": "${{ matrix.host }}", "inline": false },
-                { "name": "Failures", "value": "$FAILURES", "inline": false },
-                { "name": "HTML Report URL", "value": "[Download HTML Report]($REPORT_URL)", "inline": false },
+                { "name": "Message", "value": "All API Monitoring Tests Succeeded!", "inline": false },
                 { "name": "Details", "value": "[View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
@@ -104,32 +99,5 @@ jobs:
           curl -X POST -H "Content-Type: application/json" -d @payload.json $DISCORD_WEBHOOK_URL
           echo "Discord notification sent."
 
-      - name: Cleanup Temporary Files
-        run: rm -rf ./node_modules ./build ./tmp
-
-  weekly_success:
-    if: github.event.schedule == '0 0 * * 1'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Notify Discord Weekly Success Message
-        run: |
-          echo "Sending Discord weekly success notification..."
-          cat <<EOF > payload.json
-          {
-            "embeds": [{
-              "title": "✅ Weekly Report: All API Monitoring Tests Succeeded!",
-              "color": 3066993,
-              "fields": [
-                { "name": "Repository", "value": "${{ github.repository }}", "inline": false },
-                { "name": "Workflow", "value": "${{ github.workflow }}", "inline": false },
-                { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-                { "name": "Details", "value": "[View Workflow Runs](${{ github.server_url }}/${{ github.repository }}/actions)", "inline": false }
-              ],
-              "timestamp": "$(date --utc +%FT%TZ)"
-            }]
-          }
-          EOF
-
-          curl -X POST -H "Content-Type: application/json" -d @payload.json $DISCORD_WEBHOOK_URL
-          echo "Discord weekly success notification sent."
+      - name: Cleanup temporary files
+        run: rm -f payload.json
