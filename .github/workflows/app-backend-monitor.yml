@@ -70,6 +70,7 @@ jobs:
 
       - name: Run Performance Tests
         id: postman-test
+        timeout-minutes: 1
         run: |
           echo "Running tests for ${{ matrix.host }}"
 
@@ -155,12 +156,13 @@ jobs:
           cat <<EOF > payload.json
           {
             "embeds": [{
-              "title": "✅ Weekly Report: All API Monitoring Tests Succeeded!",
+              "title": "✅ Weekly Report: Backend API Monitoring Tests Succeeded!",
               "color": 3066993,
               "fields": [
                 { "name": "Repository", "value": "aragon/app-backend", "inline": false },
                 { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
+                { "name": "Environment", "value": "${{ matrix.host }}", "inline": false },
                 { "name": "Details", "value": "[View Workflow Runs](${{ github.server_url }}/${{ github.repository }}/actions)", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
