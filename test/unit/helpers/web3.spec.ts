@@ -1359,4 +1359,54 @@ describe('Helpers:Web3', () => {
       expect(loggerStub.calledOnce).to.be.true
     })
   })
+
+  describe('isMultisigMemberAtBlock', () => {
+    it('should check if the user is member of multisig at certain block', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { isListedAtBlock: sandbox.stub().resolves(true) }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const multisigPlugin = '0xTokenAddress'
+      const fakeAddress = '0x1234567890123456789012345678901234567890'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const stat = await MockedWeb3Helper.isMultisigMemberAtBlock(multisigPlugin, fakeAddress, 123, fakeNetwork)
+      expect(stat).to.equal(true)
+    })
+
+    it('should return false when  ERC20', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { isListedAtBlock: sandbox.stub().rejects(new Error('fake-error')) }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const multisigPlugin = '0xTokenAddress'
+      const fakeAddress = '0x1234567890123456789012345678901234567890'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const stat = await MockedWeb3Helper.isMultisigMemberAtBlock(multisigPlugin, fakeAddress, 123, fakeNetwork)
+      expect(stat).to.equal(false)
+    })
+  })
 })
