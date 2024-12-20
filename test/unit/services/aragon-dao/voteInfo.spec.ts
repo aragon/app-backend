@@ -89,7 +89,7 @@ describe('VoteInfo', () => {
       expect(getPastVotesStub.calledWith('0xUserAddress')).to.be.true
     })
 
-    it('should return true for multisig if user is a member', async () => {
+    it('should return true for multi sig if user is a member', async () => {
       const plugin = await Models.Plugin.findOne({})
 
       await plugin.update({
@@ -110,7 +110,9 @@ describe('VoteInfo', () => {
 
       expect(result).to.be.true
       expect(isMultisigMemberAtBlockStub.calledOnce).to.be.true
-      expect(isMultisigMemberAtBlockStub.calledWith('0xUserAddress')).to.be.true
+      expect(isMultisigMemberAtBlockStub.args[0][0]).to.be.eq(plugin.address)
+      expect(isMultisigMemberAtBlockStub.args[0][1]).to.be.eq('0xUserAddress')
+      expect(isMultisigMemberAtBlockStub.args[0][2]).to.be.eq(proposal.blockNumber)
     })
 
     it('should return false if error occurs', async () => {
