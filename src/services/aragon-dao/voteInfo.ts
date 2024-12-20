@@ -70,11 +70,11 @@ export const VoteInfo = {
   },
 
   _handleForMultiSig: async (userAddress: string, proposal: Proposal, plugin: Plugin) => {
-    const { network, address, blockNumber } = plugin
+    const { network, address } = plugin
 
     if (!proposal.settings.onlyListed) {
       return true
     }
-    return await Web3Helper.isMultisigMemberAtBlock(address, userAddress, blockNumber, network)
+    return await Web3Helper.isMultisigMemberAtBlock(address, userAddress, proposal.blockNumber, network)
   },
 }
