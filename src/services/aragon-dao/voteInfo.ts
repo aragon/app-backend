@@ -75,6 +75,6 @@ export const VoteInfo = {
     if (!proposal.settings.onlyListed) {
       return true
     }
-    return await Web3Helper.isMultisigMemberAtBlock(userAddress, address, blockNumber, network)
+    return await Web3Helper.isMultisigMemberAtBlock(address, userAddress, blockNumber, network)
   },
 }
