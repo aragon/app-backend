@@ -88,16 +88,7 @@ class DecodeActions {
           textSignature: 'nativeTransfer(address,uint256)',
           function: 'NativeTransfer',
           contract: 'NativeToken',
-          parameters: [
-            {
-              type: 'address',
-              value: action.to,
-            },
-            {
-              type: 'uint256',
-              value: action.value,
-            },
-          ],
+          parameters: [],
         },
       }
     }
