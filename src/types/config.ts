@@ -21,6 +21,7 @@ export interface IConfig {
   PROXY: string | null
   ENS_DOMAIN: string
   NODES: {
+    CONFIRMATION_BLOCKS: number
     ETHEREUM_MAINNET: {
       WS: string
       FROM_BLOCK: number
