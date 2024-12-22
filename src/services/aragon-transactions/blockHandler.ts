@@ -47,7 +47,7 @@ export const BlockHandler = {
 
       // wait block confirmations
       await utils.wait(
-        config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME * 1000 * config.NODES.CONFIRMATION_BLOCKS,
+        config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME * 1000 * config.CONFIRMATION_BLOCKS,
       )
       await BlockHandler.sendDaoMessages(dao)
 
