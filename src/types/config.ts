@@ -20,8 +20,8 @@ export interface IConfig {
   REMOTE_EXECUTION: boolean
   PROXY: string | null
   ENS_DOMAIN: string
+  CONFIRMATION_BLOCKS: number
   NODES: {
-    CONFIRMATION_BLOCKS: number
     ETHEREUM_MAINNET: {
       WS: string
       FROM_BLOCK: number
