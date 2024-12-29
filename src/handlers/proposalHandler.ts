@@ -7,8 +7,9 @@ import {
   type IProposalMetadata,
   type IProposalSPPOnChain,
   type IRawAction,
+  ITokenVotingLogs,
 } from '@types'
-import { type LogDescription } from 'ethers'
+import { Interface, type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
 import type Vote from '@models/schema/vote'
@@ -25,10 +26,44 @@ import DbTx from '@modules/dbTx'
 import ProposalHelper from '@helpers/proposal'
 import utils from '@helpers/utils'
 import config from '@config'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { TokenVoting } from '@artifacts/TokenVoting'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 
 export const ProposalHandler = {
+  findIncrementalId: async (proposal: Proposal): Promise<any> => {
+    const crawler = new BlockchainLogCrawler({
+      skipLogProcessing: true,
+      fromBlock: proposal.blockNumber,
+      toBlock: proposal.blockNumber + 1,
+      logService: null,
+      network: proposal.network,
+      address: proposal.pluginAddress,
+      stopOnError: true,
+      onError: async (error: any) => logger.error('Error findIncrementalId', llo({ error, proposal })),
+      events: [
+        {
+          event: ITokenVotingLogs.ProposalCreated,
+          topic: new Interface(TokenVoting.abi).getEvent(ITokenVotingLogs.ProposalCreated)?.topicHash!,
+          enableHistorical: false,
+          abi: TokenVoting.abi,
+          handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {},
+        },
+      ],
+    })
+
+    const logs = await crawler.crawl()
+
+    const proposalIndex = logs?.findIndex((log: any) => log.event.args.proposalId.toString() === proposal.proposalIndex)
+
+    if (proposalIndex === -1) {
+      logger.error('Proposal not found', llo({ proposal }))
+      return -1
+    }
+
+    return proposalIndex
+  },
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     try {
       const pluginAddress = info.address
