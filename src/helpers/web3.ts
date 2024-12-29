@@ -847,6 +847,7 @@ const Web3Helper = {
         ),
       )
     } catch (error) {
+      logger.warn('Error isMultisigMemberAtBlock', llo({ pluginAddress, memberAddress, blockNumber, network, error }))
       return false
     }
   },
