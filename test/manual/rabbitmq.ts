@@ -3,12 +3,16 @@ import { SinonSandbox } from 'sinon'
 import RabbitMQ from '@modules/rabbitMQ'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import { EnumQueueName } from '@types'
+import Utils from '@helpers/utils'
+import config from '@config'
+import { expect } from 'chai'
 
 describe('Manual: RabbitMQ', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    config.RABBITMQ.URI = 'amqp://user:password@localhost:5672'
   })
 
   afterEach(() => {
@@ -56,5 +60,34 @@ describe('Manual: RabbitMQ', () => {
 
     // Send a message
     await rabbitSendMessage()
+  })
+
+  describe('reconnection test', () => {
+    it('should test rabbitMQ reconnection', async () => {
+      await RabbitMQ.connect()
+
+      // Close the connection
+      await RabbitMQ.forceClose()
+
+      await Utils.wait(config.RABBITMQ.RECONNECT_TIME + 1000)
+
+      expect(RabbitMQ.isConnected()).to.be.true
+    })
+
+    it('should recover if only the channel is closed', async () => {
+      expect(RabbitMQ.isConnected()).to.be.true
+
+      // Force only the channel to close. The connection remains open.
+      if (RabbitMQ.getChannel()) {
+        await RabbitMQ.getChannel()!.close()
+        console.log('Manually closed RabbitMQ channel')
+      }
+
+      await Utils.wait(config.RABBITMQ.RECONNECT_TIME + 1000)
+
+      // The code should recreate the channel automatically,
+      // or you can do it manually if your code doesn't automatically do so.
+      expect(RabbitMQ.isConnected()).to.be.true
+    })
   })
 })
