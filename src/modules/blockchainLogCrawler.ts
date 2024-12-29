@@ -193,7 +193,7 @@ class BlockchainLogCrawler {
         return a.index - b.index
       })
 
-      if (!this.crawlParams.skipLogProcessing) {
+      if (this.crawlParams.skipLogProcessing) {
         return sortedLogs.map(log => this.formatLog(log))
       }
 
