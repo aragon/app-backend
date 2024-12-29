@@ -8,12 +8,10 @@ import { ListLogPluginSetupProcessor } from '@test/mock/fakeLogPluginSetupProces
 import { ListLogPluginRepo } from '@test/mock/fakeLogPluginRepo'
 import DbOperations from '@models/utils/dbOperations'
 import logger from '@logger'
+import Logger from '@logger'
 import ProxyContractHelper from '@helpers/proxyContract'
 import Web3Helper from '@helpers/web3'
 import PluginDetector from '@helpers/pluginDetector'
-import LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
-import type Plugin from '@models/schema/plugin'
-import Logger from '@logger'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -356,6 +354,82 @@ describe('Indexer:Plugin', () => {
         status: IPluginStatus.uninstalled,
       })
       expect(createdPlugin).to.not.be.null
+    })
+  })
+
+  describe('uninstallPluginWithPermissionRevoke', () => {
+    it('should not uninstall a plugin if it does not exist', async () => {
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const findOneSpy = sandbox.spy(Models.Plugin, 'findOne')
+      await PluginHandler.uninstallPluginWithPermissionRevoke('0xPlugin', '0xdao', NetworksEnum.ethereumSepolia, {
+        transactionHash: '0x0123',
+      } as any)
+      expect(getTransactionReceiptStub.calledOnce).to.be.false
+      expect(findOneSpy.calledOnce).to.be.true
+      expect(findOneSpy.args[0][0]).to.be.deep.eq({
+        address: '0xPlugin',
+        daoAddress: '0xdao',
+        network: NetworksEnum.ethereumSepolia,
+      })
+    })
+
+    it('should not uninstall a plugin if it is already uninstalled', async () => {
+      const plugin = { status: IPluginStatus.uninstalled }
+      const findOneStub = sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
+      const getTransactionReceiptSpy = sandbox.spy(Web3Helper, 'getTransactionReceipt')
+      await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
+        transactionHash: '0x0123',
+      } as any)
+      expect(findOneStub.calledOnce).to.be.true
+      expect(getTransactionReceiptSpy.called).to.be.false
+    })
+
+    it('should not uninstall if UninstallationApplied logs are present', async () => {
+      const plugin = { status: 'active', id: 'pluginId' }
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
+      const txReceipt = { logs: ['log1', 'log2'] }
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
+      const findLogsStub = sandbox.stub(Web3Helper, 'findLogsByName').returns([
+        {
+          parsed: { name: 'UninstallationApplied', txLog: { pluginId: 'pluginId' } },
+        } as any,
+      ])
+      await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
+        transactionHash: '0x0123',
+        blockNumber: 12345,
+      } as any)
+      expect(findLogsStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      expect(updateStub.called).to.be.false
+    })
+
+    it('should proceed to uninstall when no UninstallationApplied logs are found', async () => {
+      const plugin = { status: 'active', id: 'pluginId' }
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
+      const txReceipt = { logs: [] }
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
+      const findLogsStub = sandbox.stub(Web3Helper, 'findLogsByName').returns([])
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+
+      await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
+        transactionHash: '0x0123',
+        blockNumber: 12345,
+      } as any)
+
+      expect(findLogsStub.calledOnce).to.be.true
+      expect(updateDocumentStub.calledOnce).to.be.true
+
+      const expectedUpdate = {
+        status: IPluginStatus.uninstalled,
+        uninstalled: {
+          status: true,
+          transactionHash: '0x0123',
+          blockNumber: 12345,
+          blockTimestamp: 1620000000,
+        },
+      }
+      expect(updateDocumentStub.args[0][1]).to.deep.equal(expectedUpdate)
     })
   })
 })

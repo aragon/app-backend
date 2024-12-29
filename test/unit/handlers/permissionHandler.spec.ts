@@ -8,6 +8,7 @@ import { Models } from '@dbModels'
 import { NetworksEnum } from '@types'
 import { ethers } from 'ethers'
 import { ProxyMember } from '@modules/proxyMember'
+import { PluginHandler } from '@handlers/pluginHandler'
 
 describe('Indexer: Permission Handler', () => {
   let sandbox: SinonSandbox
@@ -139,6 +140,39 @@ describe('Indexer: Permission Handler', () => {
       expect(handleForAdminPlugin.calledOnce).to.be.true
       expect(findExistingLog.called).to.be.true
       expect(loggerVerbose.calledOnce).to.be.true
+    })
+
+    it.only('should handle when execute permission is revoked', async () => {
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: ethers.id('EXECUTE_PERMISSION'),
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const verboseStub = sandbox.stub(logger, 'verbose')
+      const handleForAdminPlugin = sandbox.stub(PermissionHandler, 'handleForAdminPlugin')
+      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+      const uninstallPluginWithPermissionRevoke = sandbox.stub(PluginHandler, 'uninstallPluginWithPermissionRevoke')
+
+      await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
+
+      expect(verboseStub.calledOnce).to.be.true
+      expect(handleForAdminPlugin.calledOnce).to.be.false
+      expect(findExistingLog.called).to.be.true
+      expect(uninstallPluginWithPermissionRevoke.calledOnce).to.be.true
+      expect(uninstallPluginWithPermissionRevoke.args[0][0]).to.be.eq('who')
+      expect(uninstallPluginWithPermissionRevoke.args[0][1]).to.be.eq('where')
     })
   })
 
