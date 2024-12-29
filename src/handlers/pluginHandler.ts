@@ -3,6 +3,7 @@ import logger from '@logger'
 import {
   type HexAddress,
   IEventLogPluginType,
+  type ILogInfo,
   IPluginInterfaceType,
   IPluginRawStatus,
   IPluginStatus,
@@ -15,6 +16,7 @@ import Web3Helper from '@helpers/web3'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
 import PluginDetector from '@helpers/pluginDetector'
+import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PluginHandler' })
 
@@ -455,6 +457,52 @@ export const PluginHandler = {
         )
       }
     }
+  },
+
+  uninstallPluginWithPermissionRevoke: async (
+    pluginAddress: string,
+    daoAddress: string,
+    network: NetworksEnum,
+    info: ILogInfo,
+  ) => {
+    const plugin = await Models.Plugin.findOne({
+      address: pluginAddress,
+      daoAddress,
+      network,
+    })
+
+    if (!plugin || plugin.status === IPluginStatus.uninstalled) {
+      return
+    }
+
+    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
+    const uninstallationAppliedLogs = Web3Helper.findLogsByName(
+      txReceipt!,
+      'UninstallationApplied',
+      PluginSetupProcessor,
+    )
+
+    if (uninstallationAppliedLogs.length) {
+      return
+    }
+
+    const updatedDocument = {
+      status: IPluginStatus.uninstalled,
+      uninstalled: {
+        status: true,
+        transactionHash: info.transactionHash,
+        blockNumber: info.blockNumber,
+        blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, network)) || undefined,
+      },
+    }
+
+    return await DbOperations.updateDocument(
+      plugin,
+      updatedDocument,
+      { logId: plugin.id, info },
+      'Uninstall plugin',
+      llo,
+    )
   },
 
   uninstallPlugin: async (pluginLog: LogPluginSetupProcessor) => {
