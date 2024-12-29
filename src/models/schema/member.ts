@@ -336,7 +336,19 @@ export default class Member extends Model {
         tokenBalance: '$memberBalance.amount',
         votingPower: '$memberBalance.votingPower',
         metrics: {
-          $arrayElemAt: ['$memberMetrics', 0],
+          $ifNull: [
+            {
+              $arrayElemAt: ['$memberMetrics', 0],
+            },
+            {
+              lastActivity: null,
+              firstActivity: null,
+              delegateReceivedCount: 0,
+              delegateSentCount: 0,
+              voteCount: 0,
+              proposalCount: 0,
+            },
+          ],
         },
       },
     })
