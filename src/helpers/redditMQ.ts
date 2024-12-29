@@ -13,7 +13,22 @@ export const RabbitMQHelper = {
   activeJobs: new Map<string, boolean>(),
   mutex: new Mutex(),
 
+  /**
+   * Ensures RabbitMQ has a valid connection/channel. Attempts to reconnect once if not connected.
+   * Throws an error if it cannot establish a channel.
+   */
+  async ensureChannelConnected() {
+    if (!RabbitMQ.isConnected()) {
+      logger.warn('RabbitMQ not connected. Attempting to connect...', llo({}))
+      await RabbitMQ.connect()
+      if (!RabbitMQ.isConnected()) {
+        throw new Error('Unable to establish a RabbitMQ channel')
+      }
+    }
+  },
+
   async process(queueName: EnumQueueName, concurrency: number, messageHandler: MessageHandler): Promise<void> {
+    await RabbitMQHelper.ensureChannelConnected()
     const channel = RabbitMQ.getChannel()
     if (!channel) {
       throw new Error('RabbitMQ channel is not initialized.')
@@ -67,6 +82,8 @@ export const RabbitMQHelper = {
   },
 
   async sendMessage(queueName: EnumQueueName, message: IQueueMessage, opts: ISendOptions = {}): Promise<void> {
+    await RabbitMQHelper.ensureChannelConnected()
+
     const channel = RabbitMQ.getChannel()
     if (!channel) {
       throw new Error('RabbitMQ channel is not initialized.')
