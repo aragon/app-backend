@@ -142,7 +142,7 @@ describe('Indexer: Permission Handler', () => {
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
-    it.only('should handle when execute permission is revoked', async () => {
+    it('should handle when execute permission is revoked', async () => {
       const parsedEvent = {
         args: {
           where: 'where',
