@@ -12,7 +12,7 @@ import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 
-describe('Module: blockchainLogCrawler', () => {
+describe.only('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
   let mockProvider: any
   let logError: any
@@ -273,7 +273,7 @@ describe('Module: blockchainLogCrawler', () => {
 
     expect(events[0].handler.calledOnce).to.be.true
     expect(stubParseLog.calledTwice).to.be.true
-    expect(stubParseInfoLog.calledOnce).to.be.true
+    expect(stubParseInfoLog.calledTwice).to.be.true
     expect(stubSaveProgress.calledOnceWith(logs[0].blockNumber)).to.be.true
 
     expect(logError.calledOnce).to.be.true
