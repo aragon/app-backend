@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { Interface, type Log, type WebSocketProvider } from 'ethers'
-import { type ICrawlParam, type ICrawlSetting, type NetworksEnum } from '@types'
+import { type ICrawlParam, type ICrawlSetting, type IFormattedLog, type NetworksEnum } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -27,6 +27,7 @@ class BlockchainLogCrawler {
       logService: opts.logService,
       onlyHistorical: opts.onlyHistorical,
       onError: opts.onError || BlockchainLogCrawler.defaultOnError,
+      skipLogProcessing: opts.skipLogProcessing,
     }
 
     const topics = opts.events
@@ -96,7 +97,7 @@ class BlockchainLogCrawler {
     )
   }
 
-  async crawl(): Promise<void> {
+  async crawl(): Promise<IFormattedLog[] | undefined> {
     if (this.crawlSetting.crawling) {
       throw new Error('Already crawling')
     }
@@ -179,20 +180,24 @@ class BlockchainLogCrawler {
 
       if (this.crawlSetting.shutdown) break
 
-      await this.processLogs(
-        allLogs.sort((a, b) => {
-          // First, sort by blockNumber in ascending order
-          if (a.blockNumber !== b.blockNumber) {
-            return a.blockNumber - b.blockNumber
-          }
-          // If blockNumbers are the same, sort by transactionIndex in ascending order
-          if (a.transactionIndex !== b.transactionIndex) {
-            return a.transactionIndex - b.transactionIndex
-          }
-          // If both blockNumber and transactionIndex are the same, sort by index in ascending order
-          return a.index - b.index
-        }),
-      )
+      const sortedLogs = allLogs.sort((a, b) => {
+        // First, sort by blockNumber in ascending order
+        if (a.blockNumber !== b.blockNumber) {
+          return a.blockNumber - b.blockNumber
+        }
+        // If blockNumbers are the same, sort by transactionIndex in ascending order
+        if (a.transactionIndex !== b.transactionIndex) {
+          return a.transactionIndex - b.transactionIndex
+        }
+        // If both blockNumber and transactionIndex are the same, sort by index in ascending order
+        return a.index - b.index
+      })
+
+      if (!this.crawlParams.skipLogProcessing) {
+        return sortedLogs.map(log => this.formatLog(log))
+      }
+
+      await this.processLogs(sortedLogs)
 
       if (this.crawlParams.logService) {
         await this.onSaveProgress(toBlock)
@@ -215,25 +220,36 @@ class BlockchainLogCrawler {
     }
   }
 
+  formatLog(log: Log): IFormattedLog {
+    const eventSetting = this.crawlParams.events.find(item => item.topic === log.topics[0])!
+    if (!eventSetting) {
+      logger.error('Error event setting not found in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
+    }
+    const iFace = new Interface(eventSetting.abi)
+    const event = Web3Helper.parseLog(log, iFace)!
+
+    if (!event) {
+      logger.error('Error parse log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
+    }
+
+    const info = Web3Helper.parseInfoLog(log, eventSetting.event, this.crawlParams.network)
+
+    return {
+      event,
+      info,
+      handler: eventSetting.handler,
+    }
+  }
+
   async processLogs(logs: Log[]): Promise<void> {
     for (const log of logs) {
       try {
-        const eventSetting = this.crawlParams.events.find(item => item.topic === log.topics[0])!
-
-        if (!eventSetting) {
-          logger.error('Error event setting not found in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
-        }
-
-        const iFace = new Interface(eventSetting.abi)
-        const event = Web3Helper.parseLog(log, iFace)!
-
+        const { handler, event, info } = this.formatLog(log)
         if (!event) {
-          logger.error('Error parse log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
           throw new Error('Error parse log in blockchainCrawler')
         }
 
-        const info = Web3Helper.parseInfoLog(log, eventSetting.event, this.crawlParams.network)
-        await eventSetting.handler(event, info, this.crawlParams.onlyHistorical)
+        await handler(event, info, this.crawlParams.onlyHistorical)
 
         this.crawlSetting.nbSuccess++
         if (log.blockNumber) {
