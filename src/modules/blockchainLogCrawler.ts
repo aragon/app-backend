@@ -118,6 +118,8 @@ class BlockchainLogCrawler {
       this.crawlParams.network,
     )
 
+    const rawLogs: any = []
+
     while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
       this.crawlSetting.runCount++
       let toBlock = Math.min(
@@ -193,11 +195,11 @@ class BlockchainLogCrawler {
         return a.index - b.index
       })
 
-      if (this.crawlParams.skipLogProcessing) {
-        return sortedLogs.map(log => this.formatLog(log))
+      if (!this.crawlParams.skipLogProcessing) {
+        await this.processLogs(sortedLogs)
+      } else {
+        rawLogs.push(...sortedLogs.map(log => this.formatLog(log)))
       }
-
-      await this.processLogs(sortedLogs)
 
       if (this.crawlParams.logService) {
         await this.onSaveProgress(toBlock)
@@ -205,6 +207,10 @@ class BlockchainLogCrawler {
       if (this.crawlSetting.shutdown) break
       currentBlock = toBlock + 1
       if (currentBlock >= latestBlock) break
+    }
+
+    if (this.crawlParams.skipLogProcessing) {
+      return rawLogs
     }
 
     this.crawlSetting.crawling = false

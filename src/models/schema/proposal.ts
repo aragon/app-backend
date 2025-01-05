@@ -350,6 +350,28 @@ export default class Proposal extends Model {
     return await this.findOne({ proposalIndex, pluginAddress, network }, tOpts)
   }
 
+  static async findLatestProposal(pluginAddress: HexAddress, network: NetworksEnum) {
+    const query = [
+      {
+        $match: {
+          pluginAddress,
+          network,
+        },
+      },
+      {
+        $sort: {
+          blockNumber: -1 as 1 | -1,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ]
+
+    const results = await this.aggregate(query)
+    return results?.[0]
+  }
+
   static async findWithEntityId(id: string) {
     const query = [
       {
