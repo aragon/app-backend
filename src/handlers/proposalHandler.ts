@@ -33,14 +33,21 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:Propo
 
 export const ProposalHandler = {
   findIncrementalId: async (proposal: Proposal): Promise<any> => {
+    const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
+    /**
+     * Find the latest proposal from this plugin
+     */
+
+    const latestProposal = await Models.Proposal.findLatestProposal(plugin.address, proposal.network)
+
     const crawler = new BlockchainLogCrawler({
       skipLogProcessing: true,
-      fromBlock: proposal.blockNumber,
-      toBlock: proposal.blockNumber + 1,
+      fromBlock: plugin.blockNumber,
+      toBlock: latestProposal.blockNumber + 1,
       logService: null,
       network: proposal.network,
       address: proposal.pluginAddress,
-      stopOnError: true,
+      stopOnError: false,
       onError: async (error: any) => logger.error('Error findIncrementalId', llo({ error, proposal })),
       events: [
         {
@@ -53,9 +60,9 @@ export const ProposalHandler = {
       ],
     })
 
-    const logs = await crawler.crawl()
+    const proposalIds = (await crawler.crawl())?.map((log: any) => log.event.args.proposalId.toString())
 
-    const proposalIndex = logs?.findIndex((log: any) => log.event.args.proposalId.toString() === proposal.proposalIndex)
+    const proposalIndex = proposalIds?.findIndex((id: string) => id === proposal.proposalIndex)
 
     if (proposalIndex === -1) {
       logger.error('Proposal not found', llo({ proposal }))
