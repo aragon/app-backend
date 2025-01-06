@@ -56,7 +56,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: null,
+      logService: 'Indexer-ethereum-mainnet',
       onError: () => {},
     })
 
@@ -67,6 +67,7 @@ describe('Module: blockchainLogCrawler', () => {
       .onSecondCall()
       .resolves(false)
 
+    const onSaveProgressStub = sandbox.stub(crawler, 'onSaveProgress').resolves()
     const processLogsSpy = sandbox.spy(crawler, 'processLogs')
 
     await crawler.crawl()
@@ -75,6 +76,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(mockProvider.getLogs.calledOnce).to.be.true
     expect(processLogsSpy.calledOnceWith(sandbox.match.array)).to.be.true
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+    expect(onSaveProgressStub.calledOnce).to.be.true
   })
 
   it('should sort logs, process and parse', async () => {
@@ -200,6 +202,60 @@ describe('Module: blockchainLogCrawler', () => {
 
     expect(stubSaveProgress.callCount).to.equal(4)
     expect(stubSaveProgress.calledWith(sortedLogs[0].blockNumber)).to.be.true
+  })
+
+  it('should re-order and return the formatted logs when skip processing is true', async () => {
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    const events = [
+      { topic: '0xTopic1', abi: ['event Test1()'], event: 'Test1', handler: sandbox.stub().resolves() },
+    ] as any
+
+    mockProvider.getBlockNumber.onFirstCall().resolves(100)
+
+    mockProvider.getLogs
+      .onFirstCall()
+      .resolves([
+        { blockNumber: 101, transactionIndex: 1, index: 5, topics: ['0xTopic1'], data: '0xData1' },
+        { blockNumber: 101, transactionIndex: 20, index: 2, topics: ['0xTopic1'], data: '0xData1' },
+        { blockNumber: 101, transactionIndex: 2, index: 9, topics: ['0xTopic1'], data: '0xData1' },
+        { blockNumber: 101, transactionIndex: 50, index: 4, topics: ['0xTopic1'], data: '0xData1' },
+        { blockNumber: 101, transactionIndex: 50, index: 4, topics: ['0xTopic1'], data: '0xData1' },
+      ])
+      .onSecondCall()
+      .resolves([])
+
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      skipLogProcessing: true,
+      address: '0xAddress',
+      events: events,
+      stopOnError: false,
+      logService: null,
+      onError: () => {},
+    })
+
+    const updateAndCheckConditionsStub = sandbox
+      .stub(crawler, 'updateAndCheckConditions')
+      .onFirstCall()
+      .resolves(true)
+      .onSecondCall()
+      .resolves(false)
+
+    const processLogsSpy = sandbox.spy(crawler, 'processLogs')
+    const formatLogStub = sandbox.stub(crawler, 'formatLog').returns({
+      args: {
+        first: 'first',
+      },
+    } as any)
+
+    const response = await crawler.crawl()
+    expect(updateAndCheckConditionsStub.calledOnce).to.be.true
+    expect(mockProvider.getLogs.calledOnce).to.be.true
+    expect(processLogsSpy.calledOnce).to.be.false
+    expect(formatLogStub.callCount).to.equal(5)
+    expect(response?.length).to.equal(5)
   })
 
   it('should log an error when event setting is not found', async () => {
