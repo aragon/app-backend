@@ -50,9 +50,6 @@ jobs:
           esac
           echo "ENV_NAME=$ENV_NAME" >> $GITHUB_ENV
 
-      - name: Log Environment Name
-        run: echo "Resolved Environment Name: $ENV_NAME"
-
       - name: Run Performance Tests
         id: postman-test
         timeout-minutes: 1
