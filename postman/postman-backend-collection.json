@@ -2356,7 +2356,7 @@
 							}
 						},
 						"url": {
-							"raw": "{{host}}/votes/member-vote-info",
+							"raw": "{{host}}/votes/member-vote-info?memberAddress=0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31&pluginAddress=0x0f840d37273f38f80cdd256a87d8fc291a490c1e&proposalIndex=1&network=ethereum-sepolia",
 							"host": [
 								"{{host}}"
 							],
@@ -2367,23 +2367,19 @@
 							"query": [
 								{
 									"key": "memberAddress",
-									"value": "<string>",
-									"disabled": true
+									"value": "0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31"
 								},
 								{
 									"key": "pluginAddress",
-									"value": "",
-									"disabled": true
+									"value": "0x0f840d37273f38f80cdd256a87d8fc291a490c1e"
 								},
 								{
 									"key": "proposalIndex",
-									"value": "",
-									"disabled": true
+									"value": "1"
 								},
 								{
 									"key": "network",
-									"value": "",
-									"disabled": true
+									"value": "ethereum-sepolia"
 								}
 							]
 						}
@@ -2607,7 +2603,7 @@
 							}
 						},
 						"url": {
-							"raw": "{{host}}/votes/can-vote",
+							"raw": "{{host}}/votes/can-vote?memberAddress=0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31&pluginAddress=0x0f840d37273f38f80cdd256a87d8fc291a490c1e&proposalIndex=1&network=ethereum-sepolia",
 							"host": [
 								"{{host}}"
 							],
@@ -2618,23 +2614,19 @@
 							"query": [
 								{
 									"key": "memberAddress",
-									"value": "",
-									"disabled": true
+									"value": "0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31"
 								},
 								{
 									"key": "pluginAddress",
-									"value": "",
-									"disabled": true
+									"value": "0x0f840d37273f38f80cdd256a87d8fc291a490c1e"
 								},
 								{
 									"key": "proposalIndex",
-									"value": "",
-									"disabled": true
+									"value": "1"
 								},
 								{
 									"key": "network",
-									"value": "",
-									"disabled": true
+									"value": "ethereum-sepolia"
 								}
 							]
 						}
@@ -3116,7 +3108,7 @@
 							}
 						},
 						"url": {
-							"raw": "{{host}}/proposals/can-create-proposal",
+							"raw": "{{host}}/proposals/can-create-proposal?memberAddress=0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31&pluginAddress=0x0f840d37273f38f80cdd256a87d8fc291a490c1e&network=ethereum-sepolia",
 							"host": [
 								"{{host}}"
 							],
@@ -3127,18 +3119,15 @@
 							"query": [
 								{
 									"key": "memberAddress",
-									"value": "",
-									"disabled": true
+									"value": "0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31"
 								},
 								{
 									"key": "pluginAddress",
-									"value": "",
-									"disabled": true
+									"value": "0x0f840d37273f38f80cdd256a87d8fc291a490c1e"
 								},
 								{
 									"key": "network",
-									"value": "",
-									"disabled": true
+									"value": "ethereum-sepolia"
 								}
 							]
 						}
@@ -3147,6 +3136,27 @@
 				},
 				{
 					"name": "can vote at proposal",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "4f17211a-0ab3-430d-8013-a27d8a907afb",
+								"exec": [
+									"// Tests for can vote at proposal endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
 					"id": "608aa334-af12-4869-9a23-2c7033b3a813",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
@@ -3154,7 +3164,23 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": ""
+						"url": {
+							"raw": "{{host}}/proposals/0x7534b24f08766202f5d290f24bd49312e83bc45d49d06c8ffefb38b8031990e8-0x5F2DFC42dDB23A431f6A16F61010a8A2Ac9D936B-1/can-vote?userAddress=0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"proposals",
+								"0x7534b24f08766202f5d290f24bd49312e83bc45d49d06c8ffefb38b8031990e8-0x5F2DFC42dDB23A431f6A16F61010a8A2Ac9D936B-1",
+								"can-vote"
+							],
+							"query": [
+								{
+									"key": "userAddress",
+									"value": "0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31"
+								}
+							]
+						}
 					},
 					"response": []
 				}
