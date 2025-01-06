@@ -60,13 +60,14 @@ export const ProposalHandler = {
       ],
     })
 
-    const proposalIds = (await crawler.crawl())?.map((log: any) => log.event.args.proposalId.toString())
+    const logs = await crawler.crawl()
+    const proposalIds = logs?.map((log: any) => log.event.args.proposalId.toString())
 
     const proposalIndex = proposalIds?.findIndex((id: string) => id === proposal.proposalIndex)
 
     if (proposalIndex === -1) {
       logger.error('Proposal not found', llo({ proposal }))
-      return -1
+      return false
     }
 
     return proposalIndex

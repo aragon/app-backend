@@ -232,6 +232,9 @@ export default class Proposal extends Model {
   @prop({ type: () => String, required: true })
   public proposalIndex!: string
 
+  @prop({ type: () => Number })
+  public incrementalId!: number
+
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress
 
