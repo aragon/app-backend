@@ -3014,6 +3014,19 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "can vote",
+					"id": "608aa334-af12-4869-9a23-2c7033b3a813",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": ""
+					},
+					"response": []
 				}
 			],
 			"id": "7ce2df9c-39d8-47c7-8335-67102672f0c3",
