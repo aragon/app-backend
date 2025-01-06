@@ -322,14 +322,6 @@ class DecodeActions {
             return param
           })
         }
-
-        return {
-          ...action,
-          type: ProposalActionType.MetadataPluginUpdate,
-          inputData: decodedData,
-          proposedMetadata,
-          existingMetadata,
-        }
       }
 
       return {
