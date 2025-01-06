@@ -5677,87 +5677,44 @@
 			"id": "7268a2d0-7472-4efd-b2b0-c4e2119b29f2"
 		},
 		{
-			"name": "status",
-			"id": "e699389b-72fe-4cba-83b4-3a476fad44fd",
-			"protocolProfileBehavior": {
-				"disableBodyPruning": true
-			},
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": "{{host}}"
-			},
-			"response": [
+			"name": "Status",
+			"item": [
 				{
-					"id": "5d10fb30-005a-49f2-98db-ea845d2a980a",
-					"name": "status",
-					"originalRequest": {
+					"name": "get status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "98b457ff-532e-4163-985f-016b83b7b194",
+								"exec": [
+									"// Tests for get status endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"id": "0170f7ae-81f6-4565-ab50-c29149ffebba",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
 						"method": "GET",
 						"header": [],
 						"url": "{{host}}"
 					},
-					"status": "OK",
-					"code": 200,
-					"_postman_previewlanguage": "json",
-					"header": [
-						{
-							"key": "X-Correlation-Id",
-							"value": "003e2057-d216-4627-9ab5-e1aea9400c21"
-						},
-						{
-							"key": "Access-Control-Allow-Origin",
-							"value": "*"
-						},
-						{
-							"key": "referrer-policy",
-							"value": "no-referrer"
-						},
-						{
-							"key": "x-content-type-options",
-							"value": "nosniff"
-						},
-						{
-							"key": "x-frame-options",
-							"value": "DENY"
-						},
-						{
-							"key": "content-security-policy",
-							"value": "default-src 'self' https:"
-						},
-						{
-							"key": "x-xss-protection",
-							"value": "1; mode=block"
-						},
-						{
-							"key": "strict-transport-security",
-							"value": "max-age=2592000; includeSubDomains"
-						},
-						{
-							"key": "Content-Type",
-							"value": "application/json; charset=utf-8"
-						},
-						{
-							"key": "Content-Length",
-							"value": "268"
-						},
-						{
-							"key": "Date",
-							"value": "Thu, 20 Jun 2024 12:50:51 GMT"
-						},
-						{
-							"key": "Connection",
-							"value": "keep-alive"
-						},
-						{
-							"key": "Keep-Alive",
-							"value": "timeout=5"
-						}
-					],
-					"cookie": [],
-					"responseTime": null,
-					"body": "{\n    \"status\": \"healthy\",\n    \"appName\": \"Aragon Backend\",\n    \"nodeVersion\": \"v20.6.0\",\n    \"environment\": \"local\",\n    \"supportedNetworks\": [\n        \"ethereum-mainnet\",\n        \"ethereum-sepolia\",\n        \"polygon-mainnet\",\n        \"base-mainnet\",\n        \"arbitrum-mainnet\"\n    ],\n    \"appVersionPackage\": \"1.0.0\",\n    \"time\": \"2024-06-20T14:50:51+02:00\"\n}"
+					"response": []
 				}
-			]
+			],
+			"id": "0400c595-2403-4984-853d-8f578fc10266"
 		}
 	]
 }
