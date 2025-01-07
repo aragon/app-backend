@@ -11,6 +11,8 @@ import { ProxyToken } from '@modules/proxyToken'
 import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
 import EtherscanHelper from '@helpers/etherscan'
+import { ethers } from 'ethers'
+import { IPermission } from '@src/types/permission'
 
 describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox
@@ -115,8 +117,14 @@ describe('Modules: ProxyToken', () => {
         address: tokenAddress,
       } as any)
 
+      const checkPluginMintAuthorizationIsDaoStub = sandbox
+        .stub(ProxyToken, 'checkPluginMintAuthorizationIsDao')
+        .resolves(false)
+
       const result = await ProxyToken.createNewToken(tokenAddress, network)
 
+      expect(checkPluginMintAuthorizationIsDaoStub.calledOnce).to.be.true
+      expect(checkPluginMintAuthorizationIsDaoStub.calledWith(tokenAddress, network)).to.be.true
       expect(result.holders).to.equal(1)
       expect(result.totalSupply).to.equal('1')
       expect(result.priceChangeOnDayUsd).to.equal('1')
@@ -125,6 +133,28 @@ describe('Modules: ProxyToken', () => {
       expect(result.blockNumber).to.equal(100)
       expect(result.address).to.equal(tokenAddress)
       expect(result.type).to.equal(ITokenType.GovernanceERC20)
+      expect(result.mintableByDao).to.be.false
+    })
+  })
+
+  describe('checkPluginMintAuthorizationIsDao', () => {
+    it('should return true if token is mintable by DAO', async () => {
+      const findByTokenAddressStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves({
+        daoAddress: '0x00',
+        address: '0xplugin',
+        tokenAddress: '0xtoken',
+        permissions: [
+          {
+            who: '0x00',
+            permissionId: ethers.id(IPermission.MINT_PERMISSION),
+            where: '0xtoken',
+          },
+        ],
+      })
+
+      const result = await ProxyToken.checkPluginMintAuthorizationIsDao('0xtoken', NetworksEnum.ethereumMainnet)
+      expect(findByTokenAddressStub.calledOnce).to.be.true
+      expect(result).to.be.true
     })
   })
 
