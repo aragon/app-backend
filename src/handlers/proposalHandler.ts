@@ -23,8 +23,6 @@ import DbOperations from '@models/utils/dbOperations'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import DbTx from '@modules/dbTx'
 import ProposalHelper from '@helpers/proposal'
-import utils from '@helpers/utils'
-import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 
@@ -114,13 +112,8 @@ export const ProposalHandler = {
       }
 
       if (document?.settings?.tokenAddress && relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
-        if (!isHistorical) {
-          // wait next block
-          await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000 * 2)
-        }
-
         const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
-          document.blockNumber!,
+          document.blockNumber! - 1,
           document?.settings.tokenAddress,
           document.network!,
         )
