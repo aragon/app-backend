@@ -14,7 +14,7 @@ import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 
-describe.only('Modules: ProxyToken', () => {
+describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox
   let rawToken: Partial<Token>
 
