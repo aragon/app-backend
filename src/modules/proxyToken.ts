@@ -9,6 +9,8 @@ import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
 import CovalentHelper from '@helpers/covalent'
 import EtherscanHelper from '@helpers/etherscan'
+import { ethers } from 'ethers'
+import { IPermission } from '@src/types/permission'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -110,12 +112,29 @@ export const ProxyToken = {
       rawToken.type = tokenRate.type
     }
 
+    rawToken.mintableByDao = await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network)
+
     return DbTx.executeTxFn(async ({ session }) => {
       const savedToken = await Models.Token.create(rawToken, { session })
       await session.commitTransaction()
       logger.verbose('New Token Created', llo({ logId: savedToken.id }))
       return savedToken
     })
+  },
+
+  checkPluginMintAuthorizationIsDao: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<boolean> => {
+    const plugin = await Models.Plugin.findByTokenAddress(tokenAddress, network)
+    if (!plugin) {
+      return false
+    }
+
+    const permissionId = ethers.id(IPermission.MINT_PERMISSION)
+
+    const permissionConfig = plugin.permissions.find(
+      (p: any) => p.permissionId === permissionId && p.where === tokenAddress && p.who === plugin.daoAddress,
+    )
+
+    return !!permissionConfig
   },
 
   shouldSkipFetch: (token: Partial<Token>, tokenRate: ITokenRate): boolean =>
