@@ -20,6 +20,7 @@ jobs:
           - 'https://stg.backend.aragon.in'
           - 'https://backend.aragon.in'
           - 'https://dev.backend.aragon.in'
+      fail-fast: false
 
     steps:
       - name: Checkout repository
@@ -84,7 +85,6 @@ jobs:
             echo "Performance tests failed for ${{ matrix.host }}."
             exit 1
           fi
-        continue-on-error: true
 
       - name: Notify Discord on Failure
         if: failure()
