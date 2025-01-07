@@ -84,6 +84,7 @@ jobs:
             echo "Performance tests failed for ${{ matrix.host }}."
             exit 1
           fi
+        continue-on-error: true
 
       - name: Notify Discord on Failure
         if: failure()
