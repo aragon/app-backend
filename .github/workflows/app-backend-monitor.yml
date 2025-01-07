@@ -15,14 +15,18 @@ jobs:
 
     strategy:
       matrix:
-        host:
-          - 'https://api.aragon-backend.com'
-          - 'https://stg.backend.aragon.in'
-          - 'https://backend.aragon.in'
-          - 'https://dev.backend.aragon.in'
+        include:
+          - host: 'https://api.aragon-backend.com'
+            env_name: 'Sandbox v2'
+          - host: 'https://stg.backend.aragon.in'
+            env_name: 'Staging'
+          - host: 'https://backend.aragon.in'
+            env_name: 'Production'
+          - host: 'https://dev.backend.aragon.in'
+            env_name: 'Development'
       fail-fast: false
 
-    name: Test ${{ matrix.env_name }} (${{ matrix.host }}) # Dynamic name with label and host
+    name: Test ${{ matrix.env_name }} (${{ matrix.host }})
 
     steps:
       - name: Checkout repository
@@ -31,32 +35,11 @@ jobs:
       - name: Install Newman and Reporter
         run: npm install -g newman newman-reporter-htmlextra
 
-      - name: Set Environment Label
-        id: set-env-label
-        run: |
-          case "${{ matrix.host }}" in
-            'https://api.aragon-backend.com')
-              echo "env_name=sandbox v2" >> $GITHUB_ENV
-              ;;
-            'https://stg.backend.aragon.in')
-              echo "env_name=staging" >> $GITHUB_ENV
-              ;;
-            'https://backend.aragon.in')
-              echo "env_name=production" >> $GITHUB_ENV
-              ;;
-            'https://dev.backend.aragon.in')
-              echo "env_name=develop" >> $GITHUB_ENV
-              ;;
-            *)
-              echo "env_name=unknown" >> $GITHUB_ENV
-              ;;
-          esac
-
       - name: Run Performance Tests
         id: postman-test
         timeout-minutes: 1
         run: |
-          echo "Running tests for ${{ matrix.host }} (Environment: ${{ env.env_name }})"
+          echo "Running tests for ${{ matrix.env_name }} (${{ matrix.host }})"
 
           # Run Newman tests and save output
           newman run postman/postman-backend-collection.json \
@@ -79,11 +62,6 @@ jobs:
             SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
             echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
             echo "TEST_STATUS=failed" >> $GITHUB_ENV
-          fi
-
-          # Fail the step if tests failed
-          if [ "$RAW_FAILURES" ]; then
-            echo "Performance tests failed for ${{ matrix.host }}."
             exit 1
           fi
 
@@ -91,7 +69,6 @@ jobs:
         if: failure()
         env:
           FAILURES: ${{ env.FAILURES }}
-          ENV_NAME: ${{ env.env_name }}
         run: |
           echo "Sending Discord failure notification..."
 
@@ -105,7 +82,7 @@ jobs:
                 { "name": "Repository", "value": "aragon/app-backend", "inline": false },
                 { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-                { "name": "Environment", "value": "${{ matrix.host }} (${{ env.env_name }})", "inline": false },
+                { "name": "Environment", "value": "${{ matrix.host }} (${{ matrix.env_name }})", "inline": false },
                 { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
@@ -137,7 +114,7 @@ jobs:
                 { "name": "Repository", "value": "aragon/app-backend", "inline": false },
                 { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-                { "name": "Environment", "value": "${{ matrix.host }} (${{ env.env_name }})", "inline": false },
+                { "name": "Environment", "value": "${{ matrix.host }} (${{ matrix.env_name }})", "inline": false },
                 { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
