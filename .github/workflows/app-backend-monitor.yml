@@ -22,6 +22,8 @@ jobs:
           - 'https://dev.backend.aragon.in'
       fail-fast: false
 
+    name: Test ${{ env.ENV_LABEL }} (${{ matrix.host }})
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -29,33 +31,32 @@ jobs:
       - name: Install Newman and Reporter
         run: npm install -g newman newman-reporter-htmlextra
 
-      - name: Determine Environment Name
-        id: determine-env
+      - name: Set Environment Label
+        id: set-env-label
         run: |
           case "${{ matrix.host }}" in
             'https://api.aragon-backend.com')
-              ENV_NAME="sandbox v2"
+              echo "ENV_LABEL=Sandbox v2" >> $GITHUB_ENV
               ;;
             'https://stg.backend.aragon.in')
-              ENV_NAME="staging"
+              echo "ENV_LABEL=Staging" >> $GITHUB_ENV
               ;;
             'https://backend.aragon.in')
-              ENV_NAME="production"
+              echo "ENV_LABEL=Production" >> $GITHUB_ENV
               ;;
             'https://dev.backend.aragon.in')
-              ENV_NAME="develop"
+              echo "ENV_LABEL=Development" >> $GITHUB_ENV
               ;;
             *)
-              ENV_NAME="unknown"
+              echo "ENV_LABEL=Unknown" >> $GITHUB_ENV
               ;;
           esac
-          echo "ENV_NAME=$ENV_NAME" >> $GITHUB_ENV
 
       - name: Run Performance Tests
         id: postman-test
         timeout-minutes: 1
         run: |
-          echo "Running tests for ${{ matrix.host }} (Environment: $ENV_NAME)"
+          echo "Running tests for ${{ matrix.host }} (Environment: ${{ env.ENV_LABEL }})"
 
           # Run Newman tests and save output
           newman run postman/postman-backend-collection.json \
@@ -78,11 +79,6 @@ jobs:
             SANITIZED_FAILURES=$(echo "$RAW_FAILURES" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
             echo "FAILURES=$SANITIZED_FAILURES" >> $GITHUB_ENV
             echo "TEST_STATUS=failed" >> $GITHUB_ENV
-          fi
-
-          # Fail the step if tests failed
-          if [ "$RAW_FAILURES" ]; then
-            echo "Performance tests failed for ${{ matrix.host }}."
             exit 1
           fi
 
@@ -90,7 +86,7 @@ jobs:
         if: failure()
         env:
           FAILURES: ${{ env.FAILURES }}
-          ENV_NAME: ${{ env.ENV_NAME }}
+          ENV_LABEL: ${{ env.ENV_LABEL }}
         run: |
           echo "Sending Discord failure notification..."
 
@@ -104,7 +100,7 @@ jobs:
                 { "name": "Repository", "value": "aragon/app-backend", "inline": false },
                 { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-                { "name": "Environment", "value": "${{ matrix.host }} (${ENV_NAME})", "inline": false },
+                { "name": "Environment", "value": "${{ matrix.host }} (${{ env.ENV_LABEL }})", "inline": false },
                 { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
@@ -136,7 +132,7 @@ jobs:
                 { "name": "Repository", "value": "aragon/app-backend", "inline": false },
                 { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-                { "name": "Environment", "value": "${{ matrix.host }} (${ENV_NAME})", "inline": false },
+                { "name": "Environment", "value": "${{ matrix.host }} (${{ env.ENV_LABEL }})", "inline": false },
                 { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
