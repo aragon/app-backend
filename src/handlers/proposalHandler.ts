@@ -25,7 +25,6 @@ import DbTx from '@modules/dbTx'
 import ProposalHelper from '@helpers/proposal'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
-
 export const ProposalHandler = {
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     try {
