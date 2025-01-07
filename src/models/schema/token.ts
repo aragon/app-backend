@@ -56,6 +56,9 @@ export default class Token extends Model {
   @prop({ type: () => String, required: true })
   public address!: HexAddress
 
+  @prop({ type: () => Boolean, default: false })
+  public mintableByDao!: boolean
+
   @prop({ type: () => String, default: null })
   public implementationAddress!: HexAddress
 
