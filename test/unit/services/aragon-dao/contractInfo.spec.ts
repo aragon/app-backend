@@ -19,7 +19,7 @@ describe('aragon-dao: contractInfo', () => {
   })
 
   describe('getContractInfo', () => {
-    it.only('should return if contract is not a verified contract', async () => {
+    it('should return if contract is not a verified contract', async () => {
       let fetchVerifiedContractDataStub = sandbox.stub(ContractInfo, 'fetchVerifiedContractData').resolves(null)
 
       let result = await ContractInfo.getContractInfo(NetworksEnum.ethereumSepolia, '0xaddress')
