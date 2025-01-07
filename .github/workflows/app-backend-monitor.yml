@@ -20,9 +20,14 @@ jobs:
           - 'https://stg.backend.aragon.in'
           - 'https://backend.aragon.in'
           - 'https://dev.backend.aragon.in'
+        env_label:
+          - 'Sandbox v2'
+          - 'Staging'
+          - 'Production'
+          - 'Development'
       fail-fast: false
 
-    name: Test ${{ env.ENV_LABEL }} (${{ matrix.host }})
+    name: Test ${{ matrix.env_label }} (${{ matrix.host }})
 
     steps:
       - name: Checkout repository
@@ -31,32 +36,11 @@ jobs:
       - name: Install Newman and Reporter
         run: npm install -g newman newman-reporter-htmlextra
 
-      - name: Set Environment Label
-        id: set-env-label
-        run: |
-          case "${{ matrix.host }}" in
-            'https://api.aragon-backend.com')
-              echo "ENV_LABEL=Sandbox v2" >> $GITHUB_ENV
-              ;;
-            'https://stg.backend.aragon.in')
-              echo "ENV_LABEL=Staging" >> $GITHUB_ENV
-              ;;
-            'https://backend.aragon.in')
-              echo "ENV_LABEL=Production" >> $GITHUB_ENV
-              ;;
-            'https://dev.backend.aragon.in')
-              echo "ENV_LABEL=Development" >> $GITHUB_ENV
-              ;;
-            *)
-              echo "ENV_LABEL=Unknown" >> $GITHUB_ENV
-              ;;
-          esac
-
       - name: Run Performance Tests
         id: postman-test
         timeout-minutes: 1
         run: |
-          echo "Running tests for ${{ matrix.host }} (Environment: ${{ env.ENV_LABEL }})"
+          echo "Running tests for ${{ matrix.env_label }} (${{ matrix.host }})"
 
           # Run Newman tests and save output
           newman run postman/postman-backend-collection.json \
@@ -86,7 +70,7 @@ jobs:
         if: failure()
         env:
           FAILURES: ${{ env.FAILURES }}
-          ENV_LABEL: ${{ env.ENV_LABEL }}
+          ENV_LABEL: ${{ matrix.env_label }}
         run: |
           echo "Sending Discord failure notification..."
 
@@ -100,7 +84,7 @@ jobs:
                 { "name": "Repository", "value": "aragon/app-backend", "inline": false },
                 { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-                { "name": "Environment", "value": "${{ matrix.host }} (${{ env.ENV_LABEL }})", "inline": false },
+                { "name": "Environment", "value": "${{ matrix.host }} (${{ matrix.env_label }})", "inline": false },
                 { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
@@ -132,7 +116,7 @@ jobs:
                 { "name": "Repository", "value": "aragon/app-backend", "inline": false },
                 { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
                 { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-                { "name": "Environment", "value": "${{ matrix.host }} (${{ env.ENV_LABEL }})", "inline": false },
+                { "name": "Environment", "value": "${{ matrix.host }} (${{ matrix.env_label }})", "inline": false },
                 { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
               ],
               "timestamp": "$(date --utc +%FT%TZ)"
