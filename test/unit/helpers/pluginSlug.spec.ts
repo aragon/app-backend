@@ -7,7 +7,7 @@ import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import Logger from '@logger'
 
-describe.only('Helpers:PluginSlug', () => {
+describe('Helpers:PluginSlug', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
