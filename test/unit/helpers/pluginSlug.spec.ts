@@ -84,6 +84,15 @@ describe('Helpers:PluginSlug', () => {
       expect(await PluginSlug.generateSlug(plugin4, undefined as any)).to.equal(IPluginSlug.admin)
     })
 
+    it('should return default processKey on multiple plugins', async () => {
+      const newPlugin2 = await plugin2.update({ interfaceType: IPluginInterfaceType.tokenVoting })
+      const newPlugin3 = await plugin3.update({ interfaceType: IPluginInterfaceType.tokenVoting })
+
+      expect(await PluginSlug.generateSlug(plugin, undefined as any)).to.equal(IPluginSlug.tokenvoting)
+      expect(await PluginSlug.generateSlug(newPlugin2, undefined as any)).to.equal(`${IPluginSlug.tokenvoting}_1`)
+      expect(await PluginSlug.generateSlug(newPlugin3, undefined as any)).to.equal(`${IPluginSlug.tokenvoting}_2`)
+    })
+
     it('should return default processKey', async () => {
       expect(await PluginSlug.generateSlug(plugin, 'test' as any)).to.equal('test')
       expect(await PluginSlug.generateSlug(plugin2, 'test' as any)).to.equal('test_1')
@@ -96,8 +105,19 @@ describe('Helpers:PluginSlug', () => {
       expect(await PluginSlug.updateSlug(plugin, 'test2' as any)).to.equal('test2')
     })
 
+    it('should skip if processKey is the same', async () => {
+      expect(await PluginSlug.generateSlug(plugin, 'test' as any)).to.equal('test')
+      expect(await PluginSlug.updateSlug(plugin, 'test' as any)).to.equal('test')
+    })
+
     it('should not update not existing', async () => {
       expect(await PluginSlug.updateSlug(plugin, 'test' as any)).to.equal(null)
+    })
+
+    it('should not update non-alphanumeric characters', async () => {
+      expect(await PluginSlug.generateSlug(plugin, 'test' as any)).to.equal('test')
+      expect(await PluginSlug.generateSlug(plugin2, 'test' as any)).to.equal('test_1')
+      expect(await PluginSlug.updateSlug(plugin, 'test_1' as any)).to.equal('test1')
     })
   })
 
