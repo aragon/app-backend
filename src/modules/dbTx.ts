@@ -34,7 +34,7 @@ const DbTx = {
     return error.message.includes('duplicate key error collection')
   },
 
-  async executeTxFn(fn: any, options?: { stopRetry?: boolean }) {
+  async executeTxFn(fn: any, options?: { stopRetry?: boolean; throwOnStop?: boolean }) {
     async function tryFn() {
       const session = await DbTx.transactionOptions()
 
@@ -66,6 +66,9 @@ const DbTx = {
       return response
     } catch (error) {
       if (options?.stopRetry) {
+        if (options?.throwOnStop) {
+          throw error
+        }
         return
       }
       return await DbTx.handleTxError(error, tryFn)

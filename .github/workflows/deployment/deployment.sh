@@ -13,7 +13,7 @@ set_vars(){
     ARCHIVE_NAME="backend.tar"
     REMOTE_DIR="/home/${REMOTE_USER}"
     REMOTE_SCRIPT_NAME='remote_script.sh'
-    #PEM_FILE="aragon-backend.pem"  
+    #PEM_FILE="aragon-backend.pem"
 
 }
 
@@ -121,7 +121,7 @@ EOF
 
 remote_upload_execute_script(){
     echo -e "\n\n Remote: Upload executing script script on $REMOTE_HOST..."
-    
+
     cat > $REMOTE_SCRIPT_NAME << EOF
 #!/bin/bash
 echo "Starting remote script execution..."
@@ -154,22 +154,20 @@ install_dependencies() {
     nvm install
     pwd
     nvm use default
-    npm install -g pm2 yarn
     yarn install
-    echo "Installing PM2..."
     yarn global add pm2
+    echo "Installing PM2..."
 }
 
 start_app_first_time() {
     echo "Starting application with PM2..."
-    cd "$REMOTE_DIR/$TARGET_DIR"
-    pm2 delete all || true
+    pm2 kill || true
     pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" --update-env
-    
+
 }
 
 main() {
-    
+
     install_dependencies
     start_app_first_time
 }
@@ -221,7 +219,7 @@ main_functions(){
         remote_upload_execute_script
         remote_execute_script
         cleanup_local
-    fi  
+    fi
 }
 
 show_help() {
@@ -251,7 +249,7 @@ main() {
                 echo "Set repo URL to: $OPTARG"
                 REPO_URL="$OPTARG"
                 ;;
-            u) 
+            u)
                 echo "Set remote USER to: $OPTARG"
                 REMOTE_USER="$OPTARG"
                 ;;
