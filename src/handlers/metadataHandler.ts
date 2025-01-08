@@ -82,7 +82,7 @@ export const MetadataHandler = {
     if (logDb) {
       await MetadataHandler._updatePluginMetadata(logDb)
 
-      if (plugin.status === IPluginStatus.installed) {
+      if (plugin.isSupported && plugin.status === IPluginStatus.installed) {
         await PluginSlug.updateSlug(plugin, logMetadata.processKey)
       }
 
