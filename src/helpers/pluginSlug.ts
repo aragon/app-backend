@@ -231,6 +231,7 @@ export const PluginSlug = {
         return await PluginSlug._updateSlugWithRetries(parsedProcessKey, plugin, pluginSlug)
       } catch (error) {
         logger.error('Error update slug', llo({ plugin, pluginSlug, parsedProcessKey, error }))
+        return null
       }
     }
     return parsedProcessKey
