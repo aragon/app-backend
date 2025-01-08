@@ -85,7 +85,7 @@ export const PluginSlug = {
           candidateKey = `${baseKey}_${suffix}`
           logger.info('Slug already exists, incrementing suffix', llo({ candidateKey, suffix }))
         } else if (error.code === 112) {
-          // Custom error handling if needed
+          // concurrency error conflicts skip and retry
           logger.warn('Encountered error code 112, skipping', llo({ error }))
         } else {
           // Other errors
@@ -133,6 +133,10 @@ export const PluginSlug = {
           suffix += 1
           candidateKey = `${newKey}_${suffix}`
           logger.info('Slug already exists during update, incrementing suffix', llo({ candidateKey, suffix }))
+        } else if (error.code === 112) {
+          // concurrency error conflicts just retry
+          // skip
+          logger.warn('Encountered error code 112, skipping', llo({ error }))
         } else {
           // Other errors
           logger.error('Error updating slug', llo({ candidateKey, error }))
@@ -229,6 +233,6 @@ export const PluginSlug = {
         logger.error('Error update slug', llo({ plugin, pluginSlug, parsedProcessKey, error }))
       }
     }
-    return null
+    return parsedProcessKey
   },
 }

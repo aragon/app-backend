@@ -400,7 +400,7 @@ export const PluginHandler = {
       llo,
     )
 
-    await PluginSlug.generateSlug(plugin, undefined)
+    await PluginSlug.generateSlug(plugin, plugin?.processKey)
   },
 
   updatePlugin: async (pluginLog: LogPluginSetupProcessor) => {

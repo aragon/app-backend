@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo, type IMetadata, IMetadataType, IPluginInterfaceType } from '@types'
+import { type ILogInfo, type IMetadata, IMetadataType, IPluginInterfaceType, IPluginStatus } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
@@ -81,7 +81,10 @@ export const MetadataHandler = {
 
     if (logDb) {
       await MetadataHandler._updatePluginMetadata(logDb)
-      await PluginSlug.updateSlug(plugin, logMetadata.processKey)
+
+      if (plugin.status === IPluginStatus.installed) {
+        await PluginSlug.updateSlug(plugin, logMetadata.processKey)
+      }
 
       if (plugin.interfaceType === IPluginInterfaceType.spp && ipfsMetadata) {
         await PluginSettingHandler.updateStageNamesOnSppSettings(plugin, logMetadata.stageNames!, info)
