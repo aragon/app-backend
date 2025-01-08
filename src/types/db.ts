@@ -33,6 +33,7 @@ export enum ICollectionNames {
   PluginRepo = 'PluginRepo',
   Proposal = 'Proposal',
   Setting = 'Setting',
+  PluginSlug = 'PluginSlug',
   TaskRun = 'TaskRun',
   TaskService = 'TaskService',
   Token = 'Token',
