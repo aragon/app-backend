@@ -21,6 +21,7 @@ export interface ICrawlParam {
   onlyHistorical?: boolean
   logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
   onError: (error: Error, log?: Log) => void
+  skipLogProcessing?: boolean
 }
 
 export interface ICrawlSetting {

@@ -10,6 +10,7 @@ import ManualTrigger from '@tools/maulaTrigger'
 import ManualSyncProposalType from '@tools/manualSyncProposalType'
 import ManualSyncProposalTotalSupply from '@tools/manualSyncProposalTotalSupply'
 import ToolsRevertDbAtBlock from '@tools/revertDbAtBlock'
+import ToolsManualSyncProposalIndex from '@tools/manualSyncProposalIndex'
 import ToolsMigratePluginSlug from '@tools/migratePluginSlug'
 
 const { TOOL_RUN } = process.env
@@ -27,6 +28,7 @@ const runners = {
   ManualTrigger,
   ManualSyncProposalType,
   ToolsRevertDbAtBlock,
+  ToolsManualSyncProposalIndex,
 }
 
 const appToRun = runners[TOOL_RUN!]

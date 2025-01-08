@@ -15,6 +15,8 @@ export const ContractInfo = {
       ? await ContractInfo.fetchVerifiedContractData(network, implementationAddress)
       : null
 
+    if (!mainData && !implementationData) return null
+
     const functions = [...(mainData?.functions || []), ...(implementationData?.functions || [])]
 
     const name = implementationData?.name || mainData?.name || ''
