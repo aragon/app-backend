@@ -17,6 +17,13 @@ export enum IPluginStatus {
   uninstalled = 'uninstalled',
 }
 
+export enum IPluginSlug {
+  tokenvoting = 'tokenvoting',
+  multisig = 'multisig',
+  admin = 'admin',
+  spp = 'spp',
+}
+
 export enum IPluginInterfaceType {
   tokenVoting = 'tokenVoting',
   multisig = 'multisig',
