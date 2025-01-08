@@ -4501,7 +4501,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": "{{host}}/tokens/ethereum-mainnet/0xe4fBbB0B11b3B48D10B4753a1D2c00244b247b33"
+						"url": "{{host}}/tokens/ethereum-sepolia/0x8115B4F2aC13FC3444Ca88b448a1c8092793b569"
 					},
 					"response": [
 						{
