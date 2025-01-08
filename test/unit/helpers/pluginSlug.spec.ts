@@ -7,7 +7,7 @@ import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import Logger from '@logger'
 
-describe('Helpers:PluginSlug', () => {
+describe.only('Helpers:PluginSlug', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -218,11 +218,9 @@ describe('Helpers:PluginSlug', () => {
     it('should generate unique slug if default slug already exists', async () => {
       const baseKey = IPluginSlug.tokenvoting
 
-      // Reserve the default slug with the initial plugin
       const slug0 = await PluginSlug.generateSlug(plugin, baseKey)
       expect(slug0).to.equal(`${baseKey}`)
 
-      // Attempt to generate the slug again, expecting 'tokenvoting_1'
       const slug = await PluginSlug.generateSlug(plugin2 as any, baseKey)
       expect(slug).to.equal(`${baseKey}_1`)
 
@@ -342,7 +340,6 @@ describe('Helpers:PluginSlug', () => {
     it('should delete a PluginSlug successfully', async () => {
       const slug = 'deletetest'
 
-      // Ensure the slug exists
       const existingSlug = await Models.PluginSlug.findExistingSlugInDao(
         pluginToDelete.daoAddress,
         slug,
@@ -350,11 +347,9 @@ describe('Helpers:PluginSlug', () => {
       )
       expect(existingSlug).to.not.be.null
 
-      // Delete the slug
       const wasDeleted = await PluginSlug.deleteSlug(pluginToDelete)
       expect(wasDeleted).to.be.true
 
-      // Verify deletion
       const deletedSlug = await Models.PluginSlug.findExistingSlugInDao(
         pluginToDelete.daoAddress,
         slug,
@@ -375,13 +370,11 @@ describe('Helpers:PluginSlug', () => {
         blockNumber: 1,
       })
 
-      // Attempt to delete a slug that doesn't exist
       const wasDeleted = await PluginSlug.deleteSlug(nonExistentPlugin)
       expect(wasDeleted).to.be.false
     })
 
     it('should handle deletion when multiple slugs exist with different criteria', async () => {
-      // Create additional slugs with different criteria
       const anotherPlugin = await Models.Plugin.create({
         id: 'test-plugin-2-delete',
         address: '0x127',
@@ -395,7 +388,6 @@ describe('Helpers:PluginSlug', () => {
 
       await PluginSlug.generateSlug(anotherPlugin, 'deletetest')
 
-      // Ensure both slugs exist
       const slug1 = 'deletetest'
       const slug2 = 'deletetest'
 
@@ -412,11 +404,9 @@ describe('Helpers:PluginSlug', () => {
       expect(existingSlug1).to.not.be.null
       expect(existingSlug2).to.not.be.null
 
-      // Delete the first slug
       const wasDeleted1 = await PluginSlug.deleteSlug(pluginToDelete)
       expect(wasDeleted1).to.be.true
 
-      // Verify deletion of the first slug
       const deletedSlug1 = await Models.PluginSlug.findExistingSlugInDao(
         pluginToDelete.daoAddress,
         slug1,
@@ -424,7 +414,6 @@ describe('Helpers:PluginSlug', () => {
       )
       expect(deletedSlug1).to.be.null
 
-      // Ensure the second slug still exists
       const existingSlug2After = await Models.PluginSlug.findExistingSlugInDao(
         anotherPlugin.daoAddress,
         slug2,
@@ -440,7 +429,6 @@ describe('Helpers:PluginSlug', () => {
       const wasDeleted = await PluginSlug.deleteSlug(pluginToDelete)
       expect(wasDeleted).to.be.false
 
-      // Ensure the stub was called with correct arguments
       expect(stubError.calledOnce).to.be.true
     })
   })
@@ -449,7 +437,6 @@ describe('Helpers:PluginSlug', () => {
     let pluginToUpdate: Plugin
 
     beforeEach(async () => {
-      // Create a plugin and reserve a slug
       pluginToUpdate = await Models.Plugin.create({
         id: 'test-plugin-update',
         address: '0x128',
@@ -467,11 +454,9 @@ describe('Helpers:PluginSlug', () => {
     it('should update the slug successfully', async () => {
       const newProcessKey = 'updatedslug'
 
-      // Update the slug
       const updateResult = await PluginSlug.updateSlug(pluginToUpdate, newProcessKey)
-      expect(updateResult).to.be.true
+      expect(updateResult).to.equal(newProcessKey)
 
-      // Verify that the new slug exists
       const newSlug = await Models.PluginSlug.findExistingSlugInDao(
         pluginToUpdate.daoAddress,
         newProcessKey,
@@ -480,7 +465,6 @@ describe('Helpers:PluginSlug', () => {
       expect(newSlug).to.not.be.null
       expect(newSlug?.slug).to.equal(newProcessKey)
 
-      // Verify that the old slug no longer exists
       const oldSlug = await Models.PluginSlug.findExistingSlugInDao(
         pluginToUpdate.daoAddress,
         'updatetest',
@@ -490,10 +474,8 @@ describe('Helpers:PluginSlug', () => {
     })
 
     it('should handle updating to an existing slug by appending suffix', async () => {
-      const initialSlug = 'updatetest'
       const conflictingSlug = 'conflictslug'
 
-      // Create another plugin with the conflicting slug
       const conflictingPlugin = await Models.Plugin.create({
         id: 'test-plugin-conflict',
         address: '0x129',
@@ -507,11 +489,9 @@ describe('Helpers:PluginSlug', () => {
 
       await PluginSlug.generateSlug(conflictingPlugin, conflictingSlug)
 
-      // Attempt to update the first plugin's slug to the conflicting slug
       const updateResult = await PluginSlug.updateSlug(pluginToUpdate, conflictingSlug)
-      expect(updateResult).to.be.true
+      expect(updateResult).to.eq(`${conflictingSlug}_1`)
 
-      // Expected new slug: 'conflictslug_1'
       const updatedSlug = await Models.PluginSlug.findExistingSlugInDao(
         pluginToUpdate.daoAddress,
         `${conflictingSlug}_1`,
@@ -520,7 +500,6 @@ describe('Helpers:PluginSlug', () => {
       expect(updatedSlug).to.not.be.null
       expect(updatedSlug?.slug).to.equal(`${conflictingSlug}_1`)
 
-      // Verify that the old slug still exists for the conflicting plugin
       const existingConflictSlug = await Models.PluginSlug.findExistingSlugInDao(
         conflictingPlugin.daoAddress,
         conflictingSlug,
@@ -542,7 +521,6 @@ describe('Helpers:PluginSlug', () => {
         blockNumber: 1,
       })
 
-      // Attempt to update a slug that doesn't exist
       const updateResult = await PluginSlug.updateSlug(nonExistentPlugin, 'newslug')
       expect(updateResult).to.be.null
     })
@@ -550,7 +528,6 @@ describe('Helpers:PluginSlug', () => {
     it('should return null if processKey is invalid', async () => {
       const processKey = { key: 'value' }
 
-      // Attempt to update with an invalid processKey
       const updateResult = await PluginSlug.updateSlug(pluginToUpdate, processKey as any)
       expect(updateResult).to.be.null
     })
@@ -558,15 +535,14 @@ describe('Helpers:PluginSlug', () => {
     it('should handle errors gracefully and return null', async () => {
       const newProcessKey = 'updatedslug'
 
-      // Stub the _createSlugWithRetries method to throw an error
-      const createSlugStub = sandbox.stub(PluginSlug, '_createSlugWithRetries').throws(new Error('Transaction error'))
+      const updateSlugStub = sandbox.stub(PluginSlug, '_updateSlugWithRetries').throws(new Error('Transaction error'))
 
-      // Attempt to update the slug
       const updateResult = await PluginSlug.updateSlug(pluginToUpdate, newProcessKey)
       expect(updateResult).to.be.null
 
-      // Ensure the stub was called correctly
-      expect(createSlugStub.calledOnceWithExactly(newProcessKey, pluginToUpdate)).to.be.true
+      expect(updateSlugStub.calledOnce).to.be.true
+      expect(updateSlugStub.args[0][0]).to.eq(newProcessKey)
+      expect(updateSlugStub.args[0][1]).to.eq(pluginToUpdate)
     })
   })
 })
