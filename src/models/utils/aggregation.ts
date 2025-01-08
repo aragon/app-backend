@@ -169,6 +169,7 @@ export const AggregationQueryHelper = {
         logo: 1,
         type: 1,
         totalSupply: 1,
+        mintableByDao: 1,
       }),
       {
         $addFields: {
@@ -326,6 +327,7 @@ export const AggregationQueryHelper = {
           logo: 1,
           type: 1,
           totalSupply: 1,
+          mintableByDao: 1,
         }),
         {
           $addFields: {

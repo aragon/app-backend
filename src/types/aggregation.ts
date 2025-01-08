@@ -71,6 +71,7 @@ export interface IAggTokenProjectFields {
   priceChangeOnDayUsd?: 1
   priceUsd?: 1
   lastUpdatedAt?: 1
+  mintableByDao?: 1
 }
 
 export interface IAggProposalParams {

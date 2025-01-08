@@ -117,6 +117,7 @@ export default class Asset extends Model {
             decimals: 1,
             priceChangeOnDayUsd: 1,
             priceUsd: 1,
+            mintableByDao: 1,
           },
         ),
         {
