@@ -42,6 +42,13 @@ export interface IPluginRepoIdParams {
   logIndex: number
 }
 
+export interface IPluginSlugIdParams {
+  network: NetworksEnum
+  daoAddress: HexAddress
+  pluginAddress: HexAddress
+  slug: string
+}
+
 export interface ISettingIdParams {
   transactionHash: HexAddress
   pluginAddress: HexAddress

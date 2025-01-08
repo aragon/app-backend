@@ -17,6 +17,7 @@ import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
+import { PluginSlug } from '@helpers/pluginSlug'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PluginHandler' })
 
@@ -391,13 +392,15 @@ export const PluginHandler = {
       pluginSetupRepoAddress: rawPlugin?.pluginSetupRepoAddress,
     }
 
-    await DbOperations.updateDocument(
+    const plugin = await DbOperations.updateDocument(
       preInstalledPlugin,
       document,
       { logId: preInstalledPlugin.id },
       'Installed plugin',
       llo,
     )
+
+    await PluginSlug.generateSlug(plugin, undefined)
   },
 
   updatePlugin: async (pluginLog: LogPluginSetupProcessor) => {
@@ -496,13 +499,17 @@ export const PluginHandler = {
       },
     }
 
-    return await DbOperations.updateDocument(
+    const uninstalledPlugin = await DbOperations.updateDocument(
       plugin,
       updatedDocument,
       { logId: plugin.id, info },
       'Uninstall plugin',
       llo,
     )
+
+    await PluginSlug.deleteSlug(uninstalledPlugin)
+
+    return uninstalledPlugin
   },
 
   uninstallPlugin: async (pluginLog: LogPluginSetupProcessor) => {
@@ -539,12 +546,16 @@ export const PluginHandler = {
       },
     }
 
-    return await DbOperations.updateDocument(
+    const uninstalledPlugin = await DbOperations.updateDocument(
       existingPlugin,
       updatePlugin,
       { logId: existingPlugin.id },
       'Uninstall plugin',
       llo,
     )
+
+    await PluginSlug.deleteSlug(uninstalledPlugin)
+
+    return uninstalledPlugin
   },
 }

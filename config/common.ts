@@ -31,7 +31,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       RECONNECT_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODE_CONFIG_RECONNECT_INTERVAL', 100),
     },
 
-    CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'CONFIRMATION_BLOCKS', 5),
+    CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'CONFIRMATION_BLOCKS', 3),
 
     NODES: {
       ETHEREUM_MAINNET: {
