@@ -69,14 +69,39 @@ describe('VoteInfo', () => {
       expect(result).to.be.false
     })
 
+    it('should return if plugin setting says voting mode is revoting', async () => {
+      const plugin = await Models.Plugin.findOne({})
+      const proposal = await Models.Proposal.findOne({})
+      await proposal.update({
+        settings: {
+          votingMode: 2,
+        },
+      })
+
+      const findVoteOnPluginStub = sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(true)
+
+      const result = await VoteInfo.getVoteInfo({ proposalId: ProposalList[1].id!, userAddress: '0xUserAddress' })
+      expect(result).to.be.true
+      expect(findVoteOnPluginStub.calledOnce).to.be.true
+      expect(findVoteOnPluginStub.args[0][0].memberAddress).to.be.eq('0xUserAddress')
+      expect(findVoteOnPluginStub.args[0][0].pluginAddress).to.be.eq(plugin.address)
+      expect(findVoteOnPluginStub.args[0][0].proposalIndex).to.be.eq(ProposalList[1].id)
+      expect(findVoteOnPluginStub.args[0][0].network).to.be.eq(plugin.network)
+    })
+
     it('should return true for token voting if user has sufficient voting power', async () => {
       const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('160000')
+      const plugin = await Models.Plugin.findOne({})
 
       const result = await VoteInfo.getVoteInfo({ proposalId: ProposalList[1].id!, userAddress: '0xUserAddress' })
 
       expect(getPastVotesStub.calledOnce).to.be.true
       expect(getPastVotesStub.calledWith('0xUserAddress')).to.be.true
       expect(result).to.be.true
+      expect(getPastVotesStub.args[0][1]).to.be.eq(plugin.tokenAddress)
+      expect(getPastVotesStub.args[0][2]).to.be.eq(ProposalList[1].blockNumber)
+      expect(getPastVotesStub.args[0][3]).to.be.eq(ProposalList[1].blockTimestamp)
+      expect(getPastVotesStub.args[0][4]).to.be.eq(plugin.network)
     })
 
     it('should return false for token voting if user does not have sufficient voting power', async () => {
@@ -123,6 +148,29 @@ describe('VoteInfo', () => {
       const result = await VoteInfo.getVoteInfo({ proposalId: proposal.id, userAddress: '0xUserAddress' })
       expect(result).to.be.false
       expect(_handleForTokenVotingStub.calledOnce).to.be.true
+    })
+
+    it('should return true if only listed is false', async () => {
+      const plugin = await Models.Plugin.findOne({})
+
+      await plugin.update({
+        interfaceType: IPluginInterfaceType.multisig,
+      })
+
+      const proposal = await Models.Proposal.findOne({})
+
+      await proposal.update({
+        settings: {
+          onlyListed: false,
+        },
+      })
+
+      const isMultisigMemberAtBlockStub = sandbox.stub(Web3Helper, 'isMultisigMemberAtBlock').resolves(true)
+
+      const result = await VoteInfo._handleForMultiSig('0xUserAddress', proposal, await plugin.reload())
+
+      expect(result).to.be.true
+      expect(isMultisigMemberAtBlockStub.calledOnce).to.be.false
     })
   })
 })

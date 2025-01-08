@@ -19,6 +19,7 @@ import ProposalHelper from '@helpers/proposal'
 import { PluginList } from '@test/mock/fakePlugins'
 import DecodeActions from '@helpers/decodeAction'
 import DbOperations from '@models/utils/dbOperations'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 
 describe('Indexer: ProposalHandler', () => {
   let sandbox: SinonSandbox
@@ -1865,6 +1866,63 @@ describe('Indexer: ProposalHandler', () => {
       await ProposalHandler.proposalEdited(fakeEvent as any, info)
 
       expect(errorLoggerStub.calledOnceWith('Error proposalEdited' as any)).to.be.true
+    })
+  })
+
+  describe('findIncrementalId', () => {
+    it('should return null if the proposal is not found on the logs', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        blockNumber: 100,
+        address: '0xPlugin',
+      })
+
+      sandbox.stub(Models.Proposal, 'findLatestProposal').resolves({
+        blockNumber: 100,
+        proposalIndex: 1,
+      })
+
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([])
+      const result = await ProposalHandler.findIncrementalId({
+        pluginAddress: '0xPlugin',
+        network: NetworksEnum.ethereumSepolia,
+      } as any)
+
+      expect(result).to.be.eq(false)
+      expect(loggerErrorStub.calledOnceWith('Proposal not found' as any)).to.be.true
+      expect(crawlerStub.calledOnce).to.be.true
+    })
+
+    it('should return the index if found', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        blockNumber: 100,
+        address: '0xPlugin',
+      })
+
+      sandbox.stub(Models.Proposal, 'findLatestProposal').resolves({
+        blockNumber: 100,
+        proposalIndex: 1,
+      })
+
+      const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([
+        {
+          event: {
+            args: {
+              proposalId: 2n,
+            },
+          },
+        },
+      ] as any)
+
+      const result = await ProposalHandler.findIncrementalId({
+        pluginAddress: '0xPlugin',
+        network: NetworksEnum.ethereumSepolia,
+        proposalIndex: '2',
+      } as any)
+
+      expect(result).to.be.eq(0)
+      expect(crawlerStub.calledOnce).to.be.true
     })
   })
 })

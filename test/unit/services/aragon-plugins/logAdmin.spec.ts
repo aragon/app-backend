@@ -1,0 +1,99 @@
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import logger from '@logger'
+import { LogAdmin } from '@plugins/logAdmin'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { IPluginInterfaceType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { Interface } from 'ethers'
+import { DAO } from '@artifacts/dao'
+import Web3Helper from '@helpers/web3'
+import { PermissionHandler } from '@handlers/permissionHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+
+describe('Plugins: LogAdmin', () => {
+  let sandbox: SinonSandbox
+  let verboseStub: sinon.SinonStub
+
+  beforeEach(async () => {
+    sandbox = sinon.createSandbox()
+    verboseStub = sandbox.stub(logger, 'verbose')
+  })
+
+  afterEach(() => {
+    sandbox?.restore()
+  })
+
+  describe('start', async () => {
+    it('should start the LogAdmin', async () => {
+      sandbox.stub(LogAdmin, '_syncAdminMember').resolves()
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+
+      await LogAdmin.start({
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+      } as any)
+
+      expect(verboseStub.calledWith('Start LogAdmin' as any)).to.be.true
+      expect(verboseStub.calledTwice).to.be.true
+      expect(crawlStub.calledOnce).to.be.true
+    })
+
+    it('should process error', async () => {
+      const errorStub = sandbox.stub(logger, 'error')
+      await LogAdmin.processError('error', { address: '0x123', network: NetworksEnum.ethereumSepolia } as any)
+      expect(errorStub.calledOnce).to.be.true
+      expect(errorStub.calledWith('Error LogAdmin' as any)).to.be.true
+    })
+  })
+
+  describe('_syncAdminMember', async () => {
+    const topcis = [
+      new Interface(DAO.abi).getEvent('Granted')?.topicHash,
+      new Interface(DAO.abi).getEvent('Revoked')?.topicHash,
+    ]
+
+    it('should sync admin member on grant', async () => {
+      const plugin = {
+        transactionHash: '0x123',
+        address: '0x123',
+        interfaceType: IPluginInterfaceType.admin,
+        network: NetworksEnum.ethereumSepolia,
+      } as any
+
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [
+          {
+            topics: [topcis[0]],
+          },
+        ],
+      } as any)
+
+      const parseLogStub = sandbox.stub(Web3Helper, 'parseLog').returns({
+        name: 'Granted',
+      } as any)
+
+      const txInfoLog = {
+        transactionHash: '0x123',
+        transactionIndex: 1,
+        network: NetworksEnum.ethereumSepolia,
+      }
+
+      const parseInfoLogStub = sandbox.stub(Web3Helper, 'parseInfoLog').returns(txInfoLog as any)
+
+      const handleGrantOnDaoStub = sandbox.stub(PermissionHandler, 'handleGrantOnDao').resolves()
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+
+      await LogAdmin._syncAdminMember(plugin)
+
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.calledWith(plugin.transactionHash, plugin.network)).to.be.true
+      expect(parseLogStub.calledOnce).to.be.true
+      expect(parseInfoLogStub.calledOnce).to.be.true
+      expect(handleGrantOnDaoStub.calledOnce).to.be.true
+      expect(handleGrantOnDaoStub.args[0][0]).to.deep.eq({ name: 'Granted' })
+      expect(handleGrantOnDaoStub.args[0][1]).to.be.eq(txInfoLog)
+      expect(isSupportedStub.calledOnce).to.be.true
+    })
+  })
+})
