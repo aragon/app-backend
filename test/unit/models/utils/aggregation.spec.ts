@@ -189,6 +189,7 @@ describe('Model/Utils: aggregation', () => {
                       name: 1,
                       decimals: 1,
                       logo: 1,
+                      mintableByDao: 1,
                       type: 1,
                       totalSupply: 1,
                     },
