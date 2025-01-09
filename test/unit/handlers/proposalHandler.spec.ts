@@ -739,8 +739,21 @@ describe('Indexer: ProposalHandler', () => {
       expect(updatedProposal.executed.transactionHash).to.eq(info.transactionHash)
       expect(updatedProposal.executed.blockTimestamp).to.eq(1800000000)
 
+      expect(rabbitMQStub.calledThrice).to.be.true
       expect(
-        rabbitMQStub.calledOnceWithExactly(EnumQueueName.daoMetrics, {
+        rabbitMQStub.calledWith(EnumQueueName.daoAssets, {
+          id: proposal.daoAddress,
+          params: { address: proposal.daoAddress, network },
+        }),
+      ).to.be.true
+      expect(
+        rabbitMQStub.calledWith(EnumQueueName.daoTransactions, {
+          id: proposal.daoAddress,
+          params: { address: proposal.daoAddress, network },
+        }),
+      ).to.be.true
+      expect(
+        rabbitMQStub.calledWith(EnumQueueName.daoMetrics, {
           id: proposal.daoAddress,
           params: { address: proposal.daoAddress, network },
         }),
