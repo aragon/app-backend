@@ -409,6 +409,17 @@ export const ProposalHandler = {
         llo,
       )
 
+      await Promise.all([
+        RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
+          id: proposal.daoAddress,
+          params: { address: proposal.daoAddress, network: info.network },
+        }),
+        RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
+          id: proposal.daoAddress,
+          params: { address: proposal.daoAddress, network: info.network },
+        }),
+      ])
+
       // Dao metrics
       await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
         id: proposal.daoAddress,
