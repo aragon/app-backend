@@ -80,7 +80,7 @@ class DecodeActions {
         value: action.value,
         data: action.data,
         type: ProposalActionType.Transfer,
-        sender: { address: document.daoAddress, ens: dao.ens },
+        sender: { address: document.daoAddress, ens: dao?.ens },
         receiver: { address: member.address, ens: member.ens, avatar: member.avatar },
         amount: action.value,
         token,
