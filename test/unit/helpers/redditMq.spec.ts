@@ -32,6 +32,7 @@ describe('Helpers:RabbitMQ', () => {
     }
     sandbox.replace(logger, 'warn', mockLogger.warn)
     sandbox.replace(logger, 'error', mockLogger.error)
+    sandbox.stub(RabbitMQHelper, 'ensureChannelConnected').resolves()
   })
 
   afterEach(() => {

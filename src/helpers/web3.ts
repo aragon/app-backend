@@ -149,7 +149,7 @@ const Web3Helper = {
   },
 
   isNativeTokenAction(action: any): boolean {
-    return action.data === '0x' && action.value > 0n
+    return action.data === '0x' && BigInt(action.value) >= 0n
   },
 
   async supportsERC721(tokenAddress: string, network: NetworksEnum): Promise<boolean> {
@@ -847,6 +847,7 @@ const Web3Helper = {
         ),
       )
     } catch (error) {
+      logger.warn('Error isMultisigMemberAtBlock', llo({ pluginAddress, memberAddress, blockNumber, network, error }))
       return false
     }
   },

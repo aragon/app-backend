@@ -35,6 +35,16 @@
 							"script": {
 								"id": "5e68da7f-f989-4bc6-b367-9f20d5cd9f23",
 								"exec": [
+									"// Tests for get daos endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});",
+									"",
 									"pm.test(\"Plugins validation\", function () {",
 									"    const jsonData = pm.response.json();",
 									"    jsonData.data.forEach((dao, index) => {",
@@ -351,6 +361,27 @@
 				},
 				{
 					"name": "get dao by id",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "f576ed48-ea66-43de-8a71-5830db69c772",
+								"exec": [
+									"// Tests for get dao by id endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
 					"id": "a4ca2901-e34b-416f-95d5-76510a9698d2",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
@@ -358,7 +389,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": "{{host}}/daos/ethereum-sepolia-0x452d22f3324C239325dE422710d41B909642365b"
+						"url": "{{host}}/daos/ethereum-sepolia-0x1Aee907d709Af951edEaAE6EAE6241b591E97d45"
 					},
 					"response": [
 						{
@@ -516,7 +547,28 @@
 					]
 				},
 				{
-					"name": "Daos By Member",
+					"name": "get dao by member",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "490bb795-7a1a-47f9-81e7-9e14287f1a69",
+								"exec": [
+									"// Tests for get dao by member endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
 					"id": "ae349814-1a60-46ca-b358-352784947ddf",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
@@ -537,8 +589,7 @@
 							"query": [
 								{
 									"key": "excludeDaoId",
-									"value": "ethereum-sepolia-0xb4C6c5De3ea9aCBEe3F9962779132359a36D5C6c",
-									"type": "text"
+									"value": "ethereum-sepolia-0xb4C6c5De3ea9aCBEe3F9962779132359a36D5C6c"
 								}
 							]
 						}
@@ -1001,6 +1052,27 @@
 				},
 				{
 					"name": "get member by address",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "1e31ec42-95a5-4dc6-a89a-faf0d036c51f",
+								"exec": [
+									"// Tests for get member by address endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
 					"id": "18f4c488-8d59-4ab1-9304-14921c5d9e8f",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
@@ -2245,21 +2317,29 @@
 					]
 				},
 				{
-					"name": "can Vote",
+					"name": "member vote info",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
-								"id": "059220f9-f989-44fe-8e19-93b0dfdf0fec",
+								"id": "d64c6ab4-c823-4a25-9ea0-6c4035acae6d",
 								"exec": [
-									""
+									"// Tests for member vote endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
 								],
 								"type": "text/javascript",
 								"packages": {}
 							}
 						}
 					],
-					"id": "c156efbc-c799-4710-aca4-1230cb49041c",
+					"id": "768be7e9-46c8-4150-8b30-002c906a3166",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
 					},
@@ -2268,7 +2348,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"pluginAddress\":\"0x178F5a2D2Ae45de04E9247039D6d039dcc7821E1\",\n    \"network\": \"ethereum-sepolia\",\n    \"memberAddress\": \"0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449\",\n    \"proposalIndex\": 44\n}",
+							"raw": "{\n    \"pluginAddress\":\"0x178F5a2D2Ae45de04E9247039D6d039dcc7821E1\",\n    \"network\": \"ethereum-sepolia\",\n    \"memberAddress\": \"0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449\",\n    \"proposalIndex\": 45\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2276,41 +2356,37 @@
 							}
 						},
 						"url": {
-							"raw": "{{host}}/votes/can-vote",
+							"raw": "{{host}}/votes/member-vote-info?memberAddress=0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31&pluginAddress=0x0f840d37273f38f80cdd256a87d8fc291a490c1e&proposalIndex=1&network=ethereum-sepolia",
 							"host": [
 								"{{host}}"
 							],
 							"path": [
 								"votes",
-								"can-vote"
+								"member-vote-info"
 							],
 							"query": [
 								{
 									"key": "memberAddress",
-									"value": "",
-									"disabled": true
+									"value": "0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31"
 								},
 								{
 									"key": "pluginAddress",
-									"value": "",
-									"disabled": true
+									"value": "0x0f840d37273f38f80cdd256a87d8fc291a490c1e"
 								},
 								{
 									"key": "proposalIndex",
-									"value": "",
-									"disabled": true
+									"value": "1"
 								},
 								{
 									"key": "network",
-									"value": "",
-									"disabled": true
+									"value": "ethereum-sepolia"
 								}
 							]
 						}
 					},
 					"response": [
 						{
-							"id": "1587a14e-b889-4ac4-ae6a-e9793915782a",
+							"id": "01f37ff9-a838-4314-ae23-5503940bec68",
 							"name": "get votes",
 							"originalRequest": {
 								"method": "GET",
@@ -2488,21 +2564,29 @@
 					]
 				},
 				{
-					"name": "member vote info",
+					"name": "can vote",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"id": "059220f9-f989-44fe-8e19-93b0dfdf0fec",
 								"exec": [
-									""
+									"// Tests for can vote endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
 								],
 								"type": "text/javascript",
 								"packages": {}
 							}
 						}
 					],
-					"id": "768be7e9-46c8-4150-8b30-002c906a3166",
+					"id": "c156efbc-c799-4710-aca4-1230cb49041c",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
 					},
@@ -2511,7 +2595,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"pluginAddress\":\"0x178F5a2D2Ae45de04E9247039D6d039dcc7821E1\",\n    \"network\": \"ethereum-sepolia\",\n    \"memberAddress\": \"0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449\",\n    \"proposalIndex\": 45\n}",
+							"raw": "{\n    \"pluginAddress\":\"0x178F5a2D2Ae45de04E9247039D6d039dcc7821E1\",\n    \"network\": \"ethereum-sepolia\",\n    \"memberAddress\": \"0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449\",\n    \"proposalIndex\": 44\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2519,41 +2603,37 @@
 							}
 						},
 						"url": {
-							"raw": "{{host}}/votes/member-vote-info",
+							"raw": "{{host}}/votes/can-vote?memberAddress=0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31&pluginAddress=0x0f840d37273f38f80cdd256a87d8fc291a490c1e&proposalIndex=1&network=ethereum-sepolia",
 							"host": [
 								"{{host}}"
 							],
 							"path": [
 								"votes",
-								"member-vote-info"
+								"can-vote"
 							],
 							"query": [
 								{
 									"key": "memberAddress",
-									"value": "<string>",
-									"disabled": true
+									"value": "0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31"
 								},
 								{
 									"key": "pluginAddress",
-									"value": "",
-									"disabled": true
+									"value": "0x0f840d37273f38f80cdd256a87d8fc291a490c1e"
 								},
 								{
 									"key": "proposalIndex",
-									"value": "",
-									"disabled": true
+									"value": "1"
 								},
 								{
 									"key": "network",
-									"value": "",
-									"disabled": true
+									"value": "ethereum-sepolia"
 								}
 							]
 						}
 					},
 					"response": [
 						{
-							"id": "01f37ff9-a838-4314-ae23-5503940bec68",
+							"id": "1587a14e-b889-4ac4-ae6a-e9793915782a",
 							"name": "get votes",
 							"originalRequest": {
 								"method": "GET",
@@ -2738,7 +2818,7 @@
 			"name": "Proposals",
 			"item": [
 				{
-					"name": "Get Proposals",
+					"name": "get proposals",
 					"event": [
 						{
 							"listen": "test",
@@ -2956,6 +3036,27 @@
 				},
 				{
 					"name": "get proposal by id",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "1c5e77e8-ee12-482d-83d4-f7b74ed31651",
+								"exec": [
+									"// Tests for get proposals by id endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
 					"id": "3273b647-a35d-4d62-9ca8-ad2984d22775",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
@@ -2963,12 +3064,33 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": "{{host}}/proposals/0xf01c9b505ad8e00c4f774268bd1866d9088591a10332afcc7bcb1daaa5bae25e-0x9486A57A8989522A4d540CCE21910E9BC353A2d6-1"
+						"url": "{{host}}/proposals/0xb42065c62e61fc1dc49bbdb5411a440673d55e5ae10864ea0e1aab4d9ce8e5d3-0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7-0"
 					},
 					"response": []
 				},
 				{
 					"name": "can create proposal",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "355c3be7-fc3b-45a8-aad7-b2e05a9c949d",
+								"exec": [
+									"// Tests for can create proposal endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
 					"id": "c5320280-dece-4141-b165-866e436c6bdc",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
@@ -2986,7 +3108,7 @@
 							}
 						},
 						"url": {
-							"raw": "{{host}}/proposals/can-create-proposal",
+							"raw": "{{host}}/proposals/can-create-proposal?memberAddress=0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31&pluginAddress=0x0f840d37273f38f80cdd256a87d8fc291a490c1e&network=ethereum-sepolia",
 							"host": [
 								"{{host}}"
 							],
@@ -2997,18 +3119,65 @@
 							"query": [
 								{
 									"key": "memberAddress",
-									"value": "",
-									"disabled": true
+									"value": "0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31"
 								},
 								{
 									"key": "pluginAddress",
-									"value": "",
-									"disabled": true
+									"value": "0x0f840d37273f38f80cdd256a87d8fc291a490c1e"
 								},
 								{
 									"key": "network",
-									"value": "",
-									"disabled": true
+									"value": "ethereum-sepolia"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "can vote at proposal",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "4f17211a-0ab3-430d-8013-a27d8a907afb",
+								"exec": [
+									"// Tests for can vote at proposal endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"id": "608aa334-af12-4869-9a23-2c7033b3a813",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{host}}/proposals/0x7534b24f08766202f5d290f24bd49312e83bc45d49d06c8ffefb38b8031990e8-0x5F2DFC42dDB23A431f6A16F61010a8A2Ac9D936B-1/can-vote?userAddress=0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"proposals",
+								"0x7534b24f08766202f5d290f24bd49312e83bc45d49d06c8ffefb38b8031990e8-0x5F2DFC42dDB23A431f6A16F61010a8A2Ac9D936B-1",
+								"can-vote"
+							],
+							"query": [
+								{
+									"key": "userAddress",
+									"value": "0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31"
 								}
 							]
 						}
@@ -4304,6 +4473,27 @@
 				},
 				{
 					"name": "get token by address",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "265d65e8-dacc-4547-9723-549f7b103fc6",
+								"exec": [
+									"// Tests for get tokens by address endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
 					"id": "20c498e3-d70e-4bc5-ade3-42eaa11c8803",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
@@ -4311,7 +4501,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": "{{host}}/tokens/ethereum-mainnet/0xe4fBbB0B11b3B48D10B4753a1D2c00244b247b33"
+						"url": "{{host}}/tokens/ethereum-sepolia/0x8115B4F2aC13FC3444Ca88b448a1c8092793b569"
 					},
 					"response": [
 						{
@@ -4979,7 +5169,15 @@
 							"script": {
 								"id": "fc1eaf9d-f479-425b-960b-0de9dd59d2db",
 								"exec": [
-									""
+									"// Tests for get active settings by daoAddress endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
 								],
 								"type": "text/javascript",
 								"packages": {}
@@ -5314,7 +5512,15 @@
 							"script": {
 								"id": "fc1eaf9d-f479-425b-960b-0de9dd59d2db",
 								"exec": [
-									""
+									"// Tests for get active settings by daoId endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
 								],
 								"type": "text/javascript",
 								"packages": {}
@@ -5649,6 +5855,27 @@
 			"item": [
 				{
 					"name": "get contracts",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "ef3cdf3c-1364-46ba-a805-17f4fb609e3f",
+								"exec": [
+									"// Tests for get active settings by get contracts endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
 					"id": "ea799832-e7e8-45b6-93b1-e3895fe242d3",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
@@ -5664,87 +5891,44 @@
 			"id": "7268a2d0-7472-4efd-b2b0-c4e2119b29f2"
 		},
 		{
-			"name": "status",
-			"id": "e699389b-72fe-4cba-83b4-3a476fad44fd",
-			"protocolProfileBehavior": {
-				"disableBodyPruning": true
-			},
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": "{{host}}"
-			},
-			"response": [
+			"name": "Status",
+			"item": [
 				{
-					"id": "5d10fb30-005a-49f2-98db-ea845d2a980a",
-					"name": "status",
-					"originalRequest": {
+					"name": "get status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "98b457ff-532e-4163-985f-016b83b7b194",
+								"exec": [
+									"// Tests for get status endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"id": "0170f7ae-81f6-4565-ab50-c29149ffebba",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
 						"method": "GET",
 						"header": [],
 						"url": "{{host}}"
 					},
-					"status": "OK",
-					"code": 200,
-					"_postman_previewlanguage": "json",
-					"header": [
-						{
-							"key": "X-Correlation-Id",
-							"value": "003e2057-d216-4627-9ab5-e1aea9400c21"
-						},
-						{
-							"key": "Access-Control-Allow-Origin",
-							"value": "*"
-						},
-						{
-							"key": "referrer-policy",
-							"value": "no-referrer"
-						},
-						{
-							"key": "x-content-type-options",
-							"value": "nosniff"
-						},
-						{
-							"key": "x-frame-options",
-							"value": "DENY"
-						},
-						{
-							"key": "content-security-policy",
-							"value": "default-src 'self' https:"
-						},
-						{
-							"key": "x-xss-protection",
-							"value": "1; mode=block"
-						},
-						{
-							"key": "strict-transport-security",
-							"value": "max-age=2592000; includeSubDomains"
-						},
-						{
-							"key": "Content-Type",
-							"value": "application/json; charset=utf-8"
-						},
-						{
-							"key": "Content-Length",
-							"value": "268"
-						},
-						{
-							"key": "Date",
-							"value": "Thu, 20 Jun 2024 12:50:51 GMT"
-						},
-						{
-							"key": "Connection",
-							"value": "keep-alive"
-						},
-						{
-							"key": "Keep-Alive",
-							"value": "timeout=5"
-						}
-					],
-					"cookie": [],
-					"responseTime": null,
-					"body": "{\n    \"status\": \"healthy\",\n    \"appName\": \"Aragon Backend\",\n    \"nodeVersion\": \"v20.6.0\",\n    \"environment\": \"local\",\n    \"supportedNetworks\": [\n        \"ethereum-mainnet\",\n        \"ethereum-sepolia\",\n        \"polygon-mainnet\",\n        \"base-mainnet\",\n        \"arbitrum-mainnet\"\n    ],\n    \"appVersionPackage\": \"1.0.0\",\n    \"time\": \"2024-06-20T14:50:51+02:00\"\n}"
+					"response": []
 				}
-			]
+			],
+			"id": "0400c595-2403-4984-853d-8f578fc10266"
 		}
 	]
 }

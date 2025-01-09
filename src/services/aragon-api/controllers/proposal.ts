@@ -13,6 +13,9 @@ import PairDataModule from '@modules/pairData'
 import { type ICanCreateProposal } from '@src/types/voting'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import config from '@config'
+import logger from '@logger'
+
+const llo = logger.logMeta.bind(null, { service: 'ProposalController' })
 
 const ProposalController = {
   getProposalById: async (id: string): Promise<IProposalsResponse> => {
@@ -91,6 +94,7 @@ const ProposalController = {
         { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
       )
     } catch (e) {
+      logger.warn('Error while checking if user can cast vote', llo(e))
       return false
     }
   },

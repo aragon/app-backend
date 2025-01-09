@@ -172,6 +172,7 @@ export default class Vote extends Model {
         decimals: 1,
         logo: 1,
         type: 1,
+        mintableByDao: 1,
       }),
       {
         $addFields: {

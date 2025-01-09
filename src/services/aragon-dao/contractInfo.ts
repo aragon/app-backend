@@ -8,22 +8,25 @@ import * as ContractNetspecHelper from '@helpers/contractNetspec'
 export const ContractInfo = {
   getContractInfo: async (network: NetworksEnum, address: string): Promise<IContractAbi | null> => {
     const mainData = await ContractInfo.fetchVerifiedContractData(network, address)
-    if (!mainData) return null
-
     const implementationAddress = (await ProxyContract.getImplementationAddress(address, network)) || address
     const isProxy = implementationAddress !== address
 
-    let implementationData: { name: string; functions: any[] } | null = null
-    if (isProxy) {
-      implementationData = await ContractInfo.fetchVerifiedContractData(network, implementationAddress)
-    }
+    const implementationData = isProxy
+      ? await ContractInfo.fetchVerifiedContractData(network, implementationAddress)
+      : null
+
+    if (!mainData && !implementationData) return null
+
+    const functions = [...(mainData?.functions || []), ...(implementationData?.functions || [])]
+
+    const name = implementationData?.name || mainData?.name || ''
 
     return {
       implementationAddress: isProxy ? implementationAddress : null,
       address,
       network,
-      name: implementationData?.name || mainData.name,
-      functions: isProxy ? [...mainData.functions, ...(implementationData?.functions || [])] : mainData.functions,
+      name,
+      functions,
     } satisfies IContractAbi
   },
 
