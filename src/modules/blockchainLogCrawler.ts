@@ -235,7 +235,7 @@ class BlockchainLogCrawler {
     const event = Web3Helper.parseLog(log, iFace)!
 
     if (!event) {
-      logger.error('Error parse log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
+      logger.error('Error parse log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog(), log }))
     }
 
     const info = Web3Helper.parseInfoLog(log, eventSetting.event, this.crawlParams.network)
