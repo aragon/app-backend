@@ -19,6 +19,13 @@ export const ToolsManualSyncProposalIndex: IService = {
     logger.info(`Found ${proposals.length} proposals with rawActions`, llo({ proposals: proposals.length }))
 
     for (const proposal of proposals) {
+      const currentIndex = proposal.proposalIndex.length > 10 ? null : Number(proposal.proposalIndex)
+      if (currentIndex !== null) {
+        logger.info('Already has index', llo({ proposal: proposal.id, index: currentIndex }))
+        proposal.incrementalId = currentIndex
+        await proposal.save()
+        continue
+      }
       const index = await ProposalHandler.findIncrementalId(proposal)
       if (index !== false) {
         proposal.incrementalId = index
