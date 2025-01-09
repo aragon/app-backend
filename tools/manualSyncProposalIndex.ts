@@ -18,7 +18,7 @@ export const ToolsManualSyncProposalIndex: IService = {
 
     logger.info(`Found ${proposals.length} proposals with rawActions`, llo({ proposals: proposals.length }))
 
-    for (const proposal of proposals.slice(0, 10)) {
+    for (const proposal of proposals) {
       const index = await ProposalHandler.findIncrementalId(proposal)
       if (index !== false) {
         proposal.incrementalId = index
