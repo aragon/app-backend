@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo, type IMetadata, IMetadataType, IPluginInterfaceType } from '@types'
+import { type ILogInfo, type IMetadata, IMetadataType, IPluginInterfaceType, IPluginStatus } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
@@ -9,6 +9,7 @@ import DbOperations from '@models/utils/dbOperations'
 import type Dao from '@models/schema/dao'
 import type Plugin from '@models/schema/plugin'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
+import { PluginSlug } from '@helpers/pluginSlug'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:MetadataHandler' })
 
@@ -81,6 +82,10 @@ export const MetadataHandler = {
     if (logDb) {
       await MetadataHandler._updatePluginMetadata(logDb)
 
+      if (plugin.isSupported && plugin.status === IPluginStatus.installed) {
+        await PluginSlug.updateSlug(plugin, logMetadata.processKey)
+      }
+
       if (plugin.interfaceType === IPluginInterfaceType.spp && ipfsMetadata) {
         await PluginSettingHandler.updateStageNamesOnSppSettings(plugin, logMetadata.stageNames!, info)
       }
@@ -96,8 +101,9 @@ export const MetadataHandler = {
       name: metadataLog.name,
       description: metadataLog.description,
       links: metadataLog.links,
-      processKey: metadataLog.processKey,
+      processKey: metadataLog?.processKey,
     }
+
     await DbOperations.updateDocument(plugin, document, { logId: metadataLog.id }, 'Update Plugin Metadata', llo)
   },
 

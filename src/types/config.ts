@@ -79,6 +79,7 @@ export interface IConfig {
     URI: string
     TIMEOUT: number
     DEFAULT_CONCURRENCY: number
+    RECONNECT_TIME: number
   }
   NODE_CONFIG: {
     MAX_RECONNECT_ATTEMPTS: number

@@ -56,12 +56,12 @@ export const VoteInfo = {
   },
 
   _handleForTokenVoting: async (userAddress: string, proposal: Proposal, plugin: Plugin) => {
-    const { network, tokenAddress, blockNumber } = plugin
+    const { network, tokenAddress } = plugin
 
     const votingPower = await GovernanceErc20Helper.getPastVotes(
       userAddress,
       tokenAddress,
-      blockNumber,
+      proposal.blockNumber,
       proposal.blockTimestamp,
       network,
     )

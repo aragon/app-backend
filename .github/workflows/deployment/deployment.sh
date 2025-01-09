@@ -9,11 +9,11 @@ set_vars(){
     REPO_BRANCH="${REPO_BRANCH:-develop}"
     REPO_URL="${REPO_URL:-git@github.com:aragon/app-backend.git}"
 
-    TARGET_DIR="backend"
+    TARGET_DIR="app-backend"
     ARCHIVE_NAME="backend.tar"
     REMOTE_DIR="/home/${REMOTE_USER}"
     REMOTE_SCRIPT_NAME='remote_script.sh'
-    #PEM_FILE="aragon-backend.pem"  
+    #PEM_FILE="aragon-backend.pem"
 
 }
 
@@ -66,6 +66,22 @@ cleanup_local() {
     rm -rf "$TARGET_DIR" "$ARCHIVE_NAME"
 }
 
+# Ensure known_hosts file is updated to avoid host key verification failure
+update_known_hosts(){
+    mkdir -p ~/.ssh/
+    if [ -n "$REMOTE_HOST" ]; then
+        echo "Updating known_hosts to avoid host key verification failure..."
+        ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+        if [ $? -eq 0 ]; then
+            echo "Successfully updated known_hosts with $REMOTE_HOST."
+        else
+            echo "Failed to update known_hosts. Please check the remote host IP and try again."
+        fi
+    else
+        echo "REMOTE_HOST is not set. Skipping known_hosts update."
+    fi
+}
+
 # Function to remove logs on the remote server
 remote_remove_logs() {
     echo -e "\n\n Removing old logs on remote server..."
@@ -85,6 +101,8 @@ remote_extract_files() {
 
 }
 
+
+
 # Function copy in the remote the var files to the dir
 # This is just for testing when you have files locally, GitHub flow will retrieve the config and upload it in the .tar directly
 # You have to upload the files previously to the machine
@@ -103,7 +121,7 @@ EOF
 
 remote_upload_execute_script(){
     echo -e "\n\n Remote: Upload executing script script on $REMOTE_HOST..."
-    
+
     cat > $REMOTE_SCRIPT_NAME << EOF
 #!/bin/bash
 echo "Starting remote script execution..."
@@ -136,22 +154,20 @@ install_dependencies() {
     nvm install
     pwd
     nvm use default
-    npm install -g pm2 yarn
     yarn install
-    echo "Installing PM2..."
     yarn global add pm2
+    echo "Installing PM2..."
 }
 
 start_app_first_time() {
     echo "Starting application with PM2..."
-    cd "$REMOTE_DIR/$TARGET_DIR"
-    pm2 delete all || true
+    pm2 kill || true
     pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" --update-env
-    
+
 }
 
 main() {
-    
+
     install_dependencies
     start_app_first_time
 }
@@ -181,10 +197,12 @@ main_functions(){
         set_vars
         check_vars_exist
         create_tar
+        update_known_hosts
         remote_clean_old_install
         remote_remove_logs
         copy_tar_to_remote
         remote_extract_files
+        remote_upload_execute_script
         remote_execute_script
     else
         echo "This script is NOT being executed in a GitHub Actions environment."
@@ -201,7 +219,7 @@ main_functions(){
         remote_upload_execute_script
         remote_execute_script
         cleanup_local
-    fi  
+    fi
 }
 
 show_help() {
@@ -231,7 +249,7 @@ main() {
                 echo "Set repo URL to: $OPTARG"
                 REPO_URL="$OPTARG"
                 ;;
-            u) 
+            u)
                 echo "Set remote USER to: $OPTARG"
                 REMOTE_USER="$OPTARG"
                 ;;
@@ -256,7 +274,11 @@ main() {
     main_functions
 }
 
+
+
 # Call the function to parse options
 main "$@"
 
 echo "Deployment complete."
+
+

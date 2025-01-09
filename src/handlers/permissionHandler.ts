@@ -12,6 +12,8 @@ import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
 import { RabbitMQHelper } from '@helpers/redditMQ'
 import DbOperations from '@models/utils/dbOperations'
+import { IPermission } from '@src/types/permission'
+import { PluginHandler } from '@handlers/pluginHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PermissionHandler' })
 
@@ -26,7 +28,7 @@ export const PermissionHandler = {
     const { address, network } = info
     const { where, who, permissionId } = parsedEvent.args
 
-    const permissionToCheck = ethers.id('EXECUTE_PROPOSAL_PERMISSION')
+    const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
 
     if (permissionToCheck === permissionId) {
       await PermissionHandler.handleForAdminPlugin(address, where, network, who)
@@ -61,10 +63,14 @@ export const PermissionHandler = {
     const { address, network } = info
     const { who, where, permissionId } = parsedEvent.args
 
-    const permissionToCheck = ethers.id('EXECUTE_PROPOSAL_PERMISSION')
+    const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
 
     if (permissionToCheck === permissionId) {
       await PermissionHandler.handleForAdminPlugin(address, where, network, who, false)
+    }
+
+    if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
+      await PluginHandler.uninstallPluginWithPermissionRevoke(who, where, network, info)
     }
 
     const permissionEntity = {

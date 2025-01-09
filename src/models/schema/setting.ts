@@ -237,6 +237,7 @@ export default class Setting extends Model {
         logo: 1,
         type: 1,
         totalSupply: 1,
+        mintableByDao: 1,
       }),
       {
         $addFields: {
@@ -299,6 +300,7 @@ export default class Setting extends Model {
         logo: 1,
         type: 1,
         totalSupply: 1,
+        mintableByDao: 1,
       }),
       {
         $addFields: {

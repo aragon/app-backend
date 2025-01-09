@@ -21,8 +21,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     RABBITMQ: {
       URI: utils.configParser(sourceConfig, 'string', 'RABBITMQ_URI', 'amqp://localhost:5672'),
-      TIMEOUT: utils.configParser(sourceConfig, 'number', 'RABBITMQ_TIMEOUT', 15000),
+      TIMEOUT: utils.configParser(sourceConfig, 'number', 'RABBITMQ_TIMEOUT', 25000),
       DEFAULT_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'RABBITMQ_DEFAULT_CONCURRENCY', 10),
+      RECONNECT_TIME: utils.configParser(sourceConfig, 'number', 'RABBITMQ_RECONNECT_TIME', 1000),
     },
 
     NODE_CONFIG: {
@@ -30,7 +31,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       RECONNECT_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODE_CONFIG_RECONNECT_INTERVAL', 100),
     },
 
-    CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'CONFIRMATION_BLOCKS', 5),
+    CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'CONFIRMATION_BLOCKS', 3),
 
     NODES: {
       ETHEREUM_MAINNET: {

@@ -232,6 +232,9 @@ export default class Proposal extends Model {
   @prop({ type: () => String, required: true })
   public proposalIndex!: string
 
+  @prop({ type: () => Number })
+  public incrementalId!: number
+
   @prop({ type: () => String, required: true })
   public creatorAddress!: HexAddress
 
@@ -350,6 +353,28 @@ export default class Proposal extends Model {
     return await this.findOne({ proposalIndex, pluginAddress, network }, tOpts)
   }
 
+  static async findLatestProposal(pluginAddress: HexAddress, network: NetworksEnum) {
+    const query = [
+      {
+        $match: {
+          pluginAddress,
+          network,
+        },
+      },
+      {
+        $sort: {
+          blockNumber: -1 as 1 | -1,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ]
+
+    const results = await this.aggregate(query)
+    return results?.[0]
+  }
+
   static async findWithEntityId(id: string) {
     const query = [
       {
@@ -396,6 +421,7 @@ export default class Proposal extends Model {
         decimals: 1,
         logo: 1,
         type: 1,
+        mintableByDao: 1,
       }),
       {
         $addFields: {
@@ -667,6 +693,7 @@ export default class Proposal extends Model {
         decimals: 1,
         logo: 1,
         type: 1,
+        mintableByDao: 1,
       }),
       {
         $addFields: {

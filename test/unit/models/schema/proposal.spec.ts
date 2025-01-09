@@ -248,5 +248,13 @@ describe('Model: Proposal', () => {
       expect(proposal.creator.address).to.be.eq(ProposalList[0].creatorAddress)
       expect(proposal?.id).to.eq(entityId)
     })
+
+    it('should find findLatestProposal', async () => {
+      const proposal = await Models.Proposal.findLatestProposal(
+        ProposalList[0].pluginAddress!,
+        ProposalList[0].network!,
+      )
+      expect(proposal).to.be.not.null
+    })
   })
 })
