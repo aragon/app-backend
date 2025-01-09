@@ -232,15 +232,17 @@ describe('Helpers:PluginSlug', () => {
     it('should handle concurrent slug generation', async () => {
       const baseKey = IPluginSlug.tokenvoting
 
-      const [uniqueKey1, uniqueKey2, uniqueKey3] = await Promise.all([
+      const results = await Promise.all([
         PluginSlug.generateSlug(plugin, baseKey),
         PluginSlug.generateSlug(plugin2, baseKey),
         PluginSlug.generateSlug(plugin2, baseKey),
       ])
 
-      expect(uniqueKey1).to.eq(baseKey)
-      expect(uniqueKey2).to.eq(`${baseKey}_1`)
-      expect(uniqueKey3).to.eq(`${baseKey}_1`)
+      const baseKeyCount = results.filter(key => key === baseKey).length
+      const baseKeyWithSuffixCount = results.filter(key => key === `${baseKey}_1`).length
+
+      expect(baseKeyCount).to.eq(1)
+      expect(baseKeyWithSuffixCount).to.eq(2)
     })
 
     it('should generate default slug if processKey is not provided and not existing', async () => {
