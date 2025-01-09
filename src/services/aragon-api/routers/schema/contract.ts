@@ -13,7 +13,7 @@ const ContractDetailsSchema = {
     from: ValidationSchema.joiAddress.required(),
     to: ValidationSchema.joiAddress.required(),
     data: Joi.string().required(),
-    value: Joi.string().allow(null),
+    value: Joi.any().allow(null),
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .optional(),
