@@ -415,6 +415,7 @@ describe('Indexer:Plugin', () => {
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
         blockNumber: 12345,
+        daoAddress: '0xdao',
       } as any)
 
       expect(findLogsStub.calledOnce).to.be.true
