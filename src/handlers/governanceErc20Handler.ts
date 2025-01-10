@@ -140,13 +140,13 @@ export const GovernanceErc20Handler = {
         return logDb
       })
 
-      if (side === ITransferSide.incoming) {
+      if (side === ITransferSide.incoming && to === member.address) {
         await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
           memberAddress: member.address,
           pluginAddress: plugin.address,
           network: info.network,
         })
-      } else {
+      } else if (side === ITransferSide.outgoing && from === member.address) {
         await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
           memberAddress: member.address,
           pluginAddress: plugin.address,
