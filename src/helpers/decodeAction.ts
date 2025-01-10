@@ -93,7 +93,14 @@ class DecodeActions {
       }
     }
 
-    return null
+    return {
+      from: document?.daoAddress!,
+      to: action.to,
+      data: action.data,
+      value: action.value,
+      type: ProposalActionType.Unknown,
+      inputData: null,
+    }
   }
 
   public async decodeData(action: IRawAction, document: Partial<Proposal>): Promise<IProposalAction | null> {
@@ -154,10 +161,10 @@ class DecodeActions {
         decoded.notice = contractNetspec.notice
         decoded.contract = contractNetspec.contractName
         decoded.parameters = decoded.parameters.map((param, index) => {
-          param.notice = contractNetspec.inputs![index].notice
-          param.name = contractNetspec.inputs![index].name
-          param.components = contractNetspec.inputs![index].components
-          param.type = contractNetspec.inputs![index].type
+          param.notice = contractNetspec.inputs[index].notice
+          param.name = contractNetspec.inputs[index].name
+          param.components = contractNetspec.inputs[index].components
+          param.type = contractNetspec.inputs[index].type
           return param
         })
       }
@@ -325,8 +332,8 @@ class DecodeActions {
           decodedData.notice = contractNetspec.notice
           decodedData.contract = contractNetspec.contractName
           decodedData.parameters = decodedData.parameters.map((param, index) => {
-            param.notice = contractNetspec.inputs![index].notice
-            param.name = contractNetspec.inputs![index].name
+            param.notice = contractNetspec.inputs[index].notice
+            param.name = contractNetspec.inputs[index].name
             return param
           })
         }
@@ -575,6 +582,10 @@ class DecodeActions {
       const abiWithNetSpec = signatures.find(
         (action: any) => action.sig === ethers.id(functionName).slice(0, 10) || action.sig === functionName,
       )
+
+      if (!abiWithNetSpec) {
+        return null
+      }
 
       return {
         functionName: abiWithNetSpec?.method,
