@@ -5881,9 +5881,18 @@
 						"disableBodyPruning": true
 					},
 					"request": {
-						"method": "GET",
+						"method": "POST",
 						"header": [],
-						"url": "{{host}}/contract/ethereum-sepolia/0x774679A5648da9f02ffdeBA8AF4EFF3a0A8DfC3f"
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"data\":\"0xee57e36f00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000035697066733a2f2f516d654869583643527771415331714e7633434b634b3168586e4a35527247356946665a3177665243344d3576320000000000000000000000\",\n    \"value\": \"0\",\n    \"from\":\"0x0478f1E328F33e170C98d9F095f086A399978cFD\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{host}}/contract/ethereum-sepolia/0x0478f1E328F33e170C98d9F095f086A399978cFD/decode"
 					},
 					"response": []
 				}
