@@ -89,7 +89,6 @@ class EventListener {
       )
 
       if (!logs || logs.length === 0) {
-        logger.warn('No logs found', llo({ blockNumber, network: this.network }))
         return
       }
 
