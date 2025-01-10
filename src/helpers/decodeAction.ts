@@ -93,7 +93,14 @@ class DecodeActions {
       }
     }
 
-    return null
+    return {
+      from: document?.daoAddress!,
+      to: action.to,
+      data: action.data,
+      value: action.value,
+      type: ProposalActionType.Unknown,
+      inputData: null,
+    }
   }
 
   public async decodeData(action: IRawAction, document: Partial<Proposal>): Promise<IProposalAction | null> {
