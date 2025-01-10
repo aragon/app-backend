@@ -192,7 +192,7 @@ describe('Helpers: DecodeActions', () => {
       const action = {
         to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         value: 0n,
-        data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
+        data: '0x',
       }
 
       const document = {
@@ -203,7 +203,14 @@ describe('Helpers: DecodeActions', () => {
 
       const result = await decodeActions.decodeTransfer(action, document as any)
 
-      expect(result).to.be.null
+      expect(result).to.deep.eq({
+        from: document.daoAddress,
+        to: action.to,
+        value: action.value,
+        data: '0x',
+        type: ProposalActionType.Unknown,
+        inputData: null,
+      })
     })
   })
 
