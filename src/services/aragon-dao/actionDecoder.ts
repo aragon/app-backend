@@ -5,7 +5,7 @@ import Web3Helper from '@helpers/web3'
 const ActionDecode = {
   decode: async (action: IRawAction) => {
     const decodeHelper = new DecodeActions()
-    if (action.data?.length >= 10 && Web3Helper.isNativeTokenAction(action.data)) {
+    if (Web3Helper.isNativeTokenAction(action)) {
       return decodeHelper.decodeTransfer(action, {
         network: action.network!,
         daoAddress: action.from,
@@ -14,7 +14,7 @@ const ActionDecode = {
 
     const blockNumber = await Web3Helper.getBlockNumber('latest', action.network!)
 
-    const decodedData = decodeHelper.decodeData(action, {
+    const decodedData = await decodeHelper.decodeData(action, {
       network: action.network!,
       daoAddress: action.from,
       pluginAddress: action.to,
