@@ -233,7 +233,7 @@ describe('BlockHandler', () => {
         params: { address: '0xdao', network: NetworksEnum.ethereumMainnet },
       })
 
-      expect(stubRabbitSend.thirdCall.args[0]).to.equal('daoMetrics')
+      expect(stubRabbitSend.thirdCall.args[0]).to.equal('dao.metrics')
       expect(stubRabbitSend.thirdCall.args[1]).to.deep.equal({
         id: '0xdao',
         params: { address: '0xdao', network: NetworksEnum.ethereumMainnet },
