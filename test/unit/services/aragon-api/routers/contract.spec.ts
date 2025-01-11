@@ -45,7 +45,7 @@ describe('Router: Contract', () => {
       expect(ctx.body).to.deep.equal(mockResponse)
     })
 
-    it.only('should decode the action data of a contract', async () => {
+    it('should decode the action data of a contract', async () => {
       const mockParams = {
         network: NetworksEnum.ethereumMainnet,
         address: '0x123',
