@@ -29,20 +29,20 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 export const ProposalHandler = {
-  findIncrementalId: async (proposal: Proposal): Promise<any> => {
+  findIncrementalId: async (proposal: Partial<Proposal>): Promise<any> => {
     const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
     /**
      * Find the latest proposal from this plugin
      */
 
-    const latestProposal = await Models.Proposal.findLatestProposal(plugin.address, proposal.network)
+    const latestProposal = await Models.Proposal.findLatestProposal(plugin.address, proposal.network!)
 
     const crawler = new BlockchainLogCrawler({
       skipLogProcessing: true,
       fromBlock: plugin.blockNumber,
       toBlock: latestProposal.blockNumber + 1,
       logService: null,
-      network: proposal.network,
+      network: proposal.network!,
       address: proposal.pluginAddress,
       stopOnError: false,
       onError: async (error: any) => logger.error('Error findIncrementalId', llo({ error, proposal })),
@@ -176,16 +176,12 @@ export const ProposalHandler = {
         }
       }
 
-      const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)
+      document.incrementalId = await ProposalHandler.findIncrementalId({
+        pluginAddress,
+        network: info.network,
+      })
 
-      const incrementalId = await ProposalHandler.findIncrementalId(newProposal)
-      await DbOperations.updateDocument(
-        newProposal,
-        { incrementalId },
-        { logId: newProposal.id },
-        'Update Incremental Id',
-        llo,
-      )
+      const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
       await ProxyMember.updateActivity({

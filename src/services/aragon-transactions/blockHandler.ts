@@ -10,6 +10,7 @@ import type Dao from '@models/schema/dao'
 import utils from '@helpers/utils'
 import config from '@config'
 import { DAO } from '@artifacts/dao'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-transactions:BlockHandler' })
 
@@ -20,7 +21,7 @@ export const BlockHandler = {
     const provider = ProviderModule.getProvider(network)
     if (!provider) return logger.error('Provider not available for network', llo({ network }))
 
-    const blockReceipts = await provider.send('eth_getBlockReceipts', [`0x${Number(block.number).toString(16)}`])
+    const blockReceipts = await Web3Helper.getBlockReceipts(provider, block.number)
     if (!blockReceipts) return
 
     const toAddresses = blockReceipts
