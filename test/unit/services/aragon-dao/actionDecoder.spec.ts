@@ -1,12 +1,12 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import {NetworksEnum, ProposalActionType} from '@types'
+import { NetworksEnum, ProposalActionType } from '@types'
 import { expect } from 'chai'
-import ActionDecoder from "@services/aragon-dao/actionDecoder";
-import DecodeActions from "@helpers/decodeAction";
-import Web3Helper from "@helpers/web3";
-import {ProxyMember} from "@modules/proxyMember";
-import {Models} from "@dbModels";
+import ActionDecoder from '@services/aragon-dao/actionDecoder'
+import DecodeActions from '@helpers/decodeAction'
+import Web3Helper from '@helpers/web3'
+import { ProxyMember } from '@modules/proxyMember'
+import { Models } from '@dbModels'
 describe('aragon-dao: actionDecoder', () => {
   let sandbox: SinonSandbox
 
@@ -25,7 +25,7 @@ describe('aragon-dao: actionDecoder', () => {
         network: NetworksEnum.ethereumSepolia,
         from: '0xfrom',
         to: '0xto',
-        value: '0'
+        value: '0',
       }
 
       sandbox.stub(Web3Helper, 'getBlockNumber').resolves(1)
@@ -33,7 +33,6 @@ describe('aragon-dao: actionDecoder', () => {
       sandbox.stub(DecodeActions.prototype, '_decodeFallback').resolves(null)
 
       const response = await ActionDecoder.decode(action)
-
 
       expect(response).to.deep.eq({
         from: action.from!,
@@ -51,7 +50,7 @@ describe('aragon-dao: actionDecoder', () => {
         network: NetworksEnum.ethereumSepolia,
         from: '0xfrom',
         to: '0xto',
-        value: '123'
+        value: '123',
       }
 
       sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({
@@ -59,7 +58,7 @@ describe('aragon-dao: actionDecoder', () => {
         name: 'ETH',
         symbol: 'ETH',
       })
-      sandbox.stub(ProxyMember,'createMember').resolves({
+      sandbox.stub(ProxyMember, 'createMember').resolves({
         address: '0xto',
       } as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({
