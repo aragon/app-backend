@@ -178,6 +178,15 @@ export const ProposalHandler = {
 
       const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)
 
+      const incrementalId = await ProposalHandler.findIncrementalId(newProposal)
+      await DbOperations.updateDocument(
+        newProposal,
+        { incrementalId },
+        { logId: newProposal.id },
+        'Update Incremental Id',
+        llo,
+      )
+
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
       await ProxyMember.updateActivity({
         memberAddress: newProposal.creatorAddress,
