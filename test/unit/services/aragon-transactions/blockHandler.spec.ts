@@ -10,6 +10,7 @@ import { RabbitMQHelper } from '@helpers/redditMQ'
 import utils from '@helpers/utils'
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import type Dao from '@models/schema/dao'
+import Web3Helper from '@helpers/web3'
 
 describe('BlockHandler', () => {
   let sandbox: SinonSandbox
@@ -25,7 +26,7 @@ describe('BlockHandler', () => {
   describe('processNewBlock', () => {
     let stubLoggerError: sinon.SinonStub
     let stubGetProvider: sinon.SinonStub
-    let stubProviderSend: sinon.SinonStub
+    let stubGetBlockReceipts: sinon.SinonStub
     let stubUtilsWait: sinon.SinonStub
     let stubCheckIfDepositEvents: sinon.SinonStub
     let stubProcessReceiver: sinon.SinonStub
@@ -33,7 +34,7 @@ describe('BlockHandler', () => {
     beforeEach(() => {
       stubLoggerError = sandbox.stub(logger, 'error')
       stubGetProvider = sandbox.stub(ProviderModule, 'getProvider')
-      stubProviderSend = sandbox.stub()
+      stubGetBlockReceipts = sandbox.stub(Web3Helper, 'getBlockReceipts')
       stubUtilsWait = sandbox.stub(utils, 'wait').resolves()
       stubCheckIfDepositEvents = sandbox.stub(BlockHandler as any, '_checkIfDepositEvents').resolves()
       stubProcessReceiver = sandbox.stub(BlockHandler, 'processReceiver').resolves()
@@ -63,14 +64,13 @@ describe('BlockHandler', () => {
 
     it('should return early if blockReceipts is falsy', async () => {
       const fakeBlock = { number: 123, hash: '0xhash', transactions: ['0xabc'] }
-      const fakeProvider = { send: stubProviderSend }
-      stubProviderSend.resolves(null)
+      const fakeProvider = { send: stubGetBlockReceipts }
+      stubGetBlockReceipts.resolves(null)
 
       stubGetProvider.returns(fakeProvider)
 
       await BlockHandler.processNewBlock(fakeBlock, NetworksEnum.ethereumMainnet)
 
-      expect(stubProviderSend.calledOnceWith('eth_getBlockReceipts', ['0x7b'])).to.be.true // 123 in hex is 0x7b
       expect(stubUtilsWait.called).to.be.false
       expect(stubCheckIfDepositEvents.called).to.be.false
       expect(stubProcessReceiver.called).to.be.false
@@ -82,18 +82,17 @@ describe('BlockHandler', () => {
         hash: '0xblockHash',
         transactions: ['0xabc', '0xdef'],
       }
-      const fakeProvider = { send: stubProviderSend }
+      const fakeProvider = { send: stubGetBlockReceipts }
       const fakeReceipts = [
         { to: '0x1111111111111111111111111111111111111111' },
         { to: '0x2222222222222222222222222222222222222222' },
       ]
 
-      stubProviderSend.resolves(fakeReceipts)
+      stubGetBlockReceipts.resolves(fakeReceipts)
       stubGetProvider.returns(fakeProvider)
 
       await BlockHandler.processNewBlock(fakeBlock, NetworksEnum.ethereumMainnet)
 
-      expect(stubProviderSend.calledOnceWith('eth_getBlockReceipts', ['0x7b'])).to.be.true
       expect(stubUtilsWait.calledOnce).to.be.true
       expect(stubCheckIfDepositEvents.calledOnceWith(fakeBlock, NetworksEnum.ethereumMainnet)).to.be.true
       expect(stubProcessReceiver.calledOnce).to.be.true

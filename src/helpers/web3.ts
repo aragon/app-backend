@@ -851,6 +851,20 @@ const Web3Helper = {
       return false
     }
   },
+
+  async getBlockReceipts(blockNumber: number, network: NetworksEnum) {
+    try {
+      const provider = ProviderModule.getProvider(network)!
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+          provider.send('eth_getBlockReceipts', [`0x${blockNumber.toString(16)}`]),
+        ),
+      )
+    } catch (error) {
+      logger.error('Error getBlockReceipts', llo({ blockNumber, network, error }))
+      return null
+    }
+  },
 }
 
 export default Web3Helper
