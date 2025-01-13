@@ -482,7 +482,7 @@ export const PluginHandler = {
     const uninstallationAppliedLogs = Web3Helper.findLogsByName(
       txReceipt!,
       'UninstallationApplied',
-      PluginSetupProcessor,
+      PluginSetupProcessor.abi,
     )
 
     if (uninstallationAppliedLogs.length) {
