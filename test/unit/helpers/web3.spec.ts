@@ -1409,4 +1409,24 @@ describe('Helpers:Web3', () => {
       expect(stat).to.equal(false)
     })
   })
+
+  describe('getBLockReceipts', () => {
+    it('should return the block receipts with logs', async () => {
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+      const fakeResponse = []
+
+      const providerStub = {
+        send: sandbox.stub().resolves(fakeResponse),
+      }
+      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(ProxyToken, 'saveAndGetToken').returns({
+        decimals: 18,
+      } as any)
+
+      await Web3Helper.getBlockReceipts(12321, fakeNetwork)
+      expect(providerStub.send.calledOnce).to.be.true
+      expect(providerStub.send.calledWith('eth_getBlockReceipts', [`0x${(12321).toString(16)}`])).to.be.true
+    })
+  })
 })

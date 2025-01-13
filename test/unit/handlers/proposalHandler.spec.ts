@@ -94,6 +94,7 @@ describe('Indexer: ProposalHandler', () => {
         startDate: 0,
         endDate: 0,
       })
+      sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       const stubActions = sandbox.spy(ProposalHandler, 'parseActions')
       const stubMemberMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
@@ -117,7 +118,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(savedProposal.snapshot.totalSupply).to.eq('1000')
 
       expect(
-        updateActivityStub.calledOnceWithExactly({
+        updateActivityStub.calledWith({
           memberAddress: '0xcreator',
           pluginAddress: '0xplugin-address',
           network,
@@ -197,6 +198,7 @@ describe('Indexer: ProposalHandler', () => {
         startDate: 0,
         endDate: 0,
       })
+      sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
 
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       const stubActions = sandbox.spy(ProposalHandler, 'parseActions')
@@ -1783,7 +1785,10 @@ describe('Indexer: ProposalHandler', () => {
         description: 'Updated Proposal Description',
         summary: 'Updated Proposal Summary',
         resources: [],
-        media: [],
+        media: {
+          header: 'ipfs://header',
+          logo: 'ipfs://logo',
+        },
       }
 
       const decodedActions = [{ decoded: 'decodedData1' }, { decoded: 'decodedData2' }]
