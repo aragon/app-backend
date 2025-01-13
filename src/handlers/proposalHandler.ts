@@ -58,7 +58,7 @@ export const ProposalHandler = {
       const proposalIndex = proposalIds?.findIndex((id: string) => id === proposal.proposalIndex)
 
       if (proposalIndex === -1) {
-        logger.error('Proposal not found', llo({ proposal }))
+        logger.error('Error findIncrementalId not found', llo({ proposal }))
         return -1
       }
 

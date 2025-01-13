@@ -1,6 +1,7 @@
 import amqp, { type Connection, type Channel } from 'amqplib'
 import config from '@config'
 import logger from '@logger'
+import { EnumQueueName } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'rabbitmq' })
 
@@ -40,6 +41,10 @@ const RabbitMQ = {
       RabbitMQ.channel.on('close', async err => RabbitMQ.handleCloseOrError('Channel closed', err))
       RabbitMQ.channel.on('error', async err => RabbitMQ.handleCloseOrError('Channel error', err))
 
+      if (config.RABBITMQ.CLEAN_QUEUE) {
+        await RabbitMQ.cleanAllQueues()
+      }
+
       logger.info('RabbitMQ connected', llo({ url: config.RABBITMQ.URI }))
     } catch (err) {
       logger.error('RabbitMQ connection error', llo({ err }))
@@ -77,6 +82,25 @@ const RabbitMQ = {
         RabbitMQ.scheduleReconnect()
       }
     }, delay)
+  },
+
+  /**
+   * Clean up all specified queues by purging their messages.
+   */
+  async cleanAllQueues(): Promise<void> {
+    try {
+      if (!RabbitMQ.channel) {
+        logger.warn('Cannot clean queues: Channel is not available', llo())
+        return
+      }
+
+      for (const queueName of Object.values(EnumQueueName)) {
+        await RabbitMQ?.channel?.purgeQueue(queueName)
+        logger.info(`Queue "${queueName}" has been purged`, llo({ queueName }))
+      }
+    } catch (err) {
+      logger.error('Failed to clean RabbitMQ queues', llo({ err }))
+    }
   },
 
   /**
