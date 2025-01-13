@@ -29,7 +29,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 export const ProposalHandler = {
-  findIncrementalId: async (proposal: Partial<Proposal>): Promise<any> => {
+  findIncrementalId: async (proposal: Partial<Proposal>): Promise<number> => {
     try {
       const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
 
@@ -59,13 +59,13 @@ export const ProposalHandler = {
 
       if (proposalIndex === -1) {
         logger.error('Proposal not found', llo({ proposal }))
-        return false
+        return -1
       }
 
-      return proposalIndex
+      return proposalIndex!
     } catch (error) {
       logger.error('Error findIncrementalId', llo({ error, proposal }))
-      return false
+      return -1
     }
   },
 

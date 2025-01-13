@@ -1902,7 +1902,7 @@ describe('Indexer: ProposalHandler', () => {
         network: NetworksEnum.ethereumSepolia,
       } as any)
 
-      expect(result).to.be.eq(false)
+      expect(result).to.be.eq(-1)
       expect(loggerErrorStub.calledOnceWith('Proposal not found' as any)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
