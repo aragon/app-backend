@@ -1894,11 +1894,6 @@ describe('Indexer: ProposalHandler', () => {
         address: '0xPlugin',
       })
 
-      sandbox.stub(Models.Proposal, 'findLatestProposal').resolves({
-        blockNumber: 100,
-        proposalIndex: 1,
-      })
-
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
       const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([])
@@ -1916,11 +1911,6 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         blockNumber: 100,
         address: '0xPlugin',
-      })
-
-      sandbox.stub(Models.Proposal, 'findLatestProposal').resolves({
-        blockNumber: 100,
-        proposalIndex: 1,
       })
 
       const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([
