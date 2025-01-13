@@ -26,12 +26,18 @@ import DbTx from '@modules/dbTx'
 import ProposalHelper from '@helpers/proposal'
 import { TokenVoting } from '@src/aragonContracts'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { assert } from '@errors'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 export const ProposalHandler = {
   findIncrementalId: async (proposal: Partial<Proposal>): Promise<number> => {
     try {
+      assert(!!proposal.pluginAddress, 'pluginAddress is required')
+      assert(!!proposal.network, 'network is required')
+      assert(!!proposal.proposalIndex, 'proposalIndex is required')
+
       const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
+      assert(!!plugin, 'plugin not found')
 
       const crawler = new BlockchainLogCrawler({
         skipLogProcessing: true,
@@ -179,6 +185,7 @@ export const ProposalHandler = {
       document.incrementalId = await ProposalHandler.findIncrementalId({
         pluginAddress,
         network: info.network,
+        proposalIndex,
       })
 
       const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)
