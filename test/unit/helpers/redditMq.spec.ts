@@ -1,5 +1,5 @@
 import RabbitMQ from '@modules/rabbitMQ'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import { expect } from 'chai'
 import sinon, { SinonSandbox } from 'sinon'
 import { ConsumeMessage } from 'amqplib'

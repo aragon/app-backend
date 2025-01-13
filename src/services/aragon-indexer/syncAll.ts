@@ -2,7 +2,7 @@ import logger from '@logger'
 import { EnumQueueName, IPluginInterfaceType, IPluginStatus } from '@types'
 import { Models } from '@dbModels'
 import { NetworkHelper } from '@helpers/network'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:SyncAll' })

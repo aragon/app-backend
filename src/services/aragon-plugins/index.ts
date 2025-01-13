@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { EnumConnection, EnumQueueName, IPluginInterfaceType, type IQueueDao, type IService } from '@types'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import { LogAdmin } from '@services/aragon-plugins/logAdmin'
 import { Models } from '@dbModels'
 import { LogDao } from '@services/aragon-plugins/logDao'

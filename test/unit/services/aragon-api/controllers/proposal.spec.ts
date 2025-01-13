@@ -17,7 +17,7 @@ import Setting from '@models/schema/setting'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { PluginList } from '@test/mock/fakePlugins'
 import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 
 describe('Controller: Proposal', () => {
   let sandbox: SinonSandbox

@@ -3,7 +3,7 @@ import { EnumQueueName, type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:MultisigHandler' })
 

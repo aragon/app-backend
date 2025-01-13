@@ -17,7 +17,7 @@ import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor
 import DbOperations from '@models/utils/dbOperations'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
 

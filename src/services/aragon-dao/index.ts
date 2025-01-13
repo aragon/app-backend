@@ -10,7 +10,7 @@ import {
   type IRawAction,
   type IService,
 } from '@types'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'

@@ -13,7 +13,7 @@ import ProxyContractHelper from '@helpers/proxyContract'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { ProxyMember } from '@modules/proxyMember'
 import Utils from '@helpers/utils'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 
 describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
