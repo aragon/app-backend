@@ -69,6 +69,7 @@ export const ProposalHandler = {
 
     return proposalIndex
   },
+
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     try {
       const pluginAddress = info.address
