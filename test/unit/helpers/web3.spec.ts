@@ -1424,7 +1424,7 @@ describe('Helpers:Web3', () => {
         decimals: 18,
       } as any)
 
-      await Web3Helper.getBlockReceipts(12321, fakeNetwork)
+      await Web3Helper.getBlockReceipts(fakeNetwork, 12321)
       expect(providerStub.send.calledOnce).to.be.true
       expect(providerStub.send.calledWith('eth_getBlockReceipts', [`0x${(12321).toString(16)}`])).to.be.true
     })
