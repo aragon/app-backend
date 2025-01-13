@@ -30,45 +30,45 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 export const ProposalHandler = {
   findIncrementalId: async (proposal: Partial<Proposal>): Promise<any> => {
-    const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
-    /**
-     * Find the latest proposal from this plugin
-     */
+    try {
+      const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
 
-    const latestProposal = await Models.Proposal.findLatestProposal(plugin.address, proposal.network!)
+      const crawler = new BlockchainLogCrawler({
+        skipLogProcessing: true,
+        fromBlock: plugin.blockNumber,
+        logService: null,
+        network: proposal.network!,
+        address: proposal.pluginAddress,
+        stopOnError: false,
+        onError: async (error: any) => logger.error('Error findIncrementalId', llo({ error, proposal })),
+        events: [
+          {
+            event: ITokenVotingLogs.ProposalCreated,
+            topic: new Interface(TokenVoting.abi).getEvent(ITokenVotingLogs.ProposalCreated)?.topicHash!,
+            enableHistorical: false,
+            abi: TokenVoting.abi,
+            handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {},
+          },
+        ],
+      })
 
-    const crawler = new BlockchainLogCrawler({
-      skipLogProcessing: true,
-      fromBlock: plugin.blockNumber,
-      toBlock: latestProposal.blockNumber + 1,
-      logService: null,
-      network: proposal.network!,
-      address: proposal.pluginAddress,
-      stopOnError: false,
-      onError: async (error: any) => logger.error('Error findIncrementalId', llo({ error, proposal })),
-      events: [
-        {
-          event: ITokenVotingLogs.ProposalCreated,
-          topic: new Interface(TokenVoting.abi).getEvent(ITokenVotingLogs.ProposalCreated)?.topicHash!,
-          enableHistorical: false,
-          abi: TokenVoting.abi,
-          handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {},
-        },
-      ],
-    })
+      const logs = await crawler.crawl()
+      const proposalIds = logs?.map((log: any) => log.event.args.proposalId.toString())
 
-    const logs = await crawler.crawl()
-    const proposalIds = logs?.map((log: any) => log.event.args.proposalId.toString())
+      const proposalIndex = proposalIds?.findIndex((id: string) => id === proposal.proposalIndex)
 
-    const proposalIndex = proposalIds?.findIndex((id: string) => id === proposal.proposalIndex)
+      if (proposalIndex === -1) {
+        logger.error('Proposal not found', llo({ proposal }))
+        return false
+      }
 
-    if (proposalIndex === -1) {
-      logger.error('Proposal not found', llo({ proposal }))
+      return proposalIndex
+    } catch (error) {
+      logger.error('Error findIncrementalId', llo({ error, proposal }))
       return false
     }
-
-    return proposalIndex
   },
+
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     try {
       const pluginAddress = info.address
