@@ -146,11 +146,25 @@ export const GovernanceErc20Handler = {
           pluginAddress: plugin.address,
           network: info.network,
         })
+
+        await ProxyMember.updateActivity({
+          memberAddress: member.address,
+          pluginAddress: plugin.address,
+          network: info.network,
+          blockNumber: info.blockNumber,
+        })
       } else if (side === ITransferSide.outgoing && from === member.address) {
         await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
           memberAddress: member.address,
           pluginAddress: plugin.address,
           network: info.network,
+        })
+
+        await ProxyMember.updateActivity({
+          memberAddress: member.address,
+          pluginAddress: plugin.address,
+          network: info.network,
+          blockNumber: info.blockNumber,
         })
       }
 
