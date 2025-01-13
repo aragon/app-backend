@@ -260,6 +260,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_INDEXER_PLUGIN_INTERVAL',
           6 * 60 * 60 * 1000,
         ), // 6 hours
+        SYNC_ALL: utils.configParser(sourceConfig, 'bool', 'SERVICES_ARAGON_INDEXER_SYNC_ALL', false),
       },
 
       ARAGON_RATES: {
