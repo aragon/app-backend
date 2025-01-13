@@ -24,6 +24,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       TIMEOUT: utils.configParser(sourceConfig, 'number', 'RABBITMQ_TIMEOUT', 25000),
       DEFAULT_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'RABBITMQ_DEFAULT_CONCURRENCY', 10),
       RECONNECT_TIME: utils.configParser(sourceConfig, 'number', 'RABBITMQ_RECONNECT_TIME', 1000),
+      CLEAN_QUEUE: utils.configParser(sourceConfig, 'number', 'RABBITMQ_CLEAN_QUEUE', true),
     },
 
     NODE_CONFIG: {
