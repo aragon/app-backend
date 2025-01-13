@@ -19,6 +19,7 @@ import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 import type MemberMetrics from '@models/schema/memberMetrics'
 
 export enum ICollectionNames {
+  Migration = 'Migration',
   Asset = 'Asset',
   ConfigIndexer = 'ConfigIndexer',
   Dao = 'Dao',

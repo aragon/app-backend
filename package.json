@@ -13,6 +13,7 @@
     "service:aragon-dao": "ts-node -r tsconfig-paths/register runners/aragon-dao.ts",
     "service:aragon-transactions": "ts-node -r tsconfig-paths/register runners/aragon-transactions.ts",
     "service:aragon-plugins": "ts-node -r tsconfig-paths/register runners/aragon-plugins.ts",
+    "migration:create": "ts-node src/models/utils/generateMigration.ts",
     "tool": "ts-node -r tsconfig-paths/register tools/toolLauncher.ts",
     "push:check": "yarn lint:fix && yarn format:fix && yarn test:dotonly",
     "lint": "eslint . --ext .ts",
