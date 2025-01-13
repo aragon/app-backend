@@ -5897,7 +5897,7 @@
 					"response": []
 				},
 				{
-					"name": "Decode Tx",
+					"name": "decode tx",
 					"id": "1de830a0-d2ab-4d8e-a81e-814a8d160127",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
