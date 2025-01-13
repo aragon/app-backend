@@ -198,12 +198,15 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction.side).to.be.eq(ITransferSide.incoming)
       expect(memberTransaction.memberBalance).to.be.eq('1500')
       expect(memberTransaction.memberVotingPower).to.be.eq('2000')
-
-      expect(createMemberStub.calledOnceWithExactly(parsedEvent.args.delegate)).to.be.true
+      expect(createMemberStub.calledTwice).to.be.true
+      expect(createMemberStub.args[0][0]).to.eq(parsedEvent.args.delegate)
+      expect(createMemberStub.args[1][0]).to.eq(parsedEvent.args.delegate)
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getBalancesStub.calledOnce).to.be.true
       expect(findDelegatorsStub.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledOnceWithExactly(info.blockNumber, info.network)).to.be.true
+      expect(getBlockTimestampStub.calledTwice).to.be.true
+      expect(getBlockTimestampStub.args[0][0]).to.eq(info.blockNumber)
+      expect(getBlockTimestampStub.args[0][1]).to.eq(info.network)
       expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
       expect(memberTransactionCreateStub.calledOnce).to.be.true
       expect(
@@ -228,7 +231,7 @@ describe('GovernanceErc20Handler', () => {
         }),
       ).to.be.true
 
-      expect(loggerVerboseStub.calledTwice).to.be.true
+      expect(loggerVerboseStub.callCount).to.eq(4)
     })
 
     it('should handle incoming delegateVotesChanged event and not add member if to is zero address', async () => {
@@ -293,7 +296,7 @@ describe('GovernanceErc20Handler', () => {
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getBalancesStub.calledOnce).to.be.true
       expect(findDelegatorsStub.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledOnceWithExactly(info.blockNumber, info.network)).to.be.true
+      expect(getBlockTimestampStub.calledOnce).to.be.true
       expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
       expect(memberTransactionCreateStub.calledOnce).to.be.true
       expect(updateMetricsStub.notCalled).to.be.true
@@ -366,11 +369,15 @@ describe('GovernanceErc20Handler', () => {
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
       expect(findByAddressStub.calledOnceWithExactly(info.address, info.network)).to.be.true
-      expect(createMemberStub.calledOnceWithExactly(parsedEvent.args.delegate)).to.be.true
+      expect(createMemberStub.calledTwice).to.be.true
+      expect(createMemberStub.args[0][0]).to.eq(parsedEvent.args.delegate)
+      expect(createMemberStub.args[1][0]).to.eq(parsedEvent.args.delegate)
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getBalancesStub.calledOnce).to.be.true
       expect(findDelegatorsStub.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledOnceWithExactly(info.blockNumber, info.network)).to.be.true
+      expect(getBlockTimestampStub.calledTwice).to.be.true
+      expect(getBlockTimestampStub.args[0][0]).to.eq(info.blockNumber)
+      expect(getBlockTimestampStub.args[0][1]).to.eq(info.network)
       expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
       expect(memberTransactionCreateStub.calledOnce).to.be.true
 
