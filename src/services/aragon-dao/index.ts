@@ -7,6 +7,7 @@ import {
   type IQueueMemberBalanceInfo,
   type IQueueProposalMetrics,
   type IQueueVoteInfo,
+  type IRawAction,
   type IService,
 } from '@types'
 import { RabbitMQHelper } from '@helpers/redditMQ'
@@ -18,6 +19,7 @@ import { ContractInfo } from '@services/aragon-dao/contractInfo'
 import { VoteInfo } from '@services/aragon-dao/voteInfo'
 import { MemberInfo } from '@services/aragon-dao/memberInfo'
 import config from '@config'
+import ActionDecoder from '@services/aragon-dao/actionDecoder'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
@@ -77,6 +79,15 @@ const AragonDaoService: IService = {
       const { userAddress, tokenAddress, network } = job.params as IQueueMemberBalanceInfo
       return await MemberInfo.getByTokenAddress(userAddress, tokenAddress, network)
     })
+
+    await RabbitMQHelper.process(
+      EnumQueueName.contractDecoder,
+      config.RABBITMQ.DEFAULT_CONCURRENCY,
+      async (job: any) => {
+        const { from, to, data, value, network } = job.params as IRawAction
+        return await ActionDecoder.decode({ from, to, data, value, network })
+      },
+    )
 
     logger.info('AragonDaoService service started', llo({}))
   },

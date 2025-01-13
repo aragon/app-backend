@@ -52,4 +52,52 @@ describe('Controller: Contract', () => {
       expect(result).to.deep.equal({ error: true })
     })
   })
+
+  describe('decodeContractData', () => {
+    it('should return decoded contract data when RabbitMQ returns a response', async () => {
+      const mockResponse = { decodedData: 'decodedData' } as any
+      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(mockResponse)
+
+      const result = await ContractController.decodeContractData({
+        network: NetworksEnum.ethereumMainnet,
+        from: '0xfrom',
+        to: '0xto',
+        data: '0xdata',
+        value: '0xvalue',
+      })
+
+      expect(
+        rabbitMqStub.calledOnceWith(
+          EnumQueueName.contractDecoder,
+          {
+            id: 'contractDecoder-ethereum-mainnet-0xto-0xfrom-0xdata-0xvalue',
+            params: {
+              network: NetworksEnum.ethereumMainnet,
+              from: '0xfrom',
+              to: '0xto',
+              data: '0xdata',
+              value: '0xvalue',
+            },
+          },
+          { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+        ),
+      ).to.be.true
+
+      expect(result).to.deep.equal(mockResponse)
+    })
+
+    it('should return an error response if RabbitMQ throws an exception', async () => {
+      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ Error'))
+
+      const result = await ContractController.decodeContractData({
+        network: NetworksEnum.ethereumMainnet,
+        from: '0xfrom',
+        to: '0xto',
+        data: '0xdata',
+        value: '0xvalue',
+      })
+
+      expect(result).to.deep.equal({ error: true })
+    })
+  })
 })
