@@ -852,7 +852,7 @@ const Web3Helper = {
     }
   },
 
-  async getBlockReceipts(network: NetworksEnum, blockNumber: number) {
+  async getBlockReceipts(blockNumber: number, network: NetworksEnum) {
     try {
       const provider = ProviderModule.getProvider(network)!
       return await retryRequest(async () =>
