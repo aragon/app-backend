@@ -214,7 +214,7 @@ describe('Modules:ProxyMember', () => {
   describe('addToDao', () => {
     it('should add member to DAO if not already a member', async () => {
       const params = {
-        memberAddress: '0x123',
+        memberAddress: '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19',
         daoAddress: '0xdao',
         pluginAddress: '0xplugin',
         network: NetworksEnum.ethereumMainnet,
@@ -254,7 +254,7 @@ describe('Modules:ProxyMember', () => {
 
     it('should not add member to DAO if already a member', async () => {
       const params = {
-        memberAddress: '0x123',
+        memberAddress: '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19',
         daoAddress: '0xdao',
         pluginAddress: '0xplugin',
         network: NetworksEnum.ethereumMainnet,
@@ -281,12 +281,24 @@ describe('Modules:ProxyMember', () => {
       ).to.be.true
       expect(createDocumentStub.notCalled).to.be.true
     })
+
+    it('should not add a member if member address is wrong', async () => {
+      const params = {
+        memberAddress: '0x12',
+        daoAddress: '0xdao',
+        pluginAddress: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const result = await ProxyMember.addToDao(params)
+
+      expect(result).to.be.null
+    })
   })
 
   describe('removeFromDao', () => {
     it('should remove member from DAO if mapping exists', async () => {
       const params = {
-        memberAddress: '0x123',
+        memberAddress: '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19',
         daoAddress: '0xdao',
         pluginAddress: '0xplugin',
         network: NetworksEnum.ethereumMainnet,
@@ -318,7 +330,7 @@ describe('Modules:ProxyMember', () => {
 
     it('should not remove member from DAO if mapping does not exist', async () => {
       const params = {
-        memberAddress: '0x123',
+        memberAddress: '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19',
         daoAddress: '0xdao',
         pluginAddress: '0xplugin',
         network: NetworksEnum.ethereumMainnet,

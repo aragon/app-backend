@@ -148,11 +148,14 @@ export const ProxyMember = {
     daoAddress: HexAddress
     pluginAddress: HexAddress
     network: NetworksEnum
-  }): Promise<Member> => {
+  }): Promise<Member | null> => {
+    const memberAddress = Web3Helper.parseAddress(params.memberAddress)
+    if (!memberAddress) return null
+
     const member = await ProxyMember.createMember(params.memberAddress)
 
     const queryParams = {
-      memberAddress: member.address,
+      memberAddress: params.memberAddress,
       daoAddress: params.daoAddress,
       pluginAddress: params.pluginAddress,
       network: params.network,
@@ -179,11 +182,14 @@ export const ProxyMember = {
     daoAddress: HexAddress
     pluginAddress: HexAddress
     network: NetworksEnum
-  }): Promise<Member> => {
+  }): Promise<Member | null> => {
+    const memberAddress = Web3Helper.parseAddress(params.memberAddress)
+    if (!memberAddress) return null
+
     const member = await ProxyMember.createMember(params.memberAddress)
 
     const queryParams = {
-      memberAddress: member.address,
+      memberAddress: params.memberAddress,
       daoAddress: params.daoAddress,
       pluginAddress: params.pluginAddress,
       network: params.network,
