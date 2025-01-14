@@ -44,9 +44,8 @@ export const ProxyMember = {
     pluginAddress: HexAddress
     network: NetworksEnum
   }) => {
-
     return await DbTx.executeTxFn(async ({ session }) => {
-      const metrics = await Models.MemberMetrics.findOne({ address, pluginAddress, network }, null, {session})
+      const metrics = await Models.MemberMetrics.findOne({ address, pluginAddress, network }, null, { session })
 
       if (metrics) {
         return metrics
