@@ -169,7 +169,9 @@ describe('Modules: ProxyToken', () => {
         .stub(ProxyToken, 'checkPluginMintAuthorizationIsDao')
         .resolves(false)
 
-      const result = await ProxyToken.createNewToken(tokenAddress, network)
+      const result = await ProxyToken.createNewToken(tokenAddress, network, {
+        commitTransaction: sandbox.stub(),
+      } as any)
 
       expect(checkPluginMintAuthorizationIsDaoStub.calledOnce).to.be.true
       expect(checkPluginMintAuthorizationIsDaoStub.calledWith(tokenAddress, network)).to.be.true
