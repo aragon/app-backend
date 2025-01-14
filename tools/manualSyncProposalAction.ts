@@ -13,7 +13,13 @@ export const ToolsManualSyncProposalAction: IService = {
     await ProviderModule.connectToAllNetworks()
     // if the rawAction length is greator then 0
     const proposals = await Models.Proposal.find({
-      'actions.type': 'MetadataUpdate',
+      'actions.inputData.parameters': {
+        $not: {
+          $elemMatch: {
+            value: { $exists: true },
+          },
+        },
+      },
     })
 
     logger.info(`Found ${proposals.length} proposals with rawActions`, llo({ proposals: proposals.length }))

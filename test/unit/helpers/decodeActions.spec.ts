@@ -668,7 +668,15 @@ describe('Helpers: DecodeActions', () => {
         },
       ])
 
-      const result = await decodeActions.parseContractNetspec('mint(address,uint256)', contractAddress, network)
+      const result = await decodeActions.parseContractNetspec(
+        'mint(address,uint256)',
+        {
+          to: contractAddress,
+          data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
+          value: '0x',
+        },
+        network,
+      )
       expect(result).to.deep.equal({
         functionName: 'mint',
         contractName: 'IERC20MintableUpgradeable',
@@ -676,12 +684,16 @@ describe('Helpers: DecodeActions', () => {
           {
             name: 'to',
             type: 'address',
+            components: undefined,
             notice: 'The address to mint tokens to',
+            value: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
           },
           {
             name: 'amount',
             type: 'uint256',
+            components: undefined,
             notice: 'The amount of tokens to mint',
+            value: 1000000000000000000n,
           },
         ],
         notice: 'Mint tokens to a specific address',
@@ -698,7 +710,15 @@ describe('Helpers: DecodeActions', () => {
 
       const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
       const getContractSourceCode = sandbox.stub(Etherscan, 'fetchContractSourceCode').resolves(null)
-      const result = await decodeActions.parseContractNetspec('mint', contractAddress, network)
+      const result = await decodeActions.parseContractNetspec(
+        'mint',
+        {
+          to: contractAddress,
+          data: '0x',
+          value: '0x',
+        },
+        network,
+      )
       expect(result).to.be.null
       expect(getImplementationAddressStub.calledOnce).to.be.true
       expect(getContractSourceCode.calledOnce).to.be.true

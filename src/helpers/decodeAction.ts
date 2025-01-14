@@ -155,7 +155,7 @@ class DecodeActions {
      * The case where contract will be when the 4byte doesn't fetch but the etherscan does.
      */
     if (!decoded.contract) {
-      const contractNetspec = await this.parseContractNetspec(decoded.textSignature!, action.to, document.network!)
+      const contractNetspec = await this.parseContractNetspec(decoded.textSignature!, action, document.network!)
 
       if (contractNetspec?.inputs) {
         decoded.notice = contractNetspec.notice
@@ -339,13 +339,14 @@ class DecodeActions {
        * If we don't fetch for plugin, the netspec would be wrong.
        */
       if (metadataOriginKey === 'pluginAddress') {
-        const contractNetspec = await this.parseContractNetspec(decodedData.function, action.to, document.network!)
+        const contractNetspec = await this.parseContractNetspec(decodedData.function, action, document.network!)
         if (contractNetspec?.inputs) {
           decodedData.notice = contractNetspec.notice
           decodedData.contract = contractNetspec.contractName
           decodedData.parameters = decodedData.parameters.map((param, index) => {
             param.notice = contractNetspec.inputs[index].notice
             param.name = contractNetspec.inputs[index].name
+            param.value = contractNetspec.inputs[index].value
             return param
           })
         }
@@ -527,7 +528,7 @@ class DecodeActions {
       const response = await FourByte.getSignatures(functionSelector)
 
       if (!response || response.count === 0) {
-        const functionDetails = await this.parseContractNetspec(functionSelector, action.to, network)
+        const functionDetails = await this.parseContractNetspec(functionSelector, action, network)
         if (functionDetails) {
           return {
             function: functionDetails.functionName,
@@ -565,11 +566,11 @@ class DecodeActions {
     }
   }
 
-  async parseContractNetspec(functionName: string, address: string, network: NetworksEnum) {
-    let implementationAddress = await ProxyContract.getImplementationAddress(address, network)
+  async parseContractNetspec(functionName: string, rawAction: IRawAction, network: NetworksEnum) {
+    let implementationAddress = await ProxyContract.getImplementationAddress(rawAction.to, network)
 
     if (!implementationAddress) {
-      implementationAddress = address
+      implementationAddress = rawAction.to
     }
 
     const contractDetails = await retryRequest(async () =>
@@ -584,10 +585,11 @@ class DecodeActions {
     )
 
     if (contractDetails && contractDetails.length > 0 && contractDetails[0].SourceCode !== '') {
+      const contractAbi = JSON.parse(contractDetails[0].ABI)
       const results = ContractNetspecHelper.parseNetspec(
         contractDetails[0].SourceCode,
         contractDetails[0].ContractName,
-        JSON.parse(contractDetails[0].ABI),
+        contractAbi,
       )
 
       const signatures = this._getSignaturesFromAbi(results, contractDetails[0].ContractName)
@@ -599,10 +601,23 @@ class DecodeActions {
         return null
       }
 
+      const iface = new ethers.Interface(contractAbi)
+      const decodedData = abiWithNetSpec?.inputs.length
+        ? iface.decodeFunctionData(abiWithNetSpec.fragment, rawAction.data)
+        : []
+
       return {
         functionName: abiWithNetSpec?.method,
         contractName: contractDetails[0].ContractName,
-        inputs: abiWithNetSpec?.inputs,
+        inputs: abiWithNetSpec?.inputs.map((input: any, index: number) => {
+          return {
+            name: input.name,
+            type: input.type,
+            components: input.components,
+            value: decodedData[index],
+            notice: input.notice,
+          }
+        }),
         notice: abiWithNetSpec?.notice,
       }
     }
@@ -627,7 +642,7 @@ class DecodeActions {
           const parameters = fragment.inputs.map((input: any) => input.type).join(',')
           const textSignature = `${functionName}(${parameters})`
 
-          const functionDetails = await this.parseContractNetspec(action.data.slice(0, 10), action.to, network)
+          const functionDetails = await this.parseContractNetspec(action.data.slice(0, 10), action, network)
 
           /**
            * As the decoded data can be a nested array inside array when there is tuple as paramter
