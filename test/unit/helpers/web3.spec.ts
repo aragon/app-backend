@@ -1420,13 +1420,64 @@ describe('Helpers:Web3', () => {
       }
       sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyToken, 'saveAndGetToken').returns({
-        decimals: 18,
-      } as any)
 
       await Web3Helper.getBlockReceipts(fakeNetwork, 12321)
       expect(providerStub.send.calledOnce).to.be.true
       expect(providerStub.send.calledWith('eth_getBlockReceipts', [`0x${(12321).toString(16)}`])).to.be.true
+    })
+  })
+
+  describe('getTargetConfig', () => {
+    it('should return false when error getting target config', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { getTargetConfig: sandbox.stub().rejects(new Error('fake-error')) }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const loggerStub = sandbox.stub(logger, 'error')
+      const plugin = '0xTokenAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.getTargetConfig(plugin, fakeNetwork)
+      expect(result).to.be.null
+      expect(loggerStub.calledOnce).to.be.true
+    })
+
+    it('should return the target config', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              getTargetConfig: sandbox.stub().resolves({
+                target: '0xsomeaddress',
+              }),
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const plugin = '0xTokenAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.getTargetConfig(plugin, fakeNetwork)
+      expect(result).to.be.equal('0xsomeaddress')
     })
   })
 })

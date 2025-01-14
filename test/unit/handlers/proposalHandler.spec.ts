@@ -94,7 +94,7 @@ describe('Indexer: ProposalHandler', () => {
         startDate: 0,
         endDate: 0,
       })
-      sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
+      const incrementalIdStub = sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       const stubActions = sandbox.spy(ProposalHandler, 'parseActions')
       const stubMemberMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
@@ -116,6 +116,12 @@ describe('Indexer: ProposalHandler', () => {
       expect(savedProposal.rawActions[0].value).to.eq('0')
       expect(savedProposal.rawActions[0].data).to.eq('0xdata')
       expect(savedProposal.snapshot.totalSupply).to.eq('1000')
+      expect(incrementalIdStub.calledOnce).to.be.true
+      expect(incrementalIdStub.args[0][0]).to.deep.eq({
+        pluginAddress: '0xplugin-address',
+        network,
+        proposalIndex: '1',
+      })
 
       expect(
         updateActivityStub.calledWith({
