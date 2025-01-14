@@ -113,7 +113,7 @@ export default class Token extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, tOpts)
+    return await this.findOne({ id: entityId }, null, tOpts)
   }
 
   static async findByTokenAddressAndNetwork(address: HexAddress, network: NetworksEnum) {

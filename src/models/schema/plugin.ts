@@ -201,15 +201,15 @@ export default class Plugin extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, tOpts)
+    return await this.findOne({ id: entityId }, null, tOpts)
   }
 
   static async findByAddress(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    return await this.findOne({ address, network }, tOpts)
+    return await this.findOne({ address, network }, null, tOpts)
   }
 
   static async findByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    return await this.findOne({ tokenAddress, network }, tOpts)
+    return await this.findOne({ tokenAddress, network }, null, tOpts)
   }
 
   static async findActivePluginByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum) {
