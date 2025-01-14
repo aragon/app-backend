@@ -9,6 +9,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import Utils from '@helpers/utils'
 import { NetworkHelper } from '@helpers/network'
 import { NetworksEnum } from '@types'
+import config from '@config'
 
 describe('aragon-indexer: index', () => {
   let sandbox: SinonSandbox
@@ -23,6 +24,8 @@ describe('aragon-indexer: index', () => {
 
   describe('start', () => {
     it('should start the indexer service and execute historical crawlers', async () => {
+      const configBackup = config.SERVICES.ARAGON_INDEXER.SYNC_ALL
+      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = true
       const loggerStub = sandbox.stub(logger, 'info')
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
       sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
@@ -39,6 +42,8 @@ describe('aragon-indexer: index', () => {
       expect(subscribeStub.calledOnce).to.be.true
       expect(schedulerStartStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('IndexerService historical logs end' as any)).to.be.true
+
+      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = configBackup
     })
   })
 
@@ -82,12 +87,16 @@ describe('aragon-indexer: index', () => {
 
   describe('re-sync plugins', () => {
     it('should start the re-sync task for all plugins', async () => {
+      const configBackup = config.SERVICES.ARAGON_INDEXER.SYNC_ALL
+      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = true
+
       const schedulerStub = sandbox.stub(TaskSchedulerState.getInstance(), 'startTask').resolves()
 
       await IndexerService.start()
 
       expect(schedulerStub.calledOnce).to.be.true
       expect(schedulerStub.args[0][0]).to.eq('allPlugins')
+      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = configBackup
     })
   })
 })

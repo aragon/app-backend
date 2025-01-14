@@ -1900,10 +1900,11 @@ describe('Indexer: ProposalHandler', () => {
       const result = await ProposalHandler.findIncrementalId({
         pluginAddress: '0xPlugin',
         network: NetworksEnum.ethereumSepolia,
+        proposalIndex: '0',
       } as any)
 
       expect(result).to.be.eq(-1)
-      expect(loggerErrorStub.calledOnceWith('Proposal not found' as any)).to.be.true
+      expect(loggerErrorStub.calledOnceWith('Error findIncrementalId not found' as any)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
 
