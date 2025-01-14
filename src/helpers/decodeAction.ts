@@ -155,7 +155,7 @@ class DecodeActions {
      * The case where contract will be when the 4byte doesn't fetch but the etherscan does.
      */
     if (!decoded.contract) {
-      const contractNetspec = await this.parseContractNetspec(decoded.textSignature!, action, document.network!)
+      const contractNetspec = await this.parseContractNetspec(action.data.slice(0, 10), action, document.network!)
 
       if (contractNetspec?.inputs) {
         decoded.notice = contractNetspec.notice
