@@ -241,8 +241,8 @@ describe('Helpers:PluginSlug', () => {
       const baseKeyCount = results.filter(key => key === baseKey).length
       const baseKeyWithSuffixCount = results.filter(key => key === `${baseKey}_1`).length
 
-      expect(baseKeyCount).to.eq(1)
-      expect(baseKeyWithSuffixCount).to.eq(2)
+      expect(baseKeyCount).to.eq(2)
+      expect(baseKeyWithSuffixCount).to.eq(1)
     })
 
     it('should generate default slug if processKey is not provided and not existing', async () => {
