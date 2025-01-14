@@ -12,6 +12,7 @@ import Logger from '@logger'
 import ProxyContractHelper from '@helpers/proxyContract'
 import Web3Helper from '@helpers/web3'
 import PluginDetector from '@helpers/pluginDetector'
+import { PluginSlug } from '@helpers/pluginSlug'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -373,6 +374,29 @@ describe('Indexer:Plugin', () => {
       })
     })
 
+    it('should not uninstall if the plugin build is more then 4 and if it has target config', async () => {
+      const plugin = {
+        status: 'active',
+        address: '0xpluginAddr',
+        id: 'pluginId',
+        network: NetworksEnum.ethereumSepolia,
+        build: 5,
+        daoAddress: '0xdao',
+      }
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
+
+      const targetConfigStub = sandbox.stub(Web3Helper, 'getTargetConfig').resolves('0xtarget')
+
+      const getTransactionReceiptSpy = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+      await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
+        transactionHash: '0x0123',
+      } as any)
+      expect(getTransactionReceiptSpy.called).to.be.false
+      expect(targetConfigStub.calledOnce).to.be.true
+      expect(targetConfigStub.args[0][0]).to.be.eq(NetworksEnum.ethereumSepolia)
+      expect(targetConfigStub.args[0][1]).to.be.eq('0xpluginAddr')
+    })
+
     it('should not uninstall a plugin if it is already uninstalled', async () => {
       const plugin = { status: IPluginStatus.uninstalled }
       const findOneStub = sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
@@ -411,6 +435,7 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
       const findLogsStub = sandbox.stub(Web3Helper, 'findLogsByName').returns([])
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      sandbox.stub(PluginSlug, 'deleteSlug')
 
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
