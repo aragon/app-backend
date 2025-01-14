@@ -322,6 +322,18 @@ class DecodeActions {
         return null
       }
 
+      const _existingMetadata: any = existingMetadata
+        ? {
+            name: existingMetadata.name,
+            description: existingMetadata.description,
+            avatar: existingMetadata.avatar,
+            links: existingMetadata.links,
+            logo: existingMetadata.logo,
+            processKey: existingMetadata.processKey,
+            stageNames: existingMetadata.stageNames,
+          }
+        : {}
+
       /**
        * If the metadata is for a plugin, we need to fetch the contract netspec
        * If we don't fetch for plugin, the netspec would be wrong.
@@ -343,7 +355,7 @@ class DecodeActions {
           type: ProposalActionType.MetadataPluginUpdate,
           inputData: decodedData,
           proposedMetadata,
-          existingMetadata,
+          existingMetadata: _existingMetadata,
         }
       }
 
@@ -352,7 +364,7 @@ class DecodeActions {
         type: ProposalActionType.MetadataUpdate,
         inputData: decodedData,
         proposedMetadata,
-        existingMetadata,
+        existingMetadata: _existingMetadata,
       }
     } catch (e) {
       return null

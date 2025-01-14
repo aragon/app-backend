@@ -262,6 +262,7 @@ export default class Setting extends Model {
           minDuration: 1,
           minProposerVotingPower: 1,
           token: 1,
+          stages: 1,
         },
       },
     ]
