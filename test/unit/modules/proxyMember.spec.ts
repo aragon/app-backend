@@ -64,7 +64,7 @@ describe('Modules:ProxyMember', () => {
       const [result1, result2, result3] = await Promise.all([
         ProxyMember.createMember(parsedMemberAddress),
         ProxyMember.createMember(parsedMemberAddress),
-        ProxyMember.createMember(parsedMemberAddress)
+        ProxyMember.createMember(parsedMemberAddress),
       ])
 
       expect(result1.address).to.eq(parsedMemberAddress)
@@ -115,7 +115,7 @@ describe('Modules:ProxyMember', () => {
       const [result1, result2, result3] = await Promise.all([
         ProxyMember.createMetrics({ address, pluginAddress, network }),
         ProxyMember.createMetrics({ address, pluginAddress, network }),
-        ProxyMember.createMetrics({ address, pluginAddress, network })
+        ProxyMember.createMetrics({ address, pluginAddress, network }),
       ])
 
       expect(result1.address).to.equal(address)
@@ -167,7 +167,7 @@ describe('Modules:ProxyMember', () => {
       const [result1, result2, result3] = await Promise.all([
         ProxyMember.getBalances({ address, tokenAddress, network }),
         ProxyMember.getBalances({ address, tokenAddress, network }),
-        ProxyMember.getBalances({ address, tokenAddress, network })
+        ProxyMember.getBalances({ address, tokenAddress, network }),
       ])
 
       expect(result1.address).to.equal(data.address)
