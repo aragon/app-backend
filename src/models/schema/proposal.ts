@@ -341,7 +341,7 @@ export default class Proposal extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, tOpts)
+    return await this.findOne({ id: entityId }, null, tOpts)
   }
 
   static async findByProposalIndex(
@@ -350,7 +350,7 @@ export default class Proposal extends Model {
     network: NetworksEnum,
     tOpts?: SaveOptions,
   ) {
-    return await this.findOne({ proposalIndex, pluginAddress, network }, tOpts)
+    return await this.findOne({ proposalIndex, pluginAddress, network }, null, tOpts)
   }
 
   static async findLatestProposal(pluginAddress: HexAddress, network: NetworksEnum) {
