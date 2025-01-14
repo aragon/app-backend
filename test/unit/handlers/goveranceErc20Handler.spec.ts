@@ -142,9 +142,103 @@ describe('GovernanceErc20Handler', () => {
     })
 
     it('should handle incoming delegateVotesChanged event and add member to DAO', async () => {
+      const memberAddress = '0xDelegateAddress'
       const parsedEvent = {
         args: {
-          delegate: '0xDelegateAddress',
+          delegate: memberAddress,
+          previousBalance: '1000',
+          newBalance: '2000',
+        },
+      } as unknown as LogDescription
+
+      const info = {
+        network: NetworksEnum.polygonMainnet,
+        blockNumber: 12345678,
+        transactionHash: '0xTransactionHash',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0xTokenAddress',
+      }
+
+      const plugin = {
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.polygonMainnet,
+      }
+
+      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
+      const createMemberStub = sandbox
+        .stub(ProxyMember, 'createMember')
+        .resolves({ address: parsedEvent.args.delegate } as any)
+      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
+
+      const getBalancesStub = sandbox.stub(ProxyMember, 'getBalances').resolves({
+        updateVotingPower: sandbox.stub().resolves({ id: 'logDbId' }),
+      } as any)
+
+      const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+
+      const findDelegatorsStub = sandbox
+        .stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt')
+        .resolves({ from: '0xFrom', to: memberAddress })
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
+      const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
+      const memberTransactionCreateStub = sandbox.spy(Models.MemberTransaction, 'create')
+
+      const updateMetricsStub = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
+      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
+
+      const memberTransaction = await Models.MemberTransaction.findOne({})
+      expect(findByAddressStub.calledOnceWithExactly(info.address, info.network)).to.be.true
+      expect(memberTransaction).to.be.not.null
+      expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
+      expect(memberTransaction.side).to.be.eq(ITransferSide.incoming)
+      expect(memberTransaction.memberBalance).to.be.eq('1500')
+      expect(memberTransaction.memberVotingPower).to.be.eq('2000')
+      expect(createMemberStub.calledTwice).to.be.true
+      expect(createMemberStub.args[0][0]).to.eq(parsedEvent.args.delegate)
+      expect(createMemberStub.args[1][0]).to.eq(parsedEvent.args.delegate)
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getBalancesStub.calledOnce).to.be.true
+      expect(findDelegatorsStub.calledOnce).to.be.true
+      expect(getBlockTimestampStub.calledTwice).to.be.true
+      expect(getBlockTimestampStub.args[0][0]).to.eq(info.blockNumber)
+      expect(getBlockTimestampStub.args[0][1]).to.eq(info.network)
+      expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
+      expect(memberTransactionCreateStub.calledOnce).to.be.true
+      expect(
+        updateMetricsStub.calledOnceWithExactly(IMetricAction.increaseDelegateReceivedCount, {
+          memberAddress: parsedEvent.args.delegate,
+          pluginAddress: plugin.address,
+          network: info.network,
+        }),
+      ).to.be.true
+      expect(
+        addToDaoStub.calledOnceWithExactly({
+          memberAddress: parsedEvent.args.delegate,
+          daoAddress: plugin.daoAddress,
+          pluginAddress: plugin.address,
+          network: info.network,
+        }),
+      ).to.be.true
+      expect(
+        sendMessageStub.calledOnceWithExactly(EnumQueueName.daoMetrics, {
+          id: plugin.daoAddress,
+          params: { address: plugin.daoAddress, network: plugin.network },
+        }),
+      ).to.be.true
+
+      expect(loggerVerboseStub.callCount).to.eq(4)
+    })
+
+    it('should handle incoming delegateVotesChanged event and not add member if to is zero address', async () => {
+      const memberAddress = '0xDelegateAddress'
+      const parsedEvent = {
+        args: {
+          delegate: memberAddress,
           previousBalance: '1000',
           newBalance: '2000',
         },
@@ -202,16 +296,10 @@ describe('GovernanceErc20Handler', () => {
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getBalancesStub.calledOnce).to.be.true
       expect(findDelegatorsStub.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledOnceWithExactly(info.blockNumber, info.network)).to.be.true
+      expect(getBlockTimestampStub.calledOnce).to.be.true
       expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
       expect(memberTransactionCreateStub.calledOnce).to.be.true
-      expect(
-        updateMetricsStub.calledOnceWithExactly(IMetricAction.increaseDelegateReceivedCount, {
-          memberAddress: parsedEvent.args.delegate,
-          pluginAddress: plugin.address,
-          network: info.network,
-        }),
-      ).to.be.true
+      expect(updateMetricsStub.notCalled).to.be.true
       expect(
         addToDaoStub.calledOnceWithExactly({
           memberAddress: parsedEvent.args.delegate,
@@ -231,6 +319,7 @@ describe('GovernanceErc20Handler', () => {
     })
 
     it('should handle outgoing delegateVotesChanged event and add member to DAO', async () => {
+      const memberAddress = '0xDelegateAddress'
       const parsedEvent = {
         args: {
           delegate: '0xDelegateAddress',
@@ -268,7 +357,7 @@ describe('GovernanceErc20Handler', () => {
 
       const findDelegatorsStub = sandbox
         .stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt')
-        .resolves({ from: '0xFrom', to: '0xTo' })
+        .resolves({ from: memberAddress, to: '0xTo' })
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
       const memberTransactionCreateStub = sandbox.spy(Models.MemberTransaction, 'create')
@@ -280,11 +369,15 @@ describe('GovernanceErc20Handler', () => {
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
       expect(findByAddressStub.calledOnceWithExactly(info.address, info.network)).to.be.true
-      expect(createMemberStub.calledOnceWithExactly(parsedEvent.args.delegate)).to.be.true
+      expect(createMemberStub.calledTwice).to.be.true
+      expect(createMemberStub.args[0][0]).to.eq(parsedEvent.args.delegate)
+      expect(createMemberStub.args[1][0]).to.eq(parsedEvent.args.delegate)
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getBalancesStub.calledOnce).to.be.true
       expect(findDelegatorsStub.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledOnceWithExactly(info.blockNumber, info.network)).to.be.true
+      expect(getBlockTimestampStub.calledTwice).to.be.true
+      expect(getBlockTimestampStub.args[0][0]).to.eq(info.blockNumber)
+      expect(getBlockTimestampStub.args[0][1]).to.eq(info.network)
       expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
       expect(memberTransactionCreateStub.calledOnce).to.be.true
 
@@ -320,10 +413,11 @@ describe('GovernanceErc20Handler', () => {
       ).to.be.true
     })
 
-    it('should handle outgoing delegateVotesChanged event and remove member to DAO', async () => {
+    it('should handle outgoing delegateVotesChanged event and remove member if from is zero address', async () => {
+      const memberAddress = '0xDelegateAddress'
       const parsedEvent = {
         args: {
-          delegate: '0xDelegateAddress',
+          delegate: memberAddress,
           previousBalance: '1000',
           newBalance: '0',
         },
@@ -384,13 +478,7 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction.memberBalance).to.be.eq('0')
       expect(memberTransaction.memberVotingPower).to.be.eq('0')
 
-      expect(
-        updateMetricsStub.calledOnceWithExactly(IMetricAction.increaseDelegateSentCount, {
-          memberAddress: parsedEvent.args.delegate,
-          pluginAddress: plugin.address,
-          network: info.network,
-        }),
-      ).to.be.true
+      expect(updateMetricsStub.notCalled).to.be.true
       expect(addToDaoStub.calledOnce).to.be.false
       expect(removeFromDaoStub.calledOnce).to.be.true
       expect(
