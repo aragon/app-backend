@@ -8,7 +8,7 @@ const securityMiddleware = () => async (ctx: Koa.Context, next: Koa.Next) => {
   ctx.response.set('content-security-policy', "default-src 'self' https:")
   ctx.response.set('x-xss-protection', '1; mode=block')
   ctx.response.set('strict-transport-security', 'max-age=2592000; includeSubDomains')
-  ctx.response.set('Access-Control-Allow-Headers', 'Content-Type, Accept Origin, X-Requested-With')
+  ctx.response.set('Access-Control-Allow-Headers', 'Content-Type, Accept, Origin, X-Requested-With')
 
   return await next()
 }
