@@ -21,7 +21,7 @@ export const MetadataHandler = {
     const daoExists = await Models.Dao.findByAddress(address, network)
     const pluginExists = await Models.Plugin.findByAddress(address, network)
 
-    const existingDaoMetadata = await Models.findExistingLog({
+    const existingDaoMetadata = await Models.LogMetadata.findExistingLog({
       network,
       transactionHash,
       transactionIndex,
