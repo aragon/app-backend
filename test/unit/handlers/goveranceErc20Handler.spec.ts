@@ -25,8 +25,9 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 describe('GovernanceErc20Handler', () => {
   let sandbox: SinonSandbox
 
-  beforeEach(() => {
+  beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    await Models.MemberTransaction.createIndexes()
   })
 
   afterEach(() => {
@@ -408,6 +409,66 @@ describe('GovernanceErc20Handler', () => {
           params: { address: plugin.daoAddress, network: plugin.network },
         }),
       ).to.be.true
+    })
+
+    it('should handle incoming delegateVotesChanged event in parallel', async () => {
+      const parsedEvent = {
+        args: {
+          delegate: '0xDelegateAddress',
+          previousBalance: '1000',
+          newBalance: '2000',
+        },
+      } as unknown as LogDescription
+
+      const info = {
+        network: NetworksEnum.polygonMainnet,
+        blockNumber: 12345678,
+        transactionHash: '0xTransactionHash',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0xTokenAddress',
+      }
+
+      const plugin = {
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.polygonMainnet,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
+      sandbox.stub(ProxyMember, 'createMember').resolves({ address: parsedEvent.args.delegate } as any)
+      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
+
+      sandbox.stub(ProxyMember, 'getBalances').resolves({
+        updateVotingPower: sandbox.stub().resolves({ id: 'logDbId' }),
+      } as any)
+
+      sandbox.stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt').resolves({ from: '0xFrom', to: '0xTo' })
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
+      sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
+      sandbox.spy(Models.MemberTransaction, 'create')
+
+      sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
+      sandbox.stub(ProxyMember, 'addToDao').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      const [result1, result2, result3] = (await Promise.all([
+        await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any),
+        await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any),
+        await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any),
+      ])) as any
+
+      const memberTransactions = await Models.MemberTransaction.find({
+        memberBalance: '1500',
+        memberVotingPower: '2000',
+        side: ITransferSide.incoming,
+        type: ITransferType.delegate,
+      })
+      expect(memberTransactions.length).to.be.eq(1)
+
+      expect(result1?.address).to.eq(memberTransactions.address)
+      expect(result2?.address).to.eq(memberTransactions.address)
+      expect(result3?.address).to.eq(memberTransactions.address)
     })
   })
 
