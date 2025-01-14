@@ -53,7 +53,7 @@ export const ProxyToken = {
     tokenAddress: HexAddress,
     network: NetworksEnum,
     forceUpdate: boolean,
-    session: ClientSession,
+    session?: ClientSession,
   ): Promise<Token> => {
     const shouldUpdate = !token.skipFetchRate && token.lastUpdatedAt < dayjs().subtract(6, 'hours').toDate()
 
@@ -80,7 +80,7 @@ export const ProxyToken = {
     return token
   },
 
-  createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum, session: ClientSession): Promise<Token> => {
+  createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum, session?: ClientSession): Promise<Token> => {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
     const tokenRate = await RateModule.fetchRate(tokenAddress, network)
     const contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
@@ -122,7 +122,7 @@ export const ProxyToken = {
     rawToken.mintableByDao = await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session)
 
     const savedToken = await Models.Token.create(rawToken, { session })
-    await session.commitTransaction()
+    await session!.commitTransaction()
     logger.verbose('New Token Created', llo({ logId: savedToken.id }))
     return savedToken
   },
@@ -130,7 +130,7 @@ export const ProxyToken = {
   checkPluginMintAuthorizationIsDao: async (
     tokenAddress: HexAddress,
     network: NetworksEnum,
-    session: ClientSession,
+    session?: ClientSession,
   ): Promise<boolean> => {
     const plugin = await Models.Plugin.findByTokenAddress(tokenAddress, network, session as SaveOptions)
     if (!plugin) {
