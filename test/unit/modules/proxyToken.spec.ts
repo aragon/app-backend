@@ -13,6 +13,8 @@ import Web3Helper from '@helpers/web3'
 import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
+import dbTx from '@modules/dbTx'
+import logger from '@logger'
 
 describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox
@@ -169,9 +171,10 @@ describe('Modules: ProxyToken', () => {
         .stub(ProxyToken, 'checkPluginMintAuthorizationIsDao')
         .resolves(false)
 
-      const result = await ProxyToken.createNewToken(tokenAddress, network, {
-        commitTransaction: sandbox.stub(),
-      } as any)
+      const tOpts = await dbTx.transactionOptions()
+      tOpts.startTransaction()
+      sandbox.stub(logger, 'verbose')
+      const result = await ProxyToken.createNewToken(tokenAddress, network, tOpts)
 
       expect(checkPluginMintAuthorizationIsDaoStub.calledOnce).to.be.true
       expect(checkPluginMintAuthorizationIsDaoStub.calledWith(tokenAddress, network)).to.be.true
@@ -184,6 +187,7 @@ describe('Modules: ProxyToken', () => {
       expect(result.address).to.equal(tokenAddress)
       expect(result.type).to.equal(ITokenType.GovernanceERC20)
       expect(result.mintableByDao).to.be.false
+      await tOpts.endSession()
     })
   })
 
