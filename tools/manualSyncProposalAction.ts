@@ -12,7 +12,13 @@ export const ToolsManualSyncProposalAction: IService = {
   start: async () => {
     await ProviderModule.connectToAllNetworks()
     // if the rawAction length is greator then 0
-    const proposals = await Models.Proposal.find({})
+    const proposals = await Models.Proposal.find({
+      actions: {
+        $elemMatch: {
+          type: { $in: ['Unknown', 'MetadataUpdate'] },
+        },
+      },
+    })
 
     logger.info(`Found ${proposals.length} proposals with rawActions`, llo({ proposals: proposals.length }))
     let counter = 0
