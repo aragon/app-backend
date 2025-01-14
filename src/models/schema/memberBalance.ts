@@ -87,8 +87,8 @@ export default class MemberBalance extends Model {
     address: HexAddress
     tokenAddress: HexAddress
     network: NetworksEnum
-  }) {
-    return await this.findOne({ address, tokenAddress, network })
+  }, tOpts?: SaveOptions) {
+    return await this.findOne({ address, tokenAddress, network }, null, tOpts)
   }
 
   async update(params: Partial<MemberBalance>, tOpts?: SaveOptions) {
