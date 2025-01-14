@@ -8,6 +8,7 @@ import EnsHelper from '@helpers/ens'
 import DbOperations from '@models/utils/dbOperations'
 import { IMetricAction, NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
+
 describe('Modules:ProxyMember', () => {
   let sandbox: SinonSandbox
 
@@ -52,6 +53,29 @@ describe('Modules:ProxyMember', () => {
       expect(dbOperationsCreateDocumentStub.calledOnce).to.be.false
       expect(findExistingLogStub.calledOnce).to.be.true
     })
+
+    it('should create a new member in parallel', async () => {
+      const parsedMemberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
+      const getEnsWithUniversalResolverStub = sandbox
+        .stub(EnsHelper, 'getEnsWithUniversalResolver')
+        .returns('louis.eth' as any)
+      sandbox.stub(Logger, 'verbose')
+
+      const [result1, result2, result3] = await Promise.all([
+        ProxyMember.createMember(parsedMemberAddress),
+        ProxyMember.createMember(parsedMemberAddress),
+        ProxyMember.createMember(parsedMemberAddress)
+      ])
+
+      expect(result1.address).to.eq(parsedMemberAddress)
+      expect(result2.address).to.eq(parsedMemberAddress)
+      expect(result3.address).to.eq(parsedMemberAddress)
+      expect(getEnsWithUniversalResolverStub.calledThrice).to.be.true
+      expect(result1.ens).to.equal('louis.eth')
+
+      const items = await Models.Member.countDocuments()
+      expect(items).to.equal(1)
+    })
   })
 
   describe('createMetrics', () => {
@@ -76,13 +100,30 @@ describe('Modules:ProxyMember', () => {
       sandbox.stub(Logger, 'verbose')
 
       const findOneStub = sandbox.stub(Models.MemberMetrics, 'findOne').resolves(null)
-      const createDocumentspy = sandbox.spy(DbOperations, 'createDocument')
 
       const result = await ProxyMember.createMetrics({ address, pluginAddress, network })
       expect(result.address).to.equal(address)
 
       expect(findOneStub.calledWith({ address, pluginAddress, network })).to.be.true
-      expect(createDocumentspy.calledOnce).to.be.true
+    })
+
+    it('should create new metrics in parallel', async () => {
+      const address = '0x123'
+      const pluginAddress = '0x456'
+      const network = NetworksEnum.ethereumMainnet
+
+      const [result1, result2, result3] = await Promise.all([
+        ProxyMember.createMetrics({ address, pluginAddress, network }),
+        ProxyMember.createMetrics({ address, pluginAddress, network }),
+        ProxyMember.createMetrics({ address, pluginAddress, network })
+      ])
+
+      expect(result1.address).to.equal(address)
+      expect(result2.address).to.equal(address)
+      expect(result3.address).to.equal(address)
+
+      const items = await Models.MemberMetrics.countDocuments()
+      expect(items).to.equal(1)
     })
   })
 
@@ -98,7 +139,6 @@ describe('Modules:ProxyMember', () => {
         .resolves(existingToken)
 
       const result = await ProxyMember.getBalances({ address, tokenAddress, network })
-
       expect(result).to.equal(existingToken)
       expect(findByAddressAndTokenStub.calledWith({ address, tokenAddress, network })).to.be.true
     })
@@ -112,13 +152,30 @@ describe('Modules:ProxyMember', () => {
 
       const findByAddressAndTokenStub = sandbox.stub(Models.MemberBalance, 'findByAddressAndToken').resolves(null)
       const data = { address, tokenAddress, network }
-      const createDocumentStub = sandbox.spy(DbOperations, 'createDocument')
 
       const result = await ProxyMember.getBalances({ address, tokenAddress, network })
-
       expect(result.address).to.equal(data.address)
       expect(findByAddressAndTokenStub.calledWith({ address, tokenAddress, network })).to.be.true
-      expect(createDocumentStub.calledOnce).to.be.true
+    })
+
+    it('should create new token balance in parallel', async () => {
+      const address = '0x123'
+      const tokenAddress = '0xabc'
+      const network = NetworksEnum.ethereumMainnet
+
+      const data = { address, tokenAddress, network }
+      const [result1, result2, result3] = await Promise.all([
+        ProxyMember.getBalances({ address, tokenAddress, network }),
+        ProxyMember.getBalances({ address, tokenAddress, network }),
+        ProxyMember.getBalances({ address, tokenAddress, network })
+      ])
+
+      expect(result1.address).to.equal(data.address)
+      expect(result2.address).to.equal(data.address)
+      expect(result3.address).to.equal(data.address)
+
+      const items = await Models.MemberBalance.countDocuments()
+      expect(items).to.equal(1)
     })
   })
 
@@ -200,14 +257,11 @@ describe('Modules:ProxyMember', () => {
       const pluginAddress = '0xabc'
       const network = NetworksEnum.ethereumMainnet
 
-      const metrics = { id: 'metrics-id' }
-
-      const createMetricsStub = sandbox.stub(ProxyMember, 'createMetrics').resolves(metrics)
+      const createMetricsStub = sandbox.spy(ProxyMember, 'createMetrics')
 
       const result = await ProxyMember.updateMetricsByAction(metricAction, { memberAddress, pluginAddress, network })
-
-      expect(result).to.equal(metrics)
-      expect(createMetricsStub.calledWith({ address: memberAddress, pluginAddress, network })).to.be.true
+      expect(result.id).to.equal('ethereum-mainnet-0x123-0xabc')
+      expect(createMetricsStub.calledOnceWithExactly({ address: memberAddress, pluginAddress, network })).to.be.true
     })
   })
 
