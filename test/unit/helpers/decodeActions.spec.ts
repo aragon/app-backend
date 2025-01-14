@@ -693,7 +693,7 @@ describe('Helpers: DecodeActions', () => {
             type: 'uint256',
             components: undefined,
             notice: 'The amount of tokens to mint',
-            value: 1000000000000000000n,
+            value: '1000000000000000000',
           },
         ],
         notice: 'Mint tokens to a specific address',
