@@ -865,6 +865,21 @@ const Web3Helper = {
       return null
     }
   },
+
+  async getTargetConfig(network: NetworksEnum, pluginAddress: string) {
+    try {
+      const provider = ProviderModule.getProvider(network)!
+      const contract = new Contract(pluginAddress, Multisig.abi, provider)
+      const response = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getTargetConfig()),
+      )
+
+      return response.target
+    } catch (error) {
+      logger.error('Error getTargetConfig', llo({ pluginAddress, network, error }))
+      return null
+    }
+  },
 }
 
 export default Web3Helper

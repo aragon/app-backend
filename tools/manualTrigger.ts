@@ -4,6 +4,9 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import utils from '@helpers/utils'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
+import { ethers } from 'ethers'
+import Web3Helper from '@helpers/web3'
+import IPFSModule from '@modules/ipfs'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -14,21 +17,13 @@ export const ToolsManualTrigger: IService = {
     await ProviderModule.connectToAllNetworks()
     const network = NetworksEnum.ethereumSepolia
 
-    const fromBlock = 7149126
-    const toBlock = 'latest'
-    const configLogs = utils.filterArrayByProperty(configIndexer, 'enableHistorical')
+    const ipfs = Web3Helper.extractMetadataUri(
+      '0x697066733A2F2F516D587A777838567932796D723557427341523471706B61783534545050616E6E4D63426F554731586454324B31',
+    )
 
-    const logCrawler = new BlockchainLogCrawler({
-      fromBlock,
-      toBlock,
-      events: configLogs,
-      network,
-      onError: async (error: any) => logger.error('Error Indexer', llo(error)),
-      logService: `Indexer-${network}`,
-      stopOnError: true,
-    })
+    const data = await IPFSModule.fetchMetadata(ipfs!, { retries: 4 })
 
-    await logCrawler.crawl()
+    console.log(data)
   },
 
   stop: async () => {},
