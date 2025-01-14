@@ -4,8 +4,6 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import utils from '@helpers/utils'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
-import { ethers } from 'ethers'
-import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
