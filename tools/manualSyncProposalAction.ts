@@ -20,7 +20,7 @@ export const ToolsManualSyncProposalAction: IService = {
       },
     })
 
-    proposals = proposals.slice(460 + 304, proposals.length)
+    proposals = proposals.slice(460 + 304 + 714, proposals.length)
 
     logger.info(`Found ${proposals.length} proposals with rawActions`, llo({ proposals: proposals.length }))
     let counter = 0

@@ -372,14 +372,34 @@ class DecodeActions {
     }
   }
 
-  async _parseMultiSigSettingUpdateAction(decodedData: IProposalActionInputData, action: IRawAction) {
+  async _parseMultiSigSettingUpdateAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+  ) {
     if (decodedData.textSignature !== KnownActionSignature.UpdateMultiSigSettings) {
       return null
     }
+
+    const pluginDetails = await Models.Plugin.findByAddress(action.to, action.network)
+    if (!pluginDetails) {
+      return
+    }
+
+    const settings = await Models.Setting.findLastSettingByBlockNumber(pluginDetails.address, document.blockNumber!)
+
+    const existingSettings = settings
+      ? {
+          minApprovals: settings.minApprovals,
+          onlyListed: settings.onlyListed,
+        }
+      : {}
+
     return {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.UpdateMultiSigSettings,
+      existingSettings,
       proposedSettings: {
         minApprovals: Number(decodedData.parameters[0].value[1]),
         onlyListed: decodedData.parameters[0].value[0],
@@ -387,15 +407,40 @@ class DecodeActions {
     }
   }
 
-  async _parseTokenVotingSettingUpdateAction(decodedData: IProposalActionInputData, action: IRawAction) {
+  async _parseTokenVotingSettingUpdateAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+  ) {
     if (decodedData.textSignature !== KnownActionSignature.UpdateVoteSettings) {
       return null
     }
+
+    const pluginDetails = await Models.Plugin.findByAddress(action.to, action.network!)
+    if (!pluginDetails) {
+      return null
+    }
+
+    const activeSettings = await Models.Setting.findLastSettingByBlockNumber(
+      pluginDetails.address,
+      document.blockNumber!,
+    )
+
+    const existingSettings = activeSettings
+      ? {
+          votingMode: activeSettings?.votingMode,
+          supportThreshold: activeSettings?.supportThreshold,
+          minParticipation: activeSettings?.minParticipation,
+          minDuration: activeSettings?.minDuration,
+          minProposerVotingPower: activeSettings?.minProposerVotingPower,
+        }
+      : {}
 
     return {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.UpdateVoteSettings,
+      existingSettings,
       proposedSettings: {
         votingMode: Number(decodedData.parameters[0].value[0]),
         supportThreshold: Number(decodedData.parameters[0].value[1]),
