@@ -132,24 +132,27 @@ export const DaoTransactions = {
         }
       }
 
-      const existingTxDb = await Models.Transaction.findExistingLog({
-        transactionHash: tx.hash,
-        category: tx.category,
-        network: dao.network,
-      })
+      return await DbTx.executeTxFn(async ({ session }) => {
+        const existingTxDb = await Models.Transaction.findExistingLog(
+          {
+            transactionHash: tx.hash,
+            category: tx.category,
+            network: dao.network,
+          },
+          { session },
+        )
 
-      if (existingTxDb) {
-        return
-      }
+        if (existingTxDb) {
+          return existingTxDb
+        }
 
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), dao.network)
-      const tokenAddress = tx.rawContract?.address || utils.zeroAddress
-      const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)
+        const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), dao.network)
+        const tokenAddress = tx.rawContract?.address || utils.zeroAddress
+        const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)
 
-      // check if alchemy return strange balance
-      Web3Helper.alchemyCrazyBalanceOnError(daoAddress, token?.address!, dao.network, tx.value, token?.decimals!)
+        // check if alchemy return strange balance
+        Web3Helper.alchemyCrazyBalanceOnError(daoAddress, token?.address!, dao.network, tx.value, token?.decimals!)
 
-      await DbTx.executeTxFn(async ({ session }) => {
         const rawTx: Partial<Transaction> = {
           transactionHash: tx.hash,
           blockNumber: Number(tx.blockNum),
@@ -200,6 +203,7 @@ export const DaoTransactions = {
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('New Transaction', llo({ logId: logDb?.id }))
+        return logDb
       })
     } catch (error) {
       logger.error('Error Transaction', llo({ error, logId: dao.id }))
