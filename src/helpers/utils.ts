@@ -28,6 +28,10 @@ const Utils = {
     return null
   },
 
+  parseAvatar(avatar: any): string | null {
+    return typeof avatar === 'string' ? avatar : null
+  },
+
   extractAdditionalParams: (
     knownParams: Record<string, any> = {},
     queryParams: Record<string, any> = {},
