@@ -24,7 +24,7 @@ export const ToolsManualTrigger: IService = {
       events: configLogs,
       network,
       onError: async (error: any) => logger.error('Error Indexer', llo(error)),
-      logService: `Indexer-${network}`,
+      logService: `indexer-${network}`,
       stopOnError: true,
     })
 
