@@ -23,8 +23,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       URI: utils.configParser(sourceConfig, 'string', 'RABBITMQ_URI', 'amqp://localhost:5672'),
       TIMEOUT: utils.configParser(sourceConfig, 'number', 'RABBITMQ_TIMEOUT', 25000),
       DEFAULT_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'RABBITMQ_DEFAULT_CONCURRENCY', 10),
+      PLUGINS_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'RABBITMQ_PLUGINS_CONCURRENCY', 50),
       RECONNECT_TIME: utils.configParser(sourceConfig, 'number', 'RABBITMQ_RECONNECT_TIME', 1000),
-      CLEAN_QUEUE: utils.configParser(sourceConfig, 'number', 'RABBITMQ_CLEAN_QUEUE', true),
+      CLEAN_QUEUE: utils.configParser(sourceConfig, 'number', 'RABBITMQ_CLEAN_QUEUE', false),
     },
 
     NODE_CONFIG: {

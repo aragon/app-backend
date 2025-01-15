@@ -22,7 +22,7 @@ const AragonPluginsService: IService = {
       await LogDao.start(dao)
     })
 
-    await RabbitMQHelper.process(EnumQueueName.plugins, config.RABBITMQ.DEFAULT_CONCURRENCY, async job => {
+    await RabbitMQHelper.process(EnumQueueName.plugins, config.RABBITMQ.PLUGINS_CONCURRENCY, async job => {
       const { address, network } = job.params as IQueueDao
       const plugin = await Models.Plugin.findByAddress(address, network)
 
