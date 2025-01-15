@@ -1,3 +1,5 @@
+import {IPluginInterfaceType} from "@src/types/plugin";
+
 export enum EnumConnection {
   MONGODB = 'MONGODB',
   BLOCKCHAIN = 'BLOCKCHAIN',
@@ -25,4 +27,4 @@ export enum IEnumIndexerService {
 }
 
 export type IEnumIndexerServiceStatic =
-  `${'Indexer' | 'Token' | 'Deposit' | 'TokenVoting' | 'MultiSig' | 'Admin' | 'SPP' | 'Dao'}-${string}-${string}`
+  `${'indexer' | 'token' | 'deposit' | 'dao' | IPluginInterfaceType }-${string}-${string}`

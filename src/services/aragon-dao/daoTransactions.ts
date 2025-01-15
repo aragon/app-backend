@@ -76,7 +76,7 @@ export const DaoTransactions = {
           llo({ error, type: ITransactionType.withdraw, daoId: dao.id, network: dao.network }),
         )
       },
-      logService: `Deposit-${dao.address}-${IEnumIndexerService.depositTxs}` as any,
+      logService: `deposit-${dao.address}-${IEnumIndexerService.depositTxs}` as any,
       stopOnError: true,
     })
     await depositTxCrawler.crawl()
@@ -96,7 +96,7 @@ export const DaoTransactions = {
           llo({ error, type: ITransactionType.withdraw, daoId: dao.id, network: dao.network }),
         )
       },
-      logService: `Withdraw-${dao.address}-${IEnumIndexerService.withdrawTxs}` as any,
+      logService: `withdraw-${dao.address}-${IEnumIndexerService.withdrawTxs}` as any,
       stopOnError: true,
     })
     await withdrawTxCrawler.crawl()
