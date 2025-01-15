@@ -1,15 +1,15 @@
 import logger from '@logger'
-import {IGovernanceErc20Logs, type IIndexerConfig, ITokenVotingLogs} from '@types'
+import { IGovernanceErc20Logs, type IIndexerConfig, ITokenVotingLogs } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
-import {ProxyToken} from "@modules/proxyToken";
+import { ProxyToken } from '@modules/proxyToken'
 
-const llo = logger.logMeta.bind(null, {service: 'service:indexer:LogTokenVoting'})
+const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
 export const LogTokenVoting = {
   start: async (plugin: Plugin) => {
-    logger.verbose('Start LogTokenVoting', llo({network: plugin.network, pluginAddress: plugin.address}))
+    logger.verbose('Start LogTokenVoting', llo({ network: plugin.network, pluginAddress: plugin.address }))
 
     const configTVLogs = configIndexer.filter((item: IIndexerConfig) =>
       Object.values(ITokenVotingLogs).includes(item.event as any),
@@ -44,7 +44,7 @@ export const LogTokenVoting = {
 
     logger.verbose(
       'End LogTokenVoting',
-      llo({network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync}),
+      llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }),
     )
   },
 
