@@ -13,11 +13,13 @@ import ToolsRevertDbAtBlock from '@tools/revertDbAtBlock'
 import ToolsManualSyncProposalIndex from '@tools/manualSyncProposalIndex'
 import ToolsMigratePluginSlug from '@tools/migratePluginSlug'
 import ToolsMemberMetrics from '@tools/memberMetrics'
+import ToolsEnsFetch from '@tools/ensFetch'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
 
 const runners = {
+  ToolsEnsFetch,
   ToolsMemberMetrics,
   ToolsMigratePluginSlug,
   ManualSyncProposalTotalSupply,

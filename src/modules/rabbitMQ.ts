@@ -77,6 +77,7 @@ const RabbitMQ = {
       RabbitMQ.reconnectTimer = null
       try {
         await RabbitMQ.connect()
+        logger.verbose('RabbitMQ connected', llo({}))
       } catch (reconnectErr) {
         logger.error('RabbitMQ reconnection attempt failed', llo({ reconnectErr }))
         RabbitMQ.scheduleReconnect()
