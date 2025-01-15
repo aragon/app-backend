@@ -49,10 +49,14 @@ export const RabbitMQHelper = {
         const uniqueJobKey = `${queueName}-${message.id}` // Unique key per queue and message ID
 
         const release = await this.mutex.acquire()
-
         if (this.activeJobs.has(uniqueJobKey)) {
           logger.warn('Duplicate message in queue, skipping', llo({ uniqueJobKey }))
-          channel.ack(msg)
+
+          if (RabbitMQ.isConnected() && channel === RabbitMQ.getChannel()) {
+            channel.ack(msg)
+          } else {
+            logger.warn('Channel closed before ack could be sent', llo({ uniqueJobKey }))
+          }
           release()
           return
         }
@@ -74,7 +78,12 @@ export const RabbitMQHelper = {
           const release = await this.mutex.acquire()
           this.activeJobs.delete(uniqueJobKey) // Remove the job from active jobs map
           release()
-          channel.ack(msg) // Acknowledge that the message has been processed
+
+          if (RabbitMQ.isConnected() && channel === RabbitMQ.getChannel()) {
+            channel.ack(msg) // Acknowledge that the message has been processed
+          } else {
+            logger.warn('Channel closed before ack could be sent', llo({ queueName, messageId: message.id }))
+          }
         }
       },
       { noAck: false },
