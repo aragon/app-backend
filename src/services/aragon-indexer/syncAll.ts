@@ -19,7 +19,7 @@ export const SyncAll = {
           network: networkName,
           interfaceType: { $ne: IPluginInterfaceType.unknown },
           status: IPluginStatus.installed,
-        }).sort({ blockNumber: 1 })
+        }).sort({ blockNumber: -1 })
 
         await Promise.all(
           plugins.map(async (plugin: Plugin) => {
