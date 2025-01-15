@@ -56,7 +56,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: 'Indexer-ethereum-mainnet',
+      logService: 'indexer-ethereum-mainnet',
       onError: () => {},
     })
 
@@ -178,7 +178,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events,
       stopOnError: false,
-      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: sandbox.stub(),
     })
     const stubSaveProgress = sandbox.stub(crawler, 'onSaveProgress').resolves()
@@ -321,7 +321,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events,
       stopOnError: true,
-      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: onErrorStub,
     })
 
@@ -506,7 +506,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -539,7 +539,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -567,7 +567,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -592,7 +592,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -626,7 +626,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `Indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
