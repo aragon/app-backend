@@ -154,15 +154,16 @@ describe('Helpers:RabbitMQ', () => {
       const queueName = 'testQueueX' as EnumQueueName
       const message = { id: '123', data: 'test' }
 
-      sandbox.stub(RabbitMQHelper, 'executeWithMutex').callsFake(async (callback) => callback())
+      sandbox.stub(RabbitMQHelper, 'executeWithMutex').callsFake(async callback => callback())
 
       await RabbitMQHelper.sendMessage(queueName, message as any)
       await RabbitMQHelper.sendMessage(queueName, message as any)
 
       expect(RabbitMQHelper.queuedMessages.has(`${queueName}-${message.id}`)).to.be.true
 
-      expect(mockChannel.sendToQueue.calledOnceWith(queueName, Buffer.from(JSON.stringify(message)), { persistent: true }))
-        .to.be.true
+      expect(
+        mockChannel.sendToQueue.calledOnceWith(queueName, Buffer.from(JSON.stringify(message)), { persistent: true }),
+      ).to.be.true
 
       RabbitMQHelper.queuedMessages.delete(`${queueName}-${message.id}`)
     })
