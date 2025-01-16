@@ -8,6 +8,7 @@ import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import DbOperations from '@models/utils/dbOperations'
 import { Models } from '@dbModels'
+import Logger from '@logger'
 
 describe('Module: EventListener', () => {
   let sandbox: SinonSandbox
@@ -99,7 +100,6 @@ describe('Module: EventListener', () => {
     })
 
     it('should process new block logs and update database correctly', async () => {
-      // Prepopulate the database
       const rawConfigIndexer = {
         network: NetworksEnum.ethereumMainnet,
         service: `indexer-${NetworksEnum.ethereumMainnet}`,
@@ -107,46 +107,27 @@ describe('Module: EventListener', () => {
       }
       const configIndexerDoc = await Models.ConfigIndexer.create(rawConfigIndexer)
 
-      // Mock Provider
       const mockProvider = {
         getLogs: sandbox.stub().resolves([{ topics: ['0xTopic1'], data: '0xData' }]),
       }
       sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider)
 
-      // Mock ConfigLogs
       const configLogs = [{ topic: '0xTopic1', abi: ['event TestEvent()'], handler: sandbox.stub().resolves() }]
       const listener = new EventListener(NetworksEnum.ethereumMainnet, configLogs as any)
 
-      // Mock Web3Helper
       sandbox.stub(Web3Helper, 'parseLog').returns({ name: 'TestEvent', args: {} } as any)
       sandbox.stub(Web3Helper, 'parseInfoLog').returns({} as any)
+      const stubLogger = sandbox.stub(Logger, 'verbose')
 
-      // Spy on DbOperations
-      const updateDocumentSpy = sandbox.spy(DbOperations, 'updateDocument')
-
-      // Call the method
       await listener.handleOnNewBlock(101)
 
-      // Assertions
       expect(mockProvider.getLogs.calledOnce).to.be.true
       expect(configLogs[0].handler.calledOnce).to.be.true
-      expect(updateDocumentSpy.calledOnce).to.be.true
 
-      // Check database for updates
       const updatedDocument = await Models.ConfigIndexer.findById(configIndexerDoc._id)
       expect(updatedDocument).to.not.be.null
       expect(updatedDocument.lastSync).to.equal(101)
-
-      // Ensure correct update parameters
-      expect(
-        updateDocumentSpy.calledWith(
-          sinon.match.has('_id', configIndexerDoc._id),
-          { lastSync: 101 },
-          sinon.match({ blockNumber: 101, network: NetworksEnum.ethereumMainnet }),
-          'update last block',
-          sinon.match.func,
-        ),
-      ).to.be.true
+      expect(stubLogger.calledOnceWith('update last block' as any)).to.be.true
     })
   })
 })
