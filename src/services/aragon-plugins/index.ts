@@ -44,6 +44,9 @@ const AragonPluginsService: IService = {
         case IPluginInterfaceType.spp:
           await LogSpp.start(plugin)
           break
+        case IPluginInterfaceType.gauge:
+          // TODO: handle gauge
+          return 'ok'
         default:
           logger.error('PluginSyncService: interfaceType not found', llo({ plugin }))
           break

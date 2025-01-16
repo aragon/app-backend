@@ -23,6 +23,8 @@ export const PluginSlug = {
         return IPluginSlug.multisig
       case IPluginInterfaceType.admin:
         return IPluginSlug.admin
+      case IPluginInterfaceType.gauge:
+        return IPluginSlug.gauge
       default:
         logger.warn('Unrecognized plugin interface type', llo({ interfaceType: plugin.interfaceType }))
         return null

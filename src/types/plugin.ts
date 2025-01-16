@@ -21,6 +21,7 @@ export enum IPluginSlug {
   tokenvoting = 'tokenvoting',
   multisig = 'multisig',
   admin = 'admin',
+  gauge = 'gauge',
   spp = 'core',
 }
 
@@ -29,6 +30,7 @@ export enum IPluginInterfaceType {
   multisig = 'multisig',
   admin = 'admin',
   spp = 'spp',
+  gauge = 'gauge',
   unknown = 'unknown',
 }
 

@@ -7,8 +7,8 @@ export interface IIndexerConfig {
   event: string
   abi: any[]
   handler: (event: LogDescription, info: ILogInfo, isHistorical?: boolean) => Promise<any>
-  enableHistorical: boolean
-  topic: string
+  enableHistorical?: boolean
+  topic: string | any
 }
 
 export interface ICrawlParam {
@@ -22,6 +22,7 @@ export interface ICrawlParam {
   logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
   onError: (error: Error, log?: Log) => void
   skipLogProcessing?: boolean
+  isCustomTopics?: boolean
 }
 
 export interface ICrawlSetting {

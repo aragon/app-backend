@@ -1,6 +1,12 @@
 import logger from '@logger'
 import { Interface, type Log, type WebSocketProvider } from 'ethers'
-import { type ICrawlParam, type ICrawlSetting, type IFormattedLog, type NetworksEnum } from '@types'
+import {
+  type ICrawlParam,
+  type ICrawlSetting,
+  type IFormattedLog,
+  type IIndexerConfig,
+  type NetworksEnum,
+} from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -28,6 +34,7 @@ class BlockchainLogCrawler {
       onlyHistorical: opts.onlyHistorical,
       onError: opts.onError || BlockchainLogCrawler.defaultOnError,
       skipLogProcessing: opts.skipLogProcessing,
+      isCustomTopics: opts.isCustomTopics,
     }
 
     const topics = opts.events
@@ -97,6 +104,18 @@ class BlockchainLogCrawler {
     )
   }
 
+  getTopics(): any {
+    let topicChunks: any = []
+
+    if (!this.crawlParams.isCustomTopics) {
+      topicChunks = utils.chunkArray(this.crawlSetting.filter.topics, 4)
+    } else {
+      topicChunks = this.crawlSetting?.filter?.topics?.[0]
+    }
+
+    return topicChunks
+  }
+
   async crawl(): Promise<IFormattedLog[] | undefined> {
     if (this.crawlSetting.crawling) {
       throw new Error('Already crawling')
@@ -126,16 +145,9 @@ class BlockchainLogCrawler {
         currentBlock + this.crawlSetting.batchSize - (this.crawlSetting.runCount > 1 ? 1 : 0),
         latestBlock,
       )
-      // Handle topics: use chunks if there are topics, or pass empty for all logs
-      const topicChunks = utils.chunkArray(this.crawlSetting.filter.topics, 4)
-      let allLogs: Log[] = []
 
-      // const filters = topicChunks.map((topics: any) => ({
-      //   address: this.crawlSetting.filter.address,
-      //   topics,
-      //   fromBlock: currentBlock,
-      //   toBlock,
-      // }))
+      const topicChunks = this.getTopics()
+      let allLogs: Log[] = []
 
       for (const topics of topicChunks) {
         let success = false
@@ -227,23 +239,32 @@ class BlockchainLogCrawler {
   }
 
   formatLog(log: Log): IFormattedLog {
-    const eventSetting = this.crawlParams.events.find(item => item.topic === log.topics[0])!
+    const eventSetting: IIndexerConfig | undefined = this.crawlParams.events.find(item => {
+      if (typeof item.topic === 'string') {
+        return item.topic === log.topics[0]
+      }
+      if (Array.isArray(item.topic)) {
+        return item.topic.includes(log.topics[0])
+      }
+      return false
+    })
+
     if (!eventSetting) {
       logger.error('Error event setting not found in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
     }
-    const iFace = new Interface(eventSetting.abi)
+    const iFace = new Interface(eventSetting!.abi)
     const event = Web3Helper.parseLog(log, iFace)!
 
     if (!event) {
       logger.error('Error parse log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog(), log }))
     }
 
-    const info = Web3Helper.parseInfoLog(log, eventSetting.event, this.crawlParams.network)
+    const info = Web3Helper.parseInfoLog(log, eventSetting!.event, this.crawlParams.network)
 
     return {
       event,
       info,
-      handler: eventSetting.handler,
+      handler: eventSetting!.handler,
     }
   }
 
