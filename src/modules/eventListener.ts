@@ -4,9 +4,9 @@ import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { type IIndexerConfig, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import DbOperations from '@models/utils/dbOperations'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
@@ -106,22 +106,19 @@ class EventListener {
         await this.handleEvent(log)
       }
     } finally {
-      const existingConfig = await Models.ConfigIndexer.findExistingLog({
-        network: this.network,
-        service: `indexer-${this.network}`,
-      })
-
-      await DbOperations.updateDocument(
-        existingConfig,
-        { lastSync: blockNumber },
-        {
-          blockNumber,
+      await DbTx.executeTxFn(async ({ session }) => {
+        const existingConfig = await Models.ConfigIndexer.findExistingLog({
           network: this.network,
-        },
-        'update last block',
-        llo,
-      )
+          service: `indexer-${this.network}`,
+        })
 
+        await existingConfig.update({ lastSync: blockNumber }, { session })
+
+        await session.commitTransaction()
+        await session.endSession()
+
+        logger.verbose('update last block', llo({ blockNumber, network: this.network }))
+      })
       this.isProcessingBlock = 0
     }
   }
