@@ -5,8 +5,9 @@ import sinon, { SinonSandbox } from 'sinon'
 import { ConsumeMessage } from 'amqplib'
 import { EnumQueueName } from '@types'
 import logger from '@logger'
+import rabbitMQ from '@modules/rabbitMQ'
 
-describe('Helpers:RabbitMQ', () => {
+describe.only('Helpers:RabbitMQ', () => {
   let sandbox: SinonSandbox
   let mockChannel: any
   let mockRabbitMQ: any
@@ -23,8 +24,10 @@ describe('Helpers:RabbitMQ', () => {
     }
     mockRabbitMQ = {
       getChannel: sandbox.stub().returns(mockChannel),
+      isConnected: sandbox.stub(),
     }
     sandbox.replace(RabbitMQ, 'getChannel', mockRabbitMQ.getChannel)
+    sandbox.replace(RabbitMQ, 'isConnected', mockRabbitMQ.isConnected)
 
     mockLogger = {
       warn: sandbox.stub(),
@@ -74,6 +77,8 @@ describe('Helpers:RabbitMQ', () => {
         onMessage(fakeMsg)
       })
 
+      mockRabbitMQ.isConnected.returns(true)
+
       await RabbitMQHelper.process('testQueue' as EnumQueueName, 1, messageHandler)
 
       await new Promise(resolve => setImmediate(resolve))
@@ -95,6 +100,8 @@ describe('Helpers:RabbitMQ', () => {
         onMessage(fakeMsg)
         onMessage(fakeMsg) // Duplicate message
       })
+
+      mockRabbitMQ.isConnected.returns(true)
 
       await RabbitMQHelper.process('testQueue' as EnumQueueName, 1, messageHandler)
 
@@ -118,6 +125,8 @@ describe('Helpers:RabbitMQ', () => {
         onMessage(fakeMsg)
       })
 
+      mockRabbitMQ.isConnected.returns(true)
+
       await RabbitMQHelper.process('testQueue' as EnumQueueName, 1, messageHandler)
 
       await new Promise(resolve => setImmediate(resolve))
@@ -138,6 +147,8 @@ describe('Helpers:RabbitMQ', () => {
       mockChannel.consume.callsFake((queue, onMessage) => {
         onMessage(fakeMsg)
       })
+
+      mockRabbitMQ.isConnected.returns(true)
 
       await RabbitMQHelper.process('testQueue' as EnumQueueName, 1, messageHandler)
 
