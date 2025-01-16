@@ -21,53 +21,58 @@ import type Plugin from '@models/schema/plugin'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import DbOperations from '@models/utils/dbOperations'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import DbTx from '@modules/dbTx'
 import ProposalHelper from '@helpers/proposal'
 import { TokenVoting } from '@src/aragonContracts'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { assert } from '@errors'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
 export const ProposalHandler = {
-  findIncrementalId: async (proposal: Partial<Proposal>): Promise<any> => {
-    const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
-    /**
-     * Find the latest proposal from this plugin
-     */
+  findIncrementalId: async (proposal: Partial<Proposal>): Promise<number> => {
+    try {
+      assert(!!proposal.pluginAddress, 'pluginAddress is required')
+      assert(!!proposal.network, 'network is required')
+      assert(!!proposal.proposalIndex, 'proposalIndex is required')
 
-    const latestProposal = await Models.Proposal.findLatestProposal(plugin.address, proposal.network!)
+      const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
+      assert(!!plugin, 'plugin not found')
 
-    const crawler = new BlockchainLogCrawler({
-      skipLogProcessing: true,
-      fromBlock: plugin.blockNumber,
-      toBlock: latestProposal.blockNumber + 1,
-      logService: null,
-      network: proposal.network!,
-      address: proposal.pluginAddress,
-      stopOnError: false,
-      onError: async (error: any) => logger.error('Error findIncrementalId', llo({ error, proposal })),
-      events: [
-        {
-          event: ITokenVotingLogs.ProposalCreated,
-          topic: new Interface(TokenVoting.abi).getEvent(ITokenVotingLogs.ProposalCreated)?.topicHash!,
-          enableHistorical: false,
-          abi: TokenVoting.abi,
-          handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {},
-        },
-      ],
-    })
+      const crawler = new BlockchainLogCrawler({
+        skipLogProcessing: true,
+        fromBlock: plugin.blockNumber,
+        logService: null,
+        network: proposal.network!,
+        address: proposal.pluginAddress,
+        stopOnError: false,
+        onError: async (error: any) => logger.error('Error findIncrementalId', llo({ error, proposal })),
+        events: [
+          {
+            event: ITokenVotingLogs.ProposalCreated,
+            topic: new Interface(TokenVoting.abi).getEvent(ITokenVotingLogs.ProposalCreated)?.topicHash!,
+            enableHistorical: false,
+            abi: TokenVoting.abi,
+            handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {},
+          },
+        ],
+      })
 
-    const logs = await crawler.crawl()
-    const proposalIds = logs?.map((log: any) => log.event.args.proposalId.toString())
+      const logs = await crawler.crawl()
+      const proposalIds = logs?.map((log: any) => log.event.args.proposalId.toString())
 
-    const proposalIndex = proposalIds?.findIndex((id: string) => id === proposal.proposalIndex)
+      const proposalIndex = proposalIds?.findIndex((id: string) => id === proposal.proposalIndex)
 
-    if (proposalIndex === -1) {
-      logger.error('Proposal not found', llo({ proposal }))
-      return false
+      if (proposalIndex === -1) {
+        logger.error('Error findIncrementalId not found', llo({ proposal }))
+        return -1
+      }
+
+      return proposalIndex!
+    } catch (error) {
+      logger.error('Error findIncrementalId', llo({ error, proposal }))
+      return -1
     }
-
-    return proposalIndex
   },
 
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
@@ -180,6 +185,7 @@ export const ProposalHandler = {
       document.incrementalId = await ProposalHandler.findIncrementalId({
         pluginAddress,
         network: info.network,
+        proposalIndex,
       })
 
       const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)

@@ -3,6 +3,7 @@ import { IGovernanceErc20Logs, type IIndexerConfig, ITokenVotingLogs } from '@ty
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
+import { ProxyToken } from '@modules/proxyToken'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
@@ -17,16 +18,29 @@ export const LogTokenVoting = {
       Object.values(IGovernanceErc20Logs).includes(item.event as any),
     )
 
+    const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
+
     const crawler = new BlockchainLogCrawler({
       network: plugin.network,
-      events: [...configTVLogs, ...configGovLogs],
-      address: [plugin.address, plugin.tokenAddress],
+      events: [...configTVLogs],
+      address: [plugin.address],
       fromBlock: plugin?.blockNumber,
       onError: async (error: any) => LogTokenVoting.processError(error, plugin),
-      logService: `TokenVoting-${plugin.network}-${plugin.address}`,
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
-    await crawler.crawl()
+
+    const crawlerToken = new BlockchainLogCrawler({
+      network: plugin.network,
+      events: [...configGovLogs],
+      address: [plugin.tokenAddress],
+      fromBlock: token?.blockNumber,
+      onError: async (error: any) => LogTokenVoting.processError(error, plugin),
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}`,
+      stopOnError: true,
+    })
+
+    await Promise.all([crawler.crawl(), crawlerToken.crawl()])
 
     logger.verbose(
       'End LogTokenVoting',

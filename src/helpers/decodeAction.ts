@@ -155,7 +155,7 @@ class DecodeActions {
      * The case where contract will be when the 4byte doesn't fetch but the etherscan does.
      */
     if (!decoded.contract) {
-      const contractNetspec = await this.parseContractNetspec(decoded.textSignature!, action.to, document.network!)
+      const contractNetspec = await this.parseContractNetspec(action.data.slice(0, 10), action, document.network!)
 
       if (contractNetspec?.inputs) {
         decoded.notice = contractNetspec.notice
@@ -322,18 +322,31 @@ class DecodeActions {
         return null
       }
 
+      const _existingMetadata: any = existingMetadata
+        ? {
+            name: existingMetadata.name,
+            description: existingMetadata.description,
+            avatar: existingMetadata.avatar,
+            links: existingMetadata.links,
+            logo: existingMetadata.logo,
+            processKey: existingMetadata.processKey,
+            stageNames: existingMetadata.stageNames,
+          }
+        : {}
+
       /**
        * If the metadata is for a plugin, we need to fetch the contract netspec
        * If we don't fetch for plugin, the netspec would be wrong.
        */
       if (metadataOriginKey === 'pluginAddress') {
-        const contractNetspec = await this.parseContractNetspec(decodedData.function, action.to, document.network!)
+        const contractNetspec = await this.parseContractNetspec(decodedData.function, action, document.network!)
         if (contractNetspec?.inputs) {
           decodedData.notice = contractNetspec.notice
           decodedData.contract = contractNetspec.contractName
           decodedData.parameters = decodedData.parameters.map((param, index) => {
             param.notice = contractNetspec.inputs[index].notice
             param.name = contractNetspec.inputs[index].name
+            param.value = contractNetspec.inputs[index].value
             return param
           })
         }
@@ -343,7 +356,7 @@ class DecodeActions {
           type: ProposalActionType.MetadataPluginUpdate,
           inputData: decodedData,
           proposedMetadata,
-          existingMetadata,
+          existingMetadata: _existingMetadata,
         }
       }
 
@@ -352,21 +365,41 @@ class DecodeActions {
         type: ProposalActionType.MetadataUpdate,
         inputData: decodedData,
         proposedMetadata,
-        existingMetadata,
+        existingMetadata: _existingMetadata,
       }
     } catch (e) {
       return null
     }
   }
 
-  async _parseMultiSigSettingUpdateAction(decodedData: IProposalActionInputData, action: IRawAction) {
+  async _parseMultiSigSettingUpdateAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+  ) {
     if (decodedData.textSignature !== KnownActionSignature.UpdateMultiSigSettings) {
       return null
     }
+
+    const pluginDetails = await Models.Plugin.findByAddress(action.to, action.network)
+    if (!pluginDetails) {
+      return
+    }
+
+    const settings = await Models.Setting.findLastSettingByBlockNumber(pluginDetails.address, document.blockNumber!)
+
+    const existingSettings = settings
+      ? {
+          minApprovals: settings.minApprovals,
+          onlyListed: settings.onlyListed,
+        }
+      : {}
+
     return {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.UpdateMultiSigSettings,
+      existingSettings,
       proposedSettings: {
         minApprovals: Number(decodedData.parameters[0].value[1]),
         onlyListed: decodedData.parameters[0].value[0],
@@ -374,15 +407,40 @@ class DecodeActions {
     }
   }
 
-  async _parseTokenVotingSettingUpdateAction(decodedData: IProposalActionInputData, action: IRawAction) {
+  async _parseTokenVotingSettingUpdateAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+  ) {
     if (decodedData.textSignature !== KnownActionSignature.UpdateVoteSettings) {
       return null
     }
+
+    const pluginDetails = await Models.Plugin.findByAddress(action.to, action.network!)
+    if (!pluginDetails) {
+      return null
+    }
+
+    const activeSettings = await Models.Setting.findLastSettingByBlockNumber(
+      pluginDetails.address,
+      document.blockNumber!,
+    )
+
+    const existingSettings = activeSettings
+      ? {
+          votingMode: activeSettings?.votingMode,
+          supportThreshold: activeSettings?.supportThreshold,
+          minParticipation: activeSettings?.minParticipation,
+          minDuration: activeSettings?.minDuration,
+          minProposerVotingPower: activeSettings?.minProposerVotingPower,
+        }
+      : {}
 
     return {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.UpdateVoteSettings,
+      existingSettings,
       proposedSettings: {
         votingMode: Number(decodedData.parameters[0].value[0]),
         supportThreshold: Number(decodedData.parameters[0].value[1]),
@@ -515,7 +573,7 @@ class DecodeActions {
       const response = await FourByte.getSignatures(functionSelector)
 
       if (!response || response.count === 0) {
-        const functionDetails = await this.parseContractNetspec(functionSelector, action.to, network)
+        const functionDetails = await this.parseContractNetspec(functionSelector, action, network)
         if (functionDetails) {
           return {
             function: functionDetails.functionName,
@@ -553,11 +611,11 @@ class DecodeActions {
     }
   }
 
-  async parseContractNetspec(functionName: string, address: string, network: NetworksEnum) {
-    let implementationAddress = await ProxyContract.getImplementationAddress(address, network)
+  async parseContractNetspec(functionName: string, rawAction: IRawAction, network: NetworksEnum) {
+    let implementationAddress = await ProxyContract.getImplementationAddress(rawAction.to, network)
 
     if (!implementationAddress) {
-      implementationAddress = address
+      implementationAddress = rawAction.to
     }
 
     const contractDetails = await retryRequest(async () =>
@@ -572,10 +630,11 @@ class DecodeActions {
     )
 
     if (contractDetails && contractDetails.length > 0 && contractDetails[0].SourceCode !== '') {
+      const contractAbi = JSON.parse(contractDetails[0].ABI)
       const results = ContractNetspecHelper.parseNetspec(
         contractDetails[0].SourceCode,
         contractDetails[0].ContractName,
-        JSON.parse(contractDetails[0].ABI),
+        contractAbi,
       )
 
       const signatures = this._getSignaturesFromAbi(results, contractDetails[0].ContractName)
@@ -587,10 +646,27 @@ class DecodeActions {
         return null
       }
 
+      const iface = new ethers.Interface(contractAbi)
+      const decodedData: any = abiWithNetSpec?.inputs.length
+        ? iface.decodeFunctionData(abiWithNetSpec.fragment, rawAction.data).toArray()
+        : []
+
+      const decodedFormatted = decodedData.map((item: any) => (typeof item === 'bigint' ? item.toString() : item))
+
       return {
         functionName: abiWithNetSpec?.method,
         contractName: contractDetails[0].ContractName,
-        inputs: abiWithNetSpec?.inputs,
+        inputs: abiWithNetSpec?.inputs.map((input: any, index: number) => {
+          return {
+            name: input.name,
+            type: input.type,
+            components: input.components,
+            value: Array.isArray(decodedFormatted[index])
+              ? JSON.parse(Utils.JSONStringifyCircular(decodedFormatted[index]))
+              : decodedFormatted[index],
+            notice: input.notice,
+          }
+        }),
         notice: abiWithNetSpec?.notice,
       }
     }
@@ -615,7 +691,7 @@ class DecodeActions {
           const parameters = fragment.inputs.map((input: any) => input.type).join(',')
           const textSignature = `${functionName}(${parameters})`
 
-          const functionDetails = await this.parseContractNetspec(action.data.slice(0, 10), action.to, network)
+          const functionDetails = await this.parseContractNetspec(action.data.slice(0, 10), action, network)
 
           /**
            * As the decoded data can be a nested array inside array when there is tuple as paramter

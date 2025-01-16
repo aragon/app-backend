@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ContractController from '@services/aragon-api/controllers/contract'
 import { EnumQueueName, NetworksEnum } from '@types'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import config from '@config'
 
 describe('Controller: Contract', () => {

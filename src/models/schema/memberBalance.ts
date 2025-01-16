@@ -72,23 +72,26 @@ export default class MemberBalance extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, tOpts)
+    return await this.findOne({ id: entityId }, null, tOpts)
   }
 
   static async findByAddress(tokenAddress: HexAddress, network: NetworksEnum) {
     return await this.findOne({ tokenAddress, network })
   }
 
-  static async findByAddressAndToken({
-    address,
-    tokenAddress,
-    network,
-  }: {
-    address: HexAddress
-    tokenAddress: HexAddress
-    network: NetworksEnum
-  }) {
-    return await this.findOne({ address, tokenAddress, network })
+  static async findByAddressAndToken(
+    {
+      address,
+      tokenAddress,
+      network,
+    }: {
+      address: HexAddress
+      tokenAddress: HexAddress
+      network: NetworksEnum
+    },
+    tOpts?: SaveOptions,
+  ) {
+    return await this.findOne({ address, tokenAddress, network }, null, tOpts)
   }
 
   async update(params: Partial<MemberBalance>, tOpts?: SaveOptions) {

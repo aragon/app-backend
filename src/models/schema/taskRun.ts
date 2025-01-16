@@ -72,7 +72,7 @@ export default class TaskRun extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, tOpts)
+    return await this.findOne({ id: entityId }, null, tOpts)
   }
 
   async update(params: Partial<TaskRun>, tOpts?: SaveOptions) {

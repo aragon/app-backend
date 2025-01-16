@@ -668,7 +668,15 @@ describe('Helpers: DecodeActions', () => {
         },
       ])
 
-      const result = await decodeActions.parseContractNetspec('mint(address,uint256)', contractAddress, network)
+      const result = await decodeActions.parseContractNetspec(
+        'mint(address,uint256)',
+        {
+          to: contractAddress,
+          data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
+          value: '0x',
+        },
+        network,
+      )
       expect(result).to.deep.equal({
         functionName: 'mint',
         contractName: 'IERC20MintableUpgradeable',
@@ -676,12 +684,16 @@ describe('Helpers: DecodeActions', () => {
           {
             name: 'to',
             type: 'address',
+            components: undefined,
             notice: 'The address to mint tokens to',
+            value: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
           },
           {
             name: 'amount',
             type: 'uint256',
+            components: undefined,
             notice: 'The amount of tokens to mint',
+            value: '1000000000000000000',
           },
         ],
         notice: 'Mint tokens to a specific address',
@@ -698,7 +710,15 @@ describe('Helpers: DecodeActions', () => {
 
       const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
       const getContractSourceCode = sandbox.stub(Etherscan, 'fetchContractSourceCode').resolves(null)
-      const result = await decodeActions.parseContractNetspec('mint', contractAddress, network)
+      const result = await decodeActions.parseContractNetspec(
+        'mint',
+        {
+          to: contractAddress,
+          data: '0x',
+          value: '0x',
+        },
+        network,
+      )
       expect(result).to.be.null
       expect(getImplementationAddressStub.calledOnce).to.be.true
       expect(getContractSourceCode.calledOnce).to.be.true
@@ -729,10 +749,24 @@ describe('Helpers: DecodeActions', () => {
         to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         value: 0n,
         data: '0x40c10f1900000000000000000000000x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        network: NetworksEnum.ethereumSepolia,
       }
 
-      const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action)
+      const getPluginDetails = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        address: action.to,
+      })
+      const getExistingSettingStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
+
+      const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action, {
+        blockNumber: 123,
+      })
       expect(result?.type).to.be.eq(ProposalActionType.UpdateVoteSettings)
+      expect(getExistingSettingStub.calledOnce).to.be.true
+      expect(getExistingSettingStub.args[0][0]).to.be.eq(action.to)
+      expect(getExistingSettingStub.args[0][1]).to.be.eq(123)
+      expect(getPluginDetails.calledOnce).to.be.true
+      expect(getPluginDetails.args[0][0]).to.be.eq(action.to)
+      expect(getPluginDetails.args[0][1]).to.be.eq(NetworksEnum.ethereumSepolia)
     })
 
     it('should fails when the signature is not matched for _parseTokenVotingSettingUpdateAction', async () => {
@@ -760,7 +794,7 @@ describe('Helpers: DecodeActions', () => {
         data: '0x40c10f1900000000000000000000000x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
       }
 
-      const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action)
+      const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action, {} as any)
       expect(result).to.be.null
     })
 
@@ -786,11 +820,24 @@ describe('Helpers: DecodeActions', () => {
       const action = {
         to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         value: 0n,
+        network: NetworksEnum.ethereumSepolia,
         data: '0x40c10f1900000000000000000000000x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
       }
 
-      const result = await decodeActions._parseMultiSigSettingUpdateAction(baseAction, action)
+      const getPluginDetailsStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        address: action.to,
+      })
+      const getPluginSettingsStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
+      const result = await decodeActions._parseMultiSigSettingUpdateAction(baseAction, action, {
+        blockNumber: 123,
+      })
+      expect(getPluginDetailsStub.calledOnce).to.be.true
+      expect(getPluginDetailsStub.args[0][0]).to.be.eq(action.to)
+      expect(getPluginDetailsStub.args[0][1]).to.be.eq(NetworksEnum.ethereumSepolia)
       expect(result?.type).to.be.eq(ProposalActionType.UpdateMultiSigSettings)
+      expect(getPluginSettingsStub.calledOnce).to.be.true
+      expect(getPluginSettingsStub.args[0][0]).to.be.eq(action.to)
+      expect(getPluginSettingsStub.args[0][1]).to.be.eq(123)
     })
 
     it('should fails when the signature is not matched for multisign settings', async () => {
@@ -818,7 +865,7 @@ describe('Helpers: DecodeActions', () => {
         data: '0x40c10f1900000000000000000000000x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
       }
 
-      const result = await decodeActions._parseMultiSigSettingUpdateAction(baseAction, action)
+      const result = await decodeActions._parseMultiSigSettingUpdateAction(baseAction, action, {})
       expect(result).to.be.null
     })
 
@@ -1298,7 +1345,7 @@ describe('Helpers: DecodeActions', () => {
       const getMetadataAtBlockNumberStub = sandbox.stub(Models.LogMetadata, 'getMetadataAtBlockNumber').resolves({
         name: 'MockDao',
       })
-      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('http://link')
+      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('https://link')
       const ipfsFetchStubb = sandbox.stub(Ipfs, 'fetchMetadata').resolves({
         name: 'Updated Dao',
       })
@@ -1371,7 +1418,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
-      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('http://link')
+      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('https://link')
       const ipfsFetchStubb = sandbox.stub(Ipfs, 'fetchMetadata').resolves(null)
       const decodeActions = new DecodeActions()
 
@@ -1409,7 +1456,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
-      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('http://link')
+      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('https://link')
       const ipfsFetchStubb = sandbox.stub(Ipfs, 'fetchMetadata').rejects(new Error('fake-error'))
 
       const decodeActions = new DecodeActions()

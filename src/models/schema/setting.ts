@@ -163,7 +163,7 @@ export default class Setting extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, tOpts)
+    return await this.findOne({ id: entityId }, null, tOpts)
   }
 
   static async findActive({
@@ -262,6 +262,7 @@ export default class Setting extends Model {
           minDuration: 1,
           minProposerVotingPower: 1,
           token: 1,
+          stages: 1,
         },
       },
     ]

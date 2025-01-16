@@ -29,7 +29,7 @@ const AragonIndexerService: IService & { repeaters: any } = {
           network: networkName,
           events: configLogs,
           onError: async (error: any) => logger.error('Error Indexer', llo(error)),
-          logService: `Indexer-${networkName}`,
+          logService: `indexer-${networkName}`,
           stopOnError: true,
         })
         await crawler.crawl()
@@ -55,8 +55,10 @@ const AragonIndexerService: IService & { repeaters: any } = {
       onError: (error: any) => logger.error('Error sync all plugins', llo({ error })),
     }
 
-    const scheduler = TaskSchedulerState.getInstance()
-    await scheduler.startTask('allPlugins', taskOptions)
+    if (config.SERVICES.ARAGON_INDEXER.SYNC_ALL) {
+      const scheduler = TaskSchedulerState.getInstance()
+      await scheduler.startTask('allPlugins', taskOptions)
+    }
   },
 
   async stop() {

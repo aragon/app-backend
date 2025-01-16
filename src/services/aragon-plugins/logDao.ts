@@ -20,7 +20,7 @@ export const LogDao = {
       address: dao.address,
       fromBlock: dao?.blockNumber || 0,
       onError: async (error: any) => LogDao.processError(error, dao),
-      logService: `Dao-${dao.network}-${dao.address}`,
+      logService: `dao-${dao.network}-${dao.address}`,
       stopOnError: true,
     })
     await crawler.crawl()

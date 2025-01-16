@@ -20,7 +20,7 @@ export const LogSpp = {
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any) => LogSpp.processError(error, plugin),
-      logService: `SPP-${plugin.network}-${plugin.address}`,
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
     await crawler.crawl()

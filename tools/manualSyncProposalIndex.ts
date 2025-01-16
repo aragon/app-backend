@@ -12,14 +12,16 @@ export const ToolsManualSyncProposalIndex: IService = {
   start: async () => {
     await ProviderModule.connectToAllNetworks()
 
-    const proposals = await Models.Proposal.find({ network: 'ethereum-sepolia', pluginSubdomain: 'spp' }).sort({
-      blockNumber: -1,
+    const proposals = await Models.Proposal.find({
+      incrementalId: null,
     })
 
     logger.info(`Found ${proposals.length} proposals with rawActions`, llo({ proposals: proposals.length }))
 
-    for (const proposal of proposals.slice(0, 10)) {
+    for (const proposal of proposals) {
       const index = await ProposalHandler.findIncrementalId(proposal)
+      proposal.incrementalId = index
+      await proposal.save()
       logger.info(`Processed proposal ${proposal.id} with index ${index}`, llo({ proposal: proposal.id, index }))
     }
   },

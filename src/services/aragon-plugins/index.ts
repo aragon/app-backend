@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { EnumConnection, EnumQueueName, IPluginInterfaceType, type IQueueDao, type IService } from '@types'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import { LogAdmin } from '@services/aragon-plugins/logAdmin'
 import { Models } from '@dbModels'
 import { LogDao } from '@services/aragon-plugins/logDao'
@@ -22,7 +22,7 @@ const AragonPluginsService: IService = {
       await LogDao.start(dao)
     })
 
-    await RabbitMQHelper.process(EnumQueueName.plugins, config.RABBITMQ.DEFAULT_CONCURRENCY, async job => {
+    await RabbitMQHelper.process(EnumQueueName.plugins, config.RABBITMQ.PLUGINS_CONCURRENCY, async job => {
       const { address, network } = job.params as IQueueDao
       const plugin = await Models.Plugin.findByAddress(address, network)
 

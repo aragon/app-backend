@@ -12,7 +12,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { ProxyMember } from '@modules/proxyMember'
 import config from '@config'
 import utils from '@helpers/utils'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import { ProxyToken } from '@modules/proxyToken'
 import { ProposalList } from '@test/mock/fakeProposal'
 import ProposalHelper from '@helpers/proposal'
@@ -94,7 +94,7 @@ describe('Indexer: ProposalHandler', () => {
         startDate: 0,
         endDate: 0,
       })
-      sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
+      const incrementalIdStub = sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       const stubActions = sandbox.spy(ProposalHandler, 'parseActions')
       const stubMemberMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
@@ -116,6 +116,12 @@ describe('Indexer: ProposalHandler', () => {
       expect(savedProposal.rawActions[0].value).to.eq('0')
       expect(savedProposal.rawActions[0].data).to.eq('0xdata')
       expect(savedProposal.snapshot.totalSupply).to.eq('1000')
+      expect(incrementalIdStub.calledOnce).to.be.true
+      expect(incrementalIdStub.args[0][0]).to.deep.eq({
+        pluginAddress: '0xplugin-address',
+        network,
+        proposalIndex: '1',
+      })
 
       expect(
         updateActivityStub.calledWith({
@@ -1894,21 +1900,17 @@ describe('Indexer: ProposalHandler', () => {
         address: '0xPlugin',
       })
 
-      sandbox.stub(Models.Proposal, 'findLatestProposal').resolves({
-        blockNumber: 100,
-        proposalIndex: 1,
-      })
-
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
       const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([])
       const result = await ProposalHandler.findIncrementalId({
         pluginAddress: '0xPlugin',
         network: NetworksEnum.ethereumSepolia,
+        proposalIndex: '0',
       } as any)
 
-      expect(result).to.be.eq(false)
-      expect(loggerErrorStub.calledOnceWith('Proposal not found' as any)).to.be.true
+      expect(result).to.be.eq(-1)
+      expect(loggerErrorStub.calledOnceWith('Error findIncrementalId not found' as any)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
 
@@ -1916,11 +1918,6 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         blockNumber: 100,
         address: '0xPlugin',
-      })
-
-      sandbox.stub(Models.Proposal, 'findLatestProposal').resolves({
-        blockNumber: 100,
-        proposalIndex: 1,
       })
 
       const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([

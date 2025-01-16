@@ -235,7 +235,7 @@ export default class DaoMemberMapping extends Model {
     },
     tOpts?: SaveOptions,
   ) {
-    return await this.findOne({ memberAddress, daoAddress, pluginAddress, network }, tOpts)
+    return await this.findOne({ memberAddress, daoAddress, pluginAddress, network }, null, tOpts)
   }
 
   static async findAllMembersOfPlugin(
@@ -248,7 +248,7 @@ export default class DaoMemberMapping extends Model {
     },
     tOpts?: SaveOptions,
   ) {
-    return await this.find({ pluginAddress, network }, tOpts)
+    return await this.find({ pluginAddress, network }, null, tOpts)
   }
 
   async update(params: Partial<DaoMemberMapping>, tOpts?: SaveOptions) {
