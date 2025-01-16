@@ -517,7 +517,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `Indexer-${NetworksEnum.ethereumMainnet}`,
+        service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
   })
@@ -551,7 +551,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `Indexer-${NetworksEnum.ethereumMainnet}`,
+        service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
   })
@@ -576,7 +576,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `Indexer-${NetworksEnum.ethereumMainnet}`,
+        service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
     expect(startBlock).to.equal(lastSync)
@@ -601,7 +601,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `Indexer-${NetworksEnum.ethereumMainnet}`,
+        service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
     expect(startBlock).to.equal(100)
@@ -635,7 +635,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `Indexer-${NetworksEnum.ethereumMainnet}`,
+        service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
     expect(startBlock).to.equal(defaultFromBlock)
