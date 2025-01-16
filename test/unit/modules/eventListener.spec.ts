@@ -102,7 +102,7 @@ describe('Module: EventListener', () => {
       // Prepopulate the database
       const rawConfigIndexer = {
         network: NetworksEnum.ethereumMainnet,
-        service: `Indexer-${NetworksEnum.ethereumMainnet}`,
+        service: `indexer-${NetworksEnum.ethereumMainnet}`,
         lastSync: 0,
       }
       const configIndexerDoc = await Models.ConfigIndexer.create(rawConfigIndexer)
