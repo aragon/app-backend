@@ -52,7 +52,7 @@ const IPFSModule = {
       return await retry(
         async () => {
           const controller = new AbortController()
-          const timeout = opts?.timeout || config.IPFS.METADATA_FETCH_DELAY
+          const timeout = opts?.timeout || config.IPFS.METADATA_FETCH_TIMEOUT
           const timeoutId = setTimeout(() => controller.abort(), timeout)
 
           try {
@@ -73,7 +73,7 @@ const IPFSModule = {
         {
           retries: opts?.retries || config.IPFS.METADATA_FETCH_RETRY,
           delay: opts?.delay || config.IPFS.METADATA_FETCH_DELAY,
-          timeout: opts?.timeout || config.IPFS.METADATA_FETCH_DELAY,
+          timeout: opts?.timeout || config.IPFS.METADATA_FETCH_TIMEOUT,
         },
       )
     } catch (error) {
