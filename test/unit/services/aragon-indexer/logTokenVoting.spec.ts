@@ -7,7 +7,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { NetworksEnum } from '@types'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
-import {ProxyToken} from "@modules/proxyToken";
+import { ProxyToken } from '@modules/proxyToken'
 
 describe('Indexer: LogTokenVoting', () => {
   let sandbox: SinonSandbox
@@ -32,7 +32,7 @@ describe('Indexer: LogTokenVoting', () => {
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
-      const stubToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({blockNumber: 10} as any)
+      const stubToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ blockNumber: 10 } as any)
 
       await LogTokenVoting.start(plugin)
 
