@@ -27,7 +27,7 @@ export const LogAdmin = {
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any) => LogAdmin.processError(error, plugin),
-      logService: `Admin-${plugin.network}-${plugin.address}`,
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
     await crawler.crawl()

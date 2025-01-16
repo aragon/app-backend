@@ -12,18 +12,27 @@ const llo = logger.logMeta.bind(null, { service: 'modules:ProxyMember' })
 export const ProxyMember = {
   createMember: async (memberAddress: HexAddress): Promise<Member> => {
     const parsedMemberAddress = Web3Helper.parseAddress(memberAddress) || memberAddress
-    const existingMember = await Models.Member.findExistingLog({ address: parsedMemberAddress })
 
-    if (!existingMember) {
-      const rawMember = {
-        address: memberAddress,
-        ens: await EnsHelper.getEnsWithUniversalResolver(memberAddress),
+    return await DbTx.executeTxFn(async ({ session }) => {
+      const existingMember = await Models.Member.findExistingLog({ address: parsedMemberAddress }, { session })
+
+      if (!existingMember) {
+        const rawMember = {
+          address: memberAddress,
+          ens: await EnsHelper.getEnsWithUniversalResolver(memberAddress),
+        }
+
+        const newMember = await Models.Member.create(rawMember, { session })
+
+        await session.commitTransaction()
+        await session.endSession()
+
+        logger.verbose('Create document - New Member', llo({ documentId: newMember.id }))
+        return newMember
       }
 
-      return await DbOperations.createDocument(Models.Member, rawMember, rawMember, 'New Member', llo)
-    }
-
-    return existingMember
+      return existingMember
+    })
   },
 
   createMetrics: async ({
@@ -35,14 +44,22 @@ export const ProxyMember = {
     pluginAddress: HexAddress
     network: NetworksEnum
   }) => {
-    const metrics = await Models.MemberMetrics.findOne({ address, pluginAddress, network })
+    return await DbTx.executeTxFn(async ({ session }) => {
+      const metrics = await Models.MemberMetrics.findOne({ address, pluginAddress, network }, null, { session })
 
-    if (!metrics) {
-      const data = { address, pluginAddress, network }
-      return await DbOperations.createDocument(Models.MemberMetrics, data, data, 'New Member metrics', llo)
-    }
+      if (metrics) {
+        return metrics
+      }
 
-    return metrics
+      const rawMetrics = { address, pluginAddress, network }
+      const newMetrics = await Models.MemberMetrics.create(rawMetrics, { session })
+
+      await session.commitTransaction()
+      await session.endSession()
+
+      logger.verbose('Create document - New MemberMetrics', llo({ documentId: newMetrics.id }))
+      return newMetrics
+    })
   },
 
   getBalances: async ({
@@ -54,14 +71,22 @@ export const ProxyMember = {
     tokenAddress: HexAddress
     network: NetworksEnum
   }) => {
-    const token = await Models.MemberBalance.findByAddressAndToken({ address, tokenAddress, network })
+    return await DbTx.executeTxFn(async ({ session }) => {
+      const token = await Models.MemberBalance.findByAddressAndToken({ address, tokenAddress, network }, { session })
 
-    if (!token) {
+      if (token) {
+        return token
+      }
+
       const data = { address, tokenAddress, network }
-      return await DbOperations.createDocument(Models.MemberBalance, data, data, 'New Member balance', llo)
-    }
+      const newMetrics = await Models.MemberBalance.create(data, { session })
 
-    return token
+      await session.commitTransaction()
+      await session.endSession()
+
+      logger.verbose('Create document - New MemberBalance', llo({ documentId: newMetrics.id }))
+      return newMetrics
+    })
   },
 
   updateActivity: async ({
@@ -133,6 +158,7 @@ export const ProxyMember = {
       const updatedMetrics = await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await metricUpdateFn.call(metrics, 1, { session })
         await session.commitTransaction()
+        await session.endSession()
         logger.verbose('Updated Member DAO metrics', { logId: logDb.id })
         return logDb
       })
@@ -148,11 +174,14 @@ export const ProxyMember = {
     daoAddress: HexAddress
     pluginAddress: HexAddress
     network: NetworksEnum
-  }): Promise<Member> => {
+  }): Promise<Member | null> => {
+    const memberAddress = Web3Helper.parseAddress(params.memberAddress)
+    if (!memberAddress) return null
+
     const member = await ProxyMember.createMember(params.memberAddress)
 
     const queryParams = {
-      memberAddress: member.address,
+      memberAddress: params.memberAddress,
       daoAddress: params.daoAddress,
       pluginAddress: params.pluginAddress,
       network: params.network,
@@ -179,11 +208,14 @@ export const ProxyMember = {
     daoAddress: HexAddress
     pluginAddress: HexAddress
     network: NetworksEnum
-  }): Promise<Member> => {
+  }): Promise<Member | null> => {
+    const memberAddress = Web3Helper.parseAddress(params.memberAddress)
+    if (!memberAddress) return null
+
     const member = await ProxyMember.createMember(params.memberAddress)
 
     const queryParams = {
-      memberAddress: member.address,
+      memberAddress: params.memberAddress,
       daoAddress: params.daoAddress,
       pluginAddress: params.pluginAddress,
       network: params.network,

@@ -87,7 +87,6 @@ const DbTx = {
         return await retryFn()
       } catch (error) {
         const index = i++
-        logger.error('atomic transaction retry', llo({ error, index }))
         return await DbTx.handleTxError(error, retryFn, index)
       }
     } else if (DbTx.isErrorNotSupported(error)) {

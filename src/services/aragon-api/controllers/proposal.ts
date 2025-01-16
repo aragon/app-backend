@@ -11,7 +11,7 @@ import {
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import { type ICanCreateProposal } from '@src/types/voting'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import config from '@config'
 import logger from '@logger'
 

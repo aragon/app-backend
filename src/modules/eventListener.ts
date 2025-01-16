@@ -108,7 +108,7 @@ class EventListener {
     } finally {
       const existingConfig = await Models.ConfigIndexer.findExistingLog({
         network: this.network,
-        service: `Indexer-${this.network}`,
+        service: `indexer-${this.network}`,
       })
 
       await DbOperations.updateDocument(

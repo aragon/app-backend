@@ -6,18 +6,20 @@ import ManualSyncPluginEvents from '@tools/manualSyncPluginEvents'
 import ManualSyncProposals from '@tools/manualSyncProposals'
 import ManualSyncTokens from '@tools/manualSyncTokens'
 import ManualSyncProposalAction from '@tools/manualSyncProposalAction'
-import ManualTrigger from '@tools/maulaTrigger'
+import ManualTrigger from '@tools/manualTrigger'
 import ManualSyncProposalType from '@tools/manualSyncProposalType'
 import ManualSyncProposalTotalSupply from '@tools/manualSyncProposalTotalSupply'
 import ToolsRevertDbAtBlock from '@tools/revertDbAtBlock'
 import ToolsManualSyncProposalIndex from '@tools/manualSyncProposalIndex'
 import ToolsMigratePluginSlug from '@tools/migratePluginSlug'
 import ToolsMemberMetrics from '@tools/memberMetrics'
+import ToolsEnsFetch from '@tools/ensFetch'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
 
 const runners = {
+  ToolsEnsFetch,
   ToolsMemberMetrics,
   ToolsMigratePluginSlug,
   ManualSyncProposalTotalSupply,

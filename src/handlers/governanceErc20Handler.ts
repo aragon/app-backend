@@ -9,7 +9,7 @@ import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:GovernanceErc20Handler' })
@@ -43,9 +43,8 @@ export const GovernanceErc20Handler = {
     }
 
     try {
-      const member = await ProxyMember.createMember(parsedEvent.args.delegate)
-      const side =
-        parsedEvent.args.previousBalance < parsedEvent.args.newBalance ? ITransferSide.incoming : ITransferSide.outgoing
+      const memberAddress = parsedEvent.args.delegate
+      const member = await ProxyMember.createMember(memberAddress)
 
       const existingLog = await Models.MemberTransaction.findExistingLog({
         network: info.network,
@@ -61,7 +60,7 @@ export const GovernanceErc20Handler = {
       }
 
       let tokenBalance = await ProxyMember.getBalances({
-        address: parsedEvent.args.delegate,
+        address: memberAddress,
         tokenAddress: info.address,
         network: info.network,
       })
@@ -76,8 +75,6 @@ export const GovernanceErc20Handler = {
         return logDb
       })
 
-      const { from, to } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
-
       const memberBalance = await Web3Helper.getTokenBalanceAtBlock({
         address: member.address,
         tokenAddress: info.address,
@@ -89,7 +86,7 @@ export const GovernanceErc20Handler = {
       if (newVotingPower > 0n) {
         // add to dao
         await ProxyMember.addToDao({
-          memberAddress: member?.address,
+          memberAddress,
           daoAddress: plugin.daoAddress,
           pluginAddress: plugin.address,
           network: info.network,
@@ -98,7 +95,7 @@ export const GovernanceErc20Handler = {
         if (BigInt(memberBalance) === 0n && newVotingPower === 0n) {
           // member not part of the dao anymore
           await ProxyMember.removeFromDao({
-            memberAddress: member?.address,
+            memberAddress,
             daoAddress: plugin.daoAddress,
             pluginAddress: plugin.address,
             network: info.network,
@@ -106,12 +103,24 @@ export const GovernanceErc20Handler = {
         }
       }
 
+      const { from, to } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
+
       if (from === utils.zeroAddress || to === utils.zeroAddress) {
         // Note we skip all delegation happened on transfer, mint, burn, etc
         return
       }
 
-      // only if a member have delegate we store the delegate transaction
+      let side: ITransferSide
+      if (memberAddress === from) {
+        side = ITransferSide.outgoing
+      } else if (memberAddress === to) {
+        side = ITransferSide.incoming
+      } else {
+        // cannot detect side
+        logger.error('Error cannot detect delegation side', llo({ from, to, memberAddress, info }))
+        return
+      }
+
       await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await Models.MemberTransaction.create(
           {
@@ -140,7 +149,7 @@ export const GovernanceErc20Handler = {
         return logDb
       })
 
-      if (side === ITransferSide.incoming && to === member.address) {
+      if (side === ITransferSide.incoming) {
         await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
           memberAddress: member.address,
           pluginAddress: plugin.address,
@@ -153,7 +162,7 @@ export const GovernanceErc20Handler = {
           network: info.network,
           blockNumber: info.blockNumber,
         })
-      } else if (side === ITransferSide.outgoing && from === member.address) {
+      } else if (side === ITransferSide.outgoing) {
         await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
           memberAddress: member.address,
           pluginAddress: plugin.address,

@@ -47,7 +47,6 @@ const AragonTransactionsService: IExtendedService = {
       const block = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber)),
       )
-      logger.verbose('New block', llo({ network, blockNumber }))
       await BlockHandler.processNewBlock(block, network)
     } catch (error) {
       logger.warn('Error fetching block data', llo({ network, blockNumber, error }))

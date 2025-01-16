@@ -110,19 +110,22 @@ export default class Vote extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, tOpts)
+    return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  static async findVotes({
-    proposalIndex,
-    pluginAddress,
-    network,
-  }: {
-    proposalIndex: string
-    pluginAddress: HexAddress
-    network: NetworksEnum
-  }) {
-    return await this.find({ proposalIndex, pluginAddress, network })
+  static async findVotes(
+    {
+      proposalIndex,
+      pluginAddress,
+      network,
+    }: {
+      proposalIndex: string
+      pluginAddress: HexAddress
+      network: NetworksEnum
+    },
+    tOpts?: SaveOptions,
+  ) {
+    return await this.find({ proposalIndex, pluginAddress, network }, null, tOpts)
   }
 
   static async findVoteOnPlugin({

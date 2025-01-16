@@ -11,6 +11,7 @@ import CovalentHelper from '@helpers/covalent'
 import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
+import { type ClientSession, type SaveOptions } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -26,20 +27,25 @@ export const ProxyToken = {
     network: NetworksEnum,
     forceUpdate = false,
   ): Promise<null | Token> => {
-    const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
+    return await DbTx.executeTxFn(async ({ session }) => {
+      const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
 
-    // Check for existing token
-    const existingToken = await Models.Token.findExistingLog({
-      address: parsedTokenAddress,
-      network,
+      // Check for existing token
+      const existingToken = await Models.Token.findExistingLog(
+        {
+          address: parsedTokenAddress,
+          network,
+        },
+        { session },
+      )
+
+      if (existingToken) {
+        return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate, session)
+      }
+
+      // Create a new token
+      return await ProxyToken.createNewToken(parsedTokenAddress, network, session)
     })
-
-    if (existingToken) {
-      return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate)
-    }
-
-    // Create a new token
-    return await ProxyToken.createNewToken(parsedTokenAddress, network)
   },
 
   updateTokenMetrics: async (
@@ -47,6 +53,7 @@ export const ProxyToken = {
     tokenAddress: HexAddress,
     network: NetworksEnum,
     forceUpdate: boolean,
+    session?: ClientSession,
   ): Promise<Token> => {
     const shouldUpdate = !token.skipFetchRate && token.lastUpdatedAt < dayjs().subtract(6, 'hours').toDate()
 
@@ -66,14 +73,14 @@ export const ProxyToken = {
         })
       }
 
-      await token.save()
+      await token.save({ session })
       logger.verbose('Updated Token Metrics', llo({ logId: token.id }))
     }
 
     return token
   },
 
-  createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<Token> => {
+  createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum, session?: ClientSession): Promise<Token> => {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
     const tokenRate = await RateModule.fetchRate(tokenAddress, network)
     const contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
@@ -112,18 +119,20 @@ export const ProxyToken = {
       rawToken.type = tokenRate.type
     }
 
-    rawToken.mintableByDao = await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network)
+    rawToken.mintableByDao = await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session)
 
-    return DbTx.executeTxFn(async ({ session }) => {
-      const savedToken = await Models.Token.create(rawToken, { session })
-      await session.commitTransaction()
-      logger.verbose('New Token Created', llo({ logId: savedToken.id }))
-      return savedToken
-    })
+    const savedToken = await Models.Token.create(rawToken, { session })
+    await session!.commitTransaction()
+    logger.verbose('New Token Created', llo({ logId: savedToken.id }))
+    return savedToken
   },
 
-  checkPluginMintAuthorizationIsDao: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<boolean> => {
-    const plugin = await Models.Plugin.findByTokenAddress(tokenAddress, network)
+  checkPluginMintAuthorizationIsDao: async (
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    session?: ClientSession,
+  ): Promise<boolean> => {
+    const plugin = await Models.Plugin.findByTokenAddress(tokenAddress, network, session as SaveOptions)
     if (!plugin) {
       return false
     }

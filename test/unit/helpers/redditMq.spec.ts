@@ -1,5 +1,5 @@
 import RabbitMQ from '@modules/rabbitMQ'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import { expect } from 'chai'
 import sinon, { SinonSandbox } from 'sinon'
 import { ConsumeMessage } from 'amqplib'
@@ -23,8 +23,10 @@ describe('Helpers:RabbitMQ', () => {
     }
     mockRabbitMQ = {
       getChannel: sandbox.stub().returns(mockChannel),
+      isConnected: sandbox.stub(),
     }
     sandbox.replace(RabbitMQ, 'getChannel', mockRabbitMQ.getChannel)
+    sandbox.replace(RabbitMQ, 'isConnected', mockRabbitMQ.isConnected)
 
     mockLogger = {
       warn: sandbox.stub(),
@@ -74,35 +76,14 @@ describe('Helpers:RabbitMQ', () => {
         onMessage(fakeMsg)
       })
 
+      mockRabbitMQ.isConnected.returns(true)
+
       await RabbitMQHelper.process('testQueue' as EnumQueueName, 1, messageHandler)
 
       await new Promise(resolve => setImmediate(resolve))
 
       expect(messageHandler.calledWith(fakeMessageContent)).to.be.true
       expect(mockChannel.ack.calledWith(fakeMsg)).to.be.true
-    })
-
-    it('should handle duplicate messages correctly', async () => {
-      const messageHandler = sandbox.stub().resolves()
-      const fakeMessageContent = { id: '123', data: 'test' }
-      const fakeMsg: ConsumeMessage = {
-        content: Buffer.from(JSON.stringify(fakeMessageContent)),
-        fields: {} as any,
-        properties: {} as any,
-      }
-
-      mockChannel.consume.callsFake((queue, onMessage) => {
-        onMessage(fakeMsg)
-        onMessage(fakeMsg) // Duplicate message
-      })
-
-      await RabbitMQHelper.process('testQueue' as EnumQueueName, 1, messageHandler)
-
-      await new Promise(resolve => setImmediate(resolve))
-
-      expect(messageHandler.calledOnce).to.be.true
-      expect(mockLogger.warn.calledWith('Duplicate message in queue, skipping')).to.be.true
-      expect(mockChannel.ack.calledTwice).to.be.true
     })
 
     it('should acknowledge messages after processing', async () => {
@@ -117,6 +98,8 @@ describe('Helpers:RabbitMQ', () => {
       mockChannel.consume.callsFake((queue, onMessage) => {
         onMessage(fakeMsg)
       })
+
+      mockRabbitMQ.isConnected.returns(true)
 
       await RabbitMQHelper.process('testQueue' as EnumQueueName, 1, messageHandler)
 
@@ -138,6 +121,8 @@ describe('Helpers:RabbitMQ', () => {
       mockChannel.consume.callsFake((queue, onMessage) => {
         onMessage(fakeMsg)
       })
+
+      mockRabbitMQ.isConnected.returns(true)
 
       await RabbitMQHelper.process('testQueue' as EnumQueueName, 1, messageHandler)
 
@@ -165,12 +150,30 @@ describe('Helpers:RabbitMQ', () => {
       expect(mockChannel.assertQueue.calledWith('testQueue', { durable: true })).to.be.true
     })
 
-    it('should send message without waiting for a response', async () => {
+    it('should handle duplicate messages and skip the second one', async () => {
+      const queueName = 'testQueueX' as EnumQueueName
       const message = { id: '123', data: 'test' }
-      await RabbitMQHelper.sendMessage('testQueue' as EnumQueueName, message as any)
+
+      sandbox.stub(RabbitMQHelper, 'executeWithMutex').callsFake(async callback => callback())
+
+      await RabbitMQHelper.sendMessage(queueName, message as any)
+      await RabbitMQHelper.sendMessage(queueName, message as any)
+
+      expect(RabbitMQHelper.queuedMessages.has(`${queueName}-${message.id}`)).to.be.true
 
       expect(
-        mockChannel.sendToQueue.calledWith('testQueue', Buffer.from(JSON.stringify(message)), { persistent: true }),
+        mockChannel.sendToQueue.calledOnceWith(queueName, Buffer.from(JSON.stringify(message)), { persistent: true }),
+      ).to.be.true
+
+      RabbitMQHelper.queuedMessages.delete(`${queueName}-${message.id}`)
+    })
+
+    it('should send message without waiting for a response', async () => {
+      const message = { id: '123', data: 'test' }
+      await RabbitMQHelper.sendMessage('testQueue1' as EnumQueueName, message as any)
+
+      expect(
+        mockChannel.sendToQueue.calledWith('testQueue1', Buffer.from(JSON.stringify(message)), { persistent: true }),
       ).to.be.true
     })
 
@@ -194,7 +197,7 @@ describe('Helpers:RabbitMQ', () => {
         usedCorrelationId = options.correlationId
       })
 
-      const sendMessagePromise = RabbitMQHelper.sendMessage('testQueue' as EnumQueueName, message as any, {
+      const sendMessagePromise = RabbitMQHelper.sendMessage('testQueue2' as EnumQueueName, message as any, {
         waitResponse: true,
       })
 
@@ -226,7 +229,7 @@ describe('Helpers:RabbitMQ', () => {
       expect(result).to.deep.equal(responseMessage)
       expect(
         mockChannel.sendToQueue.calledWith(
-          'testQueue',
+          'testQueue2',
           Buffer.from(JSON.stringify(message)),
           sinon.match({
             persistent: true,

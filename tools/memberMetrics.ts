@@ -65,7 +65,7 @@ export const ToolsMemberMetrics: IExtendedService = {
     // delegate sent
     const sentTxs = await Models.MemberTransaction.find({
       address: member.address,
-      side: ITransferSide.incoming,
+      side: ITransferSide.outgoing,
       type: ITransferType.delegate,
       from: member.address,
       to: { $ne: utils.zeroAddress },
