@@ -5,9 +5,8 @@ import sinon, { SinonSandbox } from 'sinon'
 import { ConsumeMessage } from 'amqplib'
 import { EnumQueueName } from '@types'
 import logger from '@logger'
-import rabbitMQ from '@modules/rabbitMQ'
 
-describe.only('Helpers:RabbitMQ', () => {
+describe('Helpers:RabbitMQ', () => {
   let sandbox: SinonSandbox
   let mockChannel: any
   let mockRabbitMQ: any
