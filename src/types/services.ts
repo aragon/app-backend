@@ -1,4 +1,5 @@
 import { type IPluginInterfaceType } from '@src/types/plugin'
+import { type NetworksEnum } from '@src/types/networks'
 
 export enum EnumConnection {
   MONGODB = 'MONGODB',
@@ -27,4 +28,4 @@ export enum IEnumIndexerService {
 }
 
 export type IEnumIndexerServiceStatic =
-  `${'indexer' | 'token' | 'deposit' | 'dao' | IPluginInterfaceType}-${string}-${string}`
+  `${'indexer' | 'token' | 'deposit' | 'dao' | NetworksEnum | IPluginInterfaceType}-${string}-${string}`
