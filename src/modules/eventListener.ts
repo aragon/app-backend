@@ -110,7 +110,7 @@ class EventListener {
         const existingConfig = await Models.ConfigIndexer.findExistingLog({
           network: this.network,
           service: `indexer-${this.network}`,
-        })
+        }, { session })
 
         await existingConfig.update({ lastSync: blockNumber }, { session })
 
