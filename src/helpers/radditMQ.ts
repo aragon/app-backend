@@ -50,21 +50,23 @@ export const RabbitMQHelper = {
         const uniqueJobKey = `${queueName}-${message.id}` // Unique key per queue and message ID
 
         const release = await this.mutex.acquire()
-        if (this.activeJobs.has(uniqueJobKey)) {
-          logger.warn('Duplicate message in queue, skipping', llo({ uniqueJobKey }))
+        try {
+          if (this.activeJobs.has(uniqueJobKey)) {
+            logger.warn('Duplicate message in queue, skipping', llo({ uniqueJobKey, messageId: message.id }))
 
-          if (RabbitMQ.isConnected() && channel === RabbitMQ.getChannel()) {
-            channel.ack(msg)
-          } else {
-            logger.warn('Channel closed before ack could be sent', llo({ uniqueJobKey }))
+            if (RabbitMQ.isConnected() && channel === RabbitMQ.getChannel()) {
+              channel.ack(msg)
+            } else {
+              logger.warn('Channel closed before ack could be sent', llo({ uniqueJobKey }))
+            }
+            return
           }
-          release()
-          return
-        }
 
-        // Mark this message ID as being processed for the specific queue
-        this.activeJobs.set(uniqueJobKey, true)
-        release()
+          // Mark this message ID as being processed for the specific queue
+          this.activeJobs.set(uniqueJobKey, true)
+        } finally {
+          release()
+        }
 
         try {
           const response = await messageHandler(message) // Process the message using the handler
@@ -136,6 +138,10 @@ export const RabbitMQHelper = {
               const response = JSON.parse(msg.content.toString())
               resolve(response)
               channel.ack(msg)
+              this.mutex.acquire().then(release => {
+                this.queuedMessages.delete(uniqueQueueKey)
+                release()
+              })
             }
           },
           { noAck: false },
