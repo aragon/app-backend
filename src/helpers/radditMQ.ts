@@ -11,6 +11,7 @@ const llo = logger.logMeta.bind(null, { service: 'RabbitMQHelper' })
 
 export const RabbitMQHelper = {
   activeJobs: new Map<string, boolean>(),
+  queuedMessages: new Set<string>(),
   mutex: new Mutex(),
 
   /**
@@ -75,10 +76,13 @@ export const RabbitMQHelper = {
         } catch (error) {
           logger.error('Error processing message:', llo({ error, queueName }))
         } finally {
-          const release = await this.mutex.acquire()
-          this.activeJobs.delete(uniqueJobKey) // Remove the job from active jobs map
-          release()
-
+          const releaseFinal = await this.mutex.acquire()
+          try {
+            this.activeJobs.delete(uniqueJobKey) // Remove the job from active jobs map
+            this.queuedMessages.delete(uniqueJobKey) // Remove from queuedMessages
+          } finally {
+            releaseFinal()
+          }
           if (RabbitMQ.isConnected() && channel === RabbitMQ.getChannel()) {
             channel.ack(msg) // Acknowledge that the message has been processed
           } else {
@@ -100,6 +104,19 @@ export const RabbitMQHelper = {
 
     // Ensure the queue exists
     await channel.assertQueue(queueName, { durable: true })
+    const uniqueQueueKey = `${queueName}-${message.id}` // Unique key per queue and message ID
+
+    const release = await this.mutex.acquire()
+    try {
+      if (this.queuedMessages.has(uniqueQueueKey)) {
+        logger.warn('Skipping duplicate message', llo({ uniqueQueueKey }))
+        return
+      }
+      // Mark it as queued
+      this.queuedMessages.add(uniqueQueueKey)
+    } finally {
+      release()
+    }
 
     if (opts.waitResponse) {
       // Setup for request-response pattern
