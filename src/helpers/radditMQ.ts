@@ -10,14 +10,9 @@ type MessageHandler = (message: IQueueMessage) => Promise<any>
 const llo = logger.logMeta.bind(null, { service: 'RabbitMQHelper' })
 
 export const RabbitMQHelper = {
-  activeJobs: new Map<string, boolean>(),
   queuedMessages: new Set<string>(),
   mutex: new Mutex(),
 
-  /**
-   * Ensures RabbitMQ has a valid connection/channel. Attempts to reconnect once if not connected.
-   * Throws an error if it cannot establish a channel.
-   */
   async ensureChannelConnected() {
     if (!RabbitMQ.isConnected()) {
       logger.warn('RabbitMQ not connected. Attempting to connect...', llo({}))
@@ -47,26 +42,7 @@ export const RabbitMQHelper = {
         if (msg === null) return // Exit if the message is null
 
         const message: IQueueMessage = JSON.parse(msg.content.toString())
-        const uniqueJobKey = `${queueName}-${message.id}` // Unique key per queue and message ID
-
-        const release = await this.mutex.acquire()
-        try {
-          if (this.activeJobs.has(uniqueJobKey)) {
-            logger.warn('Duplicate message in queue, skipping', llo({ uniqueJobKey, messageId: message.id }))
-
-            if (RabbitMQ.isConnected() && channel === RabbitMQ.getChannel()) {
-              channel.ack(msg)
-            } else {
-              logger.warn('Channel closed before ack could be sent', llo({ uniqueJobKey }))
-            }
-            return
-          }
-
-          // Mark this message ID as being processed for the specific queue
-          this.activeJobs.set(uniqueJobKey, true)
-        } finally {
-          release()
-        }
+        const uniqueQueueKey = `${queueName}-${message.id}` // Unique key per queue and message ID
 
         try {
           const response = await messageHandler(message) // Process the message using the handler
@@ -76,15 +52,13 @@ export const RabbitMQHelper = {
             })
           }
         } catch (error) {
-          logger.error('Error processing message:', llo({ error, queueName }))
+          logger.error('Error processing message:', llo({ error, queueName, messageId: message.id }))
         } finally {
-          const releaseFinal = await this.mutex.acquire()
-          try {
-            this.activeJobs.delete(uniqueJobKey) // Remove the job from active jobs map
-            this.queuedMessages.delete(uniqueJobKey) // Remove from queuedMessages
-          } finally {
-            releaseFinal()
-          }
+          // Ensure cleanup happens regardless of resolve or reject
+          await this.executeWithMutex(() => {
+            this.queuedMessages.delete(uniqueQueueKey)
+          })
+
           if (RabbitMQ.isConnected() && channel === RabbitMQ.getChannel()) {
             channel.ack(msg) // Acknowledge that the message has been processed
           } else {
@@ -94,6 +68,15 @@ export const RabbitMQHelper = {
       },
       { noAck: false },
     )
+  },
+
+  async executeWithMutex<T>(callback: () => Promise<T> | T): Promise<T> {
+    const release = await this.mutex.acquire()
+    try {
+      return await callback()
+    } finally {
+      release()
+    }
   },
 
   async sendMessage(queueName: EnumQueueName, message: IQueueMessage, opts: ISendOptions = {}): Promise<void> {
@@ -108,39 +91,51 @@ export const RabbitMQHelper = {
     await channel.assertQueue(queueName, { durable: true })
     const uniqueQueueKey = `${queueName}-${message.id}` // Unique key per queue and message ID
 
-    const release = await this.mutex.acquire()
-    try {
+    // Use the mutex utility to handle queuedMessages safely
+    const isDuplicate = await this.executeWithMutex(() => {
       if (this.queuedMessages.has(uniqueQueueKey)) {
-        logger.warn('Skipping duplicate message', llo({ uniqueQueueKey }))
-        return
+        logger.warn('Skipping duplicate message', llo({ uniqueQueueKey, messageId: message.id }))
+        return true
       }
       // Mark it as queued
       this.queuedMessages.add(uniqueQueueKey)
-    } finally {
-      release()
+      return false
+    })
+
+    if (isDuplicate) {
+      return // Duplicate found; message not sent
     }
 
     if (opts.waitResponse) {
-      // Setup for request-response pattern
       const replyQueue = await channel.assertQueue('', { exclusive: true })
       const correlationId = uuidv4()
 
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
+      return new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(async () => {
+          // Clean up the queuedMessages in case of timeout
+          await this.executeWithMutex(() => {
+            this.queuedMessages.delete(uniqueQueueKey)
+          })
           reject(new Error('Response timed out.'))
         }, opts.timeout || 5000)
 
         channel.consume(
           replyQueue.queue,
-          (msg: ConsumeMessage | null) => {
+          async (msg: ConsumeMessage | null) => {
             if (msg && msg.properties.correlationId === correlationId) {
               clearTimeout(timeout)
               const response = JSON.parse(msg.content.toString())
               resolve(response)
-              channel.ack(msg)
-              this.mutex.acquire().then(release => {
+
+              if (RabbitMQ.isConnected() && channel === RabbitMQ.getChannel()) {
+                channel.ack(msg) // Acknowledge that the message has been processed
+              } else {
+                logger.warn('Channel closed before ack could be sent', llo({ queueName, messageId: message.id }))
+              }
+
+              // Cleanup after successful response
+              await this.executeWithMutex(() => {
                 this.queuedMessages.delete(uniqueQueueKey)
-                release()
               })
             }
           },
@@ -154,7 +149,7 @@ export const RabbitMQHelper = {
         })
       })
     } else {
-      // Send message without waiting for a response
+      // Send the message without waiting for a response
       channel.sendToQueue(queueName, Buffer.from(JSON.stringify(message)), { persistent: true })
       return Promise.resolve()
     }
