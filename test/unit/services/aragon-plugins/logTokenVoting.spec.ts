@@ -26,7 +26,7 @@ describe('Plugins: LogTokenVoting', () => {
         address: '0x123',
         tokenAddress: '0xtoken',
         network: NetworksEnum.ethereumSepolia,
-      } as any)
+      } as any, 'log')
       expect(errorStub.calledOnce).to.be.true
       expect(errorStub.calledWith('Error LogTokenVoting' as any)).to.be.true
     })
