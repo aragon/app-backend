@@ -22,11 +22,15 @@ describe('Plugins: LogTokenVoting', () => {
     it('should process error', async () => {
       const errorStub = sandbox.stub(logger, 'error')
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ blockNumber: 1 } as any)
-      await LogTokenVoting.processError('error', {
-        address: '0x123',
-        tokenAddress: '0xtoken',
-        network: NetworksEnum.ethereumSepolia,
-      } as any, 'log')
+      await LogTokenVoting.processError(
+        'error',
+        {
+          address: '0x123',
+          tokenAddress: '0xtoken',
+          network: NetworksEnum.ethereumSepolia,
+        } as any,
+        'log',
+      )
       expect(errorStub.calledOnce).to.be.true
       expect(errorStub.calledWith('Error LogTokenVoting' as any)).to.be.true
     })
