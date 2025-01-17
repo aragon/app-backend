@@ -1163,7 +1163,7 @@ describe('Helpers:Web3', () => {
       const result = await MockedWeb3Helper.getTokenInfo('0xTokenAddress', NetworksEnum.ethereumMainnet)
 
       expect(result).to.deep.equal({
-        decimals: "0",
+        decimals: '0',
         address: '0xTokenAddress',
       })
 
