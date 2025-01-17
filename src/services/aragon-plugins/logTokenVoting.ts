@@ -25,7 +25,7 @@ export const LogTokenVoting = {
       events: [...configTVLogs],
       address: [plugin.address],
       fromBlock: plugin?.blockNumber,
-      onError: async (error: any) => LogTokenVoting.processError(error, plugin),
+      onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
       logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
@@ -35,7 +35,7 @@ export const LogTokenVoting = {
       events: [...configGovLogs],
       address: [plugin.tokenAddress],
       fromBlock: token?.blockNumber,
-      onError: async (error: any) => LogTokenVoting.processError(error, plugin),
+      onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
       logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}`,
       stopOnError: true,
     })
@@ -48,10 +48,11 @@ export const LogTokenVoting = {
     )
   },
 
-  processError: async (error: any, plugin: Plugin) => {
+  processError: async (error: any, plugin: Plugin, log: any) => {
     logger.error(
       'Error LogTokenVoting',
       llo({
+        log,
         error,
         plugin,
       }),

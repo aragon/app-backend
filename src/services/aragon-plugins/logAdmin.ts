@@ -26,7 +26,7 @@ export const LogAdmin = {
       events: configLogs,
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
-      onError: async (error: any) => LogAdmin.processError(error, plugin),
+      onError: async (error: any, log: any) => LogAdmin.processError(error, plugin, log),
       logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
@@ -35,10 +35,11 @@ export const LogAdmin = {
     logger.verbose('End LogAdmin', llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },
 
-  processError: async (error: any, plugin: Plugin) => {
+  processError: async (error: any, plugin: Plugin, log: any) => {
     logger.error(
       'Error LogAdmin',
       llo({
+        log,
         error,
         plugin,
       }),

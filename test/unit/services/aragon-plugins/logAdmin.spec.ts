@@ -41,7 +41,7 @@ describe('Plugins: LogAdmin', () => {
 
     it('should process error', async () => {
       const errorStub = sandbox.stub(logger, 'error')
-      await LogAdmin.processError('error', { address: '0x123', network: NetworksEnum.ethereumSepolia } as any)
+      await LogAdmin.processError('error', { address: '0x123', network: NetworksEnum.ethereumSepolia } as any, 'log')
       expect(errorStub.calledOnce).to.be.true
       expect(errorStub.calledWith('Error LogAdmin' as any)).to.be.true
     })
