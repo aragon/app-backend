@@ -20,7 +20,7 @@ describe('Plugins: LogMultiSig', () => {
   describe('start', async () => {
     it('should process error', async () => {
       const errorStub = sandbox.stub(logger, 'error')
-      await LogSpp.processError('error', { address: '0x123', network: NetworksEnum.ethereumSepolia } as any)
+      await LogSpp.processError('error', { address: '0x123', network: NetworksEnum.ethereumSepolia } as any, 'log')
       expect(errorStub.calledOnce).to.be.true
       expect(errorStub.calledWith('Error LogSpp' as any)).to.be.true
     })
