@@ -51,15 +51,19 @@ class EventListener {
   }
 
   async handleEvent(txLog: Log) {
-    const eventConfig = this.configLogs.find(item => item.topic === txLog.topics[0])
-    if (!eventConfig) return
+    try {
+      const eventConfig = this.configLogs.find(item => item.topic === txLog.topics[0])
+      if (!eventConfig) return
 
-    const iFace = new Interface(eventConfig.abi)
-    const event = Web3Helper.parseLog(txLog, iFace)
-    if (!event) return
+      const iFace = new Interface(eventConfig.abi)
+      const event = Web3Helper.parseLog(txLog, iFace)
+      if (!event) return
 
-    const info = Web3Helper.parseInfoLog(txLog, event.name, this.network)
-    await eventConfig.handler(event, info)
+      const info = Web3Helper.parseInfoLog(txLog, event.name, this.network)
+      await eventConfig.handler(event, info)
+    } catch (error) {
+      logger.error('Error handling eventListener', llo({ error, network: this.network, txLog }))
+    }
   }
 
   subscribeEventsByNewBlock() {
@@ -104,25 +108,38 @@ class EventListener {
 
       for (const log of sortedLogs) {
         await this.handleEvent(log)
+        await this.saveProgress(blockNumber, this.network)
       }
     } finally {
+      this.isProcessingBlock = 0
+    }
+  }
+
+  async saveProgress(blockNumber: number, network: NetworksEnum) {
+    try {
       await DbTx.executeTxFn(async ({ session }) => {
         const existingConfig = await Models.ConfigIndexer.findExistingLog(
           {
-            network: this.network,
-            service: `indexer-${this.network}`,
+            network,
+            service: `indexer-${network}`,
           },
           { session },
         )
+
+        if (!existingConfig || existingConfig.lastSync >= blockNumber) {
+          await session.closeEnd()
+          return
+        }
 
         await existingConfig.update({ lastSync: blockNumber }, { session })
 
         await session.commitTransaction()
         await session.endSession()
 
-        logger.verbose('update last block', llo({ blockNumber, network: this.network }))
+        logger.verbose('update last block', llo({ blockNumber, network }))
       })
-      this.isProcessingBlock = 0
+    } catch (error) {
+      logger.error('Error saving progress - last block', llo({ error, blockNumber, network }))
     }
   }
 }
