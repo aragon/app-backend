@@ -198,7 +198,15 @@ class BlockchainLogCrawler {
       if (!this.crawlParams.skipLogProcessing) {
         await this.processLogs(sortedLogs)
       } else {
-        rawLogs.push(...sortedLogs.map(log => this.formatLog(log)))
+        await Promise.all(
+          sortedLogs?.map(log => {
+            try {
+              const formatLog = this.formatLog(log)
+              rawLogs.push(formatLog)
+            } catch (_) {}
+            return log
+          }),
+        )
       }
 
       if (this.crawlParams.logService) {
