@@ -222,8 +222,13 @@ export const ProposalHandler = {
       const proposalIndex = parsedEvent.args.proposalId.toString()
 
       const plugin = await Models.Plugin.findByAddress(info.address, info.network)
-      if (!plugin || plugin.isSupported === false) {
+      if (!plugin) {
         logger.warn('Approved - Plugin not found', llo(info))
+        return
+      }
+
+      if (!plugin.isSupported) {
+        logger.warn('Approved - Plugin not supported', llo(info))
         return
       }
 
