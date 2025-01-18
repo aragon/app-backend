@@ -20,6 +20,7 @@ export const MetadataHandler = {
 
     const daoExists = await Models.Dao.findByAddress(address, network)
     const pluginExists = await Models.Plugin.findByAddress(address, network)
+    if (!daoExists && !pluginExists) return
 
     const existingDaoMetadata = await Models.LogMetadata.findExistingLog({
       network,
@@ -29,8 +30,6 @@ export const MetadataHandler = {
     })
 
     if (existingDaoMetadata) return
-
-    if (!daoExists && !pluginExists) return
 
     try {
       const metadataUri = Web3Helper.extractMetadataUri(parsedEvent.args.metadata)
