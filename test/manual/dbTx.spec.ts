@@ -9,6 +9,8 @@ import utils from '@helpers/utils'
 import { fakeAlchemyTransfer } from '@test/mock/fakeAlchemyTransfer'
 import type Dao from '@models/schema/dao'
 import { expect } from 'chai'
+import DbTx from '@modules/dbTx'
+import { Models } from '@dbModels'
 
 describe('Manual: DbTx', () => {
   let sandbox: SinonSandbox
@@ -19,6 +21,38 @@ describe('Manual: DbTx', () => {
 
   afterEach(() => {
     sandbox && sandbox.restore()
+  })
+
+  it('should correctly increase balance in parallel and sum updates', async () => {
+    const initialData = {
+      network: NetworksEnum.ethereumMainnet,
+      address: utils.zeroAddress,
+      tokenAddress: utils.zeroAddress,
+      amount: 0,
+      votingPower: 0,
+    }
+
+    let balanceDb = await Models.MemberBalance.create(initialData)
+
+    const balanceToIncrease = [
+      { amount: 1, blockNumber: 0 },
+      { amount: 2, blockNumber: 1 },
+      { amount: 3, blockNumber: 2 },
+    ]
+
+    await Promise.all(
+      balanceToIncrease.map(async ({ amount, blockNumber }) => {
+        return DbTx.executeTxFn(async ({ session }) => {
+          balanceDb = await Models.MemberBalance.findById(balanceDb._id)
+          await balanceDb.increaseBalance(amount, blockNumber, { session })
+        })
+      }),
+    )
+
+    const updatedBalance = await Models.MemberBalance.findById(balanceDb._id)
+
+    expect(updatedBalance).to.exist
+    expect(updatedBalance.amount).to.equal('6') // 1 + 2 + 3
   })
 
   it('should test DbTx in parallel', async () => {
