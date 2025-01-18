@@ -202,4 +202,10 @@ describe('Model: Token', () => {
     expect(filterToken.updatedAt).to.be.undefined
     expect(Object.keys(filterToken).length).to.eq(16)
   })
+
+  it('should get holder count', async () => {
+    const createdToken = await Models.Token.create(rawToken)
+    const holderCount = await createdToken.countHolders()
+    expect(holderCount).to.eq(0)
+  })
 })
