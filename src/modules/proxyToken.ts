@@ -62,24 +62,25 @@ export const ProxyToken = {
     session?: ClientSession,
   ): Promise<Token> => {
     const shouldUpdate = !token.skipFetchRate && token.lastUpdatedAt < dayjs().subtract(6, 'hours').toDate()
+    const updates: any = {}
 
     if (shouldUpdate || forceUpdate) {
       const tokenRate = await RateModule.fetchRate(tokenAddress, network)
-      Object.assign(token, {
-        priceUsd: tokenRate.priceUsd,
-        priceChangeOnDayUsd: tokenRate.priceChangeOnDayUsd,
-      })
+      updates.priceUsd = tokenRate.priceUsd
+      updates.priceChangeOnDayUsd = tokenRate.priceChangeOnDayUsd
 
       if (token.type === ITokenType.GovernanceERC20) {
         const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
-        Object.assign(token, {
-          holders: metrics.totalHolders,
-          totalSupply: metrics.totalSupply,
-          lastUpdatedAt: dayjs.utc().toDate(),
-        })
+        updates.holders = metrics.totalHolders
+        updates.totalSupply = metrics.totalSupply
+        updates.lastUpdatedAt = dayjs.utc().toDate()
       }
 
-      await token.save({ session })
+      await token.update(updates, session as SaveOptions)
+      if (session) {
+        await session.commitTransaction()
+        await session.endSession()
+      }
       logger.verbose('Updated Token Metrics', llo({ logId: token.id }))
     }
 
