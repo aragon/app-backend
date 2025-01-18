@@ -62,8 +62,6 @@ export const FetchRates = {
 
     await DbTx.executeTxFn(async ({ session }) => {
       const logDb = await token.update(rawTokenUpdateRate, { session })
-      await session.commitTransaction()
-      await session.endSession()
       logger.verbose(
         'Token rate updated',
         llo({ logId: logDb.id, tokenSymbol: logDb.symbol, tokenType: logDb.type, priceUsd: logDb.priceUsd }),

@@ -133,9 +133,6 @@ class EventListener {
 
         await existingConfig.update({ lastSync: blockNumber }, { session })
 
-        await session.commitTransaction()
-        await session.endSession()
-
         logger.verbose('update last block', llo({ blockNumber, network }))
       })
     } catch (error) {
