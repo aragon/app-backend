@@ -54,6 +54,7 @@ describe('aragon-dao: contractInfo', () => {
         address: '0xaddress',
         network: NetworksEnum.ethereumSepolia,
         name: 'name2',
+        proxyName: 'name',
         functions: [{ name: 'function1' }, { name: 'function2' }],
       })
     })
