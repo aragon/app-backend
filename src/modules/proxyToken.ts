@@ -40,6 +40,12 @@ export const ProxyToken = {
       )
 
       if (existingToken) {
+        if (existingToken.type === ITokenType.GovernanceERC20 && existingToken.holders === 0) {
+          const dbHolders = await existingToken.countHolders(session)
+          if (dbHolders > 0) {
+            forceUpdate = true
+          }
+        }
         return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate, session)
       }
 
