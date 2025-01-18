@@ -127,7 +127,6 @@ class EventListener {
         )
 
         if (!existingConfig || existingConfig.lastSync >= blockNumber) {
-          await session.closeEnd()
           return
         }
 
