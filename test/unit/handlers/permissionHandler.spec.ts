@@ -25,7 +25,7 @@ describe('Indexer: Permission Handler', () => {
         args: {
           where: 'where',
           who: 'who',
-          permissionId: 'permissionId',
+          permissionId: '0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889',
         },
       } as any
 
@@ -45,8 +45,8 @@ describe('Indexer: Permission Handler', () => {
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
-      expect(handleForAdminPlugin.calledOnce).to.be.false
-      expect(findExistingLog.called).to.be.true
+      expect(handleForAdminPlugin.calledOnce).to.be.true
+      expect(findExistingLog.callCount).to.eq(1)
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
