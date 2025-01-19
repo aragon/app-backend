@@ -4,11 +4,12 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
 import { ProxyToken } from '@modules/proxyToken'
+import type Token from '@models/schema/token'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
 export const LogTokenVoting = {
-  start: async (plugin: Plugin) => {
+  start: async (plugin: Plugin, token: Token) => {
     logger.verbose('Start LogTokenVoting', llo({ network: plugin.network, pluginAddress: plugin.address }))
 
     const configTVLogs = configIndexer.filter((item: IIndexerConfig) =>
@@ -17,8 +18,6 @@ export const LogTokenVoting = {
     const configGovLogs = configIndexer.filter((item: IIndexerConfig) =>
       Object.values(IGovernanceErc20Logs).includes(item.event as any),
     )
-
-    const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
 
     const crawler = new BlockchainLogCrawler({
       network: plugin.network,
@@ -40,7 +39,10 @@ export const LogTokenVoting = {
       stopOnError: true,
     })
 
-    await Promise.all([crawler.crawl(), crawlerToken.crawl()])
+    await Promise.all([
+      // crawler.crawl(),
+      crawlerToken.crawl(),
+    ])
 
     logger.verbose(
       'End LogTokenVoting',

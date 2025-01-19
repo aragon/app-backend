@@ -374,11 +374,11 @@ export const PluginHandler = {
         const logDb = await Models.Plugin.create(document, { session })
         logger.verbose(
           'Created new document - New PreInstall Plugin',
-          llo({ ...pluginLog, info, documentId: logDb.id }),
+          llo({ info, documentId: logDb.id, pluginId: pluginLog.id }),
         )
       })
     } catch (error) {
-      logger.error('Error PreInstall Plugin', llo({ pluginLog, error }))
+      logger.error('Error PreInstall Plugin', llo({ pluginId: pluginLog.id, error }))
     }
   },
 
