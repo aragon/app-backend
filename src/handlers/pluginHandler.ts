@@ -398,6 +398,7 @@ export const PluginHandler = {
             address: pluginLog.pluginAddress,
             status: IPluginStatus.preInstall,
           },
+          null,
           { session },
         )
 
@@ -411,7 +412,7 @@ export const PluginHandler = {
           pluginSetupRepoAddress: rawPlugin?.pluginSetupRepoAddress,
         }
 
-        const plugin = await Models.Plugin.update(document, { session })
+        const plugin = await preInstalledPlugin.update(document, { session })
         logger.verbose('Updated document - Installed plugin', llo({ pluginLog, documentId: plugin.id }))
         return plugin
       })
@@ -452,6 +453,7 @@ export const PluginHandler = {
             address: rawPlugin.address,
             status: IPluginStatus.installed,
           },
+          null,
           { session },
         )
 

@@ -163,6 +163,7 @@ describe('Module: DbTx', () => {
       }
 
       let balanceDb = await Models.MemberBalance.create(initialData)
+      expect(balanceDb.amount).to.equal('0')
 
       const balanceToIncrease = [
         { amount: 1, blockNumber: 0 },
@@ -179,7 +180,7 @@ describe('Module: DbTx', () => {
         }),
       )
 
-      const updatedBalance = await Models.MemberBalance.findById(balanceDb._id)
+      const updatedBalance = await balanceDb.reload()
 
       expect(updatedBalance).to.exist
       expect(updatedBalance.amount).to.equal('6') // 1 + 2 + 3
