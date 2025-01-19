@@ -43,11 +43,8 @@ export const PermissionHandler = {
         daoAddress: address,
       }
 
-      const entityId = Models.DaoPermission.getEntityId(permissionEntity)
-      if (entityId) return
-
       await DbTx.executeTxFn(async ({ session }) => {
-        const existingLog = await Models.DaoPermission.findExistingLog(entityId, { session })
+        const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity, { session })
         if (existingLog) return
 
         const document = {
