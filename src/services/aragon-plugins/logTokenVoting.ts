@@ -3,7 +3,6 @@ import { IGovernanceErc20Logs, type IIndexerConfig, ITokenVotingLogs } from '@ty
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
-import { ProxyToken } from '@modules/proxyToken'
 import type Token from '@models/schema/token'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
