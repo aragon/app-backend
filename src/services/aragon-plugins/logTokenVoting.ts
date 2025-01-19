@@ -38,10 +38,7 @@ export const LogTokenVoting = {
       stopOnError: true,
     })
 
-    await Promise.all([
-      // crawler.crawl(),
-      crawlerToken.crawl(),
-    ])
+    await Promise.all([crawler.crawl(), crawlerToken.crawl()])
 
     logger.verbose(
       'End LogTokenVoting',
