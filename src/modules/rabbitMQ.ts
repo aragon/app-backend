@@ -1,4 +1,4 @@
-import amqp, { type Connection, type Channel } from 'amqplib'
+import amqp, { type Replies, type Connection, type Channel } from 'amqplib'
 import config from '@config'
 import logger from '@logger'
 import { EnumQueueName } from '@types'
@@ -156,6 +156,28 @@ const RabbitMQ = {
    */
   getChannel(): Channel | null {
     return RabbitMQ.channel
+  },
+
+  async getMessageCount(queueName: string): Promise<number | null> {
+    if (!RabbitMQ.channel) {
+      logger.warn('Cannot get message count: Channel is not available', llo())
+      return null
+    }
+
+    try {
+      const queueStatus: Replies.AssertQueue = await RabbitMQ.channel.checkQueue(queueName)
+      logger.info(
+        `Queue "${queueName}" has ${queueStatus.messageCount} messages`,
+        llo({
+          queueName,
+          messageCount: queueStatus.messageCount,
+        }),
+      )
+      return queueStatus.messageCount
+    } catch (err) {
+      logger.error(`Failed to get message count for queue "${queueName}"`, llo({ err }))
+      return null
+    }
   },
 }
 
