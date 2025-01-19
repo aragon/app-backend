@@ -65,7 +65,7 @@ export const GovernanceErc20Handler = {
         )
 
         if (existingLog) {
-          logger.error('DelegateVotesChanged - already processed', llo({ info }))
+          logger.warn('DelegateVotesChanged - already processed', llo({ info }))
           return
         }
 
@@ -191,7 +191,7 @@ export const GovernanceErc20Handler = {
       })
 
       if (existingLog) {
-        logger.error('Transfer - outgoing transfer already processed', llo({ info }))
+        logger.warn('Transfer - outgoing transfer already processed', llo({ info }))
         return
       }
 
@@ -278,7 +278,7 @@ export const GovernanceErc20Handler = {
       })
 
       if (existingLog) {
-        logger.error('Transfer - incoming transfer already processed', llo({ info }))
+        logger.warn('Transfer - incoming transfer already processed', llo({ info }))
         return
       }
 
