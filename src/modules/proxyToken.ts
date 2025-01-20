@@ -48,12 +48,14 @@ export const ProxyToken = {
           session,
         )
         await session.commitTransaction()
+        await session.endSession()
         return token
       }
 
       // Create a new token
       const token = await ProxyToken.createNewToken(parsedTokenAddress, network, session)
       await session.commitTransaction()
+      await session.endSession()
       return token
     })
   },

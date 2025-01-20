@@ -27,6 +27,7 @@ export const ProxyMember = {
 
           const newMember = await Models.Member.create(rawMember, { session })
           await session.commitTransaction()
+          await session.endSession()
           logger.verbose('Create document - New Member', llo({ documentId: newMember.id }))
           return newMember
         }
@@ -60,6 +61,7 @@ export const ProxyMember = {
 
         const newMetrics = await Models.MemberMetrics.create(rawMetrics, { session })
         await session.commitTransaction()
+        await session.endSession()
         logger.verbose('Create document - New MemberMetrics', llo({ documentId: newMetrics.id }))
         return newMetrics
       })
@@ -89,6 +91,7 @@ export const ProxyMember = {
         const data = { address, tokenAddress, network }
         const memberBalance = await Models.MemberBalance.create(data, { session })
         await session.commitTransaction()
+        await session.endSession()
         logger.verbose('Create document - New MemberBalance', llo({ documentId: memberBalance.id }))
         return memberBalance
       })
@@ -133,6 +136,7 @@ export const ProxyMember = {
       return await DbTx.executeTxFn(async ({ session }) => {
         const updatedMember = await memberMetrics?.update(updateFields, { session })
         await session.commitTransaction()
+        await session.endSession()
         logger.verbose('Update Member activity', llo({ documentId: updatedMember.id }))
         return updatedMember
       })
@@ -175,6 +179,7 @@ export const ProxyMember = {
       await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await metricUpdateFn.call(metrics, 1, { session })
         await session.commitTransaction()
+        await session.endSession()
         logger.verbose('Updated Member DAO metrics', { logId: logDb.id })
       })
     } else {
@@ -210,6 +215,7 @@ export const ProxyMember = {
         if (!existingDao) {
           await Models.DaoMemberMapping.create(queryParams, { session })
           await session.commitTransaction()
+          await session.endSession()
         }
         return member
       })
@@ -243,6 +249,7 @@ export const ProxyMember = {
         if (existingDao) {
           const logDb = await existingDao.removeSelf({ session })
           await session.commitTransaction()
+          await session.endSession()
           logger.verbose('Remove DaoMemberMapping', llo({ logId: logDb.id }))
         }
 

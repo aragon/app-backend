@@ -33,7 +33,8 @@ export const PluginRepoRegistryHandler = {
         }
 
         const logDb = await Models.PluginRepo.create(document, { session })
-        session.commitTransaction()
+        await session.commitTransaction()
+        await session.endSession()
         logger.verbose('New PluginRepo', llo({ info, logId: logDb.id }))
       })
     } catch (error) {

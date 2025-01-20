@@ -50,6 +50,7 @@ describe('Module: DbTx', () => {
           balanceDb = await Models.MemberBalance.findById(balanceDb._id, null, { session })
           await balanceDb.increaseBalance(amount, blockNumber, { session })
           await session.commitTransaction()
+          await session.endSession()
         })
       }),
     )
