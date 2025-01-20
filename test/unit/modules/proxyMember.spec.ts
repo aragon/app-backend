@@ -326,39 +326,11 @@ describe('Modules:ProxyMember', () => {
       const pluginAddress = '0xabc'
       const network = NetworksEnum.ethereumMainnet
 
-      const mockMetrics = {
-        id: 'metrics-id',
-        increaseProposalCount: sandbox.stub().resolves({ id: 'log-id-123' }),
-      } as any
-
-      const createMetricsStub = sandbox.stub(ProxyMember, 'createMetrics').resolves(mockMetrics)
-
-      const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async fn => {
-        const mockSession = {}
-        const result = await fn({ session: mockSession })
-        return !!result
-      })
-
       const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
 
-      const result = await ProxyMember.updateMetricsByAction(metricAction, {
-        memberAddress,
-        pluginAddress,
-        network,
-      })
+      await ProxyMember.updateMetricsByAction(metricAction, { memberAddress, pluginAddress, network })
 
-      expect(result).to.be.true
-      expect(
-        createMetricsStub.calledOnceWith({
-          address: memberAddress,
-          pluginAddress,
-          network,
-        }),
-      ).to.be.true
-
-      expect(mockMetrics.increaseProposalCount.calledOnceWith(1)).to.be.true
-      expect(executeTxFnStub.calledOnce).to.be.true
-      expect(loggerVerboseStub.calledOnceWith('Updated Member DAO metrics' as any)).to.be.true
+      expect(loggerVerboseStub.calledWith('Updated Member DAO metrics' as any)).to.be.true
     })
 
     it('should not update metrics and return false if action is invalid', async () => {
@@ -374,21 +346,13 @@ describe('Modules:ProxyMember', () => {
 
       const loggerErrorStub = sandbox.stub(Logger, 'error')
 
-      const result = await ProxyMember.updateMetricsByAction(metricAction, {
+      await ProxyMember.updateMetricsByAction(metricAction, {
         memberAddress,
         pluginAddress,
         network,
       })
 
-      expect(result).to.be.false
-      expect(
-        createMetricsStub.calledOnceWithExactly({
-          address: memberAddress,
-          pluginAddress,
-          network,
-        }),
-      ).to.be.true
-
+      expect(createMetricsStub.calledOnce).to.be.true
       expect(mockMetrics.increaseProposalCount).to.be.undefined
       expect(mockMetrics.increaseVoteCount).to.be.undefined
       expect(mockMetrics.increaseDelegateReceivedCount).to.be.undefined
@@ -408,545 +372,346 @@ describe('Modules:ProxyMember', () => {
 
       const createMetricsStub = sandbox.stub(ProxyMember, 'createMetrics').resolves(null)
 
-      const result = await ProxyMember.updateMetricsByAction(metricAction, {
+      await ProxyMember.updateMetricsByAction(metricAction, {
         memberAddress,
         pluginAddress,
         network,
       })
 
-      expect(result).to.be.false
-      expect(
-        createMetricsStub.calledOnceWithExactly({
-          address: memberAddress,
-          pluginAddress,
-          network,
-        }),
-      ).to.be.true
+      expect(createMetricsStub.calledOnce)
     })
-  })
 
-  describe('addToDao', () => {
-    it('should add member to DAO if not already a member', async () => {
-      const params = {
-        memberAddress: '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19',
-        daoAddress: '0xdao',
-        pluginAddress: '0xplugin',
-        network: NetworksEnum.ethereumMainnet,
-      }
+    describe('addToDao', () => {
+      it('should add member to DAO if not already a member', async () => {
+        const params = {
+          memberAddress: '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19',
+          daoAddress: '0xdao',
+          pluginAddress: '0xplugin',
+          network: NetworksEnum.ethereumMainnet,
+        }
 
-      const parsedMemberAddress = '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19'
-      const member = { id: 'member-id', address: params.memberAddress }
-      const session = {}
+        const parsedMemberAddress = '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19'
+        const member = { id: 'member-id', address: params.memberAddress }
+        const parseAddressStub = sandbox.stub(Web3Helper, 'parseAddress').returns(parsedMemberAddress)
+        const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
+        const findMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findMapping').resolves(null)
+        const createMappingStub = sandbox.stub(Models.DaoMemberMapping, 'create').resolves({ id: 'mapping-id' })
+        const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
 
-      const parseAddressStub = sandbox
-        .stub(Web3Helper, 'parseAddress')
-        .withArgs(params.memberAddress)
-        .returns(parsedMemberAddress)
+        const result = await ProxyMember.addToDao(params)
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
-
-      const findMappingStub = sandbox
-        .stub(Models.DaoMemberMapping, 'findMapping')
-        .withArgs(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        )
-        .resolves(null)
-
-      const createMappingStub = sandbox
-        .stub(Models.DaoMemberMapping, 'create')
-        .withArgs(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        )
-        .resolves({ id: 'mapping-id' })
-
-      const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async fn => {
-        return await fn({ session })
+        expect(result).to.equal(member)
+        expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(findMappingStub.calledOnce).to.be.true
+        expect(createMappingStub.calledOnce).to.be.true
+        expect(loggerVerboseStub.notCalled).to.be.true
       })
 
-      const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+      it('should not add member to DAO if already a member', async () => {
+        const params = {
+          memberAddress: '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19',
+          daoAddress: '0xdao',
+          pluginAddress: '0xplugin',
+          network: NetworksEnum.ethereumMainnet,
+        }
 
-      const result = await ProxyMember.addToDao(params)
+        const parsedMemberAddress = '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19'
+        const member = { id: 'member-id', address: params.memberAddress }
+        const existingDaoMember = { id: 'mapping-id' }
+        const session = {}
 
-      expect(result).to.equal(member)
-      expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(
-        findMappingStub.calledOnceWithExactly(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        ),
-      ).to.be.true
-      expect(
-        createMappingStub.calledOnceWithExactly(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        ),
-      ).to.be.true
-      expect(executeTxFnStub.calledOnce).to.be.true
-      expect(loggerVerboseStub.notCalled).to.be.true
-    })
+        const parseAddressStub = sandbox
+          .stub(Web3Helper, 'parseAddress')
+          .withArgs(params.memberAddress)
+          .returns(parsedMemberAddress)
+        const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
+        const findMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findMapping').resolves(existingDaoMember)
+        const createMappingStub = sandbox.stub(Models.DaoMemberMapping, 'create')
+        const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
 
-    it('should not add member to DAO if already a member', async () => {
-      const params = {
-        memberAddress: '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19',
-        daoAddress: '0xdao',
-        pluginAddress: '0xplugin',
-        network: NetworksEnum.ethereumMainnet,
-      }
+        const result = await ProxyMember.addToDao(params)
 
-      const parsedMemberAddress = '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19'
-      const member = { id: 'member-id', address: params.memberAddress }
-      const existingDaoMember = { id: 'mapping-id' }
-      const session = {}
-
-      const parseAddressStub = sandbox
-        .stub(Web3Helper, 'parseAddress')
-        .withArgs(params.memberAddress)
-        .returns(parsedMemberAddress)
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
-
-      const findMappingStub = sandbox
-        .stub(Models.DaoMemberMapping, 'findMapping')
-        .withArgs(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        )
-        .resolves(existingDaoMember)
-
-      const createMappingStub = sandbox.stub(Models.DaoMemberMapping, 'create')
-
-      const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async fn => {
-        return await fn({ session })
+        expect(result).to.equal(member)
+        expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(findMappingStub.calledOnce).to.be.true
+        expect(createMappingStub.notCalled).to.be.true
+        expect(loggerVerboseStub.notCalled).to.be.true
       })
 
-      const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+      it('should not add a member if member address is invalid', async () => {
+        const params = {
+          memberAddress: '0x12',
+          daoAddress: '0xdao',
+          pluginAddress: '0xplugin',
+          network: NetworksEnum.ethereumMainnet,
+        }
 
-      const result = await ProxyMember.addToDao(params)
+        const parseAddressStub = sandbox.stub(Web3Helper, 'parseAddress').withArgs(params.memberAddress).returns(null)
+        const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
+        const loggerErrorStub = sandbox.stub(Logger, 'error')
 
-      expect(result).to.equal(member)
-      expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(
-        findMappingStub.calledOnceWithExactly(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        ),
-      ).to.be.true
-      expect(createMappingStub.notCalled).to.be.true
-      expect(executeTxFnStub.calledOnce).to.be.true
-      expect(loggerVerboseStub.notCalled).to.be.true
-    })
+        const result = await ProxyMember.addToDao(params)
 
-    it('should not add a member if member address is invalid', async () => {
-      const params = {
-        memberAddress: '0x12',
-        daoAddress: '0xdao',
-        pluginAddress: '0xplugin',
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      const parseAddressStub = sandbox.stub(Web3Helper, 'parseAddress').withArgs(params.memberAddress).returns(null)
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
-      const loggerErrorStub = sandbox.stub(Logger, 'error')
-
-      const result = await ProxyMember.addToDao(params)
-
-      expect(result).to.be.null
-      expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(createMemberStub.notCalled).to.be.true
-      expect(loggerErrorStub.notCalled).to.be.true
-    })
-
-    it('should return null and log error if createMember fails', async () => {
-      const params = {
-        memberAddress: '0xValidAddress',
-        daoAddress: '0xdao',
-        pluginAddress: '0xplugin',
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      const parsedMemberAddress = '0xValidAddress'
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(null)
-      const loggerErrorStub = sandbox.stub(Logger, 'error')
-
-      const parseAddressStub = sandbox
-        .stub(Web3Helper, 'parseAddress')
-        .withArgs(params.memberAddress)
-        .returns(parsedMemberAddress)
-
-      const result = await ProxyMember.addToDao(params)
-
-      expect(result).to.be.null
-      expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(loggerErrorStub.calledOnceWith('Failed to add member to dao' as any)).to.be.true
-    })
-
-    it('should return null and log error if DbTx.executeTxFn throws an error', async () => {
-      const params = {
-        memberAddress: '0xValidAddress',
-        daoAddress: '0xdao',
-        pluginAddress: '0xplugin',
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      const parsedMemberAddress = '0xValidAddress'
-      const member = { id: 'member-id', address: params.memberAddress }
-
-      const parseAddressStub = sandbox
-        .stub(Web3Helper, 'parseAddress')
-        .withArgs(params.memberAddress)
-        .returns(parsedMemberAddress)
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
-      const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').rejects(new Error('Transaction failed'))
-      const loggerErrorStub = sandbox.stub(Logger, 'error')
-
-      const result = await ProxyMember.addToDao(params)
-
-      expect(result).to.be.null
-      expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(executeTxFnStub.calledOnce).to.be.true
-      expect(loggerErrorStub.calledOnceWith('Error in addToDao' as any)).to.be.true
-    })
-
-    it('should handle concurrent addToDao calls correctly without creating duplicate mappings', async () => {
-      const params = {
-        memberAddress: '0xConcurrentMember',
-        daoAddress: '0xdao',
-        pluginAddress: '0xplugin',
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      const parsedMemberAddress = '0xConcurrentMember'
-      const member = { id: 'member-id', address: params.memberAddress }
-      const session = {}
-
-      const parseAddressStub = sandbox
-        .stub(Web3Helper, 'parseAddress')
-        .withArgs(params.memberAddress)
-        .returns(parsedMemberAddress)
-
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
-
-      const findMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findMapping')
-      findMappingStub
-        .withArgs(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        )
-        .onCall(0)
-        .resolves(null)
-        .onCall(1)
-        .resolves({ id: 'existing-mapping-id' })
-
-      const createMappingStub = sandbox
-        .stub(Models.DaoMemberMapping, 'create')
-        .withArgs(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        )
-        .resolves({ id: 'mapping-id' })
-
-      const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async fn => {
-        return await fn({ session })
+        expect(result).to.be.null
+        expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(createMemberStub.notCalled).to.be.true
+        expect(loggerErrorStub.notCalled).to.be.true
       })
 
-      const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+      it('should return null and log error if createMember fails', async () => {
+        const params = {
+          memberAddress: '0xValidAddress',
+          daoAddress: '0xdao',
+          pluginAddress: '0xplugin',
+          network: NetworksEnum.ethereumMainnet,
+        }
 
-      const [result1, result2] = await Promise.all([ProxyMember.addToDao(params), ProxyMember.addToDao(params)])
+        const parsedMemberAddress = '0xValidAddress'
+        const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(null)
+        const loggerErrorStub = sandbox.stub(Logger, 'error')
 
-      expect(result1).to.equal(member)
-      expect(result2).to.equal(member)
+        const parseAddressStub = sandbox
+          .stub(Web3Helper, 'parseAddress')
+          .withArgs(params.memberAddress)
+          .returns(parsedMemberAddress)
 
-      expect(parseAddressStub.calledTwice).to.be.true
-      expect(createMemberStub.calledTwice).to.be.true
-      expect(findMappingStub.calledTwice).to.be.true
-      expect(createMappingStub.calledOnce).to.be.true
-      expect(executeTxFnStub.calledTwice).to.be.true
-      expect(loggerVerboseStub.notCalled).to.be.true
-    })
-  })
+        const result = await ProxyMember.addToDao(params)
 
-  describe('removeFromDao', () => {
-    it('should remove member from DAO if member is part of the DAO', async () => {
-      const params = {
-        memberAddress: '0xMemberToRemove',
-        daoAddress: '0xdao',
-        pluginAddress: '0xplugin',
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      const parsedMemberAddress = '0xMemberToRemove'
-      const member: any = { id: 'member-id', address: params.memberAddress }
-      const session = {}
-
-      const existingDaoMember = {
-        id: 'mapping-id',
-        removeSelf: sandbox.stub().resolves({ id: 'removed-log-id' }),
-      }
-
-      const parseAddressStub = sandbox
-        .stub(Web3Helper, 'parseAddress')
-        .withArgs(params.memberAddress)
-        .returns(parsedMemberAddress)
-
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
-
-      const findMappingStub = sandbox
-        .stub(Models.DaoMemberMapping, 'findMapping')
-        .withArgs(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        )
-        .resolves(existingDaoMember)
-
-      const createMappingStub = sandbox.stub(Models.DaoMemberMapping, 'create')
-
-      const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async fn => {
-        return await fn({ session })
+        expect(result).to.be.null
+        expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(loggerErrorStub.calledOnceWith('Failed to add member to dao' as any)).to.be.true
       })
 
-      const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+      it('should return null and log error if DbTx.executeTxFn throws an error', async () => {
+        const params = {
+          memberAddress: '0xValidAddress',
+          daoAddress: '0xdao',
+          pluginAddress: '0xplugin',
+          network: NetworksEnum.ethereumMainnet,
+        }
 
-      const result = await ProxyMember.removeFromDao(params)
+        const parsedMemberAddress = '0xValidAddress'
+        const member = { id: 'member-id', address: params.memberAddress }
 
-      expect(result).to.equal(member)
-      expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(
-        findMappingStub.calledOnceWithExactly(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        ),
-      ).to.be.true
-      expect(existingDaoMember.removeSelf.calledOnceWithExactly({ session })).to.be.true
-      expect(createMappingStub.notCalled).to.be.true
-      expect(executeTxFnStub.calledOnce).to.be.true
-      expect(loggerVerboseStub.calledOnceWith('Remove DaoMemberMapping' as any)).to.be.true
-    })
+        const parseAddressStub = sandbox
+          .stub(Web3Helper, 'parseAddress')
+          .withArgs(params.memberAddress)
+          .returns(parsedMemberAddress)
+        const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
+        const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').rejects(new Error('Transaction failed'))
+        const loggerErrorStub = sandbox.stub(Logger, 'error')
 
-    it('should return member without removing DAO mapping if member is not part of the DAO', async () => {
-      const params = {
-        memberAddress: '0xNonMember',
-        daoAddress: '0xdao',
-        pluginAddress: '0xplugin',
-        network: NetworksEnum.ethereumMainnet,
-      }
+        const result = await ProxyMember.addToDao(params)
 
-      const parsedMemberAddress = '0xNonMember'
-      const member: any = { id: 'member-id', address: params.memberAddress }
-      const session = {}
-
-      const parseAddressStub = sandbox
-        .stub(Web3Helper, 'parseAddress')
-        .withArgs(params.memberAddress)
-        .returns(parsedMemberAddress)
-
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
-
-      const findMappingStub = sandbox
-        .stub(Models.DaoMemberMapping, 'findMapping')
-        .withArgs(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        )
-        .resolves(null)
-
-      const createMappingStub = sandbox.stub(Models.DaoMemberMapping, 'create')
-
-      const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async fn => {
-        return await fn({ session })
+        expect(result).to.be.null
+        expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(executeTxFnStub.calledOnce).to.be.true
+        expect(loggerErrorStub.calledOnceWith('Error in addToDao' as any)).to.be.true
       })
 
-      const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+      it('should handle concurrent addToDao calls correctly without creating duplicate mappings', async () => {
+        const params = {
+          memberAddress: '0xConcurrentMember',
+          daoAddress: '0xdao',
+          pluginAddress: '0xplugin',
+          network: NetworksEnum.ethereumMainnet,
+        }
 
-      const result = await ProxyMember.removeFromDao(params)
+        const parsedMemberAddress = '0xConcurrentMember'
+        const member = { id: 'member-id', address: params.memberAddress }
 
-      expect(result).to.equal(member)
-      expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(
-        findMappingStub.calledOnceWithExactly(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        ),
-      ).to.be.true
-      expect(loggerVerboseStub.notCalled).to.be.true
-      expect(createMappingStub.notCalled).to.be.true
-      expect(executeTxFnStub.calledOnce).to.be.true
+        const parseAddressStub = sandbox
+          .stub(Web3Helper, 'parseAddress')
+          .withArgs(params.memberAddress)
+          .returns(parsedMemberAddress)
+
+        const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
+        const findMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findMapping')
+        findMappingStub.onCall(0).resolves(null).onCall(1).resolves({ id: 'existing-mapping-id' })
+
+        const createMappingStub = sandbox.stub(Models.DaoMemberMapping, 'create').resolves({ id: 'mapping-id' })
+        const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+
+        const [result1, result2] = await Promise.all([ProxyMember.addToDao(params), ProxyMember.addToDao(params)])
+
+        expect(result1).to.equal(member)
+        expect(result2).to.equal(member)
+
+        expect(parseAddressStub.calledTwice).to.be.true
+        expect(createMemberStub.calledTwice).to.be.true
+        expect(findMappingStub.calledTwice).to.be.true
+        expect(createMappingStub.calledOnce).to.be.true
+        expect(loggerVerboseStub.notCalled).to.be.true
+      })
     })
 
-    it('should not remove DAO mapping and return null if member address is invalid', async () => {
-      const params = {
-        memberAddress: '0xInvalid',
-        daoAddress: '0xdao',
-        pluginAddress: '0xplugin',
-        network: NetworksEnum.ethereumMainnet,
-      }
+    describe('removeFromDao', () => {
+      it('should remove member from DAO if member is part of the DAO', async () => {
+        const params = {
+          memberAddress: '0xMemberToRemove',
+          daoAddress: '0xdao',
+          pluginAddress: '0xplugin',
+          network: NetworksEnum.ethereumMainnet,
+        }
 
-      const parseAddressStub = sandbox.stub(Web3Helper, 'parseAddress').withArgs(params.memberAddress).returns(null)
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
-      const loggerErrorStub = sandbox.stub(Logger, 'error')
+        const parsedMemberAddress = '0xMemberToRemove'
+        const member: any = { id: 'member-id', address: params.memberAddress }
 
-      const result = await ProxyMember.removeFromDao(params)
+        const existingDaoMember = {
+          id: 'mapping-id',
+          removeSelf: sandbox.stub().resolves({ id: 'removed-log-id' }),
+        }
 
-      expect(result).to.be.null
-      expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(createMemberStub.notCalled).to.be.true
-      expect(loggerErrorStub.notCalled).to.be.true
-    })
+        const parseAddressStub = sandbox
+          .stub(Web3Helper, 'parseAddress')
+          .withArgs(params.memberAddress)
+          .returns(parsedMemberAddress)
 
-    it('should return null and log error if ProxyMember.createMember throw an error', async () => {
-      const params = {
-        memberAddress: '0xValidMember',
-        daoAddress: '0xdao',
-        pluginAddress: '0xplugin',
-        network: NetworksEnum.ethereumMainnet,
-      }
+        const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
 
-      const parsedMemberAddress = '0xValidMember'
-      sandbox.stub(Models.DaoMemberMapping, 'findMapping').rejects(new Error('Database error'))
-      const parseAddressStub = sandbox
-        .stub(Web3Helper, 'parseAddress')
-        .withArgs(params.memberAddress)
-        .returns(parsedMemberAddress)
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(null)
-      const loggerErrorStub = sandbox.stub(Logger, 'error')
+        const findMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findMapping').resolves(existingDaoMember)
+        const createMappingStub = sandbox.stub(Models.DaoMemberMapping, 'create')
 
-      const result = await ProxyMember.removeFromDao(params)
+        const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
 
-      expect(result).to.be.null
-      expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
-      expect(loggerErrorStub.calledOnceWith('Error in removeFromDao' as any)).to.be.true
-    })
+        const result = await ProxyMember.removeFromDao(params)
 
-    it('should handle concurrent removeFromDao calls correctly without errors', async () => {
-      const params = {
-        memberAddress: '0xConcurrentMember',
-        daoAddress: '0xdao',
-        pluginAddress: '0xplugin',
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      const parsedMemberAddress = '0xConcurrentMember'
-      const member: any = { id: 'member-id', address: params.memberAddress }
-      const session = {}
-
-      const existingDaoMember = {
-        id: 'mapping-id',
-        removeSelf: sandbox.stub().resolves({ id: 'removed-log-id' }),
-      }
-
-      const parseAddressStub = sandbox
-        .stub(Web3Helper, 'parseAddress')
-        .withArgs(params.memberAddress)
-        .returns(parsedMemberAddress)
-
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
-
-      const findMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findMapping')
-      findMappingStub
-        .withArgs(
-          {
-            memberAddress: params.memberAddress,
-            daoAddress: params.daoAddress,
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-          },
-          { session },
-        )
-        .onCall(0)
-        .resolves(existingDaoMember)
-        .onCall(1)
-        .resolves(null)
-
-      const createMappingStub = sandbox.stub(Models.DaoMemberMapping, 'create')
-
-      const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async fn => {
-        return await fn({ session })
+        expect(result).to.equal(member)
+        expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(findMappingStub.calledOnce).to.be.true
+        expect(existingDaoMember.removeSelf.calledOnce).to.be.true
+        expect(createMappingStub.notCalled).to.be.true
+        expect(loggerVerboseStub.calledOnceWith('Remove DaoMemberMapping' as any)).to.be.true
       })
 
-      const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+      it('should return member without removing DAO mapping if member is not part of the DAO', async () => {
+        const params = {
+          memberAddress: '0xNonMember',
+          daoAddress: '0xdao',
+          pluginAddress: '0xplugin',
+          network: NetworksEnum.ethereumMainnet,
+        }
 
-      const [result1, result2] = await Promise.all([
-        ProxyMember.removeFromDao(params),
-        ProxyMember.removeFromDao(params),
-      ])
+        const parsedMemberAddress = '0xNonMember'
+        const member: any = { id: 'member-id', address: params.memberAddress }
+        const session = {}
 
-      expect(result1).to.equal(member)
-      expect(result2).to.equal(member)
+        const parseAddressStub = sandbox
+          .stub(Web3Helper, 'parseAddress')
+          .withArgs(params.memberAddress)
+          .returns(parsedMemberAddress)
 
-      expect(parseAddressStub.calledTwice).to.be.true
-      expect(createMemberStub.calledTwice).to.be.true
-      expect(findMappingStub.calledTwice).to.be.true
-      expect(existingDaoMember.removeSelf.calledOnce).to.be.true
-      expect(createMappingStub.notCalled).to.be.true
-      expect(executeTxFnStub.calledTwice).to.be.true
-      expect(loggerVerboseStub.calledOnceWith('Remove DaoMemberMapping' as any)).to.be.true
+        const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
+        const findMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findMapping').resolves(null)
+        const createMappingStub = sandbox.stub(Models.DaoMemberMapping, 'create')
+        const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+
+        const result = await ProxyMember.removeFromDao(params)
+
+        expect(result).to.equal(member)
+        expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(findMappingStub.calledOnce).to.be.true
+        expect(loggerVerboseStub.notCalled).to.be.true
+        expect(createMappingStub.notCalled).to.be.true
+      })
+
+      it('should not remove DAO mapping and return null if member address is invalid', async () => {
+        const params = {
+          memberAddress: '0xInvalid',
+          daoAddress: '0xdao',
+          pluginAddress: '0xplugin',
+          network: NetworksEnum.ethereumMainnet,
+        }
+
+        const parseAddressStub = sandbox.stub(Web3Helper, 'parseAddress').withArgs(params.memberAddress).returns(null)
+        const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
+        const loggerErrorStub = sandbox.stub(Logger, 'error')
+
+        const result = await ProxyMember.removeFromDao(params)
+
+        expect(result).to.be.null
+        expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(createMemberStub.notCalled).to.be.true
+        expect(loggerErrorStub.notCalled).to.be.true
+      })
+
+      it('should return null and log error if ProxyMember.createMember throw an error', async () => {
+        const params = {
+          memberAddress: '0xValidMember',
+          daoAddress: '0xdao',
+          pluginAddress: '0xplugin',
+          network: NetworksEnum.ethereumMainnet,
+        }
+
+        const parsedMemberAddress = '0xValidMember'
+        sandbox.stub(Models.DaoMemberMapping, 'findMapping').rejects(new Error('Database error'))
+        const parseAddressStub = sandbox.stub(Web3Helper, 'parseAddress').returns(parsedMemberAddress)
+        const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(null)
+        const loggerErrorStub = sandbox.stub(Logger, 'error')
+
+        const result = await ProxyMember.removeFromDao(params)
+
+        expect(result).to.be.null
+        expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+        expect(loggerErrorStub.calledOnceWith('Error in removeFromDao' as any)).to.be.true
+      })
+
+      it('should handle concurrent removeFromDao calls correctly without errors', async () => {
+        const params = {
+          memberAddress: '0xConcurrentMember',
+          daoAddress: '0xdao',
+          pluginAddress: '0xplugin',
+          network: NetworksEnum.ethereumMainnet,
+        }
+
+        const parsedMemberAddress = '0xConcurrentMember'
+        const member: any = { id: 'member-id', address: params.memberAddress }
+        const session = {}
+
+        const existingDaoMember = {
+          id: 'mapping-id',
+          removeSelf: sandbox.stub().resolves({ id: 'removed-log-id' }),
+        }
+
+        const parseAddressStub = sandbox
+          .stub(Web3Helper, 'parseAddress')
+          .withArgs(params.memberAddress)
+          .returns(parsedMemberAddress)
+
+        const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
+
+        const findMappingStub = sandbox
+          .stub(Models.DaoMemberMapping, 'findMapping')
+          .onCall(0)
+          .resolves(existingDaoMember)
+          .onCall(1)
+          .resolves(null)
+
+        const createMappingStub = sandbox.stub(Models.DaoMemberMapping, 'create')
+        const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+
+        const [result1, result2] = await Promise.all([
+          ProxyMember.removeFromDao(params),
+          ProxyMember.removeFromDao(params),
+        ])
+
+        expect(result1).to.equal(member)
+        expect(result2).to.equal(member)
+
+        expect(parseAddressStub.calledTwice).to.be.true
+        expect(createMemberStub.calledTwice).to.be.true
+        expect(findMappingStub.calledTwice).to.be.true
+        expect(existingDaoMember.removeSelf.calledOnce).to.be.true
+        expect(createMappingStub.notCalled).to.be.true
+        expect(loggerVerboseStub.calledOnceWith('Remove DaoMemberMapping' as any)).to.be.true
+      })
     })
   })
 })

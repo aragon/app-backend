@@ -176,6 +176,7 @@ describe('Module: DbTx', () => {
           return DbTx.executeTxFn(async ({ session }) => {
             balanceDb = await Models.MemberBalance.findById(balanceDb._id)
             await balanceDb.increaseBalance(amount, blockNumber, { session })
+            await session.commitTransaction()
           })
         }),
       )
