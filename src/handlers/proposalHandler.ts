@@ -360,6 +360,7 @@ export const ProposalHandler = {
         if (isExistingVote) {
           await existingMemberVote.deleteOne({ session })
         }
+        session.commitTransaction()
         const logName = existingMemberVote ? 'Replace Vote - VoteCast' : 'New Vote - VoteCast'
         logger.verbose(`Created new document - ${logName}`, llo({ ...info, documentId: logId.id }))
       })
