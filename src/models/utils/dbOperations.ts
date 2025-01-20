@@ -7,6 +7,7 @@ class DbOperations {
       try {
         const document = await model.create(data, { session })
         await session.commitTransaction()
+        await session.endSession()
         logger.verbose(`Created new document - ${logMsg}`, llo({ ...info, documentId: document.id }))
         return document
       } catch (error) {
@@ -22,6 +23,7 @@ class DbOperations {
         const reloadDocument = await document.constructor.findById(document._id).session(session)
         await reloadDocument.update(data, { session })
         await session.commitTransaction()
+        await session.endSession()
         logger.verbose(`Updated document - ${logMsg}`, llo({ ...info, documentId: reloadDocument.id }))
         return reloadDocument
       } catch (error) {

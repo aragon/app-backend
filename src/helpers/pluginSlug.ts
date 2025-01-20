@@ -77,6 +77,7 @@ export const PluginSlug = {
 
             await Models.PluginSlug.create(document, { session })
             await session.commitTransaction()
+            await session.endSession()
             logger.verbose('Created new document - New PluginSlug', llo({ slug: candidateKey }))
             return candidateKey
           },
@@ -128,6 +129,7 @@ export const PluginSlug = {
           async ({ session }) => {
             await pluginSlug.update({ slug: candidateKey }, { session })
             await session.commitTransaction()
+            await session.endSession()
             logger.verbose('Updated document - Update PluginSlug', llo({ slug: candidateKey }))
           },
           { stopRetry: true, throwOnStop: true },

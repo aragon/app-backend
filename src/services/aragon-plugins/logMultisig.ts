@@ -19,7 +19,7 @@ export const LogMultiSig = {
       events: configLogs,
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
-      onError: async (error: any) => LogMultiSig.processError(error, plugin),
+      onError: async (error: any, log: any) => LogMultiSig.processError(error, plugin, log),
       logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
@@ -28,10 +28,11 @@ export const LogMultiSig = {
     logger.verbose('End LogMultiSig', llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },
 
-  processError: async (error: any, plugin: Plugin) => {
+  processError: async (error: any, plugin: Plugin, log: any) => {
     logger.error(
       'Error LogMultiSig',
       llo({
+        log,
         error,
         plugin,
       }),

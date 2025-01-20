@@ -46,6 +46,7 @@ export const DaoMetrics = {
         { session },
       )
       await session.commitTransaction()
+      await session.endSession()
       logger.verbose('Update Dao metrics', llo({ logId: logDb?.id }))
     })
   },

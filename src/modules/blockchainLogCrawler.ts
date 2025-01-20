@@ -335,6 +335,7 @@ class BlockchainLogCrawler {
         )
       }
       await session.commitTransaction()
+      await session.endSession()
     })
   }
 

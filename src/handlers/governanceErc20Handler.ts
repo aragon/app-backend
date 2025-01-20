@@ -72,6 +72,7 @@ export const GovernanceErc20Handler = {
         const newVotingPower = BigInt(parsedEvent.args.newBalance || 0)
         await tokenBalance?.updateVotingPower(newVotingPower.toString(), info.blockNumber, { session })
         await session.commitTransaction()
+        await session.endSession()
         return newVotingPower
       })
 
@@ -144,6 +145,7 @@ export const GovernanceErc20Handler = {
           { session },
         )
         await session.commitTransaction()
+        await session.endSession()
         logger.verbose('Transfer outgoing - MemberTransaction', llo({ logId: logDb?.id, info }))
       })
 
@@ -243,6 +245,7 @@ export const GovernanceErc20Handler = {
           { session },
         )
         await session.commitTransaction()
+        await session.endSession()
         return memberTransaction
       })
 
@@ -331,6 +334,7 @@ export const GovernanceErc20Handler = {
           { session },
         )
         await session.commitTransaction()
+        await session.endSession()
         return memberTransaction
       })
 
