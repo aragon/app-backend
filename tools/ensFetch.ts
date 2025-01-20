@@ -36,6 +36,7 @@ export const ToolsEnsFetch: IExtendedService = {
       return await DbTx.executeTxFn(async ({ session }) => {
         member.ens = ens
         const logDb = await member.save({ session })
+        await session.commitTransaction()
         return logDb
       })
     }
