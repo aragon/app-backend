@@ -710,6 +710,7 @@ const Web3Helper = {
     const tokenInstance = new Contract(address, ERC20.abi, provider)
     const token: any = {
       address: Web3Helper.parseAddress(address) || address,
+      decimals: '0',
     }
 
     try {

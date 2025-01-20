@@ -2,6 +2,7 @@ export const TokenList = [
   {
     contract_name: 'Wrapped Ether',
     contract_ticker_symbol: 'WETH',
+    contract_decimals: 18,
     contract_address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
     supports_erc: ['erc20'],
     logo_url: 'https://logos.covalenthq.com/tokens/1/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2.png',
