@@ -78,14 +78,15 @@ export const ProposalHandler = {
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     try {
       const pluginAddress = info.address
-      const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, info.network)
 
-      if (!relatedPlugin) {
-        logger.warn('Plugin not found', llo(info))
-        return
-      }
+      const { newProposal, relatedPlugin } = await DbTx.executeTxFn(async ({ session }) => {
+        const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, info.network, { session })
 
-      const newProposal = await DbTx.executeTxFn(async ({ session }) => {
+        if (!relatedPlugin) {
+          logger.warn('Plugin not found', llo(info))
+          return
+        }
+
         info.interfaceType = relatedPlugin.interfaceType
         const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
         const proposalIndex = parsedEvent.args.proposalId.toString()
@@ -189,9 +190,10 @@ export const ProposalHandler = {
         })
 
         const newProposal = await Models.Proposal.create(document, { session })
+        await session.commitTransaction()
         logger.verbose('New Proposal', llo({ ...info, logId: newProposal.id }))
 
-        return newProposal
+        return { newProposal, relatedPlugin }
       })
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)

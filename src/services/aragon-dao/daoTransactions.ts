@@ -189,6 +189,7 @@ export const DaoTransactions = {
 
       return await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await Models.Transaction.create(rawTx, { session } as any)
+        await session.commitTransaction()
         logger.verbose('New Transaction', llo({ logId: logDb?.id }))
         return logDb
       })

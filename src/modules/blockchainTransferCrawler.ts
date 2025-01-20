@@ -274,6 +274,7 @@ class BlockchainTransferCrawler {
           { session } as any,
         )
       }
+      await session.commitTransaction()
     })
   }
 }

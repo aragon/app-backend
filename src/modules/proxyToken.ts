@@ -40,11 +40,21 @@ export const ProxyToken = {
       )
 
       if (existingToken) {
-        return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate, session)
+        const token = await ProxyToken.updateTokenMetrics(
+          existingToken,
+          parsedTokenAddress,
+          network,
+          forceUpdate,
+          session,
+        )
+        await session.commitTransaction()
+        return token
       }
 
       // Create a new token
-      return await ProxyToken.createNewToken(parsedTokenAddress, network, session)
+      const token = await ProxyToken.createNewToken(parsedTokenAddress, network, session)
+      await session.commitTransaction()
+      return token
     })
   },
 
