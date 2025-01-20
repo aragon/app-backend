@@ -35,8 +35,6 @@ const DbTx = {
 
       try {
         const response = await fn({ session })
-        await session.commitTransaction()
-        await session.endSession()
         return response
       } catch (error) {
         if (options?.stopRetry) {

@@ -153,14 +153,14 @@ export const ProxyMember = {
       pluginAddress: HexAddress
       network: NetworksEnum
     },
-  ): Promise<boolean> => {
+  ) => {
     const metrics = await ProxyMember.createMetrics({
       address: memberAddress,
       pluginAddress,
       network,
     })
 
-    if (!metrics) return false
+    if (!metrics) return
 
     const metricActionsMap = {
       [IMetricAction.increaseProposalCount]: metrics.increaseProposalCount,
@@ -172,15 +172,13 @@ export const ProxyMember = {
     const metricUpdateFn = metricActionsMap[metricAction]
 
     if (metricUpdateFn) {
-      return await DbTx.executeTxFn(async ({ session }) => {
+      await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await metricUpdateFn.call(metrics, 1, { session })
         await session.commitTransaction()
         logger.verbose('Updated Member DAO metrics', { logId: logDb.id })
-        return logDb
       })
     } else {
       logger.error('Unsupported metric action', llo({ metricAction, memberAddress, pluginAddress, network }))
-      return false
     }
   },
 
