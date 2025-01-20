@@ -45,12 +45,12 @@ const RabbitMQ = {
         await RabbitMQ.cleanAllQueues()
       }
 
+      RabbitMQ.isReconnecting = false
       logger.info('RabbitMQ connected', llo({ url: config.RABBITMQ.URI }))
     } catch (err) {
+      RabbitMQ.isReconnecting = false
       logger.error('RabbitMQ connection error', llo({ err }))
       RabbitMQ.scheduleReconnect()
-    } finally {
-      RabbitMQ.isReconnecting = false
     }
   },
 
@@ -69,6 +69,7 @@ const RabbitMQ = {
   scheduleReconnect() {
     // If there's already a timer set, do nothing
     if (RabbitMQ.reconnectTimer) {
+      logger.error('RabbitMQ reconnectTimer should be false', llo({ reconnectTimer: RabbitMQ.reconnectTimer }))
       return
     }
 
@@ -118,8 +119,8 @@ const RabbitMQ = {
       if (RabbitMQ.channel) {
         await RabbitMQ.channel.close()
       }
-    } catch (err) {
-      logger.error('Error closing channel', llo({ err }))
+    } catch (_) {
+      // Ignore
     } finally {
       RabbitMQ.channel = null
     }
@@ -130,7 +131,7 @@ const RabbitMQ = {
         await RabbitMQ.connection.close()
       }
     } catch (err) {
-      logger.error('Error closing connection', llo({ err }))
+      // Ignore
     } finally {
       RabbitMQ.connection = null
     }
