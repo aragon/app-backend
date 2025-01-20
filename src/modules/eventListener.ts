@@ -131,8 +131,8 @@ class EventListener {
         }
 
         await existingConfig.update({ lastSync: blockNumber }, { session })
-
         logger.verbose('update last block', llo({ blockNumber, network }))
+        await session.commitTransaction()
       })
     } catch (error) {
       logger.error('Error saving progress - last block', llo({ error, blockNumber, network }))

@@ -6,6 +6,7 @@ class DbOperations {
     return await DbTx.executeTxFn(async ({ session }) => {
       try {
         const document = await model.create(data, { session })
+        await session.commitTransaction()
         logger.verbose(`Created new document - ${logMsg}`, llo({ ...info, documentId: document.id }))
         return document
       } catch (error) {
@@ -20,6 +21,7 @@ class DbOperations {
       try {
         const reloadDocument = await document.constructor.findById(document._id).session(session)
         await reloadDocument.update(data, { session })
+        await session.commitTransaction()
         logger.verbose(`Updated document - ${logMsg}`, llo({ ...info, documentId: reloadDocument.id }))
         return reloadDocument
       } catch (error) {

@@ -57,6 +57,7 @@ export const PermissionHandler = {
         }
 
         const logDb = await Models.DaoPermission.create(document, { session })
+        await session.commitTransaction()
         logger.verbose('Created new document - Permission granted', llo({ ...info, documentId: logDb.id }))
       })
     } catch (error) {
@@ -103,6 +104,7 @@ export const PermissionHandler = {
         }
 
         const logDb = await Models.DaoPermission.create(document, { session })
+        await session.commitTransaction()
         logger.verbose('Created new document - Permission granted', llo({ ...info, documentId: logDb.id }))
       })
     } catch (error) {

@@ -372,6 +372,7 @@ export const PluginHandler = {
         }
 
         const logDb = await Models.Plugin.create(document, { session })
+        await session.commitTransaction()
         logger.verbose(
           'Created new document - New PreInstall Plugin',
           llo({ info, documentId: logDb.id, pluginId: pluginLog.id }),
@@ -413,6 +414,7 @@ export const PluginHandler = {
         }
 
         const plugin = await preInstalledPlugin.update(document, { session })
+        await session.commitTransaction()
         logger.verbose('Updated document - Installed plugin', llo({ pluginLog, documentId: plugin.id }))
         return plugin
       })
@@ -458,6 +460,19 @@ export const PluginHandler = {
         )
 
         if (existingPlugin) {
+          /**
+           * After the plugin is updated we have to copy the existing plugin token.
+           * We need to be sure that both updated and current plugin is token voting
+           */
+          const needUpdate =
+            plugin.interfaceType === IPluginInterfaceType.tokenVoting &&
+            existingPlugin.interfaceType === IPluginInterfaceType.tokenVoting &&
+            !plugin.tokenAddress
+
+          if (needUpdate) {
+            await plugin.update({ tokenAddress: existingPlugin.tokenAddress }, { session })
+          }
+
           const document = {
             status: IPluginStatus.deprecated,
             uninstalled: {
@@ -469,18 +484,10 @@ export const PluginHandler = {
           }
 
           await existingPlugin.update(document, { session })
+          await session.commitTransaction()
           logger.verbose('Updated document - Deprecated plugin', llo({ pluginLog, documentId: existingPlugin.id }))
 
-          /**
-           * After the plugin is updated we have to copy the existing plugin token.
-           * We need to be sure that both updated and current plugin is token voting
-           */
-          if (
-            plugin.interfaceType === IPluginInterfaceType.tokenVoting &&
-            existingPlugin.interfaceType === IPluginInterfaceType.tokenVoting &&
-            !plugin.tokenAddress
-          ) {
-            await plugin.update({ tokenAddress: existingPlugin.tokenAddress }, { session })
+          if (needUpdate) {
             logger.verbose('Updated document - Add plugin token address', llo({ pluginLog, documentId: plugin.id }))
           }
         }
