@@ -137,7 +137,7 @@ export const GovernanceErc20Handler = {
             side,
             from,
             to,
-            amount: BigInt(parsedEvent.args.value || 0).toString(),
+            amount: BigInt(parsedEvent?.args?.value || 0).toString(),
             tokenAddress: info.address,
             memberBalance,
             memberVotingPower: newVotingPower.toString(),
