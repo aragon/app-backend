@@ -81,7 +81,7 @@ class DecodeActions {
         data: action.data,
         type: ProposalActionType.Transfer,
         sender: { address: document.daoAddress, ens: dao?.ens },
-        receiver: { address: member.address, ens: member.ens, avatar: member.avatar },
+        receiver: { address: member?.address || action.to, ens: member?.ens, avatar: member?.avatar },
         amount: action.value,
         token,
         inputData: {
@@ -235,7 +235,7 @@ class DecodeActions {
       Promise.all(
         decodedData.parameters[0].value.map(async (address: HexAddress) => {
           const member = await ProxyMember.createMember(address)
-          return { address: member.address, ens: member.ens, avatar: member.avatar }
+          return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
         }),
       ),
       Models.DaoMemberMapping.findAllMembersOfPlugin({
@@ -266,7 +266,7 @@ class DecodeActions {
       Promise.all(
         decodedData.parameters[0].value.map(async (address: HexAddress) => {
           const member = await ProxyMember.createMember(address)
-          return { address: member.address, ens: member.ens, avatar: member.avatar }
+          return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
         }),
       ),
       Models.DaoMemberMapping.findAllMembersOfPlugin({

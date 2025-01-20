@@ -6,9 +6,9 @@ import { NetworksEnum } from '@types'
 import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
-import DbOperations from '@models/utils/dbOperations'
 import { Models } from '@dbModels'
 import Logger from '@logger'
+import DbTx from '@modules/dbTx'
 
 describe('Module: EventListener', () => {
   let sandbox: SinonSandbox
@@ -48,6 +48,17 @@ describe('Module: EventListener', () => {
       expect(logVerbose.calledWith('Start real-time listening' as any)).to.be.true
       expect(stubSub.calledTwice).to.be.true // Topics split into two chunks
     })
+
+    it('should log an error if subscribing to a topic subset fails', async () => {
+      const configLogs = [{ topic: '0xTopic1', abi: [], handler: sandbox.stub() }]
+      const listener = new EventListener(NetworksEnum.ethereumMainnet, configLogs as any)
+      const logError = sandbox.stub(logger, 'error')
+      sandbox.stub(ProviderModule, 'subscribeToEvent').throws(new Error('Subscription failed'))
+
+      await listener.subscribeToEvents()
+
+      expect(logError.calledWithMatch('Event listener error' as any)).to.be.true
+    })
   })
 
   describe('handleEvent', () => {
@@ -72,6 +83,18 @@ describe('Module: EventListener', () => {
       await listener.handleEvent(log)
 
       expect(configLogs[0].handler.notCalled).to.be.true
+    })
+
+    it('should log an error if event processing fails', async () => {
+      const configLogs = [{ topic: '0xTopic1', abi: [], handler: () => {} }]
+      const listener = new EventListener(NetworksEnum.ethereumMainnet, configLogs as any)
+      const logError = sandbox.stub(logger, 'error')
+      sandbox.stub(Web3Helper, 'parseLog').throws(new Error('Handler error'))
+
+      const log = { topics: ['0xTopic1'], data: '0xData' } as any
+      await listener.handleEvent(log)
+
+      expect(logError.calledOnceWith('Error handling eventListener' as any)).to.be.true
     })
   })
 
@@ -128,6 +151,87 @@ describe('Module: EventListener', () => {
       expect(updatedDocument).to.not.be.null
       expect(updatedDocument.lastSync).to.equal(101)
       expect(stubLogger.calledOnceWith('update last block' as any)).to.be.true
+    })
+
+    it('should handle empty logs gracefully', async () => {
+      const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
+      const mockProvider = { getLogs: sandbox.stub().resolves([]) }
+
+      sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider)
+      const logError = sandbox.stub(logger, 'error')
+
+      await listener.handleOnNewBlock(101)
+
+      expect(mockProvider.getLogs.calledOnce).to.be.true
+      expect(logError.notCalled).to.be.true
+    })
+
+    it('should skip logs with no matching topics', async () => {
+      const listener = new EventListener(NetworksEnum.ethereumMainnet, [
+        { topic: '0xTopic1', abi: [], handler: sandbox.stub() } as any,
+      ])
+      const mockProvider = { getLogs: sandbox.stub().resolves([{ topics: ['0xUnknownTopic'], data: '0xData' }]) }
+
+      sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider)
+      const logError = sandbox.stub(logger, 'error')
+
+      await listener.handleOnNewBlock(101)
+
+      expect(mockProvider.getLogs.calledOnce).to.be.true
+      expect(logError.notCalled).to.be.true
+    })
+  })
+
+  describe('saveProgress', () => {
+    it('should update the lastSync field in the database correctly', async () => {
+      const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
+
+      const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        return await fn({
+          session: { commitTransaction: sandbox.stub().resolves(), endSession: sandbox.stub().resolves() },
+        })
+      })
+
+      const updateStub = sandbox.stub()
+      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({
+        lastSync: 100,
+        update: updateStub.resolves(),
+      })
+
+      await listener.saveProgress(101, NetworksEnum.ethereumMainnet)
+
+      expect(executeTxFnStub.calledOnce).to.be.true
+      expect(updateStub.calledOnceWith({ lastSync: 101 })).to.be.true
+    })
+
+    it('should skip saving progress if lastSync is already up-to-date', async () => {
+      const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        await fn({
+          session: { closeEnd: sandbox.stub().resolves() },
+        })
+      })
+
+      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({
+        lastSync: 102,
+        update: sandbox.stub(),
+      })
+
+      const updateStub = sandbox.stub(Models.ConfigIndexer.prototype, 'update')
+
+      await listener.saveProgress(101, NetworksEnum.ethereumMainnet)
+
+      expect(updateStub.notCalled).to.be.true // No update should occur
+    })
+
+    it('should log an error if saveProgress fails', async () => {
+      const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
+      const logError = sandbox.stub(logger, 'error')
+      sandbox.stub(DbTx, 'executeTxFn').throws(new Error('Transaction error'))
+
+      await listener.saveProgress(101, NetworksEnum.ethereumMainnet)
+
+      expect(logError.calledWithMatch('Error saving progress' as any)).to.be.true
     })
   })
 })

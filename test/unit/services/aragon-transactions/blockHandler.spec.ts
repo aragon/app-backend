@@ -1,7 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import ProviderModule from '@modules/provider'
