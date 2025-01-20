@@ -240,6 +240,7 @@ export default class Vote extends Model {
                 $project: {
                   _id: 0,
                   id: 1,
+                  parentProposal: 1,
                   transactionHash: 1,
                   proposalIndex: 1,
                   title: 1,
@@ -259,6 +260,54 @@ export default class Vote extends Model {
             proposal: { $arrayElemAt: ['$proposalDetails', 0] },
           },
         },
+
+        {
+          $lookup: {
+            from: 'Proposal',
+            let: {
+              pluginAddress: '$proposal.parentProposal.pluginAddress',
+              proposalIndex: '$proposal.parentProposal.proposalIndex',
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$pluginAddress', '$$pluginAddress'] },
+                      { $eq: ['$proposalIndex', '$$proposalIndex'] },
+                    ],
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 0,
+                  id: 1,
+                  transactionHash: 1,
+                  proposalIndex: 1,
+                  title: 1,
+                  description: 1,
+                  summary: 1,
+                  metadataUri: 1,
+                  resources: 1,
+                  media: 1,
+                },
+              },
+            ],
+            as: 'parentProposalDetails',
+          },
+        },
+        {
+          $addFields: {
+            parentProposal: {
+              $cond: {
+                if: { $gt: [{ $size: '$parentProposalDetails' }, 0] },
+                then: { $arrayElemAt: ['$parentProposalDetails', 0] },
+                else: null,
+              },
+            },
+          },
+        },
       )
     }
 
@@ -275,7 +324,18 @@ export default class Vote extends Model {
         proposalIndex: 1,
         votingPower: 1,
         token: 1,
-        proposal: 1,
+        proposal: {
+          id: 1,
+          transactionHash: 1,
+          proposalIndex: 1,
+          title: 1,
+          description: 1,
+          summary: 1,
+          metadataUri: 1,
+          resources: 1,
+          media: 1,
+        },
+        parentProposal: 1,
         voteOption: 1,
       },
     })
