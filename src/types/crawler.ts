@@ -47,6 +47,10 @@ export enum ITokenVotingLogs {
   MetadataSet = 'MetadataSet',
 }
 
+export enum LockErc721Token {
+  Transfer = 'Transfer',
+}
+
 export enum IGovernanceErc20Logs {
   Transfer = 'Transfer',
   DelegateVotesChanged = 'DelegateVotesChanged',
@@ -80,4 +84,9 @@ export enum ISPPLogs {
 export enum IDaoLogs {
   Granted = 'Granted',
   Revoked = 'Revoked',
+}
+
+export enum IGaugeVoterLogs {
+  Voted = 'Voted',
+  Reset = 'Reset',
 }

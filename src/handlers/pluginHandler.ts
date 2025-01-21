@@ -347,7 +347,10 @@ export const PluginHandler = {
         const pluginInfo = await PluginDetector.detectPluginType(pluginLog.pluginAddress, pluginLog.network)
         document.interfaceType = pluginInfo?.type
 
-        if (document.interfaceType === IPluginInterfaceType.tokenVoting) {
+        if (
+          document.interfaceType === IPluginInterfaceType.tokenVoting ||
+          document.interfaceType === IPluginInterfaceType.gauge
+        ) {
           document.tokenAddress = pluginLog.tokenAddress
         }
 

@@ -62,6 +62,7 @@ export const CustomInstall = {
   pluginEvents: async (dao: any) => {
     const configLogs = [
       {
+        enableHistorical: false,
         event: 'InstallationPrepared',
         abi: PluginSetupProcessor.abi,
         handler: PluginSetupProcessorHandler.installationPrepared,
@@ -73,6 +74,7 @@ export const CustomInstall = {
         ],
       },
       {
+        enableHistorical: true, // only sync when applied
         event: 'InstallationApplied',
         abi: PluginSetupProcessor.abi,
         handler: PluginSetupProcessorHandler.installationApplied,
@@ -82,30 +84,6 @@ export const CustomInstall = {
           null,
         ],
       },
-
-      // {
-      //   enableHistorical: true,
-      //   event: 'UpdatePrepared',
-      //   abi: PluginSetupProcessor.abi,
-      //   handler: PluginSetupProcessorHandler.updatePrepared,
-      //   topic: [
-      //     new Interface(PluginSetupProcessor.abi).getEvent('UpdatePrepared')?.topicHash!,
-      //     null,
-      //     zeroPadValue(dao.address, 32),
-      //     null
-      //   ]
-      // },
-      // {
-      //   enableHistorical: true,
-      //   event: 'UpdateApplied',
-      //   abi: PluginSetupProcessor.abi,
-      //   handler: PluginSetupProcessorHandler.updateApplied,
-      //   topic: [
-      //     new Interface(PluginSetupProcessor.abi).getEvent('UpdateApplied')?.topicHash!,
-      //     zeroPadValue(dao.address, 32),
-      //     null
-      //   ]
-      // },
     ]
 
     const crawler = new BlockchainLogCrawler({
