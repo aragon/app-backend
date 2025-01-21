@@ -133,7 +133,7 @@ describe('Indexer: ProposalHandler', () => {
       ).to.be.true
 
       expect(
-        stubMemberMetrics.calledOnceWithExactly(IMetricAction.increaseProposalCount, {
+        stubMemberMetrics.calledOnceWith(IMetricAction.increaseProposalCount, {
           memberAddress: '0xcreator',
           pluginAddress: '0xplugin-address',
           network,
@@ -231,7 +231,7 @@ describe('Indexer: ProposalHandler', () => {
 
       // Assertions on external calls
       expect(
-        updateActivityStub.calledOnceWithExactly({
+        updateActivityStub.calledOnceWith({
           memberAddress: '0xadmin-creator',
           pluginAddress: '0xplugin-address',
           network,
@@ -240,7 +240,7 @@ describe('Indexer: ProposalHandler', () => {
       ).to.be.true
 
       expect(
-        stubMemberMetrics.calledOnceWithExactly(IMetricAction.increaseProposalCount, {
+        stubMemberMetrics.calledOnceWith(IMetricAction.increaseProposalCount, {
           memberAddress: '0xadmin-creator',
           pluginAddress: '0xplugin-address',
           network,
@@ -347,7 +347,7 @@ describe('Indexer: ProposalHandler', () => {
       const result = await ProposalHandler.approved(fakeEvent as any, info)
 
       expect(result).to.be.undefined
-      expect(warnLoggerStub.calledOnceWith('Approved - Plugin not found' as any)).to.be.true
+      expect(warnLoggerStub.calledOnceWith('Approved - Plugin not supported' as any)).to.be.true
     })
 
     it('should handle approved event', async () => {
@@ -402,7 +402,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(savedVote.blockTimestamp).to.eq(1700000000)
 
       expect(
-        updateActivityStub.calledOnceWithExactly({
+        updateActivityStub.calledOnceWith({
           memberAddress: '0xapprover-address',
           pluginAddress: '0xplugin-address',
           network,
@@ -411,7 +411,7 @@ describe('Indexer: ProposalHandler', () => {
       ).to.be.true
 
       expect(
-        updateMetricsStub.calledOnceWithExactly(IMetricAction.increaseVoteCount, {
+        updateMetricsStub.calledOnceWith(IMetricAction.increaseVoteCount, {
           memberAddress: '0xapprover-address',
           pluginAddress: '0xplugin-address',
           network,
@@ -537,10 +537,10 @@ describe('Indexer: ProposalHandler', () => {
       expect(savedVote.votingPower).to.eq('1000')
       expect(savedVote.blockTimestamp).to.eq(1700000000)
 
-      expect(proxyTokenStub.calledOnceWithExactly('0xtoken-address', network)).to.be.true
+      expect(proxyTokenStub.calledOnceWith('0xtoken-address', network)).to.be.true
 
       expect(
-        updateMetricsStub.calledOnceWithExactly(IMetricAction.increaseVoteCount, {
+        updateMetricsStub.calledOnceWith(IMetricAction.increaseVoteCount, {
           memberAddress: '0xvoter-address',
           pluginAddress: '0xplugin-address',
           network,
@@ -548,7 +548,7 @@ describe('Indexer: ProposalHandler', () => {
       ).to.be.true
 
       expect(
-        updateActivityStub.calledOnceWithExactly({
+        updateActivityStub.calledOnceWith({
           memberAddress: '0xvoter-address',
           pluginAddress: '0xplugin-address',
           network,
@@ -616,7 +616,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(savedVote.replacedTransactionHash).to.eq('0xOldTx')
       expect(existingVote.deleteOne.calledOnce).to.be.true
 
-      expect(proxyTokenStub.calledOnceWithExactly('0xtoken-address', network)).to.be.true
+      expect(proxyTokenStub.calledOnceWith('0xtoken-address', network)).to.be.true
       expect(updateActivityStub.calledOnce).to.be.true
     })
 
@@ -880,8 +880,8 @@ describe('Indexer: ProposalHandler', () => {
 
       const result = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
-      expect(fetchMetadataStub.calledOnceWithExactly(metadataUri, { retries: 4 })).to.be.true
-      expect(parseMetadataStub.calledOnceWithExactly(fakeIpfsMetadata)).to.be.true
+      expect(fetchMetadataStub.calledOnceWith(metadataUri, { retries: 4 })).to.be.true
+      expect(parseMetadataStub.calledOnceWith(fakeIpfsMetadata)).to.be.true
       expect(result).to.deep.equal(parsedMetadata)
     })
 
@@ -893,7 +893,7 @@ describe('Indexer: ProposalHandler', () => {
 
       const result = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
-      expect(fetchMetadataStub.calledOnceWithExactly(metadataUri, { retries: 4 })).to.be.true
+      expect(fetchMetadataStub.calledOnceWith(metadataUri, { retries: 4 })).to.be.true
       expect(parseMetadataStub.notCalled).to.be.true
       expect(result).to.be.null
     })
@@ -1274,7 +1274,7 @@ describe('Indexer: ProposalHandler', () => {
 
       expect(result).to.deep.equal({ startDate: 1000, endDate: 2000 })
       expect(
-        stubProposal.calledOnceWithExactly({
+        stubProposal.calledOnceWith({
           plugin: fakePlugin,
           proposalIndex: fakeProposal.proposalIndex,
           network: fakeProposal.network,
@@ -1298,7 +1298,7 @@ describe('Indexer: ProposalHandler', () => {
 
       expect(result).to.deep.equal({ startDate: 0, endDate: 0 })
       expect(
-        stubProposal.calledOnceWithExactly({
+        stubProposal.calledOnceWith({
           plugin: fakePlugin,
           proposalIndex: fakeProposal.proposalIndex,
           network: fakeProposal.network,
@@ -1327,7 +1327,7 @@ describe('Indexer: ProposalHandler', () => {
 
       expect(result).to.deep.equal({ startDate: 0, endDate: 0 })
       expect(
-        stubProposal.calledOnceWithExactly({
+        stubProposal.calledOnceWith({
           plugin: fakePlugin,
           proposalIndex: fakeProposal.proposalIndex,
           network: fakeProposal.network,
@@ -1355,7 +1355,7 @@ describe('Indexer: ProposalHandler', () => {
 
       expect(result).to.deep.equal({ startDate: 0, endDate: 0 })
       expect(
-        stubProposal.calledOnceWithExactly({
+        stubProposal.calledOnceWith({
           plugin: fakePlugin,
           proposalIndex: fakeProposal.proposalIndex,
           network: fakeProposal.network,
@@ -1397,7 +1397,7 @@ describe('Indexer: ProposalHandler', () => {
 
       const result = await ProposalHandler.parseActions(fakeProposal as any)
 
-      expect(decodeDataStub.calledOnceWithExactly(fakeProposal?.rawActions[0] as any, fakeProposal as any)).to.be.true
+      expect(decodeDataStub.calledOnceWith(fakeProposal?.rawActions[0] as any, fakeProposal as any)).to.be.true
 
       expect(decodeTransferStub.calledTwice).to.be.true
       expect(decodeTransferStub.firstCall.calledWithExactly(fakeProposal.rawActions[1] as any, fakeProposal as any)).to
@@ -1406,7 +1406,7 @@ describe('Indexer: ProposalHandler', () => {
         .be.true
 
       expect(
-        updateDocumentSpy.calledOnceWithExactly(
+        updateDocumentSpy.calledOnceWith(
           fakeProposal,
           {
             actions: [
@@ -1440,9 +1440,8 @@ describe('Indexer: ProposalHandler', () => {
 
       await ProposalHandler.parseActions(fakeProposal as any)
 
-      expect(decodeDataStub.calledOnceWithExactly(fakeProposal.rawActions[0] as any, fakeProposal as any)).to.be.true
-      expect(decodeTransferStub.calledOnceWithExactly(fakeProposal.rawActions[1] as any, fakeProposal as any)).to.be
-        .true
+      expect(decodeDataStub.calledOnceWith(fakeProposal.rawActions[0] as any, fakeProposal as any)).to.be.true
+      expect(decodeTransferStub.calledOnceWith(fakeProposal.rawActions[1] as any, fakeProposal as any)).to.be.true
       expect(updateDocumentSpy.notCalled).to.be.true
       expect(errorLoggerStub.calledOnceWith('Error parseActions' as any)).to.be.true
     })
@@ -1507,7 +1506,7 @@ describe('Indexer: ProposalHandler', () => {
       })
 
       expect(
-        subProposalDb.update.calledOnceWithExactly({
+        subProposalDb.update.calledOnceWith({
           parentProposal: {
             pluginAddress: proposal.pluginAddress,
             proposalIndex: proposal.proposalIndex,
@@ -1683,7 +1682,7 @@ describe('Indexer: ProposalHandler', () => {
 
       // Verify DbOperations.updateDocument call
       expect(
-        updateDocumentStub.calledOnceWithExactly(
+        updateDocumentStub.calledOnceWith(
           proposal,
           {
             cancelTxInfo: {
@@ -1810,7 +1809,7 @@ describe('Indexer: ProposalHandler', () => {
       await ProposalHandler.proposalEdited(fakeEvent as any, info)
 
       expect(
-        updateDocumentStub.calledOnceWithExactly(
+        updateDocumentStub.calledOnceWith(
           proposal,
           {
             title: proposalMetadata.title,

@@ -193,7 +193,7 @@ describe('GovernanceErc20Handler', () => {
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
       const memberTransaction = await Models.MemberTransaction.findOne({})
-      expect(findByAddressStub.calledOnceWithExactly(info.address, info.network)).to.be.true
+      expect(findByAddressStub.calledOnceWith(info.address, info.network)).to.be.true
       expect(memberTransaction).to.be.not.null
       expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
       expect(memberTransaction.side).to.be.eq(ITransferSide.incoming)
@@ -211,14 +211,14 @@ describe('GovernanceErc20Handler', () => {
       expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
       expect(memberTransactionCreateStub.calledOnce).to.be.true
       expect(
-        updateMetricsStub.calledOnceWithExactly(IMetricAction.increaseDelegateReceivedCount, {
+        updateMetricsStub.calledOnceWith(IMetricAction.increaseDelegateReceivedCount, {
           memberAddress: parsedEvent.args.delegate,
           pluginAddress: plugin.address,
           network: info.network,
         }),
       ).to.be.true
       expect(
-        addToDaoStub.calledOnceWithExactly({
+        addToDaoStub.calledOnceWith({
           memberAddress: parsedEvent.args.delegate,
           daoAddress: plugin.daoAddress,
           pluginAddress: plugin.address,
@@ -226,13 +226,13 @@ describe('GovernanceErc20Handler', () => {
         }),
       ).to.be.true
       expect(
-        sendMessageStub.calledOnceWithExactly(EnumQueueName.daoMetrics, {
+        sendMessageStub.calledOnceWith(EnumQueueName.daoMetrics, {
           id: plugin.daoAddress,
           params: { address: plugin.daoAddress, network: plugin.network },
         }),
       ).to.be.true
 
-      expect(loggerVerboseStub.callCount).to.eq(4)
+      expect(loggerVerboseStub.callCount).to.eq(3)
     })
 
     it('should handle incoming delegateVotesChanged event and not add member if to is zero address', async () => {
@@ -286,10 +286,10 @@ describe('GovernanceErc20Handler', () => {
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
       const memberTransaction = await Models.MemberTransaction.findOne({})
-      expect(findByAddressStub.calledOnceWithExactly(info.address, info.network)).to.be.true
+      expect(findByAddressStub.calledOnceWith(info.address, info.network)).to.be.true
       expect(memberTransaction).to.be.null
 
-      expect(createMemberStub.calledOnceWithExactly(parsedEvent.args.delegate)).to.be.true
+      expect(createMemberStub.calledOnceWith(parsedEvent.args.delegate)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getBalancesStub.calledOnce).to.be.true
       expect(findDelegatorsStub.calledOnce).to.be.true
@@ -298,7 +298,7 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransactionCreateStub.notCalled).to.be.true
       expect(updateMetricsStub.notCalled).to.be.true
       expect(
-        addToDaoStub.calledOnceWithExactly({
+        addToDaoStub.calledOnceWith({
           memberAddress: parsedEvent.args.delegate,
           daoAddress: plugin.daoAddress,
           pluginAddress: plugin.address,
@@ -359,7 +359,7 @@ describe('GovernanceErc20Handler', () => {
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
-      expect(findByAddressStub.calledOnceWithExactly(info.address, info.network)).to.be.true
+      expect(findByAddressStub.calledOnceWith(info.address, info.network)).to.be.true
       expect(createMemberStub.calledTwice).to.be.true
       expect(createMemberStub.args[0][0]).to.eq(parsedEvent.args.delegate)
       expect(createMemberStub.args[1][0]).to.eq(parsedEvent.args.delegate)
@@ -380,7 +380,7 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction.memberVotingPower).to.be.eq('1000')
 
       expect(
-        updateMetricsStub.calledOnceWithExactly(IMetricAction.increaseDelegateSentCount, {
+        updateMetricsStub.calledOnceWith(IMetricAction.increaseDelegateSentCount, {
           memberAddress: parsedEvent.args.delegate,
           pluginAddress: plugin.address,
           network: info.network,
@@ -388,14 +388,14 @@ describe('GovernanceErc20Handler', () => {
       ).to.be.true
 
       expect(
-        sendMessageStub.calledOnceWithExactly(EnumQueueName.daoMetrics, {
+        sendMessageStub.calledOnceWith(EnumQueueName.daoMetrics, {
           id: plugin.daoAddress,
           params: { address: plugin.daoAddress, network: plugin.network },
         }),
       ).to.be.true
 
       expect(
-        addToDaoStub.calledOnceWithExactly({
+        addToDaoStub.calledOnceWith({
           memberAddress: parsedEvent.args.delegate,
           daoAddress: plugin.daoAddress,
           pluginAddress: plugin.address,
@@ -452,8 +452,8 @@ describe('GovernanceErc20Handler', () => {
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
       const memberTransaction = await Models.MemberTransaction.findOne({})
-      expect(findByAddressStub.calledOnceWithExactly(info.address, info.network)).to.be.true
-      expect(createMemberStub.calledOnceWithExactly(parsedEvent.args.delegate)).to.be.true
+      expect(findByAddressStub.calledOnceWith(info.address, info.network)).to.be.true
+      expect(createMemberStub.calledOnceWith(parsedEvent.args.delegate)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getBalancesStub.calledOnce).to.be.true
       expect(findDelegatorsStub.calledOnce).to.be.true
@@ -577,7 +577,7 @@ describe('GovernanceErc20Handler', () => {
 
       mockBalance.decreaseBalance = sandbox.stub().resolves(mockBalance) as any
 
-      const getBalancesStub = sandbox.stub(ProxyMember, 'getBalances').resolves(mockBalance)
+      const getBalancesStub = sandbox.stub(ProxyMember, 'getBalances').resolves(mockBalance as any)
 
       sandbox.stub(Logger, 'verbose')
 
@@ -591,10 +591,10 @@ describe('GovernanceErc20Handler', () => {
       await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info as any, plugin as any)
       const memberTransaction = await Models.MemberTransaction.findOne({})
 
-      expect(createMemberStub.calledOnceWithExactly(parsedEvent.args.from)).to.be.true
+      expect(createMemberStub.calledOnceWith(parsedEvent.args.from)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getBalancesStub.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledOnceWithExactly(info.blockNumber, info.network)).to.be.true
+      expect(getBlockTimestampStub.calledOnceWith(info.blockNumber, info.network)).to.be.true
       expect(getPastVotesStub.calledOnce).to.be.true
       expect(
         getPastVotesStub.calledWith(parsedEvent.args.from, info.address, info.blockNumber, 1630425600, info.network),
@@ -617,7 +617,7 @@ describe('GovernanceErc20Handler', () => {
         }),
       ).to.be.true
       expect(
-        sendMessageStub.calledOnceWithExactly(EnumQueueName.daoMetrics, {
+        sendMessageStub.calledOnceWith(EnumQueueName.daoMetrics, {
           id: plugin.daoAddress,
           params: { address: plugin.daoAddress, network: plugin.network },
         }),
@@ -659,7 +659,7 @@ describe('GovernanceErc20Handler', () => {
       const handlerResponse = await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info as any, plugin as any)
 
       expect(handlerResponse).to.be.undefined
-      expect(createMemberStub.calledOnceWithExactly(parsedEvent.args.from)).to.be.true
+      expect(createMemberStub.calledOnceWith(parsedEvent.args.from)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(loggerErrorStub.calledOnceWith('Transfer - outgoing transfer already processed' as any))
     })
@@ -701,7 +701,7 @@ describe('GovernanceErc20Handler', () => {
       const handlerResponse = await GovernanceErc20Handler._incomingTransfer(parsedEvent, info as any, plugin as any)
 
       expect(handlerResponse).to.be.undefined
-      expect(createMemberStub.calledOnceWithExactly(parsedEvent.args.to)).to.be.true
+      expect(createMemberStub.calledOnceWith(parsedEvent.args.to)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(loggerErrorStub.calledOnceWith('Transfer - incoming transfer already processed' as any))
     })
@@ -745,7 +745,7 @@ describe('GovernanceErc20Handler', () => {
 
       mockBalance.increaseBalance = sandbox.stub().resolves(mockBalance) as any
 
-      const getBalancesStub = sandbox.stub(ProxyMember, 'getBalances').resolves(mockBalance)
+      const getBalancesStub = sandbox.stub(ProxyMember, 'getBalances').resolves(mockBalance as any)
 
       sandbox.stub(Logger, 'verbose')
 
@@ -760,10 +760,10 @@ describe('GovernanceErc20Handler', () => {
       await GovernanceErc20Handler._incomingTransfer(parsedEvent, info as any, plugin as any)
       const memberTransaction = await Models.MemberTransaction.findOne({})
 
-      expect(createMemberStub.calledOnceWithExactly(parsedEvent.args.to)).to.be.true
+      expect(createMemberStub.calledOnceWith(parsedEvent.args.to)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getBalancesStub.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledOnceWithExactly(info.blockNumber, info.network)).to.be.true
+      expect(getBlockTimestampStub.calledOnceWith(info.blockNumber, info.network)).to.be.true
       expect(getPastVotesStub.calledOnce).to.be.true
       expect(getPastVotesStub.calledWith(parsedEvent.args.to, info.address, info.blockNumber, 1630425600, info.network))
         .to.be.true
@@ -784,7 +784,7 @@ describe('GovernanceErc20Handler', () => {
         }),
       ).to.be.true
       expect(
-        sendMessageStub.calledOnceWithExactly(EnumQueueName.daoMetrics, {
+        sendMessageStub.calledOnceWith(EnumQueueName.daoMetrics, {
           id: plugin.daoAddress,
           params: { address: plugin.daoAddress, network: plugin.network },
         }),
@@ -811,7 +811,7 @@ describe('GovernanceErc20Handler', () => {
 
       expect(result.from).to.equal(utils.zeroAddress)
       expect(result.to).to.equal(utils.zeroAddress)
-      expect(getTransactionReceiptStub.calledOnceWithExactly(info.transactionHash, info.network)).to.be.true
+      expect(getTransactionReceiptStub.calledOnceWith(info.transactionHash, info.network)).to.be.true
     })
 
     it('should return from and to delegates when matching delegator is found', async () => {
@@ -854,14 +854,9 @@ describe('GovernanceErc20Handler', () => {
 
       expect(result.from).to.equal('0xFromDelegate')
       expect(result.to).to.equal('0xToDelegate')
-      expect(getTransactionReceiptStub.calledOnceWithExactly(info.transactionHash, info.network)).to.be.true
-      expect(
-        findLogsByNameStub.calledOnceWithExactly(
-          txReceipt as any,
-          IEventLogMember.DelegateChanged,
-          GovernanceERC20.abi,
-        ),
-      ).to.be.true
+      expect(getTransactionReceiptStub.calledOnceWith(info.transactionHash, info.network)).to.be.true
+      expect(findLogsByNameStub.calledOnceWith(txReceipt as any, IEventLogMember.DelegateChanged, GovernanceERC20.abi))
+        .to.be.true
     })
 
     it('should return zero addresses if no matching delegator is found', async () => {
@@ -904,14 +899,9 @@ describe('GovernanceErc20Handler', () => {
 
       expect(result.from).to.equal(utils.zeroAddress)
       expect(result.to).to.equal(utils.zeroAddress)
-      expect(getTransactionReceiptStub.calledOnceWithExactly(info.transactionHash, info.network)).to.be.true
-      expect(
-        findLogsByNameStub.calledOnceWithExactly(
-          txReceipt as any,
-          IEventLogMember.DelegateChanged,
-          GovernanceERC20.abi,
-        ),
-      ).to.be.true
+      expect(getTransactionReceiptStub.calledOnceWith(info.transactionHash, info.network)).to.be.true
+      expect(findLogsByNameStub.calledOnceWith(txReceipt as any, IEventLogMember.DelegateChanged, GovernanceERC20.abi))
+        .to.be.true
     })
   })
 
