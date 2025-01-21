@@ -5,6 +5,8 @@ import { NetworkHelper } from '@helpers/network'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import type Plugin from '@models/schema/plugin'
 import Web3Helper from '@helpers/web3'
+import RabbitMQ from '@modules/rabbitMQ'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:SyncAll' })
 
@@ -85,30 +87,55 @@ export const SyncAll = {
             },
           },
         ])
-        const pluginNotSynced = plugins.filter((plugin: Plugin) => plugin.lastSync === 0)
 
-        await Promise.all(
-          pluginNotSynced.map(async (plugin: Plugin) => {
-            await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-              id: plugin.address,
-              params: { address: plugin.address, network: plugin.network },
-            })
-          }),
-        )
+        const pluginNotSynced = plugins.filter((plugin: Plugin) => plugin.lastSync === 0)
+        for (const plugin of pluginNotSynced) {
+          await SyncAll.sendWithQueueLimit(plugin)
+        }
 
         const pluginSynced = plugins.filter((plugin: Plugin) => plugin.lastSync > 0)
-
-        await Promise.all(
-          pluginSynced.map(async (plugin: Plugin) => {
-            await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-              id: plugin.address,
-              params: { address: plugin.address, network: plugin.network },
-            })
-          }),
-        )
+        for (const plugin of pluginSynced) {
+          await SyncAll.sendWithQueueLimit(plugin)
+        }
       }),
     )
 
     logger.verbose('End SyncAll', llo())
+  },
+
+  sendWithQueueLimit: async (plugin: Plugin) => {
+    const maxQueueSize = 100
+    const retryDelay = 1000 // 1 second
+
+    while (true) {
+      const count = await RabbitMQ.getMessageCount(EnumQueueName.plugins)
+
+      if (count === null) {
+        logger.error(
+          `Unable to get message count for queue "${EnumQueueName.plugins}". Retrying...`,
+          llo({ pluginId: plugin.id }),
+        )
+        await utils.wait(retryDelay)
+        continue
+      }
+
+      if (count < maxQueueSize) {
+        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+          id: plugin.address,
+          params: { address: plugin.address, network: plugin.network },
+        })
+        logger.verbose(
+          `Message sent to queue "${EnumQueueName.plugins}". Current count: ${count + 1}`,
+          llo({ queueName: EnumQueueName.plugins }),
+        )
+        break // Exit the loop after successful send
+      } else {
+        logger.warn(
+          `Queue "${EnumQueueName.plugins}" has reached the limit (${count} messages). Waiting...`,
+          llo({ queueName: EnumQueueName.plugins }),
+        )
+        await utils.wait(retryDelay) // Wait before retrying
+      }
+    }
   },
 }

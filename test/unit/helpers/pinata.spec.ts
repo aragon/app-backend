@@ -58,7 +58,7 @@ describe('Helpers: Pinata', () => {
       expect(data).to.be.null
       expect(stubFetch.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Failed to fetch data' as any)).to.be.true
+      expect(stubLogger.calledWith('Pinata failed to fetch data' as any)).to.be.true
     })
   })
 

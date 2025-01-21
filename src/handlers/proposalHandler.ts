@@ -78,117 +78,124 @@ export const ProposalHandler = {
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     try {
       const pluginAddress = info.address
-      const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, info.network)
 
-      if (!relatedPlugin) {
-        logger.warn('Plugin not found', llo(info))
-        return
-      }
+      const { newProposal, relatedPlugin } = await DbTx.executeTxFn(async ({ session }) => {
+        const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, info.network, { session })
 
-      info.interfaceType = relatedPlugin.interfaceType
-
-      const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
-      const proposalIndex = parsedEvent.args.proposalId.toString()
-      const existingLog = await Models.Proposal.findExistingLog({
-        transactionHash: info.transactionHash,
-        pluginAddress,
-        proposalIndex,
-      })
-      if (existingLog) return
-
-      const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
-      const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
-
-      let rawSettings: any = null
-
-      if (settings) {
-        rawSettings = {
-          id: settings?.id,
-          transactionHash: settings.transactionHash,
-          blockNumber: settings.blockNumber,
-          blockTimestamp: settings.blockTimestamp,
-          network: settings.network,
-          daoAddress: settings.daoAddress,
-          pluginAddress: settings.pluginAddress,
-          pluginSubdomain: settings.pluginSubdomain,
-          tokenAddress: settings.tokenAddress,
-          onlyListed: settings?.onlyListed,
-          minApprovals: settings?.minApprovals,
-          votingMode: settings?.votingMode,
-          supportThreshold: settings?.supportThreshold,
-          minParticipation: settings?.minParticipation,
-          minDuration: settings?.minDuration,
-          minProposerVotingPower: settings?.minProposerVotingPower,
-          stages: settings?.stages, // spp settings
+        if (!relatedPlugin) {
+          logger.warn('Plugin not found', llo(info))
+          return
         }
-      }
 
-      const document: Partial<Proposal> = {
-        network: info.network,
-        blockNumber: info.blockNumber,
-        blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
-        transactionHash: info.transactionHash,
-        title: proposalMetadata?.title!,
-        description: proposalMetadata?.description!,
-        summary: proposalMetadata?.summary!,
-        resources: proposalMetadata?.resources as any,
-        media: proposalMetadata?.media as any,
-        daoAddress: relatedPlugin.daoAddress,
-        pluginAddress,
-        pluginSubdomain: relatedPlugin.subdomain,
-        creatorAddress: parsedEvent.args.creator,
-        proposalIndex,
-        startDate: Number(parsedEvent.args.startDate),
-        endDate: Number(parsedEvent.args.endDate),
-        allowFailureMap: Number(parsedEvent.args.allowFailureMap),
-        metadataUri,
-
-        // setting needs to be static as they will never change during the proposal lifecycle
-        settings: rawSettings,
-        rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({
-          to: w.to,
-          value: w.value,
-          data: w.data,
-        })),
-      }
-
-      // in case startDate is 0 we need to fetch it from the contract
-      if (document.startDate === 0) {
-        const { startDate, endDate } = await ProposalHandler.handleStartEndDate(document as Proposal, relatedPlugin)
-        document.startDate = startDate
-        document.endDate = endDate
-      }
-
-      if (document?.settings?.tokenAddress && relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
-        const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
-          document.blockNumber! - 1,
-          document?.settings.tokenAddress,
-          document.network!,
-        )
-
-        document.snapshot = {
-          totalSupply: totalSupply?.toString() ?? '0',
-        }
-      } else if (
-        relatedPlugin.interfaceType === IPluginInterfaceType.multisig ||
-        relatedPlugin.interfaceType === IPluginInterfaceType.admin
-      ) {
-        const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
-          pluginAddress: relatedPlugin.address,
-          network: relatedPlugin.network,
+        info.interfaceType = relatedPlugin.interfaceType
+        const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
+        const proposalIndex = parsedEvent.args.proposalId.toString()
+        const existingLog = await Models.Proposal.findExistingLog({
+          transactionHash: info.transactionHash,
+          pluginAddress,
+          proposalIndex,
         })
-        document.snapshot = {
-          membersCount: members.length,
+        if (existingLog) return
+
+        const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
+        const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
+
+        let rawSettings: any = null
+
+        if (settings) {
+          rawSettings = {
+            id: settings?.id,
+            transactionHash: settings.transactionHash,
+            blockNumber: settings.blockNumber,
+            blockTimestamp: settings.blockTimestamp,
+            network: settings.network,
+            daoAddress: settings.daoAddress,
+            pluginAddress: settings.pluginAddress,
+            pluginSubdomain: settings.pluginSubdomain,
+            tokenAddress: settings.tokenAddress,
+            onlyListed: settings?.onlyListed,
+            minApprovals: settings?.minApprovals,
+            votingMode: settings?.votingMode,
+            supportThreshold: settings?.supportThreshold,
+            minParticipation: settings?.minParticipation,
+            minDuration: settings?.minDuration,
+            minProposerVotingPower: settings?.minProposerVotingPower,
+            stages: settings?.stages, // spp settings
+          }
         }
-      }
 
-      document.incrementalId = await ProposalHandler.findIncrementalId({
-        pluginAddress,
-        network: info.network,
-        proposalIndex,
+        const document: Partial<Proposal> = {
+          network: info.network,
+          blockNumber: info.blockNumber,
+          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+          transactionHash: info.transactionHash,
+          title: proposalMetadata?.title!,
+          description: proposalMetadata?.description!,
+          summary: proposalMetadata?.summary!,
+          resources: proposalMetadata?.resources as any,
+          media: proposalMetadata?.media as any,
+          daoAddress: relatedPlugin.daoAddress,
+          pluginAddress,
+          pluginSubdomain: relatedPlugin.subdomain,
+          creatorAddress: parsedEvent.args.creator,
+          proposalIndex,
+          startDate: Number(parsedEvent.args.startDate),
+          endDate: Number(parsedEvent.args.endDate),
+          allowFailureMap: Number(parsedEvent.args.allowFailureMap),
+          metadataUri,
+
+          // setting needs to be static as they will never change during the proposal lifecycle
+          settings: rawSettings,
+          rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({
+            to: w.to,
+            value: w.value,
+            data: w.data,
+          })),
+        }
+
+        // in case startDate is 0 we need to fetch it from the contract
+        if (document.startDate === 0) {
+          const { startDate, endDate } = await ProposalHandler.handleStartEndDate(document as Proposal, relatedPlugin)
+          document.startDate = startDate
+          document.endDate = endDate
+        }
+
+        if (document?.settings?.tokenAddress && relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
+          const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
+            document.blockNumber! - 1,
+            document?.settings.tokenAddress,
+            document.network!,
+          )
+
+          document.snapshot = {
+            totalSupply: totalSupply?.toString() ?? '0',
+          }
+        } else if (
+          relatedPlugin.interfaceType === IPluginInterfaceType.multisig ||
+          relatedPlugin.interfaceType === IPluginInterfaceType.admin
+        ) {
+          const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+            pluginAddress: relatedPlugin.address,
+            network: relatedPlugin.network,
+          })
+          document.snapshot = {
+            membersCount: members.length,
+          }
+        }
+
+        document.incrementalId = await ProposalHandler.findIncrementalId({
+          pluginAddress,
+          network: info.network,
+          proposalIndex,
+        })
+
+        const newProposal = await Models.Proposal.create(document, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('New Proposal', llo({ ...info, logId: newProposal.id }))
+
+        return { newProposal, relatedPlugin }
       })
-
-      const newProposal = await DbOperations.createDocument(Models.Proposal, document, info, 'New Log Proposal', llo)
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
       await ProxyMember.updateActivity({
@@ -222,8 +229,13 @@ export const ProposalHandler = {
       const proposalIndex = parsedEvent.args.proposalId.toString()
 
       const plugin = await Models.Plugin.findByAddress(info.address, info.network)
-      if (!plugin || plugin.isSupported === false) {
+      if (!plugin) {
         logger.warn('Approved - Plugin not found', llo(info))
+        return
+      }
+
+      if (!plugin.isSupported) {
+        logger.warn('Approved - Plugin not supported', llo(info))
         return
       }
 
@@ -349,10 +361,8 @@ export const ProposalHandler = {
         if (isExistingVote) {
           await existingMemberVote.deleteOne({ session })
         }
-
         await session.commitTransaction()
         await session.endSession()
-
         const logName = existingMemberVote ? 'Replace Vote - VoteCast' : 'New Vote - VoteCast'
         logger.verbose(`Created new document - ${logName}`, llo({ ...info, documentId: logId.id }))
       })
@@ -653,7 +663,7 @@ export const ProposalHandler = {
   },
 
   parseActions: async (proposal: Proposal) => {
-    if (!(proposal.rawActions?.length > 0)) {
+    if (!(proposal?.rawActions?.length > 0)) {
       return []
     }
 
