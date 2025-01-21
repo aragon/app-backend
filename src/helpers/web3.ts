@@ -31,6 +31,8 @@ import { ProxyToken } from '@modules/proxyToken'
 import BigNumber from 'bignumber.js'
 import utils from '@helpers/utils'
 import { Multisig } from '@artifacts/Multisig'
+import { VotingEscrow } from '@artifacts/VotingEscrow'
+import { GaugeVoter } from '@artifacts/GaugeVoter'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -878,6 +880,34 @@ const Web3Helper = {
       return response.target
     } catch (error) {
       logger.error('Error getTargetConfig', llo({ pluginAddress, network, error }))
+      return null
+    }
+  },
+
+  async getVotingEscrowAddress(pluginAddress: string, network: NetworksEnum): Promise<string | null> {
+    try {
+      const provider = ProviderModule.getProvider(network)!
+      const contract = new Contract(pluginAddress, GaugeVoter.abi, provider)
+      const response = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.escrow()),
+      )
+
+      return response
+    } catch (error) {
+      return null
+    }
+  },
+
+  async getLockTokenAddress(votingEscrowAddress: string, network: NetworksEnum): Promise<string | null> {
+    try {
+      const provider = ProviderModule.getProvider(network)!
+      const contract = new Contract(votingEscrowAddress, VotingEscrow.abi, provider)
+      const response = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.lockNFT()),
+      )
+
+      return response
+    } catch (error) {
       return null
     }
   },

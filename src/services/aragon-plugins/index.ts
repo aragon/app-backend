@@ -48,7 +48,6 @@ const AragonPluginsService: IService = {
           } else {
             logger.warn('Sync plugin: token not governance erc20', llo({ plugin, token }))
           }
-
           break
         }
         case IPluginInterfaceType.spp: {
@@ -56,8 +55,9 @@ const AragonPluginsService: IService = {
           break
         }
         case IPluginInterfaceType.gauge: {
-          // TODO: handle gauge
-          return 'ok'
+          const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
+          await LogTokenVoting.start(plugin, token!)
+          break
         }
         default: {
           logger.error('PluginSyncService: interfaceType not found', llo({ plugin }))

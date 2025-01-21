@@ -4,6 +4,7 @@ import ProviderModule from '@modules/provider'
 import { Models } from '@dbModels'
 import { CustomInstall } from '@indexer/customInstall'
 import { RabbitMQHelper } from '@helpers/radditMQ'
+import { LogGauge } from '@plugins/logGauge'
 
 describe('Manual: CustomInstall', () => {
   let sandbox: SinonSandbox
@@ -24,7 +25,12 @@ describe('Manual: CustomInstall', () => {
 
     await CustomInstall.install()
 
-    const plugins = await Models.Plugin.find({ daoAddress: '0x5dEA8E499b05de8F86E7521F039770268055b23F' })
-    console.log(plugins)
+    const plugin = await Models.Plugin.findOne({ address: '0x69E8D5151d71d4cde35b5076aF3023C7D54d379E' })
+    const token = await Models.Token.findOne({ address: plugin.tokenAddress })
+    console.log(plugin)
+    console.log(token)
+
+    await LogGauge.start(plugin, token)
+    console.log('done')
   })
 })

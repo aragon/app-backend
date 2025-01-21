@@ -18,6 +18,7 @@ import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { SharedLogs } from '@artifacts/shared'
 import { PermissionHandler } from '@src/handlers/permissionHandler'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
+import { GaugeVoter } from '@artifacts/GaugeVoter'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -162,6 +163,20 @@ const IndexerEventConfig: IIndexerConfig[] = [
     handler: ProposalHandler.voteCast,
     enableHistorical: false,
     topic: new Interface(TokenVoting.abi).getEvent('VoteCast')?.topicHash!,
+  },
+  {
+    event: 'Voted',
+    abi: GaugeVoter.abi,
+    handler: ProposalHandler.voteCast,
+    enableHistorical: false,
+    topic: new Interface(GaugeVoter.abi).getEvent('Voted')?.topicHash!,
+  },
+  {
+    event: 'Reset',
+    abi: GaugeVoter.abi,
+    handler: ProposalHandler.voteCast,
+    enableHistorical: false,
+    topic: new Interface(GaugeVoter.abi).getEvent('Reset')?.topicHash!,
   },
   {
     event: 'MetadataSet',
