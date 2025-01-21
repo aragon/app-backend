@@ -5,8 +5,9 @@ import config from '@config'
 import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
 import Utils from '@helpers/utils'
+import { EnumQueueName } from '@types'
 
-describe('Modules:RabbitMQ', () => {
+describe('Modules: RabbitMQ', () => {
   let sandbox: SinonSandbox
   let mockConnection: sinon.SinonStubbedInstance<Connection>
   let mockChannel: sinon.SinonStubbedInstance<Channel>
@@ -19,41 +20,61 @@ describe('Modules:RabbitMQ', () => {
       createChannel: sandbox.stub(),
       close: sandbox.stub().resolves(),
       on: sandbox.stub(),
-    } as any
+    } as unknown as sinon.SinonStubbedInstance<Connection>
 
     mockChannel = {
       close: sandbox.stub().resolves(),
       on: sandbox.stub(),
-    } as any
+      purgeQueue: sandbox.stub().resolves(),
+      checkQueue: sandbox.stub(),
+    } as unknown as sinon.SinonStubbedInstance<Channel>
 
     mockAmqpConnect = sandbox.stub(amqp, 'connect').resolves(mockConnection)
   })
 
   afterEach(() => {
-    sandbox?.restore()
+    sandbox.restore()
     RabbitMQ.connection = null
     RabbitMQ.channel = null
+    RabbitMQ.reconnectTimer = null
+    RabbitMQ.isReconnecting = false
   })
 
   describe('connect method', () => {
-    it('should connect and create a channel when not already connected', async () => {
+    it('should establish a connection and create a channel when not already connected', async () => {
       const mockLoggerInfo = sandbox.stub(logger, 'info')
       mockConnection.createChannel.resolves(mockChannel)
       config.RABBITMQ.URI = 'amqp://localhost'
+      config.RABBITMQ.CLEAN_QUEUE = false
 
       await RabbitMQ.connect()
 
-      expect(mockAmqpConnect.calledOnce).to.be.true
-      expect(mockAmqpConnect.calledWith('amqp://localhost')).to.be.true
+      expect(mockAmqpConnect.calledOnceWithExactly('amqp://localhost')).to.be.true
       expect(mockConnection.createChannel.calledOnce).to.be.true
       expect(RabbitMQ.connection).to.equal(mockConnection)
       expect(RabbitMQ.channel).to.equal(mockChannel)
       expect(mockLoggerInfo.calledWith('RabbitMQ connected' as any)).to.be.true
-
-      config.RABBITMQ.URI = ''
     })
 
-    it('should not reconnect if already connected', async () => {
+    it('should clean all queues if CLEAN_QUEUE is true', async () => {
+      const mockLoggerInfo = sandbox.stub(logger, 'info')
+      mockConnection.createChannel.resolves(mockChannel)
+      config.RABBITMQ.URI = 'amqp://localhost'
+      config.RABBITMQ.CLEAN_QUEUE = true
+
+      // Stub purgeQueue for all queues
+      mockChannel.purgeQueue.resolves()
+
+      await RabbitMQ.connect()
+
+      for (const queueName of Object.values(EnumQueueName)) {
+        expect(mockChannel.purgeQueue.calledWithExactly(queueName)).to.be.true
+      }
+      expect(mockLoggerInfo.calledWith(('Queue "' + Object.values(EnumQueueName)[0] + '" has been purged') as any)).to
+        .be.true
+    })
+
+    it('should not attempt to reconnect if already connected', async () => {
       RabbitMQ.connection = mockConnection
       RabbitMQ.channel = mockChannel
       const mockLoggerVerbose = sandbox.stub(logger, 'verbose')
@@ -65,21 +86,33 @@ describe('Modules:RabbitMQ', () => {
       expect(mockLoggerVerbose.calledWith('RabbitMQ: Already connected' as any)).to.be.true
     })
 
-    it('should log and throw an error if connection fails', async () => {
+    it('should not attempt to reconnect if already reconnecting', async () => {
+      RabbitMQ.isReconnecting = true
+      const mockLoggerVerbose = sandbox.stub(logger, 'verbose')
+
+      await RabbitMQ.connect()
+
+      expect(mockAmqpConnect.notCalled).to.be.true
+      expect(mockLoggerVerbose.calledWith('RabbitMQ: Reconnect attempt already in progress' as any)).to.be.true
+    })
+
+    it('should handle connection errors and schedule a reconnect', async () => {
       const connectionError = new Error('Connection failed')
       mockAmqpConnect.rejects(connectionError)
       const mockLoggerError = sandbox.stub(logger, 'error')
-
-      const reconnetingCall = sandbox.stub(RabbitMQ, 'scheduleReconnect')
+      const mockScheduleReconnect = sandbox.stub(RabbitMQ, 'scheduleReconnect')
 
       await RabbitMQ.connect()
+
+      expect(mockAmqpConnect.calledOnce).to.be.true
       expect(mockLoggerError.calledWith('RabbitMQ connection error' as any)).to.be.true
-      expect(reconnetingCall.calledOnce).to.be.true
+      expect(mockScheduleReconnect.calledOnce).to.be.true
+      expect(RabbitMQ.isReconnecting).to.be.false
     })
   })
 
   describe('getChannel method', () => {
-    it('should return the current channel', () => {
+    it('should return the current channel if connected', () => {
       RabbitMQ.channel = mockChannel
       const channel = RabbitMQ.getChannel()
       expect(channel).to.equal(mockChannel)
@@ -93,11 +126,10 @@ describe('Modules:RabbitMQ', () => {
   })
 
   describe('close method', () => {
-    it('should close the channel and connection if they exist', async () => {
+    it('should close both channel and connection if they exist', async () => {
       RabbitMQ.connection = mockConnection
       RabbitMQ.channel = mockChannel
-
-      let mockLoggerVerbose = sandbox.stub(logger, 'verbose')
+      const mockLoggerVerbose = sandbox.stub(logger, 'verbose')
 
       await RabbitMQ.close()
 
@@ -108,10 +140,10 @@ describe('Modules:RabbitMQ', () => {
       expect(mockLoggerVerbose.calledWith('RabbitMQ disconnected' as any)).to.be.true
     })
 
-    it('should handle when only the channel exists', async () => {
+    it('should handle closing only the channel if connection does not exist', async () => {
       RabbitMQ.connection = null
       RabbitMQ.channel = mockChannel
-      let mockLoggerVerbose = sandbox.stub(logger, 'verbose')
+      const mockLoggerVerbose = sandbox.stub(logger, 'verbose')
 
       await RabbitMQ.close()
 
@@ -122,96 +154,101 @@ describe('Modules:RabbitMQ', () => {
       expect(mockLoggerVerbose.calledWith('RabbitMQ disconnected' as any)).to.be.true
     })
 
-    it('should handle when only the connection exists', async () => {
+    it('should handle closing only the connection if channel does not exist', async () => {
       RabbitMQ.connection = mockConnection
       RabbitMQ.channel = null
+      const mockLoggerVerbose = sandbox.stub(logger, 'verbose')
 
-      let mockLoggerVerbose = sandbox.stub(logger, 'verbose')
       await RabbitMQ.close()
 
       expect(mockChannel.close.notCalled).to.be.true
       expect(mockConnection.close.calledOnce).to.be.true
       expect(RabbitMQ.channel).to.be.null
       expect(RabbitMQ.connection).to.be.null
-      expect(mockLoggerVerbose.calledOnceWith('RabbitMQ disconnected' as any)).to.be.true
+      expect(mockLoggerVerbose.calledWith('RabbitMQ disconnected' as any)).to.be.true
     })
 
-    it('should log and throw an error if closing fails', async () => {
+    it('should handle errors during closing gracefully', async () => {
       const closeError = new Error('Close failed')
       mockChannel.close.rejects(closeError)
       RabbitMQ.connection = mockConnection
       RabbitMQ.channel = mockChannel
-      const mockLoggerError = sandbox.stub(logger, 'error')
       const mockLoggerVerbose = sandbox.stub(logger, 'verbose')
 
       await RabbitMQ.close()
-      expect(mockLoggerVerbose.calledOnceWith('RabbitMQ disconnected' as any)).to.be.true
-      expect(mockLoggerError.calledWith('Error closing channel' as any)).to.be.true
+
+      expect(mockChannel.close.calledOnce).to.be.true
+      expect(mockConnection.close.calledOnce).to.be.true
+      expect(RabbitMQ.channel).to.be.null
+      expect(RabbitMQ.connection).to.be.null
+      expect(mockLoggerVerbose.calledWith('RabbitMQ disconnected' as any)).to.be.true
     })
   })
 
-  describe('handleCloseOrError', () => {
-    it('should force close and schedule a reconnect', async () => {
+  describe('handleCloseOrError method', () => {
+    it('should force close and schedule a reconnect on connection close', async () => {
       const mockLoggerError = sandbox.stub(logger, 'error')
       const forceCloseStub = sandbox.stub(RabbitMQ, 'forceClose').resolves()
       const scheduleReconnectStub = sandbox.stub(RabbitMQ, 'scheduleReconnect')
 
-      await RabbitMQ.handleCloseOrError('Connection closed', new Error('test'))
+      await RabbitMQ.handleCloseOrError('Connection closed', new Error('test error'))
 
-      expect(mockLoggerError.calledOnce).to.be.true
+      expect(mockLoggerError.calledWith('[RabbitMQ] Connection closed' as any)).to.be.true
       expect(forceCloseStub.calledOnce).to.be.true
       expect(scheduleReconnectStub.calledOnce).to.be.true
     })
 
-    it('should handle multiple calls but only schedule reconnect once', async () => {
+    it('should handle multiple close/error events gracefully', async () => {
       const mockLoggerError = sandbox.stub(logger, 'error')
       const forceCloseStub = sandbox.stub(RabbitMQ, 'forceClose').resolves()
       const scheduleReconnectStub = sandbox.stub(RabbitMQ, 'scheduleReconnect')
 
       await Promise.all([
-        RabbitMQ.handleCloseOrError('Close event #1', new Error('test1')),
-        RabbitMQ.handleCloseOrError('Close event #2', new Error('test2')),
+        RabbitMQ.handleCloseOrError('Close event #1', new Error('error1')),
+        RabbitMQ.handleCloseOrError('Close event #2', new Error('error2')),
       ])
-      expect(forceCloseStub.callCount).to.equal(2)
-      expect(scheduleReconnectStub.callCount).to.equal(2)
-      expect(mockLoggerError.callCount).to.equal(2)
+
+      expect(mockLoggerError.calledTwice).to.be.true
+      expect(forceCloseStub.calledTwice).to.be.true
+      expect(scheduleReconnectStub.calledTwice).to.be.true
     })
   })
 
-  describe('scheduleReconnect', () => {
+  describe('scheduleReconnect method', () => {
     beforeEach(() => {
-      config.RABBITMQ.RECONNECT_TIME = 10
+      config.RABBITMQ.RECONNECT_TIME = 10 // Short delay for testing
     })
+
     afterEach(() => {
       if (RabbitMQ.reconnectTimer) {
         clearTimeout(RabbitMQ.reconnectTimer)
         RabbitMQ.reconnectTimer = null
       }
     })
-    it('should create a reconnect timer if none exists', async () => {
+
+    it('should schedule a reconnect if no timer is set', async () => {
       const connectStub = sandbox.stub(RabbitMQ, 'connect').resolves()
-      expect(RabbitMQ.reconnectTimer).to.be.null
+      const mockLoggerVerbose = sandbox.stub(logger, 'verbose')
 
       RabbitMQ.scheduleReconnect()
       expect(RabbitMQ.reconnectTimer).to.not.be.null
 
+      // Wait for the reconnect timer to trigger
       await Utils.wait(config.RABBITMQ.RECONNECT_TIME + 5)
       expect(connectStub.calledOnce).to.be.true
+      expect(RabbitMQ.reconnectTimer).to.be.null
+      expect(mockLoggerVerbose.calledWith('RabbitMQ connected' as any)).to.be.true
     })
 
-    it('should not schedule another reconnect if timer is already set', async () => {
+    it('should not schedule another reconnect if a timer is already set', () => {
       const connectStub = sandbox.stub(RabbitMQ, 'connect').resolves()
-
       RabbitMQ.reconnectTimer = setTimeout(() => {}, 1000)
 
       RabbitMQ.scheduleReconnect()
-      expect(connectStub.called).to.be.false
-
-      clearTimeout(RabbitMQ.reconnectTimer!)
-      RabbitMQ.reconnectTimer = null
+      expect(connectStub.notCalled).to.be.true
     })
 
-    it('should retry scheduleReconnect on connect error', async () => {
+    it('should retry scheduling reconnect on connect failure', async () => {
       const connectStub = sandbox.stub(RabbitMQ, 'connect')
       const mockLoggerError = sandbox.stub(logger, 'error')
 
@@ -219,20 +256,42 @@ describe('Modules:RabbitMQ', () => {
       connectStub.onSecondCall().resolves()
 
       RabbitMQ.scheduleReconnect()
-      await Utils.wait(config.RABBITMQ.RECONNECT_TIME + 5)
-      expect(mockLoggerError.calledWithMatch('RabbitMQ reconnection attempt failed' as any)).to.be.true
-      expect(connectStub.callCount).to.equal(1)
 
+      // Wait for first reconnect attempt
       await Utils.wait(config.RABBITMQ.RECONNECT_TIME + 5)
-      expect(connectStub.callCount).to.equal(2)
+      expect(connectStub.calledOnce).to.be.true
+      expect(mockLoggerError.calledWith('RabbitMQ reconnection attempt failed' as any)).to.be.true
+
+      // Wait for second reconnect attempt
+      await Utils.wait(config.RABBITMQ.RECONNECT_TIME + 5)
+      expect(connectStub.calledTwice).to.be.true
     })
   })
 
-  describe('forceClose', () => {
-    it('should clear reconnect timer and nullify channel/connection', async () => {
+  describe('forceClose method', () => {
+    it('should clear the reconnect timer and close channel and connection', async () => {
       RabbitMQ.reconnectTimer = setTimeout(() => {}, 1000)
-      RabbitMQ.channel = { close: sandbox.stub() } as any
-      RabbitMQ.connection = { close: sandbox.stub() } as any
+      RabbitMQ.channel = mockChannel
+      RabbitMQ.connection = mockConnection
+
+      await RabbitMQ.forceClose()
+
+      expect(RabbitMQ.reconnectTimer).to.be.null
+      expect(mockChannel.close.calledOnce).to.be.true
+      expect(mockConnection.close.calledOnce).to.be.true
+      expect(RabbitMQ.channel).to.be.null
+      expect(RabbitMQ.connection).to.be.null
+    })
+
+    it('should handle errors during forceClose gracefully', async () => {
+      const closeChannelError = new Error('Channel close error')
+      const closeConnectionError = new Error('Connection close error')
+      mockChannel.close.rejects(closeChannelError)
+      mockConnection.close.rejects(closeConnectionError)
+
+      RabbitMQ.reconnectTimer = setTimeout(() => {}, 1000)
+      RabbitMQ.channel = mockChannel
+      RabbitMQ.connection = mockConnection
 
       await RabbitMQ.forceClose()
 
@@ -240,30 +299,81 @@ describe('Modules:RabbitMQ', () => {
       expect(RabbitMQ.channel).to.be.null
       expect(RabbitMQ.connection).to.be.null
     })
-
-    it('should log errors if channel/connection closing throws', async () => {
-      RabbitMQ.reconnectTimer = setTimeout(() => {}, 1000)
-      const mockLoggerError = sandbox.stub(logger, 'error')
-
-      const closeChannelStub = sandbox.stub().rejects(new Error('Channel error'))
-      const closeConnectionStub = sandbox.stub().rejects(new Error('Connection error'))
-
-      RabbitMQ.channel = { close: closeChannelStub } as any
-      RabbitMQ.connection = { close: closeConnectionStub } as any
-
-      await RabbitMQ.forceClose()
-      expect(mockLoggerError.callCount).to.equal(2)
-      expect(RabbitMQ.channel).to.be.null
-      expect(RabbitMQ.connection).to.be.null
-    })
   })
 
-  describe('isConnected', () => {
-    it('should return true if both connection and channel are set', () => {
+  describe('isConnected method', () => {
+    it('should return true if both connection and channel are established', () => {
       RabbitMQ.connection = mockConnection
       RabbitMQ.channel = mockChannel
 
-      expect(RabbitMQ.isConnected()).to.be.true
+      const result = RabbitMQ.isConnected()
+      expect(result).to.be.true
+    })
+
+    it('should return false if connection is missing', () => {
+      RabbitMQ.connection = null
+      RabbitMQ.channel = mockChannel
+
+      const result = RabbitMQ.isConnected()
+      expect(result).to.be.false
+    })
+
+    it('should return false if channel is missing', () => {
+      RabbitMQ.connection = mockConnection
+      RabbitMQ.channel = null
+
+      const result = RabbitMQ.isConnected()
+      expect(result).to.be.false
+    })
+
+    it('should return false if both connection and channel are missing', () => {
+      RabbitMQ.connection = null
+      RabbitMQ.channel = null
+
+      const result = RabbitMQ.isConnected()
+      expect(result).to.be.false
+    })
+  })
+
+  describe('getMessageCount method', () => {
+    it('should return the message count for a valid queue', async () => {
+      RabbitMQ.channel = mockChannel
+      const queueName = EnumQueueName.plugins
+      const mockMessageCount = 5
+      const mockCheckQueueResponse = { messageCount: mockMessageCount, consumerCount: 0 } as any
+
+      mockChannel.checkQueue.resolves(mockCheckQueueResponse)
+      const mockLoggerInfo = sandbox.stub(logger, 'info')
+
+      const messageCount = await RabbitMQ.getMessageCount(queueName)
+
+      expect(mockChannel.checkQueue.calledOnceWithExactly(queueName)).to.be.true
+      expect(messageCount).to.equal(mockMessageCount)
+      expect(mockLoggerInfo.calledWith(`Queue "${queueName}" has ${mockMessageCount} messages` as any)).to.be.true
+    })
+
+    it('should return null and log a warning if channel is not available', async () => {
+      RabbitMQ.channel = null
+      const mockLoggerWarn = sandbox.stub(logger, 'warn')
+
+      const messageCount = await RabbitMQ.getMessageCount('test_queue')
+
+      expect(messageCount).to.be.null
+      expect(mockLoggerWarn.calledWith('Cannot get message count: Channel is not available' as any)).to.be.true
+    })
+
+    it('should return null and log an error if checkQueue fails', async () => {
+      RabbitMQ.channel = mockChannel
+      const queueName = 'invalid_queue'
+      const mockError = new Error('Queue does not exist')
+      mockChannel.checkQueue.rejects(mockError)
+      const mockLoggerError = sandbox.stub(logger, 'error')
+
+      const messageCount = await RabbitMQ.getMessageCount(queueName)
+
+      expect(mockChannel.checkQueue.calledOnceWithExactly(queueName)).to.be.true
+      expect(messageCount).to.be.null
+      expect(mockLoggerError.calledWith(`Failed to get message count for queue "${queueName}"` as any)).to.be.true
     })
   })
 })

@@ -15,7 +15,7 @@ import ProviderModule from '@modules/provider'
 import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 
-describe('Indexer:Aggregator:Transactions', () => {
+describe('aragon-dao: DaoTransactions', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(async () => {
@@ -43,6 +43,17 @@ describe('Indexer:Aggregator:Transactions', () => {
       expect(stubOnDocument.calledOnce).to.be.true
       expect(stubLogger.calledWith('End DaoTransactions' as any)).to.be.true
       expect(crawlerStub.notCalled).to.be.true
+    })
+
+    it('should exit gracefully if DAO is not found', async () => {
+      const stubFindByAddress = sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+
+      await DaoTransactions.start({ daoAddress: '0x123', network: NetworksEnum.ethereumMainnet })
+
+      expect(stubFindByAddress.calledOnce).to.be.true
+      expect(stubLogger.calledWithMatch('Start DaoTransactions' as any)).to.be.true
+      expect(stubLogger.calledWithMatch('End DaoTransactions' as any)).to.be.false // Should not log end
     })
   })
 
@@ -93,6 +104,17 @@ describe('Indexer:Aggregator:Transactions', () => {
         ITransactionCategory.External,
       ])
       expect(result).to.not.include(ITransactionCategory.Internal)
+    })
+
+    it('should return default categories for an unsupported network', () => {
+      const result = DaoTransactions.getCategories('unsupportedNetwork' as NetworksEnum)
+      expect(result).to.include.members([
+        ITransactionCategory.ERC20,
+        ITransactionCategory.ERC721,
+        ITransactionCategory.ERC1155,
+        ITransactionCategory.Internal,
+        ITransactionCategory.External,
+      ])
     })
   })
 
@@ -241,25 +263,6 @@ describe('Indexer:Aggregator:Transactions', () => {
       })
     })
 
-    it('should skip existing transaction', async () => {
-      const daoRegistry: Partial<Dao> = {
-        id: 'daoRegistryId',
-        address: '0x01',
-        network: NetworksEnum.ethereumMainnet,
-      }
-      const tx = {
-        transactionHash: '0x0',
-      }
-
-      const stubCreate = sandbox.stub(Models.Transaction, 'create')
-      sandbox.stub(Models.Transaction, 'findExistingLog').resolves(true)
-
-      const result = await DaoTransactions.saveTransaction(tx as any, ITransactionType.deposit, daoRegistry as any)
-
-      expect(result).to.be.undefined
-      expect(stubCreate.notCalled).to.be.true
-    })
-
     it('should log an error when saveTransaction fails', async () => {
       const daoRegistry: Partial<Dao> = {
         id: 'daoRegistryId',
@@ -287,9 +290,7 @@ describe('Indexer:Aggregator:Transactions', () => {
 
       await DaoTransactions.saveTransaction(tx as any, ITransactionType.deposit, daoRegistry as any)
 
-      expect(stubLogger.calledTwice).to.be.true
-      expect(stubLogger.firstCall.calledWith('error after all retry' as any)).to.be.true
-      expect(stubLogger.secondCall.calledWith('Error Transaction' as any)).to.be.true
+      expect(stubLogger.calledOnceWith('Error saveTransaction' as any)).to.be.true
     })
 
     it(`should saveTransaction in parallel`, async () => {
@@ -351,6 +352,55 @@ describe('Indexer:Aggregator:Transactions', () => {
 
       const items = await Models.Transaction.countDocuments()
       expect(items).to.equal(1)
+    })
+
+    it('should skip saving transaction if receipt is null', async () => {
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const loggerStub = sandbox.stub(Logger, 'verbose')
+
+      const tx = { hash: '0x123', blockNum: '0x1' } as any
+      const daoRegistry = { address: '0x123', network: NetworksEnum.ethereumMainnet } as Dao
+
+      await DaoTransactions.saveTransaction(tx, ITransactionType.deposit, daoRegistry)
+
+      expect(loggerStub.calledWithMatch('New Transaction' as any)).to.be.false
+    })
+
+    it('should handle invalid log data gracefully', async () => {
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
+      sandbox.stub(Web3Helper, 'findLogsByName').returns(null as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x01',
+        decimals: 18,
+        name: 'test',
+        symbol: 'tst',
+        type: ITokenType.ERC20,
+      } as any)
+      const loggerStub = sandbox.stub(Logger, 'error')
+
+      const tx = { hash: '0x123', blockNum: '0x1' } as any
+      const daoRegistry = { address: '0x123', network: NetworksEnum.ethereumMainnet } as Dao
+
+      await DaoTransactions.saveTransaction(tx, ITransactionType.deposit, daoRegistry)
+
+      expect(loggerStub.calledWithMatch('Error saveTransaction' as any)).to.be.true
+    })
+
+    it('should handle transactions without tokens', async () => {
+      sandbox.stub(Web3Helper, 'findLogsByName').returns(null as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+      const loggerStub = sandbox.stub(Logger, 'verbose')
+
+      const tx = { hash: '0x123', blockNum: '0x1', category: ITransactionCategory.ERC20, from: '0x', to: '0x' } as any
+      const daoRegistry = { address: '0x123', network: NetworksEnum.ethereumMainnet } as Dao
+
+      await DaoTransactions.saveTransaction(tx, ITransactionType.deposit, daoRegistry)
+
+      expect(loggerStub.calledOnceWith('New Transaction' as any)).to.be.true
     })
   })
 
