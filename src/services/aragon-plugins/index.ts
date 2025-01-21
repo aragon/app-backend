@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { EnumConnection, EnumQueueName, IPluginInterfaceType, type IQueueDao, type IService } from '@types'
+import { EnumConnection, EnumQueueName, IPluginInterfaceType, type IQueueDao, type IService, ITokenType } from '@types'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import { LogAdmin } from '@services/aragon-plugins/logAdmin'
 import { Models } from '@dbModels'
@@ -7,6 +7,7 @@ import { LogDao } from '@services/aragon-plugins/logDao'
 import { LogMultiSig } from '@services/aragon-plugins/logMultisig'
 import { LogSpp } from '@services/aragon-plugins/logSPP'
 import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
+import { ProxyToken } from '@modules/proxyToken'
 import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
@@ -32,24 +33,36 @@ const AragonPluginsService: IService = {
       }
 
       switch (plugin.interfaceType) {
-        case IPluginInterfaceType.admin:
+        case IPluginInterfaceType.admin: {
           await LogAdmin.start(plugin)
           break
-        case IPluginInterfaceType.multisig:
+        }
+        case IPluginInterfaceType.multisig: {
           await LogMultiSig.start(plugin)
           break
-        case IPluginInterfaceType.tokenVoting:
-          await LogTokenVoting.start(plugin)
+        }
+        case IPluginInterfaceType.tokenVoting: {
+          const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
+          if (token?.type === ITokenType.GovernanceERC20) {
+            await LogTokenVoting.start(plugin, token)
+          } else {
+            logger.warn('Sync plugin: token not governance erc20', llo({ plugin, token }))
+          }
+
           break
-        case IPluginInterfaceType.spp:
+        }
+        case IPluginInterfaceType.spp: {
           await LogSpp.start(plugin)
           break
-        case IPluginInterfaceType.gauge:
+        }
+        case IPluginInterfaceType.gauge: {
           // TODO: handle gauge
           return 'ok'
-        default:
+        }
+        default: {
           logger.error('PluginSyncService: interfaceType not found', llo({ plugin }))
           break
+        }
       }
     })
 

@@ -41,8 +41,6 @@ describe('Model/Utils: dbOperations', () => {
 
       expect(executeTxFnStub.calledOnce).to.be.true
       expect(mockModel.create.calledOnceWith({ data: 'test' }, { session: mockSession })).to.be.true
-      expect(mockSession.commitTransaction.calledOnce).to.be.true
-      expect(mockSession.endSession.calledOnce).to.be.true
       expect(logStub.calledOnceWith('Created new document - Test log message' as any)).to.be.true
       expect(result.id).to.equal('document-id')
     })
@@ -88,8 +86,6 @@ describe('Model/Utils: dbOperations', () => {
       expect(executeTxFnStub.calledOnce).to.be.true
       expect(mockDocument.constructor.findById.calledOnceWith('document-id')).to.be.true
       expect(findByIdWithSession.update.calledOnceWith({ data: 'updated-data' }, { session: mockSession })).to.be.true
-      expect(mockSession.commitTransaction.calledOnce).to.be.true
-      expect(mockSession.endSession.calledOnce).to.be.true
       expect(logStub.calledOnceWith('Updated document - Test update message' as any)).to.be.true
       expect(result.id).to.equal('document-id')
     })

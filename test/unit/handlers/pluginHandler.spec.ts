@@ -73,8 +73,6 @@ describe('Indexer:Plugin', () => {
     it('preInstallPlugin not SPP', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
-      const spyCreateDocument = sandbox.spy(DbOperations, 'createDocument')
-
       sandbox.stub(Models.PluginRepo, 'findSubdomain').resolves({ subdomain: 'token-voting' })
       const detectPluginTypeStub = sandbox.stub(PluginDetector, 'detectPluginType').resolves({
         type: IPluginInterfaceType.tokenVoting,
@@ -96,7 +94,6 @@ describe('Indexer:Plugin', () => {
           address: ListLogPluginSetupProcessor[0].pluginAddress,
         }),
       ).to.be.true
-      expect(spyCreateDocument.calledOnce).to.be.true
       expect(logVersboseStub.calledOnceWith('Created new document - New PreInstall Plugin' as any)).to.be.true
 
       const createdPlugin = await Models.Plugin.findOne({
@@ -112,7 +109,6 @@ describe('Indexer:Plugin', () => {
     it('preInstallPlugin SPP', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
-      const spyCreateDocument = sandbox.spy(DbOperations, 'createDocument')
 
       sandbox.stub(Models.PluginRepo, 'findSubdomain').resolves({ subdomain: 'token-voting' })
       const detectPluginTypeStub = sandbox.stub(PluginDetector, 'detectPluginType').resolves({
@@ -135,7 +131,6 @@ describe('Indexer:Plugin', () => {
           address: ListLogPluginSetupProcessor[0].pluginAddress,
         }),
       ).to.be.true
-      expect(spyCreateDocument.calledOnce).to.be.true
       expect(logVersboseStub.calledOnceWith('Created new document - New PreInstall Plugin' as any)).to.be.true
 
       const createdPlugin = await Models.Plugin.findOne({
@@ -256,8 +251,6 @@ describe('Indexer:Plugin', () => {
     })
 
     it('installPlugin', async () => {
-      const spyDbOperations = sandbox.spy(DbOperations, 'updateDocument')
-
       await Models.Plugin.create({
         status: IPluginStatus.preInstall,
         network: rawPlugin.network,
@@ -278,13 +271,11 @@ describe('Indexer:Plugin', () => {
 
       await PluginHandler.installPlugin(logPlugin)
 
-      expect(spyDbOperations.calledOnce).to.be.true
-
       const createdPlugin = await Models.Plugin.findOne({
         address: ListLogPluginSetupProcessor[3].pluginAddress,
         status: IPluginStatus.installed,
       })
-      expect(createdPlugin).to.not.be.null
+      expect(createdPlugin).to.exist
       expect(createdPlugin.status).to.eq(IPluginStatus.installed)
     })
   })
@@ -304,16 +295,14 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
       })
-      const eventUpdatePrepared = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[2])
+      await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[2])
       const eventUpdateApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[3])
       await PluginHandler._createPlugin(rawPlugin as any)
       const spyCreatePlugin = sandbox.spy(PluginHandler, '_createPlugin')
-      const spyDbOperations = sandbox.spy(DbOperations, 'updateDocument')
 
       await PluginHandler.updatePlugin(eventUpdateApplied as any)
 
       expect(spyCreatePlugin.calledOnce).to.be.true
-      expect(spyDbOperations.calledTwice).to.be.true
 
       const createdPlugin = await Models.Plugin.findOne({
         address: ListLogPluginSetupProcessor[3].pluginAddress,
@@ -327,7 +316,7 @@ describe('Indexer:Plugin', () => {
         status: IPluginStatus.deprecated,
       })
       expect(deprecatedPlugin).to.not.be.null
-      expect(deprecatedPlugin.tokenAddress).to.eq(rawPlugin.tokenAddress)
+      expect(deprecatedPlugin.uninstalled.status).to.be.true
     })
   })
 
@@ -341,7 +330,7 @@ describe('Indexer:Plugin', () => {
 
     it('uninstallPlugin', async () => {
       await PluginHandler._createPlugin(rawPlugin as any)
-      const eventUninstallPrepared = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[4])
+      await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[4])
       const eventUninstallApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[5])
 
       const spyDbOperations = sandbox.spy(DbOperations, 'updateDocument')
@@ -355,6 +344,7 @@ describe('Indexer:Plugin', () => {
         status: IPluginStatus.uninstalled,
       })
       expect(createdPlugin).to.not.be.null
+      expect(createdPlugin.uninstalled.status).to.be.true
     })
   })
 

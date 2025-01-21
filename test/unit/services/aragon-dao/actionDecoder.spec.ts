@@ -7,6 +7,7 @@ import DecodeActions from '@helpers/decodeAction'
 import Web3Helper from '@helpers/web3'
 import { ProxyMember } from '@modules/proxyMember'
 import { Models } from '@dbModels'
+
 describe('aragon-dao: actionDecoder', () => {
   let sandbox: SinonSandbox
 
