@@ -76,7 +76,7 @@ export const ProxyToken = {
         updates.lastUpdatedAt = dayjs.utc().toDate()
       }
 
-      await token.update(updates, session as SaveOptions)
+      await token.update(updates, { session })
       if (session) {
         await session.commitTransaction()
         await session.endSession()
@@ -96,6 +96,10 @@ export const ProxyToken = {
 
     if (tokenTypeInfo?.type === ITokenType.GovernanceERC20) {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
+
+      if (tokenMetrics.totalSupply === '0' && tokenMetrics.totalHolders === 0) {
+        tokenMetrics.totalSupply = await EtherscanHelper.getTokenMetrics(tokenAddress, network)
+      }
     }
 
     const rawToken: Partial<Token> = {
