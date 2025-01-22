@@ -26,6 +26,7 @@ export const ContractInfo = {
       address,
       network,
       name,
+      proxyName: isProxy ? mainData?.name : null,
       functions,
     } satisfies IContractAbi
   },

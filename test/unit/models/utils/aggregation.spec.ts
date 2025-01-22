@@ -259,4 +259,16 @@ describe('Model/Utils: aggregation', () => {
       })
     })
   })
+
+  describe('token holders', () => {
+    it('should construct a valid aggregation query for token holders', () => {
+      const query = AggregationQueryHelper.memberCountByToken('0xx', NetworksEnum.ethereumMainnet)
+      expect(query[0]).to.deep.eq({
+        $match: {
+          address: '0xx',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      })
+    })
+  })
 })

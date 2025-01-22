@@ -40,23 +40,11 @@ export const ProxyToken = {
       )
 
       if (existingToken) {
-        const token = await ProxyToken.updateTokenMetrics(
-          existingToken,
-          parsedTokenAddress,
-          network,
-          forceUpdate,
-          session,
-        )
-        await session.commitTransaction()
-        await session.endSession()
-        return token
+        return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate, session)
       }
 
       // Create a new token
-      const token = await ProxyToken.createNewToken(parsedTokenAddress, network, session)
-      await session.commitTransaction()
-      await session.endSession()
-      return token
+      return await ProxyToken.createNewToken(parsedTokenAddress, network, session)
     })
   },
 
@@ -68,24 +56,24 @@ export const ProxyToken = {
     session?: ClientSession,
   ): Promise<Token> => {
     const shouldUpdate = !token.skipFetchRate && token.lastUpdatedAt < dayjs().subtract(6, 'hours').toDate()
+    const updates: any = {}
 
     if (shouldUpdate || forceUpdate) {
       const tokenRate = await RateModule.fetchRate(tokenAddress, network)
-      Object.assign(token, {
-        priceUsd: tokenRate.priceUsd,
-        priceChangeOnDayUsd: tokenRate.priceChangeOnDayUsd,
-      })
+      updates.priceUsd = tokenRate.priceUsd
+      updates.priceChangeOnDayUsd = tokenRate.priceChangeOnDayUsd
 
       if (token.type === ITokenType.GovernanceERC20) {
         const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
-        Object.assign(token, {
-          holders: metrics.totalHolders,
-          totalSupply: metrics.totalSupply,
-          lastUpdatedAt: dayjs.utc().toDate(),
-        })
+        updates.holders = metrics.totalHolders
+        updates.totalSupply = metrics.totalSupply
+        updates.lastUpdatedAt = dayjs.utc().toDate()
       }
 
-      await token.save({ session })
+      await token.update(updates, { session })
+      if (session) {
+        await session.commitTransaction()
+      }
       logger.verbose('Updated Token Metrics', llo({ logId: token.id }))
     }
 
