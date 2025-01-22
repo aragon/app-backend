@@ -202,6 +202,7 @@ const CovalentHelper = {
         totalHolders,
       }
     } catch (error) {
+      logger.error('Error in Covalent getTokenSupplyAndHolders', llo({ address, network, blockHeight, error }))
       return { totalHolders: 0, totalSupply: '0' }
     }
   },
