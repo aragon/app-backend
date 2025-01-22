@@ -23,6 +23,7 @@ describe('Module: blockchainLogCrawler', () => {
     mockProvider = {
       getBlockNumber: sandbox.stub(),
       getLogs: sandbox.stub(),
+      send: sandbox.stub(),
     }
     logVerbose = sandbox.stub(logger, 'verbose')
     logError = sandbox.stub(logger, 'error')
@@ -40,7 +41,7 @@ describe('Module: blockchainLogCrawler', () => {
       .resolves(100) // Starting block number
       .onSecondCall()
       .resolves(200) // Latest block number
-    mockProvider.getLogs
+    mockProvider.send
       .onFirstCall()
       .resolves([
         { transactionHash: '0x1', blockNumber: 101, transactionIndex: 1 },
@@ -73,7 +74,7 @@ describe('Module: blockchainLogCrawler', () => {
     await crawler.crawl()
 
     expect(updateAndCheckConditionsStub.calledOnce).to.be.true
-    expect(mockProvider.getLogs.calledOnce).to.be.true
+    expect(mockProvider.send.calledOnce).to.be.true
     expect(processLogsSpy.calledOnceWith(sandbox.match.array)).to.be.true
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
     expect(onSaveProgressStub.calledOnce).to.be.true
@@ -100,10 +101,10 @@ describe('Module: blockchainLogCrawler', () => {
 
     // Mock event settings
     const events = [
-      { topic: '0xTopic1', abi: ['event Test1()'], event: 'Test1', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic2', abi: ['event Test2()'], event: 'Test2', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic3', abi: ['event Test3()'], event: 'Test3', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic4', abi: ['event Test4()'], event: 'Test4', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic1', event: 'Test1', config: [{ abi: ['event Test1()'], handler: sandbox.stub().resolves() }] },
+      { topic: '0xTopic2', event: 'Test2', config: [{ abi: ['event Test2()'], handler: sandbox.stub().resolves() }] },
+      { topic: '0xTopic3', event: 'Test3', config: [{ abi: ['event Test3()'], handler: sandbox.stub().resolves() }] },
+      { topic: '0xTopic4', event: 'Test4', config: [{ abi: ['event Test4()'], handler: sandbox.stub().resolves() }] },
     ] as any
 
     const parseLogStub = sandbox.stub(Web3Helper, 'parseLog').callsFake(
@@ -137,7 +138,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(crawler.crawlSetting.nbSuccess).to.equal(4)
 
     for (const event of events) {
-      expect(event.handler.calledOnce).to.be.true
+      expect(event.config[0].handler.calledOnce).to.be.true
     }
   })
 
@@ -162,10 +163,10 @@ describe('Module: blockchainLogCrawler', () => {
 
     // Mock event settings
     const events = [
-      { topic: '0xTopic1', abi: ['event Test1()'], event: 'Test1', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic2', abi: ['event Test2()'], event: 'Test2', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic3', abi: ['event Test3()'], event: 'Test3', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic4', abi: ['event Test4()'], event: 'Test4', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic1', event: 'Test1', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test1()'] }] },
+      { topic: '0xTopic2', event: 'Test2', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test2()'] }] },
+      { topic: '0xTopic3', event: 'Test3', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test3()'] }] },
+      { topic: '0xTopic4', event: 'Test4', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test4()'] }] },
     ] as any
 
     const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').callsFake(log => log as any)
@@ -197,7 +198,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(stubParseInfoLog.callCount).to.equal(4)
 
     for (const event of events) {
-      expect(event.handler.calledOnce).to.be.true
+      expect(event.config[0].handler.calledOnce).to.be.true
     }
 
     expect(stubSaveProgress.callCount).to.equal(4)
@@ -207,12 +208,12 @@ describe('Module: blockchainLogCrawler', () => {
   it('should re-order and return the formatted logs when skip processing is true', async () => {
     sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
     const events = [
-      { topic: '0xTopic1', abi: ['event Test1()'], event: 'Test1', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic1', event: 'Test1', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test1()'] }] },
     ] as any
 
     mockProvider.getBlockNumber.onFirstCall().resolves(100)
 
-    mockProvider.getLogs
+    mockProvider.send
       .onFirstCall()
       .resolves([
         { blockNumber: 101, transactionIndex: 1, index: 5, topics: ['0xTopic1'], data: '0xData1' },
@@ -252,7 +253,7 @@ describe('Module: blockchainLogCrawler', () => {
 
     const response = await crawler.crawl()
     expect(updateAndCheckConditionsStub.calledOnce).to.be.true
-    expect(mockProvider.getLogs.calledOnce).to.be.true
+    expect(mockProvider.send.calledOnce).to.be.true
     expect(processLogsSpy.calledOnce).to.be.false
     expect(formatLogStub.callCount).to.equal(5)
     expect(response?.length).to.equal(5)
@@ -300,8 +301,8 @@ describe('Module: blockchainLogCrawler', () => {
     ] as any
 
     const events = [
-      { topic: '0xTopic1', abi: ['event Test1()'], event: 'Test1', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic2', abi: ['event Test2()'], event: 'Test2', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic1', event: 'Test1', config: [{ abi: ['event Test1()'], handler: sandbox.stub().resolves() }] },
+      { topic: '0xTopic2', event: 'Test2', config: [{ abi: ['event Test2()'], handler: sandbox.stub().resolves() }] },
     ] as any
 
     const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').callsFake((log: any) => {
@@ -327,15 +328,15 @@ describe('Module: blockchainLogCrawler', () => {
 
     await crawler.processLogs(logs)
 
-    expect(events[0].handler.calledOnce).to.be.true
+    expect(events[0].config[0].handler.calledOnce).to.be.true
     expect(stubParseLog.calledTwice).to.be.true
     expect(stubParseInfoLog.calledTwice).to.be.true
     expect(stubSaveProgress.calledOnceWith(logs[0].blockNumber)).to.be.true
 
     expect(logError.calledOnce).to.be.true
-    expect(logError.calledWith('Error parse log in blockchainCrawler')).to.be.true
+    expect(logError.calledWith('Error parsing log in blockchainCrawler')).to.be.true
     expect(onErrorStub.calledOnce).to.be.true
-    expect(events[1].handler.notCalled).to.be.true
+    expect(events[1].config[0].handler.notCalled).to.be.true
 
     expect(crawler.crawlSetting.isOnError).to.be.true
     expect(crawler.crawlSetting.nbError).to.equal(1)
@@ -347,7 +348,7 @@ describe('Module: blockchainLogCrawler', () => {
 
     const rateLimitError = new Error('Your app has exceeded its compute units per second capacity')
     mockProvider.getBlockNumber.resolves(100)
-    mockProvider.getLogs
+    mockProvider.send
       .onFirstCall()
       .rejects(rateLimitError)
       .onSecondCall()
@@ -372,7 +373,7 @@ describe('Module: blockchainLogCrawler', () => {
     await crawler.crawl()
 
     expect(waitStub.calledOnce).to.be.true
-    expect(mockProvider.getLogs.calledTwice).to.be.true
+    expect(mockProvider.send.calledTwice).to.be.true
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
@@ -381,7 +382,7 @@ describe('Module: blockchainLogCrawler', () => {
 
     const batchSizeError = new Error('Log response size exceeded')
     mockProvider.getBlockNumber.resolves(200)
-    mockProvider.getLogs
+    mockProvider.send
       .onFirstCall()
       .rejects(batchSizeError)
       .onSecondCall()
@@ -403,14 +404,14 @@ describe('Module: blockchainLogCrawler', () => {
     await crawler.crawl()
 
     expect(crawler.crawlSetting.batchSize).to.be.lessThanOrEqual(originalBatchSize)
-    expect(mockProvider.getLogs.calledTwice).to.be.true
+    expect(mockProvider.send.calledTwice).to.be.true
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
   it('should stop crawling if batch size becomes too small', async () => {
     const batchSizeError = new Error('Log response size exceeded')
     mockProvider.getBlockNumber.resolves(300)
-    mockProvider.getLogs.rejects(batchSizeError)
+    mockProvider.send.rejects(batchSizeError)
 
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.ethereumMainnet,
@@ -422,8 +423,8 @@ describe('Module: blockchainLogCrawler', () => {
       logService: null,
       onError: () => {},
     })
-    sandbox.stub(crawler, 'getProvider').returns(mockProvider as any)
 
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
     let batchSize = crawler.crawlSetting.batchSize
     sandbox.stub(crawler.crawlSetting, 'batchSize').get(() => batchSize)
     sandbox.stub(crawler.crawlSetting, 'batchSize').set(value => {
@@ -434,7 +435,7 @@ describe('Module: blockchainLogCrawler', () => {
 
     expect(logError.calledWith('Batch size too small, stopping crawl')).to.be.true
     expect(crawler.crawlSetting.batchSize).to.eq(1)
-    expect(mockProvider.getLogs.callCount).to.eq(20)
+    expect(mockProvider.send.callCount).to.eq(20)
   })
 
   it('should throw an error if block interval time is not found for the network', () => {
