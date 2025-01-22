@@ -220,8 +220,6 @@ export const PluginSetupProcessorHandler = {
           params: { address: pluginDb.address, network: pluginDb.network },
         })
       }
-    } else if (pluginDb?.interfaceType === IPluginInterfaceType.tokenVoting) {
-      await ProxyToken.saveAndGetToken(pluginDb.tokenAddress, pluginDb.network, true)
     }
   },
 
