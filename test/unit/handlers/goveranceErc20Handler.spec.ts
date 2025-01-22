@@ -546,7 +546,7 @@ describe('GovernanceErc20Handler', () => {
   })
 
   describe('_outgoingTransfer', () => {
-    it('should handle outgoing transfer event and remove member from DAO', async () => {
+    it('should handle outgoing ERC20 transfer event and remove member from DAO', async () => {
       const parsedEvent = {
         args: {
           from: '0xFrom',
@@ -573,72 +573,92 @@ describe('GovernanceErc20Handler', () => {
       const createMemberStub = sandbox
         .stub(ProxyMember, 'createMember')
         .resolves({ address: parsedEvent.args.from } as any)
-
       const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
-
-      const mockBalance = {
-        amount: '0',
-        votingPower: '0',
-        decreaseBalance: null,
-        id: 'logDbId',
-      }
-
-      mockBalance.decreaseBalance = sandbox.stub().resolves(mockBalance) as any
-
-      const getBalancesStub = sandbox.stub(ProxyMember, 'getBalances').resolves(mockBalance as any)
-
-      sandbox.stub(Logger, 'verbose')
-
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
-      const memberTransactionCreateStub = sandbox.spy(Models.MemberTransaction, 'create')
-      const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-
       const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        name: 'MockToken',
-        symbol: 'MOCK',
-        decimals: 18,
-        logo: 'https://mock.com/logo.png',
+        address: '0xTokenAddress',
         type: ITokenType.GovernanceERC20,
       } as any)
-      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const verboseLog = sandbox.stub(Logger, 'verbose')
 
       await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info as any, plugin as any)
-      const memberTransaction = await Models.MemberTransaction.findOne({})
+
+      const tokenToBalanceDb = await ProxyMember.getBalances({
+        address: parsedEvent.args.to,
+        tokenAddress: info.address,
+        network: info.network,
+      })
+      expect(tokenToBalanceDb?.amount).to.be.eq('0')
+      expect(tokenToBalanceDb?.tokenIds.length).to.eq(0)
 
       expect(createMemberStub.calledOnceWith(parsedEvent.args.from)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
-      expect(getBalancesStub.calledOnce).to.be.true
       expect(saveAndGetStub.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledOnceWith(info.blockNumber, info.network)).to.be.true
       expect(getPastVotesStub.calledOnce).to.be.true
-      expect(
-        getPastVotesStub.calledWith(parsedEvent.args.from, info.address, info.blockNumber, 1630425600, info.network),
-      ).to.be.true
+      expect(sendMessageStub.calledOnce).to.be.true
+      expect(getBlockTimestampStub.calledOnce).to.be.true
+      expect(verboseLog.calledThrice).to.be.true
+      expect(verboseLog.calledWith('Transfer outgoing - MemberTransaction' as any)).to.be.true
+    })
 
-      expect(memberTransactionCreateStub.calledOnce).to.be.true
-      expect(memberTransaction).to.be.not.null
-      expect(memberTransaction.type).to.be.eq(ITransferType.tokenTransfer)
-      expect(memberTransaction.side).to.be.eq(ITransferSide.outgoing)
-      expect(memberTransaction.memberBalance).to.be.eq('0')
-      expect(memberTransaction.memberVotingPower).to.be.eq('0')
+    it('should handle outgoing ERC721 transfer event and remove member from DAO', async () => {
+      const parsedEvent = {
+        args: {
+          from: '0xFrom',
+          to: '0xTo',
+          tokenId: 1234,
+        },
+      } as unknown as LogDescription
 
+      const info = {
+        network,
+        blockNumber: 12345678,
+        transactionHash: '0xTransactionHash',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0xTokenAddress',
+      }
+
+      const plugin = {
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network,
+      }
+
+      const createMemberStub = sandbox
+        .stub(ProxyMember, 'createMember')
+        .resolves({ address: parsedEvent.args.from } as any)
+      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
+
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
+      const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xTokenAddress',
+        type: ITokenType.ERC721,
+      } as any)
+      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const verboseLog = sandbox.stub(Logger, 'verbose')
+
+      await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info as any, plugin as any)
+
+      const tokenFromBalanceDb = await ProxyMember.getBalances({
+        address: parsedEvent.args.from,
+        tokenAddress: info.address,
+        network: info.network,
+      })
+      expect(tokenFromBalanceDb?.amount).to.be.eq('0')
+      expect(tokenFromBalanceDb?.tokenIds.length).to.eq(0)
+
+      expect(createMemberStub.calledOnceWith(parsedEvent.args.from)).to.be.true
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(saveAndGetStub.calledOnce).to.be.true
       expect(removeFromDaoStub.calledOnce).to.be.true
-      expect(
-        removeFromDaoStub.calledWith({
-          memberAddress: parsedEvent.args.from,
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          network: info.network,
-        }),
-      ).to.be.true
-      expect(
-        sendMessageStub.calledOnceWith(EnumQueueName.daoMetrics, {
-          id: plugin.daoAddress,
-          params: { address: plugin.daoAddress, network: plugin.network },
-        }),
-      ).to.be.true
+      expect(sendMessageStub.calledOnce).to.be.true
+      expect(getBlockTimestampStub.calledOnce).to.be.true
+      expect(verboseLog.calledTwice).to.be.true
+      expect(verboseLog.calledWith('Transfer outgoing - MemberTransaction' as any)).to.be.true
     })
 
     it('should return if the existing log is found', async () => {
@@ -671,18 +691,135 @@ describe('GovernanceErc20Handler', () => {
 
       const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(true)
 
-      const loggerErrorStub = sandbox.stub(Logger, 'error')
+      const loggerWarnStub = sandbox.stub(Logger, 'warn')
 
       const handlerResponse = await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info as any, plugin as any)
 
       expect(handlerResponse).to.be.undefined
       expect(createMemberStub.calledOnceWith(parsedEvent.args.from)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
-      expect(loggerErrorStub.calledOnceWith('Transfer - outgoing transfer already processed' as any))
+      expect(loggerWarnStub.calledOnceWith('Transfer - outgoing transfer already processed' as any))
     })
   })
 
   describe('_incomingTransfer', () => {
+    it('should handle incoming ERC20 transfer event and add member to DAO', async () => {
+      const parsedEvent = {
+        args: {
+          from: '0xFrom',
+          to: '0xTo',
+          value: '1000',
+        },
+      } as unknown as LogDescription
+
+      const info = {
+        network,
+        blockNumber: 12345678,
+        transactionHash: '0xTransactionHash',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0xTokenAddress',
+      }
+
+      const plugin = {
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network,
+      }
+
+      const createMemberStub = sandbox
+        .stub(ProxyMember, 'createMember')
+        .resolves({ address: parsedEvent.args.to } as any)
+      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
+      const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xTokenAddress',
+        type: ITokenType.GovernanceERC20,
+      } as any)
+      const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('10')
+      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const verboseLog = sandbox.stub(Logger, 'verbose')
+
+      await GovernanceErc20Handler._incomingTransfer(parsedEvent, info as any, plugin as any)
+
+      const tokenToBalanceDb = await ProxyMember.getBalances({
+        address: parsedEvent.args.to,
+        tokenAddress: info.address,
+        network: info.network,
+      })
+      expect(tokenToBalanceDb?.amount).to.be.eq('1000')
+      expect(tokenToBalanceDb?.tokenIds.length).to.eq(0)
+      expect(createMemberStub.calledOnceWith(parsedEvent.args.to)).to.be.true
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getBlockTimestampStub.calledOnce).to.be.true
+      expect(saveAndGetStub.calledOnce).to.be.true
+      expect(getPastVotesStub.calledOnce).to.be.true
+      expect(addToDaoStub.calledOnce).to.be.true
+      expect(sendMessageStub.calledOnce).to.be.true
+      expect(verboseLog.calledTwice).to.be.true
+      expect(verboseLog.calledWith('Transfer incoming - MemberTransaction' as any)).to.be.true
+    })
+
+    it('should handle incoming ERC721 transfer event and add member to DAO', async () => {
+      const parsedEvent = {
+        args: {
+          from: '0xFrom',
+          to: '0xTo',
+          tokenId: 1234,
+        },
+      } as unknown as LogDescription
+
+      const info = {
+        network,
+        blockNumber: 12345678,
+        transactionHash: '0xTransactionHash',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0xTokenAddress',
+      }
+
+      const plugin = {
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network,
+      }
+
+      const createMemberStub = sandbox
+        .stub(ProxyMember, 'createMember')
+        .resolves({ address: parsedEvent.args.to } as any)
+
+      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
+      const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xTokenAddress',
+        type: ITokenType.ERC721,
+      } as any)
+      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const verboseLog = sandbox.stub(Logger, 'verbose')
+
+      await GovernanceErc20Handler._incomingTransfer(parsedEvent, info as any, plugin as any)
+
+      const tokenBalanceDb = await ProxyMember.getBalances({
+        address: parsedEvent.args.to,
+        tokenAddress: info.address,
+        network: info.network,
+      })
+
+      expect(tokenBalanceDb?.amount).to.be.eq('1')
+      expect(tokenBalanceDb?.tokenIds.length).to.eq(1)
+      expect(tokenBalanceDb?.tokenIds[0]).to.eq(1234)
+      expect(createMemberStub.calledOnceWith(parsedEvent.args.to)).to.be.true
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getBlockTimestampStub.calledOnce).to.be.true
+      expect(saveAndGetStub.calledOnce).to.be.true
+      expect(addToDaoStub.calledOnce).to.be.true
+      expect(sendMessageStub.calledOnce).to.be.true
+      expect(verboseLog.calledTwice).to.be.true
+      expect(verboseLog.calledWith('Transfer incoming - MemberTransaction' as any)).to.be.true
+    })
+
     it('should return if the existing log is found', async () => {
       const parsedEvent = {
         args: {
@@ -713,107 +850,14 @@ describe('GovernanceErc20Handler', () => {
 
       const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(true)
 
-      const loggerErrorStub = sandbox.stub(Logger, 'error')
+      const loggerWarnStub = sandbox.stub(Logger, 'warn')
 
       const handlerResponse = await GovernanceErc20Handler._incomingTransfer(parsedEvent, info as any, plugin as any)
 
       expect(handlerResponse).to.be.undefined
       expect(createMemberStub.calledOnceWith(parsedEvent.args.to)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
-      expect(loggerErrorStub.calledOnceWith('Transfer - incoming transfer already processed' as any))
-    })
-
-    it('should handle incoming transfer event and add member to DAO', async () => {
-      const parsedEvent = {
-        args: {
-          from: '0xFrom',
-          to: '0xTo',
-          value: '1000',
-        },
-      } as unknown as LogDescription
-
-      const info = {
-        network,
-        blockNumber: 12345678,
-        transactionHash: '0xTransactionHash',
-        transactionIndex: 1,
-        logIndex: 1,
-        address: '0xTokenAddress',
-      }
-
-      const plugin = {
-        daoAddress: '0xDaoAddress',
-        address: '0xPluginAddress',
-        network,
-      }
-
-      const createMemberStub = sandbox
-        .stub(ProxyMember, 'createMember')
-        .resolves({ address: parsedEvent.args.to } as any)
-
-      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
-
-      const mockBalance = {
-        amount: '12',
-        votingPower: '10',
-        increaseBalance: null,
-        id: 'logDbId',
-      }
-
-      mockBalance.increaseBalance = sandbox.stub().resolves(mockBalance) as any
-
-      const getBalancesStub = sandbox.stub(ProxyMember, 'getBalances').resolves(mockBalance as any)
-      const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        name: 'MockToken',
-        symbol: 'MOCK',
-        decimals: 18,
-        logo: 'https://mock.com/logo.png',
-        type: ITokenType.GovernanceERC20,
-      } as any)
-      sandbox.stub(Logger, 'verbose')
-
-      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
-      const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('10')
-      const memberTransactionCreateStub = sandbox.spy(Models.MemberTransaction, 'create')
-
-      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
-
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-
-      await GovernanceErc20Handler._incomingTransfer(parsedEvent, info as any, plugin as any)
-      const memberTransaction = await Models.MemberTransaction.findOne({})
-
-      expect(createMemberStub.calledOnceWith(parsedEvent.args.to)).to.be.true
-      expect(findExistingLogStub.calledOnce).to.be.true
-      expect(getBalancesStub.calledOnce).to.be.true
-      expect(saveAndGetStub.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledOnceWith(info.blockNumber, info.network)).to.be.true
-      expect(getPastVotesStub.calledOnce).to.be.true
-      expect(getPastVotesStub.calledWith(parsedEvent.args.to, info.address, info.blockNumber, 1630425600, info.network))
-        .to.be.true
-      expect(memberTransactionCreateStub.calledOnce).to.be.true
-      expect(memberTransaction).to.be.not.null
-      expect(memberTransaction.type).to.be.eq(ITransferType.tokenTransfer)
-      expect(memberTransaction.side).to.be.eq(ITransferSide.incoming)
-      expect(memberTransaction.memberBalance).to.be.eq('12')
-      expect(memberTransaction.memberVotingPower).to.be.eq('10')
-
-      expect(addToDaoStub.calledOnce).to.be.true
-      expect(
-        addToDaoStub.calledWith({
-          memberAddress: parsedEvent.args.to,
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          network: info.network,
-        }),
-      ).to.be.true
-      expect(
-        sendMessageStub.calledOnceWith(EnumQueueName.daoMetrics, {
-          id: plugin.daoAddress,
-          params: { address: plugin.daoAddress, network: plugin.network },
-        }),
-      ).to.be.true
+      expect(loggerWarnStub.calledOnceWith('Transfer - incoming transfer already processed' as any)).to.be.true
     })
   })
 

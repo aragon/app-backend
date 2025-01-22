@@ -214,7 +214,7 @@ export const GovernanceErc20Handler = {
       }
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
-      const tokenBalanceDb = await ProxyMember.getBalances({
+      let tokenBalanceDb = await ProxyMember.getBalances({
         address: memberAddress,
         tokenAddress: info.address,
         network: info.network,
@@ -241,7 +241,7 @@ export const GovernanceErc20Handler = {
 
       // decrease balance
       const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
-        await tokenBalanceDb?.decreaseBalance(
+        tokenBalanceDb = await tokenBalanceDb?.decreaseBalance(
           {
             amount: tokenBal,
             blockNumber: info.blockNumber,
