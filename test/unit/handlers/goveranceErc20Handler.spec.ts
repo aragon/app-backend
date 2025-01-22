@@ -7,6 +7,7 @@ import {
   IEventLogMember,
   ILogInfo,
   IMetricAction,
+  ITokenType,
   ITransferSide,
   ITransferType,
   NetworksEnum,
@@ -21,17 +22,24 @@ import { RabbitMQHelper } from '@helpers/radditMQ'
 import { LogDescription } from 'ethers'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+import { ProxyToken } from '@modules/proxyToken'
+import config from '@config'
 
 describe('GovernanceErc20Handler', () => {
   let sandbox: SinonSandbox
+  let intervalTime: number
+  let network: NetworksEnum
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-    await Models.MemberTransaction.createIndexes()
+    network = NetworksEnum.polygonMainnet
+    intervalTime = config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME
+    config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = 0
   })
 
   afterEach(() => {
     sandbox.restore()
+    config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = intervalTime
   })
 
   describe('delegateVotesChanged', () => {
@@ -45,7 +53,7 @@ describe('GovernanceErc20Handler', () => {
       }
 
       const logInfo = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionIndex: 1,
         logIndex: 1,
@@ -73,7 +81,7 @@ describe('GovernanceErc20Handler', () => {
       }
 
       const logInfo = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionIndex: 1,
         logIndex: 1,
@@ -85,7 +93,7 @@ describe('GovernanceErc20Handler', () => {
       const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
+        network,
       } as any
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
@@ -110,7 +118,7 @@ describe('GovernanceErc20Handler', () => {
       const loggerErrorStub = sandbox.stub(Logger, 'error')
 
       const logInfo = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionIndex: 1,
         logIndex: 1,
@@ -122,7 +130,7 @@ describe('GovernanceErc20Handler', () => {
       const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
+        network,
       } as any
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
@@ -153,7 +161,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionHash: '0xTransactionHash',
         transactionIndex: 1,
@@ -164,7 +172,7 @@ describe('GovernanceErc20Handler', () => {
       const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
+        network,
       }
 
       const findByAddressStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
@@ -187,6 +195,7 @@ describe('GovernanceErc20Handler', () => {
       const memberTransactionCreateStub = sandbox.spy(Models.MemberTransaction, 'create')
 
       const updateMetricsStub = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
+      const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity').resolves()
       const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
@@ -199,17 +208,14 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction.side).to.be.eq(ITransferSide.incoming)
       expect(memberTransaction.memberBalance).to.be.eq('1500')
       expect(memberTransaction.memberVotingPower).to.be.eq('2000')
-      expect(createMemberStub.calledTwice).to.be.true
-      expect(createMemberStub.args[0][0]).to.eq(parsedEvent.args.delegate)
-      expect(createMemberStub.args[1][0]).to.eq(parsedEvent.args.delegate)
+      expect(createMemberStub.calledOnceWith(parsedEvent.args.delegate)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getBalancesStub.calledOnce).to.be.true
       expect(findDelegatorsStub.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledTwice).to.be.true
-      expect(getBlockTimestampStub.args[0][0]).to.eq(info.blockNumber)
-      expect(getBlockTimestampStub.args[0][1]).to.eq(info.network)
+      expect(getBlockTimestampStub.calledOnceWith(info.blockNumber, info.network)).to.be.true
       expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
       expect(memberTransactionCreateStub.calledOnce).to.be.true
+      expect(updateActivityStub.calledOnce).to.be.true
       expect(
         updateMetricsStub.calledOnceWith(IMetricAction.increaseDelegateReceivedCount, {
           memberAddress: parsedEvent.args.delegate,
@@ -232,7 +238,7 @@ describe('GovernanceErc20Handler', () => {
         }),
       ).to.be.true
 
-      expect(loggerVerboseStub.callCount).to.eq(3)
+      expect(loggerVerboseStub.calledOnce).to.be.true
     })
 
     it('should handle incoming delegateVotesChanged event and not add member if to is zero address', async () => {
@@ -246,7 +252,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionHash: '0xTransactionHash',
         transactionIndex: 1,
@@ -257,7 +263,7 @@ describe('GovernanceErc20Handler', () => {
       const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
+        network,
       }
 
       const findByAddressStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
@@ -280,6 +286,7 @@ describe('GovernanceErc20Handler', () => {
       const memberTransactionCreateStub = sandbox.spy(Models.MemberTransaction, 'create')
 
       const updateMetricsStub = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
+      const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity').resolves()
       const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
@@ -297,6 +304,7 @@ describe('GovernanceErc20Handler', () => {
       expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
       expect(memberTransactionCreateStub.notCalled).to.be.true
       expect(updateMetricsStub.notCalled).to.be.true
+      expect(updateActivityStub.notCalled).to.be.true
       expect(
         addToDaoStub.calledOnceWith({
           memberAddress: parsedEvent.args.delegate,
@@ -320,7 +328,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionHash: '0xTransactionHash',
         transactionIndex: 1,
@@ -331,7 +339,7 @@ describe('GovernanceErc20Handler', () => {
       const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
+        network,
       }
 
       const findByAddressStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
@@ -415,7 +423,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionHash: '0xTransactionHash',
         transactionIndex: 1,
@@ -426,7 +434,7 @@ describe('GovernanceErc20Handler', () => {
       const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
+        network,
       }
 
       const findByAddressStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
@@ -487,7 +495,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionHash: '0xTransactionHash',
         transactionIndex: 1,
@@ -498,7 +506,7 @@ describe('GovernanceErc20Handler', () => {
       const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
+        network,
       }
 
       sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
@@ -548,7 +556,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionHash: '0xTransactionHash',
         transactionIndex: 1,
@@ -559,7 +567,7 @@ describe('GovernanceErc20Handler', () => {
       const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
+        network,
       }
 
       const createMemberStub = sandbox
@@ -585,6 +593,14 @@ describe('GovernanceErc20Handler', () => {
       const memberTransactionCreateStub = sandbox.spy(Models.MemberTransaction, 'create')
       const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
 
+      const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: ITokenType.GovernanceERC20,
+      } as any)
       const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
@@ -594,6 +610,7 @@ describe('GovernanceErc20Handler', () => {
       expect(createMemberStub.calledOnceWith(parsedEvent.args.from)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getBalancesStub.calledOnce).to.be.true
+      expect(saveAndGetStub.calledOnce).to.be.true
       expect(getBlockTimestampStub.calledOnceWith(info.blockNumber, info.network)).to.be.true
       expect(getPastVotesStub.calledOnce).to.be.true
       expect(
@@ -634,7 +651,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionHash: '0xTransactionHash',
         transactionIndex: 1,
@@ -645,7 +662,7 @@ describe('GovernanceErc20Handler', () => {
       const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
+        network,
       }
 
       const createMemberStub = sandbox
@@ -676,7 +693,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionHash: '0xTransactionHash',
         transactionIndex: 1,
@@ -687,7 +704,7 @@ describe('GovernanceErc20Handler', () => {
       const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
+        network,
       }
 
       const createMemberStub = sandbox
@@ -716,7 +733,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionHash: '0xTransactionHash',
         transactionIndex: 1,
@@ -727,7 +744,7 @@ describe('GovernanceErc20Handler', () => {
       const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
+        network,
       }
 
       const createMemberStub = sandbox
@@ -746,7 +763,14 @@ describe('GovernanceErc20Handler', () => {
       mockBalance.increaseBalance = sandbox.stub().resolves(mockBalance) as any
 
       const getBalancesStub = sandbox.stub(ProxyMember, 'getBalances').resolves(mockBalance as any)
-
+      const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: ITokenType.GovernanceERC20,
+      } as any)
       sandbox.stub(Logger, 'verbose')
 
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
@@ -763,6 +787,7 @@ describe('GovernanceErc20Handler', () => {
       expect(createMemberStub.calledOnceWith(parsedEvent.args.to)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getBalancesStub.calledOnce).to.be.true
+      expect(saveAndGetStub.calledOnce).to.be.true
       expect(getBlockTimestampStub.calledOnceWith(info.blockNumber, info.network)).to.be.true
       expect(getPastVotesStub.calledOnce).to.be.true
       expect(getPastVotesStub.calledWith(parsedEvent.args.to, info.address, info.blockNumber, 1630425600, info.network))
@@ -801,7 +826,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         transactionHash: '0xTransactionHash',
       } as ILogInfo
 
@@ -822,7 +847,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         transactionHash: '0xTransactionHash',
       } as ILogInfo
 
@@ -867,7 +892,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         transactionHash: '0xTransactionHash',
       } as ILogInfo
 
@@ -916,7 +941,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionHash: '0xTransactionHash',
         transactionIndex: 1,
@@ -927,7 +952,7 @@ describe('GovernanceErc20Handler', () => {
       const plugin = {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.polygonMainnet,
+        network,
       }
 
       const findPluginStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
@@ -953,7 +978,7 @@ describe('GovernanceErc20Handler', () => {
       } as unknown as LogDescription
 
       const info = {
-        network: NetworksEnum.polygonMainnet,
+        network,
         blockNumber: 12345678,
         transactionHash: '0xTransactionHash',
         transactionIndex: 1,

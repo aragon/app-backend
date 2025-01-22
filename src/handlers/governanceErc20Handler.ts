@@ -1,6 +1,14 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { EnumQueueName, IEventLogMember, type ILogInfo, IMetricAction, ITransferSide, ITransferType } from '@types'
+import {
+  EnumQueueName,
+  IEventLogMember,
+  type ILogInfo,
+  IMetricAction,
+  ITokenType,
+  ITransferSide,
+  ITransferType,
+} from '@types'
 import utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
@@ -11,6 +19,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import config from '@config'
+import { ProxyToken } from '@modules/proxyToken'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:GovernanceErc20Handler' })
 
@@ -66,15 +75,16 @@ export const GovernanceErc20Handler = {
 
         if (existingLog) {
           logger.warn('DelegateVotesChanged - already processed', llo({ info }))
-          return
+          return false
         }
 
-        const newVotingPower = BigInt(parsedEvent.args.newBalance || 0)
+        const newVotingPower = BigInt(parsedEvent?.args?.newBalance || 0)
         await tokenBalance?.updateVotingPower(newVotingPower.toString(), info.blockNumber, { session })
         await session.commitTransaction()
         await session.endSession()
         return newVotingPower
       })
+      if (newVotingPower === false) return
 
       const memberBalance = await Web3Helper.getTokenBalanceAtBlock({
         address: memberAddress,
@@ -198,31 +208,47 @@ export const GovernanceErc20Handler = {
         return
       }
 
-      const tokenBalance = await ProxyMember.getBalances({
-        address: memberAddress,
-        tokenAddress: info.address,
-        network: info.network,
-      })
-
       if (!isHistorical) {
         // wait 2 blocks
         await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000 * 2)
       }
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
-      const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
-        memberAddress,
-        info.address,
-        info.blockNumber,
-        blockTimestamp,
-        info.network,
-      )
+      const tokenBalanceDb = await ProxyMember.getBalances({
+        address: memberAddress,
+        tokenAddress: info.address,
+        network: info.network,
+      })
+      const token = await ProxyToken.saveAndGetToken(info.address, info.network)
+
+      let tokenBal: string = '0'
+      let memberVotingPower: string = '0'
+
+      if (token?.type === ITokenType.GovernanceERC20) {
+        tokenBal = BigInt(parsedEvent?.args?.value || 0)?.toString()
+        memberVotingPower = await GovernanceErc20Helper.getPastVotes(
+          memberAddress,
+          info.address,
+          info.blockNumber,
+          blockTimestamp,
+          info.network,
+        )
+      } else if (token?.type === ITokenType.ERC721) {
+        tokenBal = BigInt(1).toString()
+      }
+
+      const tokenId = parsedEvent.args.tokenId !== undefined ? Number(parsedEvent.args.tokenId || 0) : undefined
 
       // decrease balance
       const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
-        await tokenBalance?.decreaseBalance(BigInt(parsedEvent.args.value || 0).toString(), info.blockNumber, {
-          session,
-        })
+        await tokenBalanceDb?.decreaseBalance(
+          {
+            amount: tokenBal,
+            blockNumber: info.blockNumber,
+            tokenId,
+          },
+          { session },
+        )
 
         const memberTransaction = await Models.MemberTransaction.create(
           {
@@ -237,10 +263,11 @@ export const GovernanceErc20Handler = {
             side: ITransferSide.outgoing,
             from: parsedEvent.args.from,
             to: parsedEvent.args.to,
-            amount: BigInt(parsedEvent.args.value).toString(),
+            amount: tokenBal,
             tokenAddress: info.address,
-            memberBalance: tokenBalance?.amount,
-            memberVotingPower: memberVotingPower?.toString() ?? '0',
+            memberBalance: tokenBalanceDb?.amount,
+            memberVotingPower,
+            tokenId,
           },
           { session },
         )
@@ -287,31 +314,47 @@ export const GovernanceErc20Handler = {
         return
       }
 
-      const tokenBalance = await ProxyMember.getBalances({
-        address: memberAddress,
-        tokenAddress: info.address,
-        network: info.network,
-      })
-
       if (!isHistorical) {
         // wait 2 blocks
         await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000 * 2)
       }
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
-      const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
-        memberAddress,
-        info.address,
-        info.blockNumber,
-        blockTimestamp,
-        info.network,
-      )
+      let tokenBalanceDb = await ProxyMember.getBalances({
+        address: memberAddress,
+        tokenAddress: info.address,
+        network: info.network,
+      })
+      const token = await ProxyToken.saveAndGetToken(info.address, info.network)
+
+      let tokenBal: string = '0'
+      let memberVotingPower: string = '0'
+
+      if (token?.type === ITokenType.GovernanceERC20) {
+        tokenBal = BigInt(parsedEvent?.args?.value || 0)?.toString()
+        memberVotingPower = await GovernanceErc20Helper.getPastVotes(
+          memberAddress,
+          info.address,
+          info.blockNumber,
+          blockTimestamp,
+          info.network,
+        )
+      } else if (token?.type === ITokenType.ERC721) {
+        tokenBal = BigInt(1).toString()
+      }
+
+      const tokenId = parsedEvent.args.tokenId !== undefined ? Number(parsedEvent.args.tokenId || 0) : undefined
 
       // increase balance
       const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
-        await tokenBalance?.increaseBalance(BigInt(parsedEvent.args.value || 0).toString(), info.blockNumber, {
+        tokenBalanceDb = await tokenBalanceDb?.increaseBalance(
+          {
+            amount: tokenBal,
+            blockNumber: info.blockNumber,
+            tokenId,
+          },
           session,
-        })
+        )
 
         const memberTransaction = await Models.MemberTransaction.create(
           {
@@ -326,10 +369,11 @@ export const GovernanceErc20Handler = {
             type: ITransferType.tokenTransfer,
             from: parsedEvent.args.from,
             to: parsedEvent.args.to,
-            amount: BigInt(parsedEvent.args.value).toString(),
+            amount: tokenBal,
             tokenAddress: info.address,
-            memberBalance: tokenBalance?.amount,
-            memberVotingPower: memberVotingPower?.toString() ?? '0',
+            memberBalance: tokenBalanceDb?.amount,
+            memberVotingPower,
+            tokenId,
           },
           { session },
         )

@@ -25,7 +25,7 @@ export const ProxyToken = {
   saveAndGetToken: async (
     tokenAddress: HexAddress,
     network: NetworksEnum,
-    forceUpdate = false,
+    forceUpdate: boolean = false,
   ): Promise<null | Token> => {
     return await DbTx.executeTxFn(async ({ session }) => {
       const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
@@ -83,12 +83,13 @@ export const ProxyToken = {
   createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum, session?: ClientSession): Promise<Token> => {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
     const tokenRate = await RateModule.fetchRate(tokenAddress, network)
-    const contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
 
     let tokenMetrics: ITokenMetrics = { totalHolders: 0, totalSupply: '0' }
+    let contractDeployInfo: any = { transactionHash: null, blockNumber: 0 }
 
     if (tokenTypeInfo?.type === ITokenType.GovernanceERC20) {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
+      contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
     }
 
     const rawToken: Partial<Token> = {
@@ -102,6 +103,7 @@ export const ProxyToken = {
       implementationAddress: tokenTypeInfo?.implementationAddress!,
       network,
       lastUpdatedAt: dayjs.utc().toDate(),
+      mintableByDao: await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session),
       skipFetchRate: ProxyToken.shouldSkipFetch(
         {
           ...tokenRate,
@@ -118,8 +120,6 @@ export const ProxyToken = {
     if (rawToken.type === ITokenType.unknown && tokenRate.type !== ITokenType.unknown) {
       rawToken.type = tokenRate.type
     }
-
-    rawToken.mintableByDao = await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session)
 
     const savedToken = await Models.Token.create(rawToken, { session })
     await session!.commitTransaction()

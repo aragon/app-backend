@@ -81,8 +81,7 @@ describe('Model/Utils: aggregation', () => {
         },
         'memberMappings',
       )
-
-      console.log('Generated Query:', JSON.stringify(query, null, 2)) // Log the query for debugging
+      // console.log('Generated Query:', JSON.stringify(query, null, 2)) // Log the query for debugging
 
       expect(query).to.deep.equal({
         $lookup: {
