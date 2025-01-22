@@ -22,7 +22,11 @@ export const ToolsManualSyncDaoPluginEvents: IService = {
 
       if (setting) {
         if (setting.tokenAddress) {
-          await LogTokenVoting.start(plugin)
+          const token = await Models.Token.findOne({
+            address: setting.tokenAddress,
+            network: plugin.network,
+          })
+          await LogTokenVoting.start(plugin, token)
         } else {
           await LogMultiSig.start(plugin)
         }
