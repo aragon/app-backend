@@ -129,6 +129,9 @@ export interface IProposalActionInputData {
   notice?: string
 
   textSignature?: string
+
+  implementationAddress?: string | null
+  proxyName?: string
 }
 
 export interface ICompositeAddress {
