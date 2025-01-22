@@ -40,12 +40,6 @@ export const ProxyToken = {
       )
 
       if (existingToken) {
-        if (existingToken.type === ITokenType.GovernanceERC20 && existingToken.holders === 0) {
-          const dbHolders = await existingToken.countHolders(session)
-          if (dbHolders > 0) {
-            forceUpdate = true
-          }
-        }
         return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate, session)
       }
 
@@ -62,21 +56,24 @@ export const ProxyToken = {
     session?: ClientSession,
   ): Promise<Token> => {
     const shouldUpdate = !token.skipFetchRate && token.lastUpdatedAt < dayjs().subtract(6, 'hours').toDate()
-    const updates: any = {}
-
     if (shouldUpdate || forceUpdate) {
       const tokenRate = await RateModule.fetchRate(tokenAddress, network)
-      updates.priceUsd = tokenRate.priceUsd
-      updates.priceChangeOnDayUsd = tokenRate.priceChangeOnDayUsd
+      Object.assign(token, {
+        priceUsd: tokenRate.priceUsd,
+        priceChangeOnDayUsd: tokenRate.priceChangeOnDayUsd,
+      })
 
       if (token.type === ITokenType.GovernanceERC20) {
         const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
-        updates.holders = metrics.totalHolders
-        updates.totalSupply = metrics.totalSupply
-        updates.lastUpdatedAt = dayjs.utc().toDate()
+        Object.assign(token, {
+          holders: metrics.totalHolders,
+          totalSupply: metrics.totalSupply,
+          lastUpdatedAt: dayjs.utc().toDate(),
+        })
+
+        await token.save({ session })
       }
 
-      await token.update(updates, { session })
       if (session) {
         await session.commitTransaction()
         await session.endSession()
@@ -96,10 +93,6 @@ export const ProxyToken = {
 
     if (tokenTypeInfo?.type === ITokenType.GovernanceERC20) {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
-
-      if (tokenMetrics.totalSupply === '0' && tokenMetrics.totalHolders === 0) {
-        tokenMetrics.totalSupply = await EtherscanHelper.getTokenMetrics(tokenAddress, network)
-      }
     }
 
     const rawToken: Partial<Token> = {
