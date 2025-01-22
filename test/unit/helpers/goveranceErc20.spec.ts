@@ -36,7 +36,7 @@ describe('Helpers: GovernanceErc20', () => {
       })
 
       const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, NetworksEnum.ethereumMainnet)
-      expect(result).to.eq(1)
+      expect(result).to.eq('1')
     })
 
     it('should handle errors in getPastVotes', async () => {

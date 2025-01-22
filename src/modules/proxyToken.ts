@@ -25,7 +25,7 @@ export const ProxyToken = {
   saveAndGetToken: async (
     tokenAddress: HexAddress,
     network: NetworksEnum,
-    forceUpdate = false,
+    forceUpdate: boolean = false,
   ): Promise<null | Token> => {
     return await DbTx.executeTxFn(async ({ session }) => {
       const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress

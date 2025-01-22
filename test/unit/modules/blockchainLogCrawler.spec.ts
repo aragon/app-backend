@@ -100,10 +100,10 @@ describe('Module: blockchainLogCrawler', () => {
 
     // Mock event settings
     const events = [
-      { topic: '0xTopic1', abi: ['event Test1()'], event: 'Test1', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic2', abi: ['event Test2()'], event: 'Test2', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic3', abi: ['event Test3()'], event: 'Test3', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic4', abi: ['event Test4()'], event: 'Test4', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic1', event: 'Test1', config: [{ abi: ['event Test1()'], handler: sandbox.stub().resolves() }] },
+      { topic: '0xTopic2', event: 'Test2', config: [{ abi: ['event Test2()'], handler: sandbox.stub().resolves() }] },
+      { topic: '0xTopic3', event: 'Test3', config: [{ abi: ['event Test3()'], handler: sandbox.stub().resolves() }] },
+      { topic: '0xTopic4', event: 'Test4', config: [{ abi: ['event Test4()'], handler: sandbox.stub().resolves() }] },
     ] as any
 
     const parseLogStub = sandbox.stub(Web3Helper, 'parseLog').callsFake(
@@ -137,7 +137,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(crawler.crawlSetting.nbSuccess).to.equal(4)
 
     for (const event of events) {
-      expect(event.handler.calledOnce).to.be.true
+      expect(event.config[0].handler.calledOnce).to.be.true
     }
   })
 
@@ -162,10 +162,10 @@ describe('Module: blockchainLogCrawler', () => {
 
     // Mock event settings
     const events = [
-      { topic: '0xTopic1', abi: ['event Test1()'], event: 'Test1', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic2', abi: ['event Test2()'], event: 'Test2', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic3', abi: ['event Test3()'], event: 'Test3', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic4', abi: ['event Test4()'], event: 'Test4', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic1', event: 'Test1', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test1()'] }] },
+      { topic: '0xTopic2', event: 'Test2', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test2()'] }] },
+      { topic: '0xTopic3', event: 'Test3', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test3()'] }] },
+      { topic: '0xTopic4', event: 'Test4', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test4()'] }] },
     ] as any
 
     const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').callsFake(log => log as any)
@@ -197,7 +197,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(stubParseInfoLog.callCount).to.equal(4)
 
     for (const event of events) {
-      expect(event.handler.calledOnce).to.be.true
+      expect(event.config[0].handler.calledOnce).to.be.true
     }
 
     expect(stubSaveProgress.callCount).to.equal(4)
@@ -300,8 +300,8 @@ describe('Module: blockchainLogCrawler', () => {
     ] as any
 
     const events = [
-      { topic: '0xTopic1', abi: ['event Test1()'], event: 'Test1', handler: sandbox.stub().resolves() },
-      { topic: '0xTopic2', abi: ['event Test2()'], event: 'Test2', handler: sandbox.stub().resolves() },
+      { topic: '0xTopic1', event: 'Test1', config: [{ abi: ['event Test1()'], handler: sandbox.stub().resolves() }] },
+      { topic: '0xTopic2', event: 'Test2', config: [{ abi: ['event Test2()'], handler: sandbox.stub().resolves() }] },
     ] as any
 
     const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').callsFake((log: any) => {
@@ -327,15 +327,15 @@ describe('Module: blockchainLogCrawler', () => {
 
     await crawler.processLogs(logs)
 
-    expect(events[0].handler.calledOnce).to.be.true
+    expect(events[0].config[0].handler.calledOnce).to.be.true
     expect(stubParseLog.calledTwice).to.be.true
     expect(stubParseInfoLog.calledTwice).to.be.true
     expect(stubSaveProgress.calledOnceWith(logs[0].blockNumber)).to.be.true
 
     expect(logError.calledOnce).to.be.true
-    expect(logError.calledWith('Error parse log in blockchainCrawler')).to.be.true
+    expect(logError.calledWith('Error parsing log in blockchainCrawler')).to.be.true
     expect(onErrorStub.calledOnce).to.be.true
-    expect(events[1].handler.notCalled).to.be.true
+    expect(events[1].config[0].handler.notCalled).to.be.true
 
     expect(crawler.crawlSetting.isOnError).to.be.true
     expect(crawler.crawlSetting.nbError).to.equal(1)

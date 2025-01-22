@@ -64,24 +64,32 @@ export const CustomInstall = {
       {
         enableHistorical: false,
         event: 'InstallationPrepared',
-        abi: PluginSetupProcessor.abi,
-        handler: PluginSetupProcessorHandler.installationPrepared,
         topic: [
           new Interface(PluginSetupProcessor.abi).getEvent('InstallationPrepared')?.topicHash!,
           null,
           zeroPadValue(dao.address, 32),
           null,
         ],
+        config: [
+          {
+            abi: PluginSetupProcessor.abi,
+            handler: PluginSetupProcessorHandler.installationPrepared,
+          },
+        ],
       },
       {
         enableHistorical: true, // only sync when applied
         event: 'InstallationApplied',
-        abi: PluginSetupProcessor.abi,
-        handler: PluginSetupProcessorHandler.installationApplied,
         topic: [
           new Interface(PluginSetupProcessor.abi).getEvent('InstallationApplied')?.topicHash!,
           zeroPadValue(dao.address, 32),
           null,
+        ],
+        config: [
+          {
+            abi: PluginSetupProcessor.abi,
+            handler: PluginSetupProcessorHandler.installationApplied,
+          },
         ],
       },
     ]

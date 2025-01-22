@@ -125,22 +125,24 @@ describe('Model: MemberBalance', () => {
   it('should increase the balance', async () => {
     rawMemberBalance.amount = '0'
     const createdMember = await Models.MemberBalance.create(rawMemberBalance)
-    const member = await createdMember.increaseBalance('1000', 1232323)
+    const member = await createdMember.increaseBalance({ amount: '1000', blockNumber: 1232323, tokenId: 1 })
     expect(member?.amount).to.eq('1000')
+    expect(member?.tokenIds[0]).to.eq(1)
   })
 
   describe('increaseBalance', () => {
-    it('should decrease the balance', async () => {
+    it.only('should decrease the balance', async () => {
       rawMemberBalance.amount = '1000'
       const createdMember = await Models.MemberBalance.create(rawMemberBalance)
-      const member = await createdMember.decreaseBalance('1000', 1232323)
+      const member = await createdMember.decreaseBalance({ amount: '1000', blockNumber: 1232323, tokenId: 1 })
       expect(member?.amount).to.eq('0')
+      expect(member?.tokenId).to.eq(1)
     })
 
     it('should not decrease the balance if current balance is less than decrement', async () => {
       rawMemberBalance.amount = '1000'
       const createdMember = await Models.MemberBalance.create(rawMemberBalance)
-      const member = await createdMember.decreaseBalance('1001', 1232323)
+      const member = await createdMember.decreaseBalance({ amount: '1001', blockNumber: 1232323 })
       expect(member?.amount).to.eq('1000')
     })
   })

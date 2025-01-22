@@ -3,12 +3,16 @@ import type { IEnumIndexerService, IEnumIndexerServiceStatic } from '@src/types/
 import type { ILogInfo } from '@src/types/eventLogs'
 import { type Filter, type Log, type LogDescription } from 'ethers'
 
-export interface IIndexerConfig {
-  event: string
+export interface IIndexerConfigHandler {
   abi: any[]
   handler: (event: LogDescription, info: ILogInfo, isHistorical?: boolean) => Promise<any>
+}
+
+export interface IIndexerConfig {
+  event: string
   enableHistorical?: boolean
   topic: string | any
+  config: IIndexerConfigHandler[]
 }
 
 export interface ICrawlParam {

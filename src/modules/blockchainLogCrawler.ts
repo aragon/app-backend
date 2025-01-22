@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { Interface, type Log, type WebSocketProvider } from 'ethers'
+import { type LogDescription, Interface, type Log, type WebSocketProvider } from 'ethers'
 import {
   type ICrawlParam,
   type ICrawlSetting,
@@ -86,7 +86,7 @@ class BlockchainLogCrawler {
     const blockIntervalTime = config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME
 
     // Error handling in case blockIntervalTime is undefined or falsy
-    if (!blockIntervalTime) {
+    if (blockIntervalTime === undefined) {
       throw new Error(`Block interval time not found for network: ${network}`)
     }
 
@@ -260,19 +260,33 @@ class BlockchainLogCrawler {
     if (!eventSetting) {
       logger.error('Error event setting not found in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
     }
-    const iFace = new Interface(eventSetting!.abi)
-    const event = Web3Helper.parseLog(log, iFace)!
 
-    if (!event) {
-      logger.error('Error parse log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog(), log }))
+    let parsedEvent: LogDescription | null = null
+    let matchingHandler: any = null
+
+    for (const configItem of eventSetting?.config!) {
+      const iFace = new Interface(configItem.abi)
+      try {
+        parsedEvent = Web3Helper.parseLog(log, iFace)
+        if (parsedEvent) {
+          matchingHandler = configItem.handler
+          break
+        }
+      } catch (_) {
+        // skip
+      }
+    }
+
+    if (!parsedEvent) {
+      logger.error('Error parsing log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog(), log }))
     }
 
     const info = Web3Helper.parseInfoLog(log, eventSetting!.event, this.crawlParams.network)
 
     return {
-      event,
+      event: parsedEvent!,
+      handler: matchingHandler,
       info,
-      handler: eventSetting!.handler,
     }
   }
 
