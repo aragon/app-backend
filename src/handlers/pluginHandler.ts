@@ -420,7 +420,7 @@ export const PluginHandler = {
         const plugin = await preInstalledPlugin.update(document, { session })
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('Updated document - Installed plugin', llo({ pluginLog, documentId: plugin.id }))
+        logger.verbose('Updated document - Installed plugin', llo({ documentId: plugin.id }))
         return plugin
       })
 
@@ -491,10 +491,10 @@ export const PluginHandler = {
           await existingPlugin.update(document, { session })
           await session.commitTransaction()
           await session.endSession()
-          logger.verbose('Updated document - Deprecated plugin', llo({ pluginLog, documentId: existingPlugin.id }))
+          logger.verbose('Updated document - Deprecated plugin', llo({ documentId: existingPlugin.id }))
 
           if (needUpdate) {
-            logger.verbose('Updated document - Add plugin token address', llo({ pluginLog, documentId: plugin.id }))
+            logger.verbose('Updated document - Add plugin token address', llo({ documentId: plugin.id }))
           }
         }
       })

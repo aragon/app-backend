@@ -17,7 +17,7 @@ describe('Manual: CustomInstall', () => {
     sandbox && sandbox.restore()
   })
 
-  it('customInstall DAO', async function () {
+  it.only('customInstall DAO', async function () {
     this.timeout(1600000) // Increase timeout for the test
 
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
