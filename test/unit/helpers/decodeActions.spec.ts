@@ -273,6 +273,8 @@ describe('Helpers: DecodeActions', () => {
       expect(result).to.deep.equal({
         contract: 'IERC20MintableUpgradeable',
         function: 'mint',
+        proxyName: undefined,
+        implementationAddress: undefined,
         textSignature: 'mint(address,uint256)',
         notice: 'Mint tokens to a specific address',
         parameters: [
@@ -680,6 +682,8 @@ describe('Helpers: DecodeActions', () => {
       expect(result).to.deep.equal({
         functionName: 'mint',
         contractName: 'IERC20MintableUpgradeable',
+        proxyName: null,
+        implementationAddress: null,
         inputs: [
           {
             name: 'to',

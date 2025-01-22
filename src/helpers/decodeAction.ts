@@ -160,6 +160,8 @@ class DecodeActions {
       if (contractNetspec?.inputs) {
         decoded.notice = contractNetspec.notice
         decoded.contract = contractNetspec.contractName
+        decoded.proxyName = contractNetspec.proxyName
+        decoded.implementationAddress = contractNetspec.implementationAddress
         decoded.parameters = decoded.parameters.map((param, index) => {
           param.notice = contractNetspec.inputs[index].notice
           param.name = contractNetspec.inputs[index].name
@@ -343,6 +345,8 @@ class DecodeActions {
         if (contractNetspec?.inputs) {
           decodedData.notice = contractNetspec.notice
           decodedData.contract = contractNetspec.contractName
+          decodedData.proxyName = contractNetspec.proxyName
+          decodedData.implementationAddress = contractNetspec.implementationAddress
           decodedData.parameters = decodedData.parameters.map((param, index) => {
             param.notice = contractNetspec.inputs[index].notice
             param.name = contractNetspec.inputs[index].name
@@ -581,6 +585,8 @@ class DecodeActions {
             parameters: functionDetails.inputs,
             notice: functionDetails.notice,
             textSignature: functionDetails.functionName,
+            proxyName: functionDetails.proxyName,
+            implementationAddress: functionDetails.implementationAddress,
           } as any
         }
         return null
@@ -629,6 +635,20 @@ class DecodeActions {
       ),
     )
 
+    let proxyDetails: any = null
+    if (implementationAddress !== rawAction.to) {
+      proxyDetails = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(
+          async () =>
+            Etherscan.fetchContractSourceCode({
+              contractAddress: rawAction.to,
+              network,
+            }),
+          { retryRequest: true },
+        ),
+      )
+    }
+
     if (contractDetails && contractDetails.length > 0 && contractDetails[0].SourceCode !== '') {
       const contractAbi = JSON.parse(contractDetails[0].ABI)
       const results = ContractNetspecHelper.parseNetspec(
@@ -656,6 +676,8 @@ class DecodeActions {
       return {
         functionName: abiWithNetSpec?.method,
         contractName: contractDetails[0].ContractName,
+        proxyName: proxyDetails?.length ? proxyDetails[0].ContractName : null,
+        implementationAddress: proxyDetails?.length ? implementationAddress : null,
         inputs: abiWithNetSpec?.inputs.map((input: any, index: number) => {
           return {
             name: input.name,
@@ -712,6 +734,8 @@ class DecodeActions {
           return {
             function: functionName,
             contract: functionDetails?.contractName || contractName,
+            proxyName: functionDetails?.proxyName,
+            implementationAddress: functionDetails?.implementationAddress,
             parameters: paramsInfo,
             notice: functionDetails?.notice || notice,
             textSignature,

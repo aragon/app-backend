@@ -172,6 +172,34 @@ describe('Helpers: Etherscan', () => {
     })
   })
 
+  describe('tokenSupply', () => {
+    it('should fetch token supply successfully', async () => {
+      const mockSupply = { result: '100000000000000000000000000', status: '1' }
+      const rpcCallStub = sandbox.stub(EtherscanHelper, '_rpCall').resolves(mockSupply)
+      const result = await EtherscanHelper.getTokenMetrics('0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.equal('100000000000000000000000000')
+      expect(rpcCallStub.calledOnce).to.be.true
+      expect(rpcCallStub.firstCall.args[0]).to.deep.equal({
+        module: 'token',
+        action: 'tokensupply',
+        contractaddress: '0x123',
+        apikey: config.NODES.ETHEREUM_MAINNET.ETHERSCAN_API_KEY,
+      })
+    })
+
+    it('should handle errors when fetching token supply fails', async () => {
+      const expectedError = new Error('Failed to fetch token supply')
+      sandbox.stub(EtherscanHelper, '_rpCall').rejects(expectedError)
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await EtherscanHelper.getTokenMetrics('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('0')
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.args[0][0]).to.include('Error getTokenMetrics')
+    })
+  })
+
   describe('fetchContractCreation', () => {
     it('should fetch contract creation successfully', async () => {
       const mockCreationData = [{ address: '0x123', txHash: '0xabc' }]
