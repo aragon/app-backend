@@ -8,7 +8,7 @@ import type Token from '@models/schema/token'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
 export const LogTokenVoting = {
-  start: async (plugin: Plugin, token: Token) => {
+  start: async (plugin: Plugin, token: Token, isHistorical?: boolean) => {
     logger.verbose('Start LogTokenVoting', llo({ network: plugin.network, pluginAddress: plugin.address }))
 
     const configTVLogs = configIndexer.filter((item: IIndexerConfig) =>
@@ -19,6 +19,7 @@ export const LogTokenVoting = {
     )
 
     const crawler = new BlockchainLogCrawler({
+      onlyHistorical: isHistorical,
       network: plugin.network,
       events: [...configTVLogs],
       address: [plugin.address],
@@ -29,6 +30,7 @@ export const LogTokenVoting = {
     })
 
     const crawlerToken = new BlockchainLogCrawler({
+      onlyHistorical: isHistorical,
       network: plugin.network,
       events: [...configGovLogs],
       address: [plugin.tokenAddress],

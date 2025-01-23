@@ -8,7 +8,7 @@ import type Token from '@models/schema/token'
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogGauge' })
 
 export const LogGauge = {
-  start: async (plugin: Plugin, token: Token) => {
+  start: async (plugin: Plugin, token: Token, isHistorical?: boolean) => {
     logger.verbose('Start LogGauge', llo({ network: plugin.network, pluginAddress: plugin.address }))
 
     const configLockTokenLogs = configIndexer.filter((item: IIndexerConfig) =>
@@ -16,6 +16,7 @@ export const LogGauge = {
     )
 
     const crawlerGaugeToken = new BlockchainLogCrawler({
+      onlyHistorical: isHistorical,
       network: plugin.network,
       events: [...configLockTokenLogs],
       address: [plugin.tokenAddress],

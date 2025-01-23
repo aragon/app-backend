@@ -1,7 +1,7 @@
 import utils from '@helpers/utils'
 import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum } from '@types'
 
-const getConfigObject = (sourceConfig: Record<string, any>): IConfig | any => {
+const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
     APP_NAME: utils.configParser(sourceConfig, 'string', 'APP_NAME', 'Aragon Backend'),
     ENVIRONMENT: utils.configParser(sourceConfig, 'string', 'ENVIRONMENT', 'local'),
@@ -12,6 +12,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig | any => {
     SUPPORTED_NETWORKS: utils.configParser(sourceConfig, 'array', 'SUPPORTED_NETWORKS', []),
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
     ENS_DOMAIN: utils.configParser(sourceConfig, 'string', 'ENS_DOMAIN', 'dao.eth'),
+    CUSTOM_INSTALL: utils.configParser(sourceConfig, 'bool', 'CUSTOM_INSTALL', false),
     SUPPORTED_ENS_NETWORKS: utils.configParser(
       sourceConfig,
       'array',

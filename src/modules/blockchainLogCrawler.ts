@@ -293,7 +293,9 @@ class BlockchainLogCrawler {
   }
 
   async processLogs(logs: Log[]): Promise<void> {
+    let logIndex = 0
     for (const log of logs) {
+      logIndex++
       try {
         const { handler, event, info } = this.formatLog(log)
         if (!event) {
@@ -306,7 +308,10 @@ class BlockchainLogCrawler {
         if (log.blockNumber) {
           this.crawlSetting.lastSync = log?.blockNumber
         }
-        logger.verbose('Processing log', llo({ ...this.parseCrawlerInfoLog() }))
+        logger.verbose(
+          'Processing log',
+          llo({ ...this.parseCrawlerInfoLog(), blockNumber: log.blockNumber, logsLen: logs.length, logIndex }),
+        )
         if (this.crawlParams.logService && log.blockNumber) {
           await this.onSaveProgress(log.blockNumber)
         }
