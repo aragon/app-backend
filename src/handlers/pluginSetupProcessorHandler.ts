@@ -218,7 +218,7 @@ export const PluginSetupProcessorHandler = {
 
         await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
           id: pluginDb.address,
-          params: { address: pluginDb.address, network: pluginDb.network },
+          params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
         })
       }
     } else if (pluginDb?.interfaceType === IPluginInterfaceType.admin) {
@@ -226,7 +226,7 @@ export const PluginSetupProcessorHandler = {
       if (isHistorical) {
         await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
           id: pluginDb.address,
-          params: { address: pluginDb.address, network: pluginDb.network },
+          params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
         })
       }
     } else if (pluginDb?.interfaceType === IPluginInterfaceType.gauge) {
@@ -234,7 +234,7 @@ export const PluginSetupProcessorHandler = {
       if (isHistorical) {
         await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
           id: pluginDb.address,
-          params: { address: pluginDb.address, network: pluginDb.network },
+          params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
         })
       }
     }
