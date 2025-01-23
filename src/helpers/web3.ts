@@ -56,6 +56,10 @@ const Web3Helper = {
   ERC1155_safeTransferFrom: '0xf242432a',
   ERC1155_safeBatchTransferFrom: '0x2eb2c2d6',
 
+  isWhitelistedToken: (address: HexAddress, network: NetworksEnum): boolean => {
+    return config.WHITELIST_TOKENS.some((token: any) => token.address === address && token.network === network)
+  },
+
   alchemyCrazyBalanceOnError: (
     address: string,
     tokenAddress: string,

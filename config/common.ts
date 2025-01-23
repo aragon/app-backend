@@ -1,7 +1,7 @@
 import utils from '@helpers/utils'
-import { type IConfig, SupportedEnsNetworksEnum } from '@types'
+import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum } from '@types'
 
-const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
+const getConfigObject = (sourceConfig: Record<string, any>): IConfig | any => {
   return {
     APP_NAME: utils.configParser(sourceConfig, 'string', 'APP_NAME', 'Aragon Backend'),
     ENVIRONMENT: utils.configParser(sourceConfig, 'string', 'ENVIRONMENT', 'local'),
@@ -34,6 +34,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'CONFIRMATION_BLOCKS', 3),
+    WHITELIST_TOKENS: utils.configParser(sourceConfig, 'array', 'WHITELIST_TOKENS', [
+      { address: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E', network: NetworksEnum.ethereumMainnet },
+    ]),
 
     NODES: {
       ETHEREUM_MAINNET: {
