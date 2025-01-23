@@ -62,6 +62,7 @@ describe('Model: Member Transaction', () => {
         transactionIndex: rawMemberDelegationTx.transactionIndex!,
         logIndex: rawMemberDelegationTx.logIndex!,
         address: rawMemberDelegationTx.address!,
+        tokenId: 10,
       })
 
       const MemberMetrics = await Models.MemberTransaction.create(rawMemberDelegationTx)
@@ -70,6 +71,7 @@ describe('Model: Member Transaction', () => {
       expect(MemberMetrics.network).to.eq(rawMemberDelegationTx.network)
       expect(MemberMetrics.address).to.eq(rawMemberDelegationTx.address)
       expect(MemberMetrics.transactionHash).to.eq(rawMemberDelegationTx.transactionHash)
+      expect(MemberMetrics.tokenId).to.eq(rawMemberDelegationTx.tokenId)
     })
 
     it('should save without asset if id present', async () => {

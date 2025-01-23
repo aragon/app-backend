@@ -15,6 +15,7 @@ import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import ModelUtils, { utcDateProp } from '@models/utils/models'
 import { assert } from '@errors'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Token
 
@@ -113,7 +114,7 @@ export default class Token extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, tOpts)
+    return await this.findOne({ id: entityId }, null, tOpts)
   }
 
   static async findByTokenAddressAndNetwork(address: HexAddress, network: NetworksEnum) {
@@ -168,6 +169,14 @@ export default class Token extends Model {
     })
 
     return this.save(tOpts)
+  }
+
+  async countHolders(tOpts?: SaveOptions) {
+    const response = await this.model(customName)
+      .aggregate(AggregationQueryHelper.memberCountByToken(this.address, this.network))
+      .session(tOpts?.session)
+
+    return response.length > 0 ? response[0].memberCount : 0
   }
 
   async reload(tOpts?: SaveOptions) {

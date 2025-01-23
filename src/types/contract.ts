@@ -29,4 +29,6 @@ export interface IContractAbi {
   address: HexAddress
 
   network: NetworksEnum
+
+  proxyName?: string | null
 }

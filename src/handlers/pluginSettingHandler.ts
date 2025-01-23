@@ -265,10 +265,10 @@ export const PluginSettingHandler = {
   },
 
   /**
-   * Update stage names on SPP settings
-   * We mark the current settings as inactive and create a new one with the updated stage names
-   * Every time the spp metadata is updated, we call this to update
-   * the stage names on the settings, so it keeps synced and tacked
+   * Update stage names on SPP settings:
+   * 1. Marks current settings as inactive
+   * 2. Creates a new Setting with updated stage names
+   *
    * @param plugin
    * @param stageNames
    * @param info
@@ -278,41 +278,66 @@ export const PluginSettingHandler = {
       transactionHash: info.transactionHash,
       pluginAddress: plugin.address,
     })
-
-    if (existingLog) {
-      return
-    }
+    if (existingLog) return
 
     const activePluginSetting = await Models.Setting.findActive({
       network: info.network,
       pluginAddress: plugin.address,
     })
-
-    if (!activePluginSetting) {
-      return
-    }
+    if (!activePluginSetting) return
 
     if (activePluginSetting?.stages?.length !== stageNames.length) {
       logger.error('Stage names length mismatch', llo({ stageNames, activePluginSetting }))
       return
     }
 
-    const settingLog = {
+    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
+    const stages = activePluginSetting.stages.map((stage: any, index: number) => ({
+      ...stage,
+      name: stageNames[index],
+    }))
+    const settingToSave = {
       blockNumber: info.blockNumber,
-      blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+      blockTimestamp,
       transactionHash: info.transactionHash,
-      status: ISettingStatus.active,
       daoAddress: plugin.daoAddress,
       pluginAddress: plugin.address,
       pluginSubdomain: plugin.subdomain,
       network: info.network,
-      stages: activePluginSetting.stages.map((stage: any, index: any) => ({
-        ...stage,
-        name: stageNames[index],
-      })),
+      stages,
     }
 
-    await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - sppSettingsUpdated', llo)
+    // If we're dealing with an older block then the current,
+    // update the existing setting and create an inactive one.
+    // This case happens as we process the spp settings in a different order then the metadata
+
+    if (info.blockNumber < activePluginSetting.blockNumber) {
+      await DbOperations.updateDocument(
+        activePluginSetting,
+        { stages },
+        { logId: activePluginSetting.id, info },
+        'Update SPP stage names',
+        llo,
+      )
+
+      await DbOperations.createDocument(
+        Models.Setting,
+        { ...settingToSave, status: ISettingStatus.inactive },
+        info,
+        'Update SPP inactive plugin',
+        llo,
+      )
+
+      return
+    }
+
+    await DbOperations.createDocument(
+      Models.Setting,
+      { ...settingToSave, status: ISettingStatus.active },
+      info,
+      'New Setting - sppSettingsUpdated',
+      llo,
+    )
 
     await DbOperations.updateDocument(
       activePluginSetting,
@@ -327,7 +352,6 @@ export const PluginSettingHandler = {
   },
 
   pairSppPlugins: async (plugin: Plugin, settings: Setting, info: ILogInfo) => {
-    // update SPP plugin
     const rawPluginUpdate = {
       isSubPlugin: !!plugin.parentPlugin, // it could be a sub-plugin of an other SPP
       totalStages: settings.stages.length,

@@ -132,7 +132,7 @@ const CovalentHelper = {
       logo: token.logo_url,
       name: token.contract_name,
       symbol: token.contract_ticker_symbol,
-      decimals: token.contract_decimals,
+      decimals: token.contract_decimals || type === ITokenType.GovernanceERC20 || type === ITokenType.ERC20 ? 18 : 0,
       priceUsd: mostRecentPrice.toString(),
       priceChangeOnDayUsd,
       lastUpdatedAt: dayjs().utc().toDate(),
@@ -202,6 +202,7 @@ const CovalentHelper = {
         totalHolders,
       }
     } catch (error) {
+      logger.error('Error in Covalent getTokenSupplyAndHolders', llo({ address, network, blockHeight, error }))
       return { totalHolders: 0, totalSupply: '0' }
     }
   },

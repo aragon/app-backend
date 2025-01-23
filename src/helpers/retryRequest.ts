@@ -76,12 +76,17 @@ function isErrorRelatedToServerIssue(error: any): boolean {
     const parsedReqBody = JSON.parse(error?.requestBody || '{}')
     const method = parsedReqBody?.method
     const params = parsedReqBody?.params?.[0]
+    const whitelistMethods = [
+      'eth_blockNumber',
+      'alchemy_getAssetTransfers',
+      'eth_getBlockByNumber',
+      'eth_getBlockReceipts',
+    ]
 
     const isEthGetLogsWithSameBlock = method === 'eth_getLogs' && params?.fromBlock === params?.toBlock
-    const isEthBlockNumber = method === 'eth_blockNumber'
-    const isAssetTransfers = method === 'alchemy_getAssetTransfers'
+    const isFromWhitelistMethods = whitelistMethods.includes(method)
 
-    return isEthGetLogsWithSameBlock || isEthBlockNumber || isAssetTransfers
+    return isEthGetLogsWithSameBlock || isFromWhitelistMethods
   } catch (e) {
     logger.warn('Error parsing request body for isErrorRelatedToServerIssue', { error, e })
     return false

@@ -10,6 +10,7 @@ import type Dao from '@models/schema/dao'
 import type Plugin from '@models/schema/plugin'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { PluginSlug } from '@helpers/pluginSlug'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:MetadataHandler' })
 
@@ -19,6 +20,7 @@ export const MetadataHandler = {
 
     const daoExists = await Models.Dao.findByAddress(address, network)
     const pluginExists = await Models.Plugin.findByAddress(address, network)
+    if (!daoExists && !pluginExists) return
 
     const existingDaoMetadata = await Models.LogMetadata.findExistingLog({
       network,
@@ -29,31 +31,33 @@ export const MetadataHandler = {
 
     if (existingDaoMetadata) return
 
-    if (!daoExists && !pluginExists) return
+    try {
+      const metadataUri = Web3Helper.extractMetadataUri(parsedEvent.args.metadata)
+      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
 
-    const metadataUri = Web3Helper.extractMetadataUri(parsedEvent.args.metadata)
-    const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
+      const logMetadata = {
+        network,
+        transactionHash,
+        transactionIndex,
+        logIndex,
+        metadataUri: metadataUri!,
+        fetchedMetadata: !!ipfsMetadata,
+        blockNumber,
+        name: ipfsMetadata?.name!,
+        description: ipfsMetadata?.description!,
+        avatar: Utils.parseAvatar(ipfsMetadata?.avatar),
+        links: ipfsMetadata?.links!,
+        processKey: ipfsMetadata?.processKey!,
+        stageNames: ipfsMetadata?.stageNames!,
+      }
 
-    const logMetadata = {
-      network,
-      transactionHash,
-      transactionIndex,
-      logIndex,
-      metadataUri: metadataUri!,
-      fetchedMetadata: !!ipfsMetadata,
-      blockNumber,
-      name: ipfsMetadata?.name!,
-      description: ipfsMetadata?.description!,
-      avatar: ipfsMetadata?.avatar!,
-      links: ipfsMetadata?.links!,
-      processKey: ipfsMetadata?.processKey!,
-      stageNames: ipfsMetadata?.stageNames!,
-    }
-
-    if (daoExists) {
-      await MetadataHandler._handleDaoMetadata(daoExists, logMetadata, info)
-    } else if (pluginExists) {
-      await MetadataHandler._handlePluginMetadata(pluginExists, logMetadata, ipfsMetadata, info)
+      if (daoExists) {
+        await MetadataHandler._handleDaoMetadata(daoExists, logMetadata, info)
+      } else if (pluginExists) {
+        await MetadataHandler._handlePluginMetadata(pluginExists, logMetadata, ipfsMetadata, info)
+      }
+    } catch (error) {
+      logger.error('Error create metadataSet', llo({ error, info }))
     }
   },
 

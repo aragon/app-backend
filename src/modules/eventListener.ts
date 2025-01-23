@@ -1,12 +1,12 @@
-import { Interface, type Log } from 'ethers'
+import { Interface, type Log, type LogDescription } from 'ethers'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { type IIndexerConfig, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import DbOperations from '@models/utils/dbOperations'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
@@ -51,15 +51,33 @@ class EventListener {
   }
 
   async handleEvent(txLog: Log) {
-    const eventConfig = this.configLogs.find(item => item.topic === txLog.topics[0])
-    if (!eventConfig) return
+    try {
+      const eventConfig = this.configLogs.find(item => item.topic === txLog.topics[0])
+      if (!eventConfig) return
 
-    const iFace = new Interface(eventConfig.abi)
-    const event = Web3Helper.parseLog(txLog, iFace)
-    if (!event) return
+      let parsedEvent: LogDescription | null = null
+      let matchingHandler: any = null
 
-    const info = Web3Helper.parseInfoLog(txLog, event.name, this.network)
-    await eventConfig.handler(event, info)
+      for (const configItem of eventConfig.config) {
+        const iFace = new Interface(configItem.abi)
+        try {
+          parsedEvent = Web3Helper.parseLog(txLog, iFace)
+          if (parsedEvent) {
+            matchingHandler = configItem.handler
+            break
+          }
+        } catch (_) {
+          // skip
+        }
+      }
+
+      if (!parsedEvent) return
+
+      const info = Web3Helper.parseInfoLog(txLog, parsedEvent.name, this.network)
+      await matchingHandler?.(parsedEvent, info)
+    } catch (error) {
+      logger.error('Error handling eventListener', llo({ error, network: this.network, txLog }))
+    }
   }
 
   subscribeEventsByNewBlock() {
@@ -89,7 +107,6 @@ class EventListener {
       )
 
       if (!logs || logs.length === 0) {
-        logger.warn('No logs found', llo({ blockNumber, network: this.network }))
         return
       }
 
@@ -105,25 +122,35 @@ class EventListener {
 
       for (const log of sortedLogs) {
         await this.handleEvent(log)
+        await this.saveProgress(blockNumber, this.network)
       }
     } finally {
-      const existingConfig = await Models.ConfigIndexer.findExistingLog({
-        network: this.network,
-        service: `Indexer-${this.network}`,
-      })
-
-      await DbOperations.updateDocument(
-        existingConfig,
-        { lastSync: blockNumber },
-        {
-          blockNumber,
-          network: this.network,
-        },
-        'update last block',
-        llo,
-      )
-
       this.isProcessingBlock = 0
+    }
+  }
+
+  async saveProgress(blockNumber: number, network: NetworksEnum) {
+    try {
+      await DbTx.executeTxFn(async ({ session }) => {
+        const existingConfig = await Models.ConfigIndexer.findExistingLog(
+          {
+            network,
+            service: `indexer-${network}`,
+          },
+          { session },
+        )
+
+        if (!existingConfig || existingConfig.lastSync >= blockNumber) {
+          return false
+        }
+
+        await existingConfig.update({ lastSync: blockNumber }, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('update last block', llo({ blockNumber, network }))
+      })
+    } catch (error) {
+      logger.error('Error saving progress - last block', llo({ error, blockNumber, network }))
     }
   }
 }

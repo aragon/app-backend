@@ -8,7 +8,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMultiSig' }
 
 export const LogMultiSig = {
   start: async (plugin: Plugin) => {
-    logger.verbose('Start LogMultiSig', llo({ network: plugin.network, plugin }))
+    logger.verbose('Start LogMultiSig', llo({ network: plugin.network, pluginId: plugin.id }))
 
     const configLogs = configIndexer.filter((item: IIndexerConfig) =>
       Object.values(IMultiSigLogs).includes(item.event as any),
@@ -19,8 +19,8 @@ export const LogMultiSig = {
       events: configLogs,
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
-      onError: async (error: any) => LogMultiSig.processError(error, plugin),
-      logService: `MultiSig-${plugin.network}-${plugin.address}`,
+      onError: async (error: any, log: any) => LogMultiSig.processError(error, plugin, log),
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
     await crawler.crawl()
@@ -28,10 +28,11 @@ export const LogMultiSig = {
     logger.verbose('End LogMultiSig', llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },
 
-  processError: async (error: any, plugin: Plugin) => {
+  processError: async (error: any, plugin: Plugin, log: any) => {
     logger.error(
       'Error LogMultiSig',
       llo({
+        log,
         error,
         plugin,
       }),

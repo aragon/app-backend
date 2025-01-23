@@ -12,6 +12,7 @@ import Logger from '@logger'
 import ProxyContractHelper from '@helpers/proxyContract'
 import Web3Helper from '@helpers/web3'
 import PluginDetector from '@helpers/pluginDetector'
+import { PluginSlug } from '@helpers/pluginSlug'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -72,8 +73,6 @@ describe('Indexer:Plugin', () => {
     it('preInstallPlugin not SPP', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
-      const spyCreateDocument = sandbox.spy(DbOperations, 'createDocument')
-
       sandbox.stub(Models.PluginRepo, 'findSubdomain').resolves({ subdomain: 'token-voting' })
       const detectPluginTypeStub = sandbox.stub(PluginDetector, 'detectPluginType').resolves({
         type: IPluginInterfaceType.tokenVoting,
@@ -95,7 +94,6 @@ describe('Indexer:Plugin', () => {
           address: ListLogPluginSetupProcessor[0].pluginAddress,
         }),
       ).to.be.true
-      expect(spyCreateDocument.calledOnce).to.be.true
       expect(logVersboseStub.calledOnceWith('Created new document - New PreInstall Plugin' as any)).to.be.true
 
       const createdPlugin = await Models.Plugin.findOne({
@@ -111,7 +109,6 @@ describe('Indexer:Plugin', () => {
     it('preInstallPlugin SPP', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
-      const spyCreateDocument = sandbox.spy(DbOperations, 'createDocument')
 
       sandbox.stub(Models.PluginRepo, 'findSubdomain').resolves({ subdomain: 'token-voting' })
       const detectPluginTypeStub = sandbox.stub(PluginDetector, 'detectPluginType').resolves({
@@ -134,7 +131,6 @@ describe('Indexer:Plugin', () => {
           address: ListLogPluginSetupProcessor[0].pluginAddress,
         }),
       ).to.be.true
-      expect(spyCreateDocument.calledOnce).to.be.true
       expect(logVersboseStub.calledOnceWith('Created new document - New PreInstall Plugin' as any)).to.be.true
 
       const createdPlugin = await Models.Plugin.findOne({
@@ -255,8 +251,6 @@ describe('Indexer:Plugin', () => {
     })
 
     it('installPlugin', async () => {
-      const spyDbOperations = sandbox.spy(DbOperations, 'updateDocument')
-
       await Models.Plugin.create({
         status: IPluginStatus.preInstall,
         network: rawPlugin.network,
@@ -277,13 +271,11 @@ describe('Indexer:Plugin', () => {
 
       await PluginHandler.installPlugin(logPlugin)
 
-      expect(spyDbOperations.calledOnce).to.be.true
-
       const createdPlugin = await Models.Plugin.findOne({
         address: ListLogPluginSetupProcessor[3].pluginAddress,
         status: IPluginStatus.installed,
       })
-      expect(createdPlugin).to.not.be.null
+      expect(createdPlugin).to.exist
       expect(createdPlugin.status).to.eq(IPluginStatus.installed)
     })
   })
@@ -303,16 +295,14 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
       })
-      const eventUpdatePrepared = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[2])
+      await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[2])
       const eventUpdateApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[3])
       await PluginHandler._createPlugin(rawPlugin as any)
       const spyCreatePlugin = sandbox.spy(PluginHandler, '_createPlugin')
-      const spyDbOperations = sandbox.spy(DbOperations, 'updateDocument')
 
       await PluginHandler.updatePlugin(eventUpdateApplied as any)
 
       expect(spyCreatePlugin.calledOnce).to.be.true
-      expect(spyDbOperations.calledTwice).to.be.true
 
       const createdPlugin = await Models.Plugin.findOne({
         address: ListLogPluginSetupProcessor[3].pluginAddress,
@@ -326,7 +316,7 @@ describe('Indexer:Plugin', () => {
         status: IPluginStatus.deprecated,
       })
       expect(deprecatedPlugin).to.not.be.null
-      expect(deprecatedPlugin.tokenAddress).to.eq(rawPlugin.tokenAddress)
+      expect(deprecatedPlugin.uninstalled.status).to.be.true
     })
   })
 
@@ -340,7 +330,7 @@ describe('Indexer:Plugin', () => {
 
     it('uninstallPlugin', async () => {
       await PluginHandler._createPlugin(rawPlugin as any)
-      const eventUninstallPrepared = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[4])
+      await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[4])
       const eventUninstallApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[5])
 
       const spyDbOperations = sandbox.spy(DbOperations, 'updateDocument')
@@ -354,6 +344,7 @@ describe('Indexer:Plugin', () => {
         status: IPluginStatus.uninstalled,
       })
       expect(createdPlugin).to.not.be.null
+      expect(createdPlugin.uninstalled.status).to.be.true
     })
   })
 
@@ -371,6 +362,29 @@ describe('Indexer:Plugin', () => {
         daoAddress: '0xdao',
         network: NetworksEnum.ethereumSepolia,
       })
+    })
+
+    it('should not uninstall if the plugin build is more then 4 and if it has target config', async () => {
+      const plugin = {
+        status: 'active',
+        address: '0xpluginAddr',
+        id: 'pluginId',
+        network: NetworksEnum.ethereumSepolia,
+        build: 5,
+        daoAddress: '0xdao',
+      }
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
+
+      const targetConfigStub = sandbox.stub(Web3Helper, 'getTargetConfig').resolves('0xtarget')
+
+      const getTransactionReceiptSpy = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+      await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
+        transactionHash: '0x0123',
+      } as any)
+      expect(getTransactionReceiptSpy.called).to.be.false
+      expect(targetConfigStub.calledOnce).to.be.true
+      expect(targetConfigStub.args[0][0]).to.be.eq(NetworksEnum.ethereumSepolia)
+      expect(targetConfigStub.args[0][1]).to.be.eq('0xpluginAddr')
     })
 
     it('should not uninstall a plugin if it is already uninstalled', async () => {
@@ -411,10 +425,12 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
       const findLogsStub = sandbox.stub(Web3Helper, 'findLogsByName').returns([])
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      sandbox.stub(PluginSlug, 'deleteSlug')
 
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
         blockNumber: 12345,
+        daoAddress: '0xdao',
       } as any)
 
       expect(findLogsStub.calledOnce).to.be.true

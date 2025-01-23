@@ -13,7 +13,7 @@ import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 import ModelUtils from '@models/utils/models'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import config from '@config'
 
 const MemberController = {

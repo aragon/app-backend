@@ -19,8 +19,8 @@ export const LogDao = {
       events: configLogs,
       address: dao.address,
       fromBlock: dao?.blockNumber || 0,
-      onError: async (error: any) => LogDao.processError(error, dao),
-      logService: `Dao-${dao.network}-${dao.address}`,
+      onError: async (error: any, log: any) => LogDao.processError(error, dao, log),
+      logService: `dao-${dao.network}-${dao.address}`,
       stopOnError: true,
     })
     await crawler.crawl()
@@ -28,10 +28,11 @@ export const LogDao = {
     logger.verbose('End LogDao', llo({ network: dao.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },
 
-  processError: async (error: any, dao: Dao) => {
+  processError: async (error: any, dao: Dao, log: any) => {
     logger.error(
       'Error LogDao',
       llo({
+        log,
         error,
         dao,
       }),

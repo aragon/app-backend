@@ -31,6 +31,8 @@ import { ProxyToken } from '@modules/proxyToken'
 import BigNumber from 'bignumber.js'
 import utils from '@helpers/utils'
 import { Multisig } from '@artifacts/Multisig'
+import { VotingEscrow } from '@artifacts/VotingEscrow'
+import { GaugeVoter } from '@artifacts/GaugeVoter'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -53,6 +55,10 @@ const Web3Helper = {
 
   ERC1155_safeTransferFrom: '0xf242432a',
   ERC1155_safeBatchTransferFrom: '0x2eb2c2d6',
+
+  isWhitelistedToken: (address: HexAddress, network: NetworksEnum): boolean => {
+    return config.WHITELIST_TOKENS.some((token: any) => token.address === address && token.network === network)
+  },
 
   alchemyCrazyBalanceOnError: (
     address: string,
@@ -149,7 +155,7 @@ const Web3Helper = {
   },
 
   isNativeTokenAction(action: any): boolean {
-    return action.data === '0x' && BigInt(action.value) >= 0n
+    return action.data === '0x' && BigInt(action.value) > 0n
   },
 
   async supportsERC721(tokenAddress: string, network: NetworksEnum): Promise<boolean> {
@@ -710,6 +716,7 @@ const Web3Helper = {
     const tokenInstance = new Contract(address, ERC20.abi, provider)
     const token: any = {
       address: Web3Helper.parseAddress(address) || address,
+      decimals: '0',
     }
 
     try {
@@ -849,6 +856,63 @@ const Web3Helper = {
     } catch (error) {
       logger.warn('Error isMultisigMemberAtBlock', llo({ pluginAddress, memberAddress, blockNumber, network, error }))
       return false
+    }
+  },
+
+  async getBlockReceipts(network: NetworksEnum, blockNumber: number) {
+    try {
+      const provider = ProviderModule.getProvider(network)!
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+          provider.send('eth_getBlockReceipts', [`0x${blockNumber.toString(16)}`]),
+        ),
+      )
+    } catch (error) {
+      logger.error('Error getBlockReceipts', llo({ blockNumber, network, error }))
+      return null
+    }
+  },
+
+  async getTargetConfig(network: NetworksEnum, pluginAddress: string) {
+    try {
+      const provider = ProviderModule.getProvider(network)!
+      const contract = new Contract(pluginAddress, Multisig.abi, provider)
+      const response = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getTargetConfig()),
+      )
+
+      return response.target
+    } catch (error) {
+      logger.error('Error getTargetConfig', llo({ pluginAddress, network, error }))
+      return null
+    }
+  },
+
+  async getVotingEscrowAddress(pluginAddress: string, network: NetworksEnum): Promise<string | null> {
+    try {
+      const provider = ProviderModule.getProvider(network)!
+      const contract = new Contract(pluginAddress, GaugeVoter.abi, provider)
+      const response = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.escrow()),
+      )
+
+      return response
+    } catch (error) {
+      return null
+    }
+  },
+
+  async getLockTokenAddress(votingEscrowAddress: string, network: NetworksEnum): Promise<string | null> {
+    try {
+      const provider = ProviderModule.getProvider(network)!
+      const contract = new Contract(votingEscrowAddress, VotingEscrow.abi, provider)
+      const response = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.lockNFT()),
+      )
+
+      return response
+    } catch (error) {
+      return null
     }
   },
 }

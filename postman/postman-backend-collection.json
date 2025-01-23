@@ -5883,7 +5883,59 @@
 					"request": {
 						"method": "GET",
 						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
 						"url": "{{host}}/contract/ethereum-sepolia/0x774679A5648da9f02ffdeBA8AF4EFF3a0A8DfC3f"
+					},
+					"response": []
+				},
+				{
+					"name": "decode tx",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5cde13ff-e962-416c-89c9-d870d6e1105e",
+								"exec": [
+									"// Tests for post decode tx endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"id": "1de830a0-d2ab-4d8e-a81e-814a8d160127",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"data\":\"0xee57e36f00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000035697066733a2f2f516d654869583643527771415331714e7633434b634b3168586e4a35527247356946665a3177665243344d3576320000000000000000000000\",\n    \"value\": \"0\",\n    \"from\":\"0x0478f1E328F33e170C98d9F095f086A399978cFD\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{host}}/contract/ethereum-sepolia/0x0478f1E328F33e170C98d9F095f086A399978cFD/decode"
 					},
 					"response": []
 				}
