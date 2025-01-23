@@ -10,6 +10,7 @@ const llo = logger.logMeta.bind(null, { service: 'tools:fixSettingIssue' })
 interface IServiceExtended extends IService {
   fixProposals: (proposal: Proposal, settings: any) => Promise<void>
 }
+
 export const ToolsFixSettingIssue: IServiceExtended = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
@@ -117,6 +118,8 @@ export const ToolsFixSettingIssue: IServiceExtended = {
         }
       }
     }
+
+    logger.info('Done fixing settings')
   },
 
   fixProposals: async (proposal: Proposal, settings: any) => {

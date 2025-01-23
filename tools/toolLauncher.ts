@@ -16,11 +16,13 @@ import ToolsMemberMetrics from '@tools/memberMetrics'
 import ToolsEnsFetch from '@tools/ensFetch'
 import ToolsFixSettingIssue from '@tools/fixBrokenPluginSetting'
 import ToolsCleanDb from '@tools/cleanDb'
+import ToolsSyncCustomPlugin from '@tools/syncCustomPlugin'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
 
 const runners = {
+  ToolsSyncCustomPlugin,
   ToolsCleanDb,
   ToolsEnsFetch,
   ToolsMemberMetrics,
