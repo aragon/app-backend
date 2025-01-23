@@ -120,7 +120,7 @@ export default class LogMetadata extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, tOpts)
+    return await this.findOne({ id: entityId }, null, tOpts)
   }
 
   async update(params: Partial<LogMetadata>, tOpts?: SaveOptions) {
@@ -195,6 +195,7 @@ export default class LogMetadata extends Model {
           resources: 1,
           logo: '$avatar',
           processKey: 1,
+          avatar: 1,
           stageNames: 1,
         },
       },

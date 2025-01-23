@@ -1,13 +1,23 @@
 import logger from '@logger'
-import { EnumConnection, EnumQueueName, IPluginInterfaceType, type IQueueDao, type IService } from '@types'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import {
+  EnumConnection,
+  EnumQueueName,
+  IPluginInterfaceType,
+  type IQueueDao,
+  type IQueuePlugin,
+  type IService,
+  ITokenType,
+} from '@types'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import { LogAdmin } from '@services/aragon-plugins/logAdmin'
 import { Models } from '@dbModels'
 import { LogDao } from '@services/aragon-plugins/logDao'
 import { LogMultiSig } from '@services/aragon-plugins/logMultisig'
 import { LogSpp } from '@services/aragon-plugins/logSPP'
 import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
+import { ProxyToken } from '@modules/proxyToken'
 import config from '@config'
+import { LogGauge } from '@plugins/logGauge'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
 
@@ -22,8 +32,8 @@ const AragonPluginsService: IService = {
       await LogDao.start(dao)
     })
 
-    await RabbitMQHelper.process(EnumQueueName.plugins, config.RABBITMQ.DEFAULT_CONCURRENCY, async job => {
-      const { address, network } = job.params as IQueueDao
+    await RabbitMQHelper.process(EnumQueueName.plugins, config.RABBITMQ.PLUGINS_CONCURRENCY, async job => {
+      const { address, network, isHistorical } = job.params as IQueuePlugin
       const plugin = await Models.Plugin.findByAddress(address, network)
 
       if (!plugin?.interfaceType) {
@@ -32,21 +42,36 @@ const AragonPluginsService: IService = {
       }
 
       switch (plugin.interfaceType) {
-        case IPluginInterfaceType.admin:
+        case IPluginInterfaceType.admin: {
           await LogAdmin.start(plugin)
           break
-        case IPluginInterfaceType.multisig:
+        }
+        case IPluginInterfaceType.multisig: {
           await LogMultiSig.start(plugin)
           break
-        case IPluginInterfaceType.tokenVoting:
-          await LogTokenVoting.start(plugin)
+        }
+        case IPluginInterfaceType.tokenVoting: {
+          const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
+          if (token?.type === ITokenType.GovernanceERC20) {
+            await LogTokenVoting.start(plugin, token, isHistorical)
+          } else {
+            logger.warn('Sync plugin: token not governance erc20', llo({ plugin, token }))
+          }
           break
-        case IPluginInterfaceType.spp:
+        }
+        case IPluginInterfaceType.spp: {
           await LogSpp.start(plugin)
           break
-        default:
+        }
+        case IPluginInterfaceType.gauge: {
+          const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
+          await LogGauge.start(plugin, token!, isHistorical)
+          break
+        }
+        default: {
           logger.error('PluginSyncService: interfaceType not found', llo({ plugin }))
           break
+        }
       }
     })
 

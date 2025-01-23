@@ -12,6 +12,11 @@ export enum IEnumNodeEnv {
   production = 'production',
 }
 
+interface ITokenData {
+  address: string
+  network: NetworksEnum
+}
+
 export interface IConfig {
   APP_NAME: string
   ENVIRONMENT: IEnumEnvironment
@@ -74,12 +79,16 @@ export interface IConfig {
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
+  WHITELIST_TOKENS: ITokenData[]
+  CUSTOM_INSTALL: boolean
   DEFAULT_CURRENCY: string
   RABBITMQ: {
     URI: string
     TIMEOUT: number
     DEFAULT_CONCURRENCY: number
+    PLUGINS_CONCURRENCY: number
     RECONNECT_TIME: number
+    CLEAN_QUEUE: boolean
   }
   NODE_CONFIG: {
     MAX_RECONNECT_ATTEMPTS: number
@@ -166,6 +175,7 @@ export interface IConfig {
       NAME: string
       DAO_INTERVAL: number
       PLUGIN_INTERVAL: number
+      SYNC_ALL: boolean
     }
     ARAGON_RATES: {
       NAME: string

@@ -18,6 +18,7 @@ import {
   type IAggTokenParams,
   type IAggTokenProjectFields,
   ISettingStatus,
+  type NetworksEnum,
 } from '@types'
 
 export const AggregationQueryHelper = {
@@ -638,5 +639,74 @@ export const AggregationQueryHelper = {
         as,
       },
     }
+  },
+  memberCountByToken: (tokenAddress: HexAddress, network: NetworksEnum) => {
+    return [
+      {
+        $match: {
+          address: tokenAddress,
+          network,
+        },
+      },
+      {
+        $lookup: {
+          from: 'Plugin',
+          let: {
+            tNetwork: '$network',
+            tAddress: '$address',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ['$tokenAddress', '$$tAddress'] }, { $eq: ['$network', '$$tNetwork'] }],
+                },
+              },
+            },
+            {
+              $lookup: {
+                from: 'DaoMemberMapping',
+                let: { pluginAddr: '$address' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $eq: ['$pluginAddress', '$$pluginAddr'],
+                      },
+                    },
+                  },
+                  {
+                    $count: 'memberCount',
+                  },
+                ],
+                as: 'daoMembers',
+              },
+            },
+            {
+              $set: {
+                memberCount: {
+                  $ifNull: [{ $arrayElemAt: ['$daoMembers.memberCount', 0] }, 0],
+                },
+              },
+            },
+          ],
+          as: 'plugin',
+        },
+      },
+      {
+        $set: {
+          memberCount: {
+            $sum: '$plugin.memberCount',
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: 1,
+          memberCount: 1,
+        },
+      },
+    ]
   },
 }

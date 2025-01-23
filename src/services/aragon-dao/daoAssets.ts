@@ -99,7 +99,6 @@ export const DaoAssets = {
               } else {
                 logDb = await Models.Asset.create(rawData, { session } as any)
               }
-
               await session.commitTransaction()
               await session.endSession()
               logger.verbose(existingAssetDb ? 'Update Token Asset' : 'New Token Asset', llo({ logId: logDb?.id }))
