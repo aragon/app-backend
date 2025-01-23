@@ -1,6 +1,13 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { type HexAddress, type ITokenMetrics, type ITokenRate, ITokenType, type NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  type HexAddress,
+  type ITokenMetrics,
+  type ITokenRate,
+  ITokenType,
+  type NetworksEnum,
+} from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -12,6 +19,7 @@ import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -89,6 +97,12 @@ export const ProxyToken = {
 
     if (tokenTypeInfo?.type === ITokenType.GovernanceERC20) {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
+      if (tokenMetrics.totalSupply === '0' && tokenMetrics.totalHolders === 0) {
+        await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
+          id: tokenAddress,
+          params: { address: tokenAddress, network },
+        })
+      }
     }
 
     const rawToken: Partial<Token> = {
