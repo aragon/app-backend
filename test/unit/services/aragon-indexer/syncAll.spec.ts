@@ -11,7 +11,7 @@ import utils from '@helpers/utils'
 import { SyncAll } from '@indexer/syncAll'
 import { EnumQueueName, NetworksEnum } from '@types'
 
-describe('Indexer: SyncAll', () => {
+describe('AragonIndexer: SyncAll', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

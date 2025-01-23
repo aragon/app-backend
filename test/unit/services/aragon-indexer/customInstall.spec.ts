@@ -9,7 +9,7 @@ import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import config from '@config'
 import { NetworksEnum } from '@types'
 
-describe('Indexer: CustomInstall', () => {
+describe('AragonIndexer: CustomInstall', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

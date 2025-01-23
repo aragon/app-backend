@@ -11,7 +11,7 @@ import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
 
-describe('BlockHandler', () => {
+describe('AragonTransactions: BlockHandler', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {

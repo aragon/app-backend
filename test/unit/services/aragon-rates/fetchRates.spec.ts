@@ -9,7 +9,7 @@ import { RateModule } from '@modules/rates'
 import { ITokenType, NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 
-describe('Rates: FetchRates', () => {
+describe('AragonRates: FetchRates', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

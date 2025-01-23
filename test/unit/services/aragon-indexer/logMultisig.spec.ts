@@ -8,7 +8,7 @@ import { NetworksEnum } from '@types'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
 
-describe('Indexer: LogMultiSig', () => {
+describe('AragonIndexer: LogMultiSig', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

@@ -14,7 +14,7 @@ import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
 import { LogGauge } from '@plugins/logGauge'
 
-describe('aragon-indexer: index', () => {
+describe('AragonPlugins: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
