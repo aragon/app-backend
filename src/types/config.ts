@@ -80,6 +80,7 @@ export interface IConfig {
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
   WHITELIST_TOKENS: ITokenData[]
+  CUSTOM_INSTALL: boolean
   DEFAULT_CURRENCY: string
   RABBITMQ: {
     URI: string
