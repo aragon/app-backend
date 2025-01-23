@@ -6,6 +6,7 @@ import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandl
 import { Interface, zeroPadValue } from 'ethers'
 import logger from '@logger'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:CustomInstall' })
 
@@ -29,6 +30,11 @@ export const CustomInstall = {
   ],
 
   install: async function () {
+    if (!config.CUSTOM_INSTALL) {
+      logger.info('Custom install is disabled')
+      return
+    }
+
     await Promise.all(
       CustomInstall.daos.map(async dao => {
         const daoDb = await Models.Dao.findByAddress(dao.address, dao.network)
