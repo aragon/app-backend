@@ -12,7 +12,7 @@ import { NetworksEnum } from '@types'
 import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
 
-describe('aragon-indexer: index', () => {
+describe('AragonIndexer: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

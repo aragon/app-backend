@@ -19,6 +19,8 @@ const llo = logger.logMeta.bind(null, { service: 'ProposalController' })
 
 const ProposalController = {
   getProposalById: async (id: string): Promise<IProposalsResponse> => {
+    // const id = '0x312312321'
+    // const id = 'test-1'
     const proposal = await Models.Proposal.findWithEntityId(id)
     assertExposable(proposal, ErrorKeyEnum.notFound)
     return proposal

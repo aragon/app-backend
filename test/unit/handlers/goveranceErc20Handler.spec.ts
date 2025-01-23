@@ -700,6 +700,39 @@ describe('GovernanceErc20Handler', () => {
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(loggerWarnStub.calledOnceWith('Transfer - outgoing transfer already processed' as any))
     })
+
+    it('should handle if throw', async () => {
+      const parsedEvent = {
+        args: {
+          from: '0xFrom',
+          to: '0xTo',
+          value: '1000',
+        },
+      } as unknown as LogDescription
+
+      const info = {
+        network,
+        blockNumber: 12345678,
+        transactionHash: '0xTransactionHash',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0xTokenAddress',
+      }
+
+      const plugin = {
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network,
+      }
+
+      sandbox.stub(ProxyMember, 'createMember').rejects(new Error('fake error'))
+
+      const loggerErrorStub = sandbox.stub(Logger, 'error')
+
+      await GovernanceErc20Handler._outgoingTransfer(parsedEvent, info as any, plugin as any)
+
+      expect(loggerErrorStub.calledOnceWith('Transfer - outgoing transfer error' as any)).to.be.true
+    })
   })
 
   describe('_incomingTransfer', () => {
@@ -858,6 +891,38 @@ describe('GovernanceErc20Handler', () => {
       expect(createMemberStub.calledOnceWith(parsedEvent.args.to)).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(loggerWarnStub.calledOnceWith('Transfer - incoming transfer already processed' as any)).to.be.true
+    })
+
+    it('should handle if throw', async () => {
+      const parsedEvent = {
+        args: {
+          from: '0xFrom',
+          to: '0xTo',
+          value: '1000',
+        },
+      } as unknown as LogDescription
+
+      const info = {
+        network,
+        blockNumber: 12345678,
+        transactionHash: '0xTransactionHash',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0xTokenAddress',
+      }
+
+      const plugin = {
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network,
+      }
+
+      sandbox.stub(ProxyMember, 'createMember').rejects(new Error('fake error'))
+      const loggerErrorStub = sandbox.stub(Logger, 'error')
+
+      await GovernanceErc20Handler._incomingTransfer(parsedEvent, info as any, plugin as any)
+
+      expect(loggerErrorStub.calledOnceWith('Transfer - incoming transfer error' as any)).to.be.true
     })
   })
 

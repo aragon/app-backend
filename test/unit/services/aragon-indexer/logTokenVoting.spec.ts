@@ -8,7 +8,7 @@ import { NetworksEnum } from '@types'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
 
-describe('Indexer: LogTokenVoting', () => {
+describe('AragonIndexer: LogTokenVoting', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
