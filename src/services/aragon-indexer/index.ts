@@ -23,6 +23,8 @@ const AragonIndexerService: IService & { repeaters: any } = {
 
     await CustomInstall.install()
 
+    logger.info('CustomInstall end', llo({}))
+
     await Promise.all(
       networks.map(async ({ networkName }) => {
         const configLogs = utils.filterArrayByProperty(configIndexer, 'enableHistorical')

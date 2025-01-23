@@ -151,20 +151,25 @@ class BlockchainLogCrawler {
 
       while (!success) {
         try {
-          const logs = await retryRequest(async () =>
-            BottleneckModule.getNodeLimiter(this.crawlParams.network)!.schedule(async () =>
-              ProviderModule.getProvider(this.crawlParams.network).send(
-                'eth_getLogs',
-                topicChunks.map((topics: any) => ({
+          const coreProvider = await this.getProvider()
+          const batchRequests = topicChunks.map((topics: any) =>
+            coreProvider._send(
+              'eth_getLogs',
+              [
+                {
                   address: this.crawlSetting.filter.address,
                   topics,
                   fromBlock: `0x${currentBlock.toString(16)}`,
                   toBlock: `0x${toBlock.toString(16)}`,
-                })),
-                'eth_getLogs',
-                true,
-              ),
+                },
+              ],
+              'eth_getLogs',
+              true,
             ),
+          )
+
+          const logs = await retryRequest(async () =>
+            BottleneckModule.getNodeLimiter(this.crawlParams.network)!.schedule(async () => Promise.all(batchRequests)),
           )
 
           allLogs.push(...logs.flat())
@@ -326,6 +331,11 @@ class BlockchainLogCrawler {
     const messages = ['The query timed out', 'Log response size exceeded']
 
     return messages.some(msg => error.message?.includes(msg))
+  }
+
+  async getProvider(): Promise<any> {
+    const provider = ProviderModule.getProvider(this.crawlParams.network)
+    return await provider.config.getProvider()
   }
 
   async getServiceStartBlock() {
