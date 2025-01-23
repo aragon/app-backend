@@ -209,8 +209,11 @@ export const GovernanceErc20Handler = {
       }
 
       if (!isHistorical) {
-        // wait 2 blocks
-        await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000 * 2)
+        await utils.wait(
+          config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME *
+            1000 *
+            config.NODES[utils.networkToAragon(info.network)].CONFIRMATION_BLOCKS,
+        )
       }
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
@@ -315,8 +318,11 @@ export const GovernanceErc20Handler = {
       }
 
       if (!isHistorical) {
-        // wait 2 blocks
-        await utils.wait(config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME * 1000 * 2)
+        await utils.wait(
+          config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME *
+            1000 *
+            config.NODES[utils.networkToAragon(info.network)].CONFIRMATION_BLOCKS,
+        )
       }
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)

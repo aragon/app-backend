@@ -6,7 +6,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 
-describe('aragon-dao: memberInfo', () => {
+describe('AragonDao: memberInfo', () => {
   let sandbox: SinonSandbox
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
