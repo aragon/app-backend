@@ -13,6 +13,8 @@ import Web3Helper from '@helpers/web3'
 import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
+import dbTx from '@modules/dbTx'
+import logger from '@logger'
 
 describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox
@@ -73,6 +75,54 @@ describe('Modules: ProxyToken', () => {
       expect(result?.address).to.equal(tokenAddress)
       expect(stubUpdate?.calledOnce).to.be.true
     })
+
+    it('should handle parallel requests and create the token only once', async () => {
+      const tokenAddress = '0xD8981e488Dc62bc0f7aE6ce4bec09db0786aC2Db'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves({
+        type: ITokenType.GovernanceERC20,
+        implementationAddress: null,
+      } as any)
+      sandbox.stub(RateModule, 'fetchRate').resolves({
+        priceUsd: '1',
+        priceChangeOnDayUsd: '1',
+      } as any)
+      sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
+        totalHolders: 1,
+        totalSupply: '1',
+      } as any)
+      sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
+        blockNumber: 100,
+        transactionHash: '0x000',
+        address: tokenAddress,
+      } as any)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+
+      const [result1, result2, result3] = await Promise.all([
+        ProxyToken.saveAndGetToken(tokenAddress, network),
+        ProxyToken.saveAndGetToken(tokenAddress, network),
+        ProxyToken.saveAndGetToken(tokenAddress, network),
+        ProxyToken.saveAndGetToken(tokenAddress, network),
+        ProxyToken.saveAndGetToken(tokenAddress, network),
+        ProxyToken.saveAndGetToken(tokenAddress, network),
+        ProxyToken.saveAndGetToken(tokenAddress, network),
+      ])
+
+      expect(result1?.address).to.eq(tokenAddress)
+      expect(result2?.address).to.eq(tokenAddress)
+      expect(result3?.address).to.eq(tokenAddress)
+
+      const tokensInDb = await Models.Token.find({ address: tokenAddress, network })
+
+      expect(tokensInDb.length).to.equal(1)
+      expect(result1?.address).to.equal(tokenAddress)
+      expect(result2?.address).to.equal(tokenAddress)
+      expect(result3?.address).to.equal(tokenAddress)
+      expect(result1?.id).to.equal(tokensInDb[0].id)
+      expect(result2?.id).to.equal(tokensInDb[0].id)
+      expect(result3?.id).to.equal(tokensInDb[0].id)
+    })
   })
 
   describe('updateTokenMetrics', () => {
@@ -121,7 +171,10 @@ describe('Modules: ProxyToken', () => {
         .stub(ProxyToken, 'checkPluginMintAuthorizationIsDao')
         .resolves(false)
 
-      const result = await ProxyToken.createNewToken(tokenAddress, network)
+      const tOpts = await dbTx.transactionOptions()
+      tOpts.startTransaction()
+      sandbox.stub(logger, 'verbose')
+      const result = await ProxyToken.createNewToken(tokenAddress, network, tOpts)
 
       expect(checkPluginMintAuthorizationIsDaoStub.calledOnce).to.be.true
       expect(checkPluginMintAuthorizationIsDaoStub.calledWith(tokenAddress, network)).to.be.true
@@ -134,6 +187,7 @@ describe('Modules: ProxyToken', () => {
       expect(result.address).to.equal(tokenAddress)
       expect(result.type).to.equal(ITokenType.GovernanceERC20)
       expect(result.mintableByDao).to.be.false
+      await tOpts.endSession()
     })
   })
 

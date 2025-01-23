@@ -55,7 +55,7 @@ export default class ConfigIndexer extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, tOpts)
+    return await this.findOne({ id: entityId }, null, tOpts)
   }
 
   async update(params: Partial<ConfigIndexer>, tOpts?: SaveOptions) {

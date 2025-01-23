@@ -10,10 +10,10 @@ import {
 } from '@types'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
-import { RabbitMQHelper } from '@helpers/redditMQ'
-import DbOperations from '@models/utils/dbOperations'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import { IPermission } from '@src/types/permission'
 import { PluginHandler } from '@handlers/pluginHandler'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PermissionHandler' })
 
@@ -25,76 +25,93 @@ export const PermissionHandler = {
    * So we can save the owner as the member of the DAO
    */
   handleGrantOnDao: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const { address, network } = info
-    const { where, who, permissionId } = parsedEvent.args
+    try {
+      const { address, network } = info
+      const { where, who, permissionId } = parsedEvent.args
 
-    const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
+      const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
 
-    if (permissionToCheck === permissionId) {
-      await PermissionHandler.handleForAdminPlugin(address, where, network, who)
+      if (permissionToCheck === permissionId) {
+        await PermissionHandler.handleForAdminPlugin(address, where, network, who)
+      }
+
+      const permissionEntity = {
+        network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        daoAddress: address,
+      }
+
+      await DbTx.executeTxFn(async ({ session }) => {
+        const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity, { session })
+        if (existingLog) return
+
+        const document = {
+          whoAddress: who,
+          whereAddress: where,
+          blockNumber: info.blockNumber,
+          permissionId,
+          event: IEventLogPermission.Granted,
+          ...permissionEntity,
+        }
+
+        const logDb = await Models.DaoPermission.create(document, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Created new document - Permission granted', llo({ ...info, documentId: logDb.id }))
+      })
+    } catch (error) {
+      logger.error('Error creating document - Permission granted', llo({ ...info, error }))
     }
-
-    const permissionEntity = {
-      network,
-      transactionHash: info.transactionHash,
-      transactionIndex: info.transactionIndex,
-      logIndex: info.logIndex,
-      daoAddress: address,
-    }
-
-    const entityId = Models.DaoPermission.getEntityId(permissionEntity)
-    const existingLog = await Models.DaoPermission.findExistingLog(entityId)
-
-    if (existingLog) return
-
-    const document = {
-      whoAddress: who,
-      whereAddress: where,
-      blockNumber: info.blockNumber,
-      permissionId,
-      event: IEventLogPermission.Granted,
-      ...permissionEntity,
-    }
-
-    await DbOperations.createDocument(Models.DaoPermission, document, info, 'Permission granted', llo)
   },
 
   handleRevokeOnDao: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const { address, network } = info
-    const { who, where, permissionId } = parsedEvent.args
+    try {
+      const { address, network } = info
+      const { who, where, permissionId } = parsedEvent.args
 
-    const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
+      const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
 
-    if (permissionToCheck === permissionId) {
-      await PermissionHandler.handleForAdminPlugin(address, where, network, who, false)
+      if (permissionToCheck === permissionId) {
+        await PermissionHandler.handleForAdminPlugin(address, where, network, who, false)
+      }
+
+      if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
+        await PluginHandler.uninstallPluginWithPermissionRevoke(who, where, network, info)
+      }
+
+      const permissionEntity = {
+        network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        daoAddress: address,
+      }
+
+      const entityId = Models.DaoPermission.getEntityId(permissionEntity)
+
+      await DbTx.executeTxFn(async ({ session }) => {
+        const existingLog = await Models.DaoPermission.findExistingLog(entityId, { session })
+        if (existingLog) return
+
+        const document = {
+          whoAddress: who,
+          whereAddress: where,
+          blockNumber: info.blockNumber,
+          permissionId,
+          event: IEventLogPermission.Revoked,
+          ...permissionEntity,
+        }
+
+        const logDb = await Models.DaoPermission.create(document, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Created new document - Permission granted', llo({ ...info, documentId: logDb.id }))
+      })
+    } catch (error) {
+      logger.error('Error creating document - Permission revoked', llo({ ...info, error }))
     }
-
-    if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
-      await PluginHandler.uninstallPluginWithPermissionRevoke(who, where, network, info)
-    }
-
-    const permissionEntity = {
-      network,
-      transactionHash: info.transactionHash,
-      transactionIndex: info.transactionIndex,
-      logIndex: info.logIndex,
-      daoAddress: address,
-    }
-
-    const entityId = Models.DaoPermission.getEntityId(permissionEntity)
-    const existingLog = await Models.DaoPermission.findExistingLog(entityId)
-    if (existingLog) return
-
-    const document = {
-      whoAddress: who,
-      whereAddress: where,
-      blockNumber: info.blockNumber,
-      permissionId,
-      event: IEventLogPermission.Revoked,
-      ...permissionEntity,
-    }
-
-    await DbOperations.createDocument(Models.DaoPermission, document, info, 'Permission revoked', llo)
   },
 
   handleForAdminPlugin: async (

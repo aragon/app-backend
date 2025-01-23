@@ -50,7 +50,7 @@ describe('Model:Utils: dbOperations', () => {
       )
 
       expect(loggerStub.calledOnce).to.be.true
-      expect(loggerStub.calledWith('error after all retry' as any)).to.be.true
+      expect(loggerStub.calledWith('Error creating document - DbOperations' as any)).to.be.true
     })
   })
 

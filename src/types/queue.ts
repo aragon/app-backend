@@ -11,12 +11,19 @@ export enum EnumQueueName {
   contractInfo = 'contract.info',
   voteInfo = 'vote.info',
   memberBalance = 'member.balance',
+  contractDecoder = 'contract.decoder',
 }
 
 export interface IQueueDao {
   address: HexAddress
   network: NetworksEnum
   blockNumber?: number
+}
+
+export interface IQueuePlugin {
+  address: HexAddress
+  network: NetworksEnum
+  isHistorical?: boolean
 }
 
 export interface IQueueContractInfo {

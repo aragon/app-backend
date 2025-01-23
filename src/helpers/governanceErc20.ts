@@ -19,11 +19,12 @@ const GovernanceErc20Helper = {
     const provider = ProviderModule.getProvider(network)!
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
-      return await retryRequest(async () =>
+      const pastVotes = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
           contract.getPastVotes(memberAddress, blockNumber),
         ),
       )
+      return BigInt(pastVotes || 0)?.toString()
     } catch (error) {
       logger.error(
         'Error getting past votes - blockNumber',
@@ -32,11 +33,12 @@ const GovernanceErc20Helper = {
     }
 
     try {
-      return await retryRequest(async () =>
+      const pastVotes = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
           contract.getPastVotes(memberAddress, blockTimestamp),
         ),
       )
+      return BigInt(pastVotes || 0)?.toString()
     } catch (error) {
       logger.error(
         'Error getting past votes - blockTimestamp',

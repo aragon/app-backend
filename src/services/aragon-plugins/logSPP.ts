@@ -19,8 +19,8 @@ export const LogSpp = {
       events: configLogs,
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
-      onError: async (error: any) => LogSpp.processError(error, plugin),
-      logService: `SPP-${plugin.network}-${plugin.address}`,
+      onError: async (error: any, log: any) => LogSpp.processError(error, plugin, log),
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
     await crawler.crawl()
@@ -28,10 +28,11 @@ export const LogSpp = {
     logger.verbose('End LogSpp', llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },
 
-  processError: async (error: any, plugin: Plugin) => {
+  processError: async (error: any, plugin: Plugin, log: any) => {
     logger.error(
       'Error LogSpp',
       llo({
+        log,
         error,
         plugin,
       }),

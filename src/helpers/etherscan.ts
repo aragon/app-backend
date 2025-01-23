@@ -90,6 +90,27 @@ const EtherscanHelper = {
       return null
     }
   },
+
+  getTokenMetrics: async (address: HexAddress, network: NetworksEnum) => {
+    const apiKey = EtherscanHelper._parseNetworkToConfig(network).ETHERSCAN_API_KEY
+    const params = {
+      module: 'token',
+      action: 'tokensupply',
+      contractaddress: address,
+      apikey: apiKey,
+    }
+
+    try {
+      const response = await EtherscanHelper._rpCall({ ...params, action: 'tokensupply' }, network)
+      if (response && response.status === '1') {
+        return response.result
+      }
+      return '0'
+    } catch (error) {
+      logger.error('Error getTokenMetrics', llo({ params, network, error }))
+      return '0'
+    }
+  },
 }
 
 export default EtherscanHelper

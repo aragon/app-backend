@@ -1,5 +1,5 @@
 import utils from '@helpers/utils'
-import { type IConfig, SupportedEnsNetworksEnum } from '@types'
+import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum } from '@types'
 
 const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
@@ -12,6 +12,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     SUPPORTED_NETWORKS: utils.configParser(sourceConfig, 'array', 'SUPPORTED_NETWORKS', []),
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
     ENS_DOMAIN: utils.configParser(sourceConfig, 'string', 'ENS_DOMAIN', 'dao.eth'),
+    CUSTOM_INSTALL: utils.configParser(sourceConfig, 'bool', 'CUSTOM_INSTALL', false),
     SUPPORTED_ENS_NETWORKS: utils.configParser(
       sourceConfig,
       'array',
@@ -23,7 +24,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       URI: utils.configParser(sourceConfig, 'string', 'RABBITMQ_URI', 'amqp://localhost:5672'),
       TIMEOUT: utils.configParser(sourceConfig, 'number', 'RABBITMQ_TIMEOUT', 25000),
       DEFAULT_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'RABBITMQ_DEFAULT_CONCURRENCY', 10),
+      PLUGINS_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'RABBITMQ_PLUGINS_CONCURRENCY', 50),
       RECONNECT_TIME: utils.configParser(sourceConfig, 'number', 'RABBITMQ_RECONNECT_TIME', 1000),
+      CLEAN_QUEUE: utils.configParser(sourceConfig, 'bool', 'RABBITMQ_CLEAN_QUEUE', false),
     },
 
     NODE_CONFIG: {
@@ -32,6 +35,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'CONFIRMATION_BLOCKS', 3),
+    WHITELIST_TOKENS: utils.configParser(sourceConfig, 'array', 'WHITELIST_TOKENS', [
+      { address: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E', network: NetworksEnum.ethereumMainnet },
+    ]),
 
     NODES: {
       ETHEREUM_MAINNET: {
@@ -259,6 +265,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_INDEXER_PLUGIN_INTERVAL',
           6 * 60 * 60 * 1000,
         ), // 6 hours
+        SYNC_ALL: utils.configParser(sourceConfig, 'bool', 'SERVICES_ARAGON_INDEXER_SYNC_ALL', false),
       },
 
       ARAGON_RATES: {

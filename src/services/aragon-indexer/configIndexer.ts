@@ -18,185 +18,290 @@ import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { SharedLogs } from '@artifacts/shared'
 import { PermissionHandler } from '@src/handlers/permissionHandler'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
+import { LockERC721 } from '@artifacts/LockERC721'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
   {
     event: 'PluginRepoRegistered',
-    abi: PluginRepoRegistry.abi,
-    handler: PluginRepoRegistryHandler.pluginRepoRegistered,
     enableHistorical: true,
     topic: new Interface(PluginRepoRegistry.abi).getEvent('PluginRepoRegistered')?.topicHash!,
+    config: [
+      {
+        abi: PluginRepoRegistry.abi,
+        handler: PluginRepoRegistryHandler.pluginRepoRegistered,
+      },
+    ],
   },
   {
     event: 'DAORegistered',
-    abi: DAORegistry.abi,
-    handler: DaoRegistryHandler.daoRegistered,
     enableHistorical: true,
     topic: new Interface(DAORegistry.abi).getEvent('DAORegistered')?.topicHash!,
+    config: [
+      {
+        abi: DAORegistry.abi,
+        handler: DaoRegistryHandler.daoRegistered,
+      },
+    ],
   },
   {
     event: 'InstallationPrepared',
-    abi: PluginSetupProcessor.abi,
-    handler: PluginSetupProcessorHandler.installationPrepared,
     enableHistorical: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('InstallationPrepared')?.topicHash!,
+    config: [
+      {
+        abi: PluginSetupProcessor.abi,
+        handler: PluginSetupProcessorHandler.installationPrepared,
+      },
+    ],
   },
   {
     event: 'InstallationApplied',
-    abi: PluginSetupProcessor.abi,
-    handler: PluginSetupProcessorHandler.installationApplied,
     enableHistorical: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('InstallationApplied')?.topicHash!,
+    config: [
+      {
+        abi: PluginSetupProcessor.abi,
+        handler: PluginSetupProcessorHandler.installationApplied,
+      },
+    ],
   },
   {
     event: 'UpdateApplied',
-    abi: PluginSetupProcessor.abi,
-    handler: PluginSetupProcessorHandler.updateApplied,
     enableHistorical: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('UpdateApplied')?.topicHash!,
+    config: [
+      {
+        abi: PluginSetupProcessor.abi,
+        handler: PluginSetupProcessorHandler.updateApplied,
+      },
+    ],
   },
   {
     event: 'UpdatePrepared',
-    abi: PluginSetupProcessor.abi,
-    handler: PluginSetupProcessorHandler.updatePrepared,
     enableHistorical: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('UpdatePrepared')?.topicHash!,
+    config: [
+      {
+        abi: PluginSetupProcessor.abi,
+        handler: PluginSetupProcessorHandler.updatePrepared,
+      },
+    ],
   },
   {
     event: 'UninstallationApplied',
-    abi: PluginSetupProcessor.abi,
-    handler: PluginSetupProcessorHandler.uninstallationApplied,
     enableHistorical: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('UninstallationApplied')?.topicHash!,
+    config: [
+      {
+        abi: PluginSetupProcessor.abi,
+        handler: PluginSetupProcessorHandler.uninstallationApplied,
+      },
+    ],
   },
   {
     event: 'UninstallationPrepared',
-    abi: PluginSetupProcessor.abi,
-    handler: PluginSetupProcessorHandler.uninstallationPrepared,
     enableHistorical: true,
     topic: new Interface(PluginSetupProcessor.abi).getEvent('UninstallationPrepared')?.topicHash!,
+    config: [
+      {
+        abi: PluginSetupProcessor.abi,
+        handler: PluginSetupProcessorHandler.uninstallationPrepared,
+      },
+    ],
   },
 
   // only realtime on startup
   {
     event: 'MultisigSettingsUpdated',
-    abi: Multisig.abi,
-    handler: PluginSettingHandler.multisigSettingsUpdated,
     enableHistorical: false,
     topic: new Interface(Multisig.abi).getEvent('MultisigSettingsUpdated')?.topicHash!,
+    config: [
+      {
+        abi: Multisig.abi,
+        handler: PluginSettingHandler.multisigSettingsUpdated,
+      },
+    ],
   },
   {
     event: 'VotingSettingsUpdated',
-    abi: TokenVoting.abi,
-    handler: PluginSettingHandler.votingSettingsUpdated,
     enableHistorical: false,
     topic: new Interface(TokenVoting.abi).getEvent('VotingSettingsUpdated')?.topicHash!,
+    config: [
+      {
+        abi: TokenVoting.abi,
+        handler: PluginSettingHandler.votingSettingsUpdated,
+      },
+    ],
   },
   {
     event: 'StagesUpdated',
-    abi: StagedProposalProcessor.abi,
-    handler: PluginSettingHandler.sppSettingsUpdated,
     enableHistorical: false,
     topic: new Interface(StagedProposalProcessor.abi).getEvent('StagesUpdated')?.topicHash!,
+    config: [
+      {
+        abi: StagedProposalProcessor.abi,
+        handler: PluginSettingHandler.sppSettingsUpdated,
+      },
+    ],
   },
   {
     event: 'MembersAdded',
-    abi: Multisig.abi,
-    handler: MultisigHandler.membersAdded,
     enableHistorical: false,
     topic: new Interface(Multisig.abi).getEvent('MembersAdded')?.topicHash!,
+    config: [
+      {
+        abi: Multisig.abi,
+        handler: MultisigHandler.membersAdded,
+      },
+    ],
   },
   {
     event: 'MembersRemoved',
-    abi: Multisig.abi,
-    handler: MultisigHandler.membersRemoved,
     enableHistorical: false,
     topic: new Interface(Multisig.abi).getEvent('MembersRemoved')?.topicHash!,
+    config: [
+      {
+        abi: Multisig.abi,
+        handler: MultisigHandler.membersRemoved,
+      },
+    ],
   },
   {
     event: 'ProposalCreated',
-    abi: SharedLogs.abi,
-    handler: ProposalHandler.proposalCreated,
     enableHistorical: false,
     topic: new Interface(Multisig.abi).getEvent('ProposalCreated')?.topicHash!,
+    config: [
+      {
+        abi: SharedLogs.abi,
+        handler: ProposalHandler.proposalCreated,
+      },
+    ],
   },
   {
     event: 'ProposalExecuted',
-    abi: SharedLogs.abi,
-    handler: ProposalHandler.proposalExecuted,
     enableHistorical: false,
     topic: new Interface(Multisig.abi).getEvent('ProposalExecuted')?.topicHash!,
+    config: [
+      {
+        abi: SharedLogs.abi,
+        handler: ProposalHandler.proposalExecuted,
+      },
+    ],
   },
   {
     event: 'ProposalCanceled',
-    abi: StagedProposalProcessor.abi,
-    handler: ProposalHandler.proposalCanceled,
     enableHistorical: false,
     topic: new Interface(StagedProposalProcessor.abi).getEvent('ProposalCanceled')?.topicHash!,
+    config: [
+      {
+        abi: StagedProposalProcessor.abi,
+        handler: ProposalHandler.proposalCanceled,
+      },
+    ],
   },
   {
     event: 'ProposalEdited',
-    abi: StagedProposalProcessor.abi,
-    handler: ProposalHandler.proposalEdited,
     enableHistorical: false,
     topic: new Interface(StagedProposalProcessor.abi).getEvent('ProposalEdited')?.topicHash!,
+    config: [
+      {
+        abi: StagedProposalProcessor.abi,
+        handler: ProposalHandler.proposalEdited,
+      },
+    ],
   },
   {
     event: 'ProposalAdvanced',
-    abi: StagedProposalProcessor.abi,
-    handler: ProposalHandler.proposalAdvanced,
     enableHistorical: false,
     topic: new Interface(StagedProposalProcessor.abi).getEvent('ProposalAdvanced')?.topicHash!,
+    config: [
+      {
+        abi: StagedProposalProcessor.abi,
+        handler: ProposalHandler.proposalAdvanced,
+      },
+    ],
   },
   {
     event: 'Approved',
-    abi: Multisig.abi,
-    handler: ProposalHandler.approved,
     enableHistorical: false,
     topic: new Interface(Multisig.abi).getEvent('Approved')?.topicHash!,
+    config: [
+      {
+        abi: Multisig.abi,
+        handler: ProposalHandler.approved,
+      },
+    ],
   },
   {
     event: 'VoteCast',
-    abi: TokenVoting.abi,
-    handler: ProposalHandler.voteCast,
     enableHistorical: false,
     topic: new Interface(TokenVoting.abi).getEvent('VoteCast')?.topicHash!,
+    config: [
+      {
+        abi: TokenVoting.abi,
+        handler: ProposalHandler.voteCast,
+      },
+    ],
   },
   {
     event: 'MetadataSet',
-    abi: DAO.abi,
-    handler: MetadataHandler.metadataSet,
     enableHistorical: true,
     topic: new Interface(DAO.abi).getEvent('MetadataSet')?.topicHash!,
+    config: [
+      {
+        abi: DAO.abi,
+        handler: MetadataHandler.metadataSet,
+      },
+    ],
   },
   {
     event: 'DelegateVotesChanged',
-    abi: GovernanceERC20.abi,
-    handler: GovernanceErc20Handler.delegateVotesChanged,
     enableHistorical: false,
     topic: new Interface(GovernanceERC20.abi).getEvent('DelegateVotesChanged')?.topicHash!,
+    config: [
+      {
+        abi: GovernanceERC20.abi,
+        handler: GovernanceErc20Handler.delegateVotesChanged,
+      },
+    ],
   },
   {
     event: 'Transfer',
-    abi: GovernanceERC20.abi,
-    handler: GovernanceErc20Handler.transfer,
     enableHistorical: false,
     topic: new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
+    config: [
+      {
+        abi: GovernanceERC20.abi,
+        handler: GovernanceErc20Handler.transfer,
+      },
+      {
+        abi: LockERC721.abi,
+        handler: GovernanceErc20Handler.transfer,
+      },
+    ],
   },
   {
     event: 'Granted',
-    abi: DAO.abi,
-    handler: PermissionHandler.handleGrantOnDao,
     enableHistorical: false,
     topic: new Interface(DAO.abi).getEvent('Granted')?.topicHash!,
+    config: [
+      {
+        abi: DAO.abi,
+        handler: PermissionHandler.handleGrantOnDao,
+      },
+    ],
   },
   {
     event: 'Revoked',
-    abi: DAO.abi,
-    handler: PermissionHandler.handleRevokeOnDao,
     enableHistorical: false,
     topic: new Interface(DAO.abi).getEvent('Revoked')?.topicHash!,
+    config: [
+      {
+        abi: DAO.abi,
+        handler: PermissionHandler.handleRevokeOnDao,
+      },
+    ],
   },
 ]
 

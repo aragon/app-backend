@@ -4,32 +4,41 @@ import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import type PluginRepo from '@models/schema/pluginRepo'
-import DbOperations from '@models/utils/dbOperations'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginRepoRegistryHandler' })
 
 export const PluginRepoRegistryHandler = {
   pluginRepoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const pluginRepo = parsedEvent.args.pluginRepo
-    const existingLog = await Models.PluginRepo.findExistingLog({
-      network: info.network,
-      transactionHash: info.transactionHash,
-      transactionIndex: info.transactionIndex,
-      logIndex: info.logIndex,
-    })
-    if (existingLog) return
+    try {
+      await DbTx.executeTxFn(async ({ session }) => {
+        const pluginRepo = parsedEvent.args.pluginRepo
+        const existingLog = await Models.PluginRepo.findExistingLog({
+          network: info.network,
+          transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+        })
+        if (existingLog) return
 
-    const document: Partial<PluginRepo> = {
-      network: info.network,
-      transactionHash: info.transactionHash,
-      transactionIndex: info.transactionIndex,
-      logIndex: info.logIndex,
-      blockNumber: info.blockNumber,
-      blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
-      subdomain: parsedEvent.args.subdomain,
-      pluginRepo,
+        const document: Partial<PluginRepo> = {
+          network: info.network,
+          transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+          blockNumber: info.blockNumber,
+          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+          subdomain: parsedEvent.args.subdomain,
+          pluginRepo,
+        }
+
+        const logDb = await Models.PluginRepo.create(document, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('New PluginRepo', llo({ info, logId: logDb.id }))
+      })
+    } catch (error) {
+      logger.warn('Error pluginRepoRegistered', llo({ error, parsedEvent, info }))
     }
-
-    await DbOperations.createDocument(Models.PluginRepo, document, info, 'New PluginRepo', llo)
   },
 }

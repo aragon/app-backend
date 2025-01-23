@@ -44,5 +44,38 @@ describe('Router: Contract', () => {
       expect(controllerStub.calledOnceWith(validatedParams)).to.be.true
       expect(ctx.body).to.deep.equal(mockResponse)
     })
+
+    it('should decode the action data of a contract', async () => {
+      const mockParams = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x123',
+      }
+      const validatedParams = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x123',
+        from: '0x123',
+        to: '0xab',
+        data: '0x123',
+        value: '0x123',
+      } as any
+
+      sandbox.stub(ValidationSchema, 'validateParams').resolves(validatedParams)
+      const controllerStub = sandbox.stub(ContractController, 'decodeContractData').resolves(true as any)
+
+      const ctx: any = {
+        params: mockParams,
+        request: {
+          body: {
+            from: '0x123',
+            data: '0x123',
+            value: '0x123',
+          },
+        },
+      }
+
+      await ContractRouter.decodeActionData(ctx)
+
+      expect(controllerStub.calledOnceWith(validatedParams)).to.be.true
+    })
   })
 })

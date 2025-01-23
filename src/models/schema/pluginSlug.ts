@@ -44,7 +44,7 @@ export default class PluginSlug extends Model {
   }
 
   static async findExistingSlugInDao(daoAddress: HexAddress, slug: string, network: NetworksEnum, tOpts?: SaveOptions) {
-    return await this.findOne({ daoAddress, slug, network }, tOpts)
+    return await this.findOne({ daoAddress, slug, network }, null, tOpts)
   }
 
   static async findPluginSlug(
@@ -53,7 +53,7 @@ export default class PluginSlug extends Model {
     network: NetworksEnum,
     tOpts?: SaveOptions,
   ) {
-    return await this.findOne({ pluginAddress, daoAddress, network }, tOpts)
+    return await this.findOne({ pluginAddress, daoAddress, network }, null, tOpts)
   }
 
   static async deletePluginSlug(
