@@ -11,7 +11,24 @@ export const MULTISIG_FUNCTIONS = ['isMember(address)', 'isListed(address)']
 
 export const ADMIN_FUNCTIONS = ['isMember(address)']
 
-const allFunctions = [...SPP_FUNCTIONS, ...MULTISIG_FUNCTIONS, ...TOKEN_VOTING_FUNCTIONS, ...ADMIN_FUNCTIONS]
+export const GAUGE_VOTER_FUNCTIONS = [
+  'createGauge(address,string)',
+  'deactivateGauge(address)',
+  'activateGauge(address)',
+  'updateGaugeMetadata(address,string)',
+  'votingActive()',
+  'epochStart()',
+  'epochVoteStart()',
+  'epochVoteEnd()',
+]
+
+const allFunctions = [
+  ...SPP_FUNCTIONS,
+  ...MULTISIG_FUNCTIONS,
+  ...TOKEN_VOTING_FUNCTIONS,
+  ...ADMIN_FUNCTIONS,
+  ...GAUGE_VOTER_FUNCTIONS,
+]
 
 const functionHashes = allFunctions.reduce<Record<string, string>>((acc, func) => {
   acc[func] = keccak256(Buffer.from(func)).slice(0, 10)
@@ -65,6 +82,8 @@ async function detectPluginType(address: string, network: NetworksEnum): Promise
       contractDetails.type = IPluginInterfaceType.multisig
     } else if (hasFunctions(ADMIN_FUNCTIONS)) {
       contractDetails.type = IPluginInterfaceType.admin
+    } else if (hasFunctions(GAUGE_VOTER_FUNCTIONS)) {
+      contractDetails.type = IPluginInterfaceType.gauge
     } else {
       contractDetails.type = IPluginInterfaceType.unknown
     }

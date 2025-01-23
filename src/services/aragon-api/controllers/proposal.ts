@@ -93,8 +93,8 @@ const ProposalController = {
         },
         { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
       )
-    } catch (e) {
-      logger.warn('Error while checking if user can cast vote', llo(e))
+    } catch (error) {
+      logger.warn('Error while checking if user can cast vote', llo({ error, userAddress, proposalId }))
       return false
     }
   },

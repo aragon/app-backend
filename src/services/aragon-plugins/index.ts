@@ -48,11 +48,15 @@ const AragonPluginsService: IService = {
           } else {
             logger.warn('Sync plugin: token not governance erc20', llo({ plugin, token }))
           }
-
           break
         }
         case IPluginInterfaceType.spp: {
           await LogSpp.start(plugin)
+          break
+        }
+        case IPluginInterfaceType.gauge: {
+          const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
+          await LogTokenVoting.start(plugin, token!)
           break
         }
         default: {

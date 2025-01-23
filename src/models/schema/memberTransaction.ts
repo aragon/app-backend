@@ -83,6 +83,9 @@ export default class MemberTransaction extends Model {
   @prop({ type: () => String, default: '0' })
   public amount!: string
 
+  @prop({ type: () => Number })
+  public tokenId!: number
+
   // historical balance
   @prop({ type: () => String, default: '0' })
   public memberBalance!: string
