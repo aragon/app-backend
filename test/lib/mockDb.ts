@@ -17,6 +17,7 @@ const MockDB = {
 
   connect: async () => {
     await MockDB._connectMongoDB()
+    await MockDB.syncIndexesForAllModels()
   },
 
   drop: async () => {
@@ -81,6 +82,20 @@ const MockDB = {
     await mongoose.disconnect()
     await MockDB.replSet.stop()
     console.log('Mongoose successfully disconnected') // eslint-disable-line no-console
+  },
+
+  syncIndexesForAllModels: async () => {
+    const modelNames = Object.keys(mongoose.models)
+    await Promise.all(
+      modelNames.map(async name => {
+        try {
+          await mongoose.models[name].syncIndexes()
+          console.log(`Indexes synchronized for model: ${name}`)
+        } catch (error) {
+          console.error(`Failed to synchronize indexes for model: ${name}`, error)
+        }
+      }),
+    )
   },
 }
 

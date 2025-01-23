@@ -1,15 +1,16 @@
 import logger from '@logger'
-import { Interface, type Log, type TransactionResponse } from 'ethers'
-import { EnumQueueName, type HexAddress, type IWebSocketProvider, type NetworksEnum } from '@types'
+import { ethers, Interface, type Log } from 'ethers'
+import { EnumQueueName, type NetworksEnum } from '@types'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { Models } from '@dbModels'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import type Dao from '@models/schema/dao'
 import utils from '@helpers/utils'
 import config from '@config'
 import { DAO } from '@artifacts/dao'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-transactions:BlockHandler' })
 
@@ -20,46 +21,39 @@ export const BlockHandler = {
     const provider = ProviderModule.getProvider(network)
     if (!provider) return logger.error('Provider not available for network', llo({ network }))
 
-    await Promise.all(
-      block.transactions.map(async (txHash: HexAddress) => {
-        const tx = await BlockHandler.fetchTransaction(txHash, network, provider)
-        if (!tx?.to) return null
+    const blockReceipts = await Web3Helper.getBlockReceipts(network, block.number)
+    if (!blockReceipts) return
 
-        await BlockHandler.processReceiver(txHash, tx.to, network)
-      }),
+    const toAddresses = blockReceipts
+      .filter((receipt: any) => receipt.to)
+      .map((receipt: any) => ethers.getAddress(receipt.to))
+
+    await utils.wait(
+      config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME * 1000 * config.CONFIRMATION_BLOCKS,
     )
 
     await BlockHandler._checkIfDepositEvents(block, network)
+
+    await BlockHandler.processReceiver(block.hash, toAddresses, network)
   },
 
-  processReceiver: async (transactionHash: string, to: HexAddress, network: NetworksEnum) => {
-    const dao = await Models.Dao.findByAddress(to, network)
+  processReceiver: async (transactionHash: string, toAddresses: string[], network: NetworksEnum) => {
+    const daos = await Models.Dao.find({ address: { $in: toAddresses }, network })
+    if (!daos.length) return
 
-    if (dao) {
-      logger.verbose(
-        'New pending incoming transaction',
-        llo({
-          network,
-          daoAddress: dao,
-          transactionHash,
-        }),
-      )
-
-      // wait block confirmations
-      await utils.wait(
-        config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME * 1000 * config.CONFIRMATION_BLOCKS,
-      )
-      await BlockHandler.sendDaoMessages(dao)
-
-      logger.verbose(
-        'New confirmed incoming transaction',
-        llo({
-          network,
-          daoAddress: dao,
-          transactionHash,
-        }),
-      )
-    }
+    await Promise.all(
+      daos.map(async (dao: any) => {
+        logger.verbose(
+          'New confirmed incoming transaction',
+          llo({
+            network,
+            daoAddress: dao,
+            transactionHash,
+          }),
+        )
+        await BlockHandler.sendDaoMessages(dao)
+      }),
+    )
   },
 
   _checkIfDepositEvents: async (block: any, network: NetworksEnum) => {
@@ -82,7 +76,7 @@ export const BlockHandler = {
 
     await Promise.all(
       logs.map(async (log: Log) => {
-        await BlockHandler.processReceiver(log.transactionHash, log.address, network)
+        await BlockHandler.processReceiver(log.transactionHash, [log.address], network)
       }),
     )
   },
@@ -106,21 +100,6 @@ export const BlockHandler = {
       logger.info(`RabbitMQ messages sent for DAO: ${dao.address}`, llo({ dao }))
     } catch (error) {
       logger.error('Failed to send RabbitMQ messages', llo({ daoAddress: dao.address, error }))
-    }
-  },
-
-  fetchTransaction: async (
-    txHash: string,
-    network: NetworksEnum,
-    provider: IWebSocketProvider,
-  ): Promise<TransactionResponse | null> => {
-    try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getTransaction(txHash)),
-      )
-    } catch (error) {
-      logger.warn('Failed to fetch transaction', llo({ txHash, error, network }))
-      return null
     }
   },
 }

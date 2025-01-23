@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import RabbitMQ from '@modules/rabbitMQ'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 import { EnumQueueName } from '@types'
 import Utils from '@helpers/utils'
 import config from '@config'

@@ -9,11 +9,9 @@ import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import { PluginHandler } from '@handlers/pluginHandler'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
-import { LogTokenVoting } from '@plugins/logTokenVoting'
-import { LogMultiSig } from '@plugins/logMultisig'
 import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
-import { RabbitMQHelper } from '@helpers/redditMQ'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox

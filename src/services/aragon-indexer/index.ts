@@ -7,6 +7,7 @@ import utils from '@helpers/utils'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import EventListener from '@modules/eventListener'
 import { SyncAll } from '@indexer/syncAll'
+import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
@@ -20,6 +21,10 @@ const AragonIndexerService: IService & { repeaters: any } = {
 
     const networks = NetworkHelper.supportedNetworks()
 
+    await CustomInstall.install()
+
+    logger.info('CustomInstall end', llo({}))
+
     await Promise.all(
       networks.map(async ({ networkName }) => {
         const configLogs = utils.filterArrayByProperty(configIndexer, 'enableHistorical')
@@ -29,7 +34,7 @@ const AragonIndexerService: IService & { repeaters: any } = {
           network: networkName,
           events: configLogs,
           onError: async (error: any) => logger.error('Error Indexer', llo(error)),
-          logService: `Indexer-${networkName}`,
+          logService: `indexer-${networkName}`,
           stopOnError: true,
         })
         await crawler.crawl()
@@ -55,8 +60,10 @@ const AragonIndexerService: IService & { repeaters: any } = {
       onError: (error: any) => logger.error('Error sync all plugins', llo({ error })),
     }
 
-    const scheduler = TaskSchedulerState.getInstance()
-    await scheduler.startTask('allPlugins', taskOptions)
+    if (config.SERVICES.ARAGON_INDEXER.SYNC_ALL) {
+      const scheduler = TaskSchedulerState.getInstance()
+      await scheduler.startTask('allPlugins', taskOptions)
+    }
   },
 
   async stop() {

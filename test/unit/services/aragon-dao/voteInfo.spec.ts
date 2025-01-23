@@ -8,6 +8,7 @@ import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import Web3Helper from '@helpers/web3'
 import { IPluginInterfaceType } from '@types'
+
 describe('VoteInfo', () => {
   let sandbox: SinonSandbox
   beforeEach(async () => {

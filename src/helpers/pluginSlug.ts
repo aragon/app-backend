@@ -2,8 +2,8 @@ import { IPluginInterfaceType, IPluginSlug } from '@types'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
-import DbOperations from '@models/utils/dbOperations'
 import type PluginSlugModel from '@models/schema/pluginSlug'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:PluginSlug' })
 
@@ -23,6 +23,8 @@ export const PluginSlug = {
         return IPluginSlug.multisig
       case IPluginInterfaceType.admin:
         return IPluginSlug.admin
+      case IPluginInterfaceType.gauge:
+        return IPluginSlug.gauge
       default:
         logger.warn('Unrecognized plugin interface type', llo({ interfaceType: plugin.interfaceType }))
         return null
@@ -60,24 +62,29 @@ export const PluginSlug = {
 
     while (suffix < maxRetries) {
       try {
-        const existing = await Models.PluginSlug.findPluginSlug(plugin.address, plugin.daoAddress, plugin.network)
-        if (existing) {
-          return existing.slug
-        }
-        const document = {
-          network: plugin.network,
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          slug: candidateKey,
-        }
+        return await DbTx.executeTxFn(
+          async ({ session }) => {
+            const existing = await Models.PluginSlug.findPluginSlug(plugin.address, plugin.daoAddress, plugin.network, {
+              session,
+            })
+            if (existing) {
+              return existing.slug
+            }
+            const document = {
+              network: plugin.network,
+              daoAddress: plugin.daoAddress,
+              pluginAddress: plugin.address,
+              slug: candidateKey,
+            }
 
-        await DbOperations.createDocument(Models.PluginSlug, document, document, 'New PluginSlug', llo, {
-          stopRetry: true,
-          throwOnStop: true,
-        })
-
-        logger.verbose('Slug reserved successfully', llo({ slug: candidateKey }))
-        return candidateKey
+            await Models.PluginSlug.create(document, { session })
+            await session.commitTransaction()
+            await session.endSession()
+            logger.verbose('Created new document - New PluginSlug', llo({ slug: candidateKey }))
+            return candidateKey
+          },
+          { stopRetry: true, throwOnStop: true },
+        )
       } catch (error: any) {
         if (error.code === 11000) {
           // Duplicate key error, slug already exists within DAO and network
@@ -120,12 +127,16 @@ export const PluginSlug = {
 
     while (suffix < maxRetries) {
       try {
-        await DbOperations.updateDocument(pluginSlug, { slug: candidateKey }, { plugin }, 'Update PluginSlug', llo, {
-          stopRetry: true,
-          throwOnStop: true,
-        })
+        await DbTx.executeTxFn(
+          async ({ session }) => {
+            await pluginSlug.update({ slug: candidateKey }, { session })
+            await session.commitTransaction()
+            await session.endSession()
+            logger.verbose('Updated document - Update PluginSlug', llo({ slug: candidateKey }))
+          },
+          { stopRetry: true, throwOnStop: true },
+        )
 
-        logger.verbose('Slug updated successfully', llo({ slug: candidateKey }))
         return candidateKey
       } catch (error: any) {
         if (error.code === 11000) {

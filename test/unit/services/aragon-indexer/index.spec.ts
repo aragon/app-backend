@@ -9,6 +9,8 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import Utils from '@helpers/utils'
 import { NetworkHelper } from '@helpers/network'
 import { NetworksEnum } from '@types'
+import { CustomInstall } from '@indexer/customInstall'
+import config from '@config'
 
 describe('aragon-indexer: index', () => {
   let sandbox: SinonSandbox
@@ -23,10 +25,12 @@ describe('aragon-indexer: index', () => {
 
   describe('start', () => {
     it('should start the indexer service and execute historical crawlers', async () => {
+      const configBackup = config.SERVICES.ARAGON_INDEXER.SYNC_ALL
+      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = true
       const loggerStub = sandbox.stub(logger, 'info')
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
       sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
-
+      const customInstall = sandbox.stub(CustomInstall, 'install').resolves()
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
 
       const subscribeStub = sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock')
@@ -35,10 +39,13 @@ describe('aragon-indexer: index', () => {
       await IndexerService.start()
 
       expect(loggerStub.calledWith('IndexerService historical started' as any)).to.be.true
+      expect(customInstall.calledOnce).to.be.true
       expect(crawlStub.calledOnce).to.be.true
       expect(subscribeStub.calledOnce).to.be.true
       expect(schedulerStartStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('IndexerService historical logs end' as any)).to.be.true
+
+      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = configBackup
     })
   })
 
@@ -56,6 +63,7 @@ describe('aragon-indexer: index', () => {
 
   describe('historical crawlers', () => {
     it('should execute crawlers for historical logs', async () => {
+      const customInstall = sandbox.stub(CustomInstall, 'install').resolves()
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
       sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
 
@@ -64,6 +72,7 @@ describe('aragon-indexer: index', () => {
 
       await IndexerService.start()
 
+      expect(customInstall.calledOnce).to.be.true // Ensure the crawl method was called once
       expect(crawlStub.calledOnce).to.be.true // Ensure the crawl method was called once
       expect(subscribeStub.calledOnce).to.be.true // Ensure the subscribe method was stubbed and not executed
     })
@@ -73,6 +82,8 @@ describe('aragon-indexer: index', () => {
     it('should initialize and subscribe to real-time events', async () => {
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
       const subscribeStub = sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock')
+      sandbox.stub(CustomInstall, 'install').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
 
       await IndexerService.start()
 
@@ -82,12 +93,21 @@ describe('aragon-indexer: index', () => {
 
   describe('re-sync plugins', () => {
     it('should start the re-sync task for all plugins', async () => {
+      const configBackup = config.SERVICES.ARAGON_INDEXER.SYNC_ALL
+      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = true
+
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
+      sandbox.stub(CustomInstall, 'install').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock')
+
       const schedulerStub = sandbox.stub(TaskSchedulerState.getInstance(), 'startTask').resolves()
 
       await IndexerService.start()
 
       expect(schedulerStub.calledOnce).to.be.true
       expect(schedulerStub.args[0][0]).to.eq('allPlugins')
+      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = configBackup
     })
   })
 })

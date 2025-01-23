@@ -60,7 +60,6 @@ describe('aragon-transactions: index', () => {
 
   describe('processNewBlock', () => {
     it('should fetch a block and call BlockHandler.processNewBlock', async () => {
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
       const loggerWarnStub = sandbox.stub(logger, 'warn')
 
       const blockMock = { blockNumber: 12345 }
@@ -75,7 +74,6 @@ describe('aragon-transactions: index', () => {
 
       expect(bottleneckStub.calledOnceWith(NetworksEnum.ethereumMainnet)).to.be.true
       expect(providerMock.getBlock.calledOnceWith(12345)).to.be.true
-      expect(loggerVerboseStub.calledWith('New block' as any)).to.be.true
       expect(blockHandlerStub.calledOnceWith(blockMock, NetworksEnum.ethereumMainnet)).to.be.true
       expect(loggerWarnStub.notCalled).to.be.true
     })

@@ -77,11 +77,11 @@ export default class PluginRepo extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, tOpts)
+    return await this.findOne({ id: entityId }, null, tOpts)
   }
 
   static async findSubdomain(pluginRepo: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    return await this.findOne({ pluginRepo, network }, tOpts)
+    return await this.findOne({ pluginRepo, network }, null, tOpts)
   }
 
   async update(params: Partial<PluginRepo>, tOpts?: SaveOptions) {

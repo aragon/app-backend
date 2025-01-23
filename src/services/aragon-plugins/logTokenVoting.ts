@@ -3,11 +3,12 @@ import { IGovernanceErc20Logs, type IIndexerConfig, ITokenVotingLogs } from '@ty
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
+import type Token from '@models/schema/token'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
 export const LogTokenVoting = {
-  start: async (plugin: Plugin) => {
+  start: async (plugin: Plugin, token: Token, isHistorical?: boolean) => {
     logger.verbose('Start LogTokenVoting', llo({ network: plugin.network, pluginAddress: plugin.address }))
 
     const configTVLogs = configIndexer.filter((item: IIndexerConfig) =>
@@ -18,15 +19,28 @@ export const LogTokenVoting = {
     )
 
     const crawler = new BlockchainLogCrawler({
+      onlyHistorical: isHistorical,
       network: plugin.network,
-      events: [...configTVLogs, ...configGovLogs],
-      address: [plugin.address, plugin.tokenAddress],
+      events: [...configTVLogs],
+      address: [plugin.address],
       fromBlock: plugin?.blockNumber,
-      onError: async (error: any) => LogTokenVoting.processError(error, plugin),
-      logService: `TokenVoting-${plugin.network}-${plugin.address}`,
+      onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
-    await crawler.crawl()
+
+    const crawlerToken = new BlockchainLogCrawler({
+      onlyHistorical: isHistorical,
+      network: plugin.network,
+      events: [...configGovLogs],
+      address: [plugin.tokenAddress],
+      fromBlock: token?.blockNumber,
+      onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}`,
+      stopOnError: true,
+    })
+
+    await Promise.all([crawler.crawl(), crawlerToken.crawl()])
 
     logger.verbose(
       'End LogTokenVoting',
@@ -34,10 +48,11 @@ export const LogTokenVoting = {
     )
   },
 
-  processError: async (error: any, plugin: Plugin) => {
+  processError: async (error: any, plugin: Plugin, log: any) => {
     logger.error(
       'Error LogTokenVoting',
       llo({
+        log,
         error,
         plugin,
       }),

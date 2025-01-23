@@ -11,6 +11,7 @@ import CovalentHelper from '@helpers/covalent'
 import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
+import { type ClientSession, type SaveOptions } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -24,22 +25,27 @@ export const ProxyToken = {
   saveAndGetToken: async (
     tokenAddress: HexAddress,
     network: NetworksEnum,
-    forceUpdate = false,
+    forceUpdate: boolean = false,
   ): Promise<null | Token> => {
-    const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
+    return await DbTx.executeTxFn(async ({ session }) => {
+      const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
 
-    // Check for existing token
-    const existingToken = await Models.Token.findExistingLog({
-      address: parsedTokenAddress,
-      network,
+      // Check for existing token
+      const existingToken = await Models.Token.findExistingLog(
+        {
+          address: parsedTokenAddress,
+          network,
+        },
+        { session },
+      )
+
+      if (existingToken) {
+        return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate, session)
+      }
+
+      // Create a new token
+      return await ProxyToken.createNewToken(parsedTokenAddress, network, session)
     })
-
-    if (existingToken) {
-      return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate)
-    }
-
-    // Create a new token
-    return await ProxyToken.createNewToken(parsedTokenAddress, network)
   },
 
   updateTokenMetrics: async (
@@ -47,41 +53,43 @@ export const ProxyToken = {
     tokenAddress: HexAddress,
     network: NetworksEnum,
     forceUpdate: boolean,
+    session?: ClientSession,
   ): Promise<Token> => {
     const shouldUpdate = !token.skipFetchRate && token.lastUpdatedAt < dayjs().subtract(6, 'hours').toDate()
+    const updates: any = {}
 
     if (shouldUpdate || forceUpdate) {
       const tokenRate = await RateModule.fetchRate(tokenAddress, network)
-      Object.assign(token, {
-        priceUsd: tokenRate.priceUsd,
-        priceChangeOnDayUsd: tokenRate.priceChangeOnDayUsd,
-      })
+      updates.priceUsd = tokenRate.priceUsd
+      updates.priceChangeOnDayUsd = tokenRate.priceChangeOnDayUsd
 
-      if (token.type === ITokenType.GovernanceERC20) {
+      if (token.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(token.address, token.network)) {
         const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
-        Object.assign(token, {
-          holders: metrics.totalHolders,
-          totalSupply: metrics.totalSupply,
-          lastUpdatedAt: dayjs.utc().toDate(),
-        })
+        updates.holders = metrics.totalHolders
+        updates.totalSupply = metrics.totalSupply
+        updates.lastUpdatedAt = dayjs.utc().toDate()
       }
 
-      await token.save()
+      await token.update(updates, { session })
+      if (session) {
+        await session.commitTransaction()
+      }
       logger.verbose('Updated Token Metrics', llo({ logId: token.id }))
     }
 
     return token
   },
 
-  createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<Token> => {
+  createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum, session?: ClientSession): Promise<Token> => {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
     const tokenRate = await RateModule.fetchRate(tokenAddress, network)
-    const contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
 
     let tokenMetrics: ITokenMetrics = { totalHolders: 0, totalSupply: '0' }
+    let contractDeployInfo: any = { transactionHash: null, blockNumber: 0 }
 
-    if (tokenTypeInfo?.type === ITokenType.GovernanceERC20) {
+    if (tokenTypeInfo?.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(tokenAddress, network)) {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
+      contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
     }
 
     const rawToken: Partial<Token> = {
@@ -95,6 +103,7 @@ export const ProxyToken = {
       implementationAddress: tokenTypeInfo?.implementationAddress!,
       network,
       lastUpdatedAt: dayjs.utc().toDate(),
+      mintableByDao: await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session),
       skipFetchRate: ProxyToken.shouldSkipFetch(
         {
           ...tokenRate,
@@ -112,18 +121,18 @@ export const ProxyToken = {
       rawToken.type = tokenRate.type
     }
 
-    rawToken.mintableByDao = await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network)
-
-    return DbTx.executeTxFn(async ({ session }) => {
-      const savedToken = await Models.Token.create(rawToken, { session })
-      await session.commitTransaction()
-      logger.verbose('New Token Created', llo({ logId: savedToken.id }))
-      return savedToken
-    })
+    const savedToken = await Models.Token.create(rawToken, { session })
+    await session!.commitTransaction()
+    logger.verbose('New Token Created', llo({ logId: savedToken.id }))
+    return savedToken
   },
 
-  checkPluginMintAuthorizationIsDao: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<boolean> => {
-    const plugin = await Models.Plugin.findByTokenAddress(tokenAddress, network)
+  checkPluginMintAuthorizationIsDao: async (
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    session?: ClientSession,
+  ): Promise<boolean> => {
+    const plugin = await Models.Plugin.findByTokenAddress(tokenAddress, network, session as SaveOptions)
     if (!plugin) {
       return false
     }
