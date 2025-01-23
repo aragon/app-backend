@@ -65,7 +65,11 @@ const AragonPluginsService: IService = {
         }
         case IPluginInterfaceType.gauge: {
           const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
-          await LogGauge.start(plugin, token!, isHistorical)
+          if (token?.type === ITokenType.ERC721) {
+            await LogGauge.start(plugin, token, isHistorical)
+          } else {
+            logger.warn('Sync plugin: token not ERC721', llo({ plugin, token }))
+          }
           break
         }
         default: {
