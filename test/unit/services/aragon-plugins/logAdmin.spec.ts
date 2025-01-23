@@ -11,7 +11,7 @@ import Web3Helper from '@helpers/web3'
 import { PermissionHandler } from '@handlers/permissionHandler'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 
-describe('Plugins: LogAdmin', () => {
+describe('AragonPlugins: LogAdmin', () => {
   let sandbox: SinonSandbox
   let verboseStub: sinon.SinonStub
 

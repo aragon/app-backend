@@ -43,6 +43,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ETHEREUM_MAINNET: {
         WS: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_WS', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_MAINNET_FROM_BLOCK', 16721812),
+        CONFIRMATION_BLOCKS: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ETHEREUM_MAINNET_CONFIRMATION_BLOCKS',
+          1,
+        ),
         INTERVAL_BLOCK_TIME: utils.configParser(
           sourceConfig,
           'number',
@@ -60,6 +66,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ETHEREUM_SEPOLIA: {
         WS: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_WS', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_SEPOLIA_FROM_BLOCK', 4415294),
+        CONFIRMATION_BLOCKS: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ETHEREUM_SEPOLIA_CONFIRMATION_BLOCKS',
+          1,
+        ),
         INTERVAL_BLOCK_TIME: utils.configParser(
           sourceConfig,
           'number',
@@ -77,6 +89,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       POLYGON_MAINNET: {
         WS: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_WS', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_FROM_BLOCK', 40830344),
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_INTERVAL_BLOCK_TIME', 2),
         ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ETHERSCAN_API_KEY', null),
         ETHERSCAN_API_URL: utils.configParser(
@@ -89,6 +102,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       BASE_MAINNET: {
         WS: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_WS', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_FROM_BLOCK', 2094724),
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 12),
         ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ETHERSCAN_API_KEY', null),
         ETHERSCAN_API_URL: utils.configParser(
@@ -101,6 +115,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ARBITRUM_MAINNET: {
         WS: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_WS', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_FROM_BLOCK', 2441204),
+        CONFIRMATION_BLOCKS: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ARBITRUM_MAINNET_CONFIRMATION_BLOCKS',
+          1,
+        ),
         INTERVAL_BLOCK_TIME: utils.configParser(
           sourceConfig,
           'number',
@@ -118,6 +138,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ZKSYNC_SEPOLIA: {
         WS: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_WS', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_FROM_BLOCK', 37460765), // zkSync ERA
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_INTERVAL_BLOCK_TIME', 3),
         ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ETHERSCAN_API_KEY', null),
         ETHERSCAN_API_URL: utils.configParser(
@@ -130,6 +151,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ZKSYNC_MAINNET: {
         WS: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_WS', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_FROM_BLOCK', 145462155),
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_INTERVAL_BLOCK_TIME', 5),
         ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ETHERSCAN_API_KEY', null),
         ETHERSCAN_API_URL: utils.configParser(

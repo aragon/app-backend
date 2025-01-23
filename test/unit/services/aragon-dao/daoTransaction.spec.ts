@@ -15,7 +15,7 @@ import ProviderModule from '@modules/provider'
 import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 
-describe('aragon-dao: DaoTransactions', () => {
+describe('AragonDao: DaoTransactions', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(async () => {

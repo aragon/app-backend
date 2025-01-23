@@ -66,53 +66,57 @@ export const CustomInstall = {
   },
 
   pluginEvents: async (dao: any) => {
-    const configLogs = [
-      {
-        enableHistorical: false,
-        event: 'InstallationPrepared',
-        topic: [
-          new Interface(PluginSetupProcessor.abi).getEvent('InstallationPrepared')?.topicHash!,
-          null,
-          zeroPadValue(dao.address, 32),
-          null,
-        ],
-        config: [
-          {
-            abi: PluginSetupProcessor.abi,
-            handler: PluginSetupProcessorHandler.installationPrepared,
-          },
-        ],
-      },
-      {
-        enableHistorical: true, // only sync when applied
-        event: 'InstallationApplied',
-        topic: [
-          new Interface(PluginSetupProcessor.abi).getEvent('InstallationApplied')?.topicHash!,
-          zeroPadValue(dao.address, 32),
-          null,
-        ],
-        config: [
-          {
-            abi: PluginSetupProcessor.abi,
-            handler: PluginSetupProcessorHandler.installationApplied,
-          },
-        ],
-      },
-    ]
+    try {
+      const configLogs = [
+        {
+          enableHistorical: false,
+          event: 'InstallationPrepared',
+          topic: [
+            new Interface(PluginSetupProcessor.abi).getEvent('InstallationPrepared')?.topicHash!,
+            null,
+            zeroPadValue(dao.address, 32),
+            null,
+          ],
+          config: [
+            {
+              abi: PluginSetupProcessor.abi,
+              handler: PluginSetupProcessorHandler.installationPrepared,
+            },
+          ],
+        },
+        {
+          enableHistorical: true, // only sync when applied
+          event: 'InstallationApplied',
+          topic: [
+            new Interface(PluginSetupProcessor.abi).getEvent('InstallationApplied')?.topicHash!,
+            zeroPadValue(dao.address, 32),
+            null,
+          ],
+          config: [
+            {
+              abi: PluginSetupProcessor.abi,
+              handler: PluginSetupProcessorHandler.installationApplied,
+            },
+          ],
+        },
+      ]
 
-    const crawler = new BlockchainLogCrawler({
-      network: dao.network,
-      events: configLogs,
-      fromBlock: dao.pluginSetupProcessor?.blockNumber,
-      onError: async (error: any) => {
-        logger.error('Error in log plugin setup processor', llo({ error, dao }))
-      },
-      logService: null,
-      stopOnError: true,
-      onlyHistorical: true,
-      isCustomTopics: true,
-      skipLogProcessing: false,
-    })
-    await crawler.crawl()
+      const crawler = new BlockchainLogCrawler({
+        network: dao.network,
+        events: configLogs,
+        fromBlock: dao.pluginSetupProcessor?.blockNumber,
+        onError: async (error: any) => {
+          logger.error('Error in log plugin setup processor', llo({ error, dao }))
+        },
+        logService: null,
+        stopOnError: true,
+        onlyHistorical: true,
+        isCustomTopics: true,
+        skipLogProcessing: false,
+      })
+      await crawler.crawl()
+    } catch (error) {
+      logger.error('Error pluginEvents', llo({ error, dao }))
+    }
   },
 }

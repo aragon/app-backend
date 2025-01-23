@@ -6,7 +6,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 
-describe('Plugins: LogMultiSig', () => {
+describe('AragonPlugins: LogMultiSig', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
