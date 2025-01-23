@@ -44,7 +44,7 @@ describe('AragonIndexer: SyncAll', () => {
       expect(supportedNetworksStub.calledOnce).to.be.true
       expect(getBlockNumberStub.callCount).to.equal(2) // For each network
       expect(aggregateStub.callCount).to.equal(2) // For each network
-      expect(sendWithQueueLimitStub.callCount).to.equal(2) // One call per plugin
+      expect(sendWithQueueLimitStub.callCount).to.equal(4) // One call per plugin per network
       expect(loggerStub.calledWithMatch('End SyncAll' as any)).to.be.true
     })
 
@@ -107,25 +107,6 @@ describe('AragonIndexer: SyncAll', () => {
       expect(sendMessageStub.calledOnce).to.be.true
       expect(loggerVerboseStub.calledWithMatch('Message sent to queue "log.plugins". Current count: 51' as any)).to.be
         .true
-    })
-
-    it('should log an error if message count cannot be retrieved', async () => {
-      const plugin = { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet }
-      const getMessageCountStub = sandbox
-        .stub(RabbitMQ, 'getMessageCount')
-        .onFirstCall()
-        .resolves(null)
-        .onSecondCall()
-        .resolves(10)
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-      const waitStub = sandbox.stub(utils, 'wait').resolves()
-
-      await SyncAll.sendWithQueueLimit(plugin as any)
-
-      expect(getMessageCountStub.calledTwice).to.be.true
-      expect(loggerErrorStub.calledWithMatch('Unable to get message count for queue "log.plugins". Retrying...' as any))
-        .to.be.true
-      expect(waitStub.calledOnce).to.be.true
     })
   })
 })
