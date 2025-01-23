@@ -101,8 +101,12 @@ export const PluginSetupProcessorHandler = {
 
           const { plugin } = installationPreparingLog.parsed.args
 
+          // TODO: make this better
+          // Get token address from standard plugin
           let tokenAddress = memberShipAnnouncedLog?.[plugin]
+
           if (!tokenAddress) {
+            // try to get token address from gauge plugin
             tokenAddress = await GaugeHelper.getTokenAddress(plugin, info.network)
           }
 

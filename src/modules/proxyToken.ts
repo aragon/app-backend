@@ -63,7 +63,7 @@ export const ProxyToken = {
       updates.priceUsd = tokenRate.priceUsd
       updates.priceChangeOnDayUsd = tokenRate.priceChangeOnDayUsd
 
-      if (token.type === ITokenType.GovernanceERC20) {
+      if (token.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(token.address, token.network)) {
         const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
         updates.holders = metrics.totalHolders
         updates.totalSupply = metrics.totalSupply
@@ -87,7 +87,7 @@ export const ProxyToken = {
     let tokenMetrics: ITokenMetrics = { totalHolders: 0, totalSupply: '0' }
     let contractDeployInfo: any = { transactionHash: null, blockNumber: 0 }
 
-    if (tokenTypeInfo?.type === ITokenType.GovernanceERC20) {
+    if (tokenTypeInfo?.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(tokenAddress, network)) {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
       contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
     }

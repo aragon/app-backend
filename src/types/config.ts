@@ -12,6 +12,11 @@ export enum IEnumNodeEnv {
   production = 'production',
 }
 
+interface ITokenData {
+  address: string
+  network: NetworksEnum
+}
+
 export interface IConfig {
   APP_NAME: string
   ENVIRONMENT: IEnumEnvironment
@@ -74,6 +79,7 @@ export interface IConfig {
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
+  WHITELIST_TOKENS: ITokenData[]
   DEFAULT_CURRENCY: string
   RABBITMQ: {
     URI: string
