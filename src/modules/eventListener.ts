@@ -1,4 +1,4 @@
-import { Interface, type Log } from 'ethers'
+import { Interface, type Log, type LogDescription } from 'ethers'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -55,12 +55,26 @@ class EventListener {
       const eventConfig = this.configLogs.find(item => item.topic === txLog.topics[0])
       if (!eventConfig) return
 
-      const iFace = new Interface(eventConfig.abi)
-      const event = Web3Helper.parseLog(txLog, iFace)
-      if (!event) return
+      let parsedEvent: LogDescription | null = null
+      let matchingHandler: any = null
 
-      const info = Web3Helper.parseInfoLog(txLog, event.name, this.network)
-      await eventConfig.handler(event, info)
+      for (const configItem of eventConfig.config) {
+        const iFace = new Interface(configItem.abi)
+        try {
+          parsedEvent = Web3Helper.parseLog(txLog, iFace)
+          if (parsedEvent) {
+            matchingHandler = configItem.handler
+            break
+          }
+        } catch (_) {
+          // skip
+        }
+      }
+
+      if (!parsedEvent) return
+
+      const info = Web3Helper.parseInfoLog(txLog, parsedEvent.name, this.network)
+      await matchingHandler?.(parsedEvent, info)
     } catch (error) {
       logger.error('Error handling eventListener', llo({ error, network: this.network, txLog }))
     }
@@ -127,7 +141,7 @@ class EventListener {
         )
 
         if (!existingConfig || existingConfig.lastSync >= blockNumber) {
-          return
+          return false
         }
 
         await existingConfig.update({ lastSync: blockNumber }, { session })
