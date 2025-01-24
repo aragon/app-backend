@@ -1,6 +1,13 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { type HexAddress, type ITokenMetrics, type ITokenRate, ITokenType, type NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  type HexAddress,
+  type ITokenMetrics,
+  type ITokenRate,
+  ITokenType,
+  type NetworksEnum,
+} from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -84,16 +91,17 @@ export const ProxyToken = {
   createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum, session?: ClientSession): Promise<Token> => {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
     const tokenRate = await RateModule.fetchRate(tokenAddress, network)
-    let contractDeployInfo: any = { transactionHash: null, blockNumber: 0 }
 
     let tokenMetrics: ITokenMetrics = { totalHolders: 0, totalSupply: '0' }
+    let contractDeployInfo: any = { transactionHash: null, blockNumber: 0 }
 
     if (tokenTypeInfo?.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(tokenAddress, network)) {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
       contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
-      if (tokenMetrics.totalSupply === '0' && tokenMetrics.totalHolders === 0) {
+
+      if (tokenMetrics.totalHolders === 0 && tokenMetrics.totalSupply === '0') {
         await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
-          id: tokenAddress,
+          id: `token-metrics${tokenAddress}`,
           params: { address: tokenAddress, network },
         })
       }
@@ -127,8 +135,6 @@ export const ProxyToken = {
     if (rawToken.type === ITokenType.unknown && tokenRate.type !== ITokenType.unknown) {
       rawToken.type = tokenRate.type
     }
-
-    rawToken.mintableByDao = await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session)
 
     const savedToken = await Models.Token.create(rawToken, { session })
     await session!.commitTransaction()
