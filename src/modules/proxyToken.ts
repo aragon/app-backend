@@ -20,6 +20,7 @@ import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
 import { RabbitMQHelper } from '@helpers/radditMQ'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -99,7 +100,12 @@ export const ProxyToken = {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
       contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
 
-      if (tokenMetrics.totalHolders === 0 && tokenMetrics.totalSupply === '0') {
+      if (
+        tokenTypeInfo?.type === ITokenType.GovernanceERC20 &&
+        tokenMetrics.totalHolders === 0 &&
+        tokenMetrics.totalSupply === '0' &&
+        tokenAddress !== utils.zeroAddress
+      ) {
         await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
           id: `token-metrics${tokenAddress}`,
           params: { address: tokenAddress, network },
