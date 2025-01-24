@@ -12,6 +12,7 @@ export enum EnumQueueName {
   voteInfo = 'vote.info',
   memberBalance = 'member.balance',
   contractDecoder = 'contract.decoder',
+  tokenInfo = 'token.info',
 }
 
 export interface IQueueDao {

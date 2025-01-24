@@ -31,7 +31,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(9) // Total queues in the service
+      expect(processStub.callCount).to.equal(10) // Total queues in the service
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoMetrics)).to.be.true
