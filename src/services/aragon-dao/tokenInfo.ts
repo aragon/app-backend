@@ -25,7 +25,7 @@ export const TokenInfo = {
     } catch (_error) {}
   },
 
-  _retryAndFetch: async (tokenAddress: string, network: NetworksEnum, interval = 15000, timeout = 120000) => {
+  _retryAndFetch: async (tokenAddress: string, network: NetworksEnum, interval = 30000, timeout = 300000) => {
     return new Promise<ITokenMetrics>((resolve, reject) => {
       let elapsedTime = 0
 
