@@ -840,12 +840,12 @@ export default class Proposal extends Model {
           allPluginDocs: 0,
         },
       },
-      AggregationQueryHelper.proposals({
-        pluginAddress: '$subProposals.pluginAddress',
-        proposalIndex: '$subProposals.proposalIndex',
-        network: '$network',
-        as: 'subProposals',
-      }),
+      // AggregationQueryHelper.proposals({
+      //   pluginAddress: '$subProposals.pluginAddress',
+      //   proposalIndex: '$subProposals.proposalIndex',
+      //   network: '$network',
+      //   as: 'subProposals',
+      // }),
     ]
 
     if (extraParams.daoInfo) {
