@@ -44,7 +44,7 @@ describe('Manual: DbTx', () => {
       balanceToIncrease.map(async ({ amount, blockNumber }) => {
         return DbTx.executeTxFn(async ({ session }) => {
           balanceDb = await Models.MemberBalance.findById(balanceDb._id, null, { session })
-          await balanceDb.increaseBalance(amount, blockNumber, { session })
+          await balanceDb.increaseBalance({ amount, blockNumber }, { session })
         })
       }),
     )

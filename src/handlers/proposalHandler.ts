@@ -52,8 +52,12 @@ export const ProposalHandler = {
             event: ITokenVotingLogs.ProposalCreated,
             topic: new Interface(TokenVoting.abi).getEvent(ITokenVotingLogs.ProposalCreated)?.topicHash!,
             enableHistorical: false,
-            abi: TokenVoting.abi,
-            handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {},
+            config: [
+              {
+                abi: TokenVoting.abi,
+                handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {},
+              },
+            ],
           },
         ],
       })
@@ -84,18 +88,20 @@ export const ProposalHandler = {
 
         if (!relatedPlugin) {
           logger.warn('Plugin not found', llo(info))
-          return
+          return { newProposal: undefined, relatedPlugin: undefined }
         }
 
         info.interfaceType = relatedPlugin.interfaceType
         const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
-        const proposalIndex = parsedEvent.args.proposalId.toString()
+        const proposalIndex = parsedEvent.args?.proposalId?.toString()
         const existingLog = await Models.Proposal.findExistingLog({
           transactionHash: info.transactionHash,
           pluginAddress,
           proposalIndex,
         })
-        if (existingLog) return
+        if (existingLog) {
+          return { newProposal: undefined, relatedPlugin: undefined }
+        }
 
         const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
         const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
@@ -196,6 +202,8 @@ export const ProposalHandler = {
 
         return { newProposal, relatedPlugin }
       })
+
+      if (!newProposal || !relatedPlugin) return
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
       await ProxyMember.updateActivity({

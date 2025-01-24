@@ -7,6 +7,7 @@ import utils from '@helpers/utils'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import EventListener from '@modules/eventListener'
 import { SyncAll } from '@indexer/syncAll'
+import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
@@ -19,6 +20,10 @@ const AragonIndexerService: IService & { repeaters: any } = {
     logger.info('IndexerService historical started', llo({}))
 
     const networks = NetworkHelper.supportedNetworks()
+
+    await CustomInstall.install()
+
+    logger.info('CustomInstall end', llo({}))
 
     await Promise.all(
       networks.map(async ({ networkName }) => {

@@ -21,6 +21,12 @@ export interface IQueueDao {
   blockNumber?: number
 }
 
+export interface IQueuePlugin {
+  address: HexAddress
+  network: NetworksEnum
+  isHistorical?: boolean
+}
+
 export interface IQueueContractInfo {
   address: HexAddress
   network: NetworksEnum

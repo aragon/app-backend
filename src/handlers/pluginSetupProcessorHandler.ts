@@ -18,6 +18,7 @@ import DbOperations from '@models/utils/dbOperations'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { RabbitMQHelper } from '@helpers/radditMQ'
+import GaugeHelper from '@helpers/gauge'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
 
@@ -97,9 +98,17 @@ export const PluginSetupProcessorHandler = {
           const memberShipAnnouncedLog = parsedMembershipAnnouncedLogs.find(
             (parsed: any) => parsed[installationPreparingLog.parsed.args.plugin],
           )
-          const tokenAddress = memberShipAnnouncedLog
-            ? memberShipAnnouncedLog[installationPreparingLog.parsed.args.plugin]
-            : undefined
+
+          const { plugin } = installationPreparingLog.parsed.args
+
+          // TODO: make this better
+          // Get token address from standard plugin
+          let tokenAddress = memberShipAnnouncedLog?.[plugin]
+
+          if (!tokenAddress) {
+            // try to get token address from gauge plugin
+            tokenAddress = await GaugeHelper.getTokenAddress(plugin, info.network)
+          }
 
           await PluginSetupProcessorHandler.handleSingleInstallationPrepared(
             installationPreparingLog,
@@ -209,7 +218,7 @@ export const PluginSetupProcessorHandler = {
 
         await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
           id: pluginDb.address,
-          params: { address: pluginDb.address, network: pluginDb.network },
+          params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
         })
       }
     } else if (pluginDb?.interfaceType === IPluginInterfaceType.admin) {
@@ -217,7 +226,15 @@ export const PluginSetupProcessorHandler = {
       if (isHistorical) {
         await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
           id: pluginDb.address,
-          params: { address: pluginDb.address, network: pluginDb.network },
+          params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
+        })
+      }
+    } else if (pluginDb?.interfaceType === IPluginInterfaceType.gauge) {
+      await PluginSettingHandler.isSupported(pluginDb, info)
+      if (isHistorical) {
+        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+          id: pluginDb.address,
+          params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
         })
       }
     }

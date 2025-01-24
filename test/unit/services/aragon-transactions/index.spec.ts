@@ -10,7 +10,7 @@ import { TaskSchedulerState } from '@state/taskSchedulerState'
 import BottleneckModule from '@modules/bottleneck'
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 
-describe('aragon-transactions: index', () => {
+describe('AragonTransactions: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

@@ -29,7 +29,7 @@ describe('Modules: ProxyToken', () => {
       type: ITokenType.ERC20,
       address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
       logo: 'fake-logo',
-      name: 'ethereum',
+      name: NetworksEnum.ethereumMainnet,
       symbol: 'WETH',
       decimals: 18,
       holders: 10,

@@ -1,13 +1,6 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import {
-  EnumQueueName,
-  type HexAddress,
-  type ITokenMetrics,
-  type ITokenRate,
-  ITokenType,
-  type NetworksEnum,
-} from '@types'
+import { type HexAddress, type ITokenMetrics, type ITokenRate, ITokenType, type NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -33,7 +26,7 @@ export const ProxyToken = {
   saveAndGetToken: async (
     tokenAddress: HexAddress,
     network: NetworksEnum,
-    forceUpdate = false,
+    forceUpdate: boolean = false,
   ): Promise<null | Token> => {
     return await DbTx.executeTxFn(async ({ session }) => {
       const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
@@ -71,7 +64,7 @@ export const ProxyToken = {
       updates.priceUsd = tokenRate.priceUsd
       updates.priceChangeOnDayUsd = tokenRate.priceChangeOnDayUsd
 
-      if (token.type === ITokenType.GovernanceERC20) {
+      if (token.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(token.address, token.network)) {
         const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
         updates.holders = metrics.totalHolders
         updates.totalSupply = metrics.totalSupply
@@ -91,12 +84,13 @@ export const ProxyToken = {
   createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum, session?: ClientSession): Promise<Token> => {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
     const tokenRate = await RateModule.fetchRate(tokenAddress, network)
-    const contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
+    let contractDeployInfo: any = { transactionHash: null, blockNumber: 0 }
 
     let tokenMetrics: ITokenMetrics = { totalHolders: 0, totalSupply: '0' }
 
-    if (tokenTypeInfo?.type === ITokenType.GovernanceERC20) {
+    if (tokenTypeInfo?.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(tokenAddress, network)) {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
+      contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
       if (tokenMetrics.totalSupply === '0' && tokenMetrics.totalHolders === 0) {
         await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
           id: tokenAddress,
@@ -116,6 +110,7 @@ export const ProxyToken = {
       implementationAddress: tokenTypeInfo?.implementationAddress!,
       network,
       lastUpdatedAt: dayjs.utc().toDate(),
+      mintableByDao: await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session),
       skipFetchRate: ProxyToken.shouldSkipFetch(
         {
           ...tokenRate,
