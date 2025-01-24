@@ -18,7 +18,7 @@ describe('tokenInfo', () => {
     sandbox.restore()
   })
 
-  describe.only('fetchMetrics', () => {
+  describe('fetchMetrics', () => {
     it('should update token metrics in the database', async () => {
       const tokenAddress = '0xTokenAddress'
       const network = NetworksEnum.ethereumSepolia
