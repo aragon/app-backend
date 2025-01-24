@@ -13,7 +13,7 @@ import { ContractInfo } from '@services/aragon-dao/contractInfo'
 import { MemberInfo } from '@services/aragon-dao/memberInfo'
 import { VoteInfo } from '@services/aragon-dao/voteInfo'
 
-describe('aragon-dao: index', () => {
+describe('AragonDao: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

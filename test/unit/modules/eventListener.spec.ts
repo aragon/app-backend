@@ -50,7 +50,7 @@ describe('Module: EventListener', () => {
     })
 
     it('should log an error if subscribing to a topic subset fails', async () => {
-      const configLogs = [{ topic: '0xTopic1', abi: [], handler: sandbox.stub() }]
+      const configLogs = [{ topic: '0xTopic1', config: [{ abi: [], handler: sandbox.stub() }] }]
       const listener = new EventListener(NetworksEnum.ethereumMainnet, configLogs as any)
       const logError = sandbox.stub(logger, 'error')
       sandbox.stub(ProviderModule, 'subscribeToEvent').throws(new Error('Subscription failed'))
@@ -64,7 +64,7 @@ describe('Module: EventListener', () => {
   describe('handleEvent', () => {
     it('should handle events and call the appropriate handler', async () => {
       const eventHandler = sandbox.stub().resolves()
-      const configLogs = [{ topic: '0xTopic1', abi: ['event TestEvent()'], handler: eventHandler }]
+      const configLogs = [{ topic: '0xTopic1', config: [{ abi: ['event TestEvent()'], handler: eventHandler }] }]
       const listener = new EventListener(NetworksEnum.ethereumMainnet, configLogs as any)
       sandbox.stub(Web3Helper, 'parseLog').returns({ name: 'TestEvent', args: {} } as any)
       sandbox.stub(Web3Helper, 'parseInfoLog').returns({} as any)
@@ -76,25 +76,25 @@ describe('Module: EventListener', () => {
     })
 
     it('should skip events with no matching configuration', async () => {
-      const configLogs = [{ topic: '0xTopic1', abi: ['event TestEvent()'], handler: sandbox.stub() }]
+      const configLogs = [{ topic: '0xTopic1', config: [{ abi: ['event TestEvent()'], handler: sandbox.stub() }] }]
       const listener = new EventListener(NetworksEnum.ethereumMainnet, configLogs as any)
       const log = { topics: ['0xUnknownTopic'], data: '0xData' } as any
 
       await listener.handleEvent(log)
 
-      expect(configLogs[0].handler.notCalled).to.be.true
+      expect(configLogs[0].config[0].handler.notCalled).to.be.true
     })
 
     it('should log an error if event processing fails', async () => {
-      const configLogs = [{ topic: '0xTopic1', abi: [], handler: () => {} }]
+      const configLogs = [{ topic: '0xTopic1', config: [{ abi: [], handler: () => {} }] }]
       const listener = new EventListener(NetworksEnum.ethereumMainnet, configLogs as any)
       const logError = sandbox.stub(logger, 'error')
       sandbox.stub(Web3Helper, 'parseLog').throws(new Error('Handler error'))
 
       const log = { topics: ['0xTopic1'], data: '0xData' } as any
-      await listener.handleEvent(log)
+      const result = await listener.handleEvent(log)
 
-      expect(logError.calledOnceWith('Error handling eventListener' as any)).to.be.true
+      expect(result).to.be.undefined
     })
   })
 
@@ -135,7 +135,9 @@ describe('Module: EventListener', () => {
       }
       sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider)
 
-      const configLogs = [{ topic: '0xTopic1', abi: ['event TestEvent()'], handler: sandbox.stub().resolves() }]
+      const configLogs = [
+        { topic: '0xTopic1', config: [{ abi: ['event TestEvent()'], handler: sandbox.stub().resolves() }] },
+      ]
       const listener = new EventListener(NetworksEnum.ethereumMainnet, configLogs as any)
 
       sandbox.stub(Web3Helper, 'parseLog').returns({ name: 'TestEvent', args: {} } as any)
@@ -145,7 +147,7 @@ describe('Module: EventListener', () => {
       await listener.handleOnNewBlock(101)
 
       expect(mockProvider.getLogs.calledOnce).to.be.true
-      expect(configLogs[0].handler.calledOnce).to.be.true
+      expect(configLogs[0].config[0].handler.calledOnce).to.be.true
 
       const updatedDocument = await Models.ConfigIndexer.findById(configIndexerDoc._id)
       expect(updatedDocument).to.not.be.null

@@ -7,7 +7,7 @@ import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ProxyToken } from '@modules/proxyToken'
 
-describe('Plugins: LogTokenVoting', () => {
+describe('AragonPlugins: LogTokenVoting', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

@@ -12,6 +12,11 @@ export enum IEnumNodeEnv {
   production = 'production',
 }
 
+interface ITokenData {
+  address: string
+  network: NetworksEnum
+}
+
 export interface IConfig {
   APP_NAME: string
   ENVIRONMENT: IEnumEnvironment
@@ -25,6 +30,7 @@ export interface IConfig {
     ETHEREUM_MAINNET: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -32,6 +38,7 @@ export interface IConfig {
     ETHEREUM_SEPOLIA: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -39,6 +46,7 @@ export interface IConfig {
     POLYGON_MAINNET: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -46,6 +54,7 @@ export interface IConfig {
     BASE_MAINNET: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -53,6 +62,7 @@ export interface IConfig {
     ARBITRUM_MAINNET: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -60,6 +70,7 @@ export interface IConfig {
     ZKSYNC_SEPOLIA: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -67,6 +78,7 @@ export interface IConfig {
     ZKSYNC_MAINNET: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -74,6 +86,8 @@ export interface IConfig {
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
+  WHITELIST_TOKENS: ITokenData[]
+  CUSTOM_INSTALL: boolean
   DEFAULT_CURRENCY: string
   RABBITMQ: {
     URI: string

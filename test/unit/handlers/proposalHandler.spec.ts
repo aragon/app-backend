@@ -23,23 +23,24 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 
 describe('Indexer: ProposalHandler', () => {
   let sandbox: SinonSandbox
+  let intervalTime: number
+  let network: NetworksEnum = NetworksEnum.ethereumMainnet
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    network = NetworksEnum.ethereumMainnet
+    intervalTime = config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME
+    config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = 0
   })
 
-  afterEach(async () => {
-    sandbox?.restore()
+  afterEach(() => {
+    sandbox.restore()
+    config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = intervalTime
   })
 
   describe('proposalCreated', () => {
     it('should handle tokenVoting proposalCreated', async () => {
       const metadataUri = 'ipfs://metadata-uri'
-      const network = NetworksEnum.ethereumMainnet
-
-      const backupTime = config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME
-      config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = 0
-
       const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0xplugin-address',
@@ -75,7 +76,7 @@ describe('Indexer: ProposalHandler', () => {
         description: 'Proposal Description',
         summary: 'Proposal Summary',
         resources: [],
-        media: [],
+        media: {},
       }
 
       const settings = {
@@ -144,16 +145,10 @@ describe('Indexer: ProposalHandler', () => {
       expect(stubActions.calledOnce).to.be.true
       expect(stubMemberMetrics.calledOnce).to.be.true
       expect(stubDaoMetrics.calledOnce).to.be.true
-
-      config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = backupTime
     })
 
     it('should handle admin proposalCreated', async () => {
       const metadataUri = 'ipfs://metadata-uri'
-      const network = NetworksEnum.ethereumMainnet
-
-      const backupTime = config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME
-      config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = 0
 
       const info: ILogInfo = {
         transactionHash: '0xadmin-tx',
@@ -190,16 +185,21 @@ describe('Indexer: ProposalHandler', () => {
         description: 'Admin Proposal Description',
         summary: 'Admin Proposal Summary',
         resources: [],
-        media: [],
+        media: {},
+      }
+
+      const settings = {
+        tokenAddress: '0xtoken-address',
       }
 
       sandbox.stub(DecodeActions.prototype, 'parseContractNetspec')
       sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'extractMetadataUri').returns(metadataUri)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
-      sandbox.stub(IPFSModule, 'fetchMetadata').resolves(proposalMetadata)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
       sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({
         startDate: 0,
         endDate: 0,
@@ -250,13 +250,9 @@ describe('Indexer: ProposalHandler', () => {
       expect(stubPair.calledOnce).to.be.true
       expect(stubActions.calledOnce).to.be.true
       expect(stubDaoMetrics.calledOnce).to.be.true
-
-      // Reset configuration
-      config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = backupTime
     })
 
     it('Plugin not found', async () => {
-      const network = NetworksEnum.ethereumMainnet
       const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0xplugin-address',
@@ -276,7 +272,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const stubLogger = sandbox.stub(logger, 'warn')
-      sandbox.stub(Models.LogPluginSetupProcessor, 'findByPluginAddress').resolves(false)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(false)
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -284,7 +280,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('proposalCreated throw error', async () => {
-      const network = NetworksEnum.ethereumMainnet
       const info: ILogInfo = {
         transactionHash: '0x123',
         address: '0xplugin-address',
@@ -303,9 +298,8 @@ describe('Indexer: ProposalHandler', () => {
         },
       }
 
-      sandbox.stub(Web3Helper, 'extractMetadataUri').rejects(new Error('error'))
+      sandbox.stub(Models.Plugin, 'findByAddress').rejects(new Error('error'))
       const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -315,8 +309,6 @@ describe('Indexer: ProposalHandler', () => {
 
   describe('approved', () => {
     it('should return when plugin is not supported', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xApprovedTx',
         address: '0xplugin-address',
@@ -351,8 +343,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should handle approved event', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xApprovedTx',
         address: '0xplugin-address',
@@ -422,8 +412,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log a warning if the proposal is not found', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xApprovedTx',
         address: '0xplugin-address',
@@ -453,8 +441,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log an error if an exception occurs', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xApprovedTx',
         address: '0xplugin-address',
@@ -483,8 +469,6 @@ describe('Indexer: ProposalHandler', () => {
 
   describe('voteCast', () => {
     it('should handle voteCast and save a new vote', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xVoteTx',
         address: '0xplugin-address',
@@ -560,8 +544,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should handle replacing an existing vote', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xReplaceVoteTx',
         address: '0xplugin-address',
@@ -621,8 +603,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log a warning if the plugin is not found', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xMissingPluginTx',
         address: '0xplugin-address',
@@ -651,8 +631,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log a warning if the proposal is not found', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xMissingProposalTx',
         address: '0xplugin-address',
@@ -682,8 +660,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log an error if an exception occurs', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xErrorTx',
         address: '0xplugin-address',
@@ -769,8 +745,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log a warning if the proposal is not found', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xExecutedTx',
         address: '0xplugin-address',
@@ -797,8 +771,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log an error if an exception occurs', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xExecutedTx',
         address: '0xplugin-address',
@@ -824,8 +796,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should do nothing if proposal is already executed', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xExecutedTx',
         address: '0xplugin-address',
@@ -872,7 +842,7 @@ describe('Indexer: ProposalHandler', () => {
         description: 'Proposal Description',
         summary: 'Proposal Summary',
         resources: [],
-        media: [] as any,
+        media: {} as any,
       }
 
       const fetchMetadataStub = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeIpfsMetadata)
@@ -901,11 +871,10 @@ describe('Indexer: ProposalHandler', () => {
 
   describe('proposalAdvanced', async () => {
     it('should update parent and sub-proposals correctly on stage advance', async () => {
-      const network = NetworksEnum.polygonMainnet
-
       // Pre-populate parent proposal
       const parentProposal = await Models.Proposal.create({
         ...(ProposalList[0] as any),
+        network,
         subProposals: [],
         stageExecutions: [],
       })
@@ -914,6 +883,7 @@ describe('Indexer: ProposalHandler', () => {
       const subProposal = await Models.Proposal.create({
         ...ProposalList[1],
         executed: { status: false },
+        network,
         parentProposal: {
           proposalIndex: parentProposal.proposalIndex,
           pluginAddress: parentProposal.pluginAddress,
@@ -936,6 +906,7 @@ describe('Indexer: ProposalHandler', () => {
       // Create plugin with subPlugins configuration
       const plugin = await Models.Plugin.create({
         ...(PluginList[0] as any),
+        network,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: [subProposal.pluginAddress] }],
       })
@@ -1014,8 +985,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log a warning when the proposal is not found', async () => {
-      const network = NetworksEnum.polygonMainnet
-
       const info = {
         transactionHash: '0xTx',
         address: '0xInvalidPlugin',
@@ -1037,8 +1006,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should skip sub-proposals already executed', async () => {
-      const network = NetworksEnum.polygonMainnet
-
       const parentProposal = await Models.Proposal.create({
         ...(ProposalList[0] as any),
         subProposals: [],
@@ -1089,8 +1056,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log an error when subPlugins are missing for the stage', async () => {
-      const network = NetworksEnum.polygonMainnet
-
       const parentProposal = await Models.Proposal.create({
         ...(ProposalList[0] as any),
         subProposals: [],
@@ -1124,11 +1089,10 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log a warning if the sub-proposal already exists', async () => {
-      const network = NetworksEnum.polygonMainnet
-
       // Create and populate the parent proposal
       const parentProposal = await Models.Proposal.create({
         ...(ProposalList[0] as any),
+        network,
         subProposals: [],
         stageExecutions: [],
       })
@@ -1157,6 +1121,7 @@ describe('Indexer: ProposalHandler', () => {
 
       const plugin = await Models.Plugin.create({
         ...(PluginList[0] as any),
+        network,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: ['0xPluginAddress'] }],
       })
@@ -1192,15 +1157,15 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log an error when ProposalHelper.getSppSubPluginProposals fails', async () => {
-      const network = NetworksEnum.polygonMainnet
-
       const parentProposal = await Models.Proposal.create({
         ...(ProposalList[0] as any),
+        network,
         subProposals: [],
       })
 
       await Models.Plugin.create({
         ...(PluginList[0] as any),
+        network,
         address: parentProposal.pluginAddress,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: ['0xPluginAddress'] }],
@@ -1227,8 +1192,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log an error if an exception occurs', async () => {
-      const network = NetworksEnum.polygonMainnet
-
       const info = {
         transactionHash: '0xAdvancedTx',
         address: '0xPluginAddress',
@@ -1252,7 +1215,6 @@ describe('Indexer: ProposalHandler', () => {
 
   describe('handleStartEndDate', () => {
     it('should return startDate and endDate from ProposalHelper response', async () => {
-      const network = NetworksEnum.polygonMainnet
       const fakeProposal: any = {
         proposalIndex: '1',
         network,
@@ -1283,7 +1245,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should return 0 for startDate and endDate if response is undefined', async () => {
-      const network = NetworksEnum.polygonMainnet
       const fakeProposal: any = {
         proposalIndex: '1',
         network,
@@ -1307,7 +1268,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should return 0 for startDate and endDate if parameters are undefined', async () => {
-      const network = NetworksEnum.polygonMainnet
       const fakeProposal: any = {
         proposalIndex: '1',
         network,
@@ -1336,7 +1296,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should return 0 for startDate and endDate if startDate and endDate are missing', async () => {
-      const network = NetworksEnum.polygonMainnet
       const fakeProposal: any = {
         proposalIndex: '1',
         network,
@@ -1464,7 +1423,7 @@ describe('Indexer: ProposalHandler', () => {
       const proposal = await Models.Proposal.create({
         ...(ProposalList[0] as any),
         proposalIndex: '1',
-        network: NetworksEnum.ethereumMainnet,
+        network,
         pluginAddress: '0xPluginAddress',
       })
 
@@ -1538,7 +1497,7 @@ describe('Indexer: ProposalHandler', () => {
       const proposal = await Models.Proposal.create({
         ...(ProposalList[0] as any),
         proposalIndex: '1',
-        network: NetworksEnum.ethereumMainnet,
+        network,
         pluginAddress: '0xPluginAddress',
         transactionHash: '0xTxHash',
       })
@@ -1572,7 +1531,7 @@ describe('Indexer: ProposalHandler', () => {
       const proposal = await Models.Proposal.create({
         ...(ProposalList[0] as any),
         proposalIndex: '1',
-        network: NetworksEnum.ethereumMainnet,
+        network,
         pluginAddress: '0xPluginAddress',
         transactionHash: '0xTxHash',
       })
@@ -1598,7 +1557,7 @@ describe('Indexer: ProposalHandler', () => {
         ...(ProposalList[0] as any),
         proposalIndex: '1',
         transactionHash: '0xTxHash',
-        network: NetworksEnum.ethereumMainnet,
+        network,
         pluginAddress: '0xPluginAddress',
       })
 
@@ -1626,7 +1585,7 @@ describe('Indexer: ProposalHandler', () => {
       const proposal = await Models.Proposal.create({
         ...(ProposalList[0] as any),
         proposalIndex: '1',
-        network: NetworksEnum.ethereumMainnet,
+        network,
         pluginAddress: '0xPluginAddress',
       })
 
@@ -1649,8 +1608,6 @@ describe('Indexer: ProposalHandler', () => {
 
   describe('proposalCanceled', () => {
     it('should update the proposal as canceled', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xCanceledTx',
         address: '0xplugin-address',
@@ -1699,8 +1656,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log a warning if the proposal is not found', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xCanceledTx',
         address: '0xplugin-address',
@@ -1726,8 +1681,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log an error if an exception occurs', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xErrorTx',
         address: '0xplugin-address',
@@ -1755,8 +1708,6 @@ describe('Indexer: ProposalHandler', () => {
 
   describe('proposalEdited', () => {
     it('should update the proposal metadata and actions', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xEditedTx',
         address: '0xplugin-address',
@@ -1836,8 +1787,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log a warning if the proposal is not found', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xEditedTx',
         address: '0xplugin-address',
@@ -1864,8 +1813,6 @@ describe('Indexer: ProposalHandler', () => {
     })
 
     it('should log an error if an exception occurs', async () => {
-      const network = NetworksEnum.ethereumMainnet
-
       const info: ILogInfo = {
         transactionHash: '0xErrorTx',
         address: '0xplugin-address',
@@ -1904,7 +1851,7 @@ describe('Indexer: ProposalHandler', () => {
       const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([])
       const result = await ProposalHandler.findIncrementalId({
         pluginAddress: '0xPlugin',
-        network: NetworksEnum.ethereumSepolia,
+        network,
         proposalIndex: '0',
       } as any)
 
@@ -1931,7 +1878,7 @@ describe('Indexer: ProposalHandler', () => {
 
       const result = await ProposalHandler.findIncrementalId({
         pluginAddress: '0xPlugin',
-        network: NetworksEnum.ethereumSepolia,
+        network,
         proposalIndex: '2',
       } as any)
 

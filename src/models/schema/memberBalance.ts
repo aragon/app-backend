@@ -37,6 +37,9 @@ export default class MemberBalance extends Model {
   @prop({ type: () => String, default: '0' })
   public amount!: string
 
+  @prop({ type: () => [Number], default: [] })
+  public tokenIds!: number[]
+
   @prop({ type: () => String, default: '0' })
   public votingPower!: string
 
@@ -110,15 +113,45 @@ export default class MemberBalance extends Model {
     return await this.save(tOpts)
   }
 
-  async increaseBalance(amount: string, blockNumber: number, tOpts?: SaveOptions) {
+  async increaseBalance(
+    {
+      amount,
+      blockNumber,
+      tokenId,
+    }: {
+      amount: string
+      blockNumber: number
+      tokenId?: number
+    },
+    tOpts?: SaveOptions,
+  ) {
     const currentBalance = BigInt(this.amount)
     const increment = BigInt(amount)
     this.amount = (currentBalance + increment).toString()
     this.lastSyncAmountBlockNumber = blockNumber
+
+    if (!this.tokenIds) {
+      this.tokenIds = []
+    }
+
+    if (tokenId !== undefined && !this.tokenIds.includes(tokenId)) {
+      this.tokenIds.push(tokenId)
+    }
     return await this.save(tOpts)
   }
 
-  async decreaseBalance(amount: string, blockNumber: number, tOpts?: SaveOptions) {
+  async decreaseBalance(
+    {
+      amount,
+      blockNumber,
+      tokenId,
+    }: {
+      amount: string
+      blockNumber: number
+      tokenId?: number
+    },
+    tOpts?: SaveOptions,
+  ) {
     const currentBalance = BigInt(this.amount)
     const decrement = BigInt(amount)
 
@@ -128,6 +161,15 @@ export default class MemberBalance extends Model {
 
     this.amount = (currentBalance - decrement).toString()
     this.lastSyncAmountBlockNumber = blockNumber
+
+    if (!this.tokenIds) {
+      this.tokenIds = []
+    }
+
+    if (tokenId !== undefined && this.tokenIds.includes(tokenId)) {
+      this.tokenIds = this.tokenIds.filter(id => id !== tokenId)
+    }
+
     return await this.save(tOpts)
   }
 

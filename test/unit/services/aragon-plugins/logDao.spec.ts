@@ -6,7 +6,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 
-describe('Plugins: LogDao', () => {
+describe('AragonPlugins: LogDao', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
