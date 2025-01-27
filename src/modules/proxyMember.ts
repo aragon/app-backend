@@ -191,7 +191,7 @@ export const ProxyMember = {
     memberAddress: HexAddress
     daoAddress: HexAddress
     pluginAddress: HexAddress
-    tokenAddress: HexAddress
+    tokenAddress?: HexAddress
     network: NetworksEnum
   }): Promise<Member | null> => {
     const memberAddress = Web3Helper.parseAddress(params.memberAddress)
@@ -231,7 +231,7 @@ export const ProxyMember = {
     memberAddress: HexAddress
     daoAddress: HexAddress
     pluginAddress: HexAddress
-    tokenAddress: HexAddress
+    tokenAddress?: HexAddress
     network: NetworksEnum
   }): Promise<Member | null> => {
     const memberAddress = Web3Helper.parseAddress(params.memberAddress)
