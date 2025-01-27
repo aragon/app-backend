@@ -42,7 +42,7 @@ describe('TokenInfo Service', () => {
         id: '123',
         address: tokenAddress,
         totalSupply: '0',
-        holders: 0
+        holders: 0,
       }
       const metricsMock = { totalSupply: '1000', totalHolders: 10 }
 
@@ -53,7 +53,6 @@ describe('TokenInfo Service', () => {
 
       expect(findByTokenAddressStub.calledWith(tokenAddress, network)).to.be.true
       expect(getTokenSupplyStub.calledWith(tokenMock, network)).to.be.true
-
     })
 
     it('should skip update when token already has valid metrics', async () => {
@@ -62,7 +61,7 @@ describe('TokenInfo Service', () => {
         id: '123',
         address: tokenAddress,
         totalSupply: '500',
-        holders: 5
+        holders: 5,
       }
 
       findByTokenAddressStub.resolves(tokenMock)
@@ -86,11 +85,11 @@ describe('TokenInfo Service', () => {
     })
 
     it('should handle polling timeout scenario', async () => {
-
       getTokenSupplyStub.resolves({ totalSupply: '0', totalHolders: 0 })
 
-      await expect(TokenMetrics.pollWithRetry(tokenAddress, network, { intervalMs: 100, timeoutMs: 500 }))
-        .to.be.rejectedWith(/Token metrics polling timed out after \d+ms/)
+      await expect(
+        TokenMetrics.pollWithRetry(tokenAddress, network, { intervalMs: 100, timeoutMs: 500 }),
+      ).to.be.rejectedWith(/Token metrics polling timed out after \d+ms/)
     })
 
     it('should handle API errors during metrics fetch', async () => {
@@ -99,14 +98,13 @@ describe('TokenInfo Service', () => {
         id: '123',
         address: tokenAddress,
         totalSupply: '0',
-        holders: 0
+        holders: 0,
       }
 
       findByTokenAddressStub.resolves(tokenMock)
       getTokenSupplyStub.rejects(new Error('API Error'))
 
-      await expect(TokenMetrics.pollWithRetry(tokenAddress, network))
-        .to.be.rejectedWith('API Error')
+      await expect(TokenMetrics.pollWithRetry(tokenAddress, network)).to.be.rejectedWith('API Error')
       expect(errorStub.calledOnce).to.be.true
     })
   })
