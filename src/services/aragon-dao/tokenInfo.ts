@@ -26,13 +26,14 @@ export const TokenMetrics = {
       const tokenMetrics = await TokenMetrics.pollWithRetry(tokenAddress, network)
 
       if (tokenMetrics) {
+        const tokenDB = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network)
         await DbOperations.updateDocument(
-          token,
+          tokenDB,
           {
             totalSupply: tokenMetrics.totalSupply,
             holders: tokenMetrics.totalHolders,
           },
-          { logId: token.id },
+          { logId: tokenDB.id },
           'Token Metrics Updated',
           logMeta,
         )
