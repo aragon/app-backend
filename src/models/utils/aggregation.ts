@@ -187,7 +187,9 @@ export const AggregationQueryHelper = {
         },
       },
       {
-        $unset: 'token',
+        $addFields: {
+          token: '$$REMOVE',
+        },
       },
     )
 
