@@ -212,6 +212,10 @@ export default class Plugin extends Model {
     return await this.findOne({ tokenAddress, network }, null, tOpts)
   }
 
+  static async findAllByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return await this.find({ tokenAddress, network }, null, tOpts)
+  }
+
   static async findActivePluginByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum) {
     return await this.findOne({
       tokenAddress,

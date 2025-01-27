@@ -62,17 +62,34 @@ describe('Model: DaoMemberMappings', () => {
     expect(createdConfigIndexer.pluginAddress).to.eq(fakeDaoMemberMapping.pluginAddress)
   })
 
-  it('Should findMapping', async () => {
-    const [fakeDaoMemberMapping] = rawDaoMemberMapping
-    const createdDaoMapping = await Models.DaoMemberMapping.create(fakeDaoMemberMapping)
-    const foundLogDao = await Models.DaoMemberMapping.findMapping({
-      memberAddress: fakeDaoMemberMapping.memberAddress,
-      daoAddress: fakeDaoMemberMapping.daoAddress,
-      pluginAddress: fakeDaoMemberMapping.pluginAddress,
-      tokenAddress: fakeDaoMemberMapping.tokenAddress,
-      network: fakeDaoMemberMapping.network,
-    } as any)
-    expect(foundLogDao?.network).to.eq(createdDaoMapping.network)
+  describe('findMapping', () => {
+    it('Should findMapping', async () => {
+      const [fakeDaoMemberMapping] = rawDaoMemberMapping
+      const createdDaoMapping = await Models.DaoMemberMapping.create({
+        ...fakeDaoMemberMapping,
+        tokenAddress: '0xToken',
+      })
+      const foundLogDao = await Models.DaoMemberMapping.findMapping({
+        memberAddress: fakeDaoMemberMapping.memberAddress,
+        daoAddress: fakeDaoMemberMapping.daoAddress,
+        pluginAddress: fakeDaoMemberMapping.pluginAddress,
+        tokenAddress: '0xToken',
+        network: fakeDaoMemberMapping.network,
+      } as any)
+      expect(foundLogDao?.network).to.eq(createdDaoMapping.network)
+    })
+
+    it('should find mapping if no token address is passed', async () => {
+      const [fakeDaoMemberMapping] = rawDaoMemberMapping
+      const createdDaoMapping = await Models.DaoMemberMapping.create(fakeDaoMemberMapping)
+      const foundLogDao = await Models.DaoMemberMapping.findMapping({
+        memberAddress: fakeDaoMemberMapping.memberAddress,
+        daoAddress: fakeDaoMemberMapping.daoAddress,
+        pluginAddress: fakeDaoMemberMapping.pluginAddress,
+        network: fakeDaoMemberMapping.network,
+      } as any)
+      expect(foundLogDao?.network).to.eq(createdDaoMapping.network)
+    })
   })
 
   it('Should findAllMembersOfPlugin', async () => {

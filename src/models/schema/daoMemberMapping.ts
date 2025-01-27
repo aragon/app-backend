@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, ICollectionNames, NetworksEnum } from '@types'
+import { HexAddress, type IDaoMemberMappingData, ICollectionNames, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 
@@ -45,20 +45,20 @@ export default class DaoMemberMapping extends Model {
   }
 
   static async findMapping(
-    {
+    { memberAddress, daoAddress, pluginAddress, tokenAddress, network }: IDaoMemberMappingData,
+    tOpts?: SaveOptions,
+  ) {
+    const params: IDaoMemberMappingData = {
       memberAddress,
       daoAddress,
       pluginAddress,
       network,
-    }: {
-      memberAddress: HexAddress
-      daoAddress: HexAddress
-      pluginAddress: HexAddress
-      network: NetworksEnum
-    },
-    tOpts?: SaveOptions,
-  ) {
-    return await this.findOne({ memberAddress, daoAddress, pluginAddress, network }, null, tOpts)
+    }
+
+    if (tokenAddress) {
+      params.tokenAddress = tokenAddress
+    }
+    return this.findOne(params, null, tOpts)
   }
 
   static async findAllMembersOfPlugin(
