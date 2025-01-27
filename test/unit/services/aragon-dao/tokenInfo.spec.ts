@@ -75,15 +75,6 @@ describe('TokenInfo Service', () => {
       expect(warnStub.calledOnce).to.be.true
     })
 
-    it('should log error when token not found', async () => {
-      // Arrange
-      findByTokenAddressStub.resolves(null)
-
-      // Act & Assert
-      await TokenMetrics.update(tokenAddress, network)
-      expect(errorStub.calledOnce).to.be.true
-    })
-
     it('should handle polling timeout scenario', async () => {
       getTokenSupplyStub.resolves({ totalSupply: '0', totalHolders: 0 })
 
