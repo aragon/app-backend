@@ -45,7 +45,7 @@ export const TokenMetrics = {
   async pollWithRetry(
     tokenAddress: string,
     network: NetworksEnum,
-    options: PollingOptions = { intervalMs: 15000, timeoutMs: 600000 },
+    options: PollingOptions = { intervalMs: 60000, timeoutMs: 600000 }, // interval 1 minute, timeout 10 minutes for safety
   ): Promise<ITokenMetrics | undefined> {
     const { intervalMs, timeoutMs } = options
     const startTime = Date.now()
