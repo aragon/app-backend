@@ -8,7 +8,7 @@ import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import logger from '@logger'
 
-describe('TokenInfo Service', () => {
+describe.only('TokenInfo Service', () => {
   let sandbox: SinonSandbox
   const tokenAddress = '0xTokenAddress'
   const network = NetworksEnum.ethereumSepolia
@@ -53,6 +53,23 @@ describe('TokenInfo Service', () => {
 
       expect(findByTokenAddressStub.calledWith(tokenAddress, network)).to.be.true
       expect(getTokenSupplyStub.calledWith(tokenAddress, network)).to.be.true
+    })
+
+    it('should update when there is no initial data but later data is available', async () => {
+      const tokenMock = {
+        id: '123',
+        address: tokenAddress,
+        totalSupply: '0',
+        holders: 0,
+      }
+
+      const metricsMock = { totalSupply: '1000', totalHolders: 10 }
+      findByTokenAddressStub.resolves(null).onSecondCall().resolves(tokenMock)
+      getTokenSupplyStub.resolves(metricsMock)
+
+      await TokenMetrics.update(tokenAddress, network)
+      expect(findByTokenAddressStub.calledWith(tokenAddress, network)).to.be.true
+      expect(findByTokenAddressStub.callCount).to.equal(2)
     })
 
     it('should skip update when token already has valid metrics', async () => {
