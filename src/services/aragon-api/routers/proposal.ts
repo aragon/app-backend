@@ -15,7 +15,7 @@ import Utils from '@helpers/utils'
 
 const ProposalRouter = {
   getWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'proposalIndex' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'incrementalId' })
     const extraParams: IProposalExtraParams = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,
@@ -23,6 +23,7 @@ const ProposalRouter = {
       creatorAddress: ctx.query.creatorAddress as HexAddress,
       daoInfo: Utils.parseBoolean(ctx.query.daoInfo),
       proposalIndex: ctx.query.proposalIndex?.toString(),
+      incrementalId: ctx.query.incrementalId !== undefined ? Number(ctx.query.incrementalId || 0) : undefined,
     }
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
