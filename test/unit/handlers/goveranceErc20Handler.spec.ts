@@ -18,7 +18,7 @@ import logger from '@logger'
 import EnsHelper from '@helpers/ens'
 import { expect } from 'chai'
 
-describe.only('GovernanceErc20Handler', () => {
+describe('GovernanceErc20Handler', () => {
   let sandbox: SinonSandbox
   let intervalTime: number
   let network: NetworksEnum
