@@ -704,4 +704,10 @@ describe('Helpers:Utils', () => {
     expect(Utils.isDecimalNumber(10)).to.be.false
     expect(Utils.isDecimalNumber(1032423423)).to.be.false
   })
+
+  it.only('getUniqueValuesByKey', () => {
+    const array = [{ a: 1 }, { a: 2 }, { a: 1 }, { a: 3 }, { a: 2 }]
+    const result = Utils.getUniqueValuesByKey(array, 'a')
+    expect(result).to.deep.eq([1, 2, 3])
+  })
 })
