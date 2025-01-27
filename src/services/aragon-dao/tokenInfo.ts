@@ -18,17 +18,12 @@ export const TokenMetrics = {
     try {
       const token = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network)
 
-      if (!token) {
-        logger.error('Token not found', { tokenAddress, network, ...logMeta() })
-        return
-      }
-
-      if (TokenMetrics.hasValidMetrics(token)) {
+      if (token && TokenMetrics.hasValidMetrics(token)) {
         logger.warn('Token already has valid metrics', { tokenId: token.id, ...logMeta() })
         return
       }
 
-      const tokenMetrics = await TokenMetrics.pollWithRetry(token, network)
+      const tokenMetrics = await TokenMetrics.pollWithRetry(tokenAddress, network)
 
       if (tokenMetrics) {
         await DbOperations.updateDocument(
