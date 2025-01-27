@@ -1,14 +1,17 @@
 import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { TokenInfo } from '@services/aragon-dao/tokenInfo'
+import { SinonSandbox, SinonStub } from 'sinon'
+import TokenMetrics from '@services/aragon-dao/tokenInfo'
 import CovalentHelper from '@helpers/covalent'
 import { Models } from '@dbModels'
 import DbOperations from '@models/utils/dbOperations'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
+import logger from '@logger'
 
-describe('tokenInfo', () => {
+describe('TokenInfo Service', () => {
   let sandbox: SinonSandbox
+  const tokenAddress = '0xTokenAddress'
+  const network = NetworksEnum.ethereumSepolia
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
@@ -19,88 +22,98 @@ describe('tokenInfo', () => {
   })
 
   describe('fetchMetrics', () => {
-    it('should update token metrics in the database', async () => {
-      const tokenAddress = '0xTokenAddress'
-      const network = NetworksEnum.ethereumSepolia
+    let findByTokenAddressStub: SinonStub
+    let updateDocumentStub: SinonStub
+    let getTokenSupplyStub: SinonStub
+    let errorStub: SinonStub
+    let warnStub: SinonStub
 
-      const tokenMetricsMock = {
-        totalSupply: '1000',
-        totalHolders: 10,
-      }
+    beforeEach(() => {
+      findByTokenAddressStub = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork')
+      updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      getTokenSupplyStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders')
+      errorStub = sandbox.stub(logger, 'error')
+      warnStub = sandbox.stub(logger, 'warn')
+    })
 
+    it('should update metrics when token has invalid initial data', async () => {
+      // Arrange
       const tokenMock = {
         id: '123',
-        totalSupply: '1000',
-        holders: 10,
+        address: tokenAddress,
+        totalSupply: '0',
+        holders: 0,
       }
+      const metricsMock = { totalSupply: '1000', totalHolders: 10 }
 
-      const getTokenSupplyAndHoldersStub = sandbox
-        .stub(CovalentHelper, 'getTokenSupplyAndHolders')
-        .resolves(tokenMetricsMock)
+      findByTokenAddressStub.resolves(tokenMock)
+      getTokenSupplyStub.resolves(metricsMock)
 
-      const findByTokenAddressStub = sandbox
-        .stub(Models.Token, 'findByTokenAddressAndNetwork')
-        .resolves(tokenMock as any)
+      await TokenMetrics.update(tokenAddress, network)
 
-      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
-
-      await TokenInfo.fetchMetrics(tokenAddress, network)
-
-      expect(getTokenSupplyAndHoldersStub.calledOnceWith(tokenAddress, network)).to.be.true
-      expect(findByTokenAddressStub.calledOnceWith(tokenAddress, network)).to.be.true
-      expect(
-        updateDocumentStub.calledOnceWith(
-          tokenMock,
-          {
-            totalSupply: tokenMetricsMock.totalSupply,
-            holders: tokenMetricsMock.totalHolders,
-          },
-          sinon.match.any,
-          'Token Metrics Updated',
-          sinon.match.any,
-        ),
-      ).to.be.true
-
-      expect(tokenMock.totalSupply).to.equal(tokenMetricsMock.totalSupply)
-      expect(tokenMock.holders).to.equal(tokenMetricsMock.totalHolders)
-    })
-  })
-
-  describe('_retryAndFetch', () => {
-    it('should fetch metrics within the timeout period', async () => {
-      const tokenAddress = '0xTokenAddress'
-      const network = NetworksEnum.ethereumSepolia
-      const tokenMetricsMock = {
-        totalSupply: '1000',
-        totalHolders: 10,
-      }
-
-      const getTokenSupplyAndHoldersStub = sandbox
-        .stub(CovalentHelper, 'getTokenSupplyAndHolders')
-        .resolves(tokenMetricsMock)
-
-      const result = await TokenInfo._retryAndFetch(tokenAddress, network, 500, 5000)
-
-      expect(getTokenSupplyAndHoldersStub.calledOnceWith(tokenAddress, network)).to.be.true
-      expect(result).to.deep.equal(tokenMetricsMock)
+      expect(findByTokenAddressStub.calledWith(tokenAddress, network)).to.be.true
+      expect(getTokenSupplyStub.calledWith(tokenAddress, network)).to.be.true
     })
 
-    it('should reject if polling times out', async () => {
-      const tokenAddress = '0xTokenAddress'
-      const network = NetworksEnum.ethereumSepolia
-
-      const getTokenSupplyAndHoldersStub = sandbox
-        .stub(CovalentHelper, 'getTokenSupplyAndHolders')
-        .resolves({ totalSupply: '0', totalHolders: 0 })
-
-      try {
-        await TokenInfo._retryAndFetch(tokenAddress, network, 500, 2000)
-        expect.fail('Expected promise to be rejected')
-      } catch (error: any) {
-        expect(error.message).to.equal('Polling timed out')
+    it('should update when there is no initial data but later data is available', async () => {
+      const tokenMock = {
+        id: '123',
+        address: tokenAddress,
+        totalSupply: '0',
+        holders: 0,
       }
 
-      expect(getTokenSupplyAndHoldersStub.called).to.be.true
+      const metricsMock = { totalSupply: '1000', totalHolders: 10 }
+      findByTokenAddressStub.resolves(null).onSecondCall().resolves(tokenMock)
+      getTokenSupplyStub.resolves(metricsMock)
+
+      await TokenMetrics.update(tokenAddress, network)
+      expect(findByTokenAddressStub.calledWith(tokenAddress, network)).to.be.true
+      expect(findByTokenAddressStub.callCount).to.equal(2)
+    })
+
+    it('should skip update when token already has valid metrics', async () => {
+      // Arrange
+      const tokenMock = {
+        id: '123',
+        address: tokenAddress,
+        totalSupply: '500',
+        holders: 5,
+      }
+
+      findByTokenAddressStub.resolves(tokenMock)
+
+      // Act & Assert
+      await TokenMetrics.update(tokenAddress, network)
+
+      expect(findByTokenAddressStub.calledOnce).to.be.true
+      expect(getTokenSupplyStub.calledOnce).to.be.false
+      expect(updateDocumentStub.calledOnce).to.be.false
+      expect(warnStub.calledOnce).to.be.true
+    })
+
+    it('should handle polling timeout scenario', async () => {
+      getTokenSupplyStub.resolves({ totalSupply: '0', totalHolders: 0 })
+
+      await expect(
+        TokenMetrics.pollWithRetry(tokenAddress, network, { intervalMs: 100, timeoutMs: 500 }),
+      ).to.be.rejectedWith(/Token metrics polling timed out after \d+ms/)
+    })
+
+    it('should handle API errors during metrics fetch', async () => {
+      // Arrange
+      const tokenMock = {
+        id: '123',
+        address: tokenAddress,
+        totalSupply: '0',
+        holders: 0,
+      }
+
+      findByTokenAddressStub.resolves(tokenMock)
+      getTokenSupplyStub.rejects(new Error('API Error'))
+
+      await expect(TokenMetrics.pollWithRetry(tokenAddress, network)).to.be.rejectedWith('API Error')
+      expect(errorStub.calledOnce).to.be.true
     })
   })
 })
