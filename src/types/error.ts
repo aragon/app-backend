@@ -40,5 +40,7 @@ export enum ErrorKeyEnum {
   badParams = 'badParams',
   unknownErrorCode = 'unknownErrorCode',
   notFound = 'notFound',
+  daoNotFound = 'daoNotFound',
   pluginNotFound = 'pluginNotFound',
+  proposalNotFound = 'proposalNotFound',
 }

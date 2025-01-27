@@ -19,6 +19,10 @@ const ProposalSchema = {
     id: Joi.string().required(),
   }),
 
+  getProposalBySlug: Joi.object({
+    slug: ValidationSchema.joiSlug.required(),
+  }),
+
   getProposalByTransactionHash: Joi.object({
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
