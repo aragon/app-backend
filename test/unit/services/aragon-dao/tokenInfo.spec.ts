@@ -8,7 +8,7 @@ import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import logger from '@logger'
 
-describe.only('TokenInfo Service', () => {
+describe('TokenInfo Service', () => {
   let sandbox: SinonSandbox
   const tokenAddress = '0xTokenAddress'
   const network = NetworksEnum.ethereumSepolia
