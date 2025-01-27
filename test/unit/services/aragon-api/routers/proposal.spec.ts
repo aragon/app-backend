@@ -155,6 +155,25 @@ describe('Router: Proposal', () => {
     expect(stubCtrl.calledWith(getAddress(params.id) as any)).to.be.true
   })
 
+  it.only('Should getProposalBySlug', async () => {
+    const params = {
+      slug: 'test-1',
+    }
+
+    const stubCtrl = sandbox.stub(ProposalController, 'getProposalBySlug').returns(true as any)
+
+    const ctx: any = {
+      params,
+      query: { daoId: `${NetworksEnum.polygonMainnet}-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254` },
+    }
+
+    await ProposalRouter.getProposalBySlug(ctx)
+
+    expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+    expect(stubCtrl.calledWith(params.slug, ctx.query)).to.be.true
+  })
+
   it('should canCastVote', async () => {
     const ctx: any = {
       query: { userAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' },

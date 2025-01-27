@@ -47,6 +47,24 @@ const ProposalRouter = {
     )
   },
 
+  getProposalBySlug: async function (ctx: RouterContext) {
+    const params = {
+      slug: ctx.params.slug,
+    }
+    const pairParams: IPairParams = {
+      daoId: ctx.query.daoId as string,
+    }
+    const anyInvalidParams = Utils.extractAdditionalParams({ ...pairParams }, ctx.query)
+
+    const [formattedParams, formattedPairParams] = await Promise.all([
+      ValidationSchema.validateParams(ProposalSchema.getProposalBySlug, params),
+      ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
+
+    ctx.body = await ProposalController.getProposalBySlug(formattedParams.slug, formattedPairParams)
+  },
+
   getProposalById: async function (ctx: RouterContext) {
     const params = {
       id: ctx.params.id,
@@ -116,6 +134,16 @@ const ProposalRouter = {
      * @apiSampleRequest /:id
      */
     router.get('/:id', ProposalRouter.getProposalById)
+
+    /**
+     * @api {get} /:id Get Proposal by Slug
+     * @apiName Proposals
+     * @apiGroup Proposals
+     * @apiDescription Get Proposal by Slug
+     *
+     * @apiSampleRequest /:Slug
+     */
+    router.get('/slug/:slug', ProposalRouter.getProposalBySlug)
 
     return router
   },
