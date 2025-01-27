@@ -106,6 +106,8 @@ export const ProxyToken = {
         tokenMetrics.totalSupply === '0' &&
         tokenAddress !== utils.zeroAddress
       ) {
+        tokenMetrics.totalSupply = await Web3Helper.getTokenTotalSupply(tokenAddress, network)
+
         await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
           id: `token-metrics${tokenAddress}`,
           params: { address: tokenAddress, network },

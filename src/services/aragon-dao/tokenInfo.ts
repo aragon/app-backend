@@ -3,14 +3,34 @@ import CovalentHelper from '@helpers/covalent'
 import { Models } from '@dbModels'
 import DbOperations from '@models/utils/dbOperations'
 import logger from '@logger'
-const llo = logger.logMeta.bind(null, { service: 'tokenInfo' })
-export const TokenInfo = {
-  fetchMetrics: async (tokenAddress: string, network: NetworksEnum) => {
+import type Token from '@models/schema/token'
+import Utils from '@helpers/utils'
+
+const logMeta = logger.logMeta.bind(null, { service: 'tokenInfo' })
+
+interface PollingOptions {
+  intervalMs: number
+  timeoutMs: number
+}
+
+export const TokenMetrics = {
+  async update(tokenAddress: string, network: NetworksEnum): Promise<void> {
     try {
-      const tokenMetrics = await TokenInfo._retryAndFetch(tokenAddress, network)
       const token = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network)
 
-      if (token) {
+      if (!token) {
+        logger.error('Token not found', { tokenAddress, network, ...logMeta() })
+        return
+      }
+
+      if (TokenMetrics.hasValidMetrics(token)) {
+        logger.warn('Token already has valid metrics', { tokenId: token.id, ...logMeta() })
+        return
+      }
+
+      const tokenMetrics = await TokenMetrics.pollWithRetry(token, network)
+
+      if (tokenMetrics) {
         await DbOperations.updateDocument(
           token,
           {
@@ -19,36 +39,47 @@ export const TokenInfo = {
           },
           { logId: token.id },
           'Token Metrics Updated',
-          llo,
+          logMeta,
         )
       }
-    } catch (_error) {}
+    } catch (error) {
+      logger.error('Failed to update token metrics', { error, tokenAddress, network, ...logMeta() })
+    }
   },
 
-  _retryAndFetch: async (tokenAddress: string, network: NetworksEnum, interval = 30000, timeout = 300000) => {
-    return new Promise<ITokenMetrics>((resolve, reject) => {
-      let elapsedTime = 0
+  async pollWithRetry(
+    tokenAddress: string,
+    network: NetworksEnum,
+    options: PollingOptions = { intervalMs: 15000, timeoutMs: 600000 },
+  ): Promise<ITokenMetrics | undefined> {
+    const { intervalMs, timeoutMs } = options
+    const startTime = Date.now()
 
-      const intervalId = setInterval(async () => {
-        try {
-          const tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
+    while (Date.now() - startTime < timeoutMs) {
+      try {
+        const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
 
-          const totalSupplyNum = parseFloat(tokenMetrics.totalSupply || '0')
-          if (totalSupplyNum > 0 && (tokenMetrics.totalHolders || 0) > 0) {
-            clearInterval(intervalId)
-            return resolve(tokenMetrics)
-          }
-        } catch (error) {
-          clearInterval(intervalId)
-          return reject(error)
+        if (TokenMetrics.isValidMetrics(metrics)) {
+          return metrics
         }
+      } catch (error) {
+        logger.error('Failed to fetch token metrics', { error, ...logMeta() })
+        throw error
+      }
 
-        elapsedTime += interval
-        if (elapsedTime >= timeout) {
-          clearInterval(intervalId)
-          return reject(new Error('Polling timed out'))
-        }
-      }, interval)
-    })
+      await Utils.wait(intervalMs)
+    }
+
+    throw new Error(`Token metrics polling timed out after ${timeoutMs}ms`)
+  },
+
+  hasValidMetrics(token: Token): boolean {
+    return parseFloat(token.totalSupply) > 0 && token.holders > 0
+  },
+
+  isValidMetrics(metrics: ITokenMetrics): boolean {
+    return metrics.totalHolders > 0 && parseFloat(metrics.totalSupply) > 0
   },
 }
+
+export default TokenMetrics
