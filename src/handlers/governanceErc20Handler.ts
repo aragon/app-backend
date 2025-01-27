@@ -92,31 +92,42 @@ export const GovernanceErc20Handler = {
         blockNumber: info.blockNumber,
         network: info.network,
       })
+      const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
 
       // we always check if member receive or send the delegation to add and remove from the dao
       if (newVotingPower > 0n) {
         // add to dao
-        await ProxyMember.addToDao({
-          memberAddress,
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          network: info.network,
-        })
+        await Promise.all(
+          plugins.map(async (plg: Plugin) =>
+            ProxyMember.addToDao({
+              memberAddress,
+              daoAddress: plg.daoAddress,
+              pluginAddress: plg.address,
+              tokenAddress: plg.tokenAddress,
+              network: plg.network,
+            }),
+          ),
+        )
       } else {
+        // remove member from dao
         if (BigInt(memberBalance) === 0n && newVotingPower === 0n) {
-          // member not part of the dao anymore
-          await ProxyMember.removeFromDao({
-            memberAddress,
-            daoAddress: plugin.daoAddress,
-            pluginAddress: plugin.address,
-            network: info.network,
-          })
+          await Promise.all(
+            plugins.map(async (plg: Plugin) =>
+              ProxyMember.removeFromDao({
+                memberAddress,
+                daoAddress: plg.daoAddress,
+                pluginAddress: plg.address,
+                tokenAddress: plg.tokenAddress,
+                network: plg.network,
+              }),
+            ),
+          )
         }
       }
 
       const { from, to } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
 
-      if (from === utils.zeroAddress || to === utils.zeroAddress) {
+      if (from === utils.zeroAddress || to === utils.zeroAddress || from === to) {
         // Note we skip all delegation happened on transfer, mint, burn, etc
         return
       }
@@ -159,26 +170,30 @@ export const GovernanceErc20Handler = {
         logger.verbose('Transfer outgoing - MemberTransaction', llo({ logId: logDb?.id, info }))
       })
 
-      if (side === ITransferSide.incoming) {
-        await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
-          memberAddress,
-          pluginAddress: plugin.address,
-          network: info.network,
-        })
-      } else if (side === ITransferSide.outgoing) {
-        await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
-          memberAddress,
-          pluginAddress: plugin.address,
-          network: info.network,
-        })
-      }
+      await Promise.all(
+        plugins.map(async (plg: Plugin) => {
+          if (side === ITransferSide.incoming) {
+            await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
+              memberAddress,
+              pluginAddress: plg.address,
+              network: plg.network,
+            })
+          } else if (side === ITransferSide.outgoing) {
+            await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
+              memberAddress,
+              pluginAddress: plg.address,
+              network: plg.network,
+            })
+          }
 
-      await ProxyMember.updateActivity({
-        memberAddress,
-        pluginAddress: plugin.address,
-        network: info.network,
-        blockNumber: info.blockNumber,
-      })
+          await ProxyMember.updateActivity({
+            memberAddress,
+            pluginAddress: plugin.address,
+            network: info.network,
+            blockNumber: info.blockNumber,
+          })
+        }),
+      )
 
       // Dao metrics
       await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
@@ -284,6 +299,7 @@ export const GovernanceErc20Handler = {
           memberAddress,
           daoAddress: plugin.daoAddress,
           pluginAddress: plugin.address,
+          tokenAddress: info.address,
           network: info.network,
         })
       }
@@ -392,6 +408,7 @@ export const GovernanceErc20Handler = {
         memberAddress,
         daoAddress: plugin.daoAddress,
         pluginAddress: plugin.address,
+        tokenAddress: info.address,
         network: info.network,
       })
       logger.verbose('Transfer incoming - MemberTransaction', llo({ logId: memberTransaction?.id, info }))
@@ -419,8 +436,11 @@ export const GovernanceErc20Handler = {
         GovernanceERC20.abi,
       )
 
+      // TODO: this line is wrong
       const log = delegationChangedLogs?.find(
-        ({ parsed }: { parsed: LogDescription | null }) => parsed?.args?.delegator === parsedEvent?.args?.delegate,
+        ({ parsed }: { parsed: LogDescription | null }) =>
+          parsed?.args?.delegator === parsedEvent?.args?.delegate ||
+          parsed?.args?.toDelegate === parsedEvent?.args?.delegate,
       )
 
       if (log?.parsed?.args?.fromDelegate) {
