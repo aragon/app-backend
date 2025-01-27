@@ -1,4 +1,4 @@
-import { type HexAddress } from '@src/types/networks'
+import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
 export interface DaoResourceLink {
   name: string
@@ -97,3 +97,11 @@ export interface IProposalActionOnChain {
 }
 
 export type IProposalOnChain = IProposalTokenVotingOnChain | IProposalMultisigOnChain | IProposalSPPOnChain | null
+
+export interface IDaoMemberMappingData {
+  network: NetworksEnum
+  memberAddress: HexAddress
+  daoAddress: HexAddress
+  pluginAddress: HexAddress
+  tokenAddress?: HexAddress
+}

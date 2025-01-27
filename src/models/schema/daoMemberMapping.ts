@@ -3,6 +3,7 @@ import {
   HexAddress,
   ICollectionNames,
   type IDaoExtraParams,
+  type IDaoMemberMappingData,
   type IPaginationParams,
   IPluginStatus,
   NetworksEnum,
@@ -222,20 +223,20 @@ export default class DaoMemberMapping extends Model {
   }
 
   static async findMapping(
-    {
+    { memberAddress, daoAddress, pluginAddress, tokenAddress, network }: IDaoMemberMappingData,
+    tOpts?: SaveOptions,
+  ) {
+    const params: IDaoMemberMappingData = {
       memberAddress,
       daoAddress,
       pluginAddress,
       network,
-    }: {
-      memberAddress: HexAddress
-      daoAddress: HexAddress
-      pluginAddress: HexAddress
-      network: NetworksEnum
-    },
-    tOpts?: SaveOptions,
-  ) {
-    return await this.findOne({ memberAddress, daoAddress, pluginAddress, network }, null, tOpts)
+    }
+
+    if (tokenAddress) {
+      params.tokenAddress = tokenAddress
+    }
+    return this.findOne(params, null, tOpts)
   }
 
   static async findAllMembersOfPlugin(

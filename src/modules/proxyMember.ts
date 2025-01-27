@@ -191,6 +191,7 @@ export const ProxyMember = {
     memberAddress: HexAddress
     daoAddress: HexAddress
     pluginAddress: HexAddress
+    tokenAddress?: HexAddress
     network: NetworksEnum
   }): Promise<Member | null> => {
     const memberAddress = Web3Helper.parseAddress(params.memberAddress)
@@ -208,6 +209,7 @@ export const ProxyMember = {
           memberAddress: params.memberAddress,
           daoAddress: params.daoAddress,
           pluginAddress: params.pluginAddress,
+          tokenAddress: params.tokenAddress,
           network: params.network,
         }
         const existingDao = await Models.DaoMemberMapping.findMapping(queryParams, { session })
@@ -229,6 +231,7 @@ export const ProxyMember = {
     memberAddress: HexAddress
     daoAddress: HexAddress
     pluginAddress: HexAddress
+    tokenAddress?: HexAddress
     network: NetworksEnum
   }): Promise<Member | null> => {
     const memberAddress = Web3Helper.parseAddress(params.memberAddress)
@@ -242,6 +245,7 @@ export const ProxyMember = {
           memberAddress: params.memberAddress,
           daoAddress: params.daoAddress,
           pluginAddress: params.pluginAddress,
+          tokenAddress: params.tokenAddress,
           network: params.network,
         }
         const existingDao = await Models.DaoMemberMapping.findMapping(queryParams, { session })
