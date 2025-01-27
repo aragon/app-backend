@@ -52,7 +52,7 @@ describe('TokenInfo Service', () => {
       await TokenMetrics.update(tokenAddress, network)
 
       expect(findByTokenAddressStub.calledWith(tokenAddress, network)).to.be.true
-      expect(getTokenSupplyStub.calledWith(tokenMock, network)).to.be.true
+      expect(getTokenSupplyStub.calledWith(tokenAddress, network)).to.be.true
     })
 
     it('should skip update when token already has valid metrics', async () => {
