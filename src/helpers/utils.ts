@@ -320,6 +320,10 @@ const Utils = {
   filterArrayByProperty: (configArray: IIndexerConfig[], propertyName: string) => {
     return configArray.filter(eventConfig => eventConfig[propertyName])
   },
+
+  getUniqueValuesByKey(arr: Array<any>, columnKey: string) {
+    return [...new Set(arr.map(item => item[columnKey]))]
+  },
 }
 
 export default Utils
