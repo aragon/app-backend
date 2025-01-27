@@ -155,7 +155,7 @@ describe('Router: Proposal', () => {
     expect(stubCtrl.calledWith(getAddress(params.id) as any)).to.be.true
   })
 
-  it.only('Should getProposalBySlug', async () => {
+  it('Should getProposalBySlug', async () => {
     const params = {
       slug: 'test-1',
     }
