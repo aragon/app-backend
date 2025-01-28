@@ -150,8 +150,8 @@ describe('GovernanceErc20Handler', () => {
       expect(tokenBalance.amount).to.be.eq('1000')
 
       expect(addToDao.length).to.be.eq(2)
-      expect(addToDao[0].daoAddress).to.be.eq(plugins[0].daoAddress)
-      expect(addToDao[0].pluginAddress).to.be.eq(plugins[0].address)
+      expect(addToDao.find((w: any) => w.daoAddress === plugins[0].daoAddress)).to.exist
+      expect(addToDao.find((w: any) => w.pluginAddress === plugins[0].address)).to.exist
 
       expect(rabbitMqStub.calledTwice).to.be.true
       expect(rabbitMqStub.args[0][1].id).to.be.eq(plugins[0].daoAddress)

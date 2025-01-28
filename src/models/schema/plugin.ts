@@ -226,6 +226,53 @@ export default class Plugin extends Model {
       .exec()
   }
 
+  static async getPluginIdBySlugAndDao(slug: string, daoAddress: HexAddress, network: NetworksEnum) {
+    const plugin: any = await this.aggregate([
+      {
+        $match: {
+          daoAddress,
+          network,
+        },
+      },
+      {
+        $lookup: {
+          from: ICollectionNames.PluginSlug,
+          let: {
+            daoAddress: '$daoAddress',
+            network: '$network',
+            address: '$address',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$daoAddress', '$$daoAddress'] },
+                    { $eq: ['$network', '$$network'] },
+                    { $eq: ['$pluginAddress', '$$address'] },
+                    { $eq: ['$slug', slug] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'matchedSlugs',
+        },
+      },
+      {
+        $unwind: '$matchedSlugs',
+      },
+      {
+        $project: {
+          _id: 0,
+          id: 1,
+        },
+      },
+    ])
+
+    return plugin?.[0]?.id ?? undefined
+  }
+
   async update(params: Partial<Plugin>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
