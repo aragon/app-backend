@@ -219,6 +219,54 @@ describe('Indexer: MetadataHandler', () => {
       expect(updateDaoMetadataStub.calledOnce).to.be.true
     })
 
+    it('should return if the dao and plugin didnot exist', async () => {
+      const fakeEvent = {
+        args: { metadata: 'fake-metadata' },
+      }
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0x0123123',
+        address: '0x0123123',
+        eventName: 'test',
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+
+      const findExistingStub = sandbox.stub(Models.LogMetadata, 'findExistingLog')
+
+      await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
+
+      expect(findExistingStub.calledOnce).to.be.false
+    })
+
+    it('should return if already exist', async () => {
+      const fakeEvent = {
+        args: { metadata: 'fake-metadata' },
+      }
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0x0123123',
+        address: '0x0123123',
+        eventName: 'test',
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
+      const extractMetadataUriStub = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://fake-uri')
+      const findExistingStub = sandbox.stub(Models.LogMetadata, 'findExistingLog').resolves(true)
+
+      await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
+      expect(findExistingStub.calledOnce).to.be.true
+      expect(extractMetadataUriStub.calledOnce).to.be.false
+    })
+
     it('should _updateDaoMetadata if logDb successfully created', async () => {
       const fakeLogDB = {
         network: NetworksEnum.ethereumMainnet,
