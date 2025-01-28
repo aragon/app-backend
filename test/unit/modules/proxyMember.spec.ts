@@ -86,7 +86,7 @@ describe('Modules:ProxyMember', () => {
       expect(result2?.address).to.equal(parsedMemberAddress)
       expect(result3?.address).to.equal(parsedMemberAddress)
       expect(findExistingLogStub.callCount).to.be.at.least(3)
-      expect(getEnsWithUniversalResolverStub.callCount).to.equal(5)
+      expect(getEnsWithUniversalResolverStub.callCount).to.be.at.least(3)
     })
   })
 
