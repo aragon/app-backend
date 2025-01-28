@@ -44,6 +44,27 @@ export default class DaoMemberMapping extends Model {
     return await data.save(tOpts)
   }
 
+  static async countUniqueMembers(daoAddress: string, network: NetworksEnum) {
+    const result = await this.aggregate([
+      {
+        $match: {
+          daoAddress,
+          network,
+        },
+      },
+      {
+        $group: {
+          _id: '$memberAddress',
+        },
+      },
+      {
+        $count: 'uniqueMemberCount',
+      },
+    ])
+
+    return result[0]?.uniqueMemberCount || 0
+  }
+
   static async findMapping(
     { memberAddress, daoAddress, pluginAddress, tokenAddress, network }: IDaoMemberMappingData,
     tOpts?: SaveOptions,

@@ -212,6 +212,7 @@ describe('Modules: ProxyToken', () => {
         transactionHash: '0x000',
         address: tokenAddress,
       } as any)
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves('1')
       const rabbitMqHelperStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       const checkPluginMintAuthorizationIsDaoStub = sandbox
