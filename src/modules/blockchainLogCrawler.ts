@@ -169,7 +169,9 @@ class BlockchainLogCrawler {
           )
 
           const logs = await retryRequest(async () =>
-            BottleneckModule.getNodeLimiter(this.crawlParams.network)!.schedule(async () => Promise.all(batchRequests)),
+            BottleneckModule.getAlchemyBatchRequest(this.crawlParams.network)!.schedule(async () =>
+              Promise.all(batchRequests),
+            ),
           )
 
           allLogs.push(...logs.flat())
