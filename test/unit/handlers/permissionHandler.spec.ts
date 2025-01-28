@@ -79,6 +79,65 @@ describe('Indexer: Permission Handler', () => {
       expect(findExistingLog.called).to.be.true
       expect(loggerVerbose.calledOnce).to.be.true
     })
+
+    it('should return if already exists', async () => {
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: '0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889',
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const loggerVerbose = sandbox.stub(logger, 'verbose')
+
+      const handleForAdminPlugin = sandbox.stub(PermissionHandler, 'handleForAdminPlugin')
+      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(true)
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(handleForAdminPlugin.calledOnce).to.be.true
+      expect(findExistingLog.callCount).to.eq(1)
+      expect(loggerVerbose.notCalled).to.be.true
+    })
+
+    it('should throw error', async () => {
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: '0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889',
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const loggerError = sandbox.stub(logger, 'error')
+
+      const handleForAdminPlugin = sandbox.stub(PermissionHandler, 'handleForAdminPlugin')
+      sandbox.stub(Models.DaoPermission, 'findExistingLog').rejects(new Error('fake-error'))
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(handleForAdminPlugin.calledOnce).to.be.true
+      expect(loggerError.calledOnce).to.be.true
+    })
   })
 
   describe('handleRevokeOnDao', () => {
@@ -174,6 +233,65 @@ describe('Indexer: Permission Handler', () => {
       expect(uninstallPluginWithPermissionRevoke.args[0][0]).to.be.eq('who')
       expect(uninstallPluginWithPermissionRevoke.args[0][1]).to.be.eq('where')
     })
+
+    it('should return if already exists', async () => {
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: 'permissionId',
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const loggerVerbose = sandbox.stub(logger, 'verbose')
+
+      const handleForAdminPlugin = sandbox.stub(PermissionHandler, 'handleForAdminPlugin')
+      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(true)
+
+      await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
+
+      expect(handleForAdminPlugin.calledOnce).to.be.false
+      expect(findExistingLog.called).to.be.true
+      expect(loggerVerbose.notCalled).to.be.true
+    })
+
+    it('should throw error', async () => {
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: 'permissionId',
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const loggerError = sandbox.stub(logger, 'error')
+
+      const handleForAdminPlugin = sandbox.stub(PermissionHandler, 'handleForAdminPlugin')
+      sandbox.stub(Models.DaoPermission, 'findExistingLog').rejects(new Error('fake-error'))
+
+      await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
+
+      expect(handleForAdminPlugin.calledOnce).to.be.false
+      expect(loggerError.calledOnce).to.be.true
+    })
   })
 
   describe('handleForAdminPlugin', () => {
@@ -226,5 +344,24 @@ describe('Indexer: Permission Handler', () => {
       expect(sendMessage.calledOnce).to.be.true
       expect(loggerInfo.calledOnce).to.be.true
     })
+
+    it('should return if not exists', async () => {
+      const daoAddress = '0xaddress'
+      const pluginAddress = '0xpluginAddress'
+      const network = NetworksEnum.ethereumSepolia
+      const where = 'where'
+      const add = true
+
+      const findExistingLog = sandbox.stub(Models.Plugin, 'findOne').returns(null)
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      const loggerInfo = sandbox.stub(logger, 'info')
+
+      await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
+
+      expect(findExistingLog.calledOnce).to.be.true
+      expect(sendMessage.notCalled).to.be.true
+      expect(loggerInfo.notCalled).to.be.true
+    })
+
   })
 })
