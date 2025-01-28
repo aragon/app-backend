@@ -209,7 +209,7 @@ export const ProxyMember = {
           memberAddress: params.memberAddress,
           daoAddress: params.daoAddress,
           pluginAddress: params.pluginAddress,
-          tokenAddress: params.tokenAddress,
+          tokenAddress: params?.tokenAddress,
           network: params.network,
         }
         const existingDao = await Models.DaoMemberMapping.findMapping(queryParams, { session })
@@ -245,7 +245,7 @@ export const ProxyMember = {
           memberAddress: params.memberAddress,
           daoAddress: params.daoAddress,
           pluginAddress: params.pluginAddress,
-          tokenAddress: params.tokenAddress,
+          tokenAddress: params?.tokenAddress,
           network: params.network,
         }
         const existingDao = await Models.DaoMemberMapping.findMapping(queryParams, { session })

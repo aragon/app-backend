@@ -12,11 +12,13 @@ import {
   type IAggPluginInclude,
   type IAggPluginParams,
   type IAggPluginProjectFields,
+  type IAggPluginSlugParams,
   type IAggProposalParams,
   type IAggSettingParams,
   type IAggSettingProjectFields,
   type IAggTokenParams,
   type IAggTokenProjectFields,
+  ICollectionNames,
   ISettingStatus,
   type NetworksEnum,
 } from '@types'
@@ -56,7 +58,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: 'Dao',
+        from: ICollectionNames.Dao,
         let: letVariables,
         pipeline,
         as,
@@ -120,7 +122,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: 'DaoMemberMapping',
+        from: ICollectionNames.DaoMemberMapping,
         let: letVariables,
         pipeline,
         as,
@@ -200,6 +202,7 @@ export const AggregationQueryHelper = {
         blockNumber: 1,
         blockTimestamp: 1,
         proposalIndex: 1,
+        incrementalId: 1,
         stageIndex: 1,
         lastStageTransition: 1,
         creator: 1,
@@ -224,7 +227,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: 'Proposal',
+        from: ICollectionNames.Proposal,
         let: letVariables,
         pipeline,
         as,
@@ -235,7 +238,7 @@ export const AggregationQueryHelper = {
   pluginRepo: (pluginSetupRepoAddress: string, network: string, as: string = 'pluginRepo') => {
     return {
       $lookup: {
-        from: 'PluginRepo',
+        from: ICollectionNames.PluginRepo,
         let: {
           repoAddr: pluginSetupRepoAddress,
           network,
@@ -300,6 +303,30 @@ export const AggregationQueryHelper = {
       })
     }
 
+    pipeline.push(
+      AggregationQueryHelper.pluginSlug(
+        {
+          pluginAddress: '$address',
+          network: '$network',
+        },
+        'pluginSlug',
+      ),
+      {
+        $addFields: {
+          slug: {
+            $cond: {
+              if: { $gt: [{ $size: '$pluginSlug' }, 0] },
+              then: { $arrayElemAt: ['$pluginSlug.slug', 0] },
+              else: null,
+            },
+          },
+        },
+      },
+      {
+        $unset: 'pluginSlug',
+      },
+    )
+
     if (includeSubDocuments?.settings) {
       pipeline.push(
         AggregationQueryHelper.setting(
@@ -354,6 +381,7 @@ export const AggregationQueryHelper = {
     if (project) {
       const projectStage: any = {
         ...project,
+        slug: 1,
       }
 
       if (includeSubDocuments?.settings) {
@@ -367,7 +395,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: 'Plugin',
+        from: ICollectionNames.Plugin,
         let: letVariables,
         pipeline,
         as,
@@ -429,7 +457,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: 'Setting',
+        from: ICollectionNames.Setting,
         let: letVariables,
         pipeline,
         as,
@@ -471,7 +499,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: 'Token',
+        from: ICollectionNames.Token,
         let: letVariables,
         pipeline,
         as,
@@ -482,7 +510,7 @@ export const AggregationQueryHelper = {
   logPluginSetupProcessor: (pluginAddress: HexAddress, network: string, as: string = 'plugin') => {
     return {
       $lookup: {
-        from: 'LogPluginSetupProcessor',
+        from: ICollectionNames.LogPluginSetupProcessor,
         let: { pluginAddress, network },
         pipeline: [
           {
@@ -531,7 +559,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: 'Member',
+        from: ICollectionNames.Member,
         let: letVariables,
         pipeline,
         as,
@@ -582,7 +610,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: 'MemberBalance',
+        from: ICollectionNames.MemberBalance,
         let: letVariables,
         pipeline,
         as,
@@ -633,13 +661,14 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: 'MemberMetrics',
+        from: ICollectionNames.MemberMetrics,
         let: letVariables,
         pipeline,
         as,
       },
     }
   },
+
   memberCountByToken: (tokenAddress: HexAddress, network: NetworksEnum) => {
     return [
       {
@@ -650,7 +679,7 @@ export const AggregationQueryHelper = {
       },
       {
         $lookup: {
-          from: 'Plugin',
+          from: ICollectionNames.Plugin,
           let: {
             tNetwork: '$network',
             tAddress: '$address',
@@ -665,7 +694,7 @@ export const AggregationQueryHelper = {
             },
             {
               $lookup: {
-                from: 'DaoMemberMapping',
+                from: ICollectionNames.DaoMemberMapping,
                 let: { pluginAddr: '$address' },
                 pipeline: [
                   {
@@ -708,5 +737,51 @@ export const AggregationQueryHelper = {
         },
       },
     ]
+  },
+
+  pluginSlug: (
+    { pluginAddress, network }: IAggPluginSlugParams,
+    as: string = 'token',
+    project?: IAggTokenProjectFields,
+  ) => {
+    const letVariables: any = {}
+    const matchConditions: any[] = []
+
+    if (pluginAddress) {
+      letVariables.pluginAddress = pluginAddress
+      matchConditions.push({ $eq: ['$pluginAddress', '$$pluginAddress'] })
+    }
+
+    if (network) {
+      letVariables.network = network
+      matchConditions.push({ $eq: ['$network', '$$network'] })
+    }
+
+    const pipeline: any[] = []
+
+    if (matchConditions.length > 0) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $and: matchConditions,
+          },
+        },
+      })
+    }
+
+    if (project) {
+      pipeline.push({
+        $project: project,
+      })
+    }
+
+    return {
+      $lookup: {
+        from: ICollectionNames.PluginSlug,
+        let: letVariables,
+        pipeline,
+        as,
+      },
+    }
   },
 }

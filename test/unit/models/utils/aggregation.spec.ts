@@ -231,6 +231,7 @@ describe('Model/Utils: aggregation', () => {
                 blockNumber: 1,
                 blockTimestamp: 1,
                 proposalIndex: 1,
+                incrementalId: 1,
                 stageIndex: 1,
                 lastStageTransition: 1,
                 creator: 1,
