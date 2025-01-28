@@ -370,7 +370,7 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginWithNoType', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(loggerStub.calledWithMatch('PluginSyncService: plugin not found' as any)).to.be.true
+      expect(loggerStub.calledWith('PluginSyncService: interfaceType not found' as any)).to.be.true
     })
   })
 })
