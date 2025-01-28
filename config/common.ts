@@ -195,6 +195,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         1,
       ),
       ALCHEMY_BALANCE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ALCHEMY_BALANCE_MIN_TIME', 50),
+      ALCHEMY_BATCH_REQUEST_MAX_CONCURRENT: utils.configParser(
+        sourceConfig,
+        'number',
+        'BOTTLENECK_ALCHEMY_BATCH_REQUEST_MAX_CONCURRENT',
+        10,
+      ),
+      ALCHEMY_BATCH_REQUEST_MIN_TIME: utils.configParser(
+        sourceConfig,
+        'number',
+        'BOTTLENECK_ALCHEMY_BATCH_REQUEST_MIN_TIME',
+        100,
+      ),
     },
 
     MONGO_DB: {
