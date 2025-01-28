@@ -134,4 +134,14 @@ describe('Model: DaoMemberMappings', () => {
     } as any)
     expect(foundLogDao).to.be.null
   })
+
+  it('should countUniqueMembers', async () => {
+    const [fakeDaoMemberMapping] = rawDaoMemberMapping
+    await Models.DaoMemberMapping.create(fakeDaoMemberMapping)
+    const count = await Models.DaoMemberMapping.countUniqueMembers(
+      fakeDaoMemberMapping.daoAddress,
+      fakeDaoMemberMapping.network,
+    )
+    expect(count).to.eq(1)
+  })
 })
