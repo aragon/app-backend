@@ -71,5 +71,54 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       expect(savedPluginRepoLog.transactionIndex).to.eq(logInfo.transactionIndex)
       expect(savedPluginRepoLog.logIndex).to.eq(logInfo.logIndex)
     })
+
+    it('should skip if log already exists', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          pluginRepo: '0x456',
+          subdomain: 'test',
+        },
+      }
+      sandbox.stub(Models.PluginRepo, 'findExistingLog').resolves(true)
+      const stubCreate = sandbox.stub(Models.PluginRepo, 'create')
+
+      await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, logInfo)
+
+      expect(stubCreate.notCalled).to.be.true
+    })
+
+    it('should throw error', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          pluginRepo: '0x456',
+          subdomain: 'test',
+        },
+      }
+
+      sandbox.stub(Models.PluginRepo, 'findExistingLog').rejects(new Error('fake-error'))
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, logInfo)
+
+      expect(loggerStub.calledOnce).to.be.true
+    })
   })
 })

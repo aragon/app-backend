@@ -13,6 +13,7 @@ import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
 import { LogGauge } from '@plugins/logGauge'
+import { LogMultiSig } from '@plugins/logMultisig'
 
 describe('AragonPlugins: index', () => {
   let sandbox: SinonSandbox
@@ -178,6 +179,26 @@ describe('AragonPlugins: index', () => {
       expect(logAdminStub.calledOnce).to.be.true
     })
 
+    it('should process plugins queue for multisig interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.multisig,
+        network: NetworksEnum.ethereumMainnet,
+      })
+      const logMultisigStub = sandbox.stub(LogMultiSig, 'start').resolves()
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(1).args[2]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(logMultisigStub.calledOnce).to.be.true
+    })
+
     it('should process plugins queue for tokenVoting interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
@@ -318,6 +339,25 @@ describe('AragonPlugins: index', () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         interfaceType: null,
+      })
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(1).args[2]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginWithNoType', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginWithNoType', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(loggerStub.calledWithMatch('PluginSyncService: plugin not found' as any)).to.be.true
+    })
+
+    it('should log an error if interfaceType is not supported', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: 'not-supported',
       })
       const loggerStub = sandbox.stub(logger, 'error')
 

@@ -18,13 +18,6 @@ describe('AragonPlugins: LogDao', () => {
   })
 
   describe('start', async () => {
-    it('should process error', async () => {
-      const errorStub = sandbox.stub(logger, 'error')
-      await LogDao.processError('error', { address: '0x123', network: NetworksEnum.ethereumSepolia } as any, 'log')
-      expect(errorStub.calledOnce).to.be.true
-      expect(errorStub.calledWith('Error LogDao' as any)).to.be.true
-    })
-
     it('should start the LogDao', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
@@ -35,6 +28,38 @@ describe('AragonPlugins: LogDao', () => {
       expect(crawlStub.calledOnce).to.be.true
       expect(verboseStub.calledWith('Start LogDao' as any)).to.be.true
       expect(verboseStub.calledTwice).to.be.true
+    })
+
+    it('should handle errors during crawling', async () => {
+      const dao = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 0,
+      } as any
+
+      const error = new Error('Test error')
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
+        this: BlockchainLogCrawler,
+      ): Promise<any> {
+        if ((this as any).crawlParams.onError) {
+          await (this as any).crawlParams.onError(error, 'log')
+        }
+      })
+
+      const processErrorStub = sandbox.stub(LogDao, 'processError').resolves()
+
+      await LogDao.start(dao)
+
+      expect(crawlStub.calledOnce).to.be.true
+      expect(processErrorStub.calledOnce).to.be.true
+      expect(processErrorStub.calledWith(error, dao, 'log')).to.be.true
+    })
+
+    it('should process error', async () => {
+      const errorStub = sandbox.stub(logger, 'error')
+      await LogDao.processError('error', { address: '0x123', network: NetworksEnum.ethereumSepolia } as any, 'log')
+      expect(errorStub.calledOnce).to.be.true
+      expect(errorStub.calledWith('Error LogDao' as any)).to.be.true
     })
   })
 })
