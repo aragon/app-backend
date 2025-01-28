@@ -68,7 +68,7 @@ describe('Modules:ProxyMember', () => {
       expect(loggerErrorStub.calledOnce).to.be.true
     })
 
-    it.only('should create a new member in parallel calls', async () => {
+    it('should create a new member in parallel calls', async () => {
       const parsedMemberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
 
       const findExistingLogStub = sandbox.stub(Models.Member, 'findExistingLog').resolves(null)
