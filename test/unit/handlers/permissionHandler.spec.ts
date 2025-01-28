@@ -362,6 +362,5 @@ describe('Indexer: Permission Handler', () => {
       expect(sendMessage.notCalled).to.be.true
       expect(loggerInfo.notCalled).to.be.true
     })
-
   })
 })
