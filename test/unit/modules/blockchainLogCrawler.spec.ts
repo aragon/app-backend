@@ -361,7 +361,7 @@ describe('Module: blockchainLogCrawler', () => {
         { transactionHash: '0x2', blockNumber: 102 },
       ])
 
-    const bottleneckStub = sandbox.stub(BottleneckModule as any, 'getNodeLimiter').returns({
+    const bottleneckStub = sandbox.stub(BottleneckModule as any, 'getAlchemyBatchRequest').returns({
       schedule: retryStub as any,
     })
 
@@ -394,7 +394,7 @@ describe('Module: blockchainLogCrawler', () => {
       .onSecondCall()
       .resolves([{ transactionHash: '0x1', blockNumber: 101 }])
 
-    const bottleneckStub = sandbox.stub(BottleneckModule as any, 'getNodeLimiter').returns({
+    const bottleneckStub = sandbox.stub(BottleneckModule as any, 'getAlchemyBatchRequest').returns({
       schedule: retryStub as any,
     })
 
@@ -424,7 +424,7 @@ describe('Module: blockchainLogCrawler', () => {
     const batchSizeError = new Error('Log response size exceeded')
     const retryStub = sandbox.stub().rejects(batchSizeError)
 
-    const bottleneckStub = sandbox.stub(BottleneckModule as any, 'getNodeLimiter').returns({
+    const bottleneckStub = sandbox.stub(BottleneckModule as any, 'getAlchemyBatchRequest').returns({
       schedule: retryStub as any,
     })
 
