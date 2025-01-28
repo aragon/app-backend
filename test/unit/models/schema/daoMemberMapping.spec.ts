@@ -139,9 +139,37 @@ describe('Model: DaoMemberMappings', () => {
     const [fakeDaoMemberMapping] = rawDaoMemberMapping
     await Models.DaoMemberMapping.create(fakeDaoMemberMapping)
     const count = await Models.DaoMemberMapping.countUniqueMembers(
-      fakeDaoMemberMapping.daoAddress,
-      fakeDaoMemberMapping.network,
+      fakeDaoMemberMapping.daoAddress!,
+      fakeDaoMemberMapping.network!,
     )
     expect(count).to.eq(1)
+  })
+
+  it('should count properly unique member', async () => {
+    const [fakeDaoMemberMapping] = rawDaoMemberMapping
+
+    await Models.DaoMemberMapping.create({
+      ...fakeDaoMemberMapping,
+      daoAddress: '0xdao',
+      memberAddress: '0xmember',
+      pluginAddress: '0xplugin',
+    })
+
+    await Models.DaoMemberMapping.create({
+      ...fakeDaoMemberMapping,
+      daoAddress: '0xdao',
+      memberAddress: '0xmember',
+      pluginAddress: '0xplugin2',
+    })
+
+    await Models.DaoMemberMapping.create({
+      ...fakeDaoMemberMapping,
+      daoAddress: '0xdao',
+      memberAddress: '0xmember2',
+      pluginAddress: '0xplugin3',
+    })
+
+    const count = await Models.DaoMemberMapping.countUniqueMembers('0xdao', fakeDaoMemberMapping.network!)
+    expect(count).to.eq(2)
   })
 })
