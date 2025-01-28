@@ -143,6 +143,26 @@ describe('Modules: ProxyToken', () => {
       expect(result.priceUsd).to.equal('1')
       expect(result.totalSupply).to.equal('1000')
     })
+
+    it('should try to fetch from queue if covalent is not responding', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const token = await Models.Token.create({ network, address: tokenAddress, type: ITokenType.GovernanceERC20 })
+
+      sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '1', priceChangeOnDayUsd: '0.1' } as any)
+      sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
+        totalHolders: 0,
+        totalSupply: '0',
+      } as any)
+
+      const tokenTotalStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves('1000')
+      const rabbitMqHelper = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      sandbox.stub(logger,'verbose')
+      const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
+      expect(rabbitMqHelper.calledOnce).to.be.true
+      expect(tokenTotalStub.calledOnce).to.be.true
+      expect(result.totalSupply).to.equal('1000')
+    })
   })
 
   describe('createNewToken', () => {
