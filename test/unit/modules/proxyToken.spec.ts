@@ -157,7 +157,7 @@ describe('Modules: ProxyToken', () => {
 
       const tokenTotalStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves('1000')
       const rabbitMqHelper = sandbox.stub(RabbitMQHelper, 'sendMessage')
-      sandbox.stub(logger,'verbose')
+      sandbox.stub(logger, 'verbose')
       const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
       expect(rabbitMqHelper.calledOnce).to.be.true
       expect(tokenTotalStub.calledOnce).to.be.true
