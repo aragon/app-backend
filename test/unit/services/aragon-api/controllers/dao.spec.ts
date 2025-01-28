@@ -213,5 +213,52 @@ describe('Controller: Dao', () => {
       expect(response.data.length).to.eq(1)
       expect(response.data[0].address).to.be.eq(rawDao.address)
     })
+
+    it('should filter out excluded DAO when getting DAOs by member', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {
+        network: rawDao.network,
+        memberAddress: FakeMember.address,
+        excludeDaoId: `${rawDao.network}-${rawDao.address}`,
+      }
+
+      const fakeMapping = [
+        { daoAddress: '0xDaoAddress1' },
+        { daoAddress: '0xDaoAddress2' },
+        { daoAddress: rawDao.address },
+      ]
+
+      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
+      sandbox.stub(PairDataModule, 'pairFromDaoMemberMapping').resolves(fakeMapping)
+      sandbox.stub(PairDataModule, 'checkIFEns').resolves(filterParams.memberAddress)
+      sandbox
+        .stub(PairDataModule, 'pairFromExtraParams')
+        .resolves({ daoAddress: rawDao.address, network: rawDao.network })
+
+      const spyReq = sandbox.spy(Models.Dao, 'findWithPagination')
+
+      const response = await DaoController.getDaosByMember(paginationParams, filterParams)
+
+      // Assertions
+      expect(spyReq.calledOnce).to.be.true
+
+      const expectedDaoAddresses = ['0xDaoAddress1', '0xDaoAddress2']
+      expect(
+        spyReq.calledWith({
+          extraParams: filterParams,
+          paginationParams,
+          extraQueryData: { daoAddresses: expectedDaoAddresses },
+        }),
+      ).to.be.true
+
+      expect(response.data.length).to.eq(0)
+    })
   })
 })
