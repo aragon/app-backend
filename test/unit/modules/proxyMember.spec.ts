@@ -8,7 +8,7 @@ import EnsHelper from '@helpers/ens'
 import { IMetricAction, NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import DbTx from '@modules/dbTx'
-import Utils from "@helpers/utils";
+import Utils from '@helpers/utils'
 
 describe('Modules:ProxyMember', () => {
   let sandbox: SinonSandbox
