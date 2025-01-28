@@ -10,6 +10,7 @@ class BottleneckModule {
   static fourBytesLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static alchemyENSLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static alchemyBalanceLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static alchemyBathRequestLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static etherScanLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
 
   static getNodeLimiter(network: NetworksEnum) {
@@ -80,6 +81,16 @@ class BottleneckModule {
       })
     }
     return this.alchemyBalanceLimiters[network]
+  }
+
+  static getAlchemyBatchRequest(network: NetworksEnum) {
+    if (!this.alchemyBathRequestLimiters[network]) {
+      this.alchemyBathRequestLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.ALCHEMY_BATCH_REQUEST_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.ALCHEMY_BATCH_REQUEST_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.alchemyBathRequestLimiters[network]
   }
 
   static getEtherScanLimiter(network: NetworksEnum) {
