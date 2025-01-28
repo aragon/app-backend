@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import {IPluginInterfaceType, IPluginStatus, NetworksEnum} from '@types'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { Models } from '@dbModels'
@@ -10,7 +10,7 @@ import Web3Helper from '@helpers/web3'
 import Logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
-import {PluginSlug} from "@helpers/pluginSlug";
+import { PluginSlug } from '@helpers/pluginSlug'
 
 describe('Indexer: MetadataHandler', () => {
   let sandbox: SinonSandbox
@@ -309,7 +309,7 @@ describe('Indexer: MetadataHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         interfaceType: IPluginInterfaceType.spp,
         status: IPluginStatus.installed,
-        isSupported: true
+        isSupported: true,
       }
       const logMetadata: any = {
         metadataType: 'plugin',
@@ -343,7 +343,7 @@ describe('Indexer: MetadataHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         interfaceType: IPluginInterfaceType.tokenVoting,
         status: IPluginStatus.installed,
-        isSupported: true
+        isSupported: true,
       }
       const logMetadata: any = {
         metadataType: 'plugin',
