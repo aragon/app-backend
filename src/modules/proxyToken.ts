@@ -74,6 +74,22 @@ export const ProxyToken = {
 
       if (token.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(token.address, token.network)) {
         const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
+
+        if (
+          token.type === ITokenType.GovernanceERC20 &&
+          metrics.totalHolders === 0 &&
+          metrics.totalSupply === '0' &&
+          tokenAddress !== utils.zeroAddress
+        ) {
+          metrics.totalSupply = await Web3Helper.getTokenTotalSupply(tokenAddress, network)
+          if (metrics.totalSupply !== '0') {
+            await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
+              id: `token-metrics${tokenAddress}`,
+              params: { address: tokenAddress, network },
+            })
+          }
+        }
+
         updates.holders = metrics.totalHolders
         updates.totalSupply = metrics.totalSupply
         updates.lastUpdatedAt = dayjs.utc().toDate()
@@ -107,10 +123,12 @@ export const ProxyToken = {
         tokenAddress !== utils.zeroAddress
       ) {
         tokenMetrics.totalSupply = await Web3Helper.getTokenTotalSupply(tokenAddress, network)
-        await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
-          id: `token-metrics${tokenAddress}`,
-          params: { address: tokenAddress, network },
-        })
+        if (tokenMetrics.totalSupply !== '0') {
+          await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
+            id: `token-metrics${tokenAddress}`,
+            params: { address: tokenAddress, network },
+          })
+        }
       }
     }
 

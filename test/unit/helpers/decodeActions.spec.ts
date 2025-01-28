@@ -5,7 +5,7 @@ import { expect } from 'chai'
 import { Fragment, FunctionFragment } from 'ethers'
 import FourByte from '@helpers/4byte'
 import Logger from '@logger'
-import { NetworksEnum, ProposalActionType } from '@types'
+import { KnownActionSignature, NetworksEnum, ProposalActionType } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import Web3Helper from '@helpers/web3'
 import Covalent from '@helpers/covalent'
@@ -15,6 +15,7 @@ import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import Ipfs from '@modules/ipfs'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
+import IPFSModule from '@modules/ipfs'
 
 describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
@@ -132,6 +133,45 @@ describe('Helpers: DecodeActions', () => {
       inputData: null,
     })
     expect(parseContractNetspecStub.calledOnce).to.be.true
+    expect(spyDecodeAbi.calledOnce).to.be.true
+    expect(spyDecodeFallback.calledOnce).to.be.true
+  })
+
+  it('should partially decode from fallback and not with base contract netspec', async () => {
+    const decodeActions = new DecodeActions()
+
+    const action = {
+      to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+      value: '0',
+      data: '0x0900e10f10000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000',
+    }
+
+    const spyDecodeAbi = sandbox.spy(decodeActions, '_decodeWithAbi')
+    const spyDecodeFallback = sandbox.spy(decodeActions, '_decodeFallback')
+    const parseContractNetspecStub = sandbox.stub(decodeActions, 'parseContractNetspec').resolves({
+      inputs: [
+        { name: 'to', type: 'address', notice: 'The address to mint tokens to', value: 1 },
+        { name: 'amount', type: 'uint256', notice: 'The amount of tokens to mint', value: 1 },
+      ],
+    } as any)
+
+    const result = await decodeActions.decodeData(action, {
+      network: NetworksEnum.ethereumMainnet,
+      daoAddress: 'xxx',
+    })
+
+    expect(result?.type).to.be.eq(ProposalActionType.Unknown)
+    expect(result?.from).to.be.eq('xxx')
+    expect(result?.to).to.be.eq(action.to)
+    expect(result?.value).to.be.eq(action.value)
+
+    expect(result?.inputData).to.be.not.null
+    expect(result?.inputData?.parameters).to.deep.eq([
+      { name: 'to', type: 'address', notice: 'The address to mint tokens to', value: 1, components: undefined },
+      { name: 'amount', type: 'uint256', notice: 'The amount of tokens to mint', value: 1, components: undefined },
+    ])
+
+    expect(parseContractNetspecStub.calledTwice).to.be.true
     expect(spyDecodeAbi.calledOnce).to.be.true
     expect(spyDecodeFallback.calledOnce).to.be.true
   })
@@ -1469,6 +1509,295 @@ describe('Helpers: DecodeActions', () => {
       expect(result).to.be.null
       expect(stubExtractMetadataUri.calledOnce).to.be.true
       expect(ipfsFetchStubb.calledOnce).to.be.true
+    })
+
+    it('should return null when parsing if the metadata is not for existing plugin and doo', async () => {
+      const baseAction = {
+        textSignature: 'setMetadata(bytes)',
+        function: 'setMetadata',
+        contract: 'DaoFactory',
+        parameters: [
+          {
+            name: 'metadata',
+            type: 'bytes',
+            value:
+              '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x00',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+      }
+
+      const actionDecode = new DecodeActions()
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
+
+      const result = await actionDecode._parseUpdateDaoMetadata(baseAction, action, document as any)
+      expect(result).to.be.null
+    })
+
+    it('should return null when parsing if the metadata is not for existing plugin and doo', async () => {
+      const baseAction = {
+        textSignature: 'setMetadata(bytes)',
+        function: 'setMetadata',
+        contract: 'DaoFactory',
+        parameters: [
+          {
+            name: 'metadata',
+            type: 'bytes',
+            value:
+              '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x00',
+      }
+
+      const document = {
+        daoAddress: '0x4949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        pluginAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        blockNumber: 123,
+        network: NetworksEnum.ethereumSepolia,
+      }
+
+      const mockMetadata = {
+        name: 'MockDao',
+        description: 'Mock Description',
+        logo: 'https://mock.com/logo.png',
+        avatar: 'https://mock.com/avatar.png',
+        links: [
+          {
+            name: 'twitter',
+            url: 'https://twitter.com',
+          },
+          {
+            name: 'discord',
+            url: 'https://discord.com',
+          },
+        ],
+        processKey: 'abc',
+        stageNames: [],
+      }
+
+      const actionDecode = new DecodeActions()
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(false)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
+      sandbox.stub(Models.LogMetadata, 'getMetadataAtBlockNumber').resolves({
+        ...mockMetadata,
+        name: 'old',
+      })
+      sandbox.stub(IPFSModule, 'fetchMetadata').resolves(mockMetadata)
+      sandbox.stub(Web3Helper, 'extractMetadataUri').returns('https://link')
+      const parseContractNetspecStub = sandbox.stub(actionDecode, 'parseContractNetspec').resolves({
+        functionName: 'setMetadata(bytes)',
+        notice: 'notice',
+        contractName: 'contractName',
+        proxyName: 'proxyName',
+        implementationAddress: 'implementationAddress',
+        inputs: [
+          {
+            name: 'name',
+            type: 'bytes',
+            components: undefined,
+            notice: 'notice',
+            value: 'value',
+          },
+        ],
+      })
+
+      const result = await actionDecode._parseUpdateDaoMetadata(baseAction, action, document as any)
+      expect(result?.type).to.be.eq('MetadataPluginUpdate')
+      expect(parseContractNetspecStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('_parseStageUpdatedOnSppAction', () => {
+    it('should return parsed stages and existing stages when decodedData matches KnownActionSignature.StagesUpdated', async () => {
+      const decodedData = {
+        textSignature: KnownActionSignature.StagesUpdated,
+        parameters: [
+          {
+            value: [
+              [
+                [
+                  ['0xplugin1', true, false, 'resultType1'],
+                  ['0xplugin2', false, true, 'resultType2'],
+                ],
+                10, // maxAdvance
+                5, // minAdvance
+                100, // voteDuration
+                75, // approvalThreshold
+                25, // vetoThreshold
+                true, // cancelable
+                false, // editable
+              ],
+            ],
+          },
+        ],
+      } as any
+
+      const action = {
+        id: 'action-id',
+        type: 'test-action',
+      } as any
+
+      const document = {
+        daoAddress: '0xdao-address',
+        network: 'ethereumMainnet',
+        pluginAddress: '0xplugin-address',
+      } as any
+
+      const activeSettings = [
+        {
+          stageIndex: 0,
+          maxAdvance: 15,
+          minAdvance: 7,
+          voteDuration: 120,
+          approvalThreshold: 80,
+          vetoThreshold: 20,
+          cancelable: true,
+          editable: true,
+          plugins: [
+            {
+              address: '0xplugin1',
+              isManual: true,
+              allowedBody: false,
+              proposalType: 'resultType1',
+            },
+          ],
+        },
+      ]
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(activeSettings)
+
+      const decodeAction = new DecodeActions()
+
+      const result = await decodeAction._parseStageUpdatedOnSppAction(decodedData, action, document)
+
+      expect(result).to.deep.equal({
+        ...action,
+        inputData: decodedData,
+        type: ProposalActionType.StagesUpdated,
+        proposedSettings: [
+          {
+            bodies: [
+              {
+                addr: '0xplugin1',
+                isManual: true,
+                tryAdvance: false,
+                resultType: 'resultType1',
+              },
+              {
+                addr: '0xplugin2',
+                isManual: false,
+                tryAdvance: true,
+                resultType: 'resultType2',
+              },
+            ],
+            stageIndex: 0,
+            maxAdvance: 10,
+            minAdvance: 5,
+            voteDuration: 100,
+            approvalThreshold: 75,
+            vetoThreshold: 25,
+            cancelable: true,
+            editable: false,
+          },
+        ],
+        existingSettings: [
+          {
+            stageIndex: 0,
+            maxAdvance: 15,
+            minAdvance: 7,
+            voteDuration: 120,
+            approvalThreshold: 80,
+            vetoThreshold: 20,
+            cancelable: true,
+            editable: true,
+            plugins: [
+              {
+                addr: '0xplugin1',
+                isManual: true,
+                tryAdvance: false,
+                resultType: 'resultType1',
+              },
+            ],
+          },
+        ],
+      })
+    })
+
+    it('should return null if decodedData does not match KnownActionSignature.StagesUpdated', async () => {
+      const decodedData = {
+        textSignature: 'InvalidSignature',
+      } as any
+
+      const action = {
+        id: 'action-id',
+        type: 'test-action',
+      } as any
+
+      const document = {
+        daoAddress: '0xdao-address',
+        network: 'ethereumMainnet',
+        pluginAddress: '0xplugin-address',
+      } as any
+
+      const decodeAction = new DecodeActions()
+      const result = await decodeAction._parseStageUpdatedOnSppAction(decodedData, action, document)
+
+      expect(result).to.be.null
+    })
+
+    it('should handle errors and return an empty stages array', async () => {
+      const decodedData = {
+        textSignature: KnownActionSignature.StagesUpdated,
+        parameters: [
+          {
+            value: 'InvalidData',
+          },
+        ],
+      } as any
+
+      const action = {
+        id: 'action-id',
+        type: 'test-action',
+      } as any
+
+      const document = {
+        daoAddress: '0xdao-address',
+        network: 'ethereumMainnet',
+        pluginAddress: '0xplugin-address',
+      } as any
+
+      sandbox.stub(Models.Setting, 'findActive').throws(new Error('Test Error'))
+
+      const decodeAction = new DecodeActions()
+      const result = await decodeAction._parseStageUpdatedOnSppAction(decodedData, action, document)
+
+      expect(result).to.deep.equal({
+        ...action,
+        inputData: decodedData,
+        type: ProposalActionType.StagesUpdated,
+        proposedSettings: [],
+        existingSettings: [],
+      })
     })
   })
 })
