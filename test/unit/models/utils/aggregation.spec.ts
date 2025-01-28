@@ -128,7 +128,7 @@ describe('AggregationQueryHelper', () => {
         proposalIndex: '1',
         pluginAddress: '0xPlugin1',
         network: NetworksEnum.ethereumMainnet,
-      });
+      })
 
       const expectedQuery = {
         $lookup: {
@@ -161,10 +161,7 @@ describe('AggregationQueryHelper', () => {
                   {
                     $match: {
                       $expr: {
-                        $and: [
-                          { $eq: ['$address', '$$address'] },
-                          { $eq: ['$network', '$$network'] },
-                        ],
+                        $and: [{ $eq: ['$address', '$$address'] }, { $eq: ['$network', '$$network'] }],
                       },
                     },
                   },
@@ -237,10 +234,10 @@ describe('AggregationQueryHelper', () => {
           ],
           as: 'proposals',
         },
-      };
+      }
 
       expect(query).to.deep.equal(expectedQuery)
-    });
+    })
   })
 
   describe('plugin', () => {
@@ -252,7 +249,7 @@ describe('AggregationQueryHelper', () => {
           status: IPluginStatus.installed,
         },
         'plugins',
-      );
+      )
 
       const expectedQuery = {
         $lookup: {
@@ -285,10 +282,7 @@ describe('AggregationQueryHelper', () => {
                   {
                     $match: {
                       $expr: {
-                        $and: [
-                          { $eq: ['$pluginAddress', '$$pluginAddress'] },
-                          { $eq: ['$network', '$$network'] },
-                        ],
+                        $and: [{ $eq: ['$pluginAddress', '$$pluginAddress'] }, { $eq: ['$network', '$$network'] }],
                       },
                     },
                   },
@@ -313,10 +307,10 @@ describe('AggregationQueryHelper', () => {
           ],
           as: 'plugins',
         },
-      };
+      }
 
-      expect(query).to.deep.equal(expectedQuery);
-    });
+      expect(query).to.deep.equal(expectedQuery)
+    })
   })
 
   describe('token', () => {

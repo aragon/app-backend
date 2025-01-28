@@ -5,7 +5,6 @@ import DbOperations from '@models/utils/dbOperations'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 
-
 describe('Model/Utils: dbOperations', () => {
   let sandbox: SinonSandbox
 
@@ -126,7 +125,7 @@ describe('Model/Utils: dbOperations', () => {
       expect(result.id).to.equal('document-id')
     })
 
-    it.only('should log an error and rethrow when updating a document fails', async () => {
+    it('should log an error and rethrow when updating a document fails', async () => {
       const mockSession = {
         commitTransaction: sandbox.stub().resolves(),
         endSession: sandbox.stub().resolves(),
@@ -173,6 +172,5 @@ describe('Model/Utils: dbOperations', () => {
 
       expect(executeTxFnStub.calledOnce).to.be.true
     })
-
   })
 })
