@@ -98,8 +98,6 @@ const ProposalController = {
     } catch (e) {
       return false
     }
-
-    return false
   },
 
   async canCastVote({ userAddress, proposalId }) {

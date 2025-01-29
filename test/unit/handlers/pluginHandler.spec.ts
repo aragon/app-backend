@@ -61,16 +61,44 @@ describe('Indexer:Plugin', () => {
   })
 
   describe('preInstallPlugin', () => {
-    it('should not update if dao does not exist', async () => {
-      const stubLogger = sandbox.stub(logger, 'warn')
+    it('should preInstallPlugin SPP', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
 
-      const pluginLog = { daoAddress: '0x00', network: NetworksEnum.ethereumMainnet }
-      await PluginHandler.preInstallPlugin(pluginLog as any)
+      sandbox.stub(Models.PluginRepo, 'findSubdomain').resolves({ subdomain: 'token-voting' })
+      const detectPluginTypeStub = sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.spp,
+        proxy: true,
+        implementationAddress: '0x00',
+      })
 
-      expect(stubLogger.calledOnceWith('Create Plugin - dao not found' as any)).to.be.true
+      const logVersboseStub = sandbox.stub(logger, 'verbose')
+
+      const logPlugin = await Models.LogPluginSetupProcessor.findOne({ pluginAddress: rawPlugin.address })
+      await PluginHandler.preInstallPlugin(logPlugin)
+
+      expect(detectPluginTypeStub.calledOnce).to.be.true
+      expect(spyFindExistingLog.calledOnce).to.be.true
+      expect(
+        spyFindExistingLog.calledWith({
+          network: ListLogPluginSetupProcessor[0].network,
+          transactionHash: ListLogPluginSetupProcessor[1].transactionHash,
+          address: ListLogPluginSetupProcessor[0].pluginAddress,
+        }),
+      ).to.be.true
+      expect(logVersboseStub.calledOnceWith('Created new document - New PreInstall Plugin' as any)).to.be.true
+
+      const createdPlugin = await Models.Plugin.findOne({
+        address: ListLogPluginSetupProcessor[1].pluginAddress,
+        status: IPluginStatus.preInstall,
+      })
+      expect(createdPlugin).to.not.be.null
+      expect(createdPlugin.isProcess).to.be.true
+      expect(createdPlugin.isBody).to.be.false
+      expect(createdPlugin.isSubPlugin).to.be.false
     })
 
-    it('preInstallPlugin not SPP', async () => {
+    it('should preInstallPlugin not SPP', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
       sandbox.stub(Models.PluginRepo, 'findSubdomain').resolves({ subdomain: 'token-voting' })
@@ -106,41 +134,35 @@ describe('Indexer:Plugin', () => {
       expect(createdPlugin.isSubPlugin).to.be.false
     })
 
-    it('preInstallPlugin SPP', async () => {
+    it('should not update if dao does not exist', async () => {
+      const stubLogger = sandbox.stub(logger, 'warn')
+
+      const pluginLog = { daoAddress: '0x00', network: NetworksEnum.ethereumMainnet }
+      await PluginHandler.preInstallPlugin(pluginLog as any)
+
+      expect(stubLogger.calledOnceWith('Create Plugin - dao not found' as any)).to.be.true
+    })
+
+    it('should skip if log already exists', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
-      const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
+      sandbox.stub(Models.Plugin, 'findExistingLog').resolves(true)
+      const stubFindSubdomain = sandbox.stub(Models.PluginRepo, 'findSubdomain')
 
-      sandbox.stub(Models.PluginRepo, 'findSubdomain').resolves({ subdomain: 'token-voting' })
-      const detectPluginTypeStub = sandbox.stub(PluginDetector, 'detectPluginType').resolves({
-        type: IPluginInterfaceType.spp,
-        proxy: true,
-        implementationAddress: '0x00',
-      })
+      const logPlugin = { daoAddress: '0x00', network: NetworksEnum.ethereumMainnet }
+      await PluginHandler.preInstallPlugin(logPlugin as any)
 
-      const logVersboseStub = sandbox.stub(logger, 'verbose')
+      expect(stubFindSubdomain.notCalled).to.be.true
+    })
 
-      const logPlugin = await Models.LogPluginSetupProcessor.findOne({ pluginAddress: rawPlugin.address })
-      await PluginHandler.preInstallPlugin(logPlugin)
+    it('should throw error', async () => {
+      const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.Plugin, 'findExistingLog').rejects(new Error('Error'))
 
-      expect(detectPluginTypeStub.calledOnce).to.be.true
-      expect(spyFindExistingLog.calledOnce).to.be.true
-      expect(
-        spyFindExistingLog.calledWith({
-          network: ListLogPluginSetupProcessor[0].network,
-          transactionHash: ListLogPluginSetupProcessor[1].transactionHash,
-          address: ListLogPluginSetupProcessor[0].pluginAddress,
-        }),
-      ).to.be.true
-      expect(logVersboseStub.calledOnceWith('Created new document - New PreInstall Plugin' as any)).to.be.true
+      const logPlugin = { daoAddress: '0x00', network: NetworksEnum.ethereumMainnet }
+      await PluginHandler.preInstallPlugin(logPlugin as any)
 
-      const createdPlugin = await Models.Plugin.findOne({
-        address: ListLogPluginSetupProcessor[1].pluginAddress,
-        status: IPluginStatus.preInstall,
-      })
-      expect(createdPlugin).to.not.be.null
-      expect(createdPlugin.isProcess).to.be.true
-      expect(createdPlugin.isBody).to.be.false
-      expect(createdPlugin.isSubPlugin).to.be.false
+      expect(stubLogger.calledOnce).to.be.true
     })
   })
 
@@ -281,14 +303,7 @@ describe('Indexer:Plugin', () => {
   })
 
   describe('updatePlugin', () => {
-    it('should not update a plugin if it does not exist', async () => {
-      const stubLogger = sandbox.stub(logger, 'warn')
-      await PluginHandler.updatePlugin(ListLogPluginSetupProcessor[1] as any)
-
-      expect(stubLogger.calledOnce).to.be.true
-    })
-
-    it('updatePlugin', async () => {
+    it('should updatePlugin', async () => {
       rawPlugin.tokenAddress = '0x00'
       sandbox.stub(PluginDetector, 'detectPluginType').resolves({
         type: IPluginInterfaceType.tokenVoting,
@@ -318,17 +333,36 @@ describe('Indexer:Plugin', () => {
       expect(deprecatedPlugin).to.not.be.null
       expect(deprecatedPlugin.uninstalled.status).to.be.true
     })
-  })
 
-  describe('uninstallPlugin', () => {
-    it('should not uninstall a plugin if it does not exist', async () => {
+    it('should not update a plugin if it does not exist', async () => {
       const stubLogger = sandbox.stub(logger, 'warn')
-      await PluginHandler.uninstallPlugin(ListLogPluginSetupProcessor[1] as any)
+      await PluginHandler.updatePlugin(ListLogPluginSetupProcessor[1] as any)
 
       expect(stubLogger.calledOnce).to.be.true
     })
 
-    it('uninstallPlugin', async () => {
+    it('should throw error', async () => {
+      rawPlugin.tokenAddress = '0x00'
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+      })
+      await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[2])
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[3])
+      await PluginHandler._createPlugin(rawPlugin as any)
+
+      const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(PluginHandler, '_createPlugin').rejects(new Error('Error'))
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(stubLogger.calledOnce).to.be.true
+    })
+  })
+
+  describe('uninstallPlugin', () => {
+    it('should uninstallPlugin', async () => {
       await PluginHandler._createPlugin(rawPlugin as any)
       await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[4])
       const eventUninstallApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[5])
@@ -345,6 +379,37 @@ describe('Indexer:Plugin', () => {
       })
       expect(createdPlugin).to.not.be.null
       expect(createdPlugin.uninstalled.status).to.be.true
+    })
+
+    it('should not uninstall a plugin if plugin not exist', async () => {
+      const stubLogger = sandbox.stub(logger, 'warn')
+      await PluginHandler.uninstallPlugin(ListLogPluginSetupProcessor[1] as any)
+
+      expect(stubLogger.calledOnce).to.be.true
+    })
+
+    it('should skip is existingPlugin not found', async () => {
+      await PluginHandler._createPlugin(rawPlugin as any)
+      await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[4])
+      const eventUninstallApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[5])
+
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+      const stubUpdate = sandbox.stub(DbOperations, 'updateDocument')
+
+      await PluginHandler.uninstallPlugin(eventUninstallApplied as any)
+      expect(stubUpdate.notCalled).to.be.true
+    })
+
+    it('should throw error', async () => {
+      await PluginHandler._createPlugin(rawPlugin as any)
+      await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[4])
+      const eventUninstallApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[5])
+
+      const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(PluginHandler, '_queryGetPlugin').rejects(new Error('Error'))
+      await PluginHandler.uninstallPlugin(eventUninstallApplied as any)
+
+      expect(stubLogger.calledOnce).to.be.true
     })
   })
 
@@ -446,6 +511,19 @@ describe('Indexer:Plugin', () => {
         },
       }
       expect(updateDocumentStub.args[0][1]).to.deep.equal(expectedUpdate)
+    })
+
+    it('should throw error', async () => {
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.Plugin, 'findOne').rejects(new Error('Error'))
+
+      await PluginHandler.uninstallPluginWithPermissionRevoke('0xPlugin', '0xdao', NetworksEnum.ethereumSepolia, {
+        transactionHash: '0x0123',
+      } as any)
+
+      expect(getTransactionReceiptStub.notCalled).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
     })
   })
 })

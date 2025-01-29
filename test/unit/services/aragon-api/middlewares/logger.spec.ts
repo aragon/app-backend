@@ -3,6 +3,8 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import LoggerMiddleware from '@services/aragon-api/middlewares/logger'
 import Logger from '@logger'
+import Device from '@helpers/device'
+import logger from '@logger'
 
 describe('middlewares: logger', () => {
   let sandbox: SinonSandbox
@@ -60,5 +62,150 @@ describe('middlewares: logger', () => {
     expect(ctx.request.get.calledWith('deviceId')).to.be.true
     expect(ctx.response.set.calledWith('X-Correlation-Id', ctx.requestInfo.correlationId)).to.be.true
     expect(loginfo.args[0][0]).to.eq('API request')
+  })
+
+  it('should populate userAgentInfo when user-agent header is present', async () => {
+    const deviceInfoStub = sandbox.stub(Device, 'getDeviceInfo').returns({ device: 'TestDevice' } as any)
+    const next = sinon.stub() as any
+
+    const ctx: any = {
+      request: {
+        method: 'GET',
+        headers: {
+          'user-agent': 'TestUserAgent',
+        },
+        path: 'path',
+        ip: '127.0.0.1',
+        get: (header: string) => {
+          if (header === 'deviceId') return 'TestDeviceId'
+          if (header === 'origin') return 'TestOrigin'
+          return undefined
+        },
+      },
+      response: {
+        set: sandbox.stub(),
+      },
+      requestInfo: {},
+    }
+
+    await LoggerMiddleware()(ctx, next)
+
+    expect(deviceInfoStub.calledOnceWith('TestUserAgent')).to.be.true
+    expect(ctx.requestInfo.userAgentInfo).to.deep.eq({ device: 'TestDevice' })
+    expect(ctx.requestInfo.deviceId).to.eq('TestDeviceId')
+    expect(ctx.requestInfo.origin).to.eq('TestOrigin')
+    expect(next.calledOnce).to.be.true
+  })
+
+  it('should not populate userAgentInfo when user-agent header is not present', async () => {
+    const deviceInfoStub = sandbox.stub(Device, 'getDeviceInfo')
+    const next = sinon.stub().resolves()
+
+    const ctx: any = {
+      request: {
+        method: 'GET',
+        headers: {},
+        path: 'path',
+        ip: '127.0.0.1',
+        get: (header: string) => {
+          if (header === 'deviceId') return 'TestDeviceId'
+          if (header === 'origin') return 'TestOrigin'
+          return undefined
+        },
+      },
+      response: {
+        set: sandbox.stub(),
+      },
+      requestInfo: {},
+    }
+
+    await LoggerMiddleware()(ctx, next)
+
+    expect(deviceInfoStub.notCalled).to.be.true
+    expect(ctx.requestInfo.userAgentInfo).to.be.undefined
+    expect(ctx.requestInfo.deviceId).to.eq('TestDeviceId')
+    expect(ctx.requestInfo.origin).to.eq('TestOrigin')
+    expect(next.calledOnce).to.be.true
+  })
+
+  it('should set log level to ERROR if requestInfo.error is not exposeCustom_', async () => {
+    const logStub = sandbox.stub(logger, 'error')
+
+    // Define a fake `next` middleware
+    const next = sinon.stub().callsFake(() => {
+      ctx.requestInfo.error = { exposeCustom_: false }
+    })
+
+    const ctx: any = {
+      request: {
+        method: 'GET',
+        path: 'path',
+        get: (header: string) => {
+          if (header === 'deviceId') return 'TestDeviceId'
+          if (header === 'origin') return 'TestOrigin'
+          return undefined
+        },
+      },
+      response: {
+        set: sandbox.stub(),
+      },
+      requestInfo: {},
+    }
+
+    await LoggerMiddleware()(ctx, next)
+
+    expect(logStub.calledOnceWith('API request' as any)).to.be.true
+
+    const log: any = logStub.args[0]
+    expect(log[1]).to.have.property('service', 'api:logger')
+    expect(log[1]).to.have.property('error').that.deep.equals({ exposeCustom_: false })
+  })
+
+  it('should set log level to WARN if requestInfo.error is exposeCustom_', async () => {
+    const logStub = sandbox.stub(logger, 'warn')
+
+    const next = sinon.stub().callsFake(() => {
+      ctx.requestInfo.error = { exposeCustom_: true }
+    })
+
+    const ctx: any = {
+      request: {
+        method: 'GET',
+        path: 'path',
+        get: (header: string) => {
+          if (header === 'deviceId') return 'TestDeviceId'
+          if (header === 'origin') return 'TestOrigin'
+          return undefined
+        },
+      },
+      response: {
+        set: sandbox.stub(),
+      },
+      requestInfo: {},
+    }
+
+    await LoggerMiddleware()(ctx, next)
+
+    expect(logStub.calledOnceWith('API request' as any)).to.be.true
+
+    const log: any = logStub.args[0]
+    expect(log[1]).to.have.property('service', 'api:logger')
+    expect(log[1]).to.have.property('error').that.deep.equals({ exposeCustom_: true })
+  })
+
+  it('should skip logging for OPTIONS requests', async () => {
+    const logStub = sandbox.stub(logger, 'verbose')
+    const next = sinon.stub().resolves() // Ensure `next` is called
+
+    const ctx: any = {
+      request: {
+        method: 'OPTIONS',
+      },
+    }
+
+    await LoggerMiddleware()(ctx, next)
+
+    expect(next.calledOnce).to.be.true
+    expect(logStub.notCalled).to.be.true
   })
 })

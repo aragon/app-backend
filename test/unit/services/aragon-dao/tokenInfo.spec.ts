@@ -92,6 +92,14 @@ describe('TokenInfo Service', () => {
       expect(warnStub.calledOnce).to.be.true
     })
 
+    it('should throw error', async () => {
+      findByTokenAddressStub.rejects(new Error('fake-error'))
+
+      await TokenMetrics.update(tokenAddress, network)
+
+      expect(errorStub.calledOnceWith('Failed to update token metrics')).to.be.true
+    })
+
     it('should handle polling timeout scenario', async () => {
       getTokenSupplyStub.resolves({ totalSupply: '0', totalHolders: 0 })
 

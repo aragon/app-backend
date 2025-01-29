@@ -83,6 +83,31 @@ describe('AragonIndexer: CustomInstall', () => {
       expect(loggerStub.notCalled).to.be.true
     })
 
+    it('should handle errors during BlockchainLogCrawler crawling and call onError', async () => {
+      const dao = {
+        network: NetworksEnum.ethereumMainnet,
+        pluginSetupProcessor: { blockNumber: 16721862 },
+        address: '0x55da37AF02c4e7e0Ce01964A68692f7e32575eFA',
+      }
+
+      const error = new Error('Test error in crawler')
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
+        this: BlockchainLogCrawler,
+      ): Promise<any> {
+        if ((this as any).crawlParams.onError) {
+          await (this as any).crawlParams.onError(error)
+        }
+      })
+
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      await CustomInstall.pluginEvents(dao)
+
+      expect(crawlStub.calledOnce).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('Error in log plugin setup processor' as any)).to.be.true
+    })
+
     it('should fails format address', async () => {
       const dao = {
         network: NetworksEnum.ethereumMainnet,

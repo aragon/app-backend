@@ -108,5 +108,36 @@ describe('AragonIndexer: SyncAll', () => {
       expect(loggerVerboseStub.calledWithMatch('Message sent to queue "log.plugins". Current count: 51' as any)).to.be
         .true
     })
+
+    it('should log an error and retry when unable to get message count', async () => {
+      const plugin = { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet }
+
+      const getMessageCountStub = sandbox
+        .stub(RabbitMQ, 'getMessageCount')
+        .onCall(0)
+        .resolves(null)
+        .onCall(1)
+        .resolves(50)
+
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const waitStub = sandbox.stub(utils, 'wait').resolves()
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+
+      await SyncAll.sendWithQueueLimit(plugin as any)
+
+      expect(getMessageCountStub.calledTwice).to.be.true
+      expect(loggerErrorStub.calledOnce).to.be.true
+      expect(
+        loggerErrorStub.calledWith(
+          `Unable to get message count for queue "${EnumQueueName.plugins}". Retrying...` as any,
+        ),
+      ).to.be.true
+
+      expect(waitStub.calledOnce).to.be.true
+      expect(sendMessageStub.calledOnce).to.be.true
+      expect(loggerVerboseStub.calledWith(`Message sent to queue "${EnumQueueName.plugins}". Current count: 51` as any))
+        .to.be.true
+    })
   })
 })
