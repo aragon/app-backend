@@ -285,7 +285,7 @@ export const PluginSettingHandler = {
     })
     if (!activePluginSetting) return
 
-    if (stageNames?.length && activePluginSetting?.stages?.length !== stageNames.length) {
+    if (!stageNames || activePluginSetting?.stages?.length !== stageNames?.length) {
       logger.error('Stage names length mismatch', llo({ stageNames, activePluginSetting }))
       return
     }

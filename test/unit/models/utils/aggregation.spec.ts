@@ -2,9 +2,9 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
-import { NetworksEnum } from '@types'
+import { IPluginStatus, NetworksEnum } from '@types'
 
-describe('Model/Utils: aggregation', () => {
+describe('AggregationQueryHelper', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -81,7 +81,6 @@ describe('Model/Utils: aggregation', () => {
         },
         'memberMappings',
       )
-      // console.log('Generated Query:', JSON.stringify(query, null, 2)) // Log the query for debugging
 
       expect(query).to.deep.equal({
         $lookup: {
@@ -131,7 +130,7 @@ describe('Model/Utils: aggregation', () => {
         network: NetworksEnum.ethereumMainnet,
       })
 
-      expect(query).to.deep.equal({
+      const expectedQuery = {
         $lookup: {
           from: 'Proposal',
           let: {
@@ -144,15 +143,9 @@ describe('Model/Utils: aggregation', () => {
               $match: {
                 $expr: {
                   $and: [
-                    {
-                      $in: ['$proposalIndex', '$$proposalIndex'],
-                    },
-                    {
-                      $in: ['$pluginAddress', '$$pluginAddress'],
-                    },
-                    {
-                      $eq: ['$network', '$$network'],
-                    },
+                    { $in: ['$proposalIndex', '$$proposalIndex'] },
+                    { $in: ['$pluginAddress', '$$pluginAddress'] },
+                    { $eq: ['$network', '$$network'] },
                   ],
                 },
               },
@@ -168,14 +161,7 @@ describe('Model/Utils: aggregation', () => {
                   {
                     $match: {
                       $expr: {
-                        $and: [
-                          {
-                            $eq: ['$address', '$$address'],
-                          },
-                          {
-                            $eq: ['$network', '$$network'],
-                          },
-                        ],
+                        $and: [{ $eq: ['$address', '$$address'] }, { $eq: ['$network', '$$network'] }],
                       },
                     },
                   },
@@ -188,9 +174,9 @@ describe('Model/Utils: aggregation', () => {
                       name: 1,
                       decimals: 1,
                       logo: 1,
-                      mintableByDao: 1,
                       type: 1,
                       totalSupply: 1,
+                      mintableByDao: 1,
                     },
                   },
                 ],
@@ -202,17 +188,9 @@ describe('Model/Utils: aggregation', () => {
                 settings: {
                   $mergeObjects: [
                     '$settings',
-                    {
-                      token: {
-                        $arrayElemAt: ['$token', 0],
-                      },
-                    },
-                    {
-                      historicalMembersCount: '$snapshot.membersCount',
-                    },
-                    {
-                      historicalTotalSupply: '$snapshot.totalSupply',
-                    },
+                    { token: { $arrayElemAt: ['$token', 0] } },
+                    { historicalMembersCount: '$snapshot.membersCount' },
+                    { historicalTotalSupply: '$snapshot.totalSupply' },
                   ],
                 },
               },
@@ -256,19 +234,183 @@ describe('Model/Utils: aggregation', () => {
           ],
           as: 'proposals',
         },
+      }
+
+      expect(query).to.deep.equal(expectedQuery)
+    })
+  })
+
+  describe('plugin', () => {
+    it('should construct a valid aggregation query for plugin', () => {
+      const query = AggregationQueryHelper.plugin(
+        {
+          addresses: ['0xPlugin1', '0xPlugin2'],
+          network: NetworksEnum.ethereumMainnet,
+          status: IPluginStatus.installed,
+        },
+        'plugins',
+      )
+
+      const expectedQuery = {
+        $lookup: {
+          from: 'Plugin',
+          let: {
+            addresses: ['0xPlugin1', '0xPlugin2'],
+            network: NetworksEnum.ethereumMainnet,
+            status: IPluginStatus.installed,
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $in: ['$address', '$$addresses'] },
+                    { $eq: ['$network', '$$network'] },
+                    { $eq: ['$status', '$$status'] },
+                  ],
+                },
+              },
+            },
+            {
+              $lookup: {
+                from: 'PluginSlug',
+                let: {
+                  pluginAddress: '$address',
+                  network: '$network',
+                },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [{ $eq: ['$pluginAddress', '$$pluginAddress'] }, { $eq: ['$network', '$$network'] }],
+                      },
+                    },
+                  },
+                ],
+                as: 'pluginSlug',
+              },
+            },
+            {
+              $addFields: {
+                slug: {
+                  $cond: {
+                    if: { $gt: [{ $size: '$pluginSlug' }, 0] },
+                    then: { $arrayElemAt: ['$pluginSlug.slug', 0] },
+                    else: null,
+                  },
+                },
+              },
+            },
+            {
+              $unset: 'pluginSlug',
+            },
+          ],
+          as: 'plugins',
+        },
+      }
+
+      expect(query).to.deep.equal(expectedQuery)
+    })
+  })
+
+  describe('token', () => {
+    it('should construct a valid aggregation query for token', () => {
+      const query = AggregationQueryHelper.token(
+        { address: '0xTokenAddress', network: NetworksEnum.ethereumMainnet },
+        'tokens',
+        { symbol: 1, name: 1 },
+      )
+
+      expect(query).to.deep.equal({
+        $lookup: {
+          from: 'Token',
+          let: { address: '0xTokenAddress', network: NetworksEnum.ethereumMainnet },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ['$address', '$$address'] }, { $eq: ['$network', '$$network'] }],
+                },
+              },
+            },
+            {
+              $project: { symbol: 1, name: 1 },
+            },
+          ],
+          as: 'tokens',
+        },
       })
     })
   })
 
-  describe('token holders', () => {
-    it('should construct a valid aggregation query for token holders', () => {
-      const query = AggregationQueryHelper.memberCountByToken('0xx', NetworksEnum.ethereumMainnet)
-      expect(query[0]).to.deep.eq({
-        $match: {
-          address: '0xx',
-          network: NetworksEnum.ethereumMainnet,
+  describe('memberCountByToken', () => {
+    it('should construct a valid aggregation query for memberCountByToken', () => {
+      const query = AggregationQueryHelper.memberCountByToken('0xToken', NetworksEnum.ethereumMainnet)
+
+      expect(query).to.deep.equal([
+        {
+          $match: {
+            address: '0xToken',
+            network: NetworksEnum.ethereumMainnet,
+          },
         },
-      })
+        {
+          $lookup: {
+            from: 'Plugin',
+            let: { tNetwork: '$network', tAddress: '$address' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [{ $eq: ['$tokenAddress', '$$tAddress'] }, { $eq: ['$network', '$$tNetwork'] }],
+                  },
+                },
+              },
+              {
+                $lookup: {
+                  from: 'DaoMemberMapping',
+                  let: { pluginAddr: '$address' },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $eq: ['$pluginAddress', '$$pluginAddr'],
+                        },
+                      },
+                    },
+                    {
+                      $count: 'memberCount',
+                    },
+                  ],
+                  as: 'daoMembers',
+                },
+              },
+              {
+                $set: {
+                  memberCount: {
+                    $ifNull: [{ $arrayElemAt: ['$daoMembers.memberCount', 0] }, 0],
+                  },
+                },
+              },
+            ],
+            as: 'plugin',
+          },
+        },
+        {
+          $set: {
+            memberCount: {
+              $sum: '$plugin.memberCount',
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            address: 1,
+            memberCount: 1,
+          },
+        },
+      ])
     })
   })
 })
