@@ -3076,6 +3076,56 @@
 					"response": []
 				},
 				{
+					"name": "get proposal by slug",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "1c5e77e8-ee12-482d-83d4-f7b74ed31651",
+								"exec": [
+									"// Tests for get proposals by id endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"id": "677cfa89-e65a-4869-9e82-eb64c632185d",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{host}}/proposals/slug/multisig-0?daoId=ethereum-sepolia-0xCa834B3F404c97273f34e108029eEd776144d324",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"proposals",
+								"slug",
+								"multisig-0"
+							],
+							"query": [
+								{
+									"key": "daoId",
+									"value": "ethereum-sepolia-0xCa834B3F404c97273f34e108029eEd776144d324"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "can create proposal",
 					"event": [
 						{
