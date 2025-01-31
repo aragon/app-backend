@@ -149,6 +149,14 @@ export const GovernanceErc20Handler = {
     }
   },
 
+  /**
+   * Handles DAO membership state based on token ownership and voting power
+   * @param memberTx - Must contain balance/voting power at event block
+   * @param tokenType - Determines requirement rules (ERC20 vs ERC721)
+   * @param plugins - All DAO plugins associated with this token
+   * @param info - Log info
+   */
+
   _handleDaoMemberShip: async (
     memberTx: Partial<MemberTransaction>,
     tokenType: ITokenType,
@@ -174,7 +182,7 @@ export const GovernanceErc20Handler = {
 
     const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
     await Promise.all([
-      plugins.map(async (plugin: Plugin) => {
+      ...plugins.map(async (plugin: Plugin) => {
         const memberShipParams = {
           memberAddress: memberTx.address!,
           daoAddress: plugin.daoAddress,
@@ -193,7 +201,7 @@ export const GovernanceErc20Handler = {
           await ProxyMember.removeFromDao(memberShipParams)
         }
       }),
-      uniqueDaoList.map(async (daoAddress: string) => {
+      ...uniqueDaoList.map(async (daoAddress: string) => {
         await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
           id: daoAddress,
           params: { address: daoAddress, network: info.network },
