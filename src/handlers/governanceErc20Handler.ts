@@ -21,6 +21,7 @@ import type Plugin from '@models/schema/plugin'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import config from '@config'
 import { ProxyToken } from '@modules/proxyToken'
+import type MemberTransaction from '@models/schema/memberTransaction'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:GovernanceErc20Handler' })
 
@@ -69,9 +70,9 @@ export const GovernanceErc20Handler = {
         address: memberAddress,
       })
 
+      const token = await ProxyToken.saveAndGetToken(info.address, info.network)
       if (existingLog) {
-        logger.warn(`Transfer - ${transferType} transfer already processed`, llo({ info }))
-        return
+        return GovernanceErc20Handler._handleDaoMemberShip(existingLog, token?.type!, plugins, info)
       }
 
       if (!isHistorical) {
@@ -86,7 +87,6 @@ export const GovernanceErc20Handler = {
         network: info.network,
       })
 
-      const token = await ProxyToken.saveAndGetToken(info.address, info.network)
       let tokenBal: string = '0'
       let memberVotingPower: string = '0'
 
@@ -143,69 +143,63 @@ export const GovernanceErc20Handler = {
         return memberTransaction
       })
 
-      if (transferType === ITransferSide.incoming) {
-        await Promise.all(
-          plugins.map(async (plugin: Plugin) => GovernanceErc20Handler._addMemberToDao(memberAddress, plugin)),
-        )
-      }
-
-      let removeFromDao = false
-
-      if (transferType === ITransferSide.outgoing && token?.type === ITokenType.GovernanceERC20) {
-        removeFromDao =
-          BigInt(memberTransaction.memberBalance) === 0n && BigInt(memberTransaction.memberVotingPower) === 0n
-      }
-
-      if (transferType === ITransferSide.outgoing && token?.type === ITokenType.ERC721) {
-        removeFromDao =
-          (await Web3Helper.getTokenBalanceAtBlock({
-            address: memberAddress,
-            tokenAddress: info.address,
-            blockNumber: info.blockNumber,
-            network: info.network,
-          })) === '0'
-      }
-
-      if (removeFromDao) {
-        await Promise.all(
-          plugins.map(async (plugin: Plugin) => GovernanceErc20Handler._removeFromDao(memberAddress, plugin)),
-        )
-      }
-
-      logger.verbose(`Transfer ${transferType} - MemberTransaction`, llo({ logId: memberTransaction?.id, info }))
-
-      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-      await Promise.all(
-        uniqueDaoList.map(async (daoAddress: string) => {
-          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-            id: daoAddress,
-            params: { address: daoAddress, network: info.network },
-          })
-        }),
-      )
+      await GovernanceErc20Handler._handleDaoMemberShip(memberTransaction, token?.type!, plugins, info)
     } catch (error) {
       logger.error(`Transfer - ${transferType} transfer error`, llo({ error, info }))
     }
   },
 
-  _addMemberToDao: async (memberAddress: string, plugin: Plugin) => {
-    await ProxyMember.addToDao({
-      memberAddress,
-      daoAddress: plugin.daoAddress,
-      pluginAddress: plugin.address,
-      tokenAddress: plugin.tokenAddress,
-      network: plugin.network,
-    })
-  },
+  _handleDaoMemberShip: async (
+    memberTx: Partial<MemberTransaction>,
+    tokenType: ITokenType,
+    plugins: Plugin[],
+    info: ILogInfo,
+  ) => {
+    let userBalance = 0n
+    let votingPower = 0n
 
-  _removeFromDao: async (memberAddress: string, plugin: Plugin) => {
-    await ProxyMember.removeFromDao({
-      memberAddress,
-      daoAddress: plugin.daoAddress,
-      pluginAddress: plugin.address,
-      tokenAddress: plugin.tokenAddress,
-      network: plugin.network,
-    })
+    if (tokenType === ITokenType.GovernanceERC20) {
+      votingPower = BigInt(memberTx.memberVotingPower!)
+      userBalance = BigInt(memberTx.memberBalance!)
+    } else {
+      userBalance = BigInt(
+        await Web3Helper.getTokenBalanceAtBlock({
+          address: memberTx.address!,
+          tokenAddress: info.address,
+          blockNumber: info.blockNumber,
+          network: info.network,
+        }),
+      )
+    }
+
+    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+    await Promise.all([
+      plugins.map(async (plugin: Plugin) => {
+        const memberShipParams = {
+          memberAddress: memberTx.address!,
+          daoAddress: plugin.daoAddress,
+          network: plugin.network,
+          pluginAddress: plugin.address,
+          tokenAddress: plugin.tokenAddress,
+        }
+
+        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
+        const meetsRequirements =
+          tokenType === ITokenType.GovernanceERC20 ? votingPower > 0n || userBalance > 0n : BigInt(userBalance) > 0n
+
+        if (!isMember && meetsRequirements) {
+          await ProxyMember.addToDao(memberShipParams)
+        } else if (isMember && !meetsRequirements) {
+          await ProxyMember.removeFromDao(memberShipParams)
+        }
+      }),
+      uniqueDaoList.map(async (daoAddress: string) => {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: daoAddress,
+          params: { address: daoAddress, network: info.network },
+        })
+      }),
+    ])
   },
 
   // it triggers for each user the previous and new votingPower
@@ -229,7 +223,7 @@ export const GovernanceErc20Handler = {
         network: info.network,
       })
 
-      const newVotingPower = await DbTx.executeTxFn(async ({ session }) => {
+      const votingPowerResult = await DbTx.executeTxFn(async ({ session }) => {
         const existingLog = await Models.MemberTransaction.findExistingLog(
           {
             network: info.network,
@@ -242,8 +236,7 @@ export const GovernanceErc20Handler = {
         )
 
         if (existingLog) {
-          logger.warn('DelegateVotesChanged - already processed', llo({ info }))
-          return false
+          return existingLog
         }
 
         const newVotingPower = BigInt(parsedEvent?.args?.newBalance || 0)
@@ -252,7 +245,15 @@ export const GovernanceErc20Handler = {
         await session.endSession()
         return newVotingPower
       })
-      if (newVotingPower === false) return
+
+      if (typeof votingPowerResult !== 'bigint') {
+        return GovernanceErc20Handler._handleDaoMemberShip(
+          votingPowerResult as MemberTransaction,
+          ITokenType.GovernanceERC20,
+          plugins,
+          info,
+        )
+      }
 
       const memberBalance = await Web3Helper.getTokenBalanceAtBlock({
         address: memberAddress,
@@ -261,20 +262,16 @@ export const GovernanceErc20Handler = {
         network: info.network,
       })
 
-      // we always check if member receive or send the delegation to add and remove from the dao
-      if (newVotingPower > 0n) {
-        // add to dao
-        await Promise.all(
-          plugins.map(async (plugin: Plugin) => GovernanceErc20Handler._addMemberToDao(memberAddress, plugin)),
-        )
-      } else {
-        // remove member from dao
-        if (BigInt(memberBalance) === 0n && newVotingPower === 0n) {
-          await Promise.all(
-            plugins.map(async (plugin: Plugin) => GovernanceErc20Handler._removeFromDao(memberAddress, plugin)),
-          )
-        }
-      }
+      await GovernanceErc20Handler._handleDaoMemberShip(
+        {
+          address: memberAddress,
+          memberBalance: memberBalance.toString(),
+          memberVotingPower: votingPowerResult.toString(),
+        },
+        ITokenType.GovernanceERC20,
+        plugins,
+        info,
+      )
 
       const { from, to } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
 
@@ -312,7 +309,7 @@ export const GovernanceErc20Handler = {
             amount: BigInt(parsedEvent?.args?.value || 0).toString(),
             tokenAddress: info.address,
             memberBalance,
-            memberVotingPower: newVotingPower.toString(),
+            memberVotingPower: votingPowerResult.toString(),
           },
           { session },
         )
@@ -342,17 +339,6 @@ export const GovernanceErc20Handler = {
             pluginAddress: plg.address,
             network: info.network,
             blockNumber: info.blockNumber,
-          })
-        }),
-      )
-
-      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-
-      await Promise.all(
-        uniqueDaoList.map(async (daoAddress: string) => {
-          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-            id: daoAddress,
-            params: { address: daoAddress, network: info.network },
           })
         }),
       )
