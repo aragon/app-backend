@@ -10,9 +10,9 @@ import utils from '@helpers/utils'
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
-import {Interface} from "ethers";
-import {DAO} from "@artifacts/dao";
-import {GovernanceERC20} from "@artifacts/GovernanceERC20";
+import { Interface } from 'ethers'
+import { DAO } from '@artifacts/dao'
+import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 
 describe('AragonTransactions: BlockHandler', () => {
   let sandbox: SinonSandbox
@@ -162,8 +162,7 @@ describe('AragonTransactions: BlockHandler', () => {
     let topicHash: string[] = []
 
     beforeEach(() => {
-
-       topicHash = [
+      topicHash = [
         new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
         new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
       ]
@@ -192,14 +191,10 @@ describe('AragonTransactions: BlockHandler', () => {
     it('should call processReceiver for transfer', async () => {
       const fakeBlock = { number: 123 }
       const fakeProvider = { getLogs: stubProviderGetLogs }
-      const logs = [
-        { transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]]},
-      ]
+      const logs = [{ transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]] }]
 
       const fakeDecoded = { args: { to: '0xdecoded' } }
-      const parseLogStub = sandbox
-        .stub(Interface.prototype, 'parseLog')
-        .returns(fakeDecoded as any)
+      const parseLogStub = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeDecoded as any)
 
       stubGetProvider.returns(fakeProvider)
       stubProviderGetLogs.resolves(logs)
@@ -210,14 +205,12 @@ describe('AragonTransactions: BlockHandler', () => {
       expect(parseLogStub.calledOnce).to.be.true
 
       expect(stubProcessReceiver.calledOnceWith('0xabc', ['0xdecoded'], NetworksEnum.ethereumMainnet)).to.be.true
-    });
+    })
 
     it('should log error processReceiver for transfer', async () => {
       const fakeBlock = { number: 123 }
       const fakeProvider = { getLogs: stubProviderGetLogs }
-      const logs = [
-        { transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]]},
-      ]
+      const logs = [{ transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]] }]
 
       const parseLogStub = sandbox
         .stub(Interface.prototype, 'parseLog')
@@ -241,8 +234,8 @@ describe('AragonTransactions: BlockHandler', () => {
       const fakeBlock = { number: 123 }
       const fakeProvider = { getLogs: stubProviderGetLogs }
       const logs = [
-        { transactionHash: '0xabc', address: '0x123', topics: [topicHash[0]]},
-        { transactionHash: '0xdef', address: '0x456', topics: [topicHash[0]]},
+        { transactionHash: '0xabc', address: '0x123', topics: [topicHash[0]] },
+        { transactionHash: '0xdef', address: '0x456', topics: [topicHash[0]] },
       ]
 
       stubGetProvider.returns(fakeProvider)
