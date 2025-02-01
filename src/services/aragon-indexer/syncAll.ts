@@ -102,6 +102,7 @@ export const SyncAll = {
 
         counter = 0
         for (const plugin of pluginSynced) {
+          counter++
           await SyncAll.sendWithQueueLimit(plugin, pluginSynced.length - counter)
         }
       }),

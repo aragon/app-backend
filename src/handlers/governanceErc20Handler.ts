@@ -72,7 +72,7 @@ export const GovernanceErc20Handler = {
 
       const token = await ProxyToken.saveAndGetToken(info.address, info.network)
       if (existingLog) {
-        return GovernanceErc20Handler._handleDaoMemberShip(existingLog, token?.type!, plugins, info)
+        return await GovernanceErc20Handler._handleDaoMemberShip(existingLog, token?.type!, plugins, info)
       }
 
       if (!isHistorical) {
@@ -255,7 +255,7 @@ export const GovernanceErc20Handler = {
       })
 
       if (typeof votingPowerResult !== 'bigint') {
-        return GovernanceErc20Handler._handleDaoMemberShip(
+        return await GovernanceErc20Handler._handleDaoMemberShip(
           votingPowerResult as MemberTransaction,
           ITokenType.GovernanceERC20,
           plugins,
