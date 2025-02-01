@@ -90,14 +90,16 @@ export const SyncAll = {
 
         const pluginNotSynced = plugins.filter((plugin: Plugin) => plugin.lastSync === 0)
         logger.verbose('SyncAll: pluginNotSynced list', llo({ count: pluginNotSynced.length }))
+
         let counter = 0
         for (const plugin of pluginNotSynced) {
           counter++
           await SyncAll.sendWithQueueLimit(plugin, pluginNotSynced.length - counter)
         }
 
-        logger.verbose('SyncAll: Synced list', llo({ count: pluginNotSynced.length }))
         const pluginSynced = plugins.filter((plugin: Plugin) => plugin.lastSync > 0)
+        logger.verbose('SyncAll: Synced list', llo({ count: pluginSynced.length }))
+
         counter = 0
         for (const plugin of pluginSynced) {
           await SyncAll.sendWithQueueLimit(plugin, pluginSynced.length - counter)
@@ -130,14 +132,14 @@ export const SyncAll = {
           params: { address: plugin.address, network: plugin.network },
         })
         logger.verbose(
-          `Message sent to queue "${EnumQueueName.plugins}". Current count: ${count + 1}`,
-          llo({ queueName: EnumQueueName.plugins, address: plugin.address, remaining }),
+          `Message sent to queue "${EnumQueueName.plugins}`,
+          llo({ queueName: EnumQueueName.plugins, address: plugin.address, remaining, count: count + 1 }),
         )
         break // Exit the loop after successful send
       } else {
         logger.warn(
-          `Queue "${EnumQueueName.plugins}" has reached the limit (${count} messages). Waiting...`,
-          llo({ queueName: EnumQueueName.plugins, waitingPlugin: plugin.address, remaining }),
+          `Queue "${EnumQueueName.plugins}" has reached the limit Waiting...`,
+          llo({ queueName: EnumQueueName.plugins, waitingPlugin: plugin.address, remaining, count }),
         )
         await utils.wait(retryDelay) // Wait before retrying
       }
