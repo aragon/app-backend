@@ -10,6 +10,9 @@ import utils from '@helpers/utils'
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
+import {Interface} from "ethers";
+import {DAO} from "@artifacts/dao";
+import {GovernanceERC20} from "@artifacts/GovernanceERC20";
 
 describe('AragonTransactions: BlockHandler', () => {
   let sandbox: SinonSandbox
@@ -156,7 +159,15 @@ describe('AragonTransactions: BlockHandler', () => {
     let stubProviderGetLogs: sinon.SinonStub
     let stubProcessReceiver: sinon.SinonStub
 
+    let topicHash: string[] = []
+
     beforeEach(() => {
+
+       topicHash = [
+        new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
+        new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
+      ]
+
       stubGetProvider = sandbox.stub(ProviderModule, 'getProvider')
       stubProviderGetLogs = sandbox.stub()
       stubProcessReceiver = sandbox.stub(BlockHandler, 'processReceiver').resolves()
@@ -178,12 +189,60 @@ describe('AragonTransactions: BlockHandler', () => {
       expect(stubProviderGetLogs.calledOnce).to.be.true
     })
 
-    it('should call processReceiver for each log found', async () => {
+    it('should call processReceiver for transfer', async () => {
       const fakeBlock = { number: 123 }
       const fakeProvider = { getLogs: stubProviderGetLogs }
       const logs = [
-        { transactionHash: '0xabc', address: '0x123' },
-        { transactionHash: '0xdef', address: '0x456' },
+        { transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]]},
+      ]
+
+      const fakeDecoded = { args: { to: '0xdecoded' } }
+      const parseLogStub = sandbox
+        .stub(Interface.prototype, 'parseLog')
+        .returns(fakeDecoded as any)
+
+      stubGetProvider.returns(fakeProvider)
+      stubProviderGetLogs.resolves(logs)
+
+      await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
+
+      expect(stubProviderGetLogs.calledOnce).to.be.true
+      expect(parseLogStub.calledOnce).to.be.true
+
+      expect(stubProcessReceiver.calledOnceWith('0xabc', ['0xdecoded'], NetworksEnum.ethereumMainnet)).to.be.true
+    });
+
+    it('should log error processReceiver for transfer', async () => {
+      const fakeBlock = { number: 123 }
+      const fakeProvider = { getLogs: stubProviderGetLogs }
+      const logs = [
+        { transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]]},
+      ]
+
+      const parseLogStub = sandbox
+        .stub(Interface.prototype, 'parseLog')
+        .throws(new Error('Error decoding transfer event'))
+
+      stubGetProvider.returns(fakeProvider)
+      stubProviderGetLogs.resolves(logs)
+
+      const loggerError = sandbox.stub(logger, 'error')
+
+      await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
+
+      expect(stubProviderGetLogs.calledOnce).to.be.true
+      expect(parseLogStub.calledOnce).to.be.true
+      expect(loggerError.calledOnce).to.be.true
+
+      expect(stubProcessReceiver.calledOnce).to.be.false
+    })
+
+    it('should call processReceiver for each log found for native token deposit', async () => {
+      const fakeBlock = { number: 123 }
+      const fakeProvider = { getLogs: stubProviderGetLogs }
+      const logs = [
+        { transactionHash: '0xabc', address: '0x123', topics: [topicHash[0]]},
+        { transactionHash: '0xdef', address: '0x456', topics: [topicHash[0]]},
       ]
 
       stubGetProvider.returns(fakeProvider)
@@ -193,8 +252,7 @@ describe('AragonTransactions: BlockHandler', () => {
 
       expect(stubProviderGetLogs.calledOnce).to.be.true
 
-      expect(stubProcessReceiver.firstCall.args).to.deep.equal(['0xabc', ['0x123'], NetworksEnum.ethereumMainnet])
-      expect(stubProcessReceiver.secondCall.args).to.deep.equal(['0xdef', ['0x456'], NetworksEnum.ethereumMainnet])
+      expect(stubProcessReceiver.calledOnceWith('0xabc', ['0x123', '0x456'], NetworksEnum.ethereumMainnet))
     })
   })
 
