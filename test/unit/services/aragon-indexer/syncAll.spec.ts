@@ -101,12 +101,9 @@ describe('AragonIndexer: SyncAll', () => {
 
       expect(getMessageCountStub.callCount).to.equal(2)
       expect(waitStub.calledOnce).to.be.true
-      expect(
-        loggerWarnStub.calledWithMatch('Queue "log.plugins" has reached the limit (100 messages). Waiting...' as any),
-      ).to.be.true
+      expect(loggerWarnStub.calledWithMatch('Queue "log.plugins" has reached the limit. Waiting...' as any)).to.be.true
       expect(sendMessageStub.calledOnce).to.be.true
-      expect(loggerVerboseStub.calledWithMatch('Message sent to queue "log.plugins". Current count: 51' as any)).to.be
-        .true
+      expect(loggerVerboseStub.calledWithMatch('Message sent to queue "log.plugins"' as any)).to.be.true
     })
 
     it('should log an error and retry when unable to get message count', async () => {
@@ -136,8 +133,7 @@ describe('AragonIndexer: SyncAll', () => {
 
       expect(waitStub.calledOnce).to.be.true
       expect(sendMessageStub.calledOnce).to.be.true
-      expect(loggerVerboseStub.calledWith(`Message sent to queue "${EnumQueueName.plugins}". Current count: 51` as any))
-        .to.be.true
+      expect(loggerVerboseStub.args[0][0]).to.be.eq(`Message sent to queue "${EnumQueueName.plugins}"` as any)
     })
   })
 })
