@@ -79,23 +79,23 @@ export const BlockHandler = {
       return
     }
 
-    try {
-      const receiverAddresses = new Set<string>()
-      for (const log of logs) {
-        if (log.topics[0] === topicHash[0]) {
-          receiverAddresses.add(log.address)
-        } else if (log.topics[0] === topicHash[1]) {
+    const receiverAddresses = new Set<string>()
+    for (const log of logs) {
+      if (log.topics[0] === topicHash[0]) {
+        receiverAddresses.add(log.address)
+      } else if (log.topics[0] === topicHash[1]) {
+        try {
           const govTokenInterface = new Interface(GovernanceERC20.abi)
           const decoded = govTokenInterface.parseLog(log)
           receiverAddresses.add(decoded?.args.to)
+        } catch (e) {
+          logger.error('Error decoding transfer event', llo({ error: e }))
         }
       }
+    }
 
-      if (receiverAddresses.size === 0) {
-        await BlockHandler.processReceiver(logs[0].transactionHash, Array.from(receiverAddresses), network)
-      }
-    } catch (e) {
-      logger.error('Error processing deposit events', llo({ error: e }))
+    if (receiverAddresses.size === 0) {
+      await BlockHandler.processReceiver(logs[0].transactionHash, Array.from(receiverAddresses), network)
     }
   },
 
