@@ -79,20 +79,23 @@ export const BlockHandler = {
       return
     }
 
-    const receiverAddresses = new Set<string>()
-
-    logs.forEach((log: Log) => {
-      if (log.topics[0] === topicHash[0]) {
-        receiverAddresses.add(log.address)
-      } else if (log.topics[0] === topicHash[1]) {
-        const govTokenInterface = new Interface(GovernanceERC20.abi)
-        const decoded = govTokenInterface.parseLog(log)
-        receiverAddresses.add(decoded?.args.to)
+    try {
+      const receiverAddresses = new Set<string>()
+      for (const log of logs) {
+        if (log.topics[0] === topicHash[0]) {
+          receiverAddresses.add(log.address)
+        } else if (log.topics[0] === topicHash[1]) {
+          const govTokenInterface = new Interface(GovernanceERC20.abi)
+          const decoded = govTokenInterface.parseLog(log)
+          receiverAddresses.add(decoded?.args.to)
+        }
       }
-    })
 
-    if (receiverAddresses.size === 0) {
-      await BlockHandler.processReceiver(logs[0].transactionHash, Array.from(receiverAddresses), network)
+      if (receiverAddresses.size === 0) {
+        await BlockHandler.processReceiver(logs[0].transactionHash, Array.from(receiverAddresses), network)
+      }
+    } catch (e) {
+      logger.error('Error processing deposit events', llo({ error: e }))
     }
   },
 
