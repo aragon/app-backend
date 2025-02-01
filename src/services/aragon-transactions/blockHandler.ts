@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { ethers, Interface, type Log } from 'ethers'
+import { ethers, Interface } from 'ethers'
 import { EnumQueueName, type NetworksEnum } from '@types'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
@@ -11,6 +11,7 @@ import utils from '@helpers/utils'
 import config from '@config'
 import { DAO } from '@artifacts/dao'
 import Web3Helper from '@helpers/web3'
+import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-transactions:BlockHandler' })
 
@@ -59,11 +60,15 @@ export const BlockHandler = {
   _checkIfDepositEvents: async (block: any, network: NetworksEnum) => {
     const blockHex = '0x' + Number(block.number).toString(16)
     const provider = ProviderModule.getProvider(network)
-    const topicHash = new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!
+    const topicHash = [
+      new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
+      new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
+    ]
+
     const filter = {
       fromBlock: blockHex,
       toBlock: blockHex,
-      topics: [topicHash],
+      topics: topicHash,
     }
 
     const logs = await retryRequest(async () =>
@@ -74,11 +79,24 @@ export const BlockHandler = {
       return
     }
 
-    await Promise.all(
-      logs.map(async (log: Log) => {
-        await BlockHandler.processReceiver(log.transactionHash, [log.address], network)
-      }),
-    )
+    const receiverAddresses = new Set<string>()
+    for (const log of logs) {
+      if (log.topics[0] === topicHash[0]) {
+        receiverAddresses.add(log.address)
+      } else if (log.topics[0] === topicHash[1]) {
+        try {
+          const govTokenInterface = new Interface(GovernanceERC20.abi)
+          const decoded = govTokenInterface.parseLog(log)
+          receiverAddresses.add(decoded?.args.to)
+        } catch (e) {
+          logger.error('Error decoding transfer event', llo({ error: e }))
+        }
+      }
+    }
+
+    if (receiverAddresses.size > 0) {
+      await BlockHandler.processReceiver(logs[0].transactionHash, Array.from(receiverAddresses), network)
+    }
   },
 
   sendDaoMessages: async (dao: Dao) => {
