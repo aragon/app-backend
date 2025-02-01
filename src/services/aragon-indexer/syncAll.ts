@@ -111,7 +111,7 @@ export const SyncAll = {
     logger.verbose('End SyncAll', llo())
   },
 
-  sendWithQueueLimit: async (plugin: Plugin, remaining: number) => {
+  sendWithQueueLimit: async (plugin: Plugin, remaining?: number) => {
     const maxQueueSize = 100
     const retryDelay = 1000 // 1 second
 

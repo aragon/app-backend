@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { ethers, Interface, type Log } from 'ethers'
+import { ethers, Interface } from 'ethers'
 import { EnumQueueName, type NetworksEnum } from '@types'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
@@ -94,7 +94,7 @@ export const BlockHandler = {
       }
     }
 
-    if (receiverAddresses.size === 0) {
+    if (receiverAddresses.size > 0) {
       await BlockHandler.processReceiver(logs[0].transactionHash, Array.from(receiverAddresses), network)
     }
   },
