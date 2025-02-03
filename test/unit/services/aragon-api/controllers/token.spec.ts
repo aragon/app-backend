@@ -142,7 +142,7 @@ describe('Controller: Token', () => {
         lastUpdatedAt: dayjs().toISOString(),
       } as any
 
-      fakeRes.filterKeys = sandbox.stub().resolves(fakeRes)
+      fakeRes.filterKeys = sandbox.stub().returns(fakeRes)
 
       const stubHelper = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(fakeRes as any)
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0'
