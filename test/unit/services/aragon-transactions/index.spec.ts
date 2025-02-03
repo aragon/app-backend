@@ -10,7 +10,7 @@ import { TaskSchedulerState } from '@state/taskSchedulerState'
 import BottleneckModule from '@modules/bottleneck'
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 
-describe('aragon-transactions: index', () => {
+describe('AragonTransactions: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -33,7 +33,10 @@ describe('aragon-transactions: index', () => {
 
       const providerMock = { getBlock: sandbox.stub() } as any
       const getProviderStub = sandbox.stub(ProviderModule, 'getProvider').returns(providerMock)
-      const subscribeStub = sandbox.stub(ProviderModule, 'subscribeToNewBlock')
+      const subscribeStub = sandbox.stub(ProviderModule, 'subscribeToNewBlock').callsFake((networkName, callback) => {
+        callback(networkName)
+      })
+
       const processNewBlockStub = sandbox.stub(AragonTransactionsService, 'processNewBlock').resolves()
 
       await AragonTransactionsService.start()
@@ -43,7 +46,7 @@ describe('aragon-transactions: index', () => {
       expect(getProviderStub.calledOnceWith(NetworksEnum.ethereumMainnet)).to.be.true
       expect(subscribeStub.calledOnce).to.be.true
       expect(loggerVerboseStub.calledWith('Listening to new block events' as any)).to.be.true
-      expect(processNewBlockStub.notCalled).to.be.true
+      expect(processNewBlockStub.calledOnce).to.be.true
       expect(loggerErrorStub.notCalled).to.be.true
     })
 

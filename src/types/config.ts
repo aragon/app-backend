@@ -30,6 +30,7 @@ export interface IConfig {
     ETHEREUM_MAINNET: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -37,6 +38,7 @@ export interface IConfig {
     ETHEREUM_SEPOLIA: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -44,6 +46,7 @@ export interface IConfig {
     POLYGON_MAINNET: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -51,6 +54,7 @@ export interface IConfig {
     BASE_MAINNET: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -58,6 +62,7 @@ export interface IConfig {
     ARBITRUM_MAINNET: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -65,6 +70,7 @@ export interface IConfig {
     ZKSYNC_SEPOLIA: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -72,6 +78,7 @@ export interface IConfig {
     ZKSYNC_MAINNET: {
       WS: string
       FROM_BLOCK: number
+      CONFIRMATION_BLOCKS: number
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
@@ -109,6 +116,8 @@ export interface IConfig {
     FOUR_BYTE_MIN_TIME: number
     ALCHEMY_ENS_MAX_CONCURRENT: number
     ALCHEMY_ENS_MIN_TIME: number
+    ALCHEMY_BATCH_REQUEST_MAX_CONCURRENT: number
+    ALCHEMY_BATCH_REQUEST_MIN_TIME: number
     ALCHEMY_BALANCE_MAX_CONCURRENT: number
     ALCHEMY_BALANCE_MIN_TIME: number
   }

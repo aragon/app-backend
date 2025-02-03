@@ -138,6 +138,41 @@ describe('Model: Proposal', () => {
     expect(Proposal?.daoAddress).to.eq(rawProposalMultisig.daoAddress)
   })
 
+  it('Should findByProposalIndex', async () => {
+    const createdProposal = await Models.Proposal.create(rawProposalMultisig)
+
+    const foundProposal = await Models.Proposal.findByProposalIndex(
+      createdProposal.proposalIndex!,
+      createdProposal.pluginAddress!,
+      createdProposal.network!,
+    )
+
+    expect(foundProposal).to.exist
+    expect(foundProposal?.id).to.eq(createdProposal.id)
+    expect(foundProposal?.pluginAddress).to.eq(createdProposal.pluginAddress)
+    expect(foundProposal?.network).to.eq(createdProposal.network)
+    expect(foundProposal?.proposalIndex).to.eq(createdProposal.proposalIndex)
+  })
+
+  it('Should findByProposalIncrementalId', async () => {
+    const createdProposal = await Models.Proposal.create({
+      ...rawProposalMultisig,
+      incrementalId: 1,
+    })
+
+    const foundProposal = await Models.Proposal.findByProposalIncrementalId(
+      createdProposal.incrementalId!.toString(),
+      createdProposal.pluginAddress!,
+      createdProposal.network!,
+    )
+
+    expect(foundProposal).to.exist
+    expect(foundProposal?.id).to.eq(createdProposal.id)
+    expect(foundProposal?.pluginAddress).to.eq(createdProposal.pluginAddress)
+    expect(foundProposal?.network).to.eq(createdProposal.network)
+    expect(foundProposal?.incrementalId).to.eq(createdProposal.incrementalId)
+  })
+
   it('Should reload', async () => {
     const createdProposal = await Models.Proposal.create(rawProposalMultisig)
     await createdProposal.reload()

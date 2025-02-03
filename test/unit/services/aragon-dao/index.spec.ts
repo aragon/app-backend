@@ -12,8 +12,10 @@ import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import { ContractInfo } from '@services/aragon-dao/contractInfo'
 import { MemberInfo } from '@services/aragon-dao/memberInfo'
 import { VoteInfo } from '@services/aragon-dao/voteInfo'
+import ActionDecoder from '@services/aragon-dao/actionDecoder'
+import TokenInfo from '@services/aragon-dao/tokenInfo'
 
-describe('aragon-dao: index', () => {
+describe('AragonDao: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -31,7 +33,7 @@ describe('aragon-dao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(9) // Total queues in the service
+      expect(processStub.callCount).to.equal(10) // Total queues in the service
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoMetrics)).to.be.true
@@ -200,6 +202,49 @@ describe('aragon-dao: index', () => {
       } as any)
 
       expect(memberInfoStub.calledOnceWith('userAddress', 'tokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+    })
+
+    it('should handle contractDecoder queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const decodeStub = sandbox.stub(ActionDecoder, 'decode').resolves()
+
+      await AragonDaoService.start()
+
+      const handler = processStub.getCall(8).args[2]
+      await handler({
+        params: {
+          from: 'userAddress1',
+          to: 'userAddress2',
+          data: '0x0',
+          value: 1,
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(decodeStub.args[0][0]).to.deep.equal({
+        from: 'userAddress1',
+        to: 'userAddress2',
+        data: '0x0',
+        value: 1,
+        network: NetworksEnum.ethereumMainnet,
+      })
+    })
+
+    it('should handle tokenInfo queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const tokenInfoStub = sandbox.stub(TokenInfo, 'update').resolves()
+
+      await AragonDaoService.start()
+
+      const handler = processStub.getCall(9).args[2]
+      await handler({
+        params: {
+          address: 'userAddress1',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(tokenInfoStub.calledWith('userAddress1', NetworksEnum.ethereumMainnet)).to.be.true
     })
   })
 })

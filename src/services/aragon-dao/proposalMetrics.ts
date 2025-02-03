@@ -18,17 +18,14 @@ export const ProposalMetrics = {
     const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, pluginAddress, network)
 
     if (!proposal) {
-      logger.warn('Proposal not found - multisig metrics ', llo({ proposalIndex, pluginAddress, network }))
+      logger.warn('Proposal not found - multisig metrics', llo({ proposalIndex, pluginAddress, network }))
       return
     }
 
     const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network })
     let missingVotes = 0
     if (!proposal.settings?.minApprovals) {
-      logger.error(
-        'Proposal minApprovals not found - multisig metrics ',
-        llo({ proposalIndex, pluginAddress, network }),
-      )
+      logger.error('Proposal minApprovals not found - multisig metrics', llo({ proposalIndex, pluginAddress, network }))
       return
     } else {
       missingVotes =
@@ -66,7 +63,7 @@ export const ProposalMetrics = {
     const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, pluginAddress, network)
 
     if (!proposal) {
-      logger.warn('Proposal not found - tokenVoting metrics ', llo({ proposalIndex, pluginAddress, network }))
+      logger.warn('Proposal not found - tokenVoting metrics', llo({ proposalIndex, pluginAddress, network }))
       return
     }
 

@@ -45,6 +45,14 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'Plugin not found',
   },
+  [ErrorKeyEnum.daoNotFound]: {
+    status: 400,
+    description: 'Dao not found',
+  },
+  [ErrorKeyEnum.proposalNotFound]: {
+    status: 400,
+    description: 'Proposal not found',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

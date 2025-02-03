@@ -204,7 +204,6 @@ export const PluginSettingHandler = {
       stages: PluginSettingHandler.formatSppSetings(parsedEvent.args.stages),
     }
 
-    // TODO If we have already existed metadata then we need to copy the name of the stages
     const sppMetadata = await Models.LogMetadata.getLatestMetadata(network, pluginAddress)
 
     if (sppMetadata?.stageNames && sppMetadata.stageNames.length === settingLog.stages.length) {
@@ -286,7 +285,7 @@ export const PluginSettingHandler = {
     })
     if (!activePluginSetting) return
 
-    if (activePluginSetting?.stages?.length !== stageNames.length) {
+    if (!stageNames || activePluginSetting?.stages?.length !== stageNames?.length) {
       logger.error('Stage names length mismatch', llo({ stageNames, activePluginSetting }))
       return
     }

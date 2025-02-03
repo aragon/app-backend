@@ -12,6 +12,9 @@ import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
 import { RabbitMQHelper } from '@helpers/radditMQ'
+import { ProxyToken } from '@modules/proxyToken'
+import utils from '@helpers/utils'
+import DbOperations from '@models/utils/dbOperations'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -178,7 +181,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(rabbiMqStub.notCalled).to.be.true
     })
 
-    it('should create new log installationApplied when spp plugin', async () => {
+    it('should create new log installationApplied when spp plugin with isHistorical', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         transactionIndex: 2,
@@ -211,7 +214,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const rabbiMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
-      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
+      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo, true)
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubFindDao.calledOnce).to.be.true
@@ -236,15 +239,147 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(existingLog.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
       expect(existingLog.appliedSetupId).to.eq(fakeEvent.args.appliedSetupId)
       expect(existingLog.pluginAddress).to.eq(fakeEvent.args.plugin)
-      expect(isSupportedStub.notCalled).to.be.true
+      expect(isSupportedStub.calledOnce).to.be.true
+      expect(findByAddressStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(rabbiMqStub.calledOnce).to.be.true
+    })
+
+    it('should create new log installationApplied when admin plugin with isHistorical', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 2,
+        logIndex: 2,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          metadata: 'fake-metadata',
+          dao: '0x456',
+          preparedSetupId: '0x453',
+          appliedSetupId: '0x452',
+          plugin: '0x450',
+        },
+      }
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const stubFindExistingLog = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
+      const PluginSetupProcessorHandlerAggLogStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.admin,
+      })
+
+      sandbox.stub(LogSpp, 'start')
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
+      const handleFromReceiptStub = sandbox.stub(PluginSettingHandler, 'handleFromReceipt')
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
+
+      const rabbiMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo, true)
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubFindDao.calledOnce).to.be.true
+      expect(stubFindExistingLog.calledOnce).to.be.true
+      expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
+
+      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
+        event: IEventLogPluginType.InstallationApplied,
+      })
+
+      expect(existingLog.transactionHash).to.eq(logInfo.transactionHash)
+      expect(existingLog.transactionIndex).to.eq(logInfo.transactionIndex)
+      expect(existingLog.logIndex).to.eq(logInfo.logIndex)
+      expect(existingLog.blockNumber).to.eq(logInfo.blockNumber)
+      expect(existingLog.network).to.eq(logInfo.network)
+      expect(existingLog.event).to.eq(IEventLogPluginType.InstallationApplied)
+      expect(existingLog.daoAddress).to.eq(fakeEvent.args.dao)
+      expect(existingLog.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
+      expect(existingLog.appliedSetupId).to.eq(fakeEvent.args.appliedSetupId)
+      expect(existingLog.pluginAddress).to.eq(fakeEvent.args.plugin)
+      expect(isSupportedStub.calledOnce).to.be.true
+      expect(handleFromReceiptStub.notCalled).to.be.true
       expect(findByAddressStub.calledOnce).to.be.true
       expect(getTransactionReceiptStub.notCalled).to.be.true
-      expect(rabbiMqStub.notCalled).to.be.true
+      expect(rabbiMqStub.calledOnce).to.be.true
+    })
+
+    it('should create new log installationApplied when gauge plugin with isHistorical', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 2,
+        logIndex: 2,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          metadata: 'fake-metadata',
+          dao: '0x456',
+          preparedSetupId: '0x453',
+          appliedSetupId: '0x452',
+          plugin: '0x450',
+        },
+      }
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const stubFindExistingLog = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
+      const PluginSetupProcessorHandlerAggLogStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.gauge,
+      })
+
+      sandbox.stub(LogSpp, 'start')
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
+      const handleFromReceiptStub = sandbox.stub(PluginSettingHandler, 'handleFromReceipt')
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
+
+      const rabbiMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo, true)
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubFindDao.calledOnce).to.be.true
+      expect(stubFindExistingLog.calledOnce).to.be.true
+      expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
+
+      const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
+        event: IEventLogPluginType.InstallationApplied,
+      })
+
+      expect(existingLog.transactionHash).to.eq(logInfo.transactionHash)
+      expect(existingLog.transactionIndex).to.eq(logInfo.transactionIndex)
+      expect(existingLog.logIndex).to.eq(logInfo.logIndex)
+      expect(existingLog.blockNumber).to.eq(logInfo.blockNumber)
+      expect(existingLog.network).to.eq(logInfo.network)
+      expect(existingLog.event).to.eq(IEventLogPluginType.InstallationApplied)
+      expect(existingLog.daoAddress).to.eq(fakeEvent.args.dao)
+      expect(existingLog.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
+      expect(existingLog.appliedSetupId).to.eq(fakeEvent.args.appliedSetupId)
+      expect(existingLog.pluginAddress).to.eq(fakeEvent.args.plugin)
+      expect(isSupportedStub.calledOnce).to.be.true
+      expect(handleFromReceiptStub.notCalled).to.be.true
+      expect(findByAddressStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.notCalled).to.be.true
+      expect(rabbiMqStub.calledOnce).to.be.true
     })
   })
 
   describe('installationPrepared', () => {
-    it('should installationPrepared', async () => {
+    it('should installationPrepared when isHistorical', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
@@ -319,7 +454,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const rabbiMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
-      await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
+      await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo, true)
 
       expect(stubFindDao.calledOnceWith(fakeEvent.args.dao, NetworksEnum.ethereumMainnet)).to.be.true
       expect(receiptStub.calledOnceWith(logInfo.transactionHash, NetworksEnum.ethereumMainnet)).to.be.true
@@ -327,9 +462,9 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(parseLogInfoStub.calledOnce).to.be.true
       expect(handleSingleInstallationPreparedStub.calledOnce).to.be.true
       expect(handleSingleInstallationPreparedStub.args[0][0].parsed.args[0]).to.be.eq('0x00')
-      expect(handleFromReceiptStub.notCalled).to.be.true
+      expect(handleFromReceiptStub.calledOnce).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
-      expect(rabbiMqStub.notCalled).to.be.true
+      expect(rabbiMqStub.calledTwice).to.be.true
     })
 
     it('dao not found error', async () => {
@@ -669,7 +804,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(PluginSetupProcessorHandlerAggLogStub.calledWith(IPluginActionType.updated)).to.be.true
     })
 
-    it('dao not found error', async () => {
+    it('dao not found warn', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
@@ -693,6 +828,33 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('Dao not found' as any)).to.be.true
+    })
+
+    it('skip if log already exists', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
+      const createDocument = sandbox.stub(DbOperations, 'createDocument')
+
+      await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
+
+      expect(createDocument.notCalled).to.be.true
     })
   })
 
@@ -795,6 +957,178 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('Dao not found' as any)).to.be.true
+    })
+
+    it('should skip if dao not exists', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          preparedSetupData: {
+            permissions: [
+              {
+                operation: 1,
+                where: 'some-where',
+                who: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
+                condition: 'some-conditions',
+                permissionId: 'xxx',
+              },
+            ],
+          },
+          dao: '0x456',
+          sender: '0x450',
+          preparedSetupId: '0x453',
+          pluginSetupRepo: '0x452',
+          setupPayload: {
+            plugin: '0x450',
+          },
+          versionTag: {
+            release: '1',
+            build: '1',
+          },
+        },
+      }
+
+      const loggerStub = sandbox.stub(logger, 'warn')
+      const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(false)
+
+      await PluginSetupProcessorHandler.updatePrepared(fakeEvent as any, logInfo)
+
+      expect(stubFindDao.calledOnce).to.be.true
+      expect(findTxSpy.notCalled).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('PluginSetupProcessorHandler: handleSingleInstallationPrepared', () => {
+    it('should handle single installation prepared with token address', async () => {
+      const txLog = {
+        transactionHash: '0x123',
+        transactionIndex: 1,
+        logIndex: 2,
+        blockNumber: 3,
+      }
+      const parsed = {
+        args: {
+          sender: '0xSender',
+          dao: '0xDaoAddress',
+          preparedSetupId: '0xSetupId',
+          pluginSetupRepo: '0xRepo',
+          plugin: '0xPluginAddress',
+          versionTag: { release: '1', build: '1' },
+          preparedSetupData: {
+            permissions: [
+              {
+                operation: 1,
+                where: 'somewhere',
+                who: '0x123',
+                condition: 'some-condition',
+                permissionId: 'perm-id',
+              },
+            ],
+          },
+        },
+      }
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+      const tokenAddress = '0xTokenAddress'
+      const tokenDb = {
+        address: tokenAddress,
+      }
+
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(tokenDb as any)
+      const pluginHandlerStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler').resolves()
+
+      await PluginSetupProcessorHandler.handleSingleInstallationPrepared({ txLog, parsed }, logInfo, tokenAddress)
+
+      expect(saveAndGetTokenStub.calledOnceWith(tokenAddress, logInfo.network)).to.be.true
+      expect(createDocumentStub.calledOnce).to.be.true
+
+      const createdLog = createDocumentStub.args[0][1]
+      expect(createdLog.event).to.eq(IEventLogPluginType.InstallationPrepared)
+      expect(createdLog.network).to.eq(logInfo.network)
+      expect(createdLog.transactionHash).to.eq(txLog.transactionHash)
+      expect(createdLog.transactionIndex).to.eq(txLog.transactionIndex)
+      expect(createdLog.logIndex).to.eq(txLog.logIndex)
+      expect(createdLog.daoAddress).to.eq(parsed.args.dao)
+      expect(createdLog.preparedSetupId).to.eq(parsed.args.preparedSetupId)
+      expect(createdLog.pluginSetupRepo).to.eq(parsed.args.pluginSetupRepo)
+      expect(createdLog.pluginAddress).to.eq(parsed.args.plugin)
+      expect(createdLog.release).to.eq(parsed.args.versionTag.release)
+      expect(createdLog.build).to.eq(parsed.args.versionTag.build)
+      expect(createdLog.permissions).to.deep.equal(utils.parsePermissions(parsed.args.preparedSetupData.permissions))
+      expect(createdLog.tokenAddress).to.eq(tokenDb.address)
+
+      expect(pluginHandlerStub.calledOnceWith('pre-install' as any)).to.be.true
+    })
+
+    it('should handle single installation prepared without token address', async () => {
+      const txLog = {
+        transactionHash: '0x123',
+        transactionIndex: 1,
+        logIndex: 2,
+        blockNumber: 3,
+      }
+      const parsed = {
+        args: {
+          sender: '0xSender',
+          dao: '0xDaoAddress',
+          preparedSetupId: '0xSetupId',
+          pluginSetupRepo: '0xRepo',
+          plugin: '0xPluginAddress',
+          versionTag: { release: '1', build: '1' },
+          preparedSetupData: {
+            permissions: [
+              {
+                operation: 1,
+                where: 'somewhere',
+                who: '0x123',
+                condition: 'some-condition',
+                permissionId: 'perm-id',
+              },
+            ],
+          },
+        },
+      }
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
+      const pluginHandlerStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler').resolves()
+
+      await PluginSetupProcessorHandler.handleSingleInstallationPrepared({ txLog, parsed }, logInfo)
+
+      expect(saveAndGetTokenStub.notCalled).to.be.true
+      expect(createDocumentStub.calledOnce).to.be.true
+
+      const createdLog = createDocumentStub.args[0][1]
+      expect(createdLog.event).to.eq(IEventLogPluginType.InstallationPrepared)
+      expect(createdLog.network).to.eq(logInfo.network)
+      expect(createdLog.transactionHash).to.eq(txLog.transactionHash)
+      expect(createdLog.transactionIndex).to.eq(txLog.transactionIndex)
+      expect(createdLog.logIndex).to.eq(txLog.logIndex)
+      expect(createdLog.daoAddress).to.eq(parsed.args.dao)
+      expect(createdLog.preparedSetupId).to.eq(parsed.args.preparedSetupId)
+      expect(createdLog.pluginSetupRepo).to.eq(parsed.args.pluginSetupRepo)
+      expect(createdLog.pluginAddress).to.eq(parsed.args.plugin)
+      expect(createdLog.release).to.eq(parsed.args.versionTag.release)
+      expect(createdLog.build).to.eq(parsed.args.versionTag.build)
+      expect(createdLog.permissions).to.deep.equal(utils.parsePermissions(parsed.args.preparedSetupData.permissions))
+      expect(createdLog.tokenAddress).to.be.undefined
+
+      expect(pluginHandlerStub.calledOnceWith('pre-install' as any)).to.be.true
     })
   })
 })

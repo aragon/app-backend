@@ -7,6 +7,7 @@ import CovalentHelper from '@helpers/covalent'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
+import { ProxyToken } from '@modules/proxyToken'
 
 describe('Controller: Token', () => {
   let sandbox: SinonSandbox
@@ -20,7 +21,7 @@ describe('Controller: Token', () => {
       type: ITokenType.ERC20,
       address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
       logo: 'fake-logo',
-      name: 'ethereum',
+      name: NetworksEnum.ethereumMainnet,
       symbol: 'WETH',
       decimals: 18,
       holders: 10,
@@ -140,34 +141,38 @@ describe('Controller: Token', () => {
         totalSupply: '0',
         priceChangeOnDayUsd: '22.262699999999768',
         lastUpdatedAt: dayjs().toISOString(),
+        filterKeys: function () {
+          return this
+        },
       }
 
-      const stubHelper = sandbox.stub(CovalentHelper, 'getToken').resolves(fakeRes as any)
-      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0'
+      const stubSaveAndGetToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(fakeRes as any)
+
+      const stubDbFind = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(null)
+
+      const address = fakeRes.address
       const token = await TokenController.getTokenByAddress({
         address,
         network: NetworksEnum.ethereumMainnet,
       })
 
       expect(token.address).to.eq(address)
-      expect(stubHelper.calledOnce).to.be.true
-      expect(stubHelper.calledWith(address, NetworksEnum.ethereumMainnet)).to.be.true
-
-      const dbToken = await Models.Token.findByTokenAddressAndNetwork(address, NetworksEnum.ethereumMainnet)
-      expect(dbToken.address).to.eq(address)
-      expect(dbToken.network).to.eq(NetworksEnum.ethereumMainnet)
-      expect(dbToken.logo).to.eq(fakeRes.logo)
-      expect(dbToken.name).to.eq(fakeRes.name)
-      expect(dbToken.type).to.eq(fakeRes.type)
-      expect(dbToken.symbol).to.eq(fakeRes.symbol)
-      expect(dbToken.decimals).to.eq(fakeRes.decimals)
-      expect(dbToken.priceUsd).to.eq(fakeRes.priceUsd)
-      expect(dbToken.holders).to.eq(fakeRes.holders)
-      expect(dbToken.totalSupply).to.eq(fakeRes.totalSupply)
-      expect(dbToken.priceChangeOnDayUsd).to.eq(fakeRes.priceChangeOnDayUsd)
-      expect(dayjs(dbToken.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss')).to.eq(
+      expect(token.network).to.eq(NetworksEnum.ethereumMainnet)
+      expect(token.logo).to.eq(fakeRes.logo)
+      expect(token.name).to.eq(fakeRes.name)
+      expect(token.type).to.eq(fakeRes.type)
+      expect(token.symbol).to.eq(fakeRes.symbol)
+      expect(token.decimals).to.eq(fakeRes.decimals)
+      expect(token.priceUsd).to.eq(fakeRes.priceUsd)
+      expect(token.holders).to.eq(fakeRes.holders)
+      expect(token.totalSupply).to.eq(fakeRes.totalSupply)
+      expect(token.priceChangeOnDayUsd).to.eq(fakeRes.priceChangeOnDayUsd)
+      expect(dayjs(token.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss')).to.eq(
         dayjs(fakeRes.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss'),
       )
+
+      expect(stubSaveAndGetToken.calledOnceWith(address, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(stubDbFind.calledOnceWith(address, NetworksEnum.ethereumMainnet)).to.be.true
     })
 
     it('getTokenByAddress existing token', async () => {
@@ -212,7 +217,7 @@ describe('Controller: Token', () => {
     })
 
     it('getTokenByAddress not found', async () => {
-      const stubHelper = sandbox.stub(CovalentHelper, 'getToken').resolves(undefined)
+      const stubSaveAndGetToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(undefined)
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc1'
       await expect(
         TokenController.getTokenByAddress({
@@ -220,7 +225,7 @@ describe('Controller: Token', () => {
           network: NetworksEnum.ethereumMainnet,
         }),
       ).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
-      expect(stubHelper.calledOnce).to.be.true
+      expect(stubSaveAndGetToken.calledOnce).to.be.true
     })
   })
 })

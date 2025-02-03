@@ -1927,13 +1927,12 @@
 									"",
 									"  data.forEach((item, index) => {",
 									"    try {",
-									"      // Adjust the expected property count based on actual data",
 									"      const actualPropertyCount = Object.keys(item).length;",
 									"",
 									"      // Top-level properties validation",
-									"      pm.expect(actualPropertyCount).to.equal(",
+									"      pm.expect(actualPropertyCount).to.be.at.least(",
 									"        10,",
-									"        `Item ${index + 1}: Expected 10 properties but found ${actualPropertyCount}`",
+									"        `Item ${index + 1}: Expected at least 10 properties but found ${actualPropertyCount}`",
 									"      );",
 									"",
 									"      pm.expect(item)",
@@ -1966,6 +1965,14 @@
 									"      pm.expect(item)",
 									"        .to.have.property(\"pluginAddress\")",
 									"        .that.is.a(\"string\", `Item ${index + 1}: 'pluginAddress' should be a string`);",
+									"",
+									"      // Optional parentProposal validation",
+									"      if (item.hasOwnProperty(\"parentProposal\")) {",
+									"        pm.expect(item.parentProposal).to.satisfies(",
+									"          value => value === null || typeof value === \"string\",",
+									"          `Item ${index + 1}: 'parentProposal' should be null or a string`",
+									"        );",
+									"      }",
 									"",
 									"      // Member object validation",
 									"      const member = item.member;",
@@ -3065,6 +3072,56 @@
 						"method": "GET",
 						"header": [],
 						"url": "{{host}}/proposals/0xb42065c62e61fc1dc49bbdb5411a440673d55e5ae10864ea0e1aab4d9ce8e5d3-0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7-0"
+					},
+					"response": []
+				},
+				{
+					"name": "get proposal by slug",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "1c5e77e8-ee12-482d-83d4-f7b74ed31651",
+								"exec": [
+									"// Tests for get proposals by id endpoint",
+									"",
+									"pm.test(\"Response status code is 200\", function () {",
+									"    pm.response.to.have.status(200, \"Expected status code to be 200\");",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 6000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(6000, \"Expected response time to be less than 6000ms\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"id": "677cfa89-e65a-4869-9e82-eb64c632185d",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{host}}/proposals/slug/multisig-0?daoId=ethereum-sepolia-0xCa834B3F404c97273f34e108029eEd776144d324",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"proposals",
+								"slug",
+								"multisig-0"
+							],
+							"query": [
+								{
+									"key": "daoId",
+									"value": "ethereum-sepolia-0xCa834B3F404c97273f34e108029eEd776144d324"
+								}
+							]
+						}
 					},
 					"response": []
 				},
