@@ -1852,7 +1852,7 @@ describe('Indexer: ProposalHandler', () => {
       const result = await ProposalHandler.findIncrementalId({
         pluginAddress: '0xPlugin',
         network,
-        proposalIndex: '0',
+        proposalIndex: '123123123213123123213123213213',
       } as any)
 
       expect(result).to.be.eq(-1)
@@ -1870,7 +1870,7 @@ describe('Indexer: ProposalHandler', () => {
         {
           event: {
             args: {
-              proposalId: 2n,
+              proposalId: 2213213213213123213123123213213n,
             },
           },
         },
@@ -1879,7 +1879,7 @@ describe('Indexer: ProposalHandler', () => {
       const result = await ProposalHandler.findIncrementalId({
         pluginAddress: '0xPlugin',
         network,
-        proposalIndex: '2',
+        proposalIndex: '2213213213213123213123123213213',
       } as any)
 
       expect(result).to.be.eq(0)

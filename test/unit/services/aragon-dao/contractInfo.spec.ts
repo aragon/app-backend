@@ -7,7 +7,7 @@ import ProxyContract from '@helpers/proxyContract'
 import Etherscan from '@helpers/etherscan'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 
-describe('aragon-dao: contractInfo', () => {
+describe('AragonDao: contractInfo', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

@@ -39,6 +39,10 @@ export const ProposalHandler = {
       const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
       assert(!!plugin, 'plugin not found')
 
+      if (proposal.proposalIndex?.length! < 10) {
+        return Number(proposal.proposalIndex)
+      }
+
       const crawler = new BlockchainLogCrawler({
         skipLogProcessing: true,
         fromBlock: plugin.blockNumber,

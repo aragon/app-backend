@@ -14,10 +14,29 @@ import { type ICanCreateProposal } from '@src/types/voting'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import config from '@config'
 import logger from '@logger'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'ProposalController' })
 
 const ProposalController = {
+  getProposalBySlug: async (fullSlug: string, pairParams: IPairParams = {}): Promise<IProposalsResponse> => {
+    const extraParams: any = await PairDataModule.pairFromExtraParams({}, pairParams)
+    assertExposable(extraParams?.daoAddress, ErrorKeyEnum.daoNotFound)
+
+    const { slug, index } = utils.splitSlug(fullSlug)
+
+    const pluginId = await Models.Plugin.getPluginIdBySlugAndDao(slug, extraParams.daoAddress, extraParams.network)
+    assertExposable(pluginId, ErrorKeyEnum.pluginNotFound)
+
+    const plugin = await Models.Plugin.findByEntityId(pluginId)
+    assertExposable(plugin, ErrorKeyEnum.pluginNotFound)
+
+    const proposal = await Models.Proposal.findByProposalIncrementalId(index, plugin.address, plugin.network)
+    assertExposable(proposal?.id, ErrorKeyEnum.proposalNotFound)
+
+    return ProposalController.getProposalById(proposal.id)
+  },
+
   getProposalById: async (id: string): Promise<IProposalsResponse> => {
     const proposal = await Models.Proposal.findWithEntityId(id)
     assertExposable(proposal, ErrorKeyEnum.notFound)
@@ -79,8 +98,6 @@ const ProposalController = {
     } catch (e) {
       return false
     }
-
-    return false
   },
 
   async canCastVote({ userAddress, proposalId }) {

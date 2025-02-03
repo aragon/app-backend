@@ -38,7 +38,7 @@ export const PluginRepoRegistryHandler = {
         logger.verbose('New PluginRepo', llo({ info, logId: logDb.id }))
       })
     } catch (error) {
-      logger.warn('Error pluginRepoRegistered', llo({ error, parsedEvent, info }))
+      logger.error('Error pluginRepoRegistered', llo({ error, parsedEvent, info }))
     }
   },
 }

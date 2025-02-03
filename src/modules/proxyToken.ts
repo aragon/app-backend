@@ -1,6 +1,13 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { type HexAddress, type ITokenMetrics, type ITokenRate, ITokenType, type NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  type HexAddress,
+  type ITokenMetrics,
+  type ITokenRate,
+  ITokenType,
+  type NetworksEnum,
+} from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -12,6 +19,8 @@ import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
+import { RabbitMQHelper } from '@helpers/radditMQ'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -65,6 +74,22 @@ export const ProxyToken = {
 
       if (token.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(token.address, token.network)) {
         const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
+
+        if (
+          token.type === ITokenType.GovernanceERC20 &&
+          metrics.totalHolders === 0 &&
+          metrics.totalSupply === '0' &&
+          tokenAddress !== utils.zeroAddress
+        ) {
+          metrics.totalSupply = await Web3Helper.getTokenTotalSupply(tokenAddress, network)
+          if (metrics.totalSupply !== '0') {
+            await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
+              id: `token-metrics${tokenAddress}`,
+              params: { address: tokenAddress, network },
+            })
+          }
+        }
+
         updates.holders = metrics.totalHolders
         updates.totalSupply = metrics.totalSupply
         updates.lastUpdatedAt = dayjs.utc().toDate()
@@ -84,12 +109,34 @@ export const ProxyToken = {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
     const tokenRate = await RateModule.fetchRate(tokenAddress, network)
 
+    if (tokenTypeInfo?.type !== ITokenType.unknown) {
+      const onChainTokenInfo = await Web3Helper.getTokenDetails(tokenAddress, network)
+      tokenRate.decimals = onChainTokenInfo.decimals
+      tokenRate.name = onChainTokenInfo.name!
+      tokenRate.symbol = onChainTokenInfo.symbol!
+    }
+
     let tokenMetrics: ITokenMetrics = { totalHolders: 0, totalSupply: '0' }
     let contractDeployInfo: any = { transactionHash: null, blockNumber: 0 }
 
     if (tokenTypeInfo?.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(tokenAddress, network)) {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
       contractDeployInfo = await ProxyToken.getContractCreationInfo(tokenAddress, network)
+
+      if (
+        tokenTypeInfo?.type === ITokenType.GovernanceERC20 &&
+        tokenMetrics.totalHolders === 0 &&
+        tokenMetrics.totalSupply === '0' &&
+        tokenAddress !== utils.zeroAddress
+      ) {
+        tokenMetrics.totalSupply = await Web3Helper.getTokenTotalSupply(tokenAddress, network)
+        if (tokenMetrics.totalSupply !== '0') {
+          await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
+            id: `token-metrics${tokenAddress}`,
+            params: { address: tokenAddress, network },
+          })
+        }
+      }
     }
 
     const rawToken: Partial<Token> = {

@@ -5,6 +5,7 @@ import { NetworksEnum } from '@types'
 const ProposalSchema = {
   getExtraParams: Joi.object({
     proposalIndex: Joi.string().optional(),
+    incrementalId: Joi.number().optional(),
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .optional(),
@@ -16,6 +17,10 @@ const ProposalSchema = {
 
   getProposalById: Joi.object({
     id: Joi.string().required(),
+  }),
+
+  getProposalBySlug: Joi.object({
+    slug: ValidationSchema.joiSlug.required(),
   }),
 
   getProposalByTransactionHash: Joi.object({

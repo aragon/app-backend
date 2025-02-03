@@ -15,6 +15,7 @@ import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import dbTx from '@modules/dbTx'
 import logger from '@logger'
+import { RabbitMQHelper } from '@helpers/radditMQ'
 
 describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox
@@ -28,7 +29,7 @@ describe('Modules: ProxyToken', () => {
       type: ITokenType.ERC20,
       address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
       logo: 'fake-logo',
-      name: 'ethereum',
+      name: NetworksEnum.ethereumMainnet,
       symbol: 'WETH',
       decimals: 18,
       holders: 10,
@@ -142,6 +143,26 @@ describe('Modules: ProxyToken', () => {
       expect(result.priceUsd).to.equal('1')
       expect(result.totalSupply).to.equal('1000')
     })
+
+    it('should try to fetch from queue if covalent is not responding', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const token = await Models.Token.create({ network, address: tokenAddress, type: ITokenType.GovernanceERC20 })
+
+      sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '1', priceChangeOnDayUsd: '0.1' } as any)
+      sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
+        totalHolders: 0,
+        totalSupply: '0',
+      } as any)
+
+      const tokenTotalStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves('1000')
+      const rabbitMqHelper = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      sandbox.stub(logger, 'verbose')
+      const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
+      expect(rabbitMqHelper.calledOnce).to.be.true
+      expect(tokenTotalStub.calledOnce).to.be.true
+      expect(result.totalSupply).to.equal('1000')
+    })
   })
 
   describe('createNewToken', () => {
@@ -156,6 +177,7 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(RateModule, 'fetchRate').resolves({
         priceUsd: '1',
         priceChangeOnDayUsd: '1',
+        decimals: 18,
       } as any)
       sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
         totalHolders: 1,
@@ -165,6 +187,12 @@ describe('Modules: ProxyToken', () => {
         blockNumber: 100,
         transactionHash: '0x000',
         address: tokenAddress,
+      } as any)
+
+      sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
+        decimals: 18,
+        name: 'test',
+        symbol: 'TST',
       } as any)
 
       const checkPluginMintAuthorizationIsDaoStub = sandbox
@@ -188,6 +216,114 @@ describe('Modules: ProxyToken', () => {
       expect(result.type).to.equal(ITokenType.GovernanceERC20)
       expect(result.mintableByDao).to.be.false
       await tOpts.endSession()
+    })
+
+    it('should call rabbitmq if the covalent response is invalid', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves({
+        type: ITokenType.GovernanceERC20,
+        implementationAddress: null,
+      } as any)
+      sandbox.stub(RateModule, 'fetchRate').resolves({
+        priceUsd: '1',
+        priceChangeOnDayUsd: '1',
+        decimals: 18,
+      } as any)
+      sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
+        totalHolders: 0,
+        totalSupply: '0',
+      } as any)
+      sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
+        blockNumber: 100,
+        transactionHash: '0x000',
+        address: tokenAddress,
+      } as any)
+
+      sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
+        decimals: 18,
+        name: 'test',
+        symbol: 'TST',
+      } as any)
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves('1')
+      const rabbitMqHelperStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      const checkPluginMintAuthorizationIsDaoStub = sandbox
+        .stub(ProxyToken, 'checkPluginMintAuthorizationIsDao')
+        .resolves(false)
+
+      const tOpts = await dbTx.transactionOptions()
+      tOpts.startTransaction()
+      sandbox.stub(logger, 'verbose')
+      const result = await ProxyToken.createNewToken(tokenAddress, network, tOpts)
+      expect(rabbitMqHelperStub.calledOnce).to.be.true
+      expect(checkPluginMintAuthorizationIsDaoStub.calledOnce).to.be.true
+      expect(checkPluginMintAuthorizationIsDaoStub.calledWith(tokenAddress, network)).to.be.true
+
+      expect(result.priceChangeOnDayUsd).to.equal('1')
+      expect(result.priceUsd).to.equal('1')
+      expect(result.transactionHash).to.equal('0x000')
+      expect(result.blockNumber).to.equal(100)
+      expect(result.address).to.equal(tokenAddress)
+      expect(result.type).to.equal(ITokenType.GovernanceERC20)
+      expect(result.mintableByDao).to.be.false
+      await tOpts.endSession()
+    })
+
+    it('should fetch details from onchain when rate modules dont resovle decimals', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves({
+        type: ITokenType.GovernanceERC20,
+        implementationAddress: null,
+      } as any)
+
+      sandbox.stub(RateModule, 'fetchRate').resolves({
+        priceUsd: '1',
+        priceChangeOnDayUsd: '1',
+        decimals: null,
+      } as any)
+
+      sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
+        totalHolders: 123,
+        totalSupply: '1233231',
+      } as any)
+
+      sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
+        blockNumber: 100,
+        transactionHash: '0x000',
+        address: tokenAddress,
+      } as any)
+
+      sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
+        decimals: 18,
+        name: 'test',
+        symbol: 'TST',
+      } as any)
+
+      const checkPluginMintAuthorizationIsDaoStub = sandbox
+        .stub(ProxyToken, 'checkPluginMintAuthorizationIsDao')
+        .resolves(false)
+
+      const tOpts = await dbTx.transactionOptions()
+
+      tOpts.startTransaction()
+
+      sandbox.stub(logger, 'verbose')
+
+      const result = await ProxyToken.createNewToken(tokenAddress, network, tOpts)
+
+      expect(checkPluginMintAuthorizationIsDaoStub.calledOnce).to.be.true
+      expect(checkPluginMintAuthorizationIsDaoStub.calledWith(tokenAddress, network)).to.be.true
+      expect(result.holders).to.equal(123)
+      expect(result.totalSupply).to.equal('1233231')
+      expect(result.priceChangeOnDayUsd).to.equal('1')
+      expect(result.priceUsd).to.equal('1')
+      expect(result.name).to.equal('test')
+      expect(result.symbol).to.equal('TST')
+      expect(result.decimals).to.equal(18)
     })
   })
 

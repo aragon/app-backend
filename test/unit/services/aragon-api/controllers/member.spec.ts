@@ -15,6 +15,7 @@ import MemberBalance from '@models/schema/memberBalance'
 import { HexAddress } from '@types'
 import { NetworksEnum } from '@types'
 import { RabbitMQHelper } from '@helpers/radditMQ'
+import ModelUtils from '@models/utils/models'
 
 describe('Controller: Member', () => {
   let sandbox: SinonSandbox
@@ -216,6 +217,43 @@ describe('Controller: Member', () => {
       expect(spyReq.calledOnce).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
     })
+
+    it('should return an empty paginated response if extraParams has values but no members found', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {
+        daoAddress: rawDaoMemberMapping.daoAddress,
+        network: rawDaoMemberMapping.network,
+        pluginAddress: rawDaoMemberMapping.pluginAddress,
+        tokenAddress: rawDaoMemberMapping.tokenAddress,
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
+      sandbox.stub(PairDataModule, 'pairFromDaoMemberMapping').resolves([])
+      const paginateEmptyResponseStub = sandbox.stub(ModelUtils, 'paginateEmptyResponse').returns({
+        data: [],
+        metadata: {
+          page: 1,
+          pageSize: 10,
+          totalRecords: 0,
+          totalPages: 0,
+        },
+      })
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams)
+
+      expect(paginateEmptyResponseStub.calledOnce).to.be.true
+      expect(response.data).to.deep.eq([])
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(0)
+      expect(response.metadata.totalRecords).to.eq(0)
+    })
   })
 
   describe('isMemberOfPlugin', () => {
@@ -306,5 +344,33 @@ describe('Controller: Member', () => {
     expect(response.ens).to.eq(rawMember.ens)
     expect(response.balance).to.eq('1')
     expect(response.votingPower).to.eq('1')
+  })
+
+  it('should return the member even if RabbitMQHelper.sendMessage throws an error', async () => {
+    const filterParams = {
+      daoAddress: rawDaoMemberMapping.daoAddress,
+      network: rawDaoMemberMapping.network,
+      pluginAddress: rawDaoMemberMapping.pluginAddress,
+      tokenAddress: rawDaoMemberMapping.tokenAddress,
+    }
+
+    const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').throws(new Error('RabbitMQ error'))
+
+    const response = await MemberController.getMemberByAddress(rawMember.address as HexAddress, filterParams, {})
+
+    expect(rabbitMqStub.calledOnce).to.be.true
+    expect(rabbitMqStub.args[0][1]).to.deep.eq({
+      id: `memberBalance-${rawMember.address}-${rawDaoMemberMapping.tokenAddress}-${rawDaoMemberMapping.network}`,
+      params: {
+        userAddress: rawMember.address,
+        tokenAddress: rawDaoMemberMapping.tokenAddress,
+        network: rawDaoMemberMapping.network,
+      },
+    })
+
+    expect(response.address).to.eq(rawMember.address)
+    expect(response.ens).to.eq(rawMember.ens)
+    expect(response.balance).to.be.undefined
+    expect(response.votingPower).to.be.null
   })
 })

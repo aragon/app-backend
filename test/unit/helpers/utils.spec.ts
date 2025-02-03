@@ -18,6 +18,68 @@ describe('Helpers:Utils', () => {
     sandbox?.restore()
   })
 
+  describe('splitSlug', () => {
+    it('should correctly split a valid slug with a numeric index', () => {
+      const fullSlug = 'pluginType-123'
+      const result = Utils.splitSlug(fullSlug)
+
+      expect(result).to.deep.equal({
+        slug: 'pluginType',
+        index: 123,
+      })
+    })
+
+    it('should handle slugs with a zero index', () => {
+      const fullSlug = 'plugin-0'
+      const result = Utils.splitSlug(fullSlug)
+
+      expect(result).to.deep.equal({
+        slug: 'plugin',
+        index: 0,
+      })
+    })
+
+    it('should throw an error if the slug does not contain a dash', () => {
+      const fullSlug = 'invalidSlug'
+      const result = Utils.splitSlug(fullSlug)
+
+      expect(result).to.deep.equal({
+        slug: undefined,
+        index: undefined,
+      })
+    })
+
+    it('should throw an error if the index is not numeric', () => {
+      const fullSlug = 'pluginType-abc'
+      const result = Utils.splitSlug(fullSlug)
+
+      expect(result).to.deep.equal({
+        slug: undefined,
+        index: undefined,
+      })
+    })
+
+    it('should throw an error if the slug is empty', () => {
+      const fullSlug = ''
+      const result = Utils.splitSlug(fullSlug)
+
+      expect(result).to.deep.equal({
+        slug: undefined,
+        index: undefined,
+      })
+    })
+
+    it('should throw an error if the slug has multiple dashes', () => {
+      const fullSlug = 'pluginType-123-456'
+      const result = Utils.splitSlug(fullSlug)
+
+      expect(result).to.deep.equal({
+        slug: undefined,
+        index: undefined,
+      })
+    })
+  })
+
   describe('extractAdditionalParams', () => {
     it('should return an empty object if no additional params are present', () => {
       const knownParams = { a: 1, b: 2 }
@@ -703,5 +765,11 @@ describe('Helpers:Utils', () => {
     expect(Utils.isDecimalNumber(7.326e22)).to.be.false
     expect(Utils.isDecimalNumber(10)).to.be.false
     expect(Utils.isDecimalNumber(1032423423)).to.be.false
+  })
+
+  it('getUniqueValuesByKey', () => {
+    const array = [{ a: 1 }, { a: 2 }, { a: 1 }, { a: 3 }, { a: 2 }]
+    const result = Utils.getUniqueValuesByKey(array, 'a')
+    expect(result).to.deep.eq([1, 2, 3])
   })
 })

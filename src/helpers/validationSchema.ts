@@ -53,6 +53,31 @@ const ValidationSchema = {
     .messages({
       'string.invalid': '{{#label}} is not a valid ENS',
     }),
+  joiSlug: Joi.string()
+    .custom((value, helpers) => {
+      const regex = /^[a-zA-Z0-9_-]+-\d+$/
+
+      if (!regex.test(value)) {
+        return helpers.error('string.invalid', { value })
+      }
+
+      const arrayValue = value.split('-')
+      if (arrayValue.length !== 2) {
+        return helpers.error('string.invalid', { value })
+      }
+
+      const index = arrayValue.pop()
+      const parsedIndex = Number(index)
+
+      if (!Number.isSafeInteger(parsedIndex) || parsedIndex < 0) {
+        return helpers.error('string.invalid', { value })
+      }
+
+      return value
+    }, 'Slug Validation')
+    .messages({
+      'string.invalid': '{{#label}} is not a valid Slug',
+    }),
   generateJoiPagination: {
     search: Joi.string()
       .allow('')

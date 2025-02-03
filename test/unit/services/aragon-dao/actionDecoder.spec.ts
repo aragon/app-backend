@@ -8,7 +8,7 @@ import Web3Helper from '@helpers/web3'
 import { ProxyMember } from '@modules/proxyMember'
 import { Models } from '@dbModels'
 
-describe('aragon-dao: actionDecoder', () => {
+describe('AragonDao: actionDecoder', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -69,6 +69,35 @@ describe('aragon-dao: actionDecoder', () => {
       const response = await ActionDecoder.decode(action)
 
       expect(response.type).to.be.eq(ProposalActionType.Transfer)
+    })
+
+    it('should return null if decodedData is null', async () => {
+      const action = {
+        data: '0x',
+        network: NetworksEnum.ethereumSepolia,
+        from: '0xfrom',
+        to: '0xto',
+        value: '0',
+      }
+
+      const getBlockNumberStub = sandbox.stub(Web3Helper, 'getBlockNumber').resolves(1)
+      const decodeDataStub = sandbox.stub(DecodeActions.prototype, 'decodeData').resolves(null)
+
+      const response = await ActionDecoder.decode(action)
+
+      expect(getBlockNumberStub.calledOnce).to.be.true
+      expect(
+        decodeDataStub.calledOnceWith(
+          action,
+          sinon.match({
+            network: action.network,
+            daoAddress: action.from,
+            pluginAddress: action.to,
+            blockNumber: 1,
+          }),
+        ),
+      ).to.be.true
+      expect(response).to.be.null
     })
   })
 })
