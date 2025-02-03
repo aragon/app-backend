@@ -44,6 +44,41 @@ describe('Model/Utils: dbOperations', () => {
       expect(logStub.calledOnceWith('Created new document - Test log message' as any)).to.be.true
       expect(result.id).to.equal('document-id')
     })
+
+    it('should log an error and rethrow when creating a document fails', async () => {
+      const mockSession = {
+        commitTransaction: sandbox.stub().resolves(),
+        endSession: sandbox.stub().resolves(),
+      }
+      const mockModel = {
+        create: sandbox.stub().rejects(new Error('Create failed')),
+      }
+      const mockInfo = { userId: '123' }
+      const logStub = sandbox.stub(logger, 'error')
+      const executeTxFnStub = sandbox
+        .stub(DbTx, 'executeTxFn')
+        .callsFake(async fn => await fn({ session: mockSession }))
+
+      try {
+        await DbOperations.createDocument(
+          mockModel,
+          { data: 'test' },
+          mockInfo,
+          'Test create error',
+          (info: any) => info,
+        )
+      } catch (error: any) {
+        expect(logStub.calledOnceWith('Error creating document - Test create error' as any)).to.be.true
+        const logArgs: any = logStub.args[0]
+        expect(logArgs[1]).to.have.property('model', mockModel)
+        expect(logArgs[1]).to.have.property('data').that.deep.equals({ data: 'test' })
+        expect(logArgs[1]).to.have.property('error')
+        expect(logArgs[1].error.message).to.equal('Create failed')
+        expect(error.message).to.equal('Create failed')
+      }
+
+      expect(executeTxFnStub.calledOnce).to.be.true
+    })
   })
 
   describe('updateDocument', () => {
@@ -88,6 +123,54 @@ describe('Model/Utils: dbOperations', () => {
       expect(findByIdWithSession.update.calledOnceWith({ data: 'updated-data' }, { session: mockSession })).to.be.true
       expect(logStub.calledOnceWith('Updated document - Test update message' as any)).to.be.true
       expect(result.id).to.equal('document-id')
+    })
+
+    it('should log an error and rethrow when updating a document fails', async () => {
+      const mockSession = {
+        commitTransaction: sandbox.stub().resolves(),
+        endSession: sandbox.stub().resolves(),
+      }
+
+      const mockDocument = {
+        _id: 'document-id',
+        update: sandbox.stub().rejects(new Error('Update failed')), // Simulate an update failure
+        constructor: {
+          findById: sandbox.stub(),
+        },
+      }
+
+      const findByIdWithSession: any = {
+        update: sandbox.stub().rejects(new Error('Update failed')),
+        id: 'document-id',
+      }
+      findByIdWithSession.session = sandbox.stub().returns(findByIdWithSession)
+      mockDocument.constructor.findById.returns(findByIdWithSession)
+
+      const mockInfo = { userId: '123' }
+      const logStub = sandbox.stub(logger, 'error')
+      const executeTxFnStub = sandbox
+        .stub(DbTx, 'executeTxFn')
+        .callsFake(async fn => await fn({ session: mockSession }))
+
+      try {
+        await DbOperations.updateDocument(
+          mockDocument,
+          { data: 'updated-data' },
+          mockInfo,
+          'Test update error',
+          (info: any) => info,
+        )
+      } catch (error: any) {
+        expect(logStub.calledOnceWith('Error updating document - Test update error' as any)).to.be.true
+        const logArgs: any = logStub.args[0]
+        expect(logArgs[1]).to.have.property('document', mockDocument)
+        expect(logArgs[1]).to.have.property('data').that.deep.equals({ data: 'updated-data' })
+        expect(logArgs[1]).to.have.property('error')
+        expect(logArgs[1].error.message).to.equal('Update failed')
+        expect(error.message).to.equal('Update failed')
+      }
+
+      expect(executeTxFnStub.calledOnce).to.be.true
     })
   })
 })

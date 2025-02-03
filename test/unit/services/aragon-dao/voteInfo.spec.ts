@@ -9,7 +9,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import Web3Helper from '@helpers/web3'
 import { IPluginInterfaceType } from '@types'
 
-describe('VoteInfo', () => {
+describe('AragonDao:VoteInfo', () => {
   let sandbox: SinonSandbox
   beforeEach(async () => {
     sandbox = sinon.createSandbox()

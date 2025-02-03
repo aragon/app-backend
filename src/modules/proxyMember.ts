@@ -191,6 +191,7 @@ export const ProxyMember = {
     memberAddress: HexAddress
     daoAddress: HexAddress
     pluginAddress: HexAddress
+    tokenAddress?: HexAddress
     network: NetworksEnum
   }): Promise<Member | null> => {
     const memberAddress = Web3Helper.parseAddress(params.memberAddress)
@@ -208,10 +209,10 @@ export const ProxyMember = {
           memberAddress: params.memberAddress,
           daoAddress: params.daoAddress,
           pluginAddress: params.pluginAddress,
+          tokenAddress: params?.tokenAddress,
           network: params.network,
         }
-        const existingDao = await Models.DaoMemberMapping.findMapping(queryParams, { session })
-
+        const existingDao = await ProxyMember.isMemberOfDao(queryParams, session)
         if (!existingDao) {
           await Models.DaoMemberMapping.create(queryParams, { session })
           await session.commitTransaction()
@@ -229,6 +230,7 @@ export const ProxyMember = {
     memberAddress: HexAddress
     daoAddress: HexAddress
     pluginAddress: HexAddress
+    tokenAddress?: HexAddress
     network: NetworksEnum
   }): Promise<Member | null> => {
     const memberAddress = Web3Helper.parseAddress(params.memberAddress)
@@ -242,9 +244,10 @@ export const ProxyMember = {
           memberAddress: params.memberAddress,
           daoAddress: params.daoAddress,
           pluginAddress: params.pluginAddress,
+          tokenAddress: params?.tokenAddress,
           network: params.network,
         }
-        const existingDao = await Models.DaoMemberMapping.findMapping(queryParams, { session })
+        const existingDao = await ProxyMember.isMemberOfDao(queryParams, session)
 
         if (existingDao) {
           const logDb = await existingDao.removeSelf({ session })
@@ -259,5 +262,18 @@ export const ProxyMember = {
       logger.error('Error in removeFromDao', llo({ error, params }))
       return null
     }
+  },
+
+  isMemberOfDao: async (
+    params: {
+      memberAddress: HexAddress
+      daoAddress: HexAddress
+      pluginAddress: HexAddress
+      network: NetworksEnum
+      tokenAddress?: HexAddress
+    },
+    session?: any,
+  ) => {
+    return Models.DaoMemberMapping.findMapping(params, { session })
   },
 }

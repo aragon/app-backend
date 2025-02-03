@@ -255,6 +255,19 @@ const Utils = {
     return dayjs.unix(0) // Using dayjs.unix(0) to set to Unix Epoch time
   },
 
+  splitSlug(fullSlug: string): { slug: string | undefined; index: number | undefined } {
+    try {
+      const splitted = fullSlug.split('-')
+      assert(splitted.length === 2, 'Invalid slug format')
+      const [slug, sIndex] = fullSlug.split('-')
+      const index = parseInt(sIndex, 10)
+      assert(!isNaN(index), 'Invalid index format')
+      return { slug, index }
+    } catch (error) {
+      return { slug: undefined, index: undefined }
+    }
+  },
+
   calculateDaysDifference(transactionTimestamp: number): number {
     const currentTimestamp = new Date().getTime()
     const timeDifferenceMs = currentTimestamp - transactionTimestamp
@@ -306,6 +319,10 @@ const Utils = {
 
   filterArrayByProperty: (configArray: IIndexerConfig[], propertyName: string) => {
     return configArray.filter(eventConfig => eventConfig[propertyName])
+  },
+
+  getUniqueValuesByKey(arr: Array<any>, columnKey: string) {
+    return [...new Set(arr.map(item => item[columnKey]))]
   },
 }
 

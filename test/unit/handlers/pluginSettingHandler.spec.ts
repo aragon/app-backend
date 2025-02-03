@@ -484,7 +484,7 @@ describe('Indexer: PluginSettingHandler', () => {
   describe('sppSettingsUpdated', () => {
     it('should return if the plugin is not found', async () => {
       const parsedEvent = { args: { stages: [] } } as any
-      const info = { address: '0xplugin', network: 'ethereum' } as any
+      const info = { address: '0xplugin', network: NetworksEnum.ethereumMainnet } as any
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
       const loggerStub = sandbox.stub(logger, 'warn')
@@ -497,7 +497,7 @@ describe('Indexer: PluginSettingHandler', () => {
 
     it('should return if an existing log is found', async () => {
       const parsedEvent = { args: { stages: [] } } as any
-      const info = { transactionHash: '0x123', address: '0xplugin', network: 'ethereum' } as any
+      const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as any
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin' } as any)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
@@ -529,7 +529,7 @@ describe('Indexer: PluginSettingHandler', () => {
         address: '0xplugin',
         transactionHash: '0x123',
         blockNumber: 1,
-        network: 'ethereum',
+        network: NetworksEnum.ethereumMainnet,
       } as any
 
       const plugin = {
@@ -628,7 +628,7 @@ describe('Indexer: PluginSettingHandler', () => {
     it('should return if an existing log is found', async () => {
       const plugin = { address: '0xplugin-address' } as any
       const stageNames = ['Stage 1', 'Stage 2']
-      const info = { transactionHash: '0x123', network: 'ethereum' } as any
+      const info = { transactionHash: '0x123', network: NetworksEnum.ethereumMainnet } as any
 
       sandbox.stub(Models.Setting, 'findExistingLog').resolves({} as any)
       const findActiveStub = sandbox.stub(Models.Setting, 'findActive')
@@ -645,7 +645,7 @@ describe('Indexer: PluginSettingHandler', () => {
     it('should return if no active plugin setting is found', async () => {
       const plugin = { address: '0xplugin-address' } as any
       const stageNames = ['Stage 1', 'Stage 2']
-      const info = { transactionHash: '0x123', network: 'ethereum' } as any
+      const info = { transactionHash: '0x123', network: NetworksEnum.ethereumMainnet } as any
 
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findActive').resolves(null)
@@ -661,7 +661,7 @@ describe('Indexer: PluginSettingHandler', () => {
     it('should log an error if stage names length mismatches', async () => {
       const plugin = { address: '0xplugin-address' } as any
       const stageNames = ['Stage 1']
-      const info = { transactionHash: '0x123', network: 'ethereum' } as any
+      const info = { transactionHash: '0x123', network: NetworksEnum.ethereumMainnet } as any
 
       const activePluginSetting = {
         stages: [{ stageIndex: 0 }, { stageIndex: 1 }],
@@ -690,7 +690,7 @@ describe('Indexer: PluginSettingHandler', () => {
       const stageNames = ['Stage 1', 'Stage 2']
       const info = {
         transactionHash: '0x123',
-        network: 'ethereum',
+        network: NetworksEnum.ethereumMainnet,
         blockNumber: 100,
       } as any
 
@@ -709,6 +709,74 @@ describe('Indexer: PluginSettingHandler', () => {
 
       expect(createDocumentStub.args[0][3]).to.eq('New Setting - sppSettingsUpdated')
       expect(updateDocumentStub.args[0][3]).to.eq('Update SPP inactive plugin')
+    })
+
+    it('should update the existing setting and create an inactive one if blockNumber is less than the active setting', async () => {
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'plugin.subdomain',
+      } as any
+
+      const stageNames = ['Stage 1', 'Stage 2']
+      const info = {
+        transactionHash: '0x123',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 50, // less than activePluginSetting.blockNumber
+      } as any
+
+      const activePluginSetting = {
+        id: 'active-setting-id',
+        blockNumber: 100,
+        stages: [{ stageIndex: 0 }, { stageIndex: 1 }],
+      }
+
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findActive').resolves(activePluginSetting)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
+
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
+
+      await PluginSettingHandler.updateStageNamesOnSppSettings(plugin, stageNames, info)
+
+      // Assert updateDocument is called for activePluginSetting with updated stages
+      expect(
+        updateDocumentStub.calledOnceWith(
+          activePluginSetting,
+          {
+            stages: [
+              { stageIndex: 0, name: 'Stage 1' },
+              { stageIndex: 1, name: 'Stage 2' },
+            ],
+          },
+          { logId: activePluginSetting.id, info },
+          'Update SPP stage names',
+        ),
+      ).to.be.true
+
+      // Assert createDocument is called for the inactive setting
+      expect(
+        createDocumentStub.calledOnceWith(
+          Models.Setting,
+          {
+            blockNumber: info.blockNumber,
+            blockTimestamp: 1620000000,
+            transactionHash: info.transactionHash,
+            daoAddress: plugin.daoAddress,
+            pluginAddress: plugin.address,
+            pluginSubdomain: plugin.subdomain,
+            network: info.network,
+            stages: [
+              { stageIndex: 0, name: 'Stage 1' },
+              { stageIndex: 1, name: 'Stage 2' },
+            ],
+            status: ISettingStatus.inactive,
+          },
+          info,
+          'Update SPP inactive plugin',
+        ),
+      ).to.be.true
     })
   })
 
@@ -733,7 +801,7 @@ describe('Indexer: PluginSettingHandler', () => {
         ],
       } as any
 
-      const info = { network: 'ethereum', blockNumber: 1 } as any
+      const info = { network: NetworksEnum.ethereumMainnet, blockNumber: 1 } as any
 
       sandbox
         .stub(Models.Plugin, 'findByAddress')
@@ -764,7 +832,7 @@ describe('Indexer: PluginSettingHandler', () => {
         ],
       } as any
 
-      const info = { network: 'ethereum' } as any
+      const info = { network: NetworksEnum.ethereumMainnet } as any
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
       const loggerStub = sandbox.stub(logger, 'error')

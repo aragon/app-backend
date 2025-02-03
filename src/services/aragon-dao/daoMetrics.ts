@@ -28,7 +28,7 @@ export const DaoMetrics = {
         network: document.network,
         'executed.status': true,
       }),
-      Models.DaoMemberMapping.countDocuments({ daoAddress: document.address, network: document.network }),
+      Models.DaoMemberMapping.countUniqueMembers(document.address, document.network),
       Models.Vote.countDocuments({ daoAddress: document.address, network: document.network }),
       DaoMetrics.countUniqueMemberVotesByPlugin(document.address),
     ])

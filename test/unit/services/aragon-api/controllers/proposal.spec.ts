@@ -18,6 +18,7 @@ import { fakeSettings } from '@test/mock/fakeSettings'
 import { PluginList } from '@test/mock/fakePlugins'
 import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
 import { RabbitMQHelper } from '@helpers/radditMQ'
+import Logger from '@logger'
 
 describe('Controller: Proposal', () => {
   let sandbox: SinonSandbox
@@ -278,6 +279,34 @@ describe('Controller: Proposal', () => {
     })
   })
 
+  describe('getProposalBySlug', () => {
+    it('should getProposalBySlug', async () => {
+      const plugin = await Models.Plugin.findOne({ address: rawProposal.pluginAddress })
+      const pluginId = plugin.id
+
+      const proposalDbId = await Models.Proposal.getEntityId({
+        transactionHash: rawProposal.transactionHash,
+        pluginAddress: rawProposal.pluginAddress,
+        proposalIndex: rawProposal.proposalIndex,
+      })
+
+      sandbox
+        .stub(PairDataModule, 'pairFromExtraParams')
+        .resolves({ daoAddress: rawProposal.daoAddress, network: rawProposal.network })
+      sandbox.stub(Models.Plugin, 'getPluginIdBySlugAndDao').resolves(pluginId)
+
+      const fullSlug = 'tokenvoting-0'
+      const proposal = await ProposalController.getProposalBySlug(fullSlug, { daoId: 'test-dao' })
+      expect(proposal.id).to.eq(proposalDbId)
+    })
+
+    it('should fail to getProposalBySlug', async () => {
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
+      const proposalId = 'test-member'
+      await expect(ProposalController.getProposalBySlug(proposalId)).to.be.rejectedWith(ErrorKeyEnum.daoNotFound)
+    })
+  })
+
   describe('canCreateProposal', () => {
     it('should return true as member can create proposal when the plugin has token address associated', async () => {
       const params = {
@@ -475,21 +504,38 @@ describe('Controller: Proposal', () => {
     })
   })
 
-  it('should call rabbitMq to get the cast vote info', async () => {
-    const params = {
-      proposalId: '0x00123213',
-      userAddress: rawMember.address,
-    }
+  describe('canCreateProposal', () => {
+    it('should call rabbitMq to get the cast vote info', async () => {
+      const params = {
+        proposalId: '0x00123213',
+        userAddress: rawMember.address,
+      }
 
-    const rabbitmQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(true as any)
+      const rabbitmQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(true as any)
 
-    const response = await ProposalController.canCastVote(params)
+      const response = await ProposalController.canCastVote(params)
 
-    expect(response).to.be.true
-    expect(rabbitmQStub.calledOnce).to.be.true
-    expect(rabbitmQStub.args[0][1]).to.deep.eq({
-      id: `voteInfo-${params.proposalId}-${params.userAddress}`,
-      params,
+      expect(response).to.be.true
+      expect(rabbitmQStub.calledOnce).to.be.true
+      expect(rabbitmQStub.args[0][1]).to.deep.eq({
+        id: `voteInfo-${params.proposalId}-${params.userAddress}`,
+        params,
+      })
+    })
+
+    it('should throw error to get the cast vote info', async () => {
+      const params = {
+        proposalId: '0x00123213',
+        userAddress: rawMember.address,
+      }
+
+      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('test'))
+      const logger = sandbox.stub(Logger, 'warn')
+
+      const response = await ProposalController.canCastVote(params)
+
+      expect(response).to.be.false
+      expect(logger.calledOnceWith('Error while checking if user can cast vote' as any)).to.be.true
     })
   })
 })

@@ -353,6 +353,15 @@ export default class Proposal extends Model {
     return await this.findOne({ proposalIndex, pluginAddress, network }, null, tOpts)
   }
 
+  static async findByProposalIncrementalId(
+    incrementalId: string,
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    tOpts?: SaveOptions,
+  ) {
+    return await this.findOne({ incrementalId, pluginAddress, network }, null, tOpts)
+  }
+
   static async findLatestProposal(pluginAddress: HexAddress, network: NetworksEnum) {
     const query = [
       {
@@ -479,6 +488,7 @@ export default class Proposal extends Model {
           name: 1,
           description: 1,
           processKey: 1,
+          slug: 1,
           links: 1,
           isSupported: 1,
           interfaceType: 1,
@@ -586,6 +596,7 @@ export default class Proposal extends Model {
           pluginSubdomain: 1,
           daoAddress: 1,
           proposalIndex: 1,
+          incrementalId: 1,
           totalStages: 1,
           parentProposal: 1,
           isSubProposal: 1,
@@ -751,6 +762,7 @@ export default class Proposal extends Model {
           name: 1,
           description: 1,
           processKey: 1,
+          slug: 1,
           links: 1,
           isSupported: 1,
           interfaceType: 1,
@@ -881,6 +893,7 @@ export default class Proposal extends Model {
           pluginSubdomain: 1,
           daoAddress: 1,
           proposalIndex: 1,
+          incrementalId: 1,
           totalStages: 1,
           parentProposal: 1,
           isSubProposal: 1,
