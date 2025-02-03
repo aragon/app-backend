@@ -915,6 +915,30 @@ const Web3Helper = {
       return null
     }
   },
+
+  async getTokenDetails(tokenAddress: string, network: NetworksEnum) {
+    const tokenDetails = {
+      name: null,
+      symbol: null,
+      decimals: 0,
+      logo: null,
+    }
+    try {
+      const provider = ProviderModule.getProvider(network)!
+      const response = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+          provider.send('alchemy_getTokenMetadata', [tokenAddress]),
+        ),
+      )
+      tokenDetails.name = response.name
+      tokenDetails.symbol = response.symbol
+      tokenDetails.decimals = response.decimals
+      tokenDetails.logo = response.logo || ''
+      return tokenDetails
+    } catch (_e) {
+      return tokenDetails
+    }
+  },
 }
 
 export default Web3Helper

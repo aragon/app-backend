@@ -3,10 +3,10 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TokenController from '@services/aragon-api/controllers/token'
 import { ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
-import CovalentHelper from '@helpers/covalent'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
+import { ProxyToken } from '@modules/proxyToken'
 
 describe('Controller: Token', () => {
   let sandbox: SinonSandbox
@@ -140,9 +140,11 @@ describe('Controller: Token', () => {
         totalSupply: '0',
         priceChangeOnDayUsd: '22.262699999999768',
         lastUpdatedAt: dayjs().toISOString(),
-      }
+      } as any
 
-      const stubHelper = sandbox.stub(CovalentHelper, 'getToken').resolves(fakeRes as any)
+      fakeRes.filterKeys = sandbox.stub().resolves(fakeRes)
+
+      const stubHelper = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(fakeRes as any)
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0'
       const token = await TokenController.getTokenByAddress({
         address,
@@ -152,22 +154,6 @@ describe('Controller: Token', () => {
       expect(token.address).to.eq(address)
       expect(stubHelper.calledOnce).to.be.true
       expect(stubHelper.calledWith(address, NetworksEnum.ethereumMainnet)).to.be.true
-
-      const dbToken = await Models.Token.findByTokenAddressAndNetwork(address, NetworksEnum.ethereumMainnet)
-      expect(dbToken.address).to.eq(address)
-      expect(dbToken.network).to.eq(NetworksEnum.ethereumMainnet)
-      expect(dbToken.logo).to.eq(fakeRes.logo)
-      expect(dbToken.name).to.eq(fakeRes.name)
-      expect(dbToken.type).to.eq(fakeRes.type)
-      expect(dbToken.symbol).to.eq(fakeRes.symbol)
-      expect(dbToken.decimals).to.eq(fakeRes.decimals)
-      expect(dbToken.priceUsd).to.eq(fakeRes.priceUsd)
-      expect(dbToken.holders).to.eq(fakeRes.holders)
-      expect(dbToken.totalSupply).to.eq(fakeRes.totalSupply)
-      expect(dbToken.priceChangeOnDayUsd).to.eq(fakeRes.priceChangeOnDayUsd)
-      expect(dayjs(dbToken.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss')).to.eq(
-        dayjs(fakeRes.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss'),
-      )
     })
 
     it('getTokenByAddress existing token', async () => {
@@ -188,7 +174,7 @@ describe('Controller: Token', () => {
 
       await Models.Token.create(rawToken)
 
-      const stubHelper = sandbox.stub(CovalentHelper, 'getToken')
+      const stubHelper = sandbox.stub(ProxyToken, 'saveAndGetToken')
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0'
       const dbToken = await TokenController.getTokenByAddress({
         address,
@@ -212,7 +198,7 @@ describe('Controller: Token', () => {
     })
 
     it('getTokenByAddress not found', async () => {
-      const stubHelper = sandbox.stub(CovalentHelper, 'getToken').resolves(undefined)
+      const stubHelper = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(undefined)
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc1'
       await expect(
         TokenController.getTokenByAddress({

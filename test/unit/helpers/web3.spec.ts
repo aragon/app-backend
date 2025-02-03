@@ -1428,6 +1428,26 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('getTokenDetails', () => {
+    it('should get token details', async () => {
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+      const fakeTokenAddress = '0xTokenAddress'
+
+      const providerStub = {
+        send: sandbox.stub().resolves({
+          name: 'xxx',
+          symbol: 'yy',
+        }),
+      }
+      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(logger, 'verbose')
+
+      await Web3Helper.getTokenDetails(fakeTokenAddress, fakeNetwork)
+      expect(providerStub.send.calledOnce).to.be.true
+      expect(providerStub.send.calledWith('alchemy_getTokenMetadata', [fakeTokenAddress])).to.be.true
+    })
+  })
+
   describe('getTargetConfig', () => {
     it('should return false when error getting target config', async () => {
       const stubConfigState = {
