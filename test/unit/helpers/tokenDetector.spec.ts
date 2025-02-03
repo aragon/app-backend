@@ -13,7 +13,7 @@ import { ZeroAddress } from 'ethers'
 import { expect } from 'chai'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
-import utils from "@helpers/utils";
+import utils from '@helpers/utils'
 
 describe('Helper: TokenDetector', () => {
   let sandbox: SinonSandbox
@@ -124,7 +124,9 @@ describe('Helper: TokenDetector', () => {
   })
 
   it('should getCode from address if implementation is zero address', async () => {
-    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(utils.zeroAddress)
+    const getImplementationAddressStub = sandbox
+      .stub(ProxyContractHelper, 'getImplementationAddress')
+      .resolves(utils.zeroAddress)
     sandbox.stub(ProviderModule, 'getProvider').returns({
       getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(ERC721_FUNCTIONS)),
     } as any)
