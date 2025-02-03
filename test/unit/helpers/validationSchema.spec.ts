@@ -99,6 +99,41 @@ describe('Helpers:ValidationSchema', () => {
       expect(result.order).to.eq('asc')
     })
 
+    it('joiSlug', async () => {
+      const validSlug = 'pluginType-123'
+      const result = await ValidationSchema.joiSlug.validateAsync(validSlug)
+      expect(result).to.equal(validSlug)
+
+      const anotherValidSlug = 'plugin-0'
+      const result2 = await ValidationSchema.joiSlug.validateAsync(anotherValidSlug)
+      expect(result2).to.equal(anotherValidSlug)
+
+      await expect(ValidationSchema.joiSlug.validateAsync('pluginType-abc')).to.be.rejectedWith(
+        Error,
+        '"value" is not a valid Slug',
+      )
+
+      await expect(ValidationSchema.joiSlug.validateAsync('pluginType--123')).to.be.rejectedWith(
+        Error,
+        '"value" is not a valid Slug',
+      )
+
+      await expect(ValidationSchema.joiSlug.validateAsync('pluginType-12345678901234567890')).to.be.rejectedWith(
+        Error,
+        '"value" is not a valid Slug',
+      )
+
+      await expect(ValidationSchema.joiSlug.validateAsync('-123')).to.be.rejectedWith(
+        Error,
+        '"value" is not a valid Slug',
+      )
+
+      await expect(ValidationSchema.joiSlug.validateAsync('pluginType123')).to.be.rejectedWith(
+        Error,
+        '"value" is not a valid Slug',
+      )
+    })
+
     it('joiAddress', async () => {
       const validAddress = '0xb794f5ea0ba39494ce839613fffba74279579268'
       const checksumAddress = '0xb794F5eA0ba39494cE839613fffBA74279579268'

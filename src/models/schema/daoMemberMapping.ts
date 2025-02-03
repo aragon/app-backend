@@ -1,16 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import {
-  HexAddress,
-  ICollectionNames,
-  type IDaoExtraParams,
-  type IPaginationParams,
-  IPluginStatus,
-  NetworksEnum,
-} from '@types'
+import { HexAddress, type IDaoMemberMappingData, ICollectionNames, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import ModelUtils from '@models/utils/models'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.DaoMemberMapping
 
@@ -53,189 +44,42 @@ export default class DaoMemberMapping extends Model {
     return await data.save(tOpts)
   }
 
-  static async findTransferByMemberWithPagination({
-    extraParams,
-    paginationParams,
-  }: {
-    extraParams?: IDaoExtraParams
-    paginationParams?: IPaginationParams
-  }) {
-    const request = ModelUtils.paginateAndSort(paginationParams)
-    const currentPage = request.skip / request.limit + 1
-
-    const filter: any[] = []
-
-    if (extraParams?.memberAddress) {
-      filter.push({ $eq: ['$memberAddress', extraParams?.memberAddress] })
-    }
-
-    if (extraParams?.network) {
-      filter.push({ $eq: ['$network', extraParams?.network] })
-    }
-
-    const query = [
+  static async countUniqueMembers(daoAddress: string, network: NetworksEnum) {
+    const result = await this.aggregate([
       {
         $match: {
-          $expr: {
-            $and: filter,
-          },
+          daoAddress,
+          network,
         },
       },
       {
-        $project: {
-          daoAddress: 1,
-          _id: 0,
-        },
-      },
-      AggregationQueryHelper.dao(
-        {
-          address: '$daoAddress',
-        },
-        'daoDetails',
-      ),
-      {
-        $unwind: {
-          path: '$daoDetails',
-          preserveNullAndEmptyArrays: false,
+        $group: {
+          _id: '$memberAddress',
         },
       },
       {
-        $replaceRoot: {
-          newRoot: '$daoDetails',
-        },
+        $count: 'uniqueMemberCount',
       },
-      {
-        $project: {
-          createdAt: 0,
-          updatedAt: 0,
-          isHidden: 0,
-          isActive: 0,
-          __v: 0,
-          _id: 0,
-        },
-      },
-      ...(extraParams?.excludedDao?.daoAddress && extraParams?.excludedDao?.network
-        ? [
-            {
-              $match: {
-                $nor: [
-                  {
-                    address: extraParams.excludedDao.daoAddress,
-                    network: extraParams.excludedDao.network,
-                  },
-                ],
-              },
-            },
-          ]
-        : []),
-      AggregationQueryHelper.member(
-        {
-          memberAddress: '$creatorAddress',
-        },
-        'creator',
-      ),
-      {
-        $addFields: {
-          creator: {
-            $cond: {
-              if: { $gt: [{ $size: '$creator' }, 0] },
-              then: {
-                address: { $arrayElemAt: ['$creator.address', 0] },
-                ens: { $arrayElemAt: ['$creator.ens', 0] },
-                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
-              },
-              else: {
-                address: '$creatorAddress',
-                ens: null,
-                avatar: null,
-              },
-            },
-          },
-        },
-      },
-      {
-        $addFields: {
-          creatorAddress: '$$REMOVE',
-        },
-      },
-      AggregationQueryHelper.plugin(
-        {
-          daoAddress: '$address',
-          network: '$network',
-          status: IPluginStatus.installed,
-        },
-        'plugins',
-        {
-          _id: 0,
-          transactionHash: 1,
-          blockTimestamp: 1,
-          name: 1,
-          description: 1,
-          processKey: 1,
-          links: 1,
-          address: 1,
-          implementationAddress: 1,
-          isSupported: 1,
-          interfaceType: 1,
-          // status: 1,
-          release: 1,
-          build: 1,
-          subdomain: 1,
-          isProcess: 1,
-          isBody: 1,
-          isSubPlugin: 1,
-          totalStages: 1,
-          subPlugins: 1,
-          stageIndex: 1,
-          parentPlugin: 1,
-        },
-        {
-          settings: true,
-          token: true,
-        },
-      ),
-    ]
-
-    const aggQuery = [{ $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }, ...query]
-
-    const [result, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery),
-      this.aggregate([...query, { $count: 'totalRecords' }]),
     ])
 
-    const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
-    const totalPages = Math.ceil(_totalRecords / request.limit)
-
-    if (currentPage > totalPages) {
-      return ModelUtils.paginateEmptyResponse(request.limit)
-    }
-
-    return {
-      metadata: {
-        page: currentPage,
-        pageSize: request.limit,
-        totalPages,
-        totalRecords: _totalRecords,
-      },
-      data: result as any,
-    }
+    return result[0]?.uniqueMemberCount || 0
   }
 
   static async findMapping(
-    {
+    { memberAddress, daoAddress, pluginAddress, tokenAddress, network }: IDaoMemberMappingData,
+    tOpts?: SaveOptions,
+  ) {
+    const params: IDaoMemberMappingData = {
       memberAddress,
       daoAddress,
       pluginAddress,
       network,
-    }: {
-      memberAddress: HexAddress
-      daoAddress: HexAddress
-      pluginAddress: HexAddress
-      network: NetworksEnum
-    },
-    tOpts?: SaveOptions,
-  ) {
-    return await this.findOne({ memberAddress, daoAddress, pluginAddress, network }, null, tOpts)
+    }
+
+    if (tokenAddress) {
+      params.tokenAddress = tokenAddress
+    }
+    return this.findOne(params, null, tOpts)
   }
 
   static async findAllMembersOfPlugin(

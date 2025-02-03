@@ -11,7 +11,7 @@ import Web3Helper from '@helpers/web3'
 import { PermissionHandler } from '@handlers/permissionHandler'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 
-describe('Plugins: LogAdmin', () => {
+describe('AragonPlugins: LogAdmin', () => {
   let sandbox: SinonSandbox
   let verboseStub: sinon.SinonStub
 
@@ -37,6 +37,32 @@ describe('Plugins: LogAdmin', () => {
       expect(verboseStub.calledWith('Start LogAdmin' as any)).to.be.true
       expect(verboseStub.calledTwice).to.be.true
       expect(crawlStub.calledOnce).to.be.true
+    })
+
+    it('should handle errors during crawling', async () => {
+      const plugin = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.admin,
+      } as any
+
+      const error = new Error('Test error')
+      sandbox.stub(LogAdmin, '_syncAdminMember').resolves()
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
+        this: BlockchainLogCrawler,
+      ): Promise<any> {
+        if ((this as any).crawlParams.onError) {
+          await (this as any).crawlParams.onError(error, 'log')
+        }
+      })
+
+      const processErrorStub = sandbox.stub(LogAdmin, 'processError').resolves()
+
+      await LogAdmin.start(plugin)
+
+      expect(crawlStub.calledOnce).to.be.true
+      expect(processErrorStub.calledOnce).to.be.true
+      expect(processErrorStub.calledWith(error, plugin, 'log')).to.be.true
     })
 
     it('should process error', async () => {

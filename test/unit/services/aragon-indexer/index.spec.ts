@@ -12,7 +12,7 @@ import { NetworksEnum } from '@types'
 import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
 
-describe('aragon-indexer: index', () => {
+describe('AragonIndexer: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -24,7 +24,7 @@ describe('aragon-indexer: index', () => {
   })
 
   describe('start', () => {
-    it('should start the indexer service and execute historical crawlers', async () => {
+    it('should start the indexer service and execute historical crawlers, and verify startTask fn is called', async () => {
       const configBackup = config.SERVICES.ARAGON_INDEXER.SYNC_ALL
       config.SERVICES.ARAGON_INDEXER.SYNC_ALL = true
       const loggerStub = sandbox.stub(logger, 'info')
@@ -34,7 +34,12 @@ describe('aragon-indexer: index', () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
 
       const subscribeStub = sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock')
-      const schedulerStartStub = sandbox.stub(TaskSchedulerState.getInstance(), 'startTask').resolves()
+      const schedulerStartStub = sandbox
+        .stub(TaskSchedulerState.getInstance(), 'startTask')
+        .callsFake(async (taskName: string, options: any) => {
+          const tasks = options.fn()
+          expect(tasks[0][0].syncAllPlugins.start).to.exist
+        })
 
       await IndexerService.start()
 
@@ -44,6 +49,45 @@ describe('aragon-indexer: index', () => {
       expect(subscribeStub.calledOnce).to.be.true
       expect(schedulerStartStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('IndexerService historical logs end' as any)).to.be.true
+
+      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = configBackup
+    })
+
+    it('should handle errors during historical crawling', async () => {
+      const configBackup = config.SERVICES.ARAGON_INDEXER.SYNC_ALL
+      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = true
+
+      const error = new Error('Test error during historical crawling')
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
+      sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
+      sandbox.stub(CustomInstall, 'install').resolves()
+      sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock').resolves()
+
+      const schedulerStub = sandbox
+        .stub(TaskSchedulerState.getInstance(), 'startTask')
+        .callsFake(async (taskName: string, options: any) => {
+          if (options.onError) {
+            options.onError(error)
+          }
+        })
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
+        this: BlockchainLogCrawler,
+      ): Promise<any> {
+        if ((this as any).crawlParams.onError) {
+          await (this as any).crawlParams.onError(error)
+        }
+      })
+
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      await IndexerService.start()
+
+      expect(crawlStub.calledOnce).to.be.true
+      expect(schedulerStub.calledOnce).to.be.true
+      expect(loggerStub.calledTwice).to.be.true
+      expect(loggerStub.calledWith('Error Indexer' as any)).to.be.true
+      expect(loggerStub.calledWith('Error sync all plugins' as any)).to.be.true
 
       config.SERVICES.ARAGON_INDEXER.SYNC_ALL = configBackup
     })

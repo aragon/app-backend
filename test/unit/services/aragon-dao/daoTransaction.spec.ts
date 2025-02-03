@@ -15,7 +15,7 @@ import ProviderModule from '@modules/provider'
 import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 
-describe('aragon-dao: DaoTransactions', () => {
+describe('AragonDao: DaoTransactions', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(async () => {
@@ -54,6 +54,15 @@ describe('aragon-dao: DaoTransactions', () => {
       expect(stubFindByAddress.calledOnce).to.be.true
       expect(stubLogger.calledWithMatch('Start DaoTransactions' as any)).to.be.true
       expect(stubLogger.calledWithMatch('End DaoTransactions' as any)).to.be.false // Should not log end
+    })
+
+    it('should throw error', async () => {
+      const stubLogger = sandbox.stub(Logger, 'error')
+      sandbox.stub(Models.Dao, 'findByAddress').rejects(new Error('fake-error'))
+
+      await DaoTransactions.start({ daoAddress: '0x123', network: NetworksEnum.ethereumMainnet } as any)
+
+      expect(stubLogger.calledWith('Error start DaoTransactions' as any)).to.be.true
     })
   })
 

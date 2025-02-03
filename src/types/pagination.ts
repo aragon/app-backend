@@ -45,6 +45,7 @@ export interface IProposalExtraParams {
   pluginAddress?: HexAddress
   creatorAddress?: HexAddress
   proposalIndex?: string
+  incrementalId?: number
   daoInfo?: boolean
 }
 

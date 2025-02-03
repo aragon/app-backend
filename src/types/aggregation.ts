@@ -19,6 +19,11 @@ export interface IQueryGetPlugin {
   subdomain: string
 }
 
+export interface IAggPluginSlugParams {
+  pluginAddress?: string
+  network: string
+}
+
 export interface IAggTokenParams {
   address?: string
   network: string
@@ -143,6 +148,7 @@ export interface IAggPluginProjectFields {
   name: 1
   description: 1
   processKey: 1
+  slug: 1
   links: 1
   implementationAddress?: 1
   status?: 1

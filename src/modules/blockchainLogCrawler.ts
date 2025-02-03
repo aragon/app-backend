@@ -169,7 +169,9 @@ class BlockchainLogCrawler {
           )
 
           const logs = await retryRequest(async () =>
-            BottleneckModule.getNodeLimiter(this.crawlParams.network)!.schedule(async () => Promise.all(batchRequests)),
+            BottleneckModule.getAlchemyBatchRequest(this.crawlParams.network)!.schedule(async () =>
+              Promise.all(batchRequests),
+            ),
           )
 
           allLogs.push(...logs.flat())
@@ -310,7 +312,7 @@ class BlockchainLogCrawler {
         }
         logger.verbose(
           'Processing log',
-          llo({ ...this.parseCrawlerInfoLog(), blockNumber: log.blockNumber, logsLen: logs.length, logIndex }),
+          llo({ ...this.parseCrawlerInfoLog(), blockNumber: Number(log.blockNumber), logsLen: logs.length, logIndex }),
         )
         if (this.crawlParams.logService && log.blockNumber) {
           await this.onSaveProgress(log.blockNumber)

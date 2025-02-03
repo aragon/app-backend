@@ -9,7 +9,7 @@ import { TaskSchedulerState } from '@state/taskSchedulerState'
 import logger from '@logger'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
 
-describe('aragon-rates: index', () => {
+describe('AragonRates: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

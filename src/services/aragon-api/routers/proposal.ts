@@ -15,7 +15,7 @@ import Utils from '@helpers/utils'
 
 const ProposalRouter = {
   getWithPagination: async function (ctx: RouterContext) {
-    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'proposalIndex' })
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'incrementalId' })
     const extraParams: IProposalExtraParams = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.daoAddress as HexAddress,
@@ -23,6 +23,7 @@ const ProposalRouter = {
       creatorAddress: ctx.query.creatorAddress as HexAddress,
       daoInfo: Utils.parseBoolean(ctx.query.daoInfo),
       proposalIndex: ctx.query.proposalIndex?.toString(),
+      incrementalId: ctx.query.incrementalId !== undefined ? Number(ctx.query.incrementalId || 0) : undefined,
     }
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
@@ -44,6 +45,24 @@ const ProposalRouter = {
       formattedExtraParams,
       formattedPairParams,
     )
+  },
+
+  getProposalBySlug: async function (ctx: RouterContext) {
+    const params = {
+      slug: ctx.params.slug,
+    }
+    const pairParams: IPairParams = {
+      daoId: ctx.query.daoId as string,
+    }
+    const anyInvalidParams = Utils.extractAdditionalParams({ ...pairParams }, ctx.query)
+
+    const [formattedParams, formattedPairParams] = await Promise.all([
+      ValidationSchema.validateParams(ProposalSchema.getProposalBySlug, params),
+      ValidationSchema.validateParams(PaginationSchema.getPairParams, pairParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
+
+    ctx.body = await ProposalController.getProposalBySlug(formattedParams.slug, formattedPairParams)
   },
 
   getProposalById: async function (ctx: RouterContext) {
@@ -115,6 +134,16 @@ const ProposalRouter = {
      * @apiSampleRequest /:id
      */
     router.get('/:id', ProposalRouter.getProposalById)
+
+    /**
+     * @api {get} /:id Get Proposal by Slug
+     * @apiName Proposals
+     * @apiGroup Proposals
+     * @apiDescription Get Proposal by Slug
+     *
+     * @apiSampleRequest /:Slug
+     */
+    router.get('/slug/:slug', ProposalRouter.getProposalBySlug)
 
     return router
   },

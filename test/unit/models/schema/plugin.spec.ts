@@ -5,7 +5,7 @@ import Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import { beforeEach } from 'mocha'
 import { PluginList } from '@test/mock/fakePlugins'
-import { IPluginInterfaceType } from '@types'
+import { IPluginInterfaceType, IPluginSlug, NetworksEnum } from '@types'
 
 describe('Model: Plugin', () => {
   let sandbox: SinonSandbox
@@ -113,6 +113,30 @@ describe('Model: Plugin', () => {
     expect(foundPlugin.network).to.be.eq(plugin.network)
     expect(foundPlugin.transactionHash).to.be.eq(plugin.transactionHash)
     expect(foundPlugin.address).to.be.eq(plugin.address)
+  })
+
+  describe('getPluginIdBySlugAndDao', async () => {
+    it('should getPluginIdBySlugAndDao', async () => {
+      const slug = IPluginSlug.tokenvoting
+      const plugin = await Models.Plugin.create(rawPlugin)
+      await Models.PluginSlug.create({
+        pluginAddress: plugin.address,
+        daoAddress: plugin.daoAddress,
+        network: plugin.network,
+        slug,
+      })
+
+      const pluginId = await Models.Plugin.getPluginIdBySlugAndDao(slug, plugin.daoAddress, plugin.network)
+      expect(pluginId).to.eq(plugin.id)
+    })
+
+    it('should not find getPluginIdBySlugAndDao', async () => {
+      const slug = IPluginSlug.tokenvoting
+      const plugin = await Models.Plugin.create(rawPlugin)
+
+      const pluginId = await Models.Plugin.getPluginIdBySlugAndDao(slug, plugin.daoAddress, plugin.network)
+      expect(pluginId).to.eq(undefined)
+    })
   })
 
   it('should findActivePluginByTokenAddress', async () => {

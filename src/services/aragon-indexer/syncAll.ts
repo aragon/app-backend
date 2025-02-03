@@ -89,13 +89,21 @@ export const SyncAll = {
         ])
 
         const pluginNotSynced = plugins.filter((plugin: Plugin) => plugin.lastSync === 0)
+        logger.verbose('SyncAll: pluginNotSynced list', llo({ count: pluginNotSynced.length }))
+
+        let counter = 0
         for (const plugin of pluginNotSynced) {
-          await SyncAll.sendWithQueueLimit(plugin)
+          counter++
+          await SyncAll.sendWithQueueLimit(plugin, pluginNotSynced.length - counter)
         }
 
         const pluginSynced = plugins.filter((plugin: Plugin) => plugin.lastSync > 0)
+        logger.verbose('SyncAll: Synced list', llo({ count: pluginSynced.length }))
+
+        counter = 0
         for (const plugin of pluginSynced) {
-          await SyncAll.sendWithQueueLimit(plugin)
+          counter++
+          await SyncAll.sendWithQueueLimit(plugin, pluginSynced.length - counter)
         }
       }),
     )
@@ -103,7 +111,7 @@ export const SyncAll = {
     logger.verbose('End SyncAll', llo())
   },
 
-  sendWithQueueLimit: async (plugin: Plugin) => {
+  sendWithQueueLimit: async (plugin: Plugin, remaining?: number) => {
     const maxQueueSize = 100
     const retryDelay = 1000 // 1 second
 
@@ -125,14 +133,14 @@ export const SyncAll = {
           params: { address: plugin.address, network: plugin.network },
         })
         logger.verbose(
-          `Message sent to queue "${EnumQueueName.plugins}". Current count: ${count + 1}`,
-          llo({ queueName: EnumQueueName.plugins }),
+          `Message sent to queue "${EnumQueueName.plugins}"`,
+          llo({ queueName: EnumQueueName.plugins, address: plugin.address, remaining, count: count + 1 }),
         )
         break // Exit the loop after successful send
       } else {
         logger.warn(
-          `Queue "${EnumQueueName.plugins}" has reached the limit (${count} messages). Waiting...`,
-          llo({ queueName: EnumQueueName.plugins }),
+          `Queue "${EnumQueueName.plugins}" has reached the limit. Waiting...`,
+          llo({ queueName: EnumQueueName.plugins, waitingPlugin: plugin.address, remaining, count }),
         )
         await utils.wait(retryDelay) // Wait before retrying
       }

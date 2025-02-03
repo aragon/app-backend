@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { IPluginInterfaceType, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { Models } from '@dbModels'
@@ -10,6 +10,7 @@ import Web3Helper from '@helpers/web3'
 import Logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import { PluginSlug } from '@helpers/pluginSlug'
 
 describe('Indexer: MetadataHandler', () => {
   let sandbox: SinonSandbox
@@ -137,47 +138,6 @@ describe('Indexer: MetadataHandler', () => {
       expect(verboseStub.args[0][0]).to.be.eq('Created new document - Plugin Metadata Set')
     })
 
-    it('should store DAO metadata - dao not exists', async () => {
-      const verboseStub = sandbox.stub(Logger, 'verbose')
-      const fakeMetadata = {
-        name: 'test',
-        description: 'fake-description',
-      }
-      const fakeEvent = {
-        args: { metadata: 'fake-metadata' },
-      }
-      const logInfo = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 3,
-        transactionIndex: 1,
-        logIndex: 1,
-        transactionHash: '0x0123123',
-        address: '0x0123123',
-        eventName: 'test',
-      }
-
-      const pluginFindStub = sandbox.stub(Models.Plugin, 'findByAddress').callsFake(async (...args) => {
-        pluginFindStub.restore() // Restore the original method after the first call
-        return Promise.resolve({
-          address: '0x123',
-          interfaceType: IPluginInterfaceType.spp,
-          network: NetworksEnum.ethereumMainnet,
-        } as any)
-      })
-
-      const decodeHelper = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://fake-uri')
-      const fetchHelper = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
-
-      await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
-
-      expect(decodeHelper.calledOnce).to.be.true
-      expect(decodeHelper.calledWith(fakeEvent.args.metadata)).to.be.true
-
-      expect(fetchHelper.calledOnce).to.be.true
-      expect(fetchHelper.calledWith('ipfs://fake-uri')).to.be.true
-      expect(verboseStub.args[0][0]).to.be.eq('Created new document - Plugin Metadata Set')
-    })
-
     it('should _updateDaoMetadata if logDb successfully created', async () => {
       const fakeMetadata = {
         name: 'test',
@@ -219,6 +179,54 @@ describe('Indexer: MetadataHandler', () => {
       expect(updateDaoMetadataStub.calledOnce).to.be.true
     })
 
+    it('should return if the dao and plugin didnot exist', async () => {
+      const fakeEvent = {
+        args: { metadata: 'fake-metadata' },
+      }
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0x0123123',
+        address: '0x0123123',
+        eventName: 'test',
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+
+      const findExistingStub = sandbox.stub(Models.LogMetadata, 'findExistingLog')
+
+      await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
+
+      expect(findExistingStub.calledOnce).to.be.false
+    })
+
+    it('should return if already exist', async () => {
+      const fakeEvent = {
+        args: { metadata: 'fake-metadata' },
+      }
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0x0123123',
+        address: '0x0123123',
+        eventName: 'test',
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
+      const extractMetadataUriStub = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://fake-uri')
+      const findExistingStub = sandbox.stub(Models.LogMetadata, 'findExistingLog').resolves(true)
+
+      await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
+      expect(findExistingStub.calledOnce).to.be.true
+      expect(extractMetadataUriStub.calledOnce).to.be.false
+    })
+
     it('should _updateDaoMetadata if logDb successfully created', async () => {
       const fakeLogDB = {
         network: NetworksEnum.ethereumMainnet,
@@ -244,6 +252,31 @@ describe('Indexer: MetadataHandler', () => {
       expect(stubUpdate.calledOnce).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
+    })
+
+    it('should throw error', async () => {
+      const fakeEvent = {
+        args: { metadata: 'fake-metadata' },
+      }
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0x0123123',
+        address: '0x0123123',
+        eventName: 'test',
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
+      const stubLogger = sandbox.stub(Logger, 'error')
+      const findExistingStub = sandbox.stub(Models.LogMetadata, 'findExistingLog').resolves(null)
+      sandbox.stub(Web3Helper, 'extractMetadataUri').rejects(new Error('fake-error'))
+
+      await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
+      expect(findExistingStub.calledOnce).to.be.true
+      expect(findExistingStub.calledOnceWith('Error create metadataSet')).to.be.false
     })
   })
 
@@ -275,6 +308,8 @@ describe('Indexer: MetadataHandler', () => {
         address: '0x456',
         network: NetworksEnum.ethereumMainnet,
         interfaceType: IPluginInterfaceType.spp,
+        status: IPluginStatus.installed,
+        isSupported: true,
       }
       const logMetadata: any = {
         metadataType: 'plugin',
@@ -289,12 +324,14 @@ describe('Indexer: MetadataHandler', () => {
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'log-id' } as any)
       const updatePluginMetadataStub = sandbox.stub(MetadataHandler, '_updatePluginMetadata').resolves()
       const updateStageNamesStub = sandbox.stub(PluginSettingHandler, 'updateStageNamesOnSppSettings').resolves()
+      const updateSlugStub = sandbox.stub(PluginSlug, 'updateSlug').resolves()
 
       await MetadataHandler._handlePluginMetadata(fakePlugin as any, logMetadata, ipfsMetadata, {
         transactionHash: '0xabc',
       } as any)
 
       expect(createDocumentStub.calledOnce).to.be.true
+      expect(updateSlugStub.calledOnce).to.be.true
       expect(updatePluginMetadataStub.calledOnce).to.be.true
       expect(updateStageNamesStub.calledOnce).to.be.true
       expect(updateStageNamesStub.calledWith(fakePlugin, logMetadata.stageNames)).to.be.true
@@ -305,6 +342,8 @@ describe('Indexer: MetadataHandler', () => {
         address: '0x456',
         network: NetworksEnum.ethereumMainnet,
         interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        isSupported: true,
       }
       const logMetadata: any = {
         metadataType: 'plugin',
@@ -314,12 +353,14 @@ describe('Indexer: MetadataHandler', () => {
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'log-id' } as any)
       const updatePluginMetadataStub = sandbox.stub(MetadataHandler, '_updatePluginMetadata').resolves()
       const updateStageNamesStub = sandbox.stub(PluginSettingHandler, 'updateStageNamesOnSppSettings')
+      const updateSlugStub = sandbox.stub(PluginSlug, 'updateSlug').resolves()
 
       await MetadataHandler._handlePluginMetadata(fakePlugin as any, logMetadata, null, {
         transactionHash: '0xabc',
       } as any)
 
       expect(createDocumentStub.calledOnce).to.be.true
+      expect(updateSlugStub.calledOnce).to.be.true
       expect(updatePluginMetadataStub.calledOnce).to.be.true
       expect(updateStageNamesStub.notCalled).to.be.true
     })

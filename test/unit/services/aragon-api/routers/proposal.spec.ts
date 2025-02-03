@@ -5,6 +5,8 @@ import ProposalRouter from '@services/aragon-api/routers/proposal'
 import ProposalController from '@services/aragon-api/controllers/proposal'
 import { NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
+import ProposalSchema from '@api/routers/schema/proposal'
+import ValidationSchema from '@helpers/validationSchema'
 
 describe('Router: Proposal', () => {
   let sandbox: SinonSandbox
@@ -26,6 +28,7 @@ describe('Router: Proposal', () => {
         creatorAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         daoInfo: false,
         proposalIndex: '1',
+        incrementalId: 1,
       }
       const paginationParams = {
         pageSize: 10,
@@ -84,7 +87,7 @@ describe('Router: Proposal', () => {
         endDate: undefined,
         startDate: undefined,
         search: undefined,
-        sort: 'proposalIndex',
+        sort: 'incrementalId',
       }
 
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
@@ -94,6 +97,7 @@ describe('Router: Proposal', () => {
         pluginAddress: undefined,
         creatorAddress: undefined,
         daoInfo: false,
+        incrementalId: undefined,
         proposalIndex: undefined,
       })
       expect(stubCtrl.args[0][2]?.daoId).to.deep.eq(filterParams.daoId)
@@ -132,7 +136,13 @@ describe('Router: Proposal', () => {
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
         ...filterParams,
-        ...{ daoAddress: undefined, pluginAddress: undefined, creatorAddress: undefined, proposalIndex: undefined },
+        ...{
+          daoAddress: undefined,
+          pluginAddress: undefined,
+          creatorAddress: undefined,
+          proposalIndex: undefined,
+          incrementalId: undefined,
+        },
       })
     })
   })
@@ -155,6 +165,25 @@ describe('Router: Proposal', () => {
     expect(stubCtrl.calledWith(getAddress(params.id) as any)).to.be.true
   })
 
+  it('Should getProposalBySlug', async () => {
+    const params = {
+      slug: 'test-1',
+    }
+
+    const stubCtrl = sandbox.stub(ProposalController, 'getProposalBySlug').returns(true as any)
+
+    const ctx: any = {
+      params,
+      query: { daoId: `${NetworksEnum.polygonMainnet}-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254` },
+    }
+
+    await ProposalRouter.getProposalBySlug(ctx)
+
+    expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+    expect(stubCtrl.calledWith(params.slug, ctx.query)).to.be.true
+  })
+
   it('should canCastVote', async () => {
     const ctx: any = {
       query: { userAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' },
@@ -174,5 +203,33 @@ describe('Router: Proposal', () => {
         userAddress: ctx.query.userAddress,
       }),
     ).to.be.true
+  })
+
+  it('Should check if a member can create a proposal', async () => {
+    const ctx: any = {
+      query: {
+        memberAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        pluginAddress: '0xPluginAddress123',
+        network: NetworksEnum.ethereumMainnet,
+      },
+    }
+
+    const validateParamsStub = sandbox.stub(ValidationSchema, 'validateParams').resolves(ctx.query)
+
+    const stubCtrl = sandbox.stub(ProposalController, 'canCreateProposal').resolves(true as any)
+
+    await ProposalRouter.canCreateProposal(ctx)
+
+    expect(validateParamsStub.calledOnce).to.be.true
+    expect(
+      validateParamsStub.calledWith(ProposalSchema.canCreateProposal, {
+        memberAddress: ctx.query.memberAddress,
+        pluginAddress: ctx.query.pluginAddress,
+        network: ctx.query.network,
+      }),
+    ).to.be.true
+
+    expect(stubCtrl.calledOnceWith(ctx.query)).to.be.true
+    expect(ctx.body).to.eq(true)
   })
 })
