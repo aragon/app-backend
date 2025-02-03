@@ -2,6 +2,7 @@ import { keccak256, ZeroAddress } from 'ethers'
 import { type ITokenInfo, ITokenType, type NetworksEnum } from '@types'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
+import utils from '@helpers/utils'
 
 export const ERC20_FUNCTIONS = [
   'totalSupply()',
@@ -84,7 +85,8 @@ async function detectTokenType(address: string, network: NetworksEnum): Promise<
   }
 
   try {
-    const bytecode = await provider.getCode(contractAddress)
+    const contractCodeAddress = contractAddress === utils.zeroAddress ? address : contractAddress
+    const bytecode = await provider.getCode(contractCodeAddress)
     if (!bytecode || bytecode === '0x') return contractDetails
 
     function hasFunction(signature: string): boolean {
