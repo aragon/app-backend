@@ -177,6 +177,7 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(RateModule, 'fetchRate').resolves({
         priceUsd: '1',
         priceChangeOnDayUsd: '1',
+        decimals: 18,
       } as any)
       sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
         totalHolders: 1,
@@ -186,6 +187,12 @@ describe('Modules: ProxyToken', () => {
         blockNumber: 100,
         transactionHash: '0x000',
         address: tokenAddress,
+      } as any)
+
+      sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
+        decimals: 18,
+        name: 'test',
+        symbol: 'TST',
       } as any)
 
       const checkPluginMintAuthorizationIsDaoStub = sandbox
@@ -222,6 +229,7 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(RateModule, 'fetchRate').resolves({
         priceUsd: '1',
         priceChangeOnDayUsd: '1',
+        decimals: 18,
       } as any)
       sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
         totalHolders: 0,
@@ -231,6 +239,12 @@ describe('Modules: ProxyToken', () => {
         blockNumber: 100,
         transactionHash: '0x000',
         address: tokenAddress,
+      } as any)
+
+      sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
+        decimals: 18,
+        name: 'test',
+        symbol: 'TST',
       } as any)
       sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves('1')
       const rabbitMqHelperStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
@@ -255,6 +269,61 @@ describe('Modules: ProxyToken', () => {
       expect(result.type).to.equal(ITokenType.GovernanceERC20)
       expect(result.mintableByDao).to.be.false
       await tOpts.endSession()
+    })
+
+    it('should fetch details from onchain when rate modules dont resovle decimals', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves({
+        type: ITokenType.GovernanceERC20,
+        implementationAddress: null,
+      } as any)
+
+      sandbox.stub(RateModule, 'fetchRate').resolves({
+        priceUsd: '1',
+        priceChangeOnDayUsd: '1',
+        decimals: null,
+      } as any)
+
+      sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
+        totalHolders: 123,
+        totalSupply: '1233231',
+      } as any)
+
+      sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
+        blockNumber: 100,
+        transactionHash: '0x000',
+        address: tokenAddress,
+      } as any)
+
+      sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
+        decimals: 18,
+        name: 'test',
+        symbol: 'TST',
+      } as any)
+
+      const checkPluginMintAuthorizationIsDaoStub = sandbox
+        .stub(ProxyToken, 'checkPluginMintAuthorizationIsDao')
+        .resolves(false)
+
+      const tOpts = await dbTx.transactionOptions()
+
+      tOpts.startTransaction()
+
+      sandbox.stub(logger, 'verbose')
+
+      const result = await ProxyToken.createNewToken(tokenAddress, network, tOpts)
+
+      expect(checkPluginMintAuthorizationIsDaoStub.calledOnce).to.be.true
+      expect(checkPluginMintAuthorizationIsDaoStub.calledWith(tokenAddress, network)).to.be.true
+      expect(result.holders).to.equal(123)
+      expect(result.totalSupply).to.equal('1233231')
+      expect(result.priceChangeOnDayUsd).to.equal('1')
+      expect(result.priceUsd).to.equal('1')
+      expect(result.name).to.equal('test')
+      expect(result.symbol).to.equal('TST')
+      expect(result.decimals).to.equal(18)
     })
   })
 
