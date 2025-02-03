@@ -109,6 +109,13 @@ export const ProxyToken = {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
     const tokenRate = await RateModule.fetchRate(tokenAddress, network)
 
+    if (tokenTypeInfo?.type !== ITokenType.unknown) {
+      const onChainTokenInfo = await Web3Helper.getTokenDetails(tokenAddress, network)
+      tokenRate.decimals = onChainTokenInfo.decimals
+      tokenRate.name = onChainTokenInfo.name!
+      tokenRate.symbol = onChainTokenInfo.symbol!
+    }
+
     let tokenMetrics: ITokenMetrics = { totalHolders: 0, totalSupply: '0' }
     let contractDeployInfo: any = { transactionHash: null, blockNumber: 0 }
 
