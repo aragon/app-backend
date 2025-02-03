@@ -9,7 +9,6 @@ import {
   type NetworksEnum,
 } from '@types'
 import { assertExposable } from '@errors'
-
 import type Token from '@models/schema/token'
 import { ProxyToken } from '@modules/proxyToken'
 

@@ -3,6 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TokenController from '@services/aragon-api/controllers/token'
 import { ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
+import CovalentHelper from '@helpers/covalent'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
@@ -140,20 +141,38 @@ describe('Controller: Token', () => {
         totalSupply: '0',
         priceChangeOnDayUsd: '22.262699999999768',
         lastUpdatedAt: dayjs().toISOString(),
-      } as any
+        filterKeys: function () {
+          return this
+        },
+      }
 
-      fakeRes.filterKeys = sandbox.stub().returns(fakeRes)
+      const stubSaveAndGetToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(fakeRes as any)
 
-      const stubHelper = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(fakeRes as any)
-      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0'
+      const stubDbFind = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(null)
+
+      const address = fakeRes.address
       const token = await TokenController.getTokenByAddress({
         address,
         network: NetworksEnum.ethereumMainnet,
       })
 
       expect(token.address).to.eq(address)
-      expect(stubHelper.calledOnce).to.be.true
-      expect(stubHelper.calledWith(address, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(token.network).to.eq(NetworksEnum.ethereumMainnet)
+      expect(token.logo).to.eq(fakeRes.logo)
+      expect(token.name).to.eq(fakeRes.name)
+      expect(token.type).to.eq(fakeRes.type)
+      expect(token.symbol).to.eq(fakeRes.symbol)
+      expect(token.decimals).to.eq(fakeRes.decimals)
+      expect(token.priceUsd).to.eq(fakeRes.priceUsd)
+      expect(token.holders).to.eq(fakeRes.holders)
+      expect(token.totalSupply).to.eq(fakeRes.totalSupply)
+      expect(token.priceChangeOnDayUsd).to.eq(fakeRes.priceChangeOnDayUsd)
+      expect(dayjs(token.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss')).to.eq(
+        dayjs(fakeRes.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss'),
+      )
+
+      expect(stubSaveAndGetToken.calledOnceWith(address, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(stubDbFind.calledOnceWith(address, NetworksEnum.ethereumMainnet)).to.be.true
     })
 
     it('getTokenByAddress existing token', async () => {
@@ -174,7 +193,7 @@ describe('Controller: Token', () => {
 
       await Models.Token.create(rawToken)
 
-      const stubHelper = sandbox.stub(ProxyToken, 'saveAndGetToken')
+      const stubHelper = sandbox.stub(CovalentHelper, 'getToken')
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0'
       const dbToken = await TokenController.getTokenByAddress({
         address,
@@ -198,7 +217,7 @@ describe('Controller: Token', () => {
     })
 
     it('getTokenByAddress not found', async () => {
-      const stubHelper = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(undefined)
+      const stubSaveAndGetToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(undefined)
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc1'
       await expect(
         TokenController.getTokenByAddress({
@@ -206,7 +225,7 @@ describe('Controller: Token', () => {
           network: NetworksEnum.ethereumMainnet,
         }),
       ).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
-      expect(stubHelper.calledOnce).to.be.true
+      expect(stubSaveAndGetToken.calledOnce).to.be.true
     })
   })
 })
