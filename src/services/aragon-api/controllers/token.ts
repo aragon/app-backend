@@ -8,10 +8,9 @@ import {
   type ITokenResponse,
   type NetworksEnum,
 } from '@types'
-import CovalentHelper from '@helpers/covalent'
 import { assertExposable } from '@errors'
-import dayjs from '@helpers/dayjs'
 import type Token from '@models/schema/token'
+import { ProxyToken } from '@modules/proxyToken'
 
 const TokenController = {
   getTokensWithPagination: async (
@@ -28,12 +27,8 @@ const TokenController = {
     let token = await Models.Token.findByTokenAddressAndNetwork(params.address, params.network)
 
     if (!token) {
-      const cToken = await CovalentHelper.getToken(params.address, params.network)
-      assertExposable(!!cToken, ErrorKeyEnum.notFound, undefined, undefined, params)
-      token = await Models.Token.create({
-        ...cToken,
-        lastUpdatedAt: dayjs().utc().toDate(),
-      })
+      token = await ProxyToken.saveAndGetToken(params.address, params.network)
+      assertExposable(!!token, ErrorKeyEnum.notFound, undefined, undefined, params)
     }
 
     return token.filterKeys()
