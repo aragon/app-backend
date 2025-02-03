@@ -68,7 +68,7 @@ export const BlockHandler = {
     const filter = {
       fromBlock: blockHex,
       toBlock: blockHex,
-      topics: topicHash,
+      topics: [[topicHash[0], topicHash[1]]],
     }
 
     const logs = await retryRequest(async () =>
