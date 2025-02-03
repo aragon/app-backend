@@ -11,10 +11,9 @@ import { beforeEach } from 'mocha'
 import { ITokenType, NetworksEnum } from '@types'
 import { ZeroAddress } from 'ethers'
 import { expect } from 'chai'
-import { ConfigState } from '@state/configState'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
-import { UnitTestUtils } from '@test/lib/utils'
+import utils from '@helpers/utils'
 
 describe('Helper: TokenDetector', () => {
   let sandbox: SinonSandbox
@@ -122,6 +121,19 @@ describe('Helper: TokenDetector', () => {
     expect(result?.type).to.equal(ITokenType.unknown)
     expect(getImplementationAddressStub.calledOnce).to.be.true
     expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
+
+  it('should getCode from address if implementation is zero address', async () => {
+    const getImplementationAddressStub = sandbox
+      .stub(ProxyContractHelper, 'getImplementationAddress')
+      .resolves(utils.zeroAddress)
+    sandbox.stub(ProviderModule, 'getProvider').returns({
+      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(ERC721_FUNCTIONS)),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result?.type).to.equal(ITokenType.ERC721)
+    expect(result?.implementationAddress).to.equal(utils.zeroAddress)
   })
 
   it('should handle an error when fetching bytecode', async () => {
