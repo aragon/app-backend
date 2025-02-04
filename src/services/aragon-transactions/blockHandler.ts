@@ -89,7 +89,7 @@ export const BlockHandler = {
           const decoded = govTokenInterface.parseLog(log)
           receiverAddresses.add(decoded?.args.to)
         } catch (e) {
-          logger.error('Error decoding transfer event', llo({ error: e }))
+          logger.warn('Error decoding transfer event', llo({ error: e }))
         }
       }
     }
