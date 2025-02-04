@@ -73,7 +73,7 @@ const ValidationSchema = {
         return helpers.error('string.invalid', { value })
       }
 
-      return value
+      return value.toLowerCase()
     }, 'Slug Validation')
     .messages({
       'string.invalid': '{{#label}} is not a valid Slug',

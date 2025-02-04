@@ -257,9 +257,10 @@ const Utils = {
 
   splitSlug(fullSlug: string): { slug: string | undefined; index: number | undefined } {
     try {
-      const splitted = fullSlug.split('-')
+      const formattedValue = fullSlug.toLowerCase()
+      const splitted = formattedValue.split('-')
       assert(splitted.length === 2, 'Invalid slug format')
-      const [slug, sIndex] = fullSlug.split('-')
+      const [slug, sIndex] = formattedValue.split('-')
       const index = parseInt(sIndex, 10)
       assert(!isNaN(index), 'Invalid index format')
       return { slug, index }
