@@ -102,7 +102,7 @@ describe('Helpers:ValidationSchema', () => {
     it('joiSlug', async () => {
       const validSlug = 'pluginType-123'
       const result = await ValidationSchema.joiSlug.validateAsync(validSlug)
-      expect(result).to.equal(validSlug)
+      expect(result).to.equal(validSlug.toLowerCase())
 
       const anotherValidSlug = 'plugin-0'
       const result2 = await ValidationSchema.joiSlug.validateAsync(anotherValidSlug)
@@ -131,6 +131,12 @@ describe('Helpers:ValidationSchema', () => {
       await expect(ValidationSchema.joiSlug.validateAsync('pluginType123')).to.be.rejectedWith(
         Error,
         '"value" is not a valid Slug',
+      )
+
+      const value = { toLowerCase: () => sandbox.stub().throws(new Error('toLowerCase error')) }
+      await expect(ValidationSchema.joiSlug.validateAsync(value as any)).to.be.rejectedWith(
+        Error,
+        '"value" must be a string',
       )
     })
 
