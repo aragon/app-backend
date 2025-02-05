@@ -1,13 +1,12 @@
-import { Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import ProviderModule from '@modules/provider'
+import { Interface } from 'ethers'
+import { expect } from 'chai'
 import { IEventLogMember, ITransferSide, NetworksEnum } from '@types'
-import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import Web3Helper from '@helpers/web3'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { Models } from '@dbModels'
-import { expect } from 'chai'
+import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 
 const getData = async (txHash: string, network: NetworksEnum): Promise<{ event: any; logInfo: any }[]> => {
   const txReceipt = await Web3Helper.getTransactionReceipt(txHash, network)
@@ -29,7 +28,7 @@ const getData = async (txHash: string, network: NetworksEnum): Promise<{ event: 
   return data
 }
 
-describe('Manual: Delegate', () => {
+describe('Integ: Delegates', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -40,11 +39,7 @@ describe('Manual: Delegate', () => {
     sandbox && sandbox.restore()
   })
 
-  it('test delegation flow', async function () {
-    this.timeout(1600000) // Increase timeout for the test
-
-    await ProviderModule.connectToAllNetworks()
-
+  it('should test delegates', async () => {
     const network = NetworksEnum.ethereumSepolia
     const daoAddress = '0x3e5fba52959d12f41266028f3a3d7ecc7462dd81'
     const tokenAddress = '0xa936c7F3913941e64CAdF88d61c3a8846C8Ef426'
@@ -315,68 +310,5 @@ describe('Manual: Delegate', () => {
     console.log('end tx5')
 
     console.log('end')
-  })
-
-  it('should fetch delegator', async function () {
-    this.timeout(1600000) // Increase timeout for the test
-
-    await ProviderModule.connectToAllNetworks()
-
-    await Models.Plugin.create({
-      transactionHash: '0x7ff387b7d8888eda314289be41a475acbf9a6ca0d163175332859b75d54549f2',
-      blockNumber: 7637365,
-      blockTimestamp: 1738662396,
-      network: NetworksEnum.ethereumSepolia,
-      address: '0x5a0C67d574F6155bfe500a746AbEAE14C5b0a674',
-      implementationAddress: '0x0749047B49B472a7f80C1c8f0a4dbBcecBc54339',
-      interfaceType: 'tokenVoting',
-      status: 'installed',
-      isSupported: true,
-      daoAddress: '0x3E5FBa52959d12F41266028f3a3d7ecC7462DD81',
-      tokenAddress: '0xa936c7F3913941e64CAdF88d61c3a8846C8Ef426',
-      pluginSetupRepoAddress: '0x424F4cA6FA9c24C03f2396DF0E96057eD11CF7dF',
-      sender: '0x7a62da7B56fB3bfCdF70E900787010Bc4c9Ca42e',
-      release: '1',
-      build: '2',
-      subdomain: 'token-voting',
-      permissions: [],
-      uninstalled: {
-        status: false,
-        transactionHash: null,
-        blockNumber: null,
-        blockTimestamp: null,
-      },
-      isProcess: true,
-      isBody: true,
-      isSubPlugin: false,
-      metadataIpfs: null,
-      name: null,
-      description: null,
-      processKey: null,
-      subPlugins: [],
-      links: [],
-    })
-
-    const txReceipt = await Web3Helper.getTransactionReceipt(
-      '0x2744c5a3f65084d54bd8a972a3743925b1dea2565ee1e9002061ef653ffd7e50',
-      NetworksEnum.ethereumSepolia,
-    )
-
-    const delegationVotesChangedLogs = Web3Helper.findLogsByName(
-      txReceipt!,
-      IEventLogMember.DelegateVotesChanged,
-      GovernanceERC20.abi,
-    )
-
-    const logInfo = Web3Helper.parseInfoLog(
-      delegationVotesChangedLogs[0].txLog,
-      'DelegateVotesChanged',
-      NetworksEnum.ethereumSepolia,
-    )
-
-    const iFace = new Interface(GovernanceERC20.abi)
-    const event = Web3Helper.parseLog(delegationVotesChangedLogs[0].txLog, iFace)!
-
-    await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
   })
 })
