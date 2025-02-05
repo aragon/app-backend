@@ -1,4 +1,4 @@
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { v4 as uuidv4 } from 'uuid'
@@ -18,6 +18,7 @@ const customName = ICollectionNames.TaskService
     customName,
   },
 })
+@index({ id: 1 }, { unique: true })
 export default class TaskService extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

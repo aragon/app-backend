@@ -1,4 +1,4 @@
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { ICollectionNames, IEnumTaskStatus } from '@types'
@@ -41,6 +41,7 @@ class Task {
     customName,
   },
 })
+@index({ id: 1 }, { unique: true })
 export default class TaskRun extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

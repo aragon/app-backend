@@ -24,7 +24,7 @@ describe('Helpers:Utils', () => {
       const result = Utils.splitSlug(fullSlug)
 
       expect(result).to.deep.equal({
-        slug: 'pluginType',
+        slug: 'plugintype',
         index: 123,
       })
     })
