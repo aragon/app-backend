@@ -374,35 +374,98 @@ describe('AragonPlugins: index', () => {
       expect(loggerStub.calledWith('PluginSyncService: interfaceType not found' as any)).to.be.true
     })
 
-    it('should process token queue', async () => {
-      const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
-        interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: '0xTokenAddress',
+    describe('token queue', () => {
+      it('should process token queue', async () => {
+        const processStub = sandbox.stub(RabbitMQHelper, 'process')
+        const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenAddress: '0xTokenAddress',
+        })
+
+        const logTokenStub = sandbox.stub(LogToken, 'start').resolves()
+
+        const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+          type: ITokenType.GovernanceERC20,
+        } as any)
+        sandbox.stub(logger, 'info')
+        sandbox.stub(logger, 'error')
+        await AragonPluginsService.start()
+
+        const handler = processStub.getCall(2).args[2]
+        await handler({
+          id: 'some-id',
+          params: {
+            address: '0xPluginAddress',
+            network: NetworksEnum.ethereumMainnet,
+            isHistorical: false,
+          },
+        })
+
+        expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+        expect(saveAndGetTokenStub.calledOnce).to.be.true
+        expect(logTokenStub.calledOnce).to.be.true
       })
 
-      const logTokenStub = sandbox.stub(LogToken, 'start').resolves()
+      it('should not process if plugin is not token voting', async () => {
+        const processStub = sandbox.stub(RabbitMQHelper, 'process')
+        const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+          interfaceType: IPluginInterfaceType.admin,
+        })
 
-      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20,
-      } as any)
-      sandbox.stub(logger, 'info')
-      sandbox.stub(logger, 'error')
-      await AragonPluginsService.start()
+        const logTokenStub = sandbox.stub(LogToken, 'start').resolves()
 
-      const handler = processStub.getCall(2).args[2]
-      await handler({
-        id: 'some-id',
-        params: {
-          address: '0xPluginAddress',
-          network: NetworksEnum.ethereumMainnet,
-          isHistorical: false,
-        },
+        const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+          type: ITokenType.GovernanceERC20,
+        } as any)
+        sandbox.stub(logger, 'info')
+        sandbox.stub(logger, 'error')
+        await AragonPluginsService.start()
+
+        const handler = processStub.getCall(2).args[2]
+        await handler({
+          id: 'some-id',
+          params: {
+            address: '0xPluginAddress',
+            network: NetworksEnum.ethereumMainnet,
+            isHistorical: false,
+          },
+        })
+
+        expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+        expect(saveAndGetTokenStub.notCalled).to.be.true
+        expect(logTokenStub.notCalled).to.be.true
       })
 
-      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(saveAndGetTokenStub.calledOnce).to.be.true
-      expect(logTokenStub.calledOnce).to.be.true
+      it('should not process if the token is not GovernanceERC20', async () => {
+        const processStub = sandbox.stub(RabbitMQHelper, 'process')
+        const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenAddress: '0xTokenAddress',
+        })
+
+        const logTokenStub = sandbox.stub(LogToken, 'start').resolves()
+
+        const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+          type: 'NonGovernanceToken',
+        } as any)
+        sandbox.stub(logger, 'info')
+        sandbox.stub(logger, 'error')
+        await AragonPluginsService.start()
+
+        const handler = processStub.getCall(2).args[2]
+        await handler({
+          id: 'some-id',
+          params: {
+            address: '0xPluginAddress',
+            network: NetworksEnum.ethereumMainnet,
+            isHistorical: false,
+          },
+        })
+
+        expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+        expect(saveAndGetTokenStub.calledOnce).to.be.true
+        expect(logTokenStub.notCalled).to.be.true
+      })
     })
   })
 })
