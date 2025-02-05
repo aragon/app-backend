@@ -31,10 +31,8 @@ const customName = ICollectionNames.Token
     customName,
   },
 })
-@index({
-  address: 1,
-  network: 1,
-})
+@index({ id: 1 }, { unique: true })
+@index({ address: 1, network: 1 })
 export default class Token extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
