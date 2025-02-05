@@ -5,6 +5,7 @@ import {
   IEventLogPluginType,
   type ILogInfo,
   IPluginInterfaceType,
+  ITokenType,
 } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
@@ -19,6 +20,9 @@ import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import GaugeHelper from '@helpers/gauge'
+import type Plugin from '@models/schema/plugin'
+import type Token from '@models/schema/token'
+import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
 
@@ -119,19 +123,59 @@ export const PluginSetupProcessorHandler = {
       }),
     )
 
-    if (!isHistorical) return
+    if (isHistorical) {
+      const plugins = await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
 
-    const plugins = await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
+      await Promise.all([
+        ...plugins.map(async (plugin: any) => {
+          await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+            id: plugin.address,
+            params: { address: plugin.address, network: plugin.network },
+          })
+        }),
+      ])
+      return
+    }
 
-    await Promise.all([
-      ...plugins.map(async (plugin: any) => {
-        // if (!plugin.isSupported) return
-        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-          id: plugin.address,
-          params: { address: plugin.address, network: plugin.network },
-        })
+    const tokenVotingPlugin = await Models.Plugin.find({
+      network: info.network,
+      daoAddress,
+      pluginType: IPluginInterfaceType.tokenVoting,
+    })
+
+    if (tokenVotingPlugin.length > 0) {
+      for (const plugin of tokenVotingPlugin) {
+        const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
+        if (
+          token?.blockNumber! > 0 &&
+          (token?.type === ITokenType.GovernanceERC20 || token?.type === ITokenType.ERC721) &&
+          token?.blockNumber < plugin.blockNumber
+        ) {
+          await PluginSetupProcessorHandler._handleExistingTokenPlugin(plugin, token, info)
+        }
+      }
+    }
+  },
+
+  _handleExistingTokenPlugin: async (plugin: Plugin, token: Token, info: ILogInfo) => {
+    const memberTransactions = await Models.MemberTransaction.find({
+      network: plugin.network,
+      tokenAddress: plugin.tokenAddress,
+    })
+
+    if (memberTransactions.length === 0) {
+      await RabbitMQHelper.sendMessage(EnumQueueName.logToken, {
+        id: plugin.address,
+        params: { address: plugin.address, network: plugin.network, isHistorical: true },
+      })
+      return
+    }
+
+    await Promise.all(
+      memberTransactions.map(async (memberTx: any) => {
+        await GovernanceErc20Handler._handleDaoMemberShip(memberTx, token.type, [plugin], info)
       }),
-    ])
+    )
   },
 
   handleSingleInstallationPrepared: async ({ txLog, parsed }: any, logInfo: ILogInfo, tokenAddress?: any) => {
