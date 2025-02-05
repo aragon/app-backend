@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { ethers, Interface } from 'ethers'
+import { ethers, Interface, type Log } from 'ethers'
 import { EnumQueueName, type NetworksEnum } from '@types'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
@@ -12,6 +12,7 @@ import config from '@config'
 import { DAO } from '@artifacts/dao'
 import Web3Helper from '@helpers/web3'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+import { ERC721 } from '@artifacts/ERC721'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-transactions:BlockHandler' })
 
@@ -84,12 +85,9 @@ export const BlockHandler = {
       if (log.topics[0] === topicHash[0]) {
         receiverAddresses.add(log.address)
       } else if (log.topics[0] === topicHash[1]) {
-        try {
-          const govTokenInterface = new Interface(GovernanceERC20.abi)
-          const decoded = govTokenInterface.parseLog(log)
-          receiverAddresses.add(decoded?.args.to)
-        } catch (e) {
-          logger.warn('Error decoding transfer event', llo({ error: e }))
+        const decodedAddress = BlockHandler._decodeTransferLogs(log)
+        if (decodedAddress) {
+          receiverAddresses.add(decodedAddress)
         }
       }
     }
@@ -97,6 +95,22 @@ export const BlockHandler = {
     if (receiverAddresses.size > 0) {
       await BlockHandler.processReceiver(logs[0].transactionHash, Array.from(receiverAddresses), network)
     }
+  },
+
+  _decodeTransferLogs: (log: Log) => {
+    const govTokenInterface = new Interface(GovernanceERC20.abi)
+    const erc721Interface = new Interface(ERC721.abi)
+    let decoded: any = null
+    try {
+      decoded = govTokenInterface.parseLog(log)
+    } catch (e) {
+      try {
+        decoded = erc721Interface.parseLog(log)
+      } catch (e) {
+        logger.warn('Error decoding transfer event', llo({ error: e, transactionHash: log.transactionHash }))
+      }
+    }
+    return decoded ? decoded.args.to : null
   },
 
   sendDaoMessages: async (dao: Dao) => {
