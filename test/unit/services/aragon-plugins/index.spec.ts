@@ -14,6 +14,7 @@ import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
 import { LogGauge } from '@plugins/logGauge'
 import { LogMultiSig } from '@plugins/logMultisig'
+import { LogToken } from '@plugins/logToken'
 
 describe('AragonPlugins: index', () => {
   let sandbox: SinonSandbox
@@ -371,6 +372,37 @@ describe('AragonPlugins: index', () => {
 
       expect(pluginStub.calledOnceWith('0xPluginWithNoType', NetworksEnum.ethereumMainnet)).to.be.true
       expect(loggerStub.calledWith('PluginSyncService: interfaceType not found' as any)).to.be.true
+    })
+
+    it('should process token queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xTokenAddress',
+      })
+
+      const logTokenStub = sandbox.stub(LogToken, 'start').resolves()
+
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.GovernanceERC20,
+      } as any)
+      sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'error')
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(2).args[2]
+      await handler({
+        id: 'some-id',
+        params: {
+          address: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          isHistorical: false,
+        },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(logTokenStub.calledOnce).to.be.true
     })
   })
 })

@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { IEventLogPluginType, IPluginInterfaceType, NetworksEnum } from '@types'
+import { IEventLogPluginType, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { IPluginActionType, PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
 import { Models } from '@dbModels'
@@ -15,6 +15,7 @@ import { RabbitMQHelper } from '@helpers/radditMQ'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
 import DbOperations from '@models/utils/dbOperations'
+import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -555,6 +556,232 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindDao.calledOnce).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(returnValue).to.be.undefined
+    })
+
+    it('should handle when an existing token is used and if historical is false', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 5,
+        logIndex: 5,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          preparedSetupData: {
+            helpers: ['0x27366cae2b9c6c3055e9e3c78936a69006be5400'],
+            permissions: [
+              {
+                operation: 1,
+                where: 'some-where',
+                who: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
+                condition: 'some-conditions',
+                permissionId: 'xxx',
+              },
+            ],
+          },
+          dao: '0x456',
+          sender: '0x450',
+          preparedSetupId: '0x453',
+          pluginSetupRepo: '0x452',
+          plugin: '0x450',
+          versionTag: {
+            release: '1',
+            build: '1',
+          },
+        },
+      }
+
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
+      const findLogsByNameStub = sandbox
+        .stub(Web3Helper, 'findLogsByName')
+        .onFirstCall()
+        .returns([
+          {
+            txLog: {
+              ...logInfo,
+            },
+            parsed: { args: ['0x00'] },
+          },
+        ] as any)
+        .onSecondCall()
+        .returns([
+          {
+            txLog: {
+              ...logInfo,
+            },
+            parsed: {
+              args: {
+                plugin: '0xplugin',
+                sender: '0xx',
+                dao: '0xx',
+                versionTag: {
+                  release: '1',
+                  build: '1',
+                },
+              },
+            },
+          },
+        ] as any)
+
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(PluginHandler, 'preInstallPlugin')
+      const parseLogInfoStub = sandbox.stub(Web3Helper, 'parseInfoLog').returns(logInfo)
+
+      const fakePlugin = {
+        address: '0xplugin',
+        daoAddress: fakeEvent.args.dao,
+        network: logInfo.network,
+        tokenAddress: '0xtoken',
+        blockNumber: 20,
+        pluginType: IPluginInterfaceType.tokenVoting,
+      }
+      sandbox.stub(Models.Plugin, 'find').resolves([fakePlugin] as any)
+      const getTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xToken',
+        type: ITokenType.GovernanceERC20,
+        blockNumber: 1,
+      } as any)
+      const fakeMemberTxs = [{ id: 'tx1' }, { id: 'tx2' }]
+      const memberTxStub = sandbox.stub(Models.MemberTransaction, 'find').resolves(fakeMemberTxs as any)
+
+      const _handleDaoMemberShipStub = sandbox.stub(GovernanceErc20Handler, '_handleDaoMemberShip')
+
+      await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo, false)
+      expect(stubFindDao.calledOnceWith(fakeEvent.args.dao, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(receiptStub.calledOnceWith(logInfo.transactionHash, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(findLogsByNameStub.calledTwice).to.be.true
+      expect(parseLogInfoStub.calledOnce).to.be.true
+      expect(getTokenStub.calledOnce).to.be.true
+      expect(memberTxStub.calledOnce).to.be.true
+      expect(
+        memberTxStub.calledWith({
+          network: NetworksEnum.ethereumMainnet,
+          tokenAddress: '0xtoken',
+        }),
+      ).to.be.true
+      expect(_handleDaoMemberShipStub.calledTwice).to.be.true
+      expect(_handleDaoMemberShipStub.calledWith({ id: 'tx1' }, ITokenType.GovernanceERC20, [fakePlugin], logInfo))
+    })
+
+    it('should handle when an existing token is used and if historical is false and token is not used in db', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 5,
+        logIndex: 5,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          preparedSetupData: {
+            helpers: ['0x27366cae2b9c6c3055e9e3c78936a69006be5400'],
+            permissions: [
+              {
+                operation: 1,
+                where: 'some-where',
+                who: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
+                condition: 'some-conditions',
+                permissionId: 'xxx',
+              },
+            ],
+          },
+          dao: '0x456',
+          sender: '0x450',
+          preparedSetupId: '0x453',
+          pluginSetupRepo: '0x452',
+          plugin: '0x450',
+          versionTag: {
+            release: '1',
+            build: '1',
+          },
+        },
+      }
+
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
+      const findLogsByNameStub = sandbox
+        .stub(Web3Helper, 'findLogsByName')
+        .onFirstCall()
+        .returns([
+          {
+            txLog: {
+              ...logInfo,
+            },
+            parsed: { args: ['0x00'] },
+          },
+        ] as any)
+        .onSecondCall()
+        .returns([
+          {
+            txLog: {
+              ...logInfo,
+            },
+            parsed: {
+              args: {
+                plugin: '0xplugin',
+                sender: '0xx',
+                dao: '0xx',
+                versionTag: {
+                  release: '1',
+                  build: '1',
+                },
+              },
+            },
+          },
+        ] as any)
+
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(PluginHandler, 'preInstallPlugin')
+      const parseLogInfoStub = sandbox.stub(Web3Helper, 'parseInfoLog').returns(logInfo)
+
+      const fakePlugin = {
+        address: '0xplugin',
+        daoAddress: fakeEvent.args.dao,
+        network: logInfo.network,
+        tokenAddress: '0xtoken',
+        blockNumber: 20,
+        pluginType: IPluginInterfaceType.tokenVoting,
+      }
+      sandbox.stub(Models.Plugin, 'find').resolves([fakePlugin] as any)
+      const getTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xToken',
+        type: ITokenType.GovernanceERC20,
+        blockNumber: 1,
+      } as any)
+      const memberTxStub = sandbox.stub(Models.MemberTransaction, 'find').resolves([])
+      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      const _handleDaoMemberShipStub = sandbox.stub(GovernanceErc20Handler, '_handleDaoMemberShip')
+
+      await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo, false)
+      expect(stubFindDao.calledOnceWith(fakeEvent.args.dao, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(receiptStub.calledOnceWith(logInfo.transactionHash, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(findLogsByNameStub.calledTwice).to.be.true
+      expect(parseLogInfoStub.calledOnce).to.be.true
+      expect(getTokenStub.calledOnce).to.be.true
+      expect(memberTxStub.calledOnce).to.be.true
+      expect(
+        memberTxStub.calledWith({
+          network: NetworksEnum.ethereumMainnet,
+          tokenAddress: '0xtoken',
+        }),
+      ).to.be.true
+      expect(_handleDaoMemberShipStub.calledOnce).to.be.false
+      expect(rabbitMqStub.calledOnce).to.be.true
+      expect(rabbitMqStub.args[0][1]).to.deep.eq({
+        id: '0xplugin',
+        params: {
+          address: '0xplugin',
+          network: NetworksEnum.ethereumMainnet,
+          isHistorical: true,
+        },
+      })
     })
   })
 
