@@ -207,24 +207,51 @@ describe('AragonTransactions: BlockHandler', () => {
       expect(stubProcessReceiver.calledOnceWith('0xabc', ['0xdecoded'], NetworksEnum.ethereumMainnet)).to.be.true
     })
 
-    it('should log error processReceiver for transfer', async () => {
+    it('should processReceiver for transfer of nft when erc fails', async () => {
       const fakeBlock = { number: 123 }
       const fakeProvider = { getLogs: stubProviderGetLogs }
       const logs = [{ transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]] }]
 
       const parseLogStub = sandbox
         .stub(Interface.prototype, 'parseLog')
+        .onFirstCall()
+        .throws(new Error('Error decoding transfer event'))
+        .onSecondCall()
+        .returns({ args: { to: '0xdecoded' } } as any)
+
+      stubGetProvider.returns(fakeProvider)
+      stubProviderGetLogs.resolves(logs)
+
+      await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
+
+      expect(stubProviderGetLogs.calledOnce).to.be.true
+      expect(parseLogStub.calledTwice).to.be.true
+
+      expect(stubProcessReceiver.calledOnce).to.be.true
+      expect(stubProcessReceiver.calledWith('0xabc', ['0xdecoded'], NetworksEnum.ethereumMainnet)).to.be.true
+    })
+
+    it('should log error when erc and nft fails', async () => {
+      const fakeBlock = { number: 123 }
+      const fakeProvider = { getLogs: stubProviderGetLogs }
+      const logs = [{ transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]] }]
+
+      const parseLogStub = sandbox
+        .stub(Interface.prototype, 'parseLog')
+        .onFirstCall()
+        .throws(new Error('Error decoding transfer event'))
+        .onSecondCall()
         .throws(new Error('Error decoding transfer event'))
 
       stubGetProvider.returns(fakeProvider)
       stubProviderGetLogs.resolves(logs)
 
-      const loggerError = sandbox.stub(logger, 'error')
+      const loggerError = sandbox.stub(logger, 'warn')
 
       await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
 
       expect(stubProviderGetLogs.calledOnce).to.be.true
-      expect(parseLogStub.calledOnce).to.be.true
+      expect(parseLogStub.calledTwice).to.be.true
       expect(loggerError.calledOnce).to.be.true
 
       expect(stubProcessReceiver.calledOnce).to.be.false
