@@ -29,13 +29,11 @@ const customName = ICollectionNames.Vote
     customName,
   },
 })
-@index({
-  network: 1,
-  blockNumber: 1,
-  daoAddress: 1,
-  pluginAddress: 1,
-  memberAddress: 1,
-})
+@index({ id: 1 }, { unique: true })
+@index({ network: 1, blockNumber: 1, daoAddress: 1, pluginAddress: 1, memberAddress: 1 })
+@index({ network: 1, pluginAddress: 1, proposalIndex: 1 })
+@index({ network: 1, pluginAddress: 1, memberAddress: 1, proposalIndex: 1, blockNumber: -1 })
+@index({ pluginAddress: 1, memberAddress: 1, proposalIndex: 1 })
 export default class Vote extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
