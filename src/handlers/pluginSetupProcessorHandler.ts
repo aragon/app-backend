@@ -147,7 +147,8 @@ export const PluginSetupProcessorHandler = {
       for (const plugin of tokenVotingPlugin) {
         const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
         if (
-          token?.blockNumber! > 0 &&
+          token &&
+          token.blockNumber > 0 &&
           (token?.type === ITokenType.GovernanceERC20 || token?.type === ITokenType.ERC721) &&
           token?.blockNumber < plugin.blockNumber
         ) {
