@@ -50,5 +50,37 @@ describe('AragonIndexer: LogToken', () => {
       expect(errorStub.calledOnce).to.be.true
       expect(errorStub.calledWith('Error LogToken' as any)).to.be.true
     })
+
+    it('should handle errors during crawling', async () => {
+      const plugin = {
+        address: '0x123',
+        tokenAddress: '0xtoken',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 0,
+      } as any
+
+      const token = {
+        address: '0xtoken',
+        network: NetworksEnum.ethereumSepolia,
+      } as any
+
+      sandbox.stub(logger, 'verbose')
+      const error = new Error('Test error')
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
+        this: BlockchainLogCrawler,
+      ): Promise<any> {
+        if ((this as any).crawlParams.onError) {
+          await (this as any).crawlParams.onError(error, 'log' as any)
+        }
+      })
+
+      const processErrorStub = sandbox.stub(LogToken, 'processError').resolves()
+
+      await LogToken.start(plugin, token)
+
+      expect(crawlStub.calledOnce).to.be.true
+      expect(processErrorStub.calledOnce).to.be.true
+      expect(processErrorStub.calledWith(error, plugin, 'log')).to.be.true
+    })
   })
 })

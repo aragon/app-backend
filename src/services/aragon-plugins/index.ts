@@ -84,8 +84,8 @@ const AragonPluginsService: IService = {
       const { address, network, isHistorical } = job.params as IQueuePlugin
       const plugin = await Models.Plugin.findByAddress(address, network)
 
-      if (!plugin?.interfaceType) {
-        logger.error('PluginSyncService: plugin not found', llo({ plugin, address, network }))
+      if (!plugin?.interfaceType || plugin?.interfaceType !== IPluginInterfaceType.tokenVoting) {
+        logger.error('PluginSyncService: plugin is not token voting', llo({ plugin, address, network }))
         return
       }
 
