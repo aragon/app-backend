@@ -89,7 +89,7 @@ const MockDB = {
     await Promise.all(
       modelNames.map(async name => {
         try {
-          await mongoose.models[name].ensureIndexes()
+          await mongoose.models[name].syncIndexes()
           console.log(`Indexes synchronized for model: ${name}`)
         } catch (error) {
           console.error(`Failed to synchronize indexes for model: ${name}`, error)

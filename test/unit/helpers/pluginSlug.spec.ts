@@ -11,7 +11,6 @@ describe('Helpers:PluginSlug', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
-    await Models.PluginSlug.ensureIndexes()
     sandbox = sinon.createSandbox()
   })
 
