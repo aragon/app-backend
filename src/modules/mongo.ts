@@ -33,7 +33,7 @@ const Mongo = {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       mongoose.connection.on('connected', async () => {
         try {
-          await Promise.all(Object.keys(mongoose.models).map(async name => mongoose.models[name].syncIndexes()))
+          await Promise.all(Object.keys(mongoose.models).map(async name => mongoose.models[name].ensureIndexes()))
           logger.info('MongoDB connected', llo({ env: config.NODE_ENV }))
           resolve(mongoose)
         } catch (syncError) {
