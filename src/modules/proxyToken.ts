@@ -114,6 +114,7 @@ export const ProxyToken = {
       tokenRate.decimals = onChainTokenInfo.decimals
       tokenRate.name = onChainTokenInfo.name!
       tokenRate.symbol = onChainTokenInfo.symbol!
+      tokenRate.logo = onChainTokenInfo.logo || tokenRate.logo
     }
 
     let tokenMetrics: ITokenMetrics = { totalHolders: 0, totalSupply: '0' }
