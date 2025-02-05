@@ -223,7 +223,8 @@ describe('Integ: Delegates', () => {
 
     console.log('end tx3')
 
-    // member1 remove delegation to member2 1 token
+    // Revoking delegation
+    // member1 delegate to member2 1 token
     // member1 prev balance 4000000000000000000 new balance 3000000000000000000
     // member2 prev balance 0 new balance 1000000000000000000
     const tx4 = await getData('0x4ac08441f32f2b13dd5b3897cc1ae13bd6164e6b79699511f5923b00d801419c', network)
@@ -266,7 +267,7 @@ describe('Integ: Delegates', () => {
 
     console.log('end tx4')
 
-    // member1 delegate to member2
+    // member2 revoke delegation to member1
     // member1 prev balance 3000000000000000000 new balance 2000000000000000000
     // member2 prev balance 1000000000000000000 new balance 2000000000000000000
     const tx5 = await getData('0x2744c5a3f65084d54bd8a972a3743925b1dea2565ee1e9002061ef653ffd7e50', network)
@@ -288,8 +289,8 @@ describe('Integ: Delegates', () => {
     expect(member1Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member1Balance.votingPower).to.eq('2000000000000000000')
     expect(member1Balance.amount).to.eq('0')
-    expect(member1Metrics.delegateReceivedCount).to.eq(3)
-    expect(member1Metrics.delegateSentCount).to.eq(2)
+    expect(member1Metrics.delegateReceivedCount).to.eq(2)
+    expect(member1Metrics.delegateSentCount).to.eq(1)
 
     // test member2 have a transaction, balance and correct metrics
     member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
@@ -304,8 +305,8 @@ describe('Integ: Delegates', () => {
     expect(member2Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member2Balance.votingPower).to.eq('2000000000000000000')
     expect(member2Balance.amount).to.eq('0')
-    expect(member2Metrics.delegateReceivedCount).to.eq(2)
-    expect(member2Metrics.delegateSentCount).to.eq(1)
+    expect(member2Metrics.delegateReceivedCount).to.eq(1)
+    expect(member2Metrics.delegateSentCount).to.eq(0)
 
     console.log('end tx5')
 

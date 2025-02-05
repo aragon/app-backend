@@ -1,4 +1,6 @@
 export enum IMetricAction {
+  decreaseDelegateReceivedCount = 'decreaseDelegateReceivedCount',
+  decreaseDelegateSentCount = 'decreaseDelegateSentCount',
   increaseDelegateReceivedCount = 'increaseDelegateReceivedCount',
   increaseDelegateSentCount = 'increaseDelegateSentCount',
   increaseVoteCount = 'increaseVoteCount',
