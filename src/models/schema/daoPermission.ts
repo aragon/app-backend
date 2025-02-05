@@ -18,16 +18,10 @@ const customName = ICollectionNames.DaoPermission
     customName,
   },
 })
-@index({
-  event: 1,
-  daoAddress: 1,
-  permssionId: 1,
-  whoAddress: 1,
-  whereAddress: 1,
-  type: 1,
-})
+@index({ id: 1 }, { unique: true })
+@index({ event: 1, daoAddress: 1, permissionId: 1, whoAddress: 1, whereAddress: 1, type: 1 })
 export default class DaoPermission extends Model {
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
