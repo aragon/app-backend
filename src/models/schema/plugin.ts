@@ -72,12 +72,10 @@ class Link {
     customName,
   },
 })
-@index({
-  network: 1,
-  address: 1,
-  daoAddress: 1,
-  tokenAddress: 1,
-})
+@index({ id: 1 }, { unique: true })
+@index({ network: 1, address: 1, daoAddress: 1, tokenAddress: 1 })
+@index({ network: 1, tokenAddress: 1 })
+@index({ network: 1, status: 1, interfaceType: 1 })
 export default class Plugin extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
