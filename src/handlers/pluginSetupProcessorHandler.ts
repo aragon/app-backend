@@ -1,11 +1,12 @@
 import logger from '@logger'
 import {
   EnumQueueName,
+  type HexAddress,
   IEventLogPluginMembership,
   IEventLogPluginType,
   type ILogInfo,
+  IPluginActionType,
   IPluginInterfaceType,
-  ITokenType,
 } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
@@ -17,21 +18,10 @@ import { PluginHandler } from '@src/handlers/pluginHandler'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import DbOperations from '@models/utils/dbOperations'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
-import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import GaugeHelper from '@helpers/gauge'
-import type Plugin from '@models/schema/plugin'
-import type Token from '@models/schema/token'
-import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
-
-export enum IPluginActionType {
-  preInstall = 'pre-install',
-  installed = 'installed',
-  updated = 'updated',
-  uninstalled = 'uninstalled',
-}
 
 export const PluginSetupProcessorHandler = {
   pluginHandler: async (action: IPluginActionType, logDb: LogPluginSetupProcessor) => {
@@ -58,8 +48,9 @@ export const PluginSetupProcessorHandler = {
     }
   },
 
-  installationPrepared: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
+  installationPrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const daoAddress = parsedEvent.args.dao
+    const pluginAddress = parsedEvent.args.plugin
     const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
 
     if (!existingDao) {
@@ -67,151 +58,44 @@ export const PluginSetupProcessorHandler = {
       return
     }
 
-    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-
-    const memberShipAnnouncedLogs = Web3Helper.findLogsByName(
-      txReceipt!,
-      IEventLogPluginMembership.MembershipContractAnnounced,
-      TokenVoting.abi,
-    )
-
-    const parsedMembershipAnnouncedLogs = memberShipAnnouncedLogs.reduce((parsed: any, log: any) => {
-      parsed.push({
-        [log.txLog.address]: log.parsed.args[0],
-      })
-      return parsed
-    }, [])
-
-    const installationPreparingLogs = Web3Helper.findLogsByName(
-      txReceipt!,
-      IEventLogPluginType.InstallationPrepared,
-      PluginSetupProcessor.abi,
-    )
-
-    await Promise.all(
-      installationPreparingLogs.map(async (installationPreparingLog: any) => {
-        const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
-          network: info.network,
-          transactionHash: installationPreparingLog.txLog.transactionHash,
-          transactionIndex: installationPreparingLog.txLog.transactionIndex,
-          logIndex: installationPreparingLog.txLog.logIndex,
-          event: IEventLogPluginType.InstallationPrepared,
-        })
-        if (!existingLog) {
-          const logInfo = Web3Helper.parseInfoLog(installationPreparingLog.txLog, 'InstallationPrepared', info.network)
-          const memberShipAnnouncedLog = parsedMembershipAnnouncedLogs.find(
-            (parsed: any) => parsed[installationPreparingLog.parsed.args.plugin],
-          )
-
-          const { plugin } = installationPreparingLog.parsed.args
-
-          // TODO: make this better
-          // Get token address from standard plugin
-          let tokenAddress = memberShipAnnouncedLog?.[plugin]
-
-          if (!tokenAddress) {
-            // try to get token address from gauge plugin
-            tokenAddress = await GaugeHelper.getTokenAddress(plugin, info.network)
-          }
-
-          await PluginSetupProcessorHandler.handleSingleInstallationPrepared(
-            installationPreparingLog,
-            logInfo,
-            tokenAddress,
-          )
-        }
-      }),
-    )
-
-    if (isHistorical) {
-      const plugins = await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
-
-      await Promise.all([
-        ...plugins.map(async (plugin: any) => {
-          await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-            id: plugin.address,
-            params: { address: plugin.address, network: plugin.network },
-          })
-        }),
-      ])
-      return
-    }
-
-    const tokenVotingPlugin = await Models.Plugin.find({
-      network: info.network,
-      daoAddress,
-      pluginType: IPluginInterfaceType.tokenVoting,
-    })
-
-    if (tokenVotingPlugin.length > 0) {
-      for (const plugin of tokenVotingPlugin) {
-        const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
-        if (
-          token &&
-          token.blockNumber > 0 &&
-          (token?.type === ITokenType.GovernanceERC20 || token?.type === ITokenType.ERC721) &&
-          token?.blockNumber < plugin.blockNumber
-        ) {
-          await PluginSetupProcessorHandler._handleExistingTokenPlugin(plugin, token, info)
-        }
-      }
-    }
-  },
-
-  _handleExistingTokenPlugin: async (plugin: Plugin, token: Token, info: ILogInfo) => {
-    const memberTransactions = await Models.MemberTransaction.find({
-      network: plugin.network,
-      tokenAddress: plugin.tokenAddress,
-    })
-
-    if (memberTransactions.length === 0) {
-      await RabbitMQHelper.sendMessage(EnumQueueName.logToken, {
-        id: plugin.address,
-        params: { address: plugin.address, network: plugin.network, isHistorical: true },
-      })
-      return
-    }
-
-    await Promise.all(
-      memberTransactions.map(async (memberTx: any) => {
-        await GovernanceErc20Handler._handleDaoMemberShip(memberTx, token.type, [plugin], info)
-      }),
-    )
-  },
-
-  handleSingleInstallationPrepared: async ({ txLog, parsed }: any, logInfo: ILogInfo, tokenAddress?: any) => {
     const rawPluginLog: Partial<LogPluginSetupProcessor> = {
       event: IEventLogPluginType.InstallationPrepared,
-      network: logInfo.network,
-      transactionHash: txLog.transactionHash,
-      transactionIndex: txLog.transactionIndex,
-      logIndex: txLog.logIndex,
-      permissions: Utils.parsePermissions(parsed.args?.preparedSetupData?.permissions),
-      sender: parsed.args.sender,
-      daoAddress: parsed.args.dao,
-      preparedSetupId: parsed.args.preparedSetupId,
-      pluginSetupRepo: parsed.args.pluginSetupRepo,
-      pluginAddress: parsed.args.plugin,
-      release: parsed.args.versionTag.release,
-      build: parsed.args.versionTag.build,
-      blockNumber: txLog.blockNumber,
+      network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+      permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
+      sender: parsedEvent.args.sender,
+      daoAddress: parsedEvent.args.dao,
+      preparedSetupId: parsedEvent.args.preparedSetupId,
+      pluginSetupRepo: parsedEvent.args.pluginSetupRepo,
+      pluginAddress: parsedEvent.args.plugin,
+      release: parsedEvent.args.versionTag.release,
+      build: parsedEvent.args.versionTag.build,
+      blockNumber: info.blockNumber,
       tokenAddress: undefined,
     }
 
+    const tokenAddress = await PluginSetupProcessorHandler.findTokenFromLog(pluginAddress, info)
     if (tokenAddress) {
-      const tokenDb = await ProxyToken.saveAndGetToken(tokenAddress, logInfo.network)
+      const tokenDb = await ProxyToken.saveAndGetToken(tokenAddress, info.network)
       rawPluginLog.tokenAddress = tokenDb?.address || tokenAddress
     }
 
     const logDb = await DbOperations.createDocument(
       Models.LogPluginSetupProcessor,
       rawPluginLog,
-      logInfo,
+      info,
       'New InstallationPrepared',
       llo,
     )
 
+    // create the plugin as preInstall
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.preInstall, logDb)
+
+    // find settings
+    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+    await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
   },
 
   installationApplied: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
@@ -252,36 +136,39 @@ export const PluginSetupProcessorHandler = {
       'New InstallationApplied',
       llo,
     )
+    // update the plugin as install
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.installed, logDb)
+
+    // find settings
+    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+    const pluginFromSettings = await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
 
     const pluginDb = await Models.Plugin.findByAddress(parsedEvent.args.plugin, info.network)
 
-    if (pluginDb?.interfaceType === IPluginInterfaceType.spp) {
-      if (isHistorical) {
-        const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-        await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
+    if (
+      pluginDb?.interfaceType === IPluginInterfaceType.admin ||
+      pluginDb?.interfaceType === IPluginInterfaceType.gauge
+    ) {
+      // mark as active plugin with no settings
+      await PluginSettingHandler.isSupported(pluginDb, info)
+    }
 
-        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-          id: pluginDb.address,
-          params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
-        })
-      }
-    } else if (pluginDb?.interfaceType === IPluginInterfaceType.admin) {
-      await PluginSettingHandler.isSupported(pluginDb, info)
-      if (isHistorical) {
-        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-          id: pluginDb.address,
-          params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
-        })
-      }
-    } else if (pluginDb?.interfaceType === IPluginInterfaceType.gauge) {
-      await PluginSettingHandler.isSupported(pluginDb, info)
-      if (isHistorical) {
-        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-          id: pluginDb.address,
-          params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
-        })
-      }
+    if (pluginDb?.interfaceType === IPluginInterfaceType.spp) {
+      // When spp re-sync all plugins related to the dao
+      await Promise.all([
+        pluginFromSettings.map(async (plugin: any) => {
+          await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+            id: plugin.address,
+            params: { address: plugin.address, network: plugin.network },
+          })
+        }),
+      ])
+    } else {
+      // Sync single plugin
+      await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+        id: pluginDb.address,
+        params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
+      })
     }
   },
 
@@ -446,5 +333,36 @@ export const PluginSetupProcessorHandler = {
       llo,
     )
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
+  },
+
+  findTokenFromLog: async (pluginAddress: HexAddress, info: ILogInfo): Promise<HexAddress | null> => {
+    try {
+      const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+
+      const memberShipAnnouncedLogs = Web3Helper.findLogsByName(
+        txReceipt!,
+        IEventLogPluginMembership.MembershipContractAnnounced,
+        TokenVoting.abi,
+      )
+
+      let tokenAddress: any = null
+      const memberShipLog = memberShipAnnouncedLogs.find(log => log.txLog.address === pluginAddress)
+      if (memberShipLog) {
+        tokenAddress = memberShipLog?.parsed?.args[0]
+      }
+
+      if (!tokenAddress) {
+        // try to get token address from gauge plugin
+        tokenAddress = await GaugeHelper.getTokenAddress(pluginAddress, info.network)
+      }
+
+      if (!tokenAddress) {
+        // TODO: blockscout
+      }
+      return tokenAddress
+    } catch (error) {
+      logger.error('Error finding token from log', llo({ pluginAddress, info, error }))
+      return null
+    }
   },
 }

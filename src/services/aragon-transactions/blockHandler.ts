@@ -49,7 +49,7 @@ export const BlockHandler = {
           'New confirmed incoming transaction',
           llo({
             network,
-            daoAddress: dao.address,
+            daoAddress: dao,
             transactionHash,
           }),
         )
