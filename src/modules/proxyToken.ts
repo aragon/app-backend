@@ -14,7 +14,6 @@ import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import utils from '@helpers/utils'
-import BlockScout from '@helpers/blockScout'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
