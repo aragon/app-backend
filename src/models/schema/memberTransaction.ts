@@ -33,13 +33,9 @@ const customName = ICollectionNames.MemberTransaction
     customName,
   },
 })
-@index({
-  address: 1,
-  network: 1,
-  transactionHash: 1,
-  blockNumber: 1,
-  tokenAddress: 1,
-})
+@index({ id: 1 }, { unique: true })
+@index({ address: 1, network: 1, transactionHash: 1, blockNumber: 1, tokenAddress: 1 })
+@index({ tokenAddress: 1 })
 export default class MemberTransaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
