@@ -33,7 +33,7 @@ const BlockScoutHelper = {
     }
   },
 
-  getTokenFullDetails: async (address: HexAddress, network: NetworksEnum): Promise<ITokenFullDetails | boolean> => {
+  getTokenFullDetails: async (address: HexAddress, network: NetworksEnum): Promise<ITokenFullDetails | null> => {
     const params = {
       apikey: BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_KEY,
     }
@@ -58,7 +58,7 @@ const BlockScoutHelper = {
       logger.warn('Error getTokenDetails', llo({ error }))
     }
 
-    return false
+    return null
   },
 
   getTokenCounters: async (
