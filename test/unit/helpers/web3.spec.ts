@@ -1321,25 +1321,52 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  it('should get the the dao version', async () => {
-    const stubConfigState = {
-      getConfigItem: sandbox.stub().returns({}),
-    }
+  describe('getDaoOsVersion', () => {
+    it('should return the DAO OS version when protocolVersion is available', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubProtocolVersion = sandbox.stub().resolves([2, 3, 4]) // Mocked protocol version
 
-    const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-      ethers: {
-        Contract: function () {
-          return { protocolVersion: sandbox.stub().resolves([1, 0, 1]) }
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { protocolVersion: stubProtocolVersion }
+          },
         },
-      },
-      '@state/configState': {
-        ConfigState: { getInstance: () => stubConfigState },
-      },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getDaoOsVersion('0xDaoAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('2.3.4')
+      expect(stubProtocolVersion.calledOnce).to.be.true
     })
 
-    const result = await MockedWeb3Helper.getDaoOsVersion('0xDaoAddress', NetworksEnum.ethereumMainnet)
+    it('should return default version "1.0.0" if protocolVersion call fails', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubProtocolVersion = sandbox.stub().rejects(new Error('fake-error'))
 
-    expect(result).to.equal('1.0.1')
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { protocolVersion: stubProtocolVersion }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getDaoOsVersion('0xDaoAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('1.0.0') // Default fallback version
+      expect(stubProtocolVersion.calledOnce).to.be.true
+    })
   })
 
   describe('getDataFromTxReceipt', () => {
