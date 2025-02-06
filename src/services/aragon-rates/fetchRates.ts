@@ -5,9 +5,10 @@ import DbTx from '@modules/dbTx'
 import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
-import { NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum } from '@types'
 import config from '@config'
 import { ProxyToken } from '@modules/proxyToken'
+import BlockScoutHelper from '@helpers/blockScout'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
@@ -52,7 +53,17 @@ export const FetchRates = {
   },
 
   async onDocument(token: Token) {
-    const rawTokenUpdateRate = await RateModule.fetchRate(token.address, token.network)
+    let rawTokenUpdateRate = await RateModule.fetchRate(token.address, token.network)
+
+    if (rawTokenUpdateRate.decimals === null) {
+      const blockScoutInfo = await BlockScoutHelper.getTokenFullDetails(token.address, token.network)
+      if (!blockScoutInfo) {
+        return
+      }
+
+      rawTokenUpdateRate = blockScoutInfo as any
+      rawTokenUpdateRate.type = token.type === ITokenType.unknown ? rawTokenUpdateRate.type : token.type
+    }
 
     // skip governance tokens with no price or unsupported token networks
     if (ProxyToken.shouldSkipFetch(token, rawTokenUpdateRate)) {
