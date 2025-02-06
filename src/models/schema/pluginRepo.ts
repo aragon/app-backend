@@ -18,9 +18,8 @@ const customName = ICollectionNames.PluginRepo
     customName,
   },
 })
-@index({
-  pluginRepo: 1,
-})
+@index({ id: 1 }, { unique: true })
+@index({ pluginRepo: 1 })
 export default class PluginRepo extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
