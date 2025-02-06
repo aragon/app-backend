@@ -18,7 +18,6 @@ import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
 import { ProxyToken } from '@modules/proxyToken'
 import config from '@config'
 import { LogGauge } from '@plugins/logGauge'
-import { LogToken } from '@plugins/logToken'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
 
@@ -77,21 +76,6 @@ const AragonPluginsService: IService = {
           logger.error('PluginSyncService: interfaceType not found', llo({ plugin }))
           break
         }
-      }
-    })
-
-    await RabbitMQHelper.process(EnumQueueName.logToken, config.RABBITMQ.PLUGINS_CONCURRENCY, async job => {
-      const { address, network, isHistorical } = job.params as IQueuePlugin
-      const plugin = await Models.Plugin.findByAddress(address, network)
-
-      if (!plugin?.interfaceType || plugin?.interfaceType !== IPluginInterfaceType.tokenVoting) {
-        logger.error('PluginSyncService: plugin is not token voting', llo({ plugin, address, network }))
-        return
-      }
-
-      const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
-      if (token?.type === ITokenType.GovernanceERC20 || token?.type === ITokenType.ERC721) {
-        await LogToken.start(plugin, token, isHistorical)
       }
     })
 
