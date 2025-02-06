@@ -34,6 +34,8 @@ export interface IConfig {
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
+      BLOCKSCOUT_API_URL: string
+      BLOCKSCOUT_API_KEY: string
     }
     ETHEREUM_SEPOLIA: {
       WS: string
@@ -42,6 +44,8 @@ export interface IConfig {
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
+      BLOCKSCOUT_API_URL: string
+      BLOCKSCOUT_API_KEY: string
     }
     POLYGON_MAINNET: {
       WS: string
@@ -50,6 +54,8 @@ export interface IConfig {
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
+      BLOCKSCOUT_API_URL: string
+      BLOCKSCOUT_API_KEY: string
     }
     BASE_MAINNET: {
       WS: string
@@ -58,6 +64,8 @@ export interface IConfig {
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
+      BLOCKSCOUT_API_URL: string
+      BLOCKSCOUT_API_KEY: string
     }
     ARBITRUM_MAINNET: {
       WS: string
@@ -66,6 +74,8 @@ export interface IConfig {
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
+      BLOCKSCOUT_API_URL: string
+      BLOCKSCOUT_API_KEY: string
     }
     ZKSYNC_SEPOLIA: {
       WS: string
@@ -74,6 +84,8 @@ export interface IConfig {
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
+      BLOCKSCOUT_API_URL: string
+      BLOCKSCOUT_API_KEY: string
     }
     ZKSYNC_MAINNET: {
       WS: string
@@ -82,6 +94,8 @@ export interface IConfig {
       INTERVAL_BLOCK_TIME: number
       ETHERSCAN_API_KEY: string
       ETHERSCAN_API_URL: string
+      BLOCKSCOUT_API_URL: string
+      BLOCKSCOUT_API_KEY: string
     }
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
@@ -102,6 +116,8 @@ export interface IConfig {
     RECONNECT_INTERVAL: number
   }
   BOTTLENECK: {
+    BLOCKSCOUT_API_MAX_CONCURRENT: number
+    BLOCKSCOUT_API_MIN_TIME: number
     ETHERSCAN_MAX_CONCURRENT: number
     ETHERSCAN_MIN_TIME: number
     NODE_MAX_CONCURRENT: number
