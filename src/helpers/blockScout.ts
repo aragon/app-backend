@@ -22,7 +22,7 @@ const BlockScoutHelper = {
   _rpCall: async (path: string, params: object, network: NetworksEnum) => {
     try {
       const response = await retryRequest(async () =>
-        BottleneckModule.getEtherScanLimiter(network)!.schedule(async () =>
+        BottleneckModule.getBlockScoutLimiter(network)!.schedule(async () =>
           BlockScoutHelper.axiosInstance(network).get(`v2/${path}`, { params }),
         ),
       )
