@@ -201,9 +201,7 @@ class TxInfo {
     allowMixed: Severity.ALLOW,
   },
 })
-@index({
-  pluginAddress: 1,
-})
+@index({ pluginAddress: 1 })
 export default class Proposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

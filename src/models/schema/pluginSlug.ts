@@ -17,14 +17,8 @@ const customName = ICollectionNames.PluginSlug
     customName,
   },
 })
-@index(
-  {
-    daoAddress: 1,
-    slug: 1,
-    network: 1,
-  },
-  { unique: true },
-) // validation for unique slug in a DAO
+// validation for unique slug in a DAO
+@index({ daoAddress: 1, slug: 1, network: 1 }, { unique: true })
 export default class PluginSlug extends Model {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
