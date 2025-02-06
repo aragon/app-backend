@@ -26,6 +26,8 @@ export const RateModule = {
     const token = await CovalentHelper.getToken(tokenAddress, network, pastDays)
 
     if (token) {
+      const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network, pastDays)
+
       tokenRate.priceUsd = token.priceUsd?.toString() ?? '0'
       tokenRate.priceChangeOnDayUsd = token.priceChangeOnDayUsd?.toString() ?? '0'
       tokenRate.decimals = token.decimals
@@ -33,6 +35,8 @@ export const RateModule = {
       tokenRate.name = token.name
       tokenRate.logo = token.logo
       tokenRate.type = token.type
+      tokenRate.holders = metrics.totalHolders
+      tokenRate.supply = metrics.totalSupply
       tokenRate.lastUpdatedAt = dayjs.utc().toDate()
     }
 

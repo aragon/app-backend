@@ -7,4 +7,5 @@ export interface ITokenFullDetails {
   holders?: number
   logo: string | null
   type?: string
+  priceUsd: string
 }

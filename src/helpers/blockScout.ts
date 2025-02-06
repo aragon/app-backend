@@ -3,7 +3,7 @@ import axios from 'axios'
 import config from '@config'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
-import { type HexAddress, type NetworksEnum } from '@types'
+import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
 import { type ITokenFullDetails } from '@src/types/blockScout'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:BlockScoutHelper' })
@@ -50,7 +50,21 @@ const BlockScoutHelper = {
         tokenDetails.totalSupply = response.total_supply
         tokenDetails.holders = response.holders
         tokenDetails.logo = response.icon_url
-        tokenDetails.type = response.type
+        tokenDetails.priceUsd = response.exchange_rate
+        switch (response.type) {
+          case 'ERC-20':
+            tokenDetails.type = ITokenType.ERC20
+            break
+          case 'ERC-721':
+            tokenDetails.type = ITokenType.ERC721
+            break
+          case 'ERC-1155':
+            tokenDetails.type = ITokenType.ERC1155
+            break
+          default:
+            tokenDetails.type = ITokenType.unknown
+            break
+        }
 
         return tokenDetails
       }

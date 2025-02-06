@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import BlockScoutHelper from '@helpers/blockScout'
-import { NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum } from '@types'
 import axios from 'axios'
 import logger from '@logger'
 import config from '@config'
@@ -66,28 +66,111 @@ describe('Helpers: BlockScout', () => {
   })
 
   describe('getTokenFullDetails', () => {
-    it('Should get token full details', async () => {
-      const expectedResult = {
+    let tokenDetails
+    beforeEach(() => {
+      tokenDetails = {
         address: '0x1234567890',
         name: 'Test Token',
         symbol: 'TT',
+        exchange_rate: '1',
         decimals: 18,
         total_supply: '1000000000000000000000',
         holders: 1,
         icon_url: 'https://example.com/logo.png',
-        type: 'ERC20',
+        type: 'ERC-20',
       }
-      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
+    })
+
+    it('Should get token full details', async () => {
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(tokenDetails)
+      const result = await BlockScoutHelper.getTokenFullDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq({
+        address: '0x1234567890',
+        name: 'Test Token',
+        symbol: 'TT',
+        priceUsd: '1',
+        decimals: 18,
+        totalSupply: '1000000000000000000000',
+        holders: 1,
+        logo: 'https://example.com/logo.png',
+        type: ITokenType.ERC20,
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'tokens/0x1234567890',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should parse when token type is ERC-721', async () => {
+      tokenDetails.type = 'ERC-721'
+      tokenDetails.decimals = 0
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(tokenDetails)
+      const result = await BlockScoutHelper.getTokenFullDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq({
+        address: '0x1234567890',
+        name: 'Test Token',
+        symbol: 'TT',
+        decimals: 0,
+        priceUsd: '1',
+        totalSupply: '1000000000000000000000',
+        holders: 1,
+        logo: 'https://example.com/logo.png',
+        type: ITokenType.ERC721,
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'tokens/0x1234567890',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should parse when token type is ERC20', async () => {
+      tokenDetails.type = 'ERC-20'
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(tokenDetails)
       const result = await BlockScoutHelper.getTokenFullDetails('0x1234567890', NetworksEnum.ethereumMainnet)
       expect(result).to.deep.eq({
         address: '0x1234567890',
         name: 'Test Token',
         symbol: 'TT',
         decimals: 18,
+        priceUsd: '1',
         totalSupply: '1000000000000000000000',
         holders: 1,
         logo: 'https://example.com/logo.png',
-        type: 'ERC20',
+        type: ITokenType.ERC20,
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'tokens/0x1234567890',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should parse when token type is ERC1155', async () => {
+      tokenDetails.type = 'ERC-1155'
+      tokenDetails.decimals = 0
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(tokenDetails)
+      const result = await BlockScoutHelper.getTokenFullDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq({
+        address: '0x1234567890',
+        name: 'Test Token',
+        symbol: 'TT',
+        decimals: 0,
+        priceUsd: '1',
+        totalSupply: '1000000000000000000000',
+        holders: 1,
+        logo: 'https://example.com/logo.png',
+        type: ITokenType.ERC1155,
       })
       expect(rpCallStub.calledOnce).to.be.true
       expect(
