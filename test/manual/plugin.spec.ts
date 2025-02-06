@@ -20,7 +20,7 @@ describe.only('Manual: Plugin', () => {
     sandbox && sandbox.restore()
   })
 
-  it.only('should fetch installationPrepared', async function () {
+  it('should fetch installationPrepared', async function () {
     this.timeout(1600000) // Increase timeout for the test
 
     sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
