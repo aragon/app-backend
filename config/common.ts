@@ -62,6 +62,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ETHEREUM_MAINNET_ETHERSCAN_API_URL',
           'https://api.etherscan.io/api',
         ),
+        BLOCKSCOUT_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ETHEREUM_MAINNET_BLOCKSCOUT_API_URL',
+          'https://eth.blockscout.com/api/',
+        ),
+        BLOCKSCOUT_API_KEY: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ETHEREUM_MAINNET_BLOCKSCOUT_API_KEY',
+          null,
+        ),
       },
       ETHEREUM_SEPOLIA: {
         WS: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_WS', null),
@@ -85,6 +97,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ETHEREUM_SEPOLIA_ETHERSCAN_API_URL',
           'https://api-sepolia.etherscan.io/api',
         ),
+        BLOCKSCOUT_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ETHEREUM_SEPOLIA_BLOCKSCOUT_API_URL',
+          'https://eth-sepolia.blockscout.com/api/',
+        ),
+        BLOCKSCOUT_API_KEY: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ETHEREUM_SEPOLIA_BLOCKSCOUT_API_KEY',
+          null,
+        ),
       },
       POLYGON_MAINNET: {
         WS: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_WS', null),
@@ -97,6 +121,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'string',
           'NODES_POLYGON_MAINNET_ETHERSCAN_API_URL',
           'https://api.polygonscan.com/api',
+        ),
+        BLOCKSCOUT_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_POLYGON_MAINNET_BLOCKSCOUT_API_URL',
+          'https://polygon.blockscout.com/api/',
+        ),
+        BLOCKSCOUT_API_KEY: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_POLYGON_MAINNET_BLOCKSCOUT_API_KEY',
+          null,
         ),
       },
       BASE_MAINNET: {
@@ -111,6 +147,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_BASE_MAINNET_ETHERSCAN_API_URL',
           'https://api.basescan.org/api',
         ),
+        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_BLOCKSCOUT_API_URL', null),
+        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
       ARBITRUM_MAINNET: {
         WS: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_WS', null),
@@ -134,6 +172,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ARBITRUM_MAINNET_ETHERSCAN_API_URL',
           'https://api.arbiscan.io/api',
         ),
+        BLOCKSCOUT_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ARBITRUM_MAINNET_BLOCKSCOUT_API_URL',
+          null,
+        ),
+        BLOCKSCOUT_API_KEY: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ARBITRUM_MAINNET_BLOCKSCOUT_API_KEY',
+          null,
+        ),
       },
       ZKSYNC_SEPOLIA: {
         WS: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_WS', null),
@@ -147,6 +197,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ZKSYNC_SEPOLIA_ETHERSCAN_API_URL',
           'https://block-explorer-api.sepolia.zksync.dev/api',
         ),
+        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_BLOCKSCOUT_API_URL', null),
+        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_BLOCKSCOUT_API_KEY', null),
       },
       ZKSYNC_MAINNET: {
         WS: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_WS', null),
@@ -160,10 +212,19 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ZKSYNC_MAINNET_ETHERSCAN_API_URL',
           'https://block-explorer-api.mainnet.zksync.io/api',
         ),
+        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_BLOCKSCOUT_API_URL', null),
+        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
     },
 
     BOTTLENECK: {
+      BLOCKSCOUT_API_MAX_CONCURRENT: utils.configParser(
+        sourceConfig,
+        'number',
+        'BOTTLENECK_BLOCKSCOUT_API_MAX_CONCURRENT',
+        1,
+      ),
+      BLOCKSCOUT_API_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_BLOCKSCOUT_API_MIN_TIME', 2000),
       ETHERSCAN_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ETHERSCAN_MAX_CONCURRENT', 1),
       ETHERSCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ETHERSCAN_MIN_TIME', 2000),
       NODE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MAX_CONCURRENT', 50),
