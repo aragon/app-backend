@@ -9,7 +9,7 @@ import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandl
 import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
 
-describe.only('Manual: Plugin', () => {
+describe('Manual: Plugin', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
