@@ -166,7 +166,7 @@ const BlockScoutHelper = {
         }
       }
     } catch (error) {
-      logger.error('Error getContractProxy', llo({ error }))
+      logger.warn('Error getContractProxy', llo({ error }))
     }
 
     return toReturn
