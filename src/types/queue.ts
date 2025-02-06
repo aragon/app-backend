@@ -13,7 +13,6 @@ export enum EnumQueueName {
   memberBalance = 'member.balance',
   contractDecoder = 'contract.decoder',
   tokenInfo = 'token.info',
-  logToken = 'log.token',
 }
 
 export interface IQueueDao {
