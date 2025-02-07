@@ -4,7 +4,7 @@ import ProviderModule from '@modules/provider'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { NetworksEnum } from '@types'
 
-describe('Manual: GoveranceErc20', () => {
+describe('Manual: GovernanceErc20', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {

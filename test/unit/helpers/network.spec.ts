@@ -5,7 +5,7 @@ import { NetworkHelper } from '@helpers/network'
 import { NetworksEnum } from '@types'
 import ProviderModule from '@modules/provider'
 
-describe('Helpers:Network', () => {
+describe('Helpers: Network', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
