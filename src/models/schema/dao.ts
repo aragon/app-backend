@@ -170,7 +170,12 @@ export default class Dao extends Model {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
       Object.entries(extraParams).filter(
-        ([key, value]) => value !== undefined && key !== 'pluginAddress' && key !== 'memberAddress',
+        ([key, value]) =>
+          value !== undefined &&
+          key !== 'pluginAddress' &&
+          key !== 'memberAddress' &&
+          key !== 'excludeDaoId' &&
+          key !== 'excludedDao',
       ),
     )
     const filter = {
