@@ -14,6 +14,13 @@ import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
 
+// Note about plugin settings
+// ADMIN: have no setting (isSupported needs to be set somewhere else)
+// GAUGE: have no setting (isSupported needs to be set somewhere else)
+// TokenVoting: setting is triggered on installationPrepared
+// Multisig: setting is triggered on installationPrepared
+// SPP: setting is triggered on installationApplied
+
 export const PluginSettingHandler = {
   handleFromReceipt: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
     const multisigSettings = Web3Helper.findLogsByName(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)

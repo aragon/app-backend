@@ -61,13 +61,14 @@ class Metrics {
     customName,
   },
 })
-@index({
-  address: 1,
-  blockNumber: 1,
-  name: 1,
-  creatorAddress: 1,
-  tvlUSD: 1,
-})
+@index({ id: 1 }, { unique: true })
+@index({ address: 1, blockNumber: 1, name: 1, creatorAddress: 1, tvlUSD: 1 })
+@index({ isHidden: 1, isActive: 1, 'metrics.tvlUSD': -1 })
+@index({ address: 1, isActive: 1, isHidden: 1 })
+@index({ id: 1 }, { unique: true })
+@index({ address: 1, blockNumber: 1, name: 1, creatorAddress: 1, tvlUSD: 1 })
+@index({ address: 1, isActive: 1, isHidden: 1 })
+@index({ isHidden: 1, isActive: 1, 'metrics.tvlUSD': -1 })
 export default class Dao extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -169,7 +170,12 @@ export default class Dao extends Model {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
       Object.entries(extraParams).filter(
-        ([key, value]) => value !== undefined && key !== 'pluginAddress' && key !== 'memberAddress',
+        ([key, value]) =>
+          value !== undefined &&
+          key !== 'pluginAddress' &&
+          key !== 'memberAddress' &&
+          key !== 'excludeDaoId' &&
+          key !== 'excludedDao',
       ),
     )
     const filter = {

@@ -28,12 +28,8 @@ const customName = ICollectionNames.Asset
     customName,
   },
 })
-@index({
-  daoAddress: 1,
-  tokenAddress: 1,
-  network: 1,
-  amountUsd: -1,
-})
+@index({ id: 1 }, { unique: true })
+@index({ daoAddress: 1, tokenAddress: 1, network: 1, amountUsd: -1 })
 export default class Asset extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

@@ -10,6 +10,8 @@ import proxyquire from 'proxyquire'
 import ProviderModule from '@modules/provider'
 import { ProxyToken } from '@modules/proxyToken'
 import BigNumber from 'bignumber.js'
+import BottleneckModule from '@modules/bottleneck'
+import config from '@config'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -22,22 +24,80 @@ describe('Helpers:Web3', () => {
     sandbox?.restore()
   })
 
-  it('handleAlchemyCrazyBalance', () => {
-    expect(Web3Helper.handleAlchemyCrazyBalance('7.326e+22', 18)).to.equal('73260.0')
-    expect(Web3Helper.handleAlchemyCrazyBalance('0', 18)).to.equal('0')
-    expect(Web3Helper.handleAlchemyCrazyBalance('50000000000000000', 18)).to.equal('50000000000000000')
-    expect(Web3Helper.handleAlchemyCrazyBalance('0.01', 18)).to.equal('0.01')
-    expect(Web3Helper.handleAlchemyCrazyBalance(0.01, 18)).to.equal('0.01')
-    expect(Web3Helper.handleAlchemyCrazyBalance('1.73462724372438', 18)).to.equal('1.73462724372438')
-    expect(Web3Helper.handleAlchemyCrazyBalance(1.73462724372438, 18)).to.equal('1.73462724372438')
-    expect(Web3Helper.handleAlchemyCrazyBalance(4.2e-16, 18)).to.equal('0.000000000000000420')
-    expect(Web3Helper.handleAlchemyCrazyBalance('4.2e-16', 18)).to.equal('0.000000000000000420')
-    expect(
-      Web3Helper.handleAlchemyCrazyBalance('0x0000000000000000000000000000000000000000000000000000000000124f80', 18),
-    ).to.equal('0.0000000000012')
-    expect(Web3Helper.handleAlchemyCrazyBalance('43943983483908340948.438934780934834409', 18)).to.equal(
-      '43943983483908340948.438934780934834409',
-    )
+  describe('handleAlchemyCrazyBalance', () => {
+    it('handleAlchemyCrazyBalance', () => {
+      expect(Web3Helper.handleAlchemyCrazyBalance('7.326e+22', 18)).to.equal('73260.0')
+      expect(Web3Helper.handleAlchemyCrazyBalance('0', 18)).to.equal('0')
+      expect(Web3Helper.handleAlchemyCrazyBalance('50000000000000000', 18)).to.equal('50000000000000000')
+      expect(Web3Helper.handleAlchemyCrazyBalance('0.01', 18)).to.equal('0.01')
+      expect(Web3Helper.handleAlchemyCrazyBalance(0.01, 18)).to.equal('0.01')
+      expect(Web3Helper.handleAlchemyCrazyBalance('1.73462724372438', 18)).to.equal('1.73462724372438')
+      expect(Web3Helper.handleAlchemyCrazyBalance(1.73462724372438, 18)).to.equal('1.73462724372438')
+      expect(Web3Helper.handleAlchemyCrazyBalance(4.2e-16, 18)).to.equal('0.000000000000000420')
+      expect(Web3Helper.handleAlchemyCrazyBalance('4.2e-16', 18)).to.equal('0.000000000000000420')
+      expect(
+        Web3Helper.handleAlchemyCrazyBalance('0x0000000000000000000000000000000000000000000000000000000000124f80', 18),
+      ).to.equal('0.0000000000012')
+      expect(Web3Helper.handleAlchemyCrazyBalance('43943983483908340948.438934780934834409', 18)).to.equal(
+        '43943983483908340948.438934780934834409',
+      )
+    })
+
+    it('should log an error when amount is a string without "0x"', () => {
+      const address = '0xUserAddress'
+      const tokenAddress = '0xTokenAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const amount = '12345' // Invalid format (should be hex)
+      const decimals = 18
+
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+
+      Web3Helper.alchemyCrazyBalanceOnError(address, tokenAddress, network, amount, decimals)
+
+      expect(errorLoggerStub.calledOnceWith('Error alchemyCrazyBalance wrong format' as any)).to.be.true
+    })
+
+    it('should not log an error when amount includes "0x"', () => {
+      const address = '0xUserAddress'
+      const tokenAddress = '0xTokenAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const amount = '0x12345' // Correct hex format
+      const decimals = 18
+
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+
+      Web3Helper.alchemyCrazyBalanceOnError(address, tokenAddress, network, amount, decimals)
+
+      expect(errorLoggerStub.notCalled).to.be.true
+    })
+
+    it('should not log an error when amount is not a string', () => {
+      const address = '0xUserAddress'
+      const tokenAddress = '0xTokenAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const amount = 12345 // Numeric value (valid)
+      const decimals = 18
+
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+
+      Web3Helper.alchemyCrazyBalanceOnError(address, tokenAddress, network, amount, decimals)
+
+      expect(errorLoggerStub.notCalled).to.be.true
+    })
+
+    it('should handle undefined amount gracefully without logging an error', () => {
+      const address = '0xUserAddress'
+      const tokenAddress = '0xTokenAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const amount = undefined // Undefined value
+      const decimals = 18
+
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+
+      Web3Helper.alchemyCrazyBalanceOnError(address, tokenAddress, network, amount, decimals)
+
+      expect(errorLoggerStub.notCalled).to.be.true
+    })
   })
 
   describe('Constants', () => {
@@ -694,24 +754,24 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('parseDaoMetadata', () => {
-    it('should parseMetadata', () => {
+  describe('Web3Helper.parseDaoMetadata', () => {
+    it('should parse metadata correctly', () => {
       expect(
         Web3Helper.parseDaoMetadata({
           name: 'test',
-          description: 'test',
-          avatar: 'test',
-          links: [{ name: 'test', url: 'test' }],
-          stageNames: [],
-          processKey: null,
+          description: 'test description',
+          avatar: 'test-avatar-url',
+          links: [{ name: 'test-link', url: 'https://test.com' }],
+          stageNames: ['Stage 1', 'Stage 2'],
+          processKey: 'process-key-123',
         }),
       ).to.deep.equal({
         name: 'test',
-        description: 'test',
-        avatar: 'test',
-        links: [{ name: 'test', url: 'test' }],
-        stageNames: [],
-        processKey: null,
+        description: 'test description',
+        avatar: 'test-avatar-url',
+        links: [{ name: 'test-link', url: 'https://test.com' }],
+        stageNames: ['Stage 1', 'Stage 2'],
+        processKey: 'process-key-123',
       })
 
       expect(Web3Helper.parseDaoMetadata({})).to.deep.equal({
@@ -730,6 +790,42 @@ describe('Helpers:Web3', () => {
         links: [],
         stageNames: [],
         processKey: null,
+      })
+
+      expect(
+        Web3Helper.parseDaoMetadata({
+          name: 'DAO Test',
+          description: null,
+          avatar: null,
+          links: [],
+          stageNames: [],
+          processKey: null,
+        }),
+      ).to.deep.equal({
+        name: 'DAO Test',
+        description: null,
+        avatar: null,
+        links: [],
+        stageNames: [],
+        processKey: null,
+      })
+
+      expect(
+        Web3Helper.parseDaoMetadata({
+          name: 'DAO Test 2',
+          description: 'Description for DAO',
+          avatar: 'https://avatar.test',
+          links: [],
+          stageNames: ['Stage A', 'Stage B'],
+          processKey: 'process-key-456',
+        }),
+      ).to.deep.equal({
+        name: 'DAO Test 2',
+        description: 'Description for DAO',
+        avatar: 'https://avatar.test',
+        links: [],
+        stageNames: ['Stage A', 'Stage B'],
+        processKey: 'process-key-456',
       })
     })
   })
@@ -1225,25 +1321,52 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  it('should get the the dao version', async () => {
-    const stubConfigState = {
-      getConfigItem: sandbox.stub().returns({}),
-    }
+  describe('getDaoOsVersion', () => {
+    it('should return the DAO OS version when protocolVersion is available', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubProtocolVersion = sandbox.stub().resolves([2, 3, 4]) // Mocked protocol version
 
-    const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
-      ethers: {
-        Contract: function () {
-          return { protocolVersion: sandbox.stub().resolves([1, 0, 1]) }
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { protocolVersion: stubProtocolVersion }
+          },
         },
-      },
-      '@state/configState': {
-        ConfigState: { getInstance: () => stubConfigState },
-      },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getDaoOsVersion('0xDaoAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('2.3.4')
+      expect(stubProtocolVersion.calledOnce).to.be.true
     })
 
-    const result = await MockedWeb3Helper.getDaoOsVersion('0xDaoAddress', NetworksEnum.ethereumMainnet)
+    it('should return default version "1.0.0" if protocolVersion call fails', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubProtocolVersion = sandbox.stub().rejects(new Error('fake-error'))
 
-    expect(result).to.equal('1.0.1')
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { protocolVersion: stubProtocolVersion }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getDaoOsVersion('0xDaoAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('1.0.0') // Default fallback version
+      expect(stubProtocolVersion.calledOnce).to.be.true
+    })
   })
 
   describe('getDataFromTxReceipt', () => {
@@ -1426,6 +1549,22 @@ describe('Helpers:Web3', () => {
       expect(providerStub.send.calledOnce).to.be.true
       expect(providerStub.send.calledWith('eth_getBlockReceipts', [`0x${(12321).toString(16)}`])).to.be.true
     })
+
+    it('should throw error if the provider fails', async () => {
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+      const providerSendStub = sandbox.stub().rejects(new Error('fake-error'))
+
+      sandbox.stub(ProviderModule, 'getProvider').returns({
+        send: providerSendStub,
+      } as any)
+
+      const loggerErrorStub = sandbox.stub(Logger, 'error')
+
+      const returnedValue = await Web3Helper.getBlockReceipts(fakeNetwork, 12321)
+      expect(returnedValue).to.be.null
+      expect(providerSendStub.calledOnce).to.be.true
+      expect(loggerErrorStub.calledOnceWith('Error getBlockReceipts' as any)).to.be.true
+    })
   })
 
   describe('getTokenDetails', () => {
@@ -1499,6 +1638,320 @@ describe('Helpers:Web3', () => {
 
       const result = await MockedWeb3Helper.getTargetConfig(plugin, fakeNetwork)
       expect(result).to.be.equal('0xsomeaddress')
+    })
+  })
+
+  describe('getBlockNumber', () => {
+    it('should return latest block number when blockNumber is "latest"', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const expectedBlockNumber = 123456
+      const providerStub = {
+        getBlockNumber: sandbox.stub().resolves(expectedBlockNumber),
+      }
+
+      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: any) => fn() } as any)
+
+      const blockNumber = await Web3Helper.getBlockNumber('latest', network)
+      expect(blockNumber).to.equal(expectedBlockNumber)
+    })
+
+    it('should return -1 when provider call fails', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const providerStub = {
+        getBlockNumber: sandbox.stub().rejects(new Error('Provider error')),
+      }
+
+      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: any) => fn() } as any)
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const blockNumber = await Web3Helper.getBlockNumber('latest', network)
+      expect(blockNumber).to.equal(-1)
+      expect(loggerStub.calledOnceWith('Error getBlockNumber' as any)).to.be.true
+    })
+
+    it('should return the provided block number when blockNumber is a valid number', async () => {
+      const blockNumber = 1000
+      const result = await Web3Helper.getBlockNumber(blockNumber, NetworksEnum.ethereumMainnet)
+      expect(result).to.equal(blockNumber)
+    })
+
+    it('should return -1 when provider is undefined', async () => {
+      sandbox.stub(ProviderModule, 'getProvider').returns(undefined)
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const blockNumber = await Web3Helper.getBlockNumber('latest', NetworksEnum.ethereumMainnet)
+      expect(blockNumber).to.equal(-1)
+      expect(loggerStub.calledOnceWith('Error getBlockNumber' as any)).to.be.true
+    })
+  })
+
+  describe('getBlock', () => {
+    it('should return the block data when provider call succeeds', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const blockNumber = 123456
+      const mockBlockData = { number: blockNumber, hash: '0xabc' }
+
+      const providerStub = {
+        getBlock: sandbox.stub().resolves(mockBlockData),
+      }
+
+      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: any) => fn() } as any)
+
+      const block = await Web3Helper.getBlock(blockNumber, network)
+      expect(block).to.deep.equal(mockBlockData)
+    })
+
+    it('should return null when provider call fails', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const blockNumber = 123456
+
+      const providerStub = {
+        getBlock: sandbox.stub().rejects(new Error('Provider error')),
+      }
+
+      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: any) => fn() } as any)
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const block = await Web3Helper.getBlock(blockNumber, network)
+      expect(block).to.be.null
+      expect(loggerStub.calledOnceWith('Error getBlock' as any)).to.be.true
+    })
+
+    it('should return null when provider is undefined', async () => {
+      sandbox.stub(ProviderModule, 'getProvider').returns(undefined)
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const block = await Web3Helper.getBlock(123456, NetworksEnum.ethereumMainnet)
+      expect(block).to.be.null
+      expect(loggerStub.calledOnceWith('Error getBlock' as any)).to.be.true
+    })
+  })
+
+  describe('isWhitelistedToken', () => {
+    it('should return true if the token is whitelisted', () => {
+      const address = '0xTokenAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(config, 'WHITELIST_TOKENS').value([{ address, network }])
+
+      const result = Web3Helper.isWhitelistedToken(address, network)
+      expect(result).to.be.true
+    })
+
+    it('should return false if the token is not whitelisted', () => {
+      const address = '0xTokenAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(config, 'WHITELIST_TOKENS').value([{ address: '0xDifferentToken', network }])
+
+      const result = Web3Helper.isWhitelistedToken(address, network)
+      expect(result).to.be.false
+    })
+
+    it('should return false if the token is in the whitelist but for a different network', () => {
+      const address = '0xTokenAddress'
+
+      sandbox.stub(config, 'WHITELIST_TOKENS').value([{ address, network: NetworksEnum.polygonMainnet }])
+
+      const result = Web3Helper.isWhitelistedToken(address, NetworksEnum.ethereumMainnet)
+      expect(result).to.be.false
+    })
+
+    it('should return false if the whitelist is empty', () => {
+      sandbox.stub(config, 'WHITELIST_TOKENS').value([])
+
+      const result = Web3Helper.isWhitelistedToken('0xTokenAddress', NetworksEnum.ethereumMainnet)
+      expect(result).to.be.false
+    })
+  })
+
+  describe('getTokenTotalSupply', () => {
+    it('should getTokenTotalSupply', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubTotalSupply = sandbox.stub().resolves(200n)
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { totalSupply: stubTotalSupply }
+          },
+          getAddress: () => '0xTokenAddress',
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getTokenTotalSupply('0xTokenAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.eq('200')
+      expect(stubTotalSupply.calledOnce).to.be.true
+    })
+
+    it('should fails return token info', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubTotalSupply = sandbox.stub().rejects(new Error('Test Error'))
+      const stubLogger = sandbox.stub(Logger, 'warn')
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { totalSupply: stubTotalSupply }
+          },
+          getAddress: () => '0xTokenAddress',
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getTokenTotalSupply('0xTokenAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.eq('0')
+      expect(stubTotalSupply.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Error getting token total supply' as any)).to.be.true
+    })
+  })
+
+  describe('getVotingEscrowAddress', () => {
+    it('should return the voting escrow address successfully', async () => {
+      const stubEscrow = sandbox.stub()
+      const stubLockNFT = sandbox.stub()
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              escrow: stubEscrow,
+              lockNFT: stubLockNFT,
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakePluginAddress = '0xPluginAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+      const expectedEscrowAddress = '0xEscrowAddress'
+
+      stubEscrow.resolves(expectedEscrowAddress)
+
+      const result = await MockedWeb3Helper.getVotingEscrowAddress(fakePluginAddress, fakeNetwork)
+
+      expect(result).to.equal(expectedEscrowAddress)
+      expect(stubEscrow.calledOnce).to.be.true
+    })
+
+    it('should return null if fetching escrow address fails', async () => {
+      const stubEscrow = sandbox.stub()
+      const stubLockNFT = sandbox.stub()
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              escrow: stubEscrow,
+              lockNFT: stubLockNFT,
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakePluginAddress = '0xPluginAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      stubEscrow.rejects(new Error('fake-error'))
+
+      const result = await MockedWeb3Helper.getVotingEscrowAddress(fakePluginAddress, fakeNetwork)
+
+      expect(result).to.be.null
+      expect(stubEscrow.calledOnce).to.be.true
+    })
+  })
+
+  describe('getVotingEscrowAddress', () => {
+    it('should return the lock token address successfully', async () => {
+      const stubEscrow = sandbox.stub()
+      const stubLockNFT = sandbox.stub()
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              escrow: stubEscrow,
+              lockNFT: stubLockNFT,
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakeEscrowAddress = '0xEscrowAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+      const expectedLockTokenAddress = '0xLockTokenAddress'
+
+      stubLockNFT.resolves(expectedLockTokenAddress)
+
+      const result = await MockedWeb3Helper.getLockTokenAddress(fakeEscrowAddress, fakeNetwork)
+
+      expect(result).to.equal(expectedLockTokenAddress)
+      expect(stubLockNFT.calledOnce).to.be.true
+    })
+
+    it('should return null if fetching lock token address fails', async () => {
+      const stubEscrow = sandbox.stub()
+      const stubLockNFT = sandbox.stub()
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              escrow: stubEscrow,
+              lockNFT: stubLockNFT,
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakeEscrowAddress = '0xEscrowAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      stubLockNFT.rejects(new Error('fake-error'))
+
+      const result = await MockedWeb3Helper.getLockTokenAddress(fakeEscrowAddress, fakeNetwork)
+
+      expect(result).to.be.null
+      expect(stubLockNFT.calledOnce).to.be.true
     })
   })
 })

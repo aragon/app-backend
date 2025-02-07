@@ -41,12 +41,8 @@ class Permission {
     customName,
   },
 })
-@index({
-  daoAddress: 1,
-  pluginAddress: 1,
-  network: 1,
-  tokenAddress: 1,
-})
+@index({ id: 1 }, { unique: true })
+@index({ daoAddress: 1, pluginAddress: 1, network: 1, tokenAddress: 1 })
 export default class LogPluginSetupProcessor extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
