@@ -696,7 +696,7 @@ const Web3Helper = {
       )
       return BigInt(totalSupply).toString()
     } catch (error) {
-      logger.warn('Error getting token total supply:', llo({ error, address }))
+      logger.warn('Error getting token total supply', llo({ error, address }))
     }
 
     return '0'

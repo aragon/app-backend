@@ -73,12 +73,33 @@ describe('Helpers: ENS', () => {
   })
 
   describe('_addressToPacket', () => {
-    it('should return a single element Uint8Array when the modified address results in an empty string', () => {
+    it('should return a single element Uint8Array when the address is empty', () => {
       const emptyAddress = '0x'
       const packet = EnsHelper._addressToPacket(emptyAddress)
-      expect(packet instanceof Uint8Array).to.be.true
-      expect(packet.length).to.equal(14)
-      expect(packet[0]).to.equal(4)
+
+      expect(packet).to.be.instanceOf(Uint8Array)
+      expect(packet.length).to.equal(1)
+    })
+
+    it('should call hexlify(keccak256(encoded)) when encoded length exceeds 255', () => {
+      const longLabel = 'a'.repeat(256) // A single label > 255 chars
+      const longAddress = `0x${longLabel}`
+
+      const keccakStub = sandbox.stub().returns('mockedKeccak')
+      const hexlifyStub = sandbox.stub().returns('mockedHex')
+
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          keccak256: keccakStub,
+          hexlify: hexlifyStub,
+        },
+      })
+
+      sandbox.stub(MockedEnsHelper, '_stringToBytes').callsFake(() => new Uint8Array(256))
+
+      MockedEnsHelper._addressToPacket(longAddress)
+
+      expect(keccakStub.calledThrice).to.be.true
     })
 
     it('should return a correctly sliced array when bytes length does not match offset + 1', () => {

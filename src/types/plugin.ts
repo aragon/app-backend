@@ -4,6 +4,13 @@ export interface IPluginInfo {
   implementationAddress: string | null
 }
 
+export enum IPluginActionType {
+  preInstall = 'pre-install',
+  installed = 'installed',
+  updated = 'updated',
+  uninstalled = 'uninstalled',
+}
+
 export enum IPluginRawStatus {
   install = 'install',
   update = 'update',

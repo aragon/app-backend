@@ -290,11 +290,12 @@ const Utils = {
     return value === true || value === 'true'
   },
 
-  parseNumber: (value: any): number | undefined => {
+  parseNumber: (value: any): number | null | undefined => {
     if (value === undefined || value === 'undefined') {
       return
     }
-    return Number(value)
+    const parsedNumber = Number(value)
+    return isNaN(parsedNumber) ? undefined : parsedNumber
   },
 
   isScientificNumber: (value: number) => {

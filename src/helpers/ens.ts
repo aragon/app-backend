@@ -37,7 +37,8 @@ const EnsHelper = {
   _addressToPacket: function (address: string): Uint8Array {
     const packet = address.replace('0x', '').toLowerCase() + '.addr.reverse'
 
-    // Strip leading and trailing `.`
+    if (packet === '.addr.reverse') return new Uint8Array(1)
+
     const value = packet.replace(/^\.|\.$/gm, '')
     if (value.length === 0) return new Uint8Array(1)
 

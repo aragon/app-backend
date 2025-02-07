@@ -52,15 +52,15 @@ export const RabbitMQHelper = {
             })
           }
         } catch (error) {
-          logger.error('Error processing message:', llo({ error, queueName, messageId: message.id }))
+          logger.error('Error processing message', llo({ error, queueName, messageId: message.id }))
         } finally {
           // Ensure cleanup happens regardless of resolve or reject
-          await this.executeWithMutex(() => {
-            this.queuedMessages.delete(uniqueQueueKey)
+          await RabbitMQHelper.executeWithMutex(() => {
+            RabbitMQHelper.queuedMessages.delete(uniqueQueueKey)
           })
 
           if (RabbitMQ.isConnected() && channel === RabbitMQ.getChannel()) {
-            channel.ack(msg) // Acknowledge that the message has been processed
+            channel.ack(msg)
           } else {
             logger.warn('Channel closed before ack could be sent', llo({ queueName, messageId: message.id }))
           }
@@ -71,7 +71,7 @@ export const RabbitMQHelper = {
   },
 
   async executeWithMutex<T>(callback: () => Promise<T> | T): Promise<T> {
-    const release = await this.mutex.acquire()
+    const release = await RabbitMQHelper.mutex.acquire()
     try {
       return await callback()
     } finally {
@@ -92,13 +92,13 @@ export const RabbitMQHelper = {
     const uniqueQueueKey = `${queueName}-${message.id}` // Unique key per queue and message ID
 
     // Use the mutex utility to handle queuedMessages safely
-    const isDuplicate = await this.executeWithMutex(() => {
-      if (this.queuedMessages.has(uniqueQueueKey)) {
+    const isDuplicate = await RabbitMQHelper.executeWithMutex(() => {
+      if (RabbitMQHelper.queuedMessages.has(uniqueQueueKey)) {
         logger.warn('Skipping duplicate message', llo({ uniqueQueueKey, messageId: message.id }))
         return true
       }
       // Mark it as queued
-      this.queuedMessages.add(uniqueQueueKey)
+      RabbitMQHelper.queuedMessages.add(uniqueQueueKey)
       return false
     })
 
@@ -113,8 +113,8 @@ export const RabbitMQHelper = {
       return new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(async () => {
           // Clean up the queuedMessages in case of timeout
-          await this.executeWithMutex(() => {
-            this.queuedMessages.delete(uniqueQueueKey)
+          await RabbitMQHelper.executeWithMutex(() => {
+            RabbitMQHelper.queuedMessages.delete(uniqueQueueKey)
           })
           reject(new Error('Response timed out.'))
         }, opts.timeout || 5000)
@@ -125,18 +125,19 @@ export const RabbitMQHelper = {
             if (msg && msg.properties.correlationId === correlationId) {
               clearTimeout(timeout)
               const response = JSON.parse(msg.content.toString())
-              resolve(response)
 
               if (RabbitMQ.isConnected() && channel === RabbitMQ.getChannel()) {
-                channel.ack(msg) // Acknowledge that the message has been processed
+                channel.ack(msg)
               } else {
                 logger.warn('Channel closed before ack could be sent', llo({ queueName, messageId: message.id }))
               }
 
               // Cleanup after successful response
-              await this.executeWithMutex(() => {
-                this.queuedMessages.delete(uniqueQueueKey)
+              await RabbitMQHelper.executeWithMutex(() => {
+                RabbitMQHelper.queuedMessages.delete(uniqueQueueKey)
               })
+
+              resolve(response)
             }
           },
           { noAck: false },
