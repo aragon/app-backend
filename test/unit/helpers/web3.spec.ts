@@ -1549,6 +1549,22 @@ describe('Helpers:Web3', () => {
       expect(providerStub.send.calledOnce).to.be.true
       expect(providerStub.send.calledWith('eth_getBlockReceipts', [`0x${(12321).toString(16)}`])).to.be.true
     })
+
+    it('should throw error if the provider fails', async () => {
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+      const providerSendStub = sandbox.stub().rejects(new Error('fake-error'))
+
+      sandbox.stub(ProviderModule, 'getProvider').returns({
+        send: providerSendStub,
+      } as any)
+
+      const loggerErrorStub = sandbox.stub(Logger, 'error')
+
+      const returnedValue = await Web3Helper.getBlockReceipts(fakeNetwork, 12321)
+      expect(returnedValue).to.be.null
+      expect(providerSendStub.calledOnce).to.be.true
+      expect(loggerErrorStub.calledOnceWith('Error getBlockReceipts' as any)).to.be.true
+    })
   })
 
   describe('getTokenDetails', () => {
@@ -1802,6 +1818,140 @@ describe('Helpers:Web3', () => {
       expect(result).to.eq('0')
       expect(stubTotalSupply.calledOnce).to.be.true
       expect(stubLogger.calledWith('Error getting token total supply' as any)).to.be.true
+    })
+  })
+
+  describe('getVotingEscrowAddress', () => {
+    it('should return the voting escrow address successfully', async () => {
+      const stubEscrow = sandbox.stub()
+      const stubLockNFT = sandbox.stub()
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              escrow: stubEscrow,
+              lockNFT: stubLockNFT,
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakePluginAddress = '0xPluginAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+      const expectedEscrowAddress = '0xEscrowAddress'
+
+      stubEscrow.resolves(expectedEscrowAddress)
+
+      const result = await MockedWeb3Helper.getVotingEscrowAddress(fakePluginAddress, fakeNetwork)
+
+      expect(result).to.equal(expectedEscrowAddress)
+      expect(stubEscrow.calledOnce).to.be.true
+    })
+
+    it('should return null if fetching escrow address fails', async () => {
+      const stubEscrow = sandbox.stub()
+      const stubLockNFT = sandbox.stub()
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              escrow: stubEscrow,
+              lockNFT: stubLockNFT,
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakePluginAddress = '0xPluginAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      stubEscrow.rejects(new Error('fake-error'))
+
+      const result = await MockedWeb3Helper.getVotingEscrowAddress(fakePluginAddress, fakeNetwork)
+
+      expect(result).to.be.null
+      expect(stubEscrow.calledOnce).to.be.true
+    })
+  })
+
+  describe('getVotingEscrowAddress', () => {
+    it('should return the lock token address successfully', async () => {
+      const stubEscrow = sandbox.stub()
+      const stubLockNFT = sandbox.stub()
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              escrow: stubEscrow,
+              lockNFT: stubLockNFT,
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakeEscrowAddress = '0xEscrowAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+      const expectedLockTokenAddress = '0xLockTokenAddress'
+
+      stubLockNFT.resolves(expectedLockTokenAddress)
+
+      const result = await MockedWeb3Helper.getLockTokenAddress(fakeEscrowAddress, fakeNetwork)
+
+      expect(result).to.equal(expectedLockTokenAddress)
+      expect(stubLockNFT.calledOnce).to.be.true
+    })
+
+    it('should return null if fetching lock token address fails', async () => {
+      const stubEscrow = sandbox.stub()
+      const stubLockNFT = sandbox.stub()
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              escrow: stubEscrow,
+              lockNFT: stubLockNFT,
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakeEscrowAddress = '0xEscrowAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      stubLockNFT.rejects(new Error('fake-error'))
+
+      const result = await MockedWeb3Helper.getLockTokenAddress(fakeEscrowAddress, fakeNetwork)
+
+      expect(result).to.be.null
+      expect(stubLockNFT.calledOnce).to.be.true
     })
   })
 })
