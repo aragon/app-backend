@@ -6,12 +6,12 @@ import { IPluginInterfaceType, IPluginSlug, IPluginStatus, NetworksEnum } from '
 import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import Logger from '@logger'
+import logger from '@logger'
 
 describe('Helpers:PluginSlug', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
-    await Models.PluginSlug.syncIndexes()
     sandbox = sinon.createSandbox()
   })
 
@@ -545,6 +545,75 @@ describe('Helpers:PluginSlug', () => {
       expect(updateSlugStub.calledOnce).to.be.true
       expect(updateSlugStub.args[0][0]).to.eq(newProcessKey)
       expect(updateSlugStub.args[0][1]).to.eq(pluginToUpdate)
+    })
+  })
+
+  describe('_createSlugWithRetries', () => {
+    let plugin: Plugin
+
+    beforeEach(async () => {
+      plugin = await Models.Plugin.create({
+        id: 'test-plugin-retries',
+        address: '0x140',
+        daoAddress: '0xDAO',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcdef',
+        blockNumber: 1,
+      })
+    })
+
+    afterEach(async () => {
+      await Models.PluginSlug.deleteMany({})
+    })
+
+    it('should return existing slug if it already exists', async () => {
+      const existingSlug = 'existing-slug'
+
+      await Models.PluginSlug.create({
+        network: plugin.network,
+        daoAddress: plugin.daoAddress,
+        pluginAddress: plugin.address,
+        slug: existingSlug,
+      })
+
+      const findPluginSlugStub = sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({
+        slug: existingSlug,
+      } as any)
+
+      const result = await PluginSlug._createSlugWithRetries(existingSlug, plugin)
+
+      expect(result).to.equal(existingSlug)
+      expect(findPluginSlugStub.calledOnce).to.be.true
+    })
+
+    it('should successfully create a new slug when there is no existing slug', async () => {
+      const newSlug = 'new-slug'
+
+      const findPluginSlugStub = sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves(null)
+      const createStub = sandbox.stub(Models.PluginSlug, 'create').resolves()
+
+      const result = await PluginSlug._createSlugWithRetries(newSlug, plugin)
+
+      expect(result).to.equal(newSlug)
+      expect(findPluginSlugStub.calledOnce).to.be.true
+      expect(createStub.calledOnce).to.be.true
+    })
+
+    it('should return null and log an error when encountering an unexpected database error', async () => {
+      const baseSlug = 'error-slug'
+
+      const findPluginSlugStub = sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves(null)
+      const createStub = sandbox.stub(Models.PluginSlug, 'create').throws(new Error('Unexpected error'))
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await PluginSlug._createSlugWithRetries(baseSlug, plugin)
+
+      expect(result).to.be.null
+      expect(findPluginSlugStub.calledOnce).to.be.true
+      expect(createStub.calledOnce).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
     })
   })
 })

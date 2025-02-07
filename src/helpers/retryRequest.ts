@@ -57,7 +57,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
   throw new Error(`Request failed after ${maxRetries} retries`)
 }
 
-function canBeRetried(error: any): boolean {
+export function canBeRetried(error: any): boolean {
   if (error?.reason?.includes('future lookup')) {
     return true
   }
@@ -71,7 +71,7 @@ function canBeRetried(error: any): boolean {
   return Object.values(RETRY_REVERTS).includes(errorValueSig)
 }
 
-function isErrorRelatedToServerIssue(error: any): boolean {
+export function isErrorRelatedToServerIssue(error: any): boolean {
   try {
     const parsedReqBody = JSON.parse(error?.requestBody || '{}')
     const method = parsedReqBody?.method

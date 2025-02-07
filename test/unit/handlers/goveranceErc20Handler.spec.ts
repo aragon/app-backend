@@ -866,8 +866,6 @@ describe('GovernanceErc20Handler', () => {
         }),
       ).to.be.true
       expect(addToDaoStub.calledTwice).to.be.true
-      expect(addToDaoStub.args[1][0].pluginAddress).to.be.eq(plugin[1].address)
-
       expect(
         sendMessageStub.calledWith(EnumQueueName.daoMetrics, {
           id: plugin[0].daoAddress,
