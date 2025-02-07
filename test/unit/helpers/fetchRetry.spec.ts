@@ -3,6 +3,8 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { retry } from '@helpers/fetchRetry'
 import utils from '@helpers/utils'
+import logger from '@logger'
+import proxyquire from 'proxyquire'
 
 describe('Helpers: FetchRetry', () => {
   let sandbox: SinonSandbox
