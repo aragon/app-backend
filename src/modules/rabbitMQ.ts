@@ -156,7 +156,7 @@ const RabbitMQ = {
    * Returns the existing channel (null if not connected).
    */
   getChannel(): Channel | null {
-    return RabbitMQ.channel
+    return RabbitMQ.channel || null
   },
 
   async getMessageCount(queueName: string): Promise<number | null> {
