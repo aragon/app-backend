@@ -20,6 +20,7 @@ import DbOperations from '@models/utils/dbOperations'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import GaugeHelper from '@helpers/gauge'
+import BlockScoutHelper from '@helpers/blockScout'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
 
@@ -356,13 +357,15 @@ export const PluginSetupProcessorHandler = {
         tokenAddress = await GaugeHelper.getTokenAddress(pluginAddress, info.network)
       }
 
-      if (!tokenAddress) {
-        // TODO: blockscout
+      if (tokenAddress) {
+        tokenAddress =
+          (await Web3Helper.getTokenDetails(tokenAddress, info.network)).decimals === null ? null : tokenAddress
+        return tokenAddress
       }
-      return tokenAddress
     } catch (error) {
       logger.error('Error finding token from log', llo({ pluginAddress, info, error }))
-      return null
     }
+
+    return null
   },
 }
