@@ -89,6 +89,11 @@ const ProviderModule = {
     }
   },
 
+  async getCoreProvider(network: NetworksEnum): Promise<any> {
+    const provider = ProviderModule.getProvider(network)
+    return await provider.config.getProvider()
+  },
+
   getProvider(network: NetworksEnum) {
     const provider = ProviderModule.providerProxies[network]?.provider
     if (!provider) {

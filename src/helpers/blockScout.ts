@@ -130,7 +130,16 @@ const BlockScoutHelper = {
     try {
       const response = await BlockScoutHelper._rpCall(path, params, network)
       if (response) {
-        return response
+        /**
+         * Similar to Etherscan, we are returning an array of objects
+         */
+        return [
+          {
+            SourceCode: response.source_code,
+            ContractName: response.name,
+            ABI: JSON.stringify(response.abi),
+          },
+        ]
       }
     } catch (error) {
       logger.warn('Error getContractSourceCode', llo({ error }))
