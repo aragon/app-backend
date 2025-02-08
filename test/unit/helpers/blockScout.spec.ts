@@ -285,10 +285,16 @@ describe('Helpers: BlockScout', () => {
 
   describe('getContractSourceCode', () => {
     it('Should get contract source code', async () => {
-      const expectedResult = { code: 1 }
+      const expectedResult = { abi: [{ constant: 1 }], source_code: '<<>>', name: 'PluginRepo' }
       const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
       const result = await BlockScoutHelper.getContractSourceCode('0x1234567890', NetworksEnum.ethereumMainnet)
-      expect(result).to.deep.eq(expectedResult)
+      expect(result).to.deep.eq([
+        {
+          SourceCode: '<<>>',
+          ContractName: 'PluginRepo',
+          ABI: '[{"constant":1}]',
+        },
+      ])
       expect(rpCallStub.calledOnce).to.be.true
       expect(
         rpCallStub.calledWith(

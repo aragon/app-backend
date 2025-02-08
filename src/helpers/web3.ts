@@ -921,19 +921,41 @@ const Web3Helper = {
       name: null,
       symbol: null,
       decimals: 0,
-      logo: null,
+      totalSupply: '0',
     }
     try {
-      const provider = ProviderModule.getProvider(network)!
-      const response = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-          provider.send('alchemy_getTokenMetadata', [tokenAddress]),
-        ),
+      const coreProvider = await ProviderModule.getCoreProvider(network)
+      const iface = new Interface(ERC20.abi)
+      const functions = ['name', 'symbol', 'decimals', 'totalSupply']
+
+      const requestCalls = await Promise.all(
+        functions.map((functionName: string) => {
+          return coreProvider._send(
+            'eth_call',
+            [
+              {
+                to: tokenAddress,
+                data: iface.encodeFunctionData(functionName, []),
+              },
+            ],
+            'eth_call',
+            true,
+          )
+        }),
       )
+
+      const response = requestCalls.reduce((acc: any, call: any, index: number) => {
+        return {
+          ...acc,
+          [functions[index]]: iface.decodeFunctionResult(functions[index], call)[0],
+        }
+      }, {})
+
       tokenDetails.name = response.name
       tokenDetails.symbol = response.symbol
-      tokenDetails.decimals = response.decimals
-      tokenDetails.logo = response.logo || ''
+      tokenDetails.decimals = Number(response.decimals)
+      tokenDetails.totalSupply = response.totalSupply.toString()
+
       return tokenDetails
     } catch (_e) {
       return tokenDetails

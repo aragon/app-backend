@@ -357,8 +357,9 @@ export const PluginSetupProcessorHandler = {
       }
 
       if (tokenAddress) {
-        tokenAddress =
-          (await Web3Helper.getTokenDetails(tokenAddress, info.network)).decimals === null ? null : tokenAddress
+        const web3TokenInfo = await Web3Helper.getTokenDetails(tokenAddress, info.network)
+
+        tokenAddress = web3TokenInfo.decimals === 0 ? null : tokenAddress
         return tokenAddress
       }
     } catch (error) {
