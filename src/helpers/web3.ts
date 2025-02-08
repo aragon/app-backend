@@ -920,9 +920,10 @@ const Web3Helper = {
     const tokenDetails = {
       name: null,
       symbol: null,
-      decimals: 0,
+      decimals: null,
       totalSupply: '0',
     }
+
     try {
       const coreProvider = await ProviderModule.getCoreProvider(network)
       const iface = new Interface(ERC20.abi)
@@ -951,10 +952,12 @@ const Web3Helper = {
         }
       }, {})
 
-      tokenDetails.name = response.name
-      tokenDetails.symbol = response.symbol
-      tokenDetails.decimals = Number(response.decimals)
-      tokenDetails.totalSupply = response.totalSupply.toString()
+      Object.assign(tokenDetails, {
+        name: response.name,
+        symbol: response.symbol,
+        decimals: response.decimals !== null ? Number(response.decimals) : null,
+        totalSupply: response.totalSupply.toString(),
+      })
 
       return tokenDetails
     } catch (_e) {
