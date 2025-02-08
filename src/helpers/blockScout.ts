@@ -104,7 +104,10 @@ const BlockScoutHelper = {
    * @param query
    * @param network
    */
-  searchDetails: async (query: string, network: NetworksEnum) => {
+  searchDetails: async (
+    query: string,
+    network: NetworksEnum,
+  ): Promise<{ is_smart_contract_verified: boolean; name: string } | null> => {
     const params = {
       apikey: BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_KEY,
       q: query,
@@ -128,16 +131,25 @@ const BlockScoutHelper = {
     const path = `smart-contracts/${address}`
 
     try {
-      const response = await BlockScoutHelper._rpCall(path, params, network)
-      if (response) {
+      let response = await BlockScoutHelper._rpCall(path, params, network)
+      if (response?.source_code === null) {
+        const searchDetails = await BlockScoutHelper.searchDetails(address, network)
+        if (searchDetails?.is_smart_contract_verified! && searchDetails?.name) {
+          response = await BlockScoutHelper._rpCall(path, params, network)
+        } else {
+          response = null
+        }
+      }
+
+      if (response?.source_code) {
         /**
          * Similar to Etherscan, we are returning an array of objects
          */
         return [
           {
-            SourceCode: response.source_code,
-            ContractName: response.name,
-            ABI: JSON.stringify(response.abi),
+            SourceCode: response!.source_code || '',
+            ContractName: response!.name,
+            ABI: JSON.stringify(response!.abi),
           },
         ]
       }

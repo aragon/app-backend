@@ -284,9 +284,10 @@ describe('Helpers: BlockScout', () => {
   })
 
   describe('getContractSourceCode', () => {
-    it('Should get contract source code', async () => {
+    it('Should get contract source code (happy path)', async () => {
       const expectedResult = { abi: [{ constant: 1 }], source_code: '<<>>', name: 'PluginRepo' }
       const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
+
       const result = await BlockScoutHelper.getContractSourceCode('0x1234567890', NetworksEnum.ethereumMainnet)
       expect(result).to.deep.eq([
         {
@@ -306,25 +307,60 @@ describe('Helpers: BlockScout', () => {
     })
 
     it('should handle errors in getContractSourceCode', async () => {
-      const expectedResult = new Error('RPC Call Failed')
-      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').rejects(expectedResult)
+      const expectedError = new Error('RPC Call Failed')
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').rejects(expectedError)
       const loggerStub = sandbox.stub(logger, 'warn')
-      try {
-        await BlockScoutHelper.getContractSourceCode('0x1234567890', NetworksEnum.ethereumMainnet)
-      } catch (error) {
-        expect(error).to.eq(expectedResult)
-        expect(loggerStub.calledOnce).to.be.true
-      }
 
+      const result = await BlockScoutHelper.getContractSourceCode('0x1234567890', NetworksEnum.ethereumMainnet)
+      // We expect the function to catch and log the error, returning null instead of re-throwing
+      expect(result).to.be.null
       expect(rpCallStub.calledOnce).to.be.true
-      expect(
-        rpCallStub.calledWith(
-          'smart-contracts/0x1234567890',
-          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
-          NetworksEnum.ethereumMainnet,
-        ),
-      ).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getContractSourceCode' as any)).to.be.true
+    })
+
+    it('should call searchDetails and re-fetch if the initial source_code is null and the contract is verified', async () => {
+      // 1st call to _rpCall returns no source_code
+      const initialResponse = { source_code: null, name: '' }
+      // searchDetails indicates a verified contract
+      const searchDetailsResponse = { is_smart_contract_verified: true, name: 'PluginRepo' }
+      // 2nd call to _rpCall (after the search) returns a proper response
+      const verifiedResponse = { source_code: '<<>>', name: 'PluginRepo', abi: [{ constant: 1 }] }
+
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall')
+      rpCallStub.onFirstCall().resolves(initialResponse)
+      rpCallStub.onSecondCall().resolves(verifiedResponse)
+
+      const searchDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves(searchDetailsResponse)
+
+      const result = await BlockScoutHelper.getContractSourceCode('0x1234567890', NetworksEnum.ethereumMainnet)
+
+      expect(searchDetailsStub.calledOnce).to.be.true
+      expect(searchDetailsStub.calledWith('0x1234567890', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(rpCallStub.callCount).to.equal(2) // Called twice: initial fetch + re-fetch
+      expect(result).to.deep.eq([
+        {
+          SourceCode: '<<>>',
+          ContractName: 'PluginRepo',
+          ABI: '[{"constant":1}]',
+        },
+      ])
+    })
+
+    it('should return null if search indicates no verified contract', async () => {
+      // 1st call to _rpCall returns no source_code
+      const initialResponse = { source_code: null, name: '' }
+      // searchDetails says it's NOT verified
+      const searchDetailsResponse = { is_smart_contract_verified: false, name: '' }
+
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(initialResponse)
+      const searchDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves(searchDetailsResponse)
+
+      const result = await BlockScoutHelper.getContractSourceCode('0x1234567890', NetworksEnum.ethereumMainnet)
+
+      expect(searchDetailsStub.calledOnce).to.be.true
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(result).to.be.null
     })
   })
 
