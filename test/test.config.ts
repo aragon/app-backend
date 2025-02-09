@@ -8,6 +8,8 @@ import Mocha from 'mocha'
 import { MockDB } from '@test/lib/mockDb'
 import logger from '@logger'
 import utils from '@helpers/utils'
+import ProviderModule from '@modules/provider'
+import MongoDB from '@modules/mongo'
 
 logger.transports[0].level = 'silly'
 chai.use(chaiAsPromised)
@@ -16,7 +18,9 @@ global.chai = chai
 global.expect = chai.expect
 
 let testFolder = ''
-if (argv.includes('--unit')) {
+if (argv.includes('--unit-dep')) {
+  testFolder = 'unit-dep'
+} else if (argv.includes('--unit')) {
   testFolder = 'unit'
 } else if (argv.includes('--manual')) {
   testFolder = 'manual'
@@ -37,15 +41,44 @@ async function runTests() {
   // MockDB setup
   console.log('Using MockDB...') // eslint-disable-line no-console
   mocha.suite.beforeAll(async () => {
-    await MockDB.connect()
-    await utils.wait(500)
+    switch (testFolder) {
+      case 'unit':
+        await MockDB.connect()
+        await utils.wait(500)
+        break
+      case 'unit-dep':
+        await MongoDB.connect()
+        await ProviderModule.connectToAllNetworks()
+        break
+      default:
+        break
+    }
   })
 
   mocha.suite.beforeEach(async () => {
-    await MockDB.drop()
+    switch (testFolder) {
+      case 'unit':
+        await MockDB.drop()
+        break
+      case 'unit-dep':
+        await MongoDB.drop()
+        break
+      default:
+        break
+    }
   })
 
-  mocha.suite.afterAll(() => {})
+  mocha.suite.afterAll(async () => {
+    switch (testFolder) {
+      case 'unit':
+        break
+      case 'unit-dep':
+        await ProviderModule.closeAllNetworks()
+        break
+      default:
+        break
+    }
+  })
 
   // Resolve and add test files
   const pattern = path.join(__dirname, testFolder, '**', '*.ts')
