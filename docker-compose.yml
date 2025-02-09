@@ -111,6 +111,8 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: password
+    networks:
+      - mongo-network
 
   mongo1:
     image: mongo:7.0.0
@@ -121,6 +123,8 @@ services:
       - "27017:27017"
     volumes:
       - mongo1_data:/data/db
+    networks:
+      - mongo-network
 
   mongo2:
     image: mongo:7.0.0
@@ -131,6 +135,8 @@ services:
       - "27018:27017"
     volumes:
       - mongo2_data:/data/db
+    networks:
+      - mongo-network
 
   mongo3:
     image: mongo:7.0.0
@@ -141,6 +147,8 @@ services:
       - "27019:27017"
     volumes:
       - mongo3_data:/data/db
+    networks:
+      - mongo-network
 
   mongo-init-replica:
     image: mongo:7.0.0
@@ -167,9 +175,16 @@ services:
       ';
       echo 'Replica set initialized.'
       "
+    networks:
+      - mongo-network
 
 volumes:
   mongo1_data:
   mongo2_data:
   mongo3_data:
+
+networks:
+  mongo-network:
+    driver: bridge
+
 
