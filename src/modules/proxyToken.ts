@@ -231,4 +231,10 @@ export const ProxyToken = {
 
     return { blockNumber: 0, transactionHash: null, address: tokenAddress }
   },
+
+  analyzeIfScamToken: (name: string, symbol: string): boolean => {
+    const regex =
+      /^(?=.*(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}))(?=.*(?:claim|rewards?|join|stake|voucher|airdrop|bonus|free|giveaway|visit)).+$/i
+    return regex.test(name) || regex.test(symbol)
+  },
 }
