@@ -12,7 +12,20 @@ export const ToolsManualSyncToken: IService = {
     const tokens = await Models.Token.find({
       network: { $in: [NetworksEnum.polygonMainnet, NetworksEnum.ethereumMainnet] },
       type: { $ne: 'GovernanceERC20' },
-      $or: [{ name: { $not: { $regex: /https?:\/\/\S+/i } } }, { symbol: { $not: { $regex: /https?:\/\/\S+/i } } }],
+      $or: [
+        {
+          name: {
+            $regex:
+              /^(?:(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}).*\b[a-z]+\b.*|.*\b[a-z]+\b.*(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}).*)$/i,
+          },
+        },
+        {
+          symbol: {
+            $regex:
+              /^(?:(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}).*\b[a-z]+\b.*|.*\b[a-z]+\b.*(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}).*)$/i,
+          },
+        },
+      ],
     })
 
     logger.info('Tokens to sync', llo({ tokens: tokens.length }))
