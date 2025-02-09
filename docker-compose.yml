@@ -93,6 +93,7 @@ services:
       - mongo1
       - mongo2
       - mongo3
+      - mongo-init-replica
       - rabbitmq
     env_file:
       - ./docker.env
