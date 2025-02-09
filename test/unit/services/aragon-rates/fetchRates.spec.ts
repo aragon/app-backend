@@ -9,7 +9,6 @@ import { RateModule } from '@modules/rates'
 import { ITokenType, NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import BlockScoutHelper from '@helpers/blockScout'
-import Covalent from '@helpers/covalent'
 import CovalentHelper from '@helpers/covalent'
 
 describe('AragonRates: FetchRates', () => {
@@ -50,6 +49,38 @@ describe('AragonRates: FetchRates', () => {
       expect(stubLogger.calledWith('End FetchRates' as any)).to.be.true
       expect(stubLoggerError.calledOnce).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
+    })
+
+    it.only('should query and update the token', async () => {
+      const tokens = [
+        '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+        '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+      ]
+
+      await Promise.all(
+        tokens.map(async token => {
+          await Models.Token.create({
+            network: NetworksEnum.ethereumMainnet,
+            type: ITokenType.ERC20,
+            address: token,
+            logo: 'fake-logo',
+            name: NetworksEnum.ethereumMainnet,
+            symbol: 'WETH',
+            decimals: 18,
+            holders: 1,
+            totalSupply: '1',
+            priceChangeOnDayUsd: '1',
+            priceUsd: '1.1',
+            lastUpdatedAt: new Date(Date.now() - 1000 * 60 * 60 * 7),
+          })
+        }),
+      )
+
+      sandbox.stub(logger, 'verbose')
+      const onDocStub = sandbox.stub(FetchRates, 'onDocument')
+      await FetchRates.start()
+      expect(onDocStub.callCount).to.be.equal(3)
     })
   })
 

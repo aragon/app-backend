@@ -234,7 +234,10 @@ export const ProxyToken = {
 
   analyzeIfScamToken: (name: string, symbol: string): boolean => {
     const regex =
-      /^(?=.*(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}))(?=.*(?:claim|rewards?|join|stake|voucher|airdrop|bonus|free|giveaway|visit)).+$/i
-    return regex.test(name) || regex.test(symbol)
+      /^(?=.*(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}))(?=.*(?:claim|rewards?|join|stake|swap|voucher|airdrop|bonus|free|giveaway|visit)).+$/i
+    const firstCheck = regex.test(name) || regex.test(symbol)
+    const secondCheck = regex.test(name + symbol)
+
+    return firstCheck || secondCheck
   },
 }
