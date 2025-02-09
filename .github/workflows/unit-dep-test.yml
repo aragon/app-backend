@@ -14,16 +14,6 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v3
 
-      - name: Add hostname to /etc/hosts
-        run: |
-          echo "127.0.0.1 mongo1" | sudo tee -a /etc/hosts
-          echo "127.0.0.1 mongo2" | sudo tee -a /etc/hosts
-          echo "127.0.0.1 mongo3" | sudo tee -a /etc/hosts
-          echo "127.0.0.1 rabbitmq" | sudo tee -a /etc/hosts
-
-      - name: Verify /etc/hosts changes
-        run: cat /etc/hosts
-
       - name: Install dependencies
         run: yarn install --pure-lockfile
 
