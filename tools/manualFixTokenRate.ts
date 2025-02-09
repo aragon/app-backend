@@ -9,20 +9,20 @@ export const ToolsManualSyncToken: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
+    const regex =
+      ' /^(?=.*(?:https?:\\/\\/\\S+|www\\.[a-z0-9-]+\\.[a-z]{2,63}|[a-z0-9-]+\\.[a-z]{2,63}))(?=.*(?:claim|rewards?|join|stake|voucher|airdrop|bonus|free|giveaway|visit)).+$/i'
     const tokens = await Models.Token.find({
       network: { $in: [NetworksEnum.polygonMainnet, NetworksEnum.ethereumMainnet] },
       type: { $ne: 'GovernanceERC20' },
       $nor: [
         {
           name: {
-            $regex:
-              /^(?=.*(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}))(?=.*(?:claim|rewards?|airdrop|bonus|free|giveaway|visit)).+$/i,
+            $regex: regex,
           },
         },
         {
           symbol: {
-            $regex:
-              /^(?=.*(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}))(?=.*(?:claim|rewards?|airdrop|bonus|free|giveaway|visit)).+$/i,
+            $regex: regex,
           },
         },
       ],
