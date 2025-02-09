@@ -17,6 +17,7 @@ import ToolsEnsFetch from '@tools/ensFetch'
 import ToolsFixSettingIssue from '@tools/fixBrokenPluginSetting'
 import ToolsCleanDb from '@tools/cleanDb'
 import ToolsSyncCustomPlugin from '@tools/syncCustomPlugin'
+import ToolsManualSyncToken from '@tools/manualFixTokenRate'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -39,6 +40,7 @@ const runners = {
   ToolsRevertDbAtBlock,
   ToolsManualSyncProposalIndex,
   ToolsFixSettingIssue,
+  ToolsManualSyncToken,
 }
 
 const appToRun = runners[TOOL_RUN!]
