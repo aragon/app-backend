@@ -98,6 +98,8 @@ services:
       - ./docker.env
       - ./test/test.env
     command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn test:unit-dep'
+    networks:
+      - mongo-network
 
 
   ### Dependencies
