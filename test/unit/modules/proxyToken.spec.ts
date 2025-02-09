@@ -516,5 +516,13 @@ describe('Modules: ProxyToken', () => {
       expect(result.address).to.equal(tokenAddress)
       expect(stubGetTx.notCalled).to.be.true
     })
+
+    it('should check if token is scam or not', async () => {
+      const name = 'CLAIM REWARDS ON DEBRIDGETHER.COM'
+      const symbol = 'BRIDGE'
+
+      const result = ProxyToken.analyzeIfScamToken(name, symbol)
+      expect(result).to.be.true
+    })
   })
 })
