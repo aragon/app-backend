@@ -12,17 +12,17 @@ export const ToolsManualSyncToken: IService = {
     const tokens = await Models.Token.find({
       network: { $in: [NetworksEnum.polygonMainnet, NetworksEnum.ethereumMainnet] },
       type: { $ne: 'GovernanceERC20' },
-      $or: [
+      $nor: [
         {
           name: {
             $regex:
-              /^(?:(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}).*\b[a-z]+\b.*|.*\b[a-z]+\b.*(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}).*)$/i,
+              /^(?=.*(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}))(?=.*(?:claim|rewards?|airdrop|bonus|free|giveaway|visit)).+$/i,
           },
         },
         {
           symbol: {
             $regex:
-              /^(?:(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}).*\b[a-z]+\b.*|.*\b[a-z]+\b.*(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}).*)$/i,
+              /^(?=.*(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}))(?=.*(?:claim|rewards?|airdrop|bonus|free|giveaway|visit)).+$/i,
           },
         },
       ],
