@@ -1,4 +1,4 @@
-name: AppBackend Test Unit Dep
+name: Unit Dep Test
 on:
   workflow_dispatch:
   push:
