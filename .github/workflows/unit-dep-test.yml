@@ -1,0 +1,35 @@
+name: AppBackend Test Unit Dep
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore:
+      - 'development'
+      - 'staging'
+      - 'main'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v3
+
+      - name: Add hostname to /etc/hosts
+        run: |
+          echo "127.0.0.1 mongo1" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 mongo2" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 mongo3" | sudo tee -a /etc/hosts
+
+      - name: Verify /etc/hosts changes
+        run: cat /etc/hosts
+
+      - name: Build & run unit-dep tests
+        run: |
+          docker compose -f docker-compose.yml up \
+            --exit-code-from unit-dep \
+            --abort-on-container-exit \
+            --build unit-dep
+
+      - name: Teardown containers
+        run: |
+          docker compose -f docker-compose.yml down
