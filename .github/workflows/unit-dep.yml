@@ -1,26 +1,41 @@
-name: AppBackend Test Unit Dep
+name: Unit Dep Test
 on:
   workflow_dispatch:
   push:
-    branches-ignore: ## Ignore develop and main branches to avoid an unneeded 2nd build.
+    branches-ignore:
       - 'development'
       - 'staging'
       - 'main'
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
         uses: actions/checkout@v3
 
-      - name: Build & run unit-dep tests
+      - name: Install dependencies
+        run: yarn install --pure-lockfile
+
+      - name: Build Docker image
         run: |
-          docker-compose -f docker-compose.yml up \
+          docker compose -f docker-compose.yml build unit-dep
+
+  dep-tests:
+    runs-on: ubuntu-latest
+    needs: build  # Ensure this job waits until the build job completes
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: yarn install --pure-lockfile
+
+      - name: Run Dep Tests
+        run: |
+          docker compose -f docker-compose.yml up \
             --exit-code-from unit-dep \
-            --abort-on-container-exit \
-            --build unit-dep
+            --abort-on-container-exit
 
       - name: Teardown containers
-        run: |
-          docker-compose -f docker-compose.yml down
+        run: docker compose -f docker-compose.yml down
