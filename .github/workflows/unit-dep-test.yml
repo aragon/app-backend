@@ -23,6 +23,9 @@ jobs:
       - name: Verify /etc/hosts changes
         run: cat /etc/hosts
 
+      - name: Install dependencies
+        run: yarn install --pure-lockfile
+
       - name: Build & run unit-dep tests
         run: |
           docker compose -f docker-compose.yml up \
