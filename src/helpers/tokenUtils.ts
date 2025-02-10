@@ -66,7 +66,7 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
 }
 
 const isTokenSyncable = async (tokenAddress: string, network: NetworksEnum): Promise<boolean> => {
-  const web3TokenDetails = await Web3Helper.getTokenInfo(tokenAddress, network)
+  const web3TokenDetails = await Web3Helper.getTokenNameAndSymbol(tokenAddress, network)
   if (web3TokenDetails.name && web3TokenDetails.symbol) {
     return !ProxyToken.analyzeIfScamToken(web3TokenDetails.name, web3TokenDetails.symbol)
   }
