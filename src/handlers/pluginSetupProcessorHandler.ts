@@ -353,13 +353,16 @@ export const PluginSetupProcessorHandler = {
         tokenAddress = await GaugeHelper.getTokenAddress(pluginAddress, info.network)
       }
 
-      if (!tokenAddress) {
-        // TODO: blockscout
+      if (tokenAddress) {
+        const web3TokenInfo = await Web3Helper.getTokenDetails(tokenAddress, info.network)
+
+        tokenAddress = web3TokenInfo.decimals === null ? null : tokenAddress
+        return tokenAddress
       }
-      return tokenAddress
     } catch (error) {
       logger.error('Error finding token from log', llo({ pluginAddress, info, error }))
-      return null
     }
+
+    return null
   },
 }
