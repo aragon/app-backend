@@ -92,14 +92,20 @@ export const PluginSetupProcessorHandler = {
 
     // create the plugin as preInstall
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.preInstall, logDb)
+    const pluginDb = await Models.Plugin.findByAddress(parsedEvent.args.plugin, info.network)
+    if (!pluginDb) {
+      logger.error('Plugin preInstall error', llo({ pluginAddress, info }))
+      return
+    }
 
     // find settings
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-    await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
+    await PluginSettingHandler.handlePluginSettingByType(pluginDb, txReceipt!, info)
   },
 
   installationApplied: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     const daoAddress = parsedEvent.args.dao
+    const pluginAddress = parsedEvent.args.plugin
     const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
 
     if (!existingDao) {
@@ -125,7 +131,7 @@ export const PluginSetupProcessorHandler = {
       daoAddress,
       preparedSetupId: parsedEvent.args.preparedSetupId,
       appliedSetupId: parsedEvent.args.appliedSetupId,
-      pluginAddress: parsedEvent.args.plugin,
+      pluginAddress,
       blockNumber: info.blockNumber,
     }
 
@@ -141,9 +147,13 @@ export const PluginSetupProcessorHandler = {
 
     // find settings
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-    const pluginFromSettings = await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
+    const pluginDb = await Models.Plugin.findByAddress(pluginAddress, info.network)
+    if (!pluginDb) {
+      logger.error('Plugin preInstall error', llo({ pluginAddress, info }))
+      return
+    }
 
-    const pluginDb = await Models.Plugin.findByAddress(parsedEvent.args.plugin, info.network)
+    await PluginSettingHandler.handlePluginSettingByType(pluginDb, txReceipt!, info)
 
     if (
       pluginDb?.interfaceType === IPluginInterfaceType.admin ||
@@ -153,23 +163,10 @@ export const PluginSetupProcessorHandler = {
       await PluginSettingHandler.isSupported(pluginDb, info)
     }
 
-    if (pluginDb?.interfaceType === IPluginInterfaceType.spp) {
-      // When spp re-sync all plugins related to the dao
-      await Promise.all([
-        pluginFromSettings.map(async (plugin: any) => {
-          await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-            id: plugin.address,
-            params: { address: plugin.address, network: plugin.network },
-          })
-        }),
-      ])
-    } else {
-      // Sync single plugin
-      await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-        id: pluginDb.address,
-        params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
-      })
-    }
+    await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+      id: pluginDb.address,
+      params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
+    })
   },
 
   updatePrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
