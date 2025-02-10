@@ -136,6 +136,17 @@ export const DaoTransactions = {
         }
       }
 
+      if (tx.rawContract?.address) {
+        const onChainTokenInfo = await Web3Helper.getTokenDetails(tx.rawContract?.address, dao.network)
+        if (
+          onChainTokenInfo.decimals === null ||
+          ProxyToken.analyzeIfScamToken(onChainTokenInfo.name!, onChainTokenInfo.symbol!)
+        ) {
+          logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: tx.rawContract?.address }))
+
+          return
+        }
+      }
       const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), dao.network)
       const tokenAddress = tx.rawContract?.address || utils.zeroAddress
       const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)

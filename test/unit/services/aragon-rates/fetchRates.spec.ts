@@ -10,6 +10,7 @@ import { ITokenType, NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import BlockScoutHelper from '@helpers/blockScout'
 import CovalentHelper from '@helpers/covalent'
+import TokenUtils from '@helpers/tokenUtils'
 
 describe('AragonRates: FetchRates', () => {
   let sandbox: SinonSandbox
@@ -85,18 +86,9 @@ describe('AragonRates: FetchRates', () => {
   })
 
   describe('onDocument', () => {
-    it('should handle onDocument when the normal data flow', async () => {
-      const fakeRate = { priceUsd: '1', priceChangeOnDayUsd: '1' }
-      const stubFetchRates = sandbox.stub(RateModule, 'fetchRate').resolves(fakeRate as any)
-      const stubLogger = sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(true)
-      sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({
-        holders: 10,
-        totalSupply: '100',
-        priceUsd: '1',
-      } as any)
-
-      const tokenDb = await Models.Token.create({
+    let tokenDb: any
+    beforeEach(async () => {
+      tokenDb = await Models.Token.create({
         network: NetworksEnum.ethereumMainnet,
         type: ITokenType.ERC20,
         address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
@@ -109,176 +101,73 @@ describe('AragonRates: FetchRates', () => {
         priceChangeOnDayUsd: '1',
         priceUsd: '1.1',
       })
-
-      await FetchRates.onDocument(tokenDb)
-
-      expect(stubFetchRates.calledOnceWith(tokenDb.address, tokenDb.network)).to.be.true
-      expect(stubLogger.calledOnceWith('Token rate updated' as any)).to.be.true
-
-      const updatedToken = await tokenDb.reload()
-      expect(updatedToken.priceUsd).to.be.equal('1')
-      expect(updatedToken.holders).to.be.equal(10)
-      expect(updatedToken.totalSupply).to.be.equal('100')
     })
 
-    it('should return if the both info is not avaialble', async () => {
-      sandbox.stub(RateModule, 'fetchRate').resolves({
-        decimals: null,
-      } as any)
+    it('should return early if fetchTokenUpdate returns null', async () => {
+      // Stub fetchTokenUpdate to return null.
+      sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(null)
 
-      sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(false as any)
-
-      const skipFetchStub = sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(false)
-
-      const tokenDb = await Models.Token.create({
-        network: NetworksEnum.ethereumMainnet,
-        type: ITokenType.ERC20,
-        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        logo: 'fake-logo',
-        name: 'WETH-Token',
-        symbol: 'WETH',
-        decimals: 18,
-        holders: 10,
-        totalSupply: '100',
-        priceChangeOnDayUsd: '1',
-        priceUsd: '0.9',
-      })
+      const skipFetchStub = sandbox.stub(ProxyToken, 'shouldSkipFetch')
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
       await FetchRates.onDocument(tokenDb)
+
       expect(skipFetchStub.notCalled).to.be.true
+      expect(loggerVerboseStub.notCalled).to.be.true
     })
 
-    it('should handle when the token rate is not avaialble and the blockscout info is available', async () => {
-      sandbox.stub(RateModule, 'fetchRate').resolves({
-        decimals: null,
-      } as any)
-
-      sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({
-        holders: 10,
-        totalSupply: '100',
-        priceUsd: '1',
-      } as any)
-
-      sandbox.stub(logger, 'verbose')
-
-      const skipFetchStub = sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(false)
-
-      const tokenDb = await Models.Token.create({
-        network: NetworksEnum.ethereumMainnet,
-        type: ITokenType.ERC20,
-        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        logo: 'fake-logo',
-        name: 'WETH-Token',
-        symbol: 'WETH',
-        decimals: 18,
-        holders: 5,
-        totalSupply: '10',
+    it('should return early if token data is identical to fetched update', async () => {
+      const fakeTokenUpdates = {
+        priceUsd: '1.1',
+        holders: 1,
+        totalSupply: '1',
         priceChangeOnDayUsd: '1',
-        priceUsd: '0.9',
-      })
+      }
 
+      sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(fakeTokenUpdates)
+      const updateStub = sandbox.stub(tokenDb, 'update')
       await FetchRates.onDocument(tokenDb)
-      expect(skipFetchStub.calledOnce).to.be.true
-      const token = await tokenDb.reload()
-      expect(token.priceUsd).to.be.equal('1')
-      expect(token.holders).to.be.equal(10)
-      expect(token.totalSupply).to.be.equal('100')
+      expect(updateStub.notCalled).to.be.true
     })
 
-    it('should handle if the rate is available but the blockscout info is not available', async () => {
-      sandbox.stub(RateModule, 'fetchRate').resolves({
-        priceUsd: '1',
-        priceChangeOnDayUsd: '1',
-      } as any)
+    it('should update token with skipFetchRate if shouldSkipFetch returns true', async () => {
+      const fakeTokenUpdates = {
+        priceUsd: '1.2',
+        holders: 2,
+        totalSupply: '2',
+        priceChangeOnDayUsd: '2',
+      }
 
-      sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(false as any)
-
-      const covalentStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
-        totalSupply: '100',
-        totalHolders: 10,
-      })
-
+      sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(fakeTokenUpdates)
+      sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(true)
       sandbox.stub(logger, 'verbose')
-
-      const skipFetchStub = sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(false)
-
-      const tokenDb = await Models.Token.create({
-        network: NetworksEnum.ethereumMainnet,
-        type: ITokenType.GovernanceERC20,
-        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        logo: 'fake-logo',
-        name: 'WETH-Token',
-        symbol: 'WETH',
-        decimals: 18,
-        holders: 5,
-        totalSupply: '10',
-        priceChangeOnDayUsd: '1',
-        priceUsd: '0.9',
-      })
-
       await FetchRates.onDocument(tokenDb)
-      expect(skipFetchStub.calledOnce).to.be.true
-      const token = await tokenDb.reload()
-      expect(token.priceUsd).to.be.equal('1')
-      expect(token.holders).to.be.equal(10)
-      expect(token.totalSupply).to.be.equal('100')
-      expect(covalentStub.calledOnce).to.be.true
-      expect(covalentStub.calledWith(tokenDb.address, tokenDb.network)).to.be.true
+      const reloadedToken = await Models.Token.findOne({ address: tokenDb.address })
+      expect(reloadedToken.skipFetchRate).to.be.true
+      expect(reloadedToken.holders).to.be.equal(2)
+      expect(reloadedToken.totalSupply).to.be.equal('2')
+      expect(reloadedToken.priceUsd).to.be.equal('1.2')
     })
 
-    it('should handle if the blockscout info is available but the rate price is 0', async () => {
-      sandbox.stub(RateModule, 'fetchRate').resolves({
-        priceUsd: '0',
-        decimals: 18,
-        priceChangeOnDayUsd: '0',
-      } as any)
+    it('should update token with fetched data', async () => {
+      const fakeTokenUpdates = {
+        priceUsd: '1.2',
+        holders: 2,
+        totalSupply: '2',
+        priceChangeOnDayUsd: '2',
+      }
 
-      sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(null)
-
+      sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(fakeTokenUpdates)
+      sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(false)
       sandbox.stub(logger, 'verbose')
 
-      const skipFetchStub = sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(false)
-
-      const tokenDb = await Models.Token.create({
-        network: NetworksEnum.ethereumMainnet,
-        type: ITokenType.ERC20,
-        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        logo: 'fake-logo',
-        name: 'WETH-Token',
-        symbol: 'WETH',
-        decimals: 18,
-        holders: 5,
-        totalSupply: '10',
-        priceChangeOnDayUsd: '1',
-        priceUsd: '0.9',
-      })
-
       await FetchRates.onDocument(tokenDb)
-      expect(skipFetchStub.notCalled).to.be.true
-    })
+      const reloadedToken = await Models.Token.findOne({ address: tokenDb.address })
 
-    it('should handle if some error occurs', async () => {
-      sandbox.stub(RateModule, 'fetchRate').rejects(new Error('Sync indexes error'))
-
-      const errorStub = sandbox.stub(logger, 'error')
-      sandbox.stub(logger, 'verbose')
-
-      const tokenDb = await Models.Token.create({
-        network: NetworksEnum.ethereumMainnet,
-        type: ITokenType.native,
-        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        logo: 'fake-logo',
-        name: 'WETH-Token',
-        symbol: 'WETH',
-        decimals: 18,
-        holders: 5,
-        totalSupply: '10',
-        priceChangeOnDayUsd: '1',
-        priceUsd: '0.9',
-      })
-
-      await FetchRates.onDocument(tokenDb)
-      expect(errorStub.calledOnce).to.be.true
+      expect(reloadedToken.skipFetchRate).to.be.false
+      expect(reloadedToken.holders).to.be.equal(2)
+      expect(reloadedToken.totalSupply).to.be.equal('2')
+      expect(reloadedToken.priceUsd).to.be.equal('1.2')
     })
   })
 })
