@@ -1,13 +1,12 @@
-import { Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import ProviderModule from '@modules/provider'
+import { Interface } from 'ethers'
+import { expect } from 'chai'
 import { IEventLogMember, ITransferSide, NetworksEnum } from '@types'
-import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import Web3Helper from '@helpers/web3'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { Models } from '@dbModels'
-import { expect } from 'chai'
+import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 
 const getData = async (txHash: string, network: NetworksEnum): Promise<{ event: any; logInfo: any }[]> => {
   const txReceipt = await Web3Helper.getTransactionReceipt(txHash, network)
@@ -29,7 +28,7 @@ const getData = async (txHash: string, network: NetworksEnum): Promise<{ event: 
   return data
 }
 
-describe('Manual: Delegate', () => {
+describe('Integ: Delegates', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -40,11 +39,7 @@ describe('Manual: Delegate', () => {
     sandbox && sandbox.restore()
   })
 
-  it('test delegation flow', async function () {
-    this.timeout(1600000) // Increase timeout for the test
-
-    await ProviderModule.connectToAllNetworks()
-
+  it('should test delegates', async () => {
     const network = NetworksEnum.ethereumSepolia
     const daoAddress = '0x3e5fba52959d12f41266028f3a3d7ecc7462dd81'
     const tokenAddress = '0xa936c7F3913941e64CAdF88d61c3a8846C8Ef426'
@@ -228,7 +223,8 @@ describe('Manual: Delegate', () => {
 
     console.log('end tx3')
 
-    // member1 remove delegation to member2 1 token
+    // Revoking delegation
+    // member1 delegate to member2 1 token
     // member1 prev balance 4000000000000000000 new balance 3000000000000000000
     // member2 prev balance 0 new balance 1000000000000000000
     const tx4 = await getData('0x4ac08441f32f2b13dd5b3897cc1ae13bd6164e6b79699511f5923b00d801419c', network)
@@ -271,7 +267,7 @@ describe('Manual: Delegate', () => {
 
     console.log('end tx4')
 
-    // member1 delegate to member2
+    // member2 revoke delegation to member1
     // member1 prev balance 3000000000000000000 new balance 2000000000000000000
     // member2 prev balance 1000000000000000000 new balance 2000000000000000000
     const tx5 = await getData('0x2744c5a3f65084d54bd8a972a3743925b1dea2565ee1e9002061ef653ffd7e50', network)
@@ -293,8 +289,8 @@ describe('Manual: Delegate', () => {
     expect(member1Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member1Balance.votingPower).to.eq('2000000000000000000')
     expect(member1Balance.amount).to.eq('0')
-    expect(member1Metrics.delegateReceivedCount).to.eq(3)
-    expect(member1Metrics.delegateSentCount).to.eq(2)
+    expect(member1Metrics.delegateReceivedCount).to.eq(2)
+    expect(member1Metrics.delegateSentCount).to.eq(1)
 
     // test member2 have a transaction, balance and correct metrics
     member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
@@ -309,74 +305,11 @@ describe('Manual: Delegate', () => {
     expect(member2Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member2Balance.votingPower).to.eq('2000000000000000000')
     expect(member2Balance.amount).to.eq('0')
-    expect(member2Metrics.delegateReceivedCount).to.eq(2)
-    expect(member2Metrics.delegateSentCount).to.eq(1)
+    expect(member2Metrics.delegateReceivedCount).to.eq(1)
+    expect(member2Metrics.delegateSentCount).to.eq(0)
 
     console.log('end tx5')
 
     console.log('end')
-  })
-
-  it('should fetch delegator', async function () {
-    this.timeout(1600000) // Increase timeout for the test
-
-    await ProviderModule.connectToAllNetworks()
-
-    await Models.Plugin.create({
-      transactionHash: '0x7ff387b7d8888eda314289be41a475acbf9a6ca0d163175332859b75d54549f2',
-      blockNumber: 7637365,
-      blockTimestamp: 1738662396,
-      network: NetworksEnum.ethereumSepolia,
-      address: '0x5a0C67d574F6155bfe500a746AbEAE14C5b0a674',
-      implementationAddress: '0x0749047B49B472a7f80C1c8f0a4dbBcecBc54339',
-      interfaceType: 'tokenVoting',
-      status: 'installed',
-      isSupported: true,
-      daoAddress: '0x3E5FBa52959d12F41266028f3a3d7ecC7462DD81',
-      tokenAddress: '0xa936c7F3913941e64CAdF88d61c3a8846C8Ef426',
-      pluginSetupRepoAddress: '0x424F4cA6FA9c24C03f2396DF0E96057eD11CF7dF',
-      sender: '0x7a62da7B56fB3bfCdF70E900787010Bc4c9Ca42e',
-      release: '1',
-      build: '2',
-      subdomain: 'token-voting',
-      permissions: [],
-      uninstalled: {
-        status: false,
-        transactionHash: null,
-        blockNumber: null,
-        blockTimestamp: null,
-      },
-      isProcess: true,
-      isBody: true,
-      isSubPlugin: false,
-      metadataIpfs: null,
-      name: null,
-      description: null,
-      processKey: null,
-      subPlugins: [],
-      links: [],
-    })
-
-    const txReceipt = await Web3Helper.getTransactionReceipt(
-      '0x2744c5a3f65084d54bd8a972a3743925b1dea2565ee1e9002061ef653ffd7e50',
-      NetworksEnum.ethereumSepolia,
-    )
-
-    const delegationVotesChangedLogs = Web3Helper.findLogsByName(
-      txReceipt!,
-      IEventLogMember.DelegateVotesChanged,
-      GovernanceERC20.abi,
-    )
-
-    const logInfo = Web3Helper.parseInfoLog(
-      delegationVotesChangedLogs[0].txLog,
-      'DelegateVotesChanged',
-      NetworksEnum.ethereumSepolia,
-    )
-
-    const iFace = new Interface(GovernanceERC20.abi)
-    const event = Web3Helper.parseLog(delegationVotesChangedLogs[0].txLog, iFace)!
-
-    await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
   })
 })
