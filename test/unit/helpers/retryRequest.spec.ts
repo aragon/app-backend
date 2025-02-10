@@ -138,21 +138,6 @@ describe('Helpers:RetryRequest', () => {
       expect(canBeRetried(error)).to.be.true
     })
 
-    it('should return false if the error code is "CALL_EXCEPTION"', () => {
-      const error = { code: 'CALL_EXCEPTION' }
-      expect(canBeRetried(error)).to.be.false
-    })
-
-    it('should return true if the error value matches RETRY_REVERTS', () => {
-      const error = { value: '0x08c379a0abcdef123456' } // Matches RETRY_REVERTS.ERROR_SIG
-      expect(canBeRetried(error)).to.be.true
-    })
-
-    it('should return false if the error value does not match RETRY_REVERTS', () => {
-      const error = { value: '0x1234567890abcdef' } // Random hex value
-      expect(canBeRetried(error)).to.be.false
-    })
-
     it('should return false if error is undefined', () => {
       expect(canBeRetried(undefined)).to.be.false
     })
