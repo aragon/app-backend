@@ -100,8 +100,20 @@ export default class MemberMetrics extends Model {
     return await this.save(tOpts)
   }
 
+  async decreaseDelegateReceivedCount(decrease: number = 1, tOpts?: SaveOptions) {
+    if (this.delegateReceivedCount === 0) return this
+    this.delegateReceivedCount = (this.delegateReceivedCount || 0) - decrease
+    return await this.save(tOpts)
+  }
+
   async increaseDelegateReceivedCount(increment: number = 1, tOpts?: SaveOptions) {
     this.delegateReceivedCount = (this.delegateReceivedCount || 0) + increment
+    return await this.save(tOpts)
+  }
+
+  async decreaseDelegateSentCount(decrease: number = 1, tOpts?: SaveOptions) {
+    if (this.delegateSentCount === 0) return this
+    this.delegateSentCount = (this.delegateSentCount || 0) - decrease
     return await this.save(tOpts)
   }
 

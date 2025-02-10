@@ -26,6 +26,7 @@ services:
       - mongo1
       - mongo2
       - mongo3
+      - rabbitmq
     env_file:
       - ./docker.env
     command: bash -c 'yarn wait:db & wait && yarn service:aragon-indexer'
@@ -49,6 +50,7 @@ services:
       - mongo1
       - mongo2
       - mongo3
+      - rabbitmq
     env_file:
       - ./docker.env
     command: bash -c 'yarn wait:db & wait && yarn service:aragon-rates'
@@ -60,6 +62,7 @@ services:
       - mongo1
       - mongo2
       - mongo3
+      - rabbitmq
     env_file:
       - ./docker.env
     command: bash -c 'yarn wait:db & wait && yarn service:aragon-transactions'
@@ -71,9 +74,32 @@ services:
       - mongo1
       - mongo2
       - mongo3
+      - rabbitmq
     env_file:
       - ./docker.env
     command: bash -c 'yarn wait:db & wait && yarn service:aragon-plugins'
+
+  ### Tests
+
+  unit:
+    build:
+      context: ./
+    command: bash -c 'yarn test:unit'
+
+  unit-dep:
+    build:
+      context: ./
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+      - mongo-init-replica
+      - rabbitmq
+    env_file:
+      - ./docker.env
+      - ./test/test.env
+    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn test:unit-dep'
+
 
   ### Dependencies
 
@@ -81,64 +107,71 @@ services:
     image: rabbitmq:management
     container_name: rabbitmq
     ports:
-      - "5672:5672"   # Port for RabbitMQ
-      - "15672:15672" # Port for RabbitMQ Management UI
+      - "5672:5672"
+      - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: user # default username
-      RABBITMQ_DEFAULT_PASS: password # default password
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
 
   mongo1:
     image: mongo:7.0.0
+    container_name: mongo1
+    hostname: mongo1
+    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all" ]
     ports:
-      - '27017:27017'
-    command: ['mongod', '--replSet', 'rs0', '--port', '27017', '--bind_ip_all']
-    healthcheck:
-      test: ['CMD', 'mongosh', '--port', '27017', '--eval', "db.runCommand('ping').ok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - "27017:27017"
+    volumes:
+      - mongo1_data:/data/db
 
   mongo2:
     image: mongo:7.0.0
+    container_name: mongo2
+    hostname: mongo2
+    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all" ]
     ports:
-      - '27018:27017'
-    command: ['mongod', '--replSet', 'rs0', '--port', '27017', '--bind_ip_all']
-    healthcheck:
-      test: ['CMD', 'mongosh', '--port', '27017', '--eval', "db.runCommand('ping').ok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - "27018:27017"
+    volumes:
+      - mongo2_data:/data/db
 
   mongo3:
     image: mongo:7.0.0
+    container_name: mongo3
+    hostname: mongo3
+    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all" ]
     ports:
-      - '27019:27017'
-    command: ['mongod', '--replSet', 'rs0', '--port', '27017', '--bind_ip_all']
-    healthcheck:
-      test: ['CMD', 'mongosh', '--port', '27017', '--eval', "db.runCommand('ping').ok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - "27019:27017"
+    volumes:
+      - mongo3_data:/data/db
 
   mongo-init-replica:
     image: mongo:7.0.0
+    container_name: mongo-init-replica
     depends_on:
       - mongo1
       - mongo2
       - mongo3
+    entrypoint: /bin/bash
     command: >
-      bash -c "
-        echo 'Waiting for MongoDB nodes to be available...';
-        sleep 10;
-        mongosh --host mongo1:27017 --eval '
-          rs.initiate({
-            _id: \"rs0\",
-            members: [
-              { _id: 0, host: \"mongo1:27017\" },
-              { _id: 1, host: \"mongo2:27017\" },
-              { _id: 2, host: \"mongo3:27017\" }
-            ]
-          });
-        ';
-        echo 'Replica set initiated';
+      -c "
+      echo 'Waiting a few seconds for MongoDB nodes to be ready...';
+      sleep 5;
+      echo 'Initializing replica set...';
+      mongosh --host mongo1:27017 --eval '
+        rs.initiate({
+          _id: \"rs0\",
+          members: [
+            { _id: 0, host: \"mongo1:27017\" },
+            { _id: 1, host: \"mongo2:27017\" },
+            { _id: 2, host: \"mongo3:27017\" }
+          ]
+        });
+      ';
+      echo 'Replica set initialized.'
       "
+
+volumes:
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
+
+
