@@ -3,14 +3,12 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Token from '@models/schema/token'
-import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
-import { ITokenType, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import config from '@config'
 import { ProxyToken } from '@modules/proxyToken'
-import Web3Helper from '@helpers/web3'
-import CovalentHelper from '@helpers/covalent'
-import BlockScoutHelper from '@helpers/blockScout'
+
+import TokenUtils from '@helpers/tokenUtils'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
@@ -56,67 +54,19 @@ export const FetchRates = {
 
   async onDocument(token: Token) {
     try {
-      const rawTokenUpdate = {
-        priceChangeOnDayUsd: '0',
-        priceUsd: '0',
-      }
+      const rawTokenUpdate = await TokenUtils.fetchTokenUpdate(token)
+      if (!rawTokenUpdate) return
 
-      const [rawRate, blockScoutInfo] = await Promise.all([
-        RateModule.fetchRate(token.address, token.network),
-        token.type === ITokenType.native
-          ? Promise.resolve(null)
-          : BlockScoutHelper.getTokenFullDetails(token.address, token.network),
-      ])
-
-      // If both source failed to fetch token details, skip the token
-      if (rawRate.decimals === null && !blockScoutInfo) {
-        return
-      }
-
-      // if token rate is available, update the token price
-      if (rawRate.decimals !== null) {
-        Object.assign(rawTokenUpdate, {
-          priceUsd: rawRate.priceUsd,
-          priceChangeOnDayUsd: rawRate.priceChangeOnDayUsd,
-        })
-      }
-
-      // if blockScoutInfo is available, update the token holders and total supply
-      if (blockScoutInfo) {
-        Object.assign(rawTokenUpdate, {
-          holders: blockScoutInfo.holders,
-          totalSupply: blockScoutInfo.totalSupply,
-        })
-      }
-
-      // if blockScoutInfo is not available and token is governance or whitelisted, fetch from covalent
       if (
-        !blockScoutInfo &&
-        (token.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(token.address, token.network))
+        token.priceUsd === rawTokenUpdate.priceUsd &&
+        token.holders === rawTokenUpdate.holders &&
+        token.totalSupply === rawTokenUpdate.totalSupply
       ) {
-        const covalentInfo = await CovalentHelper.getTokenSupplyAndHolders(token.address, token.network)
-        if (covalentInfo.totalSupply !== '0' && covalentInfo.totalHolders !== 0) {
-          Object.assign(rawTokenUpdate, {
-            holders: covalentInfo.totalHolders,
-            totalSupply: covalentInfo.totalSupply,
-          })
-        }
-      }
-
-      // If token rate is available but blockScoutInfo, then update the token price
-      if (rawRate.decimals === null && blockScoutInfo) {
-        Object.assign(rawTokenUpdate, {
-          priceUsd: blockScoutInfo.priceUsd,
-        })
-      }
-
-      // If token price is not 0 and rate is 0, skip the token
-      if (token.priceUsd !== '0' && rawRate.priceUsd === '0') {
         return
       }
 
       // check if to skip fetching rate
-      if (ProxyToken.shouldSkipFetch(token, rawRate)) {
+      if (ProxyToken.shouldSkipFetch(token, rawTokenUpdate as any)) {
         Object.assign(rawTokenUpdate, {
           lastUpdatedAt: dayjs.utc().toDate(),
           skipFetchRate: true,
