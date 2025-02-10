@@ -141,7 +141,9 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubGetTransactionReceipt = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
-      const stuHandleFromReceipt = sandbox.stub(PluginSettingHandler, 'handleFromReceipt').resolves([] as any)
+      const stuHandleFromReceipt = sandbox
+        .stub(PluginSettingHandler, 'handlePluginSettingByType')
+        .resolves(undefined as any)
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const stubFindExistingLog = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
       const PluginSetupProcessorHandlerAggLogStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
@@ -165,7 +167,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(PluginSetupProcessorHandlerAggLogStub.args[0][0]).to.eq(IPluginActionType.installed)
       expect(stubGetTransactionReceipt.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
       expect(stuHandleFromReceipt.calledOnce).to.be.true
-      expect(stuHandleFromReceipt.args[0][1].network).to.eq(logInfo.network)
+      const args = stuHandleFromReceipt.args[0]
+      expect(args[0].interfaceType).to.eq(IPluginInterfaceType.admin)
+      expect(args[1]).to.be.true
+      expect(args[2].network).to.eq(logInfo.network)
 
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
         network: logInfo.network,
@@ -217,7 +222,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         interfaceType: IPluginInterfaceType.spp,
       })
 
-      const stuHandleFromReceipt = sandbox.stub(PluginSettingHandler, 'handleFromReceipt').resolves([1, 2] as any)
+      const fakePlugin = {}
+      const stuHandleFromReceipt = sandbox
+        .stub(PluginSettingHandler, 'handlePluginSettingByType')
+        .resolves(fakePlugin as any)
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
 
       const rabbiMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
@@ -230,8 +238,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
       expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
       expect(stuHandleFromReceipt.calledOnce).to.be.true
-      expect(stuHandleFromReceipt.args[0][1].network).to.eq(logInfo.network)
-
+      const args = stuHandleFromReceipt.args[0]
+      expect(args[0].interfaceType).to.eq(IPluginInterfaceType.spp)
+      expect(args[1]).to.be.true
+      expect(args[2].network).to.eq(logInfo.network)
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
         network: logInfo.network,
         transactionHash: logInfo.transactionHash,
@@ -251,7 +261,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(existingLog.appliedSetupId).to.eq(fakeEvent.args.appliedSetupId)
       expect(existingLog.pluginAddress).to.eq(fakeEvent.args.plugin)
       expect(findByAddressStub.calledOnce).to.be.true
-      expect(rabbiMqStub.calledTwice).to.be.true
+      expect(rabbiMqStub.calledOnce).to.be.true
     })
 
     it('should create new log installationApplied when admin plugin', async () => {
@@ -282,7 +292,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       })
 
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
-      const handleFromReceiptStub = sandbox.stub(PluginSettingHandler, 'handleFromReceipt').resolves([] as any)
+      const handleFromReceiptStub = sandbox.stub(PluginSettingHandler, 'handlePluginSettingByType').resolves([] as any)
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
 
       const rabbiMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
@@ -295,8 +305,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
       expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
       expect(handleFromReceiptStub.calledOnce).to.be.true
-      expect(handleFromReceiptStub.args[0][1].network).to.eq(logInfo.network)
-
+      const args = handleFromReceiptStub.args[0]
+      expect(args[0].interfaceType).to.eq(IPluginInterfaceType.admin)
+      expect(args[1]).to.be.true
+      expect(args[2].network).to.eq(logInfo.network)
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
         network: logInfo.network,
         transactionHash: logInfo.transactionHash,
@@ -349,7 +361,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(LogSpp, 'start')
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
-      const handleFromReceiptStub = sandbox.stub(PluginSettingHandler, 'handleFromReceipt').resolves([] as any)
+      const handleFromReceiptStub = sandbox.stub(PluginSettingHandler, 'handlePluginSettingByType').resolves([] as any)
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
 
       const rabbiMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
@@ -362,7 +374,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
       expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
       expect(handleFromReceiptStub.calledOnce).to.be.true
-      expect(handleFromReceiptStub.args[0][1].network).to.eq(logInfo.network)
+      const args = handleFromReceiptStub.args[0]
+      expect(args[0].interfaceType).to.eq(IPluginInterfaceType.gauge)
+      expect(args[1]).to.be.true
+      expect(args[2].network).to.eq(logInfo.network)
 
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
         network: logInfo.network,
@@ -446,16 +461,20 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const stubFindPlugin = sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
       const findTokenStub = sandbox.stub(PluginSetupProcessorHandler, 'findTokenFromLog').resolves('0xToken')
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ address: '0xToken' } as any)
       const pluginHandlerStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
-      const handleFromReceiptStub = sandbox.stub(PluginSettingHandler, 'handleFromReceipt').resolves([] as any)
+      const handleFromReceiptStub = sandbox
+        .stub(PluginSettingHandler, 'handlePluginSettingByType')
+        .resolves(undefined as any)
 
       await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('Created new document - New InstallationPrepared' as any)).to.be.true
       expect(stubFindDao.calledOnceWith(fakeEvent.args.dao, logInfo.network)).to.be.true
+      expect(stubFindPlugin.calledOnceWith(fakeEvent.args.plugin, logInfo.network)).to.be.true
       expect(findTokenStub.calledOnceWith(fakeEvent.args.plugin, logInfo)).to.be.true
       expect(saveAndGetTokenStub.calledOnceWith('0xToken', logInfo.network)).to.be.true
       expect(pluginHandlerStub.calledOnceWith(IPluginActionType.preInstall)).to.be.true
@@ -488,15 +507,19 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const stubFindPlugin = sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
       const findTokenStub = sandbox.stub(PluginSetupProcessorHandler, 'findTokenFromLog').resolves(null)
       const pluginHandlerStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
-      const handleFromReceiptStub = sandbox.stub(PluginSettingHandler, 'handleFromReceipt').resolves([] as any)
+      const handleFromReceiptStub = sandbox
+        .stub(PluginSettingHandler, 'handlePluginSettingByType')
+        .resolves(undefined as any)
 
       await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
 
       expect(stubLogger.calledOnceWith('Created new document - New InstallationPrepared' as any)).to.be.true
       expect(stubFindDao.calledOnceWith(fakeEvent.args.dao, logInfo.network)).to.be.true
+      expect(stubFindPlugin.calledOnceWith(fakeEvent.args.plugin, logInfo.network)).to.be.true
       expect(findTokenStub.calledOnceWith(fakeEvent.args.plugin, logInfo)).to.be.true
       expect(pluginHandlerStub.calledOnceWith(IPluginActionType.preInstall)).to.be.true
       expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
