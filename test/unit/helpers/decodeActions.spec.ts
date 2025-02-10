@@ -10,12 +10,13 @@ import { ProxyToken } from '@modules/proxyToken'
 import Web3Helper from '@helpers/web3'
 import Covalent from '@helpers/covalent'
 import ProxyContract from '@helpers/proxyContract'
-import Etherscan from '@helpers/etherscan'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import Ipfs from '@modules/ipfs'
+import IPFSModule from '@modules/ipfs'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
-import IPFSModule from '@modules/ipfs'
+import BlockScoutHelper from '@helpers/blockScout'
+import EtherscanHelper from '@helpers/etherscan'
 
 describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
@@ -691,7 +692,7 @@ describe('Helpers: DecodeActions', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      const getContractSourceCode = sandbox.stub(Etherscan, 'fetchContractSourceCode').resolves([
+      const getContractSourceCode = sandbox.stub(decodeActions, '_fetchContractSourceCode').resolves([
         {
           SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
           ContractName: 'IERC20MintableUpgradeable',
@@ -753,7 +754,7 @@ describe('Helpers: DecodeActions', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      const getContractSourceCode = sandbox.stub(Etherscan, 'fetchContractSourceCode').resolves(null)
+      const getContractSourceCode = sandbox.stub(decodeActions, '_fetchContractSourceCode').resolves(null)
       const result = await decodeActions.parseContractNetspec(
         'mint',
         {
@@ -766,6 +767,48 @@ describe('Helpers: DecodeActions', () => {
       expect(result).to.be.null
       expect(getImplementationAddressStub.calledOnce).to.be.true
       expect(getContractSourceCode.calledOnce).to.be.true
+    })
+  })
+
+  describe('_fetchContractSourceCode', () => {
+    it('should fetch contract source code', async () => {
+      const decodeActions = new DecodeActions()
+
+      const getContractSourceCode = sandbox.stub(EtherscanHelper, 'fetchContractSourceCode').resolves([
+        {
+          SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
+          ContractName: 'IERC20MintableUpgradeable',
+          ABI: '[]',
+        },
+      ])
+
+      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getContractSourceCode')
+
+      await decodeActions._fetchContractSourceCode('0xto', NetworksEnum.ethereumMainnet)
+
+      expect(getContractSourceCode.calledOnce).to.be.true
+      expect(getContractSourceCode.args[0][0].contractAddress).to.be.eq('0xto')
+      expect(blockScoutStub.calledOnce).to.be.false
+    })
+
+    it('should fetch contract source code from blockscout if not found', async () => {
+      const decodeActions = new DecodeActions()
+
+      const getContractSourceCode = sandbox.stub(EtherscanHelper, 'fetchContractSourceCode').resolves(null)
+      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getContractSourceCode').resolves([
+        {
+          SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
+          ContractName: 'IERC20MintableUpgradeable',
+          ABI: '[]',
+        },
+      ])
+
+      await decodeActions._fetchContractSourceCode('0xto', NetworksEnum.ethereumMainnet)
+
+      expect(getContractSourceCode.calledOnce).to.be.true
+      expect(blockScoutStub.calledOnce).to.be.true
+      expect(blockScoutStub.args[0][0]).to.be.eq('0xto')
+      expect(blockScoutStub.args[0][1]).to.be.eq(NetworksEnum.ethereumMainnet)
     })
   })
 

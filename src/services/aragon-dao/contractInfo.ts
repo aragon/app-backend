@@ -1,9 +1,7 @@
 import { type IContractAbi, type NetworksEnum } from '@types'
 import ProxyContract from '@helpers/proxyContract'
-import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
-import Etherscan from '@helpers/etherscan'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
+import DecodeActions from '@helpers/decodeAction'
 
 export const ContractInfo = {
   getContractInfo: async (network: NetworksEnum, address: string): Promise<IContractAbi | null> => {
@@ -35,12 +33,9 @@ export const ContractInfo = {
     network: NetworksEnum,
     contractAddress: string,
   ): Promise<{ name: string; functions: any[] } | null> => {
-    const contractDetails = await retryRequest(async () =>
-      BottleneckModule.getNodeLimiter(network)!.schedule(
-        async () => Etherscan.fetchContractSourceCode({ contractAddress, network }),
-        { retryRequest: true },
-      ),
-    )
+    const decodeAction = new DecodeActions()
+
+    const contractDetails = await decodeAction._fetchContractSourceCode(contractAddress, network)
 
     if (!contractDetails?.length || !contractDetails[0].SourceCode) return null
 

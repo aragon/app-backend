@@ -1099,12 +1099,15 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const stubGetTransactionReceipt = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(mockTxReceipt as any)
       const stubFindLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns(mockLogs as any)
-
+      const web3TOkenInfo = sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
+        decimals: 18,
+      } as any)
       const tokenAddress = await PluginSetupProcessorHandler.findTokenFromLog(pluginAddress, logInfo as any)
 
       expect(stubGetTransactionReceipt.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
       expect(stubFindLogsByName.calledOnce).to.be.true
       expect(tokenAddress).to.equal('0xTokenAddress')
+      expect(web3TOkenInfo.calledOnce).to.be.true
     })
 
     it('should return token address from GaugeHelper when not found in logs', async () => {
@@ -1120,6 +1123,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const stubGetTransactionReceipt = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(mockTxReceipt as any)
       const stubFindLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns(mockLogs as any)
       const stubGetTokenAddress = sandbox.stub(GaugeHelper, 'getTokenAddress').resolves('0xGaugeTokenAddress')
+
+      sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
+        decimals: 18,
+      } as any)
 
       const tokenAddress = await PluginSetupProcessorHandler.findTokenFromLog(pluginAddress, logInfo as any)
 
