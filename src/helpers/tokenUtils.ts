@@ -1,9 +1,10 @@
 import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
-import { ITokenType, type ITokenUpdate } from '@types'
+import { ITokenType, type ITokenUpdate, type NetworksEnum } from '@types'
 import BlockScoutHelper from '@helpers/blockScout'
 import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
+import { ProxyToken } from '@modules/proxyToken'
 
 const firstValid = <T>(...values: (T | null | undefined | '0' | 0)[]): T | null => {
   for (const v of values) {
@@ -64,7 +65,21 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
   }
 }
 
+const isTokenSyncable = async (tokenAddress: string, network: NetworksEnum): Promise<boolean> => {
+  const web3TokenDetails = await Web3Helper.getTokenInfo(tokenAddress, network)
+  if (web3TokenDetails.name && web3TokenDetails.symbol) {
+    return !ProxyToken.analyzeIfScamToken(web3TokenDetails.name, web3TokenDetails.symbol)
+  }
+
+  const blockScoutDetails = await BlockScoutHelper.getTokenFullDetails(tokenAddress, network)
+  if (blockScoutDetails && blockScoutDetails.type !== ITokenType.unknown) {
+    return !ProxyToken.analyzeIfScamToken(blockScoutDetails.name! || '', blockScoutDetails.symbol! || '')
+  }
+  return false
+}
+
 export default {
   fetchTokenUpdate,
   firstValid,
+  isTokenSyncable,
 }

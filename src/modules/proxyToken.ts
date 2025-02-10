@@ -167,7 +167,7 @@ export const ProxyToken = {
     }
 
     if (tokenRate.decimals === null || !tokenRate.name || !tokenRate.symbol) {
-      const onChainTokenInfo = await Web3Helper.getTokenDetails(tokenAddress, network)
+      const onChainTokenInfo = await Web3Helper.getTokenInfo(tokenAddress, network)
       Object.assign(tokenRate, onChainTokenInfo)
     }
 
