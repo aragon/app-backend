@@ -281,7 +281,7 @@ export const GovernanceErc20Handler = {
         info,
       )
 
-      const { from, to } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
+      const { from, to, delegator } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
 
       if (from === utils.zeroAddress || to === utils.zeroAddress || from === to) {
         // Note we skip all delegation happened on transfer, mint, burn, etc
@@ -326,30 +326,59 @@ export const GovernanceErc20Handler = {
         logger.verbose('Transfer outgoing - MemberTransaction', llo({ logId: logDb?.id, info }))
       })
 
-      await Promise.all(
-        plugins.map(async (plg: Plugin) => {
-          if (side === ITransferSide.incoming) {
-            await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
-              memberAddress,
-              pluginAddress: plg.address,
-              network: plg.network,
-            })
-          } else if (side === ITransferSide.outgoing) {
-            await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
-              memberAddress,
-              pluginAddress: plg.address,
-              network: plg.network,
-            })
-          }
+      if (delegator !== utils.zeroAddress && delegator !== to) {
+        // increase
+        await Promise.all(
+          plugins.map(async (plg: Plugin) => {
+            if (side === ITransferSide.incoming) {
+              await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
+                memberAddress,
+                pluginAddress: plg.address,
+                network: plg.network,
+              })
+            } else if (side === ITransferSide.outgoing) {
+              await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
+                memberAddress,
+                pluginAddress: plg.address,
+                network: plg.network,
+              })
+            }
 
-          await ProxyMember.updateActivity({
-            memberAddress,
-            pluginAddress: plg.address,
-            network: info.network,
-            blockNumber: info.blockNumber,
-          })
-        }),
-      )
+            await ProxyMember.updateActivity({
+              memberAddress,
+              pluginAddress: plg.address,
+              network: info.network,
+              blockNumber: info.blockNumber,
+            })
+          }),
+        )
+      } else if (delegator !== utils.zeroAddress && delegator === to) {
+        // it means that it's revoking the delegation
+        await Promise.all(
+          plugins.map(async (plg: Plugin) => {
+            if (side === ITransferSide.incoming) {
+              await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateSentCount, {
+                memberAddress,
+                pluginAddress: plg.address,
+                network: plg.network,
+              })
+            } else if (side === ITransferSide.outgoing) {
+              await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateReceivedCount, {
+                memberAddress,
+                pluginAddress: plg.address,
+                network: plg.network,
+              })
+            }
+
+            await ProxyMember.updateActivity({
+              memberAddress,
+              pluginAddress: plg.address,
+              network: info.network,
+              blockNumber: info.blockNumber,
+            })
+          }),
+        )
+      }
     } catch (error) {
       logger.error('DelegateVotesChanged - error', llo({ error, parsedEvent, info }))
     }
@@ -358,6 +387,7 @@ export const GovernanceErc20Handler = {
   _findDelegatorsFromReceipt: async (parsedEvent: LogDescription, info: ILogInfo) => {
     let from = utils.zeroAddress
     let to = utils.zeroAddress
+    let delegator = utils.zeroAddress
 
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
 
@@ -374,6 +404,10 @@ export const GovernanceErc20Handler = {
           parsed?.args?.toDelegate === parsedEvent?.args?.delegate,
       )
 
+      if (log?.parsed?.args?.delegator) {
+        delegator = log?.parsed?.args.delegator
+      }
+
       if (log?.parsed?.args?.fromDelegate) {
         from = log.parsed.args.fromDelegate
       }
@@ -383,6 +417,6 @@ export const GovernanceErc20Handler = {
       }
     }
 
-    return { from, to }
+    return { from, to, delegator }
   },
 }
