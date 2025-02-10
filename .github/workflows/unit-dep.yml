@@ -6,36 +6,64 @@ on:
       - 'development'
       - 'staging'
       - 'main'
-
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
         uses: actions/checkout@v3
 
-      - name: Install dependencies
-        run: yarn install --pure-lockfile
-
-      - name: Build Docker image
+      - name: Set variables
+        id: set-variables
         run: |
-          docker compose -f docker-compose.yml build unit-dep
+          echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_dev/username" >> $GITHUB_ENV
+          echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_dev/URL" >> $GITHUB_ENV
+          echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_dev/deploy_backend2_dev" >> $GITHUB_ENV
+          echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
+          echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
 
-  dep-tests:
-    runs-on: ubuntu-latest
-    needs: build  # Ensure this job waits until the build job completes
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v3
+      - name: Load secrets
+        id: op-server-secrets
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
+          SERVER_USERNAME: ${{ env.OP_SERVER_USERNAME }}
+          SERVER_URL: ${{ env.OP_SERVER_URL }}
+
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v1
+        with:
+          version: latest-beta
+
+      - name: Download certfile
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
+          SERVER_CERT: ${{ env.OP_SERVER_CERT }}
+        run: |
+          mkdir ~/.ssh/ -p
+          op read ${{ env.SERVER_CERT }} > ~/.ssh/id_rsa
+          chmod 400 ~/.ssh/id_rsa
+
+      - name: Download config files
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS] }}
+        run: |
+          ls
+          op item get "configs_unit_dep" --vault temporal_backend2 --format json | jq -r '.fields[] | select(.value != null) | .value' > temp_env
+          cat temp_env >> test/test.env
 
       - name: Install dependencies
         run: yarn install --pure-lockfile
 
-      - name: Run Dep Tests
+      - name: Build & run unit-dep tests
         run: |
           docker compose -f docker-compose.yml up \
             --exit-code-from unit-dep \
-            --abort-on-container-exit
+            --abort-on-container-exit \
+            --build unit-dep
 
       - name: Teardown containers
-        run: docker compose -f docker-compose.yml down
+        run: |
+          docker compose -f docker-compose.yml down
