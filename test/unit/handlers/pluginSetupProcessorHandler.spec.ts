@@ -16,6 +16,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import { IPluginActionType } from '@types'
 import DbOperations from '@models/utils/dbOperations'
 import GaugeHelper from '@helpers/gauge'
+import TokenUtils from '@helpers/tokenUtils'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -1099,9 +1100,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const stubGetTransactionReceipt = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(mockTxReceipt as any)
       const stubFindLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns(mockLogs as any)
-      const web3TOkenInfo = sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
-        decimals: 18,
-      } as any)
+      const web3TOkenInfo = sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       const tokenAddress = await PluginSetupProcessorHandler.findTokenFromLog(pluginAddress, logInfo as any)
 
       expect(stubGetTransactionReceipt.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
@@ -1124,9 +1123,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const stubFindLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns(mockLogs as any)
       const stubGetTokenAddress = sandbox.stub(GaugeHelper, 'getTokenAddress').resolves('0xGaugeTokenAddress')
 
-      sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
-        decimals: 18,
-      } as any)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
 
       const tokenAddress = await PluginSetupProcessorHandler.findTokenFromLog(pluginAddress, logInfo as any)
 

@@ -20,6 +20,7 @@ import DbOperations from '@models/utils/dbOperations'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import GaugeHelper from '@helpers/gauge'
+import TokenUtils from '@helpers/tokenUtils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
 
@@ -354,10 +355,7 @@ export const PluginSetupProcessorHandler = {
       }
 
       if (tokenAddress) {
-        const web3TokenInfo = await Web3Helper.getTokenDetails(tokenAddress, info.network)
-
-        tokenAddress = web3TokenInfo.decimals === null ? null : tokenAddress
-        return tokenAddress
+        return (await TokenUtils.isTokenSyncable(tokenAddress, info.network)) ? tokenAddress : null
       }
     } catch (error) {
       logger.error('Error finding token from log', llo({ pluginAddress, info, error }))

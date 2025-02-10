@@ -7,6 +7,7 @@ import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
 import { ITokenType, NetworksEnum } from '@types'
 import type Token from '@models/schema/token'
+import { ProxyToken } from '@modules/proxyToken'
 
 describe('fetchTokenUpdate', () => {
   let sandbox: SinonSandbox
@@ -141,5 +142,67 @@ describe('fetchTokenUpdate', () => {
 
     const result = await TokenUtils.fetchTokenUpdate(baseToken)
     expect(result).to.be.null
+  })
+
+  describe('isTokenSyncable', () => {
+    let isTokenScamStub: sinon.SinonStub
+
+    beforeEach(() => {
+      isTokenScamStub = sandbox.stub(ProxyToken, 'analyzeIfScamToken').returns(false)
+    })
+
+    it('should return true if Web3Helper returns valid token details', async () => {
+      sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
+        name: 'TokenName',
+        symbol: 'TKN',
+      } as any)
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.equal(true)
+      expect(blockScoutStub.notCalled).to.be.true
+    })
+
+    it('should return true if BlockScoutHelper returns valid token details', async () => {
+      sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
+        name: undefined,
+        symbol: 'Te',
+      } as any)
+
+      blockScoutStub.resolves({
+        type: 'ERC-20',
+        name: 'TokenName',
+        symbol: 'TKN',
+      } as any)
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.eq(true)
+    })
+
+    it('should return false if both Web3Helper and BlockScoutHelper return invalid token details', async () => {
+      sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
+        name: undefined,
+        symbol: undefined,
+      } as any)
+
+      blockScoutStub.resolves(null)
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.false
+    })
+
+    it('should return false if Web3Helper returns missing details and BlockScout returns unknown type', async () => {
+      sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
+        name: '',
+        symbol: '',
+      } as any)
+      blockScoutStub.resolves({
+        type: ITokenType.unknown,
+      } as any)
+      sandbox.stub(BlockScoutHelper, 'parseTokenType').returns(ITokenType.unknown)
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.be.false
+    })
   })
 })

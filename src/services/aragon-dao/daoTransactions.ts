@@ -18,6 +18,7 @@ import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 import { DAO } from '@artifacts/dao'
 import { Multisig } from '@artifacts/Multisig'
+import TokenUtils from '@helpers/tokenUtils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
 
@@ -137,11 +138,8 @@ export const DaoTransactions = {
       }
 
       if (tx.rawContract?.address) {
-        const onChainTokenInfo = await Web3Helper.getTokenDetails(tx.rawContract?.address, dao.network)
-        if (
-          onChainTokenInfo.decimals === null ||
-          ProxyToken.analyzeIfScamToken(onChainTokenInfo.name!, onChainTokenInfo.symbol!)
-        ) {
+        const isTokenSyncable = await TokenUtils.isTokenSyncable(tx.rawContract?.address, dao.network)
+        if (!isTokenSyncable) {
           logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: tx.rawContract?.address }))
 
           return
