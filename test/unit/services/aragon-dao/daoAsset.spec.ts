@@ -141,7 +141,7 @@ describe('AragonDao:Assets', () => {
       expect(web3TokenDetailStub.args[1][0]).to.be.eq(fakeToken2.address)
 
       expect(loggerWarn.callCount).to.equal(1)
-      expect(saveAndGetProxyToken.callCount).to.equal(2)
+      expect(saveAndGetProxyToken.callCount).to.equal(3)
     })
 
     it('should update existing assets for a DAO', async () => {
