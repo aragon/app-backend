@@ -171,6 +171,8 @@ export const ProxyMember = {
       [IMetricAction.increaseVoteCount]: metrics.increaseVoteCount,
       [IMetricAction.increaseDelegateReceivedCount]: metrics.increaseDelegateReceivedCount,
       [IMetricAction.increaseDelegateSentCount]: metrics.increaseDelegateSentCount,
+      [IMetricAction.decreaseDelegateReceivedCount]: metrics.decreaseDelegateReceivedCount,
+      [IMetricAction.decreaseDelegateSentCount]: metrics.decreaseDelegateSentCount,
     }
 
     const metricUpdateFn = metricActionsMap[metricAction]

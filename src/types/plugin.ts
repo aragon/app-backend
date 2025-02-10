@@ -32,6 +32,12 @@ export enum IPluginSlug {
   spp = 'core',
 }
 
+export enum IEventLogPluginSettings {
+  MultisigSettingsUpdated = 'MultisigSettingsUpdated',
+  VotingSettingsUpdated = 'VotingSettingsUpdated',
+  StagesUpdated = 'StagesUpdated',
+}
+
 export enum IPluginInterfaceType {
   tokenVoting = 'tokenVoting',
   multisig = 'multisig',
