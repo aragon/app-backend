@@ -73,7 +73,7 @@ export const DaoAssets = {
         tokenBalances
           .filter(token => Number(token.tokenBalance) > 0)
           .map(async (token: IAlchemyTokenBalance) => {
-            const tokenOnchainInfo = await Web3Helper.getTokenDetails(utils.zeroAddress, document.network)
+            const tokenOnchainInfo = await Web3Helper.getTokenDetails(token.contractAddress!, document.network)
             if (
               tokenOnchainInfo.decimals === null ||
               ProxyToken.analyzeIfScamToken(tokenOnchainInfo.name!, tokenOnchainInfo.symbol!)

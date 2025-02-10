@@ -122,7 +122,7 @@ describe('AragonDao:Assets', () => {
       const web3TokenDetailStub = sandbox
         .stub(Web3Helper, 'getTokenDetails')
         .onCall(0)
-        .resolves({ decimals: 18 } as any)
+        .resolves({ decimals: 18, name: fakeToken1.name, symbol: fakeToken1.symbol } as any)
         .onCall(1)
         .resolves({ decimals: null } as any)
         .onCall(2)
@@ -141,7 +141,10 @@ describe('AragonDao:Assets', () => {
       expect(stubLogger.calledWithMatch('New Token Asset' as any)).to.be.true
       expect(createStub.callCount).to.equal(2)
       expect(web3TokenDetailStub.callCount).to.equal(3)
+      expect(web3TokenDetailStub.args[0][0]).to.be.eq(fakeToken1.address)
+      expect(web3TokenDetailStub.args[1][0]).to.be.eq(fakeToken2.address)
       expect(scamDetectorStub.callCount).to.equal(2)
+      expect(scamDetectorStub.args[0][0]).to.be.eq(fakeToken1.name)
       expect(loggerWarn.callCount).to.equal(2)
       expect(saveAndGetProxyToken.callCount).to.equal(2)
     })
