@@ -11,7 +11,7 @@ import { Models } from '@dbModels'
 import { expect } from 'chai'
 import BlockScoutHelper from '@helpers/blockScout'
 import { RateModule } from '@modules/rates'
-import logger from "@logger";
+import logger from '@logger'
 
 describe('Integration: Plugin Setup SPP', () => {
   let sandbox: SinonSandbox
@@ -32,7 +32,7 @@ describe('Integration: Plugin Setup SPP', () => {
     this.timeout(10000000)
     const daoCreationTxHash = '0x2a47f99a78b147abb325eb14060b0ed4ba665d6a9d40d7c1a7d145e62c2f755f'
     const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-    sandbox.stub(logger,"verbose")
+    sandbox.stub(logger, 'verbose')
     sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
       decimals: 18,
       name: 'Wrapped Ether',
@@ -100,14 +100,14 @@ describe('Integration: Plugin Setup SPP', () => {
     expect(adminPluginTxHash).to.not.be.null
 
     rabbitMqStub.callsFake(async (queue: string, message: any) => {
-      if(queue === 'log.plugins') {
+      if (queue === 'log.plugins') {
         const plugin = await Models.Plugin.findOne({ address: message.params.address })
         console.log(`Plugin Syncing ${plugin!.interfaceType}, ${plugin!.address}`)
       }
     })
 
     const adminPluginInstallationLogs: any = []
-    let pluginCount = 1; //admin plugin counts as 1
+    let pluginCount = 1 //admin plugin counts as 1
 
     for (const { txHash } of adminPluginTxHash.reverse()) {
       const prepareLogs = await UnitDepUtils.getData(
@@ -154,7 +154,7 @@ describe('Integration: Plugin Setup SPP', () => {
 
     await Promise.all(
       plugins.map(async (plugin: any) => {
-        if(plugin.interfaceType === IPluginInterfaceType.admin) {
+        if (plugin.interfaceType === IPluginInterfaceType.admin) {
           return
         }
         const activeSetting = await Models.Setting.findActive({
@@ -163,8 +163,7 @@ describe('Integration: Plugin Setup SPP', () => {
           network: plugin.network,
         })
         expect(activeSetting).to.not.be.null
-      })
+      }),
     )
-
   })
 })
