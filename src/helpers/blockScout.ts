@@ -206,6 +206,20 @@ const BlockScoutHelper = {
 
     return toReturn
   },
+
+  async getTransactionOfAnAddress(address: HexAddress, network: NetworksEnum) {
+    try {
+      const params = {
+        apikey: BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_KEY,
+      }
+      const results = await BlockScoutHelper._rpCall(`addresses/${address}/transactions`, params, network)
+      if (results.items.length) {
+        return results.items.map((item: any) => ({ txHash: item.hash }))
+      }
+    } catch (error) {
+      logger.warn('Error getTransactionOfAnAddress', llo({ error }))
+    }
+  },
 }
 
 export default BlockScoutHelper

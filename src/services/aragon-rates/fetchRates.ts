@@ -73,6 +73,7 @@ export const FetchRates = {
         return
       }
 
+      // if token rate is available, update the token price
       if (rawRate.decimals !== null) {
         Object.assign(rawTokenUpdate, {
           priceUsd: rawRate.priceUsd,
@@ -80,6 +81,7 @@ export const FetchRates = {
         })
       }
 
+      // if blockScoutInfo is available, update the token holders and total supply
       if (blockScoutInfo) {
         Object.assign(rawTokenUpdate, {
           holders: blockScoutInfo.holders,
@@ -87,6 +89,7 @@ export const FetchRates = {
         })
       }
 
+      // if blockScoutInfo is not available and token is governance or whitelisted, fetch from covalent
       if (
         !blockScoutInfo &&
         (token.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(token.address, token.network))
@@ -100,6 +103,7 @@ export const FetchRates = {
         }
       }
 
+      // If token rate is available but blockScoutInfo, then update the token price
       if (rawRate.decimals === null && blockScoutInfo) {
         Object.assign(rawTokenUpdate, {
           priceUsd: blockScoutInfo.priceUsd,
@@ -111,6 +115,7 @@ export const FetchRates = {
         return
       }
 
+      // check if to skip fetching rate
       if (ProxyToken.shouldSkipFetch(token, rawRate)) {
         Object.assign(rawTokenUpdate, {
           lastUpdatedAt: dayjs.utc().toDate(),

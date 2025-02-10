@@ -460,4 +460,43 @@ describe('Helpers: BlockScout', () => {
       expect(loggerStub.calledWith('Error getContractProxy' as any)).to.be.true
     })
   })
+
+  describe('getTransactionOfAnAddress', () => {
+    it('Should get transaction of an address', async () => {
+      const expectedResult = { items: [{ hash: '0x1234567890' }] }
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
+      const result = await BlockScoutHelper.getTransactionOfAnAddress('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq([{ txHash: '0x1234567890' }])
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          `addresses/0x1234567890/transactions`,
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should handle errors in getTransactionOfAnAddress', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').rejects(expectedResult)
+      const loggerStub = sandbox.stub(logger, 'warn')
+      try {
+        await BlockScoutHelper.getTransactionOfAnAddress('0x1234567890', NetworksEnum.ethereumMainnet)
+      } catch (error) {
+        expect(error).to.eq(expectedResult)
+        expect(loggerStub.calledOnce).to.be.true
+      }
+
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          `addresses/0x1234567890/transactions`,
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+      expect(loggerStub.calledWith('Error getTransactionOfAnAddress' as any)).to.be.true
+    })
+  })
 })
