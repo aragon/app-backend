@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo, IPluginInterfaceType, ISettingStatus, ITokenType } from '@types'
+import { type ILogInfo, IPluginInterfaceType, ISettingStatus, ITokenType, IEventLogPluginSettings } from '@types'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import type Plugin from '@models/schema/plugin'
@@ -20,41 +20,39 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:Plugi
 // TokenVoting: setting is triggered on installationPrepared
 // Multisig: setting is triggered on installationPrepared
 // SPP: setting is triggered on installationApplied
-
 export const PluginSettingHandler = {
-  handleFromReceipt: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
-    const multisigSettings = Web3Helper.findLogsByName(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
-    const plugins: Plugin[] = []
-
-    if (multisigSettings?.length > 0) {
-      for (const multisigSetting of multisigSettings) {
-        const infoPluginSetup = Web3Helper.parseInfoLog(multisigSetting.txLog, 'MultisigSettingsUpdated', info.network)
-        const plugin = await PluginSettingHandler.multisigSettingsUpdated(multisigSetting.parsed!, infoPluginSetup)
-        if (plugin) plugins.push(plugin)
-      }
+  handlePluginSettingByType: async (plugin: Plugin, txReceipt: TransactionReceipt, info: ILogInfo) => {
+    let abi: any
+    let eventName: IEventLogPluginSettings
+    let handler: (parsedEvent: LogDescription, info: ILogInfo) => Promise<Plugin | undefined>
+    switch (plugin.interfaceType) {
+      case IPluginInterfaceType.tokenVoting:
+        abi = TokenVoting.abi
+        eventName = IEventLogPluginSettings.VotingSettingsUpdated
+        handler = PluginSettingHandler.votingSettingsUpdated
+        break
+      case IPluginInterfaceType.multisig:
+        abi = Multisig.abi
+        eventName = IEventLogPluginSettings.MultisigSettingsUpdated
+        handler = PluginSettingHandler.multisigSettingsUpdated
+        break
+      case IPluginInterfaceType.spp:
+        abi = StagedProposalProcessor.abi
+        eventName = IEventLogPluginSettings.StagesUpdated
+        handler = PluginSettingHandler.sppSettingsUpdated
+        break
+      default:
+        logger.warn('Plugin is not a supported type', llo(info))
+        return
     }
 
-    const votingSettings = Web3Helper.findLogsByName(txReceipt, 'VotingSettingsUpdated', TokenVoting.abi)
-
-    if (votingSettings?.length > 0) {
-      for (const votingSetting of votingSettings) {
-        const infoPluginSetup = Web3Helper.parseInfoLog(votingSetting.txLog, 'VotingSettingsUpdated', info.network)
-        const plugin = await PluginSettingHandler.votingSettingsUpdated(votingSetting.parsed!, infoPluginSetup)
-        if (plugin) plugins.push(plugin)
-      }
+    const settingLogs = Web3Helper.findLogsByName(txReceipt, eventName, abi)
+    const settingLog = settingLogs?.find(log => log?.txLog?.address === plugin.address)
+    if (settingLog) {
+      const infoPluginSetup = Web3Helper.parseInfoLog(settingLog.txLog, eventName, info.network)
+      const plugin = await handler(settingLog.parsed!, infoPluginSetup)
+      if (plugin) return plugin
     }
-
-    const sppSettings = Web3Helper.findLogsByName(txReceipt, 'StagesUpdated', StagedProposalProcessor.abi)
-
-    if (sppSettings?.length > 0) {
-      for (const sppSetting of sppSettings) {
-        const infoPluginSetup = Web3Helper.parseInfoLog(sppSetting.txLog, 'StagesUpdated', info.network)
-        const plugin = await PluginSettingHandler.sppSettingsUpdated(sppSetting.parsed!, infoPluginSetup)
-        if (plugin) plugins.push(plugin)
-      }
-    }
-
-    return plugins
   },
 
   votingSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
