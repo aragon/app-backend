@@ -470,8 +470,8 @@ describe('Helpers: BlockScout', () => {
       expect(rpCallStub.calledOnce).to.be.true
       expect(
         rpCallStub.calledWith(
-          'transactions',
-          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY, q: '0x1234567890' },
+          `addresses/0x1234567890/transactions`,
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
           NetworksEnum.ethereumMainnet,
         ),
       ).to.be.true
@@ -491,8 +491,8 @@ describe('Helpers: BlockScout', () => {
       expect(rpCallStub.calledOnce).to.be.true
       expect(
         rpCallStub.calledWith(
-          'transactions',
-          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY, q: '0x1234567890' },
+          `addresses/0x1234567890/transactions`,
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
           NetworksEnum.ethereumMainnet,
         ),
       ).to.be.true
