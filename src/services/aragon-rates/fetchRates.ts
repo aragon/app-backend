@@ -3,14 +3,11 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Token from '@models/schema/token'
-import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
-import { ITokenType, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import config from '@config'
 import { ProxyToken } from '@modules/proxyToken'
-import Web3Helper from '@helpers/web3'
-import CovalentHelper from '@helpers/covalent'
-import BlockScoutHelper from '@helpers/blockScout'
+
 import TokenUtils from '@helpers/tokenUtils'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
