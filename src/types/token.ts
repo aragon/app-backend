@@ -67,3 +67,10 @@ export interface ITokenMetadata {
   logo: string
   type: ITokenType
 }
+
+export interface ITokenUpdate {
+  priceUsd: string
+  priceChangeOnDayUsd: string
+  holders: number
+  totalSupply: string
+}

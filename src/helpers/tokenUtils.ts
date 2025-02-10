@@ -1,16 +1,9 @@
 import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
-import { ITokenType } from '@types'
+import { ITokenType, type ITokenUpdate } from '@types'
 import BlockScoutHelper from '@helpers/blockScout'
 import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
-
-interface ITokenUpdate {
-  priceUsd: string
-  priceChangeOnDayUsd: string
-  holders: number
-  totalSupply: string
-}
 
 const firstValid = <T>(...values: (T | null | undefined | '0' | 0)[]): T | null => {
   for (const v of values) {
