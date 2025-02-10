@@ -152,7 +152,7 @@ describe('fetchTokenUpdate', () => {
     })
 
     it('should return true if Web3Helper returns valid token details', async () => {
-      sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
+      sandbox.stub(Web3Helper, 'getTokenNameAndSymbol').resolves({
         name: 'TokenName',
         symbol: 'TKN',
       } as any)
@@ -164,7 +164,7 @@ describe('fetchTokenUpdate', () => {
     })
 
     it('should return true if BlockScoutHelper returns valid token details', async () => {
-      sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
+      sandbox.stub(Web3Helper, 'getTokenNameAndSymbol').resolves({
         name: undefined,
         symbol: 'Te',
       } as any)
@@ -181,7 +181,7 @@ describe('fetchTokenUpdate', () => {
     })
 
     it('should return false if both Web3Helper and BlockScoutHelper return invalid token details', async () => {
-      sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
+      sandbox.stub(Web3Helper, 'getTokenNameAndSymbol').resolves({
         name: undefined,
         symbol: undefined,
       } as any)
@@ -193,7 +193,7 @@ describe('fetchTokenUpdate', () => {
     })
 
     it('should return false if Web3Helper returns missing details and BlockScout returns unknown type', async () => {
-      sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
+      sandbox.stub(Web3Helper, 'getTokenNameAndSymbol').resolves({
         name: '',
         symbol: '',
       } as any)
