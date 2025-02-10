@@ -916,6 +916,53 @@ const Web3Helper = {
     }
   },
 
+  async getTokenNameAndSymbol(tokenAddress: string, network: NetworksEnum) {
+    const tokenDetails = {
+      name: null,
+      symbol: null,
+    }
+
+    try {
+      const coreProvider = await ProviderModule.getCoreProvider(network)
+      const iface = new Interface(ERC20.abi)
+      const functions = ['name', 'symbol']
+
+      const requestCalls = functions.map((functionName: string) => {
+        return coreProvider._send(
+          'eth_call',
+          [
+            {
+              to: tokenAddress,
+              data: iface.encodeFunctionData(functionName, []),
+            },
+          ],
+          'eth_call',
+          true,
+        )
+      })
+
+      const response = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => await Promise.all(requestCalls)),
+      )
+
+      const responseOnChain = response.reduce((acc: any, call: any, index: number) => {
+        return {
+          ...acc,
+          [functions[index]]: iface.decodeFunctionResult(functions[index], call)[0],
+        }
+      }, {})
+
+      Object.assign(tokenDetails, {
+        name: responseOnChain.name,
+        symbol: responseOnChain.symbol,
+      })
+
+      return tokenDetails
+    } catch (_e) {
+      return tokenDetails
+    }
+  },
+
   async getTokenDetails(tokenAddress: string, network: NetworksEnum) {
     const tokenDetails = {
       name: null,

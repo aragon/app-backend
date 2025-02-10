@@ -1568,6 +1568,51 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('getTokenNameAndSymbol', () => {
+    let providerStub: any
+    let iface: Interface
+
+    beforeEach(() => {
+      providerStub = {
+        _send: sandbox.stub(),
+      }
+      iface = new Interface(ERC20.abi)
+
+      // Stub out each call for name and symbol
+      providerStub._send
+        .onCall(0)
+        .resolves(iface.encodeFunctionResult('name', ['MyToken']))
+        .onCall(1)
+        .resolves(iface.encodeFunctionResult('symbol', ['MTK']))
+
+      sandbox.stub(ProviderModule, 'getCoreProvider').resolves(providerStub)
+    })
+
+    it('should get token name and symbol', async () => {
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+      const fakeTokenAddress = '0xTokenAddress'
+
+      const result = await Web3Helper.getTokenNameAndSymbol(fakeTokenAddress, fakeNetwork)
+      expect(providerStub._send.callCount).to.equal(2)
+      expect(result.name).to.equal('MyToken')
+      expect(result.symbol).to.equal('MTK')
+    })
+
+    it('should return empty name and symbol on error', async () => {
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+      const fakeTokenAddress = '0xTokenAddress'
+
+      providerStub._send.onCall(0).rejects(new Error('fake-error'))
+      let result: any
+      try {
+        result = await Web3Helper.getTokenNameAndSymbol(fakeTokenAddress, fakeNetwork)
+      } catch (_e) {}
+      expect(providerStub._send.callCount).to.equal(2)
+      expect(result.name).to.equal(null)
+      expect(result.symbol).to.equal(null)
+    })
+  })
+
   describe('getTokenDetails', () => {
     let providerStub: any
     let iface: Interface
