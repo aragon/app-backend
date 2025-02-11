@@ -141,7 +141,6 @@ export const DaoTransactions = {
         const isTokenSyncable = await TokenUtils.isTokenSyncable(tx.rawContract?.address, dao.network)
         if (!isTokenSyncable) {
           logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: tx.rawContract?.address }))
-
           return
         }
       }

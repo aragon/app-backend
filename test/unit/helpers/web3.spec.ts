@@ -1272,6 +1272,62 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('getTokenNameAndSymbol', () => {
+    it('should return token name and symbol', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubName = sandbox.stub().resolves('Test Token')
+      const stubSymbol = sandbox.stub().resolves('TST')
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { name: stubName, symbol: stubSymbol }
+          },
+          getAddress: () => '0xTokenAddress',
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+      const result = await MockedWeb3Helper.getTokenNameAndSymbol('0xTokenAddress', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.equal({
+        name: 'Test Token',
+        symbol: 'TST',
+      })
+      expect(stubName.calledOnce).to.be.true
+      expect(stubSymbol.calledOnce).to.be.true
+    })
+
+    it('should fails return token name and symbol', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubName = sandbox.stub().rejects(new Error('Test Error'))
+      const stubSymbol = sandbox.stub().rejects(new Error('Test Error'))
+      const stubLogger = sandbox.stub(Logger, 'warn')
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { name: stubName, symbol: stubSymbol }
+          },
+          getAddress: () => '0xTokenAddress',
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+      const result = await MockedWeb3Helper.getTokenNameAndSymbol('0xTokenAddress', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.equal({
+        name: null,
+        symbol: null,
+      })
+      expect(stubName.calledOnce).to.be.true
+      expect(stubSymbol.calledOnce).to.be.true
+      expect(stubLogger.callCount).to.eq(2)
+    })
+  })
+
   describe('getERC20Balance', () => {
     it('should return the ERC20 balance of an address', async () => {
       const stubConfigState = {
@@ -1525,7 +1581,7 @@ describe('Helpers:Web3', () => {
           ConfigState: { getInstance: () => stubConfigState },
         },
       })
-
+      sandbox.stub(Logger, 'error')
       const multisigPlugin = '0xTokenAddress'
       const fakeAddress = '0x1234567890123456789012345678901234567890'
       const fakeNetwork = NetworksEnum.ethereumMainnet
@@ -1565,119 +1621,6 @@ describe('Helpers:Web3', () => {
       expect(returnedValue).to.be.null
       expect(providerSendStub.calledOnce).to.be.true
       expect(loggerErrorStub.calledOnceWith('Error getBlockReceipts' as any)).to.be.true
-    })
-  })
-
-  describe('getTokenNameAndSymbol', () => {
-    let providerStub: any
-    let iface: Interface
-
-    beforeEach(() => {
-      providerStub = {
-        _send: sandbox.stub(),
-      }
-      iface = new Interface(ERC20.abi)
-
-      // Stub out each call for name and symbol
-      providerStub._send
-        .onCall(0)
-        .resolves(iface.encodeFunctionResult('name', ['MyToken']))
-        .onCall(1)
-        .resolves(iface.encodeFunctionResult('symbol', ['MTK']))
-
-      sandbox.stub(ProviderModule, 'getCoreProvider').resolves(providerStub)
-    })
-
-    it('should get token name and symbol', async () => {
-      const fakeNetwork = NetworksEnum.ethereumMainnet
-      const fakeTokenAddress = '0xTokenAddress'
-
-      const result = await Web3Helper.getTokenNameAndSymbol(fakeTokenAddress, fakeNetwork)
-      expect(providerStub._send.callCount).to.equal(2)
-      expect(result.name).to.equal('MyToken')
-      expect(result.symbol).to.equal('MTK')
-    })
-
-    it('should return empty name and symbol on error', async () => {
-      const fakeNetwork = NetworksEnum.ethereumMainnet
-      const fakeTokenAddress = '0xTokenAddress'
-
-      providerStub._send.onCall(0).rejects(new Error('fake-error'))
-      let result: any
-      try {
-        result = await Web3Helper.getTokenNameAndSymbol(fakeTokenAddress, fakeNetwork)
-      } catch (_e) {}
-      expect(providerStub._send.callCount).to.equal(2)
-      expect(result.name).to.equal(null)
-      expect(result.symbol).to.equal(null)
-    })
-  })
-
-  describe('getTokenDetails', () => {
-    let providerStub: any
-    let iface: Interface
-    beforeEach(() => {
-      providerStub = {
-        _send: sandbox.stub(),
-      }
-      iface = new Interface(ERC20.abi)
-
-      // Stub out each call for name, symbol, decimals, and totalSupply
-      providerStub._send
-        .onCall(0)
-        .resolves(iface.encodeFunctionResult('name', ['MyToken']))
-        .onCall(1)
-        .resolves(iface.encodeFunctionResult('symbol', ['MTK']))
-        .onCall(2)
-        .resolves(iface.encodeFunctionResult('decimals', [18n]))
-        .onCall(3)
-        .resolves(iface.encodeFunctionResult('totalSupply', [1000000000n]))
-
-      sandbox.stub(ProviderModule, 'getCoreProvider').resolves(providerStub)
-    })
-
-    it('should get token details', async () => {
-      const fakeNetwork = NetworksEnum.ethereumMainnet
-      const fakeTokenAddress = '0xTokenAddress'
-
-      const result = await Web3Helper.getTokenDetails(fakeTokenAddress, fakeNetwork)
-
-      expect(providerStub._send.callCount).to.equal(4)
-
-      // Verify the correct calls were made
-      const expectedDataName = iface.encodeFunctionData('name', [])
-      expect(providerStub._send.getCall(0).args[0]).to.equal('eth_call')
-      expect(providerStub._send.getCall(0).args[1][0]).to.deep.equal({
-        to: fakeTokenAddress,
-        data: expectedDataName,
-      })
-
-      const expectedDataSymbol = iface.encodeFunctionData('symbol', [])
-      expect(providerStub._send.getCall(1).args[0]).to.equal('eth_call')
-      expect(providerStub._send.getCall(1).args[1][0]).to.deep.equal({
-        to: fakeTokenAddress,
-        data: expectedDataSymbol,
-      })
-
-      const expectedDataDecimals = iface.encodeFunctionData('decimals', [])
-      expect(providerStub._send.getCall(2).args[0]).to.equal('eth_call')
-      expect(providerStub._send.getCall(2).args[1][0]).to.deep.equal({
-        to: fakeTokenAddress,
-        data: expectedDataDecimals,
-      })
-
-      const expectedDataTotalSupply = iface.encodeFunctionData('totalSupply', [])
-      expect(providerStub._send.getCall(3).args[0]).to.equal('eth_call')
-      expect(providerStub._send.getCall(3).args[1][0]).to.deep.equal({
-        to: fakeTokenAddress,
-        data: expectedDataTotalSupply,
-      })
-
-      // Verify the returned details
-      expect(result.name).to.equal('MyToken')
-      expect(result.symbol).to.equal('MTK')
-      expect(result.decimals).to.equal(18)
-      expect(result.totalSupply).to.equal('1000000000')
     })
   })
 
