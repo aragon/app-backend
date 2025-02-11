@@ -35,7 +35,7 @@ export const FetchRates = {
             $or: [
               { lastUpdatedAt: { $exists: false } },
               { lastUpdatedAt: null },
-              { lastUpdatedAt: { $lte: dayjs.utc().subtract(6, 'hours').toDate() } },
+              { lastUpdatedAt: { $lte: new Date(dayjs.utc().subtract(6, 'hours').toDate()) } },
             ],
           },
         ],
@@ -58,7 +58,7 @@ export const FetchRates = {
             $or: [
               { lastUpdatedAt: { $exists: false } },
               { lastUpdatedAt: null },
-              { lastUpdatedAt: { $lte: dayjs.utc().subtract(6, 'hours').toDate() } },
+              { lastUpdatedAt: { $lte: new Date(dayjs.utc().subtract(6, 'hours').toDate()) } },
             ],
           },
         ],
