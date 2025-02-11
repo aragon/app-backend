@@ -97,9 +97,15 @@ export const ProxyToken = {
         ? await ProxyToken.getContractCreationInfo(tokenAddress, network)
         : { address: '', transactionHash: null, blockNumber: 0 }
 
+    const rawTokenRate = {
+      ...tokenRate,
+      decimals: tokenRate.decimals ?? 0,
+      logo: tokenRate.logo || '',
+    }
+
     // Construct raw token data
     const rawToken: Partial<Token> = {
-      ...tokenRate,
+      ...rawTokenRate,
       transactionHash: contractDeployInfo.transactionHash,
       blockNumber: contractDeployInfo.blockNumber,
       holders: tokenMetrics.totalHolders,
