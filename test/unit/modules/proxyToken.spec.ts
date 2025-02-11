@@ -144,7 +144,7 @@ describe('Modules: ProxyToken', () => {
         decimals: 18,
         logo: 'fake-logo',
       }
-      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenDetails').resolves(onChainTokenInfo as any)
+      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo').resolves(onChainTokenInfo as any)
 
       const result = await ProxyToken._fetchTokenDetails(tokenRate.type, tokenRate.address, tokenRate.network)
 
@@ -182,7 +182,7 @@ describe('Modules: ProxyToken', () => {
         decimals: 18,
         logo: 'fake-logo',
       }
-      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenDetails').resolves(onChainTokenInfo as any)
+      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo').resolves(onChainTokenInfo as any)
 
       const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves('10')
 
@@ -228,7 +228,7 @@ describe('Modules: ProxyToken', () => {
         decimals: 18,
         logo: 'fake-logo',
       }
-      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenDetails').resolves(onChainTokenInfo as any)
+      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo').resolves(onChainTokenInfo as any)
 
       const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves('10')
 

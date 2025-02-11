@@ -15,6 +15,7 @@ import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
 import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
+import TokenUtils from '@helpers/tokenUtils'
 
 describe('AragonDao: DaoTransactions', () => {
   let sandbox: sinon.SinonSandbox
@@ -250,13 +251,7 @@ describe('AragonDao: DaoTransactions', () => {
         } as any)
         const findLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
 
-        const getTokenDetailsStub = sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
-          name: 'Sepolia',
-          symbol: 'SAV',
-          decimals: 18,
-        } as any)
-
-        const isScamTokenStub = sandbox.stub(ProxyToken, 'analyzeIfScamToken').returns(false)
+        const getTokenDetailsStub = sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
 
         await DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any)
 
@@ -282,7 +277,6 @@ describe('AragonDao: DaoTransactions', () => {
 
         if (index > 1) {
           expect(getTokenDetailsStub.calledOnce).to.be.true
-          expect(isScamTokenStub.calledOnce).to.be.true
         }
       })
     })
@@ -311,13 +305,7 @@ describe('AragonDao: DaoTransactions', () => {
 
         const findLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
 
-        const getTokenDetailsStub = sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
-          name: 'Sepolia',
-          symbol: 'SAV',
-          decimals: 18,
-        } as any)
-
-        const isScamTokenStub = sandbox.stub(ProxyToken, 'analyzeIfScamToken').returns(true)
+        const getTokenDetailsStub = sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
 
         const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
 
@@ -328,50 +316,6 @@ describe('AragonDao: DaoTransactions', () => {
         expect(findTxReceiptStub.calledOnce).to.be.true
         expect(findLogsByName.calledOnce).to.be.false
         expect(getTokenDetailsStub.calledOnce).to.be.true
-        expect(isScamTokenStub.calledOnce).to.be.true
-        expect(getBlockTimestampStub.calledOnce).to.be.false
-        expect(loggerStub.calledOnce).to.be.true
-      })
-
-      it('should handle token is invalid', async () => {
-        const daoRegistry: Partial<Dao> = {
-          id: 'daoRegistryId',
-          address: tests[1].to,
-          network: NetworksEnum.ethereumMainnet,
-        }
-
-        const fakeLogs = [
-          {
-            address: daoRegistry.address,
-            data: '0x012',
-            topics: ['0x01', 1, '0x01', '0x01'],
-          },
-        ]
-
-        const findTxReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
-          logs: fakeLogs,
-        } as any)
-
-        const findLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
-
-        const getTokenDetailsStub = sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
-          name: 'Sepolia',
-          symbol: 'SAV',
-          decimals: null,
-        } as any)
-
-        const isScamTokenStub = sandbox.stub(ProxyToken, 'analyzeIfScamToken').returns(true)
-
-        const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
-
-        const loggerStub = sandbox.stub(Logger, 'warn')
-
-        await DaoTransactions.saveTransaction(tests[0] as any, ITransactionType.deposit, daoRegistry as any)
-
-        expect(findTxReceiptStub.calledOnce).to.be.true
-        expect(findLogsByName.calledOnce).to.be.false
-        expect(getTokenDetailsStub.calledOnce).to.be.true
-        expect(isScamTokenStub.calledOnce).to.be.false
         expect(getBlockTimestampStub.calledOnce).to.be.false
         expect(loggerStub.calledOnce).to.be.true
       })
@@ -454,11 +398,7 @@ describe('AragonDao: DaoTransactions', () => {
       sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: fakeLogs } as any)
       sandbox.stub(Web3Helper, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
-      sandbox.stub(Web3Helper, 'getTokenDetails').resolves({
-        name: 'Sepolia',
-        symbol: 'SAV',
-        decimals: 18,
-      } as any)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       sandbox.stub(ProxyToken, 'analyzeIfScamToken').returns(false)
 
       const [result1, result2, result3] = (await Promise.all([

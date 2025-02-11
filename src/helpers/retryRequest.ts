@@ -9,10 +9,6 @@ interface RetryOptions {
   maxRetries?: number
 }
 
-enum RETRY_REVERTS {
-  ERROR_SIG = '0x08c379a0',
-}
-
 export async function retryRequest<T>(requestFunction: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   const { maxRetries = config.RETRY_REQUEST.COUNT } = options
   const retryDelay = (retryCount: number) => Math.pow(2, retryCount) * 1000
@@ -58,17 +54,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
 }
 
 export function canBeRetried(error: any): boolean {
-  if (error?.reason?.includes('future lookup')) {
-    return true
-  }
-
-  if (error?.code === 'CALL_EXCEPTION') {
-    return false
-  }
-
-  const errorValueSig = error?.value?.slice(0, 10)
-
-  return Object.values(RETRY_REVERTS).includes(errorValueSig)
+  return !!error?.reason?.includes('future lookup')
 }
 
 export function isErrorRelatedToServerIssue(error: any): boolean {
