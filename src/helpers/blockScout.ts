@@ -33,6 +33,19 @@ const BlockScoutHelper = {
     }
   },
 
+  parseTokenType: (type: string): ITokenType => {
+    switch (type) {
+      case 'ERC-20':
+        return ITokenType.ERC20
+      case 'ERC-721':
+        return ITokenType.ERC721
+      case 'ERC-1155':
+        return ITokenType.ERC1155
+      default:
+        return ITokenType.unknown
+    }
+  },
+
   getTokenFullDetails: async (address: HexAddress, network: NetworksEnum): Promise<ITokenFullDetails | null> => {
     const params = {
       apikey: BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_KEY,
@@ -51,20 +64,7 @@ const BlockScoutHelper = {
         tokenDetails.holders = response.holders
         tokenDetails.logo = response.icon_url
         tokenDetails.priceUsd = response.exchange_rate
-        switch (response.type) {
-          case 'ERC-20':
-            tokenDetails.type = ITokenType.ERC20
-            break
-          case 'ERC-721':
-            tokenDetails.type = ITokenType.ERC721
-            break
-          case 'ERC-1155':
-            tokenDetails.type = ITokenType.ERC1155
-            break
-          default:
-            tokenDetails.type = ITokenType.unknown
-            break
-        }
+        tokenDetails.type = BlockScoutHelper.parseTokenType(response.type)
 
         return tokenDetails
       }
@@ -107,7 +107,7 @@ const BlockScoutHelper = {
   searchDetails: async (
     query: string,
     network: NetworksEnum,
-  ): Promise<{ is_smart_contract_verified: boolean; name: string } | null> => {
+  ): Promise<{ is_smart_contract_verified: boolean; name: string; type?: string } | null> => {
     const params = {
       apikey: BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_KEY,
       q: query,

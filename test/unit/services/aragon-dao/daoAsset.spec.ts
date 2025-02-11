@@ -9,6 +9,7 @@ import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
+import TokenUtils from '@helpers/tokenUtils'
 
 describe('AragonDao:Assets', () => {
   let sandbox: SinonSandbox
@@ -120,33 +121,27 @@ describe('AragonDao:Assets', () => {
       const stubLogger = sandbox.stub(Logger, 'verbose')
       const createStub = sandbox.stub(Models.Asset, 'create').resolves()
       const web3TokenDetailStub = sandbox
-        .stub(Web3Helper, 'getTokenDetails')
+        .stub(TokenUtils, 'isTokenSyncable')
         .onCall(0)
-        .resolves({ decimals: 18, name: fakeToken1.name, symbol: fakeToken1.symbol } as any)
+        .resolves(true)
         .onCall(1)
-        .resolves({ decimals: null } as any)
+        .resolves(false)
         .onCall(2)
-        .resolves({ decimals: 18 } as any)
+        .resolves(true)
 
       const loggerWarn = sandbox.stub(Logger, 'warn')
-      const scamDetectorStub = sandbox
-        .stub(ProxyToken, 'analyzeIfScamToken')
-        .onCall(0)
-        .returns(false)
-        .onCall(1)
-        .returns(true)
+
       await DaoAssets.assets(dao)
 
       expect(stubLogger.calledWithMatch('New Native Asset' as any)).to.be.true
       expect(stubLogger.calledWithMatch('New Token Asset' as any)).to.be.true
-      expect(createStub.callCount).to.equal(2)
+      expect(createStub.callCount).to.equal(3)
       expect(web3TokenDetailStub.callCount).to.equal(3)
       expect(web3TokenDetailStub.args[0][0]).to.be.eq(fakeToken1.address)
       expect(web3TokenDetailStub.args[1][0]).to.be.eq(fakeToken2.address)
-      expect(scamDetectorStub.callCount).to.equal(2)
-      expect(scamDetectorStub.args[0][0]).to.be.eq(fakeToken1.name)
-      expect(loggerWarn.callCount).to.equal(2)
-      expect(saveAndGetProxyToken.callCount).to.equal(2)
+
+      expect(loggerWarn.callCount).to.equal(1)
+      expect(saveAndGetProxyToken.callCount).to.equal(3)
     })
 
     it('should update existing assets for a DAO', async () => {
@@ -156,7 +151,7 @@ describe('AragonDao:Assets', () => {
 
       sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
       sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
-      sandbox.stub(Web3Helper, 'getTokenDetails').resolves({ decimals: 18 } as any)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0xToken1',
         priceUsd: '5',
