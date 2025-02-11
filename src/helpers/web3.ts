@@ -917,99 +917,30 @@ const Web3Helper = {
   },
 
   async getTokenNameAndSymbol(tokenAddress: string, network: NetworksEnum) {
-    const tokenDetails = {
+    const provider = ProviderModule.getProvider(network)!
+    const tokenInstance = new Contract(tokenAddress, ERC20.abi, provider)
+    const token: any = {
       name: null,
       symbol: null,
     }
 
     try {
-      const coreProvider = await ProviderModule.getCoreProvider(network)
-      const iface = new Interface(ERC20.abi)
-      const functions = ['name', 'symbol']
-
-      const requestCalls = functions.map((functionName: string) => {
-        return coreProvider._send(
-          'eth_call',
-          [
-            {
-              to: tokenAddress,
-              data: iface.encodeFunctionData(functionName, []),
-            },
-          ],
-          'eth_call',
-          true,
-        )
-      })
-
-      const response = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => await Promise.all(requestCalls)),
+      token.name = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.name()),
       )
-
-      const responseOnChain = response.reduce((acc: any, call: any, index: number) => {
-        return {
-          ...acc,
-          [functions[index]]: iface.decodeFunctionResult(functions[index], call)[0],
-        }
-      }, {})
-
-      Object.assign(tokenDetails, {
-        name: responseOnChain.name,
-        symbol: responseOnChain.symbol,
-      })
-
-      return tokenDetails
-    } catch (_e) {
-      return tokenDetails
-    }
-  },
-
-  async getTokenDetails(tokenAddress: string, network: NetworksEnum) {
-    const tokenDetails = {
-      name: null,
-      symbol: null,
-      decimals: null,
-      totalSupply: '0',
+    } catch (error) {
+      logger.warn('Error getting token info name', llo({ error, address: tokenAddress }))
     }
 
     try {
-      const coreProvider = await ProviderModule.getCoreProvider(network)
-      const iface = new Interface(ERC20.abi)
-      const functions = ['name', 'symbol', 'decimals', 'totalSupply']
-
-      const requestCalls = await Promise.all(
-        functions.map((functionName: string) => {
-          return coreProvider._send(
-            'eth_call',
-            [
-              {
-                to: tokenAddress,
-                data: iface.encodeFunctionData(functionName, []),
-              },
-            ],
-            'eth_call',
-            true,
-          )
-        }),
+      token.symbol = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.symbol()),
       )
-
-      const response = requestCalls.reduce((acc: any, call: any, index: number) => {
-        return {
-          ...acc,
-          [functions[index]]: iface.decodeFunctionResult(functions[index], call)[0],
-        }
-      }, {})
-
-      Object.assign(tokenDetails, {
-        name: response.name,
-        symbol: response.symbol,
-        decimals: response.decimals !== null ? Number(response.decimals) : null,
-        totalSupply: response.totalSupply.toString(),
-      })
-
-      return tokenDetails
-    } catch (_e) {
-      return tokenDetails
+    } catch (error) {
+      logger.warn('Error getting token symbol', llo({ error, address: tokenAddress }))
     }
+
+    return token
   },
 }
 

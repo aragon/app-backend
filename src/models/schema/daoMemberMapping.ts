@@ -95,7 +95,7 @@ export default class DaoMemberMapping extends Model {
     },
     tOpts?: SaveOptions,
   ) {
-    return await this.find({ pluginAddress, network }, null, tOpts)
+    return this.find({ pluginAddress, network }, null, tOpts)
   }
 
   async update(params: Partial<DaoMemberMapping>, tOpts?: SaveOptions) {
