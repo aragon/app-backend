@@ -16,7 +16,7 @@ const GovernanceErc20Helper = {
     blockTimestamp: number,
     network: NetworksEnum,
   ): Promise<string> {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
       const pastVotes = await retryRequest(async () =>
@@ -50,7 +50,7 @@ const GovernanceErc20Helper = {
   },
 
   async getVotes(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
       return await retryRequest(async () =>
@@ -63,7 +63,7 @@ const GovernanceErc20Helper = {
   },
 
   async getPastTotalSupply(blockNumber: number, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
       return await retryRequest(async () =>
@@ -80,7 +80,7 @@ const GovernanceErc20Helper = {
     tokenAddress: HexAddress,
     network: NetworksEnum,
   ): Promise<HexAddress | false> {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
       return await retryRequest(async () =>

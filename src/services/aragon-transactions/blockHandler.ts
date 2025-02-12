@@ -20,7 +20,7 @@ export const BlockHandler = {
   processNewBlock: async (block: any, network: NetworksEnum) => {
     if (!block?.transactions.length) return
 
-    const provider = ProviderModule.getProvider(network)
+    const provider = ProviderModule.getAnyRpcProvider(network)
     if (!provider) return logger.error('Provider not available for network', llo({ network }))
 
     const blockReceipts = await Web3Helper.getBlockReceipts(network, block.number)
@@ -60,7 +60,7 @@ export const BlockHandler = {
 
   _checkIfDepositEvents: async (block: any, network: NetworksEnum) => {
     const blockHex = '0x' + Number(block.number).toString(16)
-    const provider = ProviderModule.getProvider(network)
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const topicHash = [
       new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
       new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,

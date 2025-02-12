@@ -22,7 +22,7 @@ const AragonTransactionsService: IExtendedService = {
     const networks = NetworkHelper.supportedNetworks()
 
     for (const { networkName } of networks) {
-      const provider = ProviderModule.getProvider(networkName)
+      const provider = ProviderModule.getAnyRpcProvider(networkName)
       if (!provider) {
         logger.error('Provider not available for network', llo({ network: networkName }))
         return

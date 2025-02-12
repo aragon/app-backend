@@ -3,8 +3,10 @@ import { type WebSocketProvider } from 'ethers'
 import {
   type IAlchemyTransferOptions,
   type IAlchemyTransferResponse,
+  IConnectionType,
   type IEnumIndexerService,
   type IEnumIndexerServiceStatic,
+  IProviderType,
   NetworksEnum,
 } from '@types'
 import BottleneckModule from '@modules/bottleneck'
@@ -242,7 +244,7 @@ class BlockchainTransferCrawler {
   }
 
   getProvider(): WebSocketProvider {
-    return ProviderModule.getProvider(this.network)!
+    return ProviderModule.getProvider(this.network, IProviderType.ALCHEMY, IConnectionType.RPC)
   }
 
   async getServiceStartBlock() {
