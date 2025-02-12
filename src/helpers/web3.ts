@@ -2,9 +2,11 @@ import {
   type ENS,
   type HexAddress,
   type IAlchemyTokenBalance,
+  IConnectionType,
   type ILogInfo,
   type IMetadata,
   type IProposalMetadata,
+  IProviderType,
   ITransactionType,
   type NetworksEnum,
 } from '@types'
@@ -573,7 +575,7 @@ const Web3Helper = {
 
   async getTokenBalances(address: HexAddress, network: NetworksEnum): Promise<IAlchemyTokenBalance[] | []> {
     try {
-      const provider = ProviderModule.getAnyRpcProvider(network)
+      const provider = ProviderModule.getProvider(network, IProviderType.ALCHEMY, IConnectionType.RPC)
 
       const response = await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>

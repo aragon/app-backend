@@ -32,7 +32,7 @@ describe('AragonTransactions: index', () => {
         .returns([{ networkName: NetworksEnum.ethereumMainnet }] as any)
 
       const providerMock = { getBlock: sandbox.stub() } as any
-      const getProviderStub = sandbox.stub(ProviderModule, 'getProvider').returns(providerMock)
+      const getProviderStub = sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerMock)
       const subscribeStub = sandbox.stub(ProviderModule, 'subscribeToNewBlock').callsFake((networkName, callback) => {
         callback(networkName)
       })
@@ -53,7 +53,7 @@ describe('AragonTransactions: index', () => {
     it('should log an error if a provider is unavailable', async () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet }] as any)
-      sandbox.stub(ProviderModule, 'getProvider').returns(null)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(null)
 
       await AragonTransactionsService.start()
 
