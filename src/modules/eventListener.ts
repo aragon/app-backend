@@ -94,7 +94,7 @@ class EventListener {
     this.isProcessingBlock = blockNumber
 
     try {
-      const provider = ProviderModule.getProvider(this.network)
+      const provider = ProviderModule.getAnyRpcProvider(this.network)
       const blockHex = '0x' + Number(blockNumber).toString(16)
 
       const filter = {
