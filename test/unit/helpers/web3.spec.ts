@@ -12,7 +12,6 @@ import { ProxyToken } from '@modules/proxyToken'
 import BigNumber from 'bignumber.js'
 import BottleneckModule from '@modules/bottleneck'
 import config from '@config'
-import { ERC20 } from '@artifacts/ERC20'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -1489,7 +1488,7 @@ describe('Helpers:Web3', () => {
       const providerSendStub = sandbox.stub().resolves('0x' + ''.padStart(63, '0') + 1)
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-        send: providerSendStub,
+        call: providerSendStub,
       } as any)
 
       const result = await Web3Helper.getTokenBalanceAtBlock({
@@ -1506,7 +1505,7 @@ describe('Helpers:Web3', () => {
       const providerSendStub = sandbox.stub().rejects(new Error('fake-error'))
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-        send: providerSendStub,
+        call: providerSendStub,
       } as any)
 
       const params = {
