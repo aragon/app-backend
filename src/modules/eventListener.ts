@@ -37,7 +37,7 @@ class EventListener {
     await Promise.all(
       topicChunks.map(async (topicSubset: string[]) => {
         const filter: { topics: string[][] } = { topics: [topicSubset] }
-        return new Promise((resolve, reject) => {
+        return new Promise(resolve => {
           try {
             ProviderModule.subscribeToEvent(this.network, filter, this.handleEvent.bind(this))
             logger.verbose('Start real-time listening', llo({ network: this.network, filter }))

@@ -60,7 +60,7 @@ const Utils = {
       return [[]]
     }
     return array?.length > size
-      ? Array.from({ length: Math.ceil(array.length / size) }, (v, i) => array.slice(i * size, i * size + size))
+      ? Array.from({ length: Math.ceil(array.length / size) }, (_, i) => array.slice(i * size, i * size + size))
       : [array]
   },
 
@@ -135,7 +135,7 @@ const Utils = {
     const cache: any[] = []
     return JSON.stringify(
       object,
-      function (key: string, value: any) {
+      function (_, value: any) {
         if (typeof value === 'bigint') {
           return value.toString()
         }
