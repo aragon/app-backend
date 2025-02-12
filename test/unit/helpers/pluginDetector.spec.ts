@@ -18,7 +18,7 @@ describe('Helpers: PluginDetector', () => {
     }
 
     // Mock ProviderModule.getProvider to return a mocked provider
-    sandbox.stub(require('@modules/provider').default, 'getProvider').returns(providerStub)
+    sandbox.stub(require('@modules/provider').default, 'getAnyRpcProvider').returns(providerStub)
   })
 
   afterEach(() => {

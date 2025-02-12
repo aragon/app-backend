@@ -44,7 +44,7 @@ describe('Helper: TokenDetector', () => {
       .stub(ProxyContractHelper, 'getImplementationAddress')
       .resolves(contractAddress)
 
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(ERC20_FUNCTIONS)),
     } as any)
 
@@ -56,7 +56,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect ERC20 Governance token', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox
         .stub()
         .resolves(simulateBytecodeForFunctions([...ERC20_FUNCTIONS, ...GOVERNANCE_ERC20_FUNCTIONS])),
@@ -70,7 +70,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect ERC721 token', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(ERC721_FUNCTIONS)),
     } as any)
 
@@ -80,7 +80,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect ERC1155 token', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(ERC1155_FUNCTIONS)),
     } as any)
 
@@ -90,7 +90,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect ERC777 token', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(ERC777_FUNCTIONS)),
     } as any)
 
@@ -100,7 +100,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect ERC777 token', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().resolves('0xUnrelatedBytecodeThatDoesNotMatchAnyFunctionHashes'),
     } as any)
 
@@ -113,7 +113,7 @@ describe('Helper: TokenDetector', () => {
     const getImplementationAddressStub = sandbox
       .stub(ProxyContractHelper, 'getImplementationAddress')
       .resolves(contractAddress)
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().resolves('0x'),
     } as any)
 
@@ -127,7 +127,7 @@ describe('Helper: TokenDetector', () => {
     const getImplementationAddressStub = sandbox
       .stub(ProxyContractHelper, 'getImplementationAddress')
       .resolves(utils.zeroAddress)
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(ERC721_FUNCTIONS)),
     } as any)
 
@@ -138,7 +138,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should handle an error when fetching bytecode', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().rejects(new Error('Failed to fetch bytecode')),
     } as any)
 
