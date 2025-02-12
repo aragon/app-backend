@@ -525,19 +525,13 @@ const Web3Helper = {
 
       const abi = ['function balanceOf(address account) view returns (uint256)']
       const iface = new Interface(abi)
-
       const data = iface.encodeFunctionData('balanceOf', [address])
 
-      params = [
-        {
-          to: tokenAddress,
-          data,
-        },
-        `0x${BigInt(blockNumber).toString(16)}`,
-      ]
+      params = { to: tokenAddress, data }
+      const blockTag = `0x${BigInt(blockNumber).toString(16)}`
 
       const response = await retryRequest(async () =>
-        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () => provider.send('eth_call', params)),
+        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () => provider.call(params, blockTag)),
       )
 
       const balance = iface.decodeFunctionResult('balanceOf', response)[0]
