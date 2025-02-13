@@ -1336,7 +1336,7 @@ describe('Helpers:Web3', () => {
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {
-            return { balanceOf: sandbox.stub().resolves('1000') }
+            return { balanceOf: sandbox.stub().resolves(1000n) }
           },
         },
         '@state/configState': {
@@ -1349,7 +1349,7 @@ describe('Helpers:Web3', () => {
       const fakeNetwork = NetworksEnum.ethereumMainnet
 
       const balance = await MockedWeb3Helper.getERC20Balance(fakeAddress, fakeTokenAddress, fakeNetwork)
-      expect(balance).to.equal('1000')
+      expect(balance).to.equal(1000n)
     })
 
     it('should return "0" on error ERC20', async () => {
@@ -1373,7 +1373,7 @@ describe('Helpers:Web3', () => {
       const fakeNetwork = NetworksEnum.ethereumMainnet
 
       const balance = await MockedWeb3Helper.getERC20Balance(fakeTokenAddress, fakeAddress, fakeNetwork)
-      expect(balance).to.equal('0')
+      expect(balance).to.equal(0n)
     })
   })
 

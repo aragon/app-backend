@@ -24,7 +24,7 @@ export const BlockHandler = {
     if (!provider) return logger.error('Provider not available for network', llo({ network }))
 
     const blockReceipts = await Web3Helper.getBlockReceipts(network, block.number)
-    if (!blockReceipts) return
+    if (!blockReceipts || blockReceipts.length === 0) return
 
     const toAddresses = blockReceipts
       .filter((receipt: any) => receipt.to)

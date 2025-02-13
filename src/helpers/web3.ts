@@ -552,7 +552,7 @@ const Web3Helper = {
 
       const response = await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
-          provider.send('eth_getBalance', [address]),
+          provider.send('eth_getBalance', [address, 'latest']),
         ),
       )
 
@@ -681,20 +681,19 @@ const Web3Helper = {
     }
   },
 
-  async getTokenTotalSupply(address: HexAddress, network: NetworksEnum): Promise<string> {
+  async getTokenTotalSupply(address: HexAddress, network: NetworksEnum): Promise<bigint> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const tokenInstance = new Contract(address, ERC20.abi, provider)
 
     try {
-      const totalSupply = await retryRequest(async () =>
+      return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.totalSupply()),
       )
-      return BigInt(totalSupply).toString()
     } catch (error) {
       logger.warn('Error getting token total supply', llo({ error, address }))
     }
 
-    return '0'
+    return 0n
   },
 
   async getTokenInfo(
@@ -727,7 +726,7 @@ const Web3Helper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.symbol()),
       )
     } catch (error) {
-      logger.warn('Error getting token symbol', llo({ error, address }))
+      logger.warn('Error getting token symbol - getTokenInfo', llo({ error, address }))
     }
 
     try {
@@ -736,7 +735,7 @@ const Web3Helper = {
       )
       token.decimals = Number(decimals)
     } catch (error) {
-      logger.warn('Error getting token symbol', llo({ error, address }))
+      logger.warn('Error getting token symbol - getTokenInfo', llo({ error, address }))
     }
 
     try {
@@ -745,7 +744,7 @@ const Web3Helper = {
       )
       token.totalSupply = BigInt(totalSupply).toString()
     } catch (error) {
-      logger.warn('Error getting token total supply:', llo({ error, address }))
+      logger.warn('Error getting token total supply - getTokenInfo', llo({ error, address }))
     }
 
     return token
@@ -778,7 +777,7 @@ const Web3Helper = {
     return { txReceipt, events }
   },
 
-  async getERC20Balance(address: string, tokenAddress: string, network: NetworksEnum): Promise<string> {
+  async getERC20Balance(address: string, tokenAddress: string, network: NetworksEnum): Promise<bigint> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, ERC20.abi, provider)
     try {
@@ -786,7 +785,7 @@ const Web3Helper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.balanceOf(address)),
       )
     } catch (error) {
-      return '0'
+      return 0n
     }
   },
 
@@ -932,7 +931,7 @@ const Web3Helper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.symbol()),
       )
     } catch (error) {
-      logger.warn('Error getting token symbol', llo({ error, address: tokenAddress }))
+      logger.warn('Error getting token symbol - getTokenNameAndSymbol', llo({ error, address: tokenAddress }))
     }
 
     return token
