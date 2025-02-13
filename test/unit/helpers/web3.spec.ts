@@ -848,7 +848,7 @@ describe('Helpers:Web3', () => {
       const balance = await Web3Helper.getBalance(fakeAddress, fakeNetwork)
       expect(balance).to.equal('2.0') // Check if conversion from wei to ether is correct
       expect(providerStub.send.calledOnce).to.be.true
-      expect(providerStub.send.calledWith('eth_getBalance', [fakeAddress])).to.be.true
+      expect(providerStub.send.calledWith('eth_getBalance', [fakeAddress, 'latest'])).to.be.true
     })
 
     it('should return "0" on error', async () => {
@@ -1826,7 +1826,7 @@ describe('Helpers:Web3', () => {
 
       const result = await MockedWeb3Helper.getTokenTotalSupply('0xTokenAddress', NetworksEnum.ethereumMainnet)
 
-      expect(result).to.eq('200')
+      expect(result).to.eq(200n)
       expect(stubTotalSupply.calledOnce).to.be.true
     })
 
@@ -1851,7 +1851,7 @@ describe('Helpers:Web3', () => {
 
       const result = await MockedWeb3Helper.getTokenTotalSupply('0xTokenAddress', NetworksEnum.ethereumMainnet)
 
-      expect(result).to.eq('0')
+      expect(result).to.eq(0n)
       expect(stubTotalSupply.calledOnce).to.be.true
       expect(stubLogger.calledWith('Error getting token total supply' as any)).to.be.true
     })

@@ -18,8 +18,8 @@ describe('AragonDao: memberInfo', () => {
 
   describe('getByTokenAddress', () => {
     it('should return balance and voting power', async () => {
-      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves('100')
-      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves('200')
+      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves('100' as any)
+      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(200n)
 
       const result = await MemberInfo.getByTokenAddress('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)
 
