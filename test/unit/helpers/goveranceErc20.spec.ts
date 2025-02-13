@@ -99,7 +99,7 @@ describe('Helpers: GovernanceErc20', () => {
       const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await MockedGoveranceErc20Helper.getVotes('0x123', '0x123', NetworksEnum.ethereumMainnet)
-      expect(result).to.eq('0')
+      expect(result).to.eq(0n)
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getting votes' as any)).to.be.true
     })
