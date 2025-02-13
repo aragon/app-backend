@@ -49,7 +49,7 @@ const GovernanceErc20Helper = {
     return '0'
   },
 
-  async getVotes(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
+  async getVotes(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
@@ -58,7 +58,7 @@ const GovernanceErc20Helper = {
       )
     } catch (error) {
       logger.error('Error getting votes', llo({ memberAddress, tokenAddress, network, error }))
-      return '0'
+      return 0n
     }
   },
 
