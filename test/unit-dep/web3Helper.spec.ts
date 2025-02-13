@@ -56,7 +56,7 @@ describe('Web3Helper', () => {
     const address = '0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449'
     const network = NetworksEnum.ethereumMainnet
     const value = await Web3Helper.getBalance(address, network)
-    expect(value).to.eq('118940004874000')
+    expect(value).to.eq('0.000118940004874')
   })
 
   it('getTokenBalances', async () => {
