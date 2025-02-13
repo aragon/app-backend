@@ -112,7 +112,7 @@ const ProviderModule = {
       ProviderModule.providerProxies[network].alchemy = alchemyConnection
 
       if (alchemyConnection.ws && typeof alchemyConnection.ws.on === 'function') {
-        ProviderModule.setupWSListeners(alchemyConnection.ws, 'Alchemy', network)
+        ProviderModule.setupWSListeners(alchemyConnection.ws, IProviderType.ALCHEMY, network)
       }
     } else if (nodeConfig.providerType === IProviderType.ARAGON) {
       const aragonConfig = nodeConfig as IAragonNodeConfig
@@ -124,8 +124,8 @@ const ProviderModule = {
       }
       ProviderModule.providerProxies[network].aragon = aragonConnection
 
-      if (aragonConnection.ws && typeof aragonConnection.ws.on === 'function') {
-        ProviderModule.setupWSListeners(aragonConnection.ws, 'Aragon', network)
+      if (aragonConnection.ws && typeof aragonConnection.ws?.websocket?.on === 'function') {
+        ProviderModule.setupWSListeners(aragonConnection.ws.websocket, IProviderType.ARAGON, network)
       }
     }
   },
@@ -194,7 +194,7 @@ const ProviderModule = {
     }
   },
 
-  setupWSListeners(ws: any, providerLabel: string, network: NetworksEnum) {
+  setupWSListeners(ws: any, providerLabel: IProviderType, network: NetworksEnum) {
     ws.on('open', () => {
       logger.info(`WebSocket connected to ${network} (${providerLabel})`, llo({ network }))
     })

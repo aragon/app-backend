@@ -257,7 +257,7 @@ describe('Module: provider', () => {
     it('should attach event listeners via setupWSListeners and call logger methods accordingly', () => {
       const ws = { on: sandbox.stub() }
 
-      ProviderModule.setupWSListeners(ws, 'TestProvider', NetworksEnum.ethereumMainnet)
+      ProviderModule.setupWSListeners(ws, IProviderType.ARAGON, NetworksEnum.ethereumMainnet)
 
       expect(ws.on.callCount).to.equal(3)
 
@@ -270,18 +270,24 @@ describe('Module: provider', () => {
 
       openCallback()
       expect(infoStub.calledOnce).to.be.true
-      expect(infoStub.calledWithMatch(`WebSocket connected to ${NetworksEnum.ethereumMainnet} (TestProvider)` as any))
-        .to.be.true
+      expect(
+        infoStub.calledWithMatch(
+          `WebSocket connected to ${NetworksEnum.ethereumMainnet} (${IProviderType.ARAGON})` as any,
+        ),
+      ).to.be.true
 
       const testError = new Error('Test error')
       errorCallback(testError)
-      expect(errorStub.calledWithMatch(`WebSocket error on ${NetworksEnum.ethereumMainnet} (TestProvider)` as any)).to
-        .be.true
+      expect(
+        errorStub.calledWithMatch(
+          `WebSocket error on ${NetworksEnum.ethereumMainnet} (${IProviderType.ARAGON})` as any,
+        ),
+      ).to.be.true
 
       closeCallback()
       expect(
         errorStub.calledWithMatch(
-          `WebSocket connection closed for ${NetworksEnum.ethereumMainnet} (TestProvider)` as any,
+          `WebSocket connection closed for ${NetworksEnum.ethereumMainnet} (${IProviderType.ARAGON})` as any,
         ),
       ).to.be.true
     })
