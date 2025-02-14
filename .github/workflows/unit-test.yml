@@ -1,9 +1,10 @@
-name: AppBackend Test
+name: Unit Test
 on:
   workflow_dispatch:
   push:
     branches-ignore: ## Ignore develop and main branches to avoid an unneeded 2nd build.
-      - 'develop'
+      - 'development'
+      - 'staging'
       - 'main'
 
 jobs:

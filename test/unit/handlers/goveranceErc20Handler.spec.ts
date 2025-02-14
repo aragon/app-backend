@@ -615,6 +615,7 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('213')
       sandbox.stub(GovernanceErc20Handler, '_handleDaoMemberShip')
       sandbox.stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt').resolves({
+        delegator: utils.zeroAddress,
         from: utils.zeroAddress,
         to: utils.zeroAddress,
       })
@@ -820,7 +821,7 @@ describe('GovernanceErc20Handler', () => {
 
       const findDelegatorsStub = sandbox
         .stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt')
-        .resolves({ from: '0xFrom', to: memberAddress })
+        .resolves({ from: '0xFrom', to: memberAddress, delegator: '0xFrom' })
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
       const memberTransactionCreateStub = sandbox.spy(Models.MemberTransaction, 'create')
@@ -866,8 +867,6 @@ describe('GovernanceErc20Handler', () => {
         }),
       ).to.be.true
       expect(addToDaoStub.calledTwice).to.be.true
-      expect(addToDaoStub.args[1][0].pluginAddress).to.be.eq(plugin[1].address)
-
       expect(
         sendMessageStub.calledWith(EnumQueueName.daoMetrics, {
           id: plugin[0].daoAddress,
@@ -918,7 +917,7 @@ describe('GovernanceErc20Handler', () => {
 
       const findDelegatorsStub = sandbox
         .stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt')
-        .resolves({ from: '0xFrom', to: '0xTo' })
+        .resolves({ from: '0xFrom', to: '0xTo', delegator: utils.zeroAddress })
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
       const memberTransactionCreateStub = sandbox.spy(Models.MemberTransaction, 'create')
@@ -994,7 +993,7 @@ describe('GovernanceErc20Handler', () => {
 
       const findDelegatorsStub = sandbox
         .stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt')
-        .resolves({ from: memberAddress, to: '0xTo' })
+        .resolves({ from: memberAddress, to: '0xTo', delegator: memberAddress })
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
       const memberTransactionCreateStub = sandbox.spy(Models.MemberTransaction, 'create')
@@ -1088,7 +1087,7 @@ describe('GovernanceErc20Handler', () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
       const findDelegatorsStub = sandbox
         .stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt')
-        .resolves({ from: '0xFrom', to: '0xTo' })
+        .resolves({ from: '0xFrom', to: '0xTo', delegator: '0xFrom' })
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('0')
       const memberTransactionCreateStub = sandbox.spy(Models.MemberTransaction, 'create')

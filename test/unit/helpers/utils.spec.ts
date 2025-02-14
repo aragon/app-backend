@@ -772,4 +772,120 @@ describe('Helpers:Utils', () => {
     const result = Utils.getUniqueValuesByKey(array, 'a')
     expect(result).to.deep.eq([1, 2, 3])
   })
+
+  describe('parseNumber', () => {
+    it('should return undefined when input is undefined', () => {
+      const result = Utils.parseNumber(undefined)
+      expect(result).to.be.undefined
+    })
+
+    it('should return undefined when input is "undefined" as a string', () => {
+      const result = Utils.parseNumber('undefined')
+      expect(result).to.be.undefined
+    })
+
+    it('should return a number when input is a valid numeric string', () => {
+      const result = Utils.parseNumber('42')
+      expect(result).to.be.a('number').that.equals(42)
+    })
+
+    it('should return a number when input is an actual number', () => {
+      const result = Utils.parseNumber(123)
+      expect(result).to.be.a('number').that.equals(123)
+    })
+
+    it('should return NaN when input is a non-numeric string', () => {
+      const result = Utils.parseNumber('hello')
+      expect(result).to.be.undefined
+    })
+
+    it('should return NaN when input is an object', () => {
+      const result = Utils.parseNumber({ key: 'value' })
+      expect(result).to.be.undefined
+    })
+
+    it('should return NaN when input is an array', () => {
+      const result = Utils.parseNumber([1, 2, 3])
+      expect(result).to.be.undefined
+    })
+
+    it('should return 0 when input is "0" as a string', () => {
+      const result = Utils.parseNumber('0')
+      expect(result).to.be.a('number').that.equals(0)
+    })
+
+    it('should return a negative number when input is a negative numeric string', () => {
+      const result = Utils.parseNumber('-42')
+      expect(result).to.be.a('number').that.equals(-42)
+    })
+  })
+
+  describe('mergeAndRemoveDuplicatePlugins', () => {
+    it('should return an empty array when both inputs are empty', () => {
+      const result = Utils.mergeAndRemoveDuplicatePlugins([], [])
+      expect(result).to.be.an('array').that.is.empty
+    })
+
+    it('should return the same array when no duplicates exist', () => {
+      const installedPlugins = [
+        { address: '0xPlugin1', name: 'Plugin A' } as any,
+        { address: '0xPlugin2', name: 'Plugin B' } as any,
+      ]
+      const settingPlugins = [
+        { address: '0xPlugin3', name: 'Plugin C' } as any,
+        { address: '0xPlugin4', name: 'Plugin D' } as any,
+      ]
+
+      const result = Utils.mergeAndRemoveDuplicatePlugins(installedPlugins, settingPlugins)
+
+      expect(result).to.have.length(4)
+      expect(result).to.deep.include.members(installedPlugins)
+      expect(result).to.deep.include.members(settingPlugins)
+    })
+
+    it('should remove duplicate plugins based on address', () => {
+      const installedPlugins = [
+        { address: '0xPlugin1', name: 'Plugin A' } as any,
+        { address: '0xPlugin2', name: 'Plugin B' } as any,
+      ]
+      const settingPlugins = [
+        { address: '0xPlugin2', name: 'Plugin B' } as any, // Duplicate
+        { address: '0xPlugin3', name: 'Plugin C' } as any,
+      ]
+
+      const result = Utils.mergeAndRemoveDuplicatePlugins(installedPlugins, settingPlugins)
+
+      expect(result).to.have.length(3)
+      expect(result).to.deep.include({ address: '0xPlugin1', name: 'Plugin A' })
+      expect(result).to.deep.include({ address: '0xPlugin2', name: 'Plugin B' }) // Exists once
+      expect(result).to.deep.include({ address: '0xPlugin3', name: 'Plugin C' })
+    })
+
+    it('should handle cases where all plugins are duplicates', () => {
+      const installedPlugins = [
+        { address: '0xPlugin1', name: 'Plugin A' } as any,
+        { address: '0xPlugin2', name: 'Plugin B' } as any,
+      ]
+      const settingPlugins = [
+        { address: '0xPlugin1', name: 'Plugin A' } as any, // Duplicate
+        { address: '0xPlugin2', name: 'Plugin B' } as any, // Duplicate
+      ]
+
+      const result = Utils.mergeAndRemoveDuplicatePlugins(installedPlugins, settingPlugins)
+
+      expect(result).to.have.length(2)
+      expect(result).to.deep.include({ address: '0xPlugin1', name: 'Plugin A' })
+      expect(result).to.deep.include({ address: '0xPlugin2', name: 'Plugin B' })
+    })
+
+    it('should handle one list being empty', () => {
+      const installedPlugins = [{ address: '0xPlugin1', name: 'Plugin A' } as any]
+      const settingPlugins: any[] = [] // Empty
+
+      const result = Utils.mergeAndRemoveDuplicatePlugins(installedPlugins, settingPlugins)
+
+      expect(result).to.have.length(1)
+      expect(result).to.deep.include({ address: '0xPlugin1', name: 'Plugin A' })
+    })
+  })
 })

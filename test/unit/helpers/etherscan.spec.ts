@@ -172,8 +172,8 @@ describe('Helpers: Etherscan', () => {
     })
   })
 
-  describe('tokenSupply', () => {
-    it('should fetch token supply successfully', async () => {
+  describe('getTokenMetrics', () => {
+    it('should fetch getTokenMetrics', async () => {
       const mockSupply = { result: '100000000000000000000000000', status: '1' }
       const rpcCallStub = sandbox.stub(EtherscanHelper, '_rpCall').resolves(mockSupply)
       const result = await EtherscanHelper.getTokenMetrics('0x123', NetworksEnum.ethereumMainnet)
@@ -187,7 +187,7 @@ describe('Helpers: Etherscan', () => {
       })
     })
 
-    it('should handle errors when fetching token supply fails', async () => {
+    it('should handle errors when fetching getTokenMetrics', async () => {
       const expectedError = new Error('Failed to fetch token supply')
       sandbox.stub(EtherscanHelper, '_rpCall').rejects(expectedError)
       const loggerStub = sandbox.stub(logger, 'error')
@@ -197,6 +197,27 @@ describe('Helpers: Etherscan', () => {
       expect(result).to.equal('0')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.args[0][0]).to.include('Error getTokenMetrics')
+    })
+
+    it('should return "0" when the API response is invalid or status is not "1"', async () => {
+      sandbox.stub(EtherscanHelper, '_rpCall').resolves({ status: '0' })
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await EtherscanHelper.getTokenMetrics('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('0')
+      expect(loggerStub.called).to.be.false
+    })
+
+    it('should return "0" when the API call throws an error', async () => {
+      sandbox.stub(EtherscanHelper, '_rpCall').rejects(new Error('API Failure'))
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await EtherscanHelper.getTokenMetrics('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('0')
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.firstCall.args[0]).to.equal('Error getTokenMetrics')
     })
   })
 
