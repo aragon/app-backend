@@ -4,6 +4,13 @@ export interface IPluginInfo {
   implementationAddress: string | null
 }
 
+export enum IPluginActionType {
+  preInstall = 'pre-install',
+  installed = 'installed',
+  updated = 'updated',
+  uninstalled = 'uninstalled',
+}
+
 export enum IPluginRawStatus {
   install = 'install',
   update = 'update',
@@ -23,6 +30,12 @@ export enum IPluginSlug {
   admin = 'admin',
   gauge = 'gauge',
   spp = 'core',
+}
+
+export enum IEventLogPluginSettings {
+  MultisigSettingsUpdated = 'MultisigSettingsUpdated',
+  VotingSettingsUpdated = 'VotingSettingsUpdated',
+  StagesUpdated = 'StagesUpdated',
 }
 
 export enum IPluginInterfaceType {

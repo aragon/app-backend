@@ -13,6 +13,7 @@ import ProxyContractHelper from '@helpers/proxyContract'
 import Web3Helper from '@helpers/web3'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
+import DbTx from '@modules/dbTx'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -252,6 +253,19 @@ describe('Indexer:Plugin', () => {
   })
 
   describe('installPlugin', () => {
+    it('should log an error when an exception occurs', async () => {
+      const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(PluginHandler, '_queryGetPlugin').resolves(null as any)
+      sandbox.stub(DbTx, 'executeTxFn').rejects(new Error('Database transaction failed'))
+
+      const pluginLog = await Models.LogPluginSetupProcessor.findOne({ pluginAddress: rawPlugin.address })
+
+      await PluginHandler.installPlugin(pluginLog)
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Error Install Plugin' as any)).to.be.true
+    })
+
     it('should not install a plugin if it does not exist', async () => {
       const stubLogger = sandbox.stub(logger, 'error')
       const logPlugin = await Models.LogPluginSetupProcessor.findOne({ pluginAddress: rawPlugin.address })
@@ -334,11 +348,27 @@ describe('Indexer:Plugin', () => {
       expect(deprecatedPlugin.uninstalled.status).to.be.true
     })
 
-    it('should not update a plugin if it does not exist', async () => {
+    it('should not update a plugin if dao does not exist', async () => {
       const stubLogger = sandbox.stub(logger, 'warn')
       await PluginHandler.updatePlugin(ListLogPluginSetupProcessor[1] as any)
 
       expect(stubLogger.calledOnce).to.be.true
+    })
+
+    it('should not update a plugin if plugin does not exist', async () => {
+      const stubLogger = sandbox.stub(logger, 'warn')
+      const stubQueryGetPlugin = sandbox.stub(PluginHandler, '_queryGetPlugin').resolves(rawPlugin)
+      const stubCreatePlugin = sandbox.stub(PluginHandler, '_createPlugin').resolves(undefined)
+      const stubExecuteTxFn = sandbox.stub(DbTx, 'executeTxFn')
+
+      const pluginLog = await Models.LogPluginSetupProcessor.findOne({ pluginAddress: rawPlugin.address })
+
+      await PluginHandler.updatePlugin(pluginLog)
+
+      expect(stubQueryGetPlugin.calledOnce).to.be.true
+      expect(stubCreatePlugin.calledOnceWith(rawPlugin)).to.be.true
+      expect(stubLogger.notCalled).to.be.true
+      expect(stubExecuteTxFn.notCalled).to.be.true
     })
 
     it('should throw error', async () => {

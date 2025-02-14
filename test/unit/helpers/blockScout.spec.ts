@@ -1,0 +1,502 @@
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import { expect } from 'chai'
+import BlockScoutHelper from '@helpers/blockScout'
+import { ITokenType, NetworksEnum } from '@types'
+import axios from 'axios'
+import logger from '@logger'
+import config from '@config'
+
+describe('Helpers: BlockScout', () => {
+  let sandbox: SinonSandbox
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+  })
+
+  afterEach(() => {
+    sandbox && sandbox.restore()
+  })
+
+  it('should get axios instance', async () => {
+    const stubAxios = sandbox.stub(axios, 'create')
+    BlockScoutHelper.axiosInstance(NetworksEnum.ethereumMainnet)
+    expect(stubAxios.calledOnce).to.be.true
+  })
+
+  describe('_rpCall', () => {
+    it('Should make a successful _rpCall', async () => {
+      const expectedResult = { data: { result: 1 } }
+      const getCall = sandbox.stub().resolves(expectedResult)
+      const axiosInstanceStub = sandbox.stub(BlockScoutHelper, 'axiosInstance').returns({
+        get: getCall,
+      } as any)
+
+      const result = await BlockScoutHelper._rpCall(
+        'tokens/0x1234567890',
+        { apikey: 'valid-api-key' },
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.deep.eq(expectedResult.data)
+      expect(axiosInstanceStub.calledOnce).to.be.true
+      expect(getCall.calledOnce).to.be.true
+      expect(
+        getCall.calledWith('v2/tokens/0x1234567890', {
+          params: { apikey: 'valid-api-key' },
+        }),
+      ).to.be.true
+    })
+
+    it('Should handle errors in _rpCall', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const getCall = sandbox.stub().rejects(expectedResult)
+      sandbox.stub(BlockScoutHelper, 'axiosInstance').returns({
+        get: getCall,
+      } as any)
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      try {
+        await BlockScoutHelper._rpCall('tokens/0x1234567890', { apikey: 'valid-api-key' }, NetworksEnum.ethereumMainnet)
+      } catch (error) {
+        expect(error).to.eq(expectedResult)
+        expect(loggerStub.calledOnce).to.be.true
+      }
+    })
+  })
+
+  describe('getTokenFullDetails', () => {
+    let tokenDetails
+    beforeEach(() => {
+      tokenDetails = {
+        address: '0x1234567890',
+        name: 'Test Token',
+        symbol: 'TT',
+        exchange_rate: '1',
+        decimals: 18,
+        total_supply: '1000000000000000000000',
+        holders: 1,
+        icon_url: 'https://example.com/logo.png',
+        type: 'ERC-20',
+      }
+    })
+
+    it('Should get token full details', async () => {
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(tokenDetails)
+      const result = await BlockScoutHelper.getTokenFullDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq({
+        address: '0x1234567890',
+        name: 'Test Token',
+        symbol: 'TT',
+        priceUsd: '1',
+        decimals: 18,
+        totalSupply: '1000000000000000000000',
+        holders: 1,
+        logo: 'https://example.com/logo.png',
+        type: ITokenType.ERC20,
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'tokens/0x1234567890',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should parse when token type is ERC-721', async () => {
+      tokenDetails.type = 'ERC-721'
+      tokenDetails.decimals = 0
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(tokenDetails)
+      const result = await BlockScoutHelper.getTokenFullDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq({
+        address: '0x1234567890',
+        name: 'Test Token',
+        symbol: 'TT',
+        decimals: 0,
+        priceUsd: '1',
+        totalSupply: '1000000000000000000000',
+        holders: 1,
+        logo: 'https://example.com/logo.png',
+        type: ITokenType.ERC721,
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'tokens/0x1234567890',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should parse when token type is ERC20', async () => {
+      tokenDetails.type = 'ERC-20'
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(tokenDetails)
+      const result = await BlockScoutHelper.getTokenFullDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq({
+        address: '0x1234567890',
+        name: 'Test Token',
+        symbol: 'TT',
+        decimals: 18,
+        priceUsd: '1',
+        totalSupply: '1000000000000000000000',
+        holders: 1,
+        logo: 'https://example.com/logo.png',
+        type: ITokenType.ERC20,
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'tokens/0x1234567890',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should parse when token type is ERC1155', async () => {
+      tokenDetails.type = 'ERC-1155'
+      tokenDetails.decimals = 0
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(tokenDetails)
+      const result = await BlockScoutHelper.getTokenFullDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq({
+        address: '0x1234567890',
+        name: 'Test Token',
+        symbol: 'TT',
+        decimals: 0,
+        priceUsd: '1',
+        totalSupply: '1000000000000000000000',
+        holders: 1,
+        logo: 'https://example.com/logo.png',
+        type: ITokenType.ERC1155,
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'tokens/0x1234567890',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should handle errors in getTokenFullDetails', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').rejects(expectedResult)
+      const loggerStub = sandbox.stub(logger, 'warn')
+      try {
+        await BlockScoutHelper.getTokenFullDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      } catch (error) {
+        expect(error).to.eq(expectedResult)
+        expect(loggerStub.calledOnce).to.be.true
+      }
+
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'tokens/0x1234567890',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+      expect(loggerStub.calledWith('Error getTokenDetails' as any)).to.be.true
+    })
+  })
+
+  describe('getTokenCounters', () => {
+    it('Should get token counters', async () => {
+      const expectedResult = { transfers_count: 1, token_holders_count: 1 }
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
+      const result = await BlockScoutHelper.getTokenCounters('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq({ transfers: 1, holders: 1 })
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'tokens/0x1234567890/counters',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should handle errors in getTokenCounters', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').rejects(expectedResult)
+      const loggerStub = sandbox.stub(logger, 'warn')
+      try {
+        await BlockScoutHelper.getTokenCounters('0x1234567890', NetworksEnum.ethereumMainnet)
+      } catch (error) {
+        expect(error).to.eq(expectedResult)
+        expect(loggerStub.calledOnce).to.be.true
+      }
+
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'tokens/0x1234567890/counters',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+      expect(loggerStub.calledWith('Error getTokenCounters' as any)).to.be.true
+    })
+  })
+
+  describe('searchDetails', () => {
+    it('Should search details of token or symbol', async () => {
+      const expectedResult = { items: [{ address: '0x1234567890' }] }
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
+      const result = await BlockScoutHelper.searchDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq(expectedResult.items[0])
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'search',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY, q: '0x1234567890' },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should handle errors in searchDetails', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').rejects(expectedResult)
+      const loggerStub = sandbox.stub(logger, 'warn')
+      try {
+        await BlockScoutHelper.searchDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      } catch (error) {
+        expect(error).to.eq(expectedResult)
+        expect(loggerStub.calledOnce).to.be.true
+      }
+
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'search',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY, q: '0x1234567890' },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+      expect(loggerStub.calledWith('Error searchDetails' as any)).to.be.true
+    })
+  })
+
+  describe('getContractSourceCode', () => {
+    it('Should get contract source code (happy path)', async () => {
+      const expectedResult = { abi: [{ constant: 1 }], source_code: '<<>>', name: 'PluginRepo' }
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
+
+      const result = await BlockScoutHelper.getContractSourceCode('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq([
+        {
+          SourceCode: '<<>>',
+          ContractName: 'PluginRepo',
+          ABI: '[{"constant":1}]',
+        },
+      ])
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'smart-contracts/0x1234567890',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should handle errors in getContractSourceCode', async () => {
+      const expectedError = new Error('RPC Call Failed')
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').rejects(expectedError)
+      const loggerStub = sandbox.stub(logger, 'warn')
+
+      const result = await BlockScoutHelper.getContractSourceCode('0x1234567890', NetworksEnum.ethereumMainnet)
+      // We expect the function to catch and log the error, returning null instead of re-throwing
+      expect(result).to.be.null
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('Error getContractSourceCode' as any)).to.be.true
+    })
+
+    it('should call searchDetails and re-fetch if the initial source_code is null and the contract is verified', async () => {
+      // 1st call to _rpCall returns no source_code
+      const initialResponse = { source_code: null, name: '' }
+      // searchDetails indicates a verified contract
+      const searchDetailsResponse = { is_smart_contract_verified: true, name: 'PluginRepo' }
+      // 2nd call to _rpCall (after the search) returns a proper response
+      const verifiedResponse = { source_code: '<<>>', name: 'PluginRepo', abi: [{ constant: 1 }] }
+
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall')
+      rpCallStub.onFirstCall().resolves(initialResponse)
+      rpCallStub.onSecondCall().resolves(verifiedResponse)
+
+      const searchDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves(searchDetailsResponse)
+
+      const result = await BlockScoutHelper.getContractSourceCode('0x1234567890', NetworksEnum.ethereumMainnet)
+
+      expect(searchDetailsStub.calledOnce).to.be.true
+      expect(searchDetailsStub.calledWith('0x1234567890', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(rpCallStub.callCount).to.equal(2) // Called twice: initial fetch + re-fetch
+      expect(result).to.deep.eq([
+        {
+          SourceCode: '<<>>',
+          ContractName: 'PluginRepo',
+          ABI: '[{"constant":1}]',
+        },
+      ])
+    })
+
+    it('should return null if search indicates no verified contract', async () => {
+      // 1st call to _rpCall returns no source_code
+      const initialResponse = { source_code: null, name: '' }
+      // searchDetails says it's NOT verified
+      const searchDetailsResponse = { is_smart_contract_verified: false, name: '' }
+
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(initialResponse)
+      const searchDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves(searchDetailsResponse)
+
+      const result = await BlockScoutHelper.getContractSourceCode('0x1234567890', NetworksEnum.ethereumMainnet)
+
+      expect(searchDetailsStub.calledOnce).to.be.true
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(result).to.be.null
+    })
+  })
+
+  describe('getContractProxyDetails', () => {
+    it('Should get contract proxy details', async () => {
+      const expectedResult = {
+        items: [
+          {
+            address: {
+              hash: '0x1234567890',
+              name: 'proxy',
+              implementations: [
+                {
+                  hash: '0ximplementation',
+                  name: 'implementation',
+                },
+              ],
+            },
+          },
+        ],
+      }
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
+      const result = await BlockScoutHelper.getContractProxyDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq({
+        proxy: {
+          name: 'proxy',
+          address: '0x1234567890',
+        },
+        implementation: {
+          name: 'implementation',
+          address: '0ximplementation',
+        },
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'smart-contracts',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY, q: '0x1234567890' },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should return proxy null if the contract does not have implementations', async () => {
+      const expectedResult = {
+        items: [
+          {
+            address: {
+              hash: '0x1234567890',
+              name: 'implementation',
+              implementations: [],
+            },
+          },
+        ],
+      }
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
+      const result = await BlockScoutHelper.getContractProxyDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq({
+        proxy: {
+          name: null,
+          address: null,
+        },
+        implementation: {
+          name: 'implementation',
+          address: '0x1234567890',
+        },
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'smart-contracts',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY, q: '0x1234567890' },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should handle errors in getContractProxyDetails', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').rejects(expectedResult)
+      const loggerStub = sandbox.stub(logger, 'warn')
+      try {
+        await BlockScoutHelper.getContractProxyDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      } catch (error) {
+        expect(error).to.eq(expectedResult)
+        expect(loggerStub.calledOnce).to.be.true
+      }
+
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'smart-contracts',
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY, q: '0x1234567890' },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+      expect(loggerStub.calledWith('Error getContractProxy' as any)).to.be.true
+    })
+  })
+
+  describe('getTransactionOfAnAddress', () => {
+    it('Should get transaction of an address', async () => {
+      const expectedResult = { items: [{ hash: '0x1234567890' }] }
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
+      const result = await BlockScoutHelper.getTransactionOfAnAddress('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq([{ txHash: '0x1234567890' }])
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          `addresses/0x1234567890/transactions`,
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+    })
+
+    it('should handle errors in getTransactionOfAnAddress', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').rejects(expectedResult)
+      const loggerStub = sandbox.stub(logger, 'warn')
+      try {
+        await BlockScoutHelper.getTransactionOfAnAddress('0x1234567890', NetworksEnum.ethereumMainnet)
+      } catch (error) {
+        expect(error).to.eq(expectedResult)
+        expect(loggerStub.calledOnce).to.be.true
+      }
+
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          `addresses/0x1234567890/transactions`,
+          { apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY },
+          NetworksEnum.ethereumMainnet,
+        ),
+      ).to.be.true
+      expect(loggerStub.calledWith('Error getTransactionOfAnAddress' as any)).to.be.true
+    })
+  })
+})

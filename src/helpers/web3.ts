@@ -696,7 +696,7 @@ const Web3Helper = {
       )
       return BigInt(totalSupply).toString()
     } catch (error) {
-      logger.warn('Error getting token total supply:', llo({ error, address }))
+      logger.warn('Error getting token total supply', llo({ error, address }))
     }
 
     return '0'
@@ -916,28 +916,31 @@ const Web3Helper = {
     }
   },
 
-  async getTokenDetails(tokenAddress: string, network: NetworksEnum) {
-    const tokenDetails = {
+  async getTokenNameAndSymbol(tokenAddress: string, network: NetworksEnum) {
+    const provider = ProviderModule.getProvider(network)!
+    const tokenInstance = new Contract(tokenAddress, ERC20.abi, provider)
+    const token: any = {
       name: null,
       symbol: null,
-      decimals: 0,
-      logo: null,
     }
+
     try {
-      const provider = ProviderModule.getProvider(network)!
-      const response = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-          provider.send('alchemy_getTokenMetadata', [tokenAddress]),
-        ),
+      token.name = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.name()),
       )
-      tokenDetails.name = response.name
-      tokenDetails.symbol = response.symbol
-      tokenDetails.decimals = response.decimals
-      tokenDetails.logo = response.logo || ''
-      return tokenDetails
-    } catch (_e) {
-      return tokenDetails
+    } catch (error) {
+      logger.warn('Error getting token info name', llo({ error, address: tokenAddress }))
     }
+
+    try {
+      token.symbol = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.symbol()),
+      )
+    } catch (error) {
+      logger.warn('Error getting token symbol', llo({ error, address: tokenAddress }))
+    }
+
+    return token
   },
 }
 
