@@ -187,7 +187,7 @@ describe('Manual: Proposal Advancement', () => {
     await Promise.all(plugins.map(async plugin => await Models.Plugin.create(plugin)))
   }
 
-  it.only('should handle the proposal creation and advancement', async function () {
+  it('should handle the proposal creation and advancement', async function () {
     this.timeout(10000000)
     await ProviderModule.connectToAllNetworks()
 
@@ -216,11 +216,14 @@ describe('Manual: Proposal Advancement', () => {
 
     const sendTxReceipts = await Web3Helper.getTransactionReceipt(secondTxHash, NetworksEnum.ethereumSepolia)
 
-    const secondEventData = await UnitDepUtils.parseLogsByConfig(sendTxReceipts?.logs as any, NetworksEnum.ethereumSepolia)
+    const secondEventData = await UnitDepUtils.parseLogsByConfig(
+      sendTxReceipts?.logs as any,
+      NetworksEnum.ethereumSepolia,
+    )
 
     expect(secondEventData).to.be.not.null
 
-    for(const event of secondEventData) {
+    for (const event of secondEventData) {
       await event.handler(event.event, event.info)
     }
 
