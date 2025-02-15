@@ -71,6 +71,8 @@ export interface IAggTokenProjectFields {
   name?: 1
   symbol?: 1
   decimals?: 1
+  isGovernance?: 1
+  underlying?: 1
   holders?: 1
   totalSupply?: 1
   priceChangeOnDayUsd?: 1
