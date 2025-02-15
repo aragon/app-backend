@@ -44,7 +44,7 @@ describe('Helpers: DecodeActions', () => {
 
       const stubParseContractNetspec = sandbox.stub(decodeActions, 'parseContractNetspec').resolves()
       const stubMint = sandbox.stub(decodeActions, '_parseMintAction').resolves({} as any)
-      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves('0')
+      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves(0n)
       const getTokenInfoWithCovalentStub = sandbox.stub(Covalent, 'getTokenSupplyAndHolders').resolves({
         totalSupply: '1000000000000000000',
         totalHolders: 1,

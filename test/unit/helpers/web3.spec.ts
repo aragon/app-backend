@@ -12,7 +12,6 @@ import { ProxyToken } from '@modules/proxyToken'
 import BigNumber from 'bignumber.js'
 import BottleneckModule from '@modules/bottleneck'
 import config from '@config'
-import { ERC20 } from '@artifacts/ERC20'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
@@ -840,7 +839,7 @@ describe('Helpers:Web3', () => {
       const providerStub = {
         send: sandbox.stub().resolves(fakeResponse),
       }
-      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       sandbox.stub(logger, 'verbose')
       sandbox.stub(ProxyToken, 'saveAndGetToken').returns({
         decimals: 18,
@@ -849,7 +848,7 @@ describe('Helpers:Web3', () => {
       const balance = await Web3Helper.getBalance(fakeAddress, fakeNetwork)
       expect(balance).to.equal('2.0') // Check if conversion from wei to ether is correct
       expect(providerStub.send.calledOnce).to.be.true
-      expect(providerStub.send.calledWith('eth_getBalance', [fakeAddress])).to.be.true
+      expect(providerStub.send.calledWith('eth_getBalance', [fakeAddress, 'latest'])).to.be.true
     })
 
     it('should return "0" on error', async () => {
@@ -858,7 +857,7 @@ describe('Helpers:Web3', () => {
       const providerStub = {
         send: sandbox.stub().rejects(new Error('RPC error')),
       }
-      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       const errorLoggerStub = sandbox.stub(Logger, 'error')
       const balance = await Web3Helper.getBalance(fakeAddress, fakeNetwork)
       expect(balance).to.equal('0')
@@ -1020,7 +1019,7 @@ describe('Helpers:Web3', () => {
       const stubGetBlock = sandbox.stub().resolves({ timestamp: expectedTimestamp })
       const resolveName = sandbox.stub().resolves('0x000001')
 
-      sandbox.stub(ProviderModule, 'getProvider').returns({
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
         resolveName,
         getBlock: stubGetBlock,
       } as any)
@@ -1037,7 +1036,7 @@ describe('Helpers:Web3', () => {
       const stubGetBlock = sandbox.stub().rejects(new Error('fake-error'))
       const resolveName = sandbox.stub().resolves('0x000001')
 
-      sandbox.stub(ProviderModule, 'getProvider').returns({
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
         resolveName,
         getBlock: stubGetBlock,
       } as any)
@@ -1141,7 +1140,7 @@ describe('Helpers:Web3', () => {
       const txHash = '0x0'
       const getTransactionStub = sandbox.stub().resolves(true)
 
-      sandbox.stub(ProviderModule, 'getProvider').returns({
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
         getTransaction: getTransactionStub,
       } as any)
 
@@ -1155,7 +1154,7 @@ describe('Helpers:Web3', () => {
       const stubLogger = sandbox.stub(Logger, 'error')
       const getTransactionStub = sandbox.stub().rejects(new Error('fake-error'))
 
-      sandbox.stub(ProviderModule, 'getProvider').returns({
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
         getTransaction: getTransactionStub,
       } as any)
 
@@ -1171,7 +1170,7 @@ describe('Helpers:Web3', () => {
     it('should getTransactionReceipt successfully', async () => {
       const txHash = '0x0'
       const getTransactionReceiptStubStub = sandbox.stub().resolves(true)
-      sandbox.stub(ProviderModule, 'getProvider').returns({
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
         getTransactionReceipt: getTransactionReceiptStubStub,
       } as any)
 
@@ -1185,7 +1184,7 @@ describe('Helpers:Web3', () => {
       const txHash = '0x0'
       const stubLogger = sandbox.stub(Logger, 'error')
       const getTransactionReceiptStub = sandbox.stub().rejects(new Error('fake-error'))
-      sandbox.stub(ProviderModule, 'getProvider').returns({
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
         getTransactionReceipt: getTransactionReceiptStub,
       } as any)
 
@@ -1337,7 +1336,7 @@ describe('Helpers:Web3', () => {
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {
-            return { balanceOf: sandbox.stub().resolves('1000') }
+            return { balanceOf: sandbox.stub().resolves(1000n) }
           },
         },
         '@state/configState': {
@@ -1350,7 +1349,7 @@ describe('Helpers:Web3', () => {
       const fakeNetwork = NetworksEnum.ethereumMainnet
 
       const balance = await MockedWeb3Helper.getERC20Balance(fakeAddress, fakeTokenAddress, fakeNetwork)
-      expect(balance).to.equal('1000')
+      expect(balance).to.equal(1000n)
     })
 
     it('should return "0" on error ERC20', async () => {
@@ -1374,7 +1373,7 @@ describe('Helpers:Web3', () => {
       const fakeNetwork = NetworksEnum.ethereumMainnet
 
       const balance = await MockedWeb3Helper.getERC20Balance(fakeTokenAddress, fakeAddress, fakeNetwork)
-      expect(balance).to.equal('0')
+      expect(balance).to.equal(0n)
     })
   })
 
@@ -1488,8 +1487,8 @@ describe('Helpers:Web3', () => {
     it('should get the token balance at a specific block', async () => {
       const providerSendStub = sandbox.stub().resolves('0x' + ''.padStart(63, '0') + 1)
 
-      sandbox.stub(ProviderModule, 'getProvider').returns({
-        send: providerSendStub,
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        call: providerSendStub,
       } as any)
 
       const result = await Web3Helper.getTokenBalanceAtBlock({
@@ -1505,8 +1504,8 @@ describe('Helpers:Web3', () => {
     it('should throw error if the provider fails', async () => {
       const providerSendStub = sandbox.stub().rejects(new Error('fake-error'))
 
-      sandbox.stub(ProviderModule, 'getProvider').returns({
-        send: providerSendStub,
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        call: providerSendStub,
       } as any)
 
       const params = {
@@ -1599,7 +1598,7 @@ describe('Helpers:Web3', () => {
       const providerStub = {
         send: sandbox.stub().resolves(fakeResponse),
       }
-      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       sandbox.stub(logger, 'verbose')
 
       await Web3Helper.getBlockReceipts(fakeNetwork, 12321)
@@ -1611,7 +1610,7 @@ describe('Helpers:Web3', () => {
       const fakeNetwork = NetworksEnum.ethereumMainnet
       const providerSendStub = sandbox.stub().rejects(new Error('fake-error'))
 
-      sandbox.stub(ProviderModule, 'getProvider').returns({
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
         send: providerSendStub,
       } as any)
 
@@ -1686,7 +1685,7 @@ describe('Helpers:Web3', () => {
         getBlockNumber: sandbox.stub().resolves(expectedBlockNumber),
       }
 
-      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: any) => fn() } as any)
 
       const blockNumber = await Web3Helper.getBlockNumber('latest', network)
@@ -1699,7 +1698,7 @@ describe('Helpers:Web3', () => {
         getBlockNumber: sandbox.stub().rejects(new Error('Provider error')),
       }
 
-      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: any) => fn() } as any)
       const loggerStub = sandbox.stub(logger, 'error')
 
@@ -1715,7 +1714,7 @@ describe('Helpers:Web3', () => {
     })
 
     it('should return -1 when provider is undefined', async () => {
-      sandbox.stub(ProviderModule, 'getProvider').returns(undefined)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(undefined)
       const loggerStub = sandbox.stub(logger, 'error')
 
       const blockNumber = await Web3Helper.getBlockNumber('latest', NetworksEnum.ethereumMainnet)
@@ -1734,7 +1733,7 @@ describe('Helpers:Web3', () => {
         getBlock: sandbox.stub().resolves(mockBlockData),
       }
 
-      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: any) => fn() } as any)
 
       const block = await Web3Helper.getBlock(blockNumber, network)
@@ -1749,7 +1748,7 @@ describe('Helpers:Web3', () => {
         getBlock: sandbox.stub().rejects(new Error('Provider error')),
       }
 
-      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: any) => fn() } as any)
       const loggerStub = sandbox.stub(logger, 'error')
 
@@ -1759,7 +1758,7 @@ describe('Helpers:Web3', () => {
     })
 
     it('should return null when provider is undefined', async () => {
-      sandbox.stub(ProviderModule, 'getProvider').returns(undefined)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(undefined)
       const loggerStub = sandbox.stub(logger, 'error')
 
       const block = await Web3Helper.getBlock(123456, NetworksEnum.ethereumMainnet)
@@ -1827,7 +1826,7 @@ describe('Helpers:Web3', () => {
 
       const result = await MockedWeb3Helper.getTokenTotalSupply('0xTokenAddress', NetworksEnum.ethereumMainnet)
 
-      expect(result).to.eq('200')
+      expect(result).to.eq(200n)
       expect(stubTotalSupply.calledOnce).to.be.true
     })
 
@@ -1852,7 +1851,7 @@ describe('Helpers:Web3', () => {
 
       const result = await MockedWeb3Helper.getTokenTotalSupply('0xTokenAddress', NetworksEnum.ethereumMainnet)
 
-      expect(result).to.eq('0')
+      expect(result).to.eq(0n)
       expect(stubTotalSupply.calledOnce).to.be.true
       expect(stubLogger.calledWith('Error getting token total supply' as any)).to.be.true
     })

@@ -69,7 +69,7 @@ async function detectTokenType(address: string, network: NetworksEnum): Promise<
     }
   }
 
-  const provider = ProviderModule.getProvider(network)!
+  const provider = ProviderModule.getAnyRpcProvider(network)
   let contractAddress = address
 
   // Check if the contract is a proxy and get the implementation address

@@ -2,9 +2,11 @@ import {
   type ENS,
   type HexAddress,
   type IAlchemyTokenBalance,
+  IConnectionType,
   type ILogInfo,
   type IMetadata,
   type IProposalMetadata,
+  IProviderType,
   ITransactionType,
   type NetworksEnum,
 } from '@types'
@@ -183,7 +185,7 @@ const Web3Helper = {
   },
 
   async supportsInterface(tokenAddress: string, interfaceId: string, network: NetworksEnum): Promise<boolean> {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, ERC721.abi, provider)
     try {
       return await retryRequest(async () =>
@@ -466,8 +468,7 @@ const Web3Helper = {
   async getBlockNumber(blockNumber: string | number | undefined, network: NetworksEnum): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
-        const provider = ProviderModule.getProvider(network)!
-
+        const provider = ProviderModule.getAnyRpcProvider(network)
         return await retryRequest(async () =>
           BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlockNumber()),
         )
@@ -482,7 +483,7 @@ const Web3Helper = {
 
   async getBlock(blockNumber: number, network: NetworksEnum) {
     try {
-      const provider = ProviderModule.getProvider(network)!
+      const provider = ProviderModule.getAnyRpcProvider(network)
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber)),
       )
@@ -494,7 +495,7 @@ const Web3Helper = {
 
   async getBlockTimestamp(blockNumber: number, network: NetworksEnum): Promise<number> {
     try {
-      const provider = ProviderModule.getProvider(network)!
+      const provider = ProviderModule.getAnyRpcProvider(network)
 
       const block = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber)),
@@ -520,23 +521,17 @@ const Web3Helper = {
   }): Promise<string> {
     let params = {}
     try {
-      const provider = ProviderModule.getProvider(network)!
+      const provider = ProviderModule.getAnyRpcProvider(network)
 
       const abi = ['function balanceOf(address account) view returns (uint256)']
       const iface = new Interface(abi)
-
       const data = iface.encodeFunctionData('balanceOf', [address])
 
-      params = [
-        {
-          to: tokenAddress,
-          data,
-        },
-        `0x${BigInt(blockNumber).toString(16)}`,
-      ]
+      params = { to: tokenAddress, data }
+      const blockTag = `0x${BigInt(blockNumber).toString(16)}`
 
       const response = await retryRequest(async () =>
-        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () => provider.send('eth_call', params)),
+        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () => provider.call(params, blockTag)),
       )
 
       const balance = iface.decodeFunctionResult('balanceOf', response)[0]
@@ -553,11 +548,11 @@ const Web3Helper = {
 
   async getBalance(address: HexAddress, network: NetworksEnum): Promise<string> {
     try {
-      const provider = ProviderModule.getProvider(network)!
+      const provider = ProviderModule.getAnyRpcProvider(network)
 
       const response = await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
-          provider.send('eth_getBalance', [address]),
+          provider.send('eth_getBalance', [address, 'latest']),
         ),
       )
 
@@ -574,7 +569,7 @@ const Web3Helper = {
 
   async getTokenBalances(address: HexAddress, network: NetworksEnum): Promise<IAlchemyTokenBalance[] | []> {
     try {
-      const provider = ProviderModule.getProvider(network)!
+      const provider = ProviderModule.getProvider(network, IProviderType.ALCHEMY, IConnectionType.RPC)
 
       const response = await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
@@ -623,7 +618,7 @@ const Web3Helper = {
       return false
     }
 
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
 
     try {
       const ensContract = new Contract(config.CONTRACTS.ENS_REGISTRY, ENSRegistry.abi, provider)
@@ -649,7 +644,7 @@ const Web3Helper = {
   },
 
   async getTransaction(txHash: string, network: NetworksEnum) {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
 
     try {
       return await retryRequest(async () =>
@@ -668,7 +663,7 @@ const Web3Helper = {
   },
 
   async getTransactionReceipt(txHash: string, network: NetworksEnum): Promise<TransactionReceipt | null> {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
 
     try {
       return await retryRequest(async () =>
@@ -686,20 +681,19 @@ const Web3Helper = {
     }
   },
 
-  async getTokenTotalSupply(address: HexAddress, network: NetworksEnum): Promise<string> {
-    const provider = ProviderModule.getProvider(network)!
+  async getTokenTotalSupply(address: HexAddress, network: NetworksEnum): Promise<bigint> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const tokenInstance = new Contract(address, ERC20.abi, provider)
 
     try {
-      const totalSupply = await retryRequest(async () =>
+      return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.totalSupply()),
       )
-      return BigInt(totalSupply).toString()
     } catch (error) {
       logger.warn('Error getting token total supply', llo({ error, address }))
     }
 
-    return '0'
+    return 0n
   },
 
   async getTokenInfo(
@@ -712,7 +706,7 @@ const Web3Helper = {
     decimals: number
     totalSupply: string
   }> {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const tokenInstance = new Contract(address, ERC20.abi, provider)
     const token: any = {
       address: Web3Helper.parseAddress(address) || address,
@@ -732,7 +726,7 @@ const Web3Helper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.symbol()),
       )
     } catch (error) {
-      logger.warn('Error getting token symbol', llo({ error, address }))
+      logger.warn('Error getting token symbol - getTokenInfo', llo({ error, address }))
     }
 
     try {
@@ -741,7 +735,7 @@ const Web3Helper = {
       )
       token.decimals = Number(decimals)
     } catch (error) {
-      logger.warn('Error getting token symbol', llo({ error, address }))
+      logger.warn('Error getting token symbol - getTokenInfo', llo({ error, address }))
     }
 
     try {
@@ -750,7 +744,7 @@ const Web3Helper = {
       )
       token.totalSupply = BigInt(totalSupply).toString()
     } catch (error) {
-      logger.warn('Error getting token total supply:', llo({ error, address }))
+      logger.warn('Error getting token total supply - getTokenInfo', llo({ error, address }))
     }
 
     return token
@@ -783,20 +777,20 @@ const Web3Helper = {
     return { txReceipt, events }
   },
 
-  async getERC20Balance(address: string, tokenAddress: string, network: NetworksEnum): Promise<string> {
-    const provider = ProviderModule.getProvider(network)!
+  async getERC20Balance(address: string, tokenAddress: string, network: NetworksEnum): Promise<bigint> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, ERC20.abi, provider)
     try {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.balanceOf(address)),
       )
     } catch (error) {
-      return '0'
+      return 0n
     }
   },
 
   async getDaoOsVersion(address: HexAddress, network: NetworksEnum) {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(
       address,
       [
@@ -844,7 +838,7 @@ const Web3Helper = {
     blockNumber: number,
     network: NetworksEnum,
   ) {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(pluginAddress, Multisig.abi, provider)
 
     try {
@@ -861,7 +855,7 @@ const Web3Helper = {
 
   async getBlockReceipts(network: NetworksEnum, blockNumber: number) {
     try {
-      const provider = ProviderModule.getProvider(network)!
+      const provider = ProviderModule.getAnyRpcProvider(network)
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
           provider.send('eth_getBlockReceipts', [`0x${blockNumber.toString(16)}`]),
@@ -875,7 +869,7 @@ const Web3Helper = {
 
   async getTargetConfig(network: NetworksEnum, pluginAddress: string) {
     try {
-      const provider = ProviderModule.getProvider(network)!
+      const provider = ProviderModule.getAnyRpcProvider(network)
       const contract = new Contract(pluginAddress, Multisig.abi, provider)
       const response = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getTargetConfig()),
@@ -890,7 +884,7 @@ const Web3Helper = {
 
   async getVotingEscrowAddress(pluginAddress: string, network: NetworksEnum): Promise<string | null> {
     try {
-      const provider = ProviderModule.getProvider(network)!
+      const provider = ProviderModule.getAnyRpcProvider(network)
       const contract = new Contract(pluginAddress, GaugeVoter.abi, provider)
       const response = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.escrow()),
@@ -904,7 +898,7 @@ const Web3Helper = {
 
   async getLockTokenAddress(votingEscrowAddress: string, network: NetworksEnum): Promise<string | null> {
     try {
-      const provider = ProviderModule.getProvider(network)!
+      const provider = ProviderModule.getAnyRpcProvider(network)
       const contract = new Contract(votingEscrowAddress, VotingEscrow.abi, provider)
       const response = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.lockNFT()),
@@ -917,7 +911,7 @@ const Web3Helper = {
   },
 
   async getTokenNameAndSymbol(tokenAddress: string, network: NetworksEnum) {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const tokenInstance = new Contract(tokenAddress, ERC20.abi, provider)
     const token: any = {
       name: null,
@@ -937,7 +931,7 @@ const Web3Helper = {
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.symbol()),
       )
     } catch (error) {
-      logger.warn('Error getting token symbol', llo({ error, address: tokenAddress }))
+      logger.warn('Error getting token symbol - getTokenNameAndSymbol', llo({ error, address: tokenAddress }))
     }
 
     return token

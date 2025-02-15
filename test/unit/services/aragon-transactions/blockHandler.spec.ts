@@ -35,7 +35,7 @@ describe('AragonTransactions: BlockHandler', () => {
 
     beforeEach(() => {
       stubLoggerError = sandbox.stub(logger, 'error')
-      stubGetProvider = sandbox.stub(ProviderModule, 'getProvider')
+      stubGetProvider = sandbox.stub(ProviderModule, 'getAnyRpcProvider')
       stubGetBlockReceipts = sandbox.stub(Web3Helper, 'getBlockReceipts')
       stubUtilsWait = sandbox.stub(utils, 'wait').resolves()
       stubCheckIfDepositEvents = sandbox.stub(BlockHandler as any, '_checkIfDepositEvents').resolves()
@@ -167,7 +167,7 @@ describe('AragonTransactions: BlockHandler', () => {
         new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
       ]
 
-      stubGetProvider = sandbox.stub(ProviderModule, 'getProvider')
+      stubGetProvider = sandbox.stub(ProviderModule, 'getAnyRpcProvider')
       stubProviderGetLogs = sandbox.stub()
       stubProcessReceiver = sandbox.stub(BlockHandler, 'processReceiver').resolves()
     })

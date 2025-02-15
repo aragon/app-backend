@@ -104,7 +104,7 @@ describe.skip('Manual: Token and Rates', () => {
         }),
       )
 
-      const fetchRateSpy = sandbox.spy(FetchRates, 'onDocument')
+      const fetchRateSpy = sandbox.spy(FetchRates, 'onMainnetDocument')
       await FetchRates.start()
       expect(fetchRateSpy.callCount).to.be.equal(3)
     })
