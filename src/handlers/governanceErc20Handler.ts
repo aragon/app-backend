@@ -72,7 +72,13 @@ export const GovernanceErc20Handler = {
 
       const token = await ProxyToken.saveAndGetToken(info.address, info.network)
       if (existingLog) {
-        return await GovernanceErc20Handler._handleDaoMemberShip(existingLog, token?.isGovernace, plugins, info)
+        return await GovernanceErc20Handler._handleDaoMemberShip(
+          existingLog,
+          token?.type!,
+          token?.isGovernance!,
+          plugins,
+          info,
+        )
       }
 
       if (!isHistorical) {
@@ -90,7 +96,7 @@ export const GovernanceErc20Handler = {
       let tokenBal: string = '0'
       let memberVotingPower: string = '0'
 
-      if (token?.isGovernance) {
+      if (token?.type === ITokenType.ERC20 && token?.isGovernance) {
         tokenBal = BigInt(parsedEvent?.args?.value || 0)?.toString()
         memberVotingPower = await GovernanceErc20Helper.getPastVotes(
           memberAddress,
@@ -143,22 +149,21 @@ export const GovernanceErc20Handler = {
         return memberTransaction
       })
 
-      await GovernanceErc20Handler._handleDaoMemberShip(memberTransaction, token?.isGovernance!, plugins, info)
+      await GovernanceErc20Handler._handleDaoMemberShip(
+        memberTransaction,
+        token?.type!,
+        token?.isGovernance!,
+        plugins,
+        info,
+      )
     } catch (error) {
       logger.error(`Transfer - ${transferType} transfer error`, llo({ error, info }))
     }
   },
 
-  /**
-   * Handles DAO membership state based on token ownership and voting power
-   * @param memberTx - Must contain balance/voting power at event block
-   * @param tokenIsGovernance - boolean
-   * @param plugins - All DAO plugins associated with this token
-   * @param info - Log info
-   */
-
   _handleDaoMemberShip: async (
     memberTx: Partial<MemberTransaction>,
+    tokenType: ITokenType,
     tokenIsGovernance: boolean,
     plugins: Plugin[],
     info: ILogInfo,
@@ -166,7 +171,7 @@ export const GovernanceErc20Handler = {
     let userBalance = 0n
     let votingPower = 0n
 
-    if (tokenIsGovernance) {
+    if (tokenType === ITokenType.ERC20 && tokenIsGovernance) {
       votingPower = BigInt(memberTx.memberVotingPower!)
       userBalance = BigInt(memberTx.memberBalance!)
     } else {
@@ -256,6 +261,7 @@ export const GovernanceErc20Handler = {
       if (typeof votingPowerResult !== 'bigint') {
         return await GovernanceErc20Handler._handleDaoMemberShip(
           votingPowerResult as MemberTransaction,
+          ITokenType.ERC20,
           true,
           plugins,
           info,
@@ -275,6 +281,7 @@ export const GovernanceErc20Handler = {
           memberBalance: memberBalance.toString(),
           memberVotingPower: votingPowerResult.toString(),
         },
+        ITokenType.ERC20,
         true,
         plugins,
         info,

@@ -17,6 +17,7 @@ import { RabbitMQHelper } from '@helpers/radditMQ'
 import logger from '@logger'
 import EnsHelper from '@helpers/ens'
 import { expect } from 'chai'
+
 describe('GovernanceErc20Handler', () => {
   let sandbox: SinonSandbox
   let intervalTime: number
@@ -757,6 +758,7 @@ describe('GovernanceErc20Handler', () => {
             memberVotingPower: '2000',
             memberAddress: fakeLog.args.delegate,
           },
+          ITokenType.ERC20,
           true,
           plugin,
           logInfo,
@@ -1343,6 +1345,94 @@ describe('GovernanceErc20Handler', () => {
 
       expect(handlerResponse).to.be.undefined
       expect(findPluginStub.calledOnceWith(info.address, info.network)).to.be.true
+    })
+  })
+
+  describe('_handleDaoMemberShip', () => {
+    it('should add member to DAO for governance ERC20 when requirements are met and not a member', async () => {
+      const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock')
+      const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
+      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
+
+      const memberTx = { address: '0xMember', memberBalance: '1000', memberVotingPower: '2000' }
+      const tokenType = ITokenType.ERC20
+      const tokenIsGovernance = true
+      const plugins = [
+        { daoAddress: '0xDao1', network, address: '0xPlugin1', tokenAddress: '0xToken1' },
+        { daoAddress: '0xDao2', network, address: '0xPlugin2', tokenAddress: '0xToken2' },
+      ] as any
+
+      uniqueValuesStub.returns(['0xDao1', '0xDao2'])
+      isMemberOfDaoStub.resolves(false)
+
+      await GovernanceErc20Handler._handleDaoMemberShip(memberTx, tokenType, tokenIsGovernance, plugins, {
+        address: '0xTokenAddress',
+        blockNumber: 100,
+        network,
+      } as any)
+
+      expect(getTokenBalanceAtBlockStub.calledOnce).to.be.false
+      expect(addToDaoStub.callCount).to.equal(2)
+      expect(removeFromDaoStub.notCalled).to.be.true
+      expect(sendMessageStub.callCount).to.equal(2)
+    })
+
+    it('should remove member from DAO for governance ERC20 when requirements are not met and already a member', async () => {
+      const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock')
+      const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
+      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
+
+      const memberTx = { address: '0xMember', memberBalance: '0', memberVotingPower: '0' }
+      const tokenType = ITokenType.ERC20
+      const tokenIsGovernance = true
+      const plugins = [{ daoAddress: '0xDao1', network, address: '0xPlugin1', tokenAddress: '0xToken1' }] as any
+      uniqueValuesStub.returns(['0xDao1'])
+      isMemberOfDaoStub.resolves(true)
+
+      await GovernanceErc20Handler._handleDaoMemberShip(memberTx, tokenType, tokenIsGovernance, plugins, {
+        address: '0xTokenAddress',
+        blockNumber: 100,
+        network,
+      } as any)
+
+      expect(removeFromDaoStub.callCount).to.equal(1)
+      expect(addToDaoStub.notCalled).to.be.true
+      expect(sendMessageStub.callCount).to.equal(1)
+      expect(getTokenBalanceAtBlockStub.calledOnce).to.be.false
+    })
+
+    it('should add member to DAO for a non-governance token based on on-chain balance', async () => {
+      const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock')
+      const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
+      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
+
+      const memberTx = { address: '0xMember' }
+      const tokenType = ITokenType.ERC721
+      const tokenIsGovernance = false
+      const plugins = [{ daoAddress: '0xDao1', network, address: '0xPlugin1', tokenAddress: '0xToken1' }] as any
+      uniqueValuesStub.returns(['0xDao1'])
+      getTokenBalanceAtBlockStub.resolves('500')
+      isMemberOfDaoStub.resolves(false)
+
+      await GovernanceErc20Handler._handleDaoMemberShip(memberTx, tokenType, tokenIsGovernance, plugins, {
+        address: '0xTokenAddress',
+        blockNumber: 100,
+        network,
+      } as any)
+
+      expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
+      expect(addToDaoStub.callCount).to.equal(1)
+      expect(removeFromDaoStub.notCalled).to.be.true
+      expect(sendMessageStub.callCount).to.equal(1)
     })
   })
 })
