@@ -6,6 +6,7 @@ import Dao from '@models/schema/dao'
 import { Models } from '@dbModels'
 import { PluginList } from '@test/mock/fakePlugins'
 import { DaoList } from '@test/mock/fakeDao'
+import ModelUtils from '@models/utils/models'
 
 describe('Model: Dao', () => {
   let sandbox: SinonSandbox
@@ -183,6 +184,21 @@ describe('Model: Dao', () => {
 
       await Models.Plugin.create(fakePlugin)
       await Promise.all(fakeDaos.map(w => Models.Dao.create(w)))
+    })
+
+    it('Should return empty pagination response when memberAddress is provided and extraQueryData.daoAddresses is empty', async () => {
+      const paginationParams = { page: 1, pageSize: 10 }
+      const extraParams = { memberAddress: '0xMemberAddress' }
+      const extraQueryData = { daoAddresses: [] }
+
+      const result = await Models.Dao.findWithPagination({
+        extraParams,
+        paginationParams,
+        extraQueryData,
+      })
+
+      const expected = ModelUtils.paginateEmptyResponse(paginationParams.pageSize)
+      expect(result).to.deep.equal(expected)
     })
 
     it('Should find Pagination', async () => {
