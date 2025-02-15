@@ -83,7 +83,7 @@ export const ProposalHandler = {
     }
   },
 
-  proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
+  proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const pluginAddress = info.address
 
@@ -207,7 +207,10 @@ export const ProposalHandler = {
         return { newProposal, relatedPlugin }
       })
 
-      if (!newProposal || !relatedPlugin) return
+      if (!newProposal || !relatedPlugin) {
+        logger.warn('Proposal or Plugin not found', llo(info))
+        return
+      }
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
       await ProxyMember.updateActivity({
@@ -476,7 +479,7 @@ export const ProposalHandler = {
   proposalAdvanced: async (parsedEvent: LogDescription, info: ILogInfo): Promise<void> => {
     try {
       const proposal = await Models.Proposal.findByProposalIndex(
-        parsedEvent.args.proposalId,
+        parsedEvent.args.proposalId.toString(),
         info.address,
         info.network,
       )
@@ -494,8 +497,11 @@ export const ProposalHandler = {
       /**
        * We need to mark as executed all the sub proposals of the previous stage
        */
+      const subProposalsToMarkAsExecuted = proposal.subProposals.filter(
+        (subProposal: any) => subProposal.stageIndex === newStage - 1,
+      )
       await Promise.all(
-        proposal.subProposals.map(async (subProposal: any) => {
+        subProposalsToMarkAsExecuted.map(async (subProposal: any) => {
           const subProposalDb = await Models.Proposal.findByProposalIndex(
             subProposal.proposalIndex,
             subProposal.pluginAddress,

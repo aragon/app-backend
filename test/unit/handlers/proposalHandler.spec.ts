@@ -1159,12 +1159,28 @@ describe('Indexer: ProposalHandler', () => {
         ...(ProposalList[0] as any),
         subProposals: [],
         stageExecutions: [],
+        proposalIndex: '0',
+        network: NetworksEnum.ethereumMainnet,
       })
+
+      sandbox.stub(logger, 'verbose')
 
       const executedSubProposal = await Models.Proposal.create({
         ...ProposalList[1],
-        executed: { status: true },
+        executed: { status: true, transactionHash: '0xtxHash', blockNumber: 500 },
         parentProposal: { proposalIndex: parentProposal.proposalIndex },
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      await Models.Proposal.create({
+        ...ProposalList[1],
+        id: '0xPluginAddress-proposal-0',
+        executed: { status: false },
+        parentProposal: { proposalIndex: parentProposal.proposalIndex },
+        network: NetworksEnum.ethereumMainnet,
+        pluginAddress: '0xPluginAddress',
+        stageIndex: 1,
+        proposalIndex: '23',
       })
 
       await Models.Proposal.findByIdAndUpdate(parentProposal._id, {
@@ -1172,6 +1188,7 @@ describe('Indexer: ProposalHandler', () => {
           subProposals: {
             proposalIndex: executedSubProposal.proposalIndex,
             pluginAddress: executedSubProposal.pluginAddress,
+            stageIndex: 0,
           },
         },
       })
@@ -1180,8 +1197,13 @@ describe('Indexer: ProposalHandler', () => {
         ...(PluginList[0] as any),
         address: parentProposal.pluginAddress,
         interfaceType: IPluginInterfaceType.spp,
-        subPlugins: [{ stageIndex: 2, addresses: [executedSubProposal.pluginAddress] }],
+        network: NetworksEnum.ethereumMainnet,
+        subPlugins: [
+          { stageIndex: 0, addresses: [executedSubProposal.pluginAddress] },
+          { stageIndex: 1, addresses: ['0xPluginAddress'] },
+        ],
       })
+
       const info = {
         transactionHash: '0xAdvancedTx',
         address: parentProposal.pluginAddress,
@@ -1192,16 +1214,17 @@ describe('Indexer: ProposalHandler', () => {
         logIndex: 2,
       }
 
-      const fakeEvent = { args: { proposalId: 0n, stageId: 2n } }
+      const fakeEvent = { args: { proposalId: 0n, stageId: 1 } }
 
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({ lastStageTransition: 1800000000 } as any)
+      sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(23) // Simulated valid subProposalIndex
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
       const updatedSubProposal = await Models.Proposal.findById(executedSubProposal._id)
       expect(updatedSubProposal.executed.status).to.be.true
-      expect(updatedSubProposal.executed.transactionHash).to.be.null
+      expect(updatedSubProposal.executed.transactionHash).to.be.eq('0xtxHash')
     })
 
     it('should return early when stage execution already exists', async () => {
@@ -1218,6 +1241,18 @@ describe('Indexer: ProposalHandler', () => {
             status: true,
           },
         ],
+      })
+
+      await Models.Proposal.create({
+        ...ProposalList[1],
+        executed: { status: false },
+        parentProposal: {
+          proposalIndex: parentProposal.proposalIndex,
+          pluginAddress: parentProposal.pluginAddress,
+        },
+        address: '0xPluginAddress',
+        proposalIndex: '2',
+        network,
       })
 
       // Create a mock plugin with subPlugins configuration
@@ -1250,8 +1285,11 @@ describe('Indexer: ProposalHandler', () => {
         lastStageTransition: 1800000000,
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
+      sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(2)
 
       const warnLoggerStub = sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'error')
+
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
