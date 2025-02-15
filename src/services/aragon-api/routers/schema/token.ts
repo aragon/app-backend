@@ -11,6 +11,7 @@ const TokenSchema = {
     type: Joi.string()
       .valid(...Object.values(ITokenType))
       .optional(),
+    isGovernance: Joi.boolean().optional(),
   }),
 
   getTokenByAddress: Joi.object({
