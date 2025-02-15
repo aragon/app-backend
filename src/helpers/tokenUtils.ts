@@ -42,7 +42,8 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
   const holders =
     firstValid(
       blockScoutInfo ? blockScoutInfo.holders : null,
-      (token.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(token.address, token.network)) &&
+      ((token.type === ITokenType.ERC20 && token.isGovernance) ||
+        Web3Helper.isWhitelistedToken(token.address, token.network)) &&
         covalentInfo
         ? covalentInfo.totalHolders
         : null,
@@ -51,7 +52,8 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
   const totalSupply =
     firstValid(
       blockScoutInfo ? blockScoutInfo.totalSupply : null,
-      (token.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(token.address, token.network)) &&
+      ((token.type === ITokenType.ERC20 && token.isGovernance) ||
+        Web3Helper.isWhitelistedToken(token.address, token.network)) &&
         covalentInfo
         ? covalentInfo.totalSupply
         : null,

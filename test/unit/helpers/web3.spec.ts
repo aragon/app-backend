@@ -1990,4 +1990,50 @@ describe('Helpers:Web3', () => {
       expect(stubLockNFT.calledOnce).to.be.true
     })
   })
+
+  describe('getUnderlying', () => {
+    it('should return the underlying address when the call is successful', async () => {
+      const stubUnderlying = sandbox.stub().resolves('0xUnderlyingAddress')
+      const fakeProvider = {}
+      // Use proxyquire to override dependencies:
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          // When a new Contract is created, return an object with our stubbed underlying function.
+          Contract: function () {
+            return { underlying: stubUnderlying }
+          },
+        },
+        ProviderModule: {
+          getAnyRpcProvider: () => fakeProvider,
+        },
+      })
+
+      const result = await MockedWeb3Helper.getUnderlying('0xTokenAddress', NetworksEnum.ethereumMainnet)
+      expect(result).to.equal('0xUnderlyingAddress')
+      expect(stubUnderlying.calledOnce).to.be.true
+    })
+
+    it('should return null and log a warning when the underlying call fails', async () => {
+      const stubUnderlying = sandbox.stub().rejects(new Error('Underlying error'))
+      const fakeProvider = {}
+      const stubLogger = sandbox.stub(logger, 'warn')
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { underlying: stubUnderlying }
+          },
+        },
+        ProviderModule: {
+          getAnyRpcProvider: () => fakeProvider,
+        },
+      })
+
+      const result = await MockedWeb3Helper.getUnderlying('0xTokenAddress', NetworksEnum.ethereumMainnet)
+      expect(result).to.be.null
+      expect(stubUnderlying.calledOnce).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.firstCall.args[0]).to.equal('Error getting underlying')
+    })
+  })
 })

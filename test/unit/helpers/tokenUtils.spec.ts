@@ -88,7 +88,7 @@ describe('fetchTokenUpdate', () => {
   })
 
   it('should fallback to covalent for holders and totalSupply if blockScout is missing and token qualifies (GovernanceERC20)', async () => {
-    const governanceToken = { ...baseToken, type: ITokenType.GovernanceERC20 } as any
+    const governanceToken = { ...baseToken, type: ITokenType.ERC20, isGovernance: true } as any
     rateFetchStub.resolves({
       decimals: 18,
       priceUsd: '200',

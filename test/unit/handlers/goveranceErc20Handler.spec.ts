@@ -30,7 +30,8 @@ describe('GovernanceErc20Handler', () => {
     config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = 0
     fakeToken = await Models.Token.create({
       ...FakeToken,
-      type: ITokenType.GovernanceERC20,
+      type: ITokenType.ERC20,
+      isGovernance: true,
     })
     sandbox.stub(Web3Helper, 'parseAddress').callsFake((address: string) => address)
     sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').callsFake(async (_address: string) => 'test.eth')
@@ -756,7 +757,7 @@ describe('GovernanceErc20Handler', () => {
             memberVotingPower: '2000',
             memberAddress: fakeLog.args.delegate,
           },
-          ITokenType.GovernanceERC20,
+          true,
           plugin,
           logInfo,
         ),

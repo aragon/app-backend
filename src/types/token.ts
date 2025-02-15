@@ -4,6 +4,8 @@ export interface ITokenInfo {
   type: ITokenType
   proxy: boolean
   implementationAddress: string | null
+  isGovernance: boolean
+  isUnderlying: boolean
 }
 
 export interface ITokenRate {

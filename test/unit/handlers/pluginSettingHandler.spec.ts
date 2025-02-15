@@ -104,7 +104,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(false)
       const stubLogger = sandbox.stub(logger, 'warn')
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
       } as any)
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
 
@@ -169,7 +170,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubWarn = sandbox.stub(logger, 'warn')
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
       } as any)
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
@@ -217,7 +219,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
       } as any)
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
@@ -267,7 +270,7 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.GovernanceERC20 } as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.ERC20, isGovernance: true } as any)
 
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
 

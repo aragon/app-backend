@@ -681,6 +681,30 @@ const Web3Helper = {
     }
   },
 
+  async getUnderlying(address: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const underlyingAbi = [
+      {
+        inputs: [],
+        name: 'underlying',
+        outputs: [{ name: '', type: 'address' }],
+        stateMutability: 'view',
+        type: 'function',
+      },
+    ]
+    const tokenInstance = new Contract(address, underlyingAbi, provider)
+
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.underlying()),
+      )
+    } catch (error) {
+      logger.warn('Error getting underlying', llo({ error, address }))
+    }
+
+    return null
+  },
+
   async getTokenTotalSupply(address: HexAddress, network: NetworksEnum): Promise<bigint> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const tokenInstance = new Contract(address, ERC20.abi, provider)
