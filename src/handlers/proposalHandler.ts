@@ -104,6 +104,7 @@ export const ProposalHandler = {
           proposalIndex,
         })
         if (existingLog) {
+          logger.warn('Proposal already exists', llo(info))
           return { newProposal: undefined, relatedPlugin: undefined }
         }
 
