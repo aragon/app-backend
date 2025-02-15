@@ -10,7 +10,7 @@ const llo = logger.logMeta.bind(null, { service: 'helper:EnsHelper' })
 
 const EnsHelper = {
   async getEnsWithUniversalResolver(address: string): Promise<ENS | null> {
-    const provider = ProviderModule.getProvider(NetworksEnum.ethereumMainnet)!
+    const provider = ProviderModule.getAnyRpcProvider(NetworksEnum.ethereumMainnet)
     const universalResolver = '0xce01f8eee7E479C928F8919abD53E553a36CeF67'
 
     try {

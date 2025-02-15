@@ -1,10 +1,10 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
-import { IWebSocketProvider, IWebSocketStatus, NetworksEnum } from '@types'
+import utils from '@helpers/utils'
+import { IWebSocketStatus, NetworksEnum } from '@types'
 import { WebSocketProvider } from 'ethers'
 import config from '@config'
-import utils from '@helpers/utils'
 
 describe('Manual: Provider', () => {
   let sandbox: SinonSandbox
@@ -15,6 +15,12 @@ describe('Manual: Provider', () => {
 
   afterEach(() => {
     sandbox && sandbox.restore()
+  })
+
+  it('connectToAllNetworks', async function () {
+    this.timeout(160000) // Increase timeout for the test
+    await ProviderModule.connectToAllNetworks()
+    console.log('Connected to all networks')
   })
 
   it('should handle reconnection during a loop', async function () {
@@ -47,9 +53,7 @@ describe('Manual: Provider', () => {
           fakeWebSocket.readyState = IWebSocketStatus.CLOSED
           setTimeout(() => {
             fakeWebSocket.readyState = IWebSocketStatus.OPEN
-            provider.updateProvider(
-              new WebSocketProvider(config.NODES.ARBITRUM_MAINNET.WS as any) as IWebSocketProvider,
-            )
+            provider.updateProvider(new WebSocketProvider(config.NODES.ARBITRUM_MAINNET.ARAGON_RPC as any))
           }, 2000) // Simulate reconnection after 2 seconds
         }, 2000) // Simulate disconnection after 2 seconds
       }

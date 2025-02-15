@@ -184,7 +184,7 @@ describe('Modules: ProxyToken', () => {
       }
       const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo').resolves(onChainTokenInfo as any)
 
-      const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves('10')
+      const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(10n)
 
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
@@ -230,7 +230,7 @@ describe('Modules: ProxyToken', () => {
       }
       const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo').resolves(onChainTokenInfo as any)
 
-      const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves('10')
+      const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(10n)
 
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 

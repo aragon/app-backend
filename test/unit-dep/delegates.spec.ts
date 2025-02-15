@@ -1,32 +1,11 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { Interface } from 'ethers'
 import { expect } from 'chai'
 import { IEventLogMember, ITransferSide, NetworksEnum } from '@types'
-import Web3Helper from '@helpers/web3'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { Models } from '@dbModels'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
-
-const getData = async (txHash: string, network: NetworksEnum): Promise<{ event: any; logInfo: any }[]> => {
-  const txReceipt = await Web3Helper.getTransactionReceipt(txHash, network)
-
-  const delegationVotesChangedLogs = Web3Helper.findLogsByName(
-    txReceipt!,
-    IEventLogMember.DelegateVotesChanged,
-    GovernanceERC20.abi,
-  )
-
-  const data: any = []
-  for (const log of delegationVotesChangedLogs) {
-    const logInfo = Web3Helper.parseInfoLog(log.txLog, 'DelegateVotesChanged', network)
-    const iFace = new Interface(GovernanceERC20.abi)
-    const event = Web3Helper.parseLog(log.txLog, iFace)!
-    data.push({ event, logInfo })
-  }
-
-  return data
-}
+import UnitDepUtils from '@test/lib/unit-dep/utils'
 
 describe('Integ: Delegates', () => {
   let sandbox: SinonSandbox
@@ -87,7 +66,12 @@ describe('Integ: Delegates', () => {
     // member2 delegate to member1 1 token
     // member1 prev balance 1000000000000000000 new balance 2000000000000000000
     // member2 prev balance 1000000000000000000 new balance 0
-    const tx1 = await getData('0x9ecf9ba7aa3838893d5f57216e38dcfd74fcd76b8fc4755f5f29ba390e38cd25', network)
+    const tx1 = await UnitDepUtils.getData(
+      GovernanceERC20.abi,
+      IEventLogMember.DelegateVotesChanged,
+      '0x9ecf9ba7aa3838893d5f57216e38dcfd74fcd76b8fc4755f5f29ba390e38cd25',
+      network,
+    )
 
     for (const { event, logInfo } of tx1) {
       await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
@@ -134,7 +118,12 @@ describe('Integ: Delegates', () => {
     // member3 delegate to member1 1 token
     // member1 prev balance 2000000000000000000 new balance 3000000000000000000
     // member3 prev balance 1000000000000000000 new balance 0
-    const tx2 = await getData('0x1127fa7b1df29f6dbcbdd5d385f8c0eda48e73ad2ed808d1eb5dffb053053a76', network)
+    const tx2 = await UnitDepUtils.getData(
+      GovernanceERC20.abi,
+      IEventLogMember.DelegateVotesChanged,
+      '0x1127fa7b1df29f6dbcbdd5d385f8c0eda48e73ad2ed808d1eb5dffb053053a76',
+      network,
+    )
 
     for (const { event, logInfo } of tx2) {
       await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
@@ -180,7 +169,12 @@ describe('Integ: Delegates', () => {
     // member4 delegate to member1 1 token
     // member1 prev balance 3000000000000000000 new balance 4000000000000000000
     // member4 prev balance 1000000000000000000 new balance 0
-    const tx3 = await getData('0xf703823a43620c92eedf5100c8f0e47d1a1e960c4c3d14abf8353aab7b5d443d', network)
+    const tx3 = await UnitDepUtils.getData(
+      GovernanceERC20.abi,
+      IEventLogMember.DelegateVotesChanged,
+      '0xf703823a43620c92eedf5100c8f0e47d1a1e960c4c3d14abf8353aab7b5d443d',
+      network,
+    )
 
     for (const { event, logInfo } of tx3) {
       await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
@@ -227,7 +221,12 @@ describe('Integ: Delegates', () => {
     // member1 delegate to member2 1 token
     // member1 prev balance 4000000000000000000 new balance 3000000000000000000
     // member2 prev balance 0 new balance 1000000000000000000
-    const tx4 = await getData('0x4ac08441f32f2b13dd5b3897cc1ae13bd6164e6b79699511f5923b00d801419c', network)
+    const tx4 = await UnitDepUtils.getData(
+      GovernanceERC20.abi,
+      IEventLogMember.DelegateVotesChanged,
+      '0x4ac08441f32f2b13dd5b3897cc1ae13bd6164e6b79699511f5923b00d801419c',
+      network,
+    )
 
     for (const { event, logInfo } of tx4) {
       await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
@@ -270,7 +269,12 @@ describe('Integ: Delegates', () => {
     // member2 revoke delegation to member1
     // member1 prev balance 3000000000000000000 new balance 2000000000000000000
     // member2 prev balance 1000000000000000000 new balance 2000000000000000000
-    const tx5 = await getData('0x2744c5a3f65084d54bd8a972a3743925b1dea2565ee1e9002061ef653ffd7e50', network)
+    const tx5 = await UnitDepUtils.getData(
+      GovernanceERC20.abi,
+      IEventLogMember.DelegateVotesChanged,
+      '0x2744c5a3f65084d54bd8a972a3743925b1dea2565ee1e9002061ef653ffd7e50',
+      network,
+    )
 
     for (const { event, logInfo } of tx5) {
       await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)

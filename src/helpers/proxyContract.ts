@@ -28,7 +28,7 @@ const ProxyContractHelper = {
   },
 
   async _fallBackImplementationViaViewCall(address: string, network: NetworksEnum): Promise<HexAddress | null> {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(
       address,
       ['function implementation() view returns (address)', 'function getImplementation() view returns (address)'],
@@ -68,10 +68,7 @@ const ProxyContractHelper = {
   },
 
   async getImplementationAddress(address: string, network: NetworksEnum): Promise<HexAddress | null> {
-    const provider = ProviderModule.getProvider(network)!
-
-    // Helper function to extract an address from a storage slot
-
+    const provider = ProviderModule.getAnyRpcProvider(network)
     try {
       // Check EIP-1967 slot first
       let implementationAddress = await ProxyContractHelper.getAddressFromStorage(
