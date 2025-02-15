@@ -43,6 +43,7 @@ async function runTests() {
   mocha.suite.beforeAll(async () => {
     switch (testFolder) {
       case 'unit':
+      case 'manual':
         await MockDB.connect()
         await utils.wait(500)
         break
