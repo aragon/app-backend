@@ -350,6 +350,7 @@ export const PluginSetupProcessorHandler = {
       }
 
       if (!tokenAddress) {
+        // TODO: check if it has the type on abi then call
         // try to get token address from gauge plugin
         tokenAddress = await GaugeHelper.getTokenAddress(pluginAddress, info.network)
       }
