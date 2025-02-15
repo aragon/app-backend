@@ -63,7 +63,12 @@ export const ProxyToken = {
     let updates: Partial<Token> = {}
 
     if (shouldUpdate || forceUpdate) {
-      const { tokenRate, tokenMetrics } = await ProxyToken._fetchTokenDetails(token.type, tokenAddress, network)
+      const { tokenRate, tokenMetrics } = await ProxyToken._fetchTokenDetails(
+        token.type,
+        token.isGovernance,
+        tokenAddress,
+        network,
+      )
 
       updates = {
         priceUsd: tokenRate.priceUsd,
@@ -86,14 +91,15 @@ export const ProxyToken = {
   createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum, session?: ClientSession): Promise<Token> => {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
     const tokenDetails = await ProxyToken._fetchTokenDetails(
-      tokenTypeInfo?.type ?? ITokenType.unknown,
+      tokenTypeInfo.type,
+      tokenTypeInfo.isGovernance,
       tokenAddress,
       network,
     )
     const { tokenRate, tokenMetrics } = tokenDetails
 
     const contractDeployInfo =
-      tokenTypeInfo?.type === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(tokenAddress, network)
+      tokenTypeInfo.isGovernance || Web3Helper.isWhitelistedToken(tokenAddress, network)
         ? await ProxyToken.getContractCreationInfo(tokenAddress, network)
         : { address: '', transactionHash: null, blockNumber: 0 }
 
@@ -111,8 +117,10 @@ export const ProxyToken = {
       holders: tokenMetrics.totalHolders,
       totalSupply: tokenMetrics.totalSupply,
       address: tokenAddress,
-      type: tokenTypeInfo?.type ?? ITokenType.unknown,
-      implementationAddress: tokenTypeInfo?.implementationAddress! ?? null,
+      underlying: tokenTypeInfo.isUnderlying ? await Web3Helper.getUnderlying(tokenAddress, network) : null,
+      type: tokenTypeInfo.type,
+      isGovernance: tokenTypeInfo.isGovernance,
+      implementationAddress: tokenTypeInfo.implementationAddress! ?? null,
       network,
       lastUpdatedAt: dayjs.utc().toDate(),
       mintableByDao: await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session),
@@ -122,7 +130,7 @@ export const ProxyToken = {
           holders: tokenMetrics.totalHolders,
           totalSupply: tokenMetrics.totalSupply,
           address: tokenAddress,
-          type: tokenTypeInfo?.type ?? ITokenType.unknown,
+          type: tokenTypeInfo.type,
           network,
         },
         tokenRate,
@@ -144,6 +152,7 @@ export const ProxyToken = {
 
   async _fetchTokenDetails(
     tokenType: ITokenType,
+    isGovernance: boolean,
     tokenAddress: HexAddress,
     network: NetworksEnum,
   ): Promise<{ tokenRate: ITokenRate; tokenMetrics: ITokenMetrics }> {
@@ -168,7 +177,7 @@ export const ProxyToken = {
         totalHolders: tokenFullDetails.holders,
         totalSupply: tokenFullDetails.totalSupply,
       })
-    } else if (tokenType === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(tokenAddress, network)) {
+    } else if (isGovernance || Web3Helper.isWhitelistedToken(tokenAddress, network)) {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
     }
 
@@ -178,7 +187,7 @@ export const ProxyToken = {
     }
 
     if (
-      (tokenType === ITokenType.GovernanceERC20 || Web3Helper.isWhitelistedToken(tokenAddress, network)) &&
+      (isGovernance || Web3Helper.isWhitelistedToken(tokenAddress, network)) &&
       tokenMetrics.totalHolders === 0 &&
       tokenMetrics.totalSupply === '0'
     ) {
@@ -215,7 +224,7 @@ export const ProxyToken = {
 
   shouldSkipFetch: (token: Partial<Token>, tokenRate: ITokenRate): boolean =>
     (!token.symbol ||
-      token.type === ITokenType.GovernanceERC20 ||
+      token.isGovernance ||
       token.type === ITokenType.unknown ||
       CovalentHelper.skipTestNetworks.includes(token.network!)) &&
     tokenRate.priceUsd === '0',

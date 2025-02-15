@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo, IPluginInterfaceType, ISettingStatus, ITokenType, IEventLogPluginSettings } from '@types'
+import { type ILogInfo, IPluginInterfaceType, ISettingStatus, IEventLogPluginSettings } from '@types'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import type Plugin from '@models/schema/plugin'
@@ -115,7 +115,7 @@ export const PluginSettingHandler = {
 
     const tokenDb = await ProxyToken.saveAndGetToken(relatedPlugin.tokenAddress, relatedPlugin.network)
 
-    if (tokenDb?.type === ITokenType.GovernanceERC20) {
+    if (tokenDb?.isGovernance) {
       await PluginSettingHandler.isSupported(relatedPlugin, info)
     }
 

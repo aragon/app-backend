@@ -6,6 +6,7 @@ import TokenDetector, {
   ERC721_FUNCTIONS,
   ERC777_FUNCTIONS,
   GOVERNANCE_ERC20_FUNCTIONS,
+  HAS_UNDERLYING,
 } from '@helpers/tokenDetector'
 import { beforeEach } from 'mocha'
 import { ITokenType, NetworksEnum } from '@types'
@@ -34,7 +35,8 @@ describe('Helper: TokenDetector', () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress')
 
     const result = await TokenDetector.detectTokenType(ZeroAddress, NetworksEnum.ethereumMainnet)
-    expect(result?.type).to.equal(ITokenType.native)
+    expect(result.type).to.equal(ITokenType.native)
+    expect(result.isGovernance).to.be.false
     expect(getImplementationAddressStub.notCalled).to.be.true
   })
 
@@ -50,32 +52,37 @@ describe('Helper: TokenDetector', () => {
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result?.type).to.equal(ITokenType.ERC20)
+    expect(result.isGovernance).to.be.false
     expect(getImplementationAddressStub.calledOnce).to.be.true
     expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
   })
 
-  it('should detect ERC20 Governance token', async () => {
+  it('should detect ERC20 Governance token and underlying', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox
         .stub()
-        .resolves(simulateBytecodeForFunctions([...ERC20_FUNCTIONS, ...GOVERNANCE_ERC20_FUNCTIONS])),
+        .resolves(simulateBytecodeForFunctions([...ERC20_FUNCTIONS, ...GOVERNANCE_ERC20_FUNCTIONS, ...HAS_UNDERLYING])),
     } as any)
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
-    expect(result?.type).to.equal(ITokenType.GovernanceERC20)
+    expect(result.type).to.equal(ITokenType.ERC20)
+    expect(result.isGovernance).to.be.true
+    expect(result.isUnderlying).to.be.true
     expect(getImplementationAddressStub.calledOnce).to.be.true
     expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
   })
 
   it('should detect ERC721 token', async () => {
-    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(ERC721_FUNCTIONS)),
     } as any)
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
-    expect(result?.type).to.equal(ITokenType.ERC721)
+    expect(result.type).to.equal(ITokenType.ERC721)
+    expect(result.isGovernance).to.be.false
+    expect(result.isUnderlying).to.be.false
   })
 
   it('should detect ERC1155 token', async () => {
@@ -85,7 +92,8 @@ describe('Helper: TokenDetector', () => {
     } as any)
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
-    expect(result?.type).to.equal(ITokenType.ERC1155)
+    expect(result.type).to.equal(ITokenType.ERC1155)
+    expect(result.isGovernance).to.be.false
   })
 
   it('should detect ERC777 token', async () => {
@@ -95,7 +103,8 @@ describe('Helper: TokenDetector', () => {
     } as any)
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
-    expect(result?.type).to.equal(ITokenType.ERC777)
+    expect(result.type).to.equal(ITokenType.ERC777)
+    expect(result.isGovernance).to.be.false
   })
 
   it('should detect ERC777 token', async () => {
@@ -105,7 +114,8 @@ describe('Helper: TokenDetector', () => {
     } as any)
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
-    expect(result?.type).to.equal(ITokenType.unknown)
+    expect(result.type).to.equal(ITokenType.unknown)
+    expect(result.isGovernance).to.be.false
   })
 
   it('should get empty getCode', async () => {
@@ -118,9 +128,10 @@ describe('Helper: TokenDetector', () => {
     } as any)
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
-    expect(result?.type).to.equal(ITokenType.unknown)
+    expect(result.type).to.equal(ITokenType.unknown)
     expect(getImplementationAddressStub.calledOnce).to.be.true
     expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+    expect(result.isGovernance).to.be.false
   })
 
   it('should getCode from address if implementation is zero address', async () => {
@@ -132,8 +143,9 @@ describe('Helper: TokenDetector', () => {
     } as any)
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
-    expect(result?.type).to.equal(ITokenType.ERC721)
-    expect(result?.implementationAddress).to.equal(utils.zeroAddress)
+    expect(result.type).to.equal(ITokenType.ERC721)
+    expect(result.implementationAddress).to.equal(utils.zeroAddress)
+    expect(result.isGovernance).to.be.false
   })
 
   it('should handle an error when fetching bytecode', async () => {
@@ -144,9 +156,10 @@ describe('Helper: TokenDetector', () => {
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
 
-    expect(result?.implementationAddress).to.be.null
-    expect(result?.proxy).to.be.false
-    expect(result?.type).to.eq(ITokenType.unknown)
+    expect(result.implementationAddress).to.be.null
+    expect(result.proxy).to.be.false
+    expect(result.type).to.eq(ITokenType.unknown)
+    expect(result.isGovernance).to.be.false
     expect(getImplementationAddressStub.calledOnce).to.be.true
   })
 })
