@@ -3,6 +3,7 @@ import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
 export enum ProposalActionType {
   Transfer = 'Transfer',
+  TransferNative = 'Transfer (Native)',
   Unknown = 'Unknown',
   Mint = 'Mint',
   MultisigAddMembers = 'MultisigAddMembers',
