@@ -7,6 +7,7 @@ import DecodeActions from '@helpers/decodeAction'
 import Web3Helper from '@helpers/web3'
 import { ProxyMember } from '@modules/proxyMember'
 import { Models } from '@dbModels'
+import BlockScoutHelper from '@helpers/blockScout'
 
 describe('AragonDao: actionDecoder', () => {
   let sandbox: SinonSandbox
@@ -65,10 +66,12 @@ describe('AragonDao: actionDecoder', () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({
         address: '0xfrom',
       })
-
+      sandbox.stub(BlockScoutHelper, 'searchDetails').resolves({
+        name: null,
+      } as any)
       const response = await ActionDecoder.decode(action)
 
-      expect(response.type).to.be.eq(ProposalActionType.Transfer)
+      expect(response.type).to.be.eq(ProposalActionType.TransferNative)
     })
 
     it('should return null if decodedData is null', async () => {
