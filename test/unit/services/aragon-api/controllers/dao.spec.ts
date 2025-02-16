@@ -202,10 +202,9 @@ describe('Controller: Dao', () => {
 
       const filterParams: any = {
         network: rawDao.network,
-        memberAddress: FakeMember.address,
+        memberAddress: FakeDaoMemberMappings[0].memberAddress,
       }
 
-      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
       const spyReq = sandbox.spy(Models.Dao, 'findWithPagination')
 
       const response = await DaoController.getDaosByMember(paginationParams, filterParams)
