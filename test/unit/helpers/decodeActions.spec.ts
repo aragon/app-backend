@@ -191,6 +191,7 @@ describe('Helpers: DecodeActions', () => {
         daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         value: '0x40c10f19',
+        network: NetworksEnum.ethereumSepolia,
       }
 
       // findByTokenAddressAndNetwork
@@ -209,6 +210,10 @@ describe('Helpers: DecodeActions', () => {
         avatar: 'ERC20',
       } as any)
 
+      const findAddressDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves({
+        name: 'Recipient Contract',
+      } as any)
+
       const findByAddressDaoStub = sandbox.stub(Models.Dao, 'findByAddress').resolves({
         ens: 'daoEns.eth',
       } as any)
@@ -216,15 +221,71 @@ describe('Helpers: DecodeActions', () => {
       const result = await decodeActions.decodeTransfer(action, document as any)
 
       expect(result?.inputData.function).to.eq('NativeTransfer')
-      expect(result?.inputData.textSignature).to.eq('nativeTransfer(address,uint256)')
+      expect(result?.inputData.textSignature).to.eq('Transfer (Native)')
       expect(result?.sender.address).to.eq(document.daoAddress)
       expect(result?.receiver.address).to.eq(action.to)
       expect(result?.amount).to.eq(action.value)
-      expect(result?.type).to.be.eq(ProposalActionType.Transfer)
-      expect(result?.inputData.contract).to.be.eq('NativeToken')
+      expect(result?.type).to.be.eq(ProposalActionType.TransferNative)
+      expect(result?.inputData.contract).to.be.eq('Recipient Contract')
       expect(findTokenStub.calledOnce).to.be.true
       expect(createMemberStub.calledOnce).to.be.true
       expect(findByAddressDaoStub.calledOnce).to.be.true
+      expect(findAddressDetailsStub.calledOnceWith(action.to, NetworksEnum.ethereumSepolia)).to.be.true
+    })
+
+    it('Should decodeTransfer when the reciever is wallet', async () => {
+      const decodeActions = new DecodeActions()
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 10n,
+        data: '0x',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+        network: NetworksEnum.ethereumSepolia,
+      }
+
+      // findByTokenAddressAndNetwork
+      const findTokenStub = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        name: 'MockToken',
+        symbol: 'MOCK',
+        decimals: 18,
+        logo: 'https://mock.com/logo.png',
+        type: 'ERC20',
+      } as any)
+
+      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        ens: 'userEns.eth',
+        avatar: 'ERC20',
+      } as any)
+
+      const findAddressDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves({
+        name: undefined,
+      } as any)
+
+      const findByAddressDaoStub = sandbox.stub(Models.Dao, 'findByAddress').resolves({
+        ens: 'daoEns.eth',
+      } as any)
+
+      const result = await decodeActions.decodeTransfer(action, document as any)
+
+      expect(result?.inputData.function).to.eq('NativeTransfer')
+      expect(result?.inputData.textSignature).to.eq('Transfer (Native)')
+      expect(result?.sender.address).to.eq(document.daoAddress)
+      expect(result?.receiver.address).to.eq(action.to)
+      expect(result?.amount).to.eq(action.value)
+      expect(result?.type).to.be.eq(ProposalActionType.TransferNative)
+      expect(result?.inputData.contract).to.be.eq('Wallet Address')
+      expect(findTokenStub.calledOnce).to.be.true
+      expect(createMemberStub.calledOnce).to.be.true
+      expect(findByAddressDaoStub.calledOnce).to.be.true
+      expect(findAddressDetailsStub.calledOnceWith(action.to, NetworksEnum.ethereumSepolia)).to.be.true
     })
 
     it('Should not decodeData if not native', async () => {
