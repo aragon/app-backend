@@ -67,5 +67,11 @@ describe('Batch Request', () => {
     expect(logsResults.length).to.be.gt(0)
     //we expect the send method to be called only once as we are batching the requests
     expect(sendSpy.callCount).to.be.eq(1)
+
+    await rpc.send('eth_blockNumber', [])
+    await rpc.send('eth_chainId', [])
+
+    //we expect the send method to be called 3 times as we are sending 2 requests above and its not batched
+    expect(sendSpy.callCount).to.be.eq(3)
   })
 })
