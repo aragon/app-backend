@@ -72,21 +72,22 @@ class DecodeActions {
 
       const member = await ProxyMember.createMember(action.to)
       const dao = await Models.Dao.findByAddress(document.daoAddress, document.network)
+      const toInfo = await BlockScoutHelper.searchDetails(action.to, document.network!)
 
       return {
         from: document.daoAddress,
         to: action.to,
         value: action.value,
         data: action.data,
-        type: ProposalActionType.Transfer,
+        type: ProposalActionType.TransferNative,
         sender: { address: document.daoAddress, ens: dao?.ens },
         receiver: { address: member?.address || action.to, ens: member?.ens, avatar: member?.avatar },
         amount: action.value,
         token,
         inputData: {
-          textSignature: 'nativeTransfer(address,uint256)',
+          textSignature: 'Transfer (Native)',
           function: 'NativeTransfer',
-          contract: 'NativeToken',
+          contract: toInfo?.name || 'Wallet Address',
           parameters: [],
         },
       }
