@@ -5,7 +5,7 @@ import { IConnectionType, IProviderType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import config from '@config'
 import utils from '@helpers/utils'
-import configIndexer from "@indexer/configIndexer";
+import configIndexer from '@indexer/configIndexer'
 
 describe('Batch Request', () => {
   let sandbox: SinonSandbox
@@ -34,36 +34,40 @@ describe('Batch Request', () => {
     const SECONDS_IN_MONTH = 120 * 24 * 3600
     const batchSize = Math.floor(SECONDS_IN_MONTH / blockIntervalTime)
 
-    const batches: any = [];
+    const batches: any = []
     for (let fromBlock = startBlock; fromBlock <= endBlock; fromBlock += batchSize) {
-      const toBlock = Math.min(fromBlock + batchSize - 1, endBlock);
-      batches.push({ fromBlock, toBlock });
+      const toBlock = Math.min(fromBlock + batchSize - 1, endBlock)
+      batches.push({ fromBlock, toBlock })
     }
-
 
     const fetchLogsForTopics = async (topicsSubset: any, { fromBlock, toBlock }) => {
-      return rpc.send('eth_getLogs', [{
-        fromBlock: `0x${fromBlock.toString(16)}`,
-        toBlock: `0x${toBlock.toString(16)}`,
-        topics: topicsSubset
-      }]);
-    };
-
-    const topics = configIndexer.filter(c => c.enableHistorical).map(config => config.topic || null).filter(topic => topic);
-    const topicBatches: any = [];
-    const maxTopicsPerQuery = 4;
-    for (let i = 0; i < topics.length; i += maxTopicsPerQuery) {
-      topicBatches.push(topics.slice(i, i + maxTopicsPerQuery));
+      return rpc.send('eth_getLogs', [
+        {
+          fromBlock: `0x${fromBlock.toString(16)}`,
+          toBlock: `0x${toBlock.toString(16)}`,
+          topics: topicsSubset,
+        },
+      ])
     }
 
-    const logsPromises: any = [];
+    const topics = configIndexer
+      .filter(c => c.enableHistorical)
+      .map(config => config.topic || null)
+      .filter(topic => topic)
+    const topicBatches: any = []
+    const maxTopicsPerQuery = 4
+    for (let i = 0; i < topics.length; i += maxTopicsPerQuery) {
+      topicBatches.push(topics.slice(i, i + maxTopicsPerQuery))
+    }
+
+    const logsPromises: any = []
     for (const batch of batches) {
       for (const topicsSubset of topicBatches) {
-        logsPromises.push(fetchLogsForTopics(topicsSubset, batch));
+        logsPromises.push(fetchLogsForTopics(topicsSubset, batch))
       }
     }
 
-    const logsResults = (await Promise.all(logsPromises)).flat();
+    const logsResults = (await Promise.all(logsPromises)).flat()
     expect(logsResults.length).to.be.gt(0)
     //we expect the send method to be called only once as we are batching the requests
     expect(sendSpy.callCount).to.be.eq(1)
