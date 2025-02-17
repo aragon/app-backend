@@ -240,7 +240,6 @@ export default class Transaction extends Model {
       'createdAt',
       'updatedAt',
       'pluginAddress',
-      'daoAddress',
       'tokenAddress',
       'createdAt',
       'updatedAt',
