@@ -58,6 +58,9 @@ export default class MemberTransaction extends Model {
   @prop({ type: () => Number })
   public blockTimestamp!: number
 
+  @prop({ type: () => String, default: null })
+  public delegator!: HexAddress
+
   @prop({ type: () => String, required: true })
   public tokenAddress!: HexAddress
 
@@ -124,6 +127,70 @@ export default class MemberTransaction extends Model {
 
   static async findByAddress(address: HexAddress, network: NetworksEnum) {
     return await this.findOne({ address, network })
+  }
+
+  static async getReceiveDelegationCount(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum) {
+    const aggQuery: any = [
+      // 1) Match only relevant docs for this member & token
+      {
+        $match: {
+          network,
+          tokenAddress,
+          type: ITransferType.delegate,
+          $or: [
+            // user is on receiving side
+            { side: 'incoming', address: memberAddress },
+            // user is on sending side
+            { side: 'outgoing', from: memberAddress },
+          ],
+        },
+      },
+
+      // 2) Sort chronologically
+      {
+        $sort: {
+          blockNumber: 1,
+          transactionIndex: 1,
+          logIndex: 1,
+        },
+      },
+
+      // 3) Define a 'delegator' field: who actually *delegated* to the user
+      //    If doc is "incoming" => delegator = doc.from
+      //    If doc is "outgoing" => delegator = doc.to
+      //    We'll do this with an $addFields (or $set).
+      {
+        $addFields: {
+          delegator: {
+            $cond: [{ $eq: ['$side', 'incoming'] }, '$from', '$to'],
+          },
+        },
+      },
+
+      // 4) Group by 'delegator', pick the *last* doc in block order
+      {
+        $group: {
+          _id: '$delegator',
+          lastDoc: { $last: '$$ROOT' },
+        },
+      },
+
+      // 5) Keep only delegators whose *final* doc says side = "incoming"
+      //    i.e. the user is still on the receiving end
+      {
+        $match: {
+          'lastDoc.side': 'incoming',
+        },
+      },
+
+      // 6) Count how many remain
+      {
+        $count: 'activeDelegations',
+      },
+    ]
+
+    const a = await this.aggregate(aggQuery)
+    return a[0]?.activeDelegations || 0
   }
 
   static async findWithPagination({

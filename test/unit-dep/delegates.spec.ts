@@ -6,6 +6,7 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { Models } from '@dbModels'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
+import {ProxyMember} from "@modules/proxyMember";
 
 describe('Integ: Delegates', () => {
   let sandbox: SinonSandbox
@@ -18,10 +19,11 @@ describe('Integ: Delegates', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should test delegates', async () => {
+  it.only('should test delegates', async () => {
     const network = NetworksEnum.ethereumSepolia
     const daoAddress = '0x3e5fba52959d12f41266028f3a3d7ecc7462dd81'
     const tokenAddress = '0xa936c7F3913941e64CAdF88d61c3a8846C8Ef426'
+    const pluginAddress = '0x5a0C67d574F6155bfe500a746AbEAE14C5b0a674'
     const member1 = '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31' // init balance 1000000000000000000
     const member2 = '0xeF32DC2B02bFA082F11aa6f57154f4079FFE9Bbc' // init balance 1000000000000000000
     const member3 = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5' // init balance 1000000000000000000
@@ -33,7 +35,7 @@ describe('Integ: Delegates', () => {
       blockNumber: 7637365,
       blockTimestamp: 1738662396,
       network,
-      address: '0x5a0C67d574F6155bfe500a746AbEAE14C5b0a674',
+      address: pluginAddress,
       implementationAddress: '0x0749047B49B472a7f80C1c8f0a4dbBcecBc54339',
       interfaceType: 'tokenVoting',
       status: 'installed',
@@ -113,6 +115,22 @@ describe('Integ: Delegates', () => {
     expect(member2Metrics.delegateReceivedCount).to.eq(0)
     expect(member2Metrics.delegateSentCount).to.eq(1)
 
+    let count = await ProxyMember.updateDelegationMetrics({
+      memberAddress: member2,
+      pluginAddress,
+      tokenAddress,
+      network,
+    })
+    expect(count).to.eq(0)
+
+    let count1 = await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      pluginAddress,
+      tokenAddress,
+      network,
+    })
+    expect(count1).to.eq(1)
+
     console.log('end tx1')
 
     // member3 delegate to member1 1 token
@@ -164,6 +182,21 @@ describe('Integ: Delegates', () => {
     expect(member3Metrics.delegateReceivedCount).to.eq(0)
     expect(member3Metrics.delegateSentCount).to.eq(1)
 
+    count = await ProxyMember.updateDelegationMetrics({
+      memberAddress: member3,
+      pluginAddress,
+      tokenAddress,
+      network,
+    })
+    expect(count).to.eq(0)
+
+    count1 = await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      pluginAddress,
+      tokenAddress,
+      network,
+    })
+    expect(count1).to.eq(2)
     console.log('end tx2')
 
     // member4 delegate to member1 1 token
@@ -215,9 +248,23 @@ describe('Integ: Delegates', () => {
     expect(member4Metrics.delegateReceivedCount).to.eq(0)
     expect(member4Metrics.delegateSentCount).to.eq(1)
 
+    count = await ProxyMember.updateDelegationMetrics({
+      memberAddress: member4,
+      pluginAddress,
+      tokenAddress,
+      network,
+    })
+    expect(count).to.eq(0)
+
+    count1 = await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      pluginAddress,
+      tokenAddress,
+      network,
+    })
+    expect(count1).to.eq(3)
     console.log('end tx3')
 
-    // Revoking delegation
     // member1 delegate to member2 1 token
     // member1 prev balance 4000000000000000000 new balance 3000000000000000000
     // member2 prev balance 0 new balance 1000000000000000000
@@ -263,6 +310,22 @@ describe('Integ: Delegates', () => {
     expect(member2Balance.amount).to.eq('0')
     expect(member2Metrics.delegateReceivedCount).to.eq(1)
     expect(member2Metrics.delegateSentCount).to.eq(1)
+
+    count = await ProxyMember.updateDelegationMetrics({
+      memberAddress: member2,
+      pluginAddress,
+      tokenAddress,
+      network,
+    })
+    expect(count).to.eq(1)
+
+    count1 = await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      pluginAddress,
+      tokenAddress,
+      network,
+    })
+    expect(count1).to.eq(3)
 
     console.log('end tx4')
 
@@ -312,6 +375,21 @@ describe('Integ: Delegates', () => {
     expect(member2Metrics.delegateReceivedCount).to.eq(1)
     expect(member2Metrics.delegateSentCount).to.eq(0)
 
+    count = await ProxyMember.updateDelegationMetrics({
+      memberAddress: member2,
+      pluginAddress,
+      tokenAddress,
+      network,
+    })
+    expect(count).to.eq(1)
+
+    count1 = await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      pluginAddress,
+      tokenAddress,
+      network,
+    })
+    expect(count1).to.eq(2)
     console.log('end tx5')
 
     console.log('end')
