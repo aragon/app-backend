@@ -8,7 +8,7 @@ import { CustomInstall } from '@indexer/customInstall'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import config from '@config'
 import { NetworksEnum } from '@types'
-import ProviderModule from "@modules/provider";
+import ProviderModule from '@modules/provider'
 
 describe('AragonIndexer: CustomInstall', () => {
   let sandbox: SinonSandbox
