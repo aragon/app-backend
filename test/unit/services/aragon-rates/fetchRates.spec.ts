@@ -171,7 +171,30 @@ describe('AragonRates: FetchRates', () => {
       expect(reloadedToken.totalSupply).to.be.equal('2')
       expect(reloadedToken.priceUsd).to.be.equal('1.2')
     })
+
+    it('should throw error', async () => {
+      const tokenDb = await Models.Token.create({
+        id: 'token-123',
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.ERC20,
+        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        logo: 'fake-logo',
+        name: NetworksEnum.ethereumMainnet,
+        symbol: 'WETH',
+        decimals: 18,
+        holders: 1,
+        totalSupply: '1',
+        priceChangeOnDayUsd: '1',
+        priceUsd: '1.1',
+      })
+      sandbox.stub(TokenUtils, 'fetchTokenUpdate').rejects(new Error('error'))
+      const stubError = sandbox.stub(logger, 'error')
+      await FetchRates.onMainnetDocument(tokenDb)
+
+      expect(stubError.calledOnceWith('Error FetchRates' as any)).to.be.true
+    })
   })
+
   describe('onTestnetDocument', () => {
     it('should return early if blockscout info is null', async () => {
       const tokenDb = await Models.Token.create({
@@ -193,6 +216,7 @@ describe('AragonRates: FetchRates', () => {
       expect(stubTokenFullDetails.calledOnce).to.be.true
       expect(stubUpdate.notCalled).to.be.true
     })
+
     it('should return early if blockScoutInfo is missing holders or totalSupply', async () => {
       const tokenDb = await Models.Token.create({
         network: NetworksEnum.ethereumMainnet,
@@ -270,6 +294,28 @@ describe('AragonRates: FetchRates', () => {
       })
       expect(tokenReloaded.holders).to.be.equal(2)
       expect(tokenReloaded.totalSupply).to.be.equal('2')
+    })
+
+    it('should throw error', async () => {
+      const tokenDb = await Models.Token.create({
+        id: 'token-123',
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.ERC20,
+        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        logo: 'fake-logo',
+        name: NetworksEnum.ethereumMainnet,
+        symbol: 'WETH',
+        decimals: 18,
+        holders: 1,
+        totalSupply: '1',
+        priceChangeOnDayUsd: '1',
+        priceUsd: '1.1',
+      })
+      sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').rejects(new Error('error'))
+      const stubError = sandbox.stub(logger, 'error')
+      await FetchRates.onTestnetDocument(tokenDb)
+
+      expect(stubError.calledOnceWith('Error FetchRates on testnet' as any)).to.be.true
     })
   })
 })

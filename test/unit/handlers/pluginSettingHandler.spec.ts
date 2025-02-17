@@ -82,6 +82,21 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(sppStub.calledOnceWith('sppLog' as any, 'sppInfo' as any)).to.be.true
       expect(result).to.deep.equal({ address: '0xspp-plugin' })
     })
+
+    it('should process not a supported type', async () => {
+      const txReceipt = { logs: [{ topics: ['0xspp'], data: '0x03' }] } as any
+      const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.unknown } as any
+      const info = { network: NetworksEnum.ethereumMainnet } as any
+
+      const stubFind = sandbox.stub(Web3Helper, 'findLogsByName')
+      const stubWarn = sandbox.stub(logger, 'warn')
+
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+
+      expect(result).to.be.undefined
+      expect(stubFind.notCalled).to.be.true
+      expect(stubWarn.calledOnceWith('Plugin is not a supported type' as any)).to.be.true
+    })
   })
 
   describe('votingSettingsUpdated', () => {

@@ -43,6 +43,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
           llo({ retryCount, wait: retryDelay(retryCount), error }),
         )
         await Utils.wait(retryDelay(retryCount))
+        retryCount++
       } else {
         // logger.warn('Error in Retry Request', llo({ error }))
         throw error

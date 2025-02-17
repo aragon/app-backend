@@ -7,6 +7,7 @@ import { Interface, zeroPadValue } from 'ethers'
 import logger from '@logger'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import config from '@config'
+import ProviderModule from '@modules/provider'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:CustomInstall' })
 
@@ -37,6 +38,9 @@ export const CustomInstall = {
 
     await Promise.all(
       CustomInstall.daos.map(async dao => {
+        const provider = await ProviderModule.getAnyRpcProvider(dao.network)
+        if (!provider) return // network not supported
+
         const daoDb = await Models.Dao.findByAddress(dao.address, dao.network)
         if (daoDb) return
 
