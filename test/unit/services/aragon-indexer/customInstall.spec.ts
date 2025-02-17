@@ -8,6 +8,7 @@ import { CustomInstall } from '@indexer/customInstall'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import config from '@config'
 import { NetworksEnum } from '@types'
+import ProviderModule from "@modules/provider";
 
 describe('AragonIndexer: CustomInstall', () => {
   let sandbox: SinonSandbox
@@ -31,6 +32,7 @@ describe('AragonIndexer: CustomInstall', () => {
     })
 
     it('should skip DAO installation if DAO already exists', async () => {
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(true)
       sandbox.stub(config, 'CUSTOM_INSTALL').value(true)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({} as any)
       const daoRegisteredStub = sandbox.stub(DaoRegistryHandler, 'daoRegistered')
@@ -41,6 +43,7 @@ describe('AragonIndexer: CustomInstall', () => {
     })
 
     it('should register a new DAO and process plugins if DAO does not exist', async () => {
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(true)
       sandbox.stub(config, 'CUSTOM_INSTALL').value(true)
       sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
       const daoRegisteredStub = sandbox.stub(DaoRegistryHandler, 'daoRegistered').resolves()
@@ -54,6 +57,7 @@ describe('AragonIndexer: CustomInstall', () => {
     })
 
     it('should not process plugins if `lastSync` is less than `blockNumber`', async () => {
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(true)
       sandbox.stub(config, 'CUSTOM_INSTALL').value(true)
       sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
       const daoRegisteredStub = sandbox.stub(DaoRegistryHandler, 'daoRegistered').resolves()
