@@ -83,7 +83,7 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(result).to.deep.equal({ address: '0xspp-plugin' })
     })
 
-    it.only('should process not a supported type', async () => {
+    it('should process not a supported type', async () => {
       const txReceipt = { logs: [{ topics: ['0xspp'], data: '0x03' }] } as any
       const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.unknown } as any
       const info = { network: NetworksEnum.ethereumMainnet } as any
