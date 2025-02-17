@@ -316,6 +316,7 @@ export const GovernanceErc20Handler = {
             blockNumber: info.blockNumber,
             blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
             address: memberAddress,
+            delegator,
             type: ITransferType.delegate,
             side,
             from,
