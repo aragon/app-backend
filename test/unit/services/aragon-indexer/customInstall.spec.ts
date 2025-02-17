@@ -22,6 +22,16 @@ describe('AragonIndexer: CustomInstall', () => {
   })
 
   describe('install', () => {
+    it('should log and return if network is not supported', async () => {
+      sandbox.stub(config, 'CUSTOM_INSTALL').value(true)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(false)
+      const stubFind = sandbox.stub(Models.Dao, 'findByAddress')
+
+      await CustomInstall.install()
+
+      expect(stubFind.notCalled).to.be.true
+    })
+
     it('should log and return if CUSTOM_INSTALL is disabled', async () => {
       sandbox.stub(config, 'CUSTOM_INSTALL').value(false)
       const loggerStub = sandbox.stub(logger, 'info')
