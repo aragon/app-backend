@@ -315,7 +315,7 @@ export const ProposalHandler = {
       const proposalIndex = parsedEvent.args.proposalId.toString()
 
       const plugin = await Models.Plugin.findByAddress(info.address, info.network)
-      if (!plugin || plugin.isSupported === false) {
+      if (!plugin) {
         logger.warn('VoteCast - Plugin not found', llo(info))
         return
       }
