@@ -1,3 +1,5 @@
+import { type Alchemy } from 'alchemy-sdk'
+
 export interface IAlchemyConfig {
   providerType: IProviderType
   alchemyApiKey?: string
@@ -27,9 +29,8 @@ export interface INodeConnection {
   ws: any
 }
 
-export interface IAlchemyNodeConnection extends INodeConnection {
-  nft: any
-  // add any additional alchemy-specific properties if needed
+export interface IAlchemyNodeConnection extends Alchemy {
+  rpc: any
 }
 
 export interface IProviderProxy {

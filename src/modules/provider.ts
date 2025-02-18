@@ -103,12 +103,10 @@ const ProviderModule = {
         network: ProviderModule.parseAlchemyNetwork(network),
         maxRetries: 10,
       }
-      const alchemy = new Alchemy(alchemySettings)
-      const alchemyConnection: IAlchemyNodeConnection = {
-        rpc: alchemy.core,
-        ws: alchemy.ws,
-        nft: alchemy.nft,
-      }
+
+      const alchemyConnection: any = new Alchemy(alchemySettings) as IAlchemyNodeConnection
+      alchemyConnection.rpc = alchemyConnection.core
+
       ProviderModule.providerProxies[network].alchemy = alchemyConnection
 
       if (alchemyConnection.ws && typeof alchemyConnection.ws.on === 'function') {
