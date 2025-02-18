@@ -646,6 +646,38 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(metadataHandlerStub.calledWith(log as any, txInfo)).to.be.true
       expect(web3HelperStub.calledOnce).to.be.true
     })
+
+    it('should throw updateMetadataOnPreInstall', async () => {
+      const logDb = {
+        address: '0xPlugin',
+      } as any
+
+      const txInfo = {
+        address: '0xPlugin',
+        transactionHash: '0xtxHash',
+      } as any
+
+      const log = {
+        address: '0xPlugin',
+        data: '0xData',
+        topics: [new Interface(StagedProposalProcessor.abi).getEvent('MetadataSet')?.topicHash!],
+      }
+
+      const txReceipt = {
+        status: '0x1',
+        logs: [log],
+      } as any
+
+      const metadataHandlerStub = sandbox.stub(MetadataHandler, 'metadataSet')
+      const stubLogger = sandbox.stub(logger, 'error')
+      const web3HelperStub = sandbox.stub(Web3Helper, 'parseLog').throws(new Error('Handler error'))
+
+      await PluginSetupProcessorHandler.updateMetadataOnPreInstall(logDb, txReceipt, txInfo)
+
+      expect(metadataHandlerStub.notCalled).to.be.true
+      expect(stubLogger.calledOnceWith('Error parsing metadata log' as any)).to.be.true
+      expect(web3HelperStub.calledOnce).to.be.true
+    })
   })
 
   describe('findAndUpdateTokenAddress', () => {
