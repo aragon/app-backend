@@ -144,6 +144,14 @@ const ProviderModule = {
     return undefined
   },
 
+  getAnyWSProvider(network: NetworksEnum): any {
+    const providerProxy = ProviderModule.providerProxies[network]
+    if (!providerProxy) return
+    if (providerProxy.aragon?.rpc) return providerProxy.aragon.rpc
+    if (providerProxy.alchemy?.rpc) return providerProxy.alchemy.rpc
+    return undefined
+  },
+
   subscribeToEvent(
     network: NetworksEnum,
     filter: any,
