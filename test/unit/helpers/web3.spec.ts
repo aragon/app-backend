@@ -1857,6 +1857,58 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('getVotingToken', () => {
+    it('should return the voting token address successfully', async () => {
+      const stubVotingToken = sandbox.stub().resolves('0xVotingTokenAddress')
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { getVotingToken: stubVotingToken }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakePluginAddress = '0xPluginAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.getVotingToken(fakePluginAddress, fakeNetwork)
+
+      expect(result).to.equal('0xVotingTokenAddress')
+      expect(stubVotingToken.calledOnce).to.be.true
+    })
+
+    it('should return null if fetching voting token address fails', async () => {
+      const stubVotingToken = sandbox.stub().rejects(new Error('fake-error'))
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { getVotingToken: stubVotingToken }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakePluginAddress = '0xPluginAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.getVotingToken(fakePluginAddress, fakeNetwork)
+
+      expect(result).to.be.null
+      expect(stubVotingToken.calledOnce).to.be.true
+    })
+  })
+
   describe('getVotingEscrowAddress', () => {
     it('should return the voting escrow address successfully', async () => {
       const stubEscrow = sandbox.stub()
