@@ -217,4 +217,34 @@ describe('Controller: Transaction', () => {
       expect(response).to.have.property('data').with.lengthOf(1)
     })
   })
+
+  describe('getTransactionIndexingStatus', () => {
+    it('should get transaction indexing status', async () => {
+      const txHash = rawTransaction.transactionHash
+      const network = rawTransaction.network
+      const spyReq = sandbox.spy(Models.Transaction, 'findOne')
+      const response = await TransactionController.getTransactionIndexingStatus(txHash!, network!)
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.be.true
+    })
+
+    it('should get transaction indexing status - not found', async () => {
+      const txHash = '0x'
+      const network = rawTransaction.network
+      const spyReq = sandbox.spy(Models.Transaction, 'findOne')
+
+      const response = await TransactionController.getTransactionIndexingStatus(txHash, network!)
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.be.false
+    })
+
+    it('should return false when error', async () => {
+      const txHash = '0x'
+      const network = rawTransaction.network
+      sandbox.stub(Models.Transaction, 'findOne').rejects(new Error('fake-error'))
+
+      const response = await TransactionController.getTransactionIndexingStatus(txHash, network!)
+      expect(response).to.be.false
+    })
+  })
 })
