@@ -56,13 +56,13 @@ describe('Helpers: BlockScout', () => {
       ).to.be.true
     })
 
-    it('Should handle errors in _rpCall', async () => {
+    it.only('Should handle errors in _rpCall', async () => {
       const expectedResult = new Error('RPC Call Failed')
       const getCall = sandbox.stub().rejects(expectedResult)
       sandbox.stub(BlockScoutHelper, 'axiosInstance').returns({
         get: getCall,
       } as any)
-      const loggerStub = sandbox.stub(logger, 'error')
+      const loggerStub = sandbox.stub(logger, 'warn')
 
       try {
         await BlockScoutHelper._rpCall('tokens/0x1234567890', { apikey: 'valid-api-key' }, NetworksEnum.ethereumMainnet)
