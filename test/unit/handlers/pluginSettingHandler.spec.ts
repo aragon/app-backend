@@ -7,9 +7,6 @@ import { beforeEach } from 'mocha'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
-import { Multisig } from '@artifacts/Multisig'
-import { TokenVoting } from '@artifacts/TokenVoting'
-import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { ProxyToken } from '@modules/proxyToken'
 import DbOperations from '@models/utils/dbOperations'
 
@@ -23,87 +20,82 @@ describe('Indexer: PluginSettingHandler', () => {
     sandbox?.restore()
   })
 
-  describe('handleFromReceipt', () => {
-    it('should process multisig, voting, and spp settings logs', async () => {
-      const txReceipt = {
-        logs: [
-          { topics: ['0xmultisig'], data: '0x01' },
-          { topics: ['0xvoting'], data: '0x02' },
-          { topics: ['0xspp'], data: '0x03' },
-        ],
+  describe('handlePluginSettingByType', () => {
+    it('should process tokenVoting settings log', async () => {
+      const txReceipt = { logs: [{ topics: ['0xvoting'], data: '0x02' }] } as any
+      const plugin = {
+        address: '0xplugin',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken',
       } as any
+      const info = { network: NetworksEnum.ethereumMainnet } as any
 
-      const info = {
-        network: NetworksEnum.ethereumMainnet,
-        transactionHash: '0x123',
-        blockNumber: 1,
-        transactionIndex: 1,
-        logIndex: 1,
-      }
-
-      const multisigLogsStub = sandbox
+      sandbox
         .stub(Web3Helper, 'findLogsByName')
-        .withArgs(txReceipt, 'MultisigSettingsUpdated', Multisig.abi)
-        .returns([{ parsed: 'multisigLog', txLog: 'tx1' }] as any)
-        .withArgs(txReceipt, 'VotingSettingsUpdated', TokenVoting.abi)
-        .returns([{ parsed: 'votingLog', txLog: 'tx2' }] as any)
-        .withArgs(txReceipt, 'StagesUpdated', StagedProposalProcessor.abi)
-        .returns([{ parsed: 'sppLog', txLog: 'tx3' }] as any)
+        .returns([{ parsed: 'votingLog', txLog: { address: '0xplugin' } }] as any)
+      sandbox.stub(Web3Helper, 'parseInfoLog').returns('votingInfo' as any)
+      const votingStub = sandbox
+        .stub(PluginSettingHandler, 'votingSettingsUpdated')
+        .resolves({ address: '0xvoting-plugin' } as any)
 
-      const parseInfoStub = sandbox
-        .stub(Web3Helper, 'parseInfoLog')
-        .withArgs('tx1', 'MultisigSettingsUpdated', info.network)
-        .returns('multisigInfo' as any)
-        .withArgs('tx2', 'VotingSettingsUpdated', info.network)
-        .returns('votingInfo' as any)
-        .withArgs('tx3', 'StagesUpdated', info.network)
-        .returns('sppInfo' as any)
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
 
-      const multisigStub = sandbox.stub(PluginSettingHandler, 'multisigSettingsUpdated').resolves({
-        address: '0xmultisig-plugin',
-      } as any)
-      const votingStub = sandbox.stub(PluginSettingHandler, 'votingSettingsUpdated').resolves({
-        address: '0xvoting-plugin',
-      } as any)
-      const sppStub = sandbox.stub(PluginSettingHandler, 'sppSettingsUpdated').resolves({
-        address: '0xspp-plugin',
-      } as any)
-
-      const result = await PluginSettingHandler.handleFromReceipt(txReceipt as any, info as any)
-
-      expect(multisigLogsStub.calledOnce).to.be.true
-      expect(parseInfoStub.calledOnce).to.be.true
-
-      expect(multisigStub.calledOnceWith('multisigLog' as any, 'multisigInfo' as any)).to.be.true
       expect(votingStub.calledOnceWith('votingLog' as any, 'votingInfo' as any)).to.be.true
-      expect(sppStub.calledOnceWith('sppLog' as any, 'sppInfo' as any)).to.be.true
-
-      expect(result).to.deep.equal([
-        { address: '0xmultisig-plugin' },
-        { address: '0xvoting-plugin' },
-        { address: '0xspp-plugin' },
-      ])
+      expect(result).to.deep.equal({ address: '0xvoting-plugin' })
     })
 
-    it('should return an empty array if no logs are found', async () => {
-      const txReceipt = { logs: [] } as any
-      const info = {
-        network: NetworksEnum.ethereumMainnet,
-        transactionHash: '0x123',
-        blockNumber: 1,
-      }
+    it('should process multisig settings log', async () => {
+      const txReceipt = { logs: [{ topics: ['0xmultisig'], data: '0x01' }] } as any
+      const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.multisig } as any
+      const info = { network: NetworksEnum.ethereumMainnet } as any
 
-      sandbox.stub(Web3Helper, 'findLogsByName').returns([]) // No logs
-      const multisigStub = sandbox.stub(PluginSettingHandler, 'multisigSettingsUpdated').resolves(undefined)
-      const votingStub = sandbox.stub(PluginSettingHandler, 'votingSettingsUpdated').resolves(undefined)
-      const sppStub = sandbox.stub(PluginSettingHandler, 'sppSettingsUpdated').resolves(undefined)
+      sandbox.stub(Web3Helper, 'findLogsByName').returns([
+        {
+          parsed: 'multisigLog',
+          txLog: { address: '0xplugin' },
+        },
+      ] as any)
+      sandbox.stub(Web3Helper, 'parseInfoLog').returns('multisigInfo' as any)
+      const multisigStub = sandbox
+        .stub(PluginSettingHandler, 'multisigSettingsUpdated')
+        .resolves({ address: '0xmultisig-plugin' } as any)
 
-      const result = await PluginSettingHandler.handleFromReceipt(txReceipt as any, info as any)
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
 
-      expect(result).to.deep.equal([])
-      expect(multisigStub.notCalled).to.be.true
-      expect(votingStub.notCalled).to.be.true
-      expect(sppStub.notCalled).to.be.true
+      expect(multisigStub.calledOnceWith('multisigLog' as any, 'multisigInfo' as any)).to.be.true
+      expect(result).to.deep.equal({ address: '0xmultisig-plugin' })
+    })
+
+    it('should process spp settings log', async () => {
+      const txReceipt = { logs: [{ topics: ['0xspp'], data: '0x03' }] } as any
+      const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.spp } as any
+      const info = { network: NetworksEnum.ethereumMainnet } as any
+
+      sandbox.stub(Web3Helper, 'findLogsByName').returns([{ parsed: 'sppLog', txLog: { address: '0xplugin' } }] as any)
+      sandbox.stub(Web3Helper, 'parseInfoLog').returns('sppInfo' as any)
+      const sppStub = sandbox
+        .stub(PluginSettingHandler, 'sppSettingsUpdated')
+        .resolves({ address: '0xspp-plugin' } as any)
+
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+
+      expect(sppStub.calledOnceWith('sppLog' as any, 'sppInfo' as any)).to.be.true
+      expect(result).to.deep.equal({ address: '0xspp-plugin' })
+    })
+
+    it('should process not a supported type', async () => {
+      const txReceipt = { logs: [{ topics: ['0xspp'], data: '0x03' }] } as any
+      const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.unknown } as any
+      const info = { network: NetworksEnum.ethereumMainnet } as any
+
+      const stubFind = sandbox.stub(Web3Helper, 'findLogsByName')
+      const stubWarn = sandbox.stub(logger, 'warn')
+
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+
+      expect(result).to.be.undefined
+      expect(stubFind.notCalled).to.be.true
+      expect(stubWarn.calledOnceWith('Plugin is not a supported type' as any)).to.be.true
     })
   })
 
@@ -127,7 +119,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(false)
       const stubLogger = sandbox.stub(logger, 'warn')
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
       } as any)
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
 
@@ -192,7 +185,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubWarn = sandbox.stub(logger, 'warn')
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
       } as any)
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
@@ -240,7 +234,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
       } as any)
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
@@ -290,7 +285,7 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.GovernanceERC20 } as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.ERC20, isGovernance: true } as any)
 
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
 

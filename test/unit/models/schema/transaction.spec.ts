@@ -256,10 +256,9 @@ describe('Model: Transaction', () => {
     expect(filterDao.__v).to.be.undefined
     expect(filterDao.createdAt).to.be.undefined
     expect(filterDao.tokenAddress).to.undefined
-    expect(filterDao.daoAddress).to.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.token._id).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(15)
+    expect(Object.keys(filterDao).length).to.eq(16)
   })
 
   it('Should filterKeys without token', async () => {

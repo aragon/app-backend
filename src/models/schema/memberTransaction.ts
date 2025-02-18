@@ -195,6 +195,8 @@ export default class MemberTransaction extends Model {
         name: 1,
         decimals: 1,
         logo: 1,
+        isGovernance: 1,
+        underlying: 1,
         type: 1,
         mintableByDao: 1,
       }),

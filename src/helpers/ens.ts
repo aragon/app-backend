@@ -10,7 +10,7 @@ const llo = logger.logMeta.bind(null, { service: 'helper:EnsHelper' })
 
 const EnsHelper = {
   async getEnsWithUniversalResolver(address: string): Promise<ENS | null> {
-    const provider = ProviderModule.getProvider(NetworksEnum.ethereumMainnet)!
+    const provider = ProviderModule.getAnyRpcProvider(NetworksEnum.ethereumMainnet)
     const universalResolver = '0xce01f8eee7E479C928F8919abD53E553a36CeF67'
 
     try {
@@ -37,7 +37,8 @@ const EnsHelper = {
   _addressToPacket: function (address: string): Uint8Array {
     const packet = address.replace('0x', '').toLowerCase() + '.addr.reverse'
 
-    // Strip leading and trailing `.`
+    if (packet === '.addr.reverse') return new Uint8Array(1)
+
     const value = packet.replace(/^\.|\.$/gm, '')
     if (value.length === 0) return new Uint8Array(1)
 

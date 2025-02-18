@@ -5,7 +5,7 @@ import { NetworkHelper } from '@helpers/network'
 import { NetworksEnum } from '@types'
 import ProviderModule from '@modules/provider'
 
-describe('Helpers:Network', () => {
+describe('Helpers: Network', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -22,7 +22,7 @@ describe('Helpers:Network', () => {
       [NetworksEnum.ethereumSepolia]: {},
     }
 
-    sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network])
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(network => fakeProviders[network])
 
     const networkCount = Object.keys(fakeProviders).length
     const activeNetworks = NetworkHelper.supportedNetworks()

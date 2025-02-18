@@ -10,9 +10,22 @@
     "sourceType": "module"
   },
   "rules": {
+    "no-unused-vars": [
+      "error",
+      {
+        "varsIgnorePattern": "^_",
+        "argsIgnorePattern": "^_"
+      }
+    ],
     "require-atomic-updates": "off",
     "@typescript-eslint/comma-dangle": ["error", "always-multiline"],
-    "quotes": ["error", "single", { "avoidEscape": true }],
+    "quotes": [
+      "error",
+      "single",
+      {
+        "avoidEscape": true
+      }
+    ],
     "@typescript-eslint/semi": "off",
     "@typescript-eslint/indent": "off",
     "@typescript-eslint/space-before-function-paren": "off",

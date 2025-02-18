@@ -9,10 +9,6 @@ interface RetryOptions {
   maxRetries?: number
 }
 
-enum RETRY_REVERTS {
-  ERROR_SIG = '0x08c379a0',
-}
-
 export async function retryRequest<T>(requestFunction: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   const { maxRetries = config.RETRY_REQUEST.COUNT } = options
   const retryDelay = (retryCount: number) => Math.pow(2, retryCount) * 1000
@@ -47,6 +43,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
           llo({ retryCount, wait: retryDelay(retryCount), error }),
         )
         await Utils.wait(retryDelay(retryCount))
+        retryCount++
       } else {
         // logger.warn('Error in Retry Request', llo({ error }))
         throw error
@@ -57,21 +54,11 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
   throw new Error(`Request failed after ${maxRetries} retries`)
 }
 
-function canBeRetried(error: any): boolean {
-  if (error?.reason?.includes('future lookup')) {
-    return true
-  }
-
-  if (error?.code === 'CALL_EXCEPTION') {
-    return false
-  }
-
-  const errorValueSig = error?.value?.slice(0, 10)
-
-  return Object.values(RETRY_REVERTS).includes(errorValueSig)
+export function canBeRetried(error: any): boolean {
+  return !!error?.reason?.includes('future lookup')
 }
 
-function isErrorRelatedToServerIssue(error: any): boolean {
+export function isErrorRelatedToServerIssue(error: any): boolean {
   try {
     const parsedReqBody = JSON.parse(error?.requestBody || '{}')
     const method = parsedReqBody?.method

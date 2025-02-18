@@ -2,7 +2,7 @@ import { type NetworksEnum } from '@types'
 import logger from '@logger'
 import Web3Helper from '@helpers/web3'
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line no-unused-vars,@typescript-eslint/no-unused-vars
 const llo = logger.logMeta.bind(null, { service: 'helpers:GaugeHelper' })
 
 const GaugeHelper = {

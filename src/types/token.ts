@@ -4,6 +4,8 @@ export interface ITokenInfo {
   type: ITokenType
   proxy: boolean
   implementationAddress: string | null
+  isGovernance: boolean
+  isUnderlying: boolean
 }
 
 export interface ITokenRate {
@@ -66,4 +68,11 @@ export interface ITokenMetadata {
   decimals: number
   logo: string
   type: ITokenType
+}
+
+export interface ITokenUpdate {
+  priceUsd: string
+  priceChangeOnDayUsd: string
+  holders: number
+  totalSupply: string
 }

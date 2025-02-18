@@ -30,7 +30,6 @@ const TransactionRouter = {
     const anyInvalidParams = Utils.extractAdditionalParams(
       { ...paginationParams, ...extraParams, ...pairParams },
       ctx.query,
-      ['address'],
     )
 
     const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([
@@ -44,6 +43,22 @@ const TransactionRouter = {
       formattedPaginationParams,
       formattedExtraParams,
       formattedPairParams,
+    )
+  },
+  getTransactionIndexingStatus: async function (ctx: RouterContext) {
+    const params = {
+      transactionHash: ctx.params.transactionHash,
+      network: ctx.params.network,
+    }
+
+    const formattedParams = await ValidationSchema.validateParams(
+      TransactionSchema.getTransactionIndexingStatus,
+      params,
+    )
+
+    ctx.body = await TransactionController.getTransactionIndexingStatus(
+      formattedParams.transactionHash,
+      formattedParams.network,
     )
   },
 
@@ -61,7 +76,16 @@ const TransactionRouter = {
      */
     router.get('/', TransactionRouter.getWithPagination)
 
-    return router
+    /**
+     * @api {get} /indexing-status Get Transaction Indexing Status
+     * @apiName Transaction Indexing Status
+     * @apiGroup Transactions
+     * @apiDescription Get Transaction Indexing Status
+     *
+     * @apiParam {String} transactionHash Transaction Hash
+     */
+
+    return router.get('/indexing-status/:network/:transactionHash', TransactionRouter.getTransactionIndexingStatus)
   },
 }
 

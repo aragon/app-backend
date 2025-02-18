@@ -7,8 +7,8 @@ import AragonTransactionsService from '@services/aragon-transactions/index'
 import ProviderModule from '@modules/provider'
 import { NetworkHelper } from '@helpers/network'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
-import BottleneckModule from '@modules/bottleneck'
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
+import Web3Helper from '@helpers/web3'
 
 describe('AragonTransactions: index', () => {
   let sandbox: SinonSandbox
@@ -32,7 +32,7 @@ describe('AragonTransactions: index', () => {
         .returns([{ networkName: NetworksEnum.ethereumMainnet }] as any)
 
       const providerMock = { getBlock: sandbox.stub() } as any
-      const getProviderStub = sandbox.stub(ProviderModule, 'getProvider').returns(providerMock)
+      const getProviderStub = sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerMock)
       const subscribeStub = sandbox.stub(ProviderModule, 'subscribeToNewBlock').callsFake((networkName, callback) => {
         callback(networkName)
       })
@@ -53,7 +53,7 @@ describe('AragonTransactions: index', () => {
     it('should log an error if a provider is unavailable', async () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet }] as any)
-      sandbox.stub(ProviderModule, 'getProvider').returns(null)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(null)
 
       await AragonTransactionsService.start()
 
@@ -63,37 +63,27 @@ describe('AragonTransactions: index', () => {
 
   describe('processNewBlock', () => {
     it('should fetch a block and call BlockHandler.processNewBlock', async () => {
-      const loggerWarnStub = sandbox.stub(logger, 'warn')
-
+      const loggerErrorStub = sandbox.stub(logger, 'error')
       const blockMock = { blockNumber: 12345 }
-      const providerMock = { getBlock: sandbox.stub().resolves(blockMock) } as any
-      const bottleneckStub = sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({
-        schedule: sandbox.stub().callsFake(callback => callback()),
-      } as any)
-
+      const stubGetBlock = sandbox.stub(Web3Helper, 'getBlock').resolves(blockMock)
       const blockHandlerStub = sandbox.stub(BlockHandler, 'processNewBlock').resolves()
 
-      await AragonTransactionsService.processNewBlock(providerMock, 12345, NetworksEnum.ethereumMainnet)
+      await AragonTransactionsService.processNewBlock(blockMock.blockNumber, NetworksEnum.ethereumMainnet)
 
-      expect(bottleneckStub.calledOnceWith(NetworksEnum.ethereumMainnet)).to.be.true
-      expect(providerMock.getBlock.calledOnceWith(12345)).to.be.true
+      expect(stubGetBlock.calledOnceWith(blockMock.blockNumber, NetworksEnum.ethereumMainnet)).to.be.true
       expect(blockHandlerStub.calledOnceWith(blockMock, NetworksEnum.ethereumMainnet)).to.be.true
-      expect(loggerWarnStub.notCalled).to.be.true
+      expect(loggerErrorStub.notCalled).to.be.true
     })
 
     it('should log a warning if fetching a block fails', async () => {
-      const loggerWarnStub = sandbox.stub(logger, 'warn')
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(Web3Helper, 'getBlock').resolves(false)
 
-      const providerMock = { getBlock: sandbox.stub().rejects(new Error('Fetch failed')) } as any
-      const bottleneckStub = sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({
-        schedule: sandbox.stub().callsFake(callback => callback()),
-      } as any)
+      await AragonTransactionsService.processNewBlock(12345, NetworksEnum.ethereumMainnet)
+      const blockHandlerStub = sandbox.stub(BlockHandler, 'processNewBlock').resolves()
 
-      await AragonTransactionsService.processNewBlock(providerMock, 12345, NetworksEnum.ethereumMainnet)
-
-      expect(bottleneckStub.calledOnceWith(NetworksEnum.ethereumMainnet)).to.be.true
-      expect(providerMock.getBlock.calledOnceWith(12345)).to.be.true
-      expect(loggerWarnStub.calledOnceWith('Error fetching block data' as any)).to.be.true
+      expect(loggerErrorStub.calledOnceWith('Error fetching block data' as any)).to.be.true
+      expect(blockHandlerStub.notCalled).to.be.true
     })
   })
 

@@ -8,6 +8,9 @@ import DBCrawler from '@models/utils/crawler'
 import { RateModule } from '@modules/rates'
 import { ITokenType, NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
+import BlockScoutHelper from '@helpers/blockScout'
+import CovalentHelper from '@helpers/covalent'
+import TokenUtils from '@helpers/tokenUtils'
 
 describe('AragonRates: FetchRates', () => {
   let sandbox: SinonSandbox
@@ -23,7 +26,8 @@ describe('AragonRates: FetchRates', () => {
   describe('start', async () => {
     it('should start the FetchRates', async () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubFetchRates = sandbox.stub(FetchRates, 'onDocument')
+      const stubFetchRates = sandbox.stub(FetchRates, 'onMainnetDocument')
+      const stubFetchTestnetRates = sandbox.stub(FetchRates, 'onTestnetDocument')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onDocument(true)
       })
@@ -32,7 +36,8 @@ describe('AragonRates: FetchRates', () => {
 
       expect(stubLogger.calledWith('End FetchRates' as any)).to.be.true
       expect(stubFetchRates.calledOnceWith(true as any)).to.be.true
-      expect(crawlerStub.calledOnce).to.be.true
+      expect(stubFetchTestnetRates.calledOnceWith(true as any)).to.be.true
+      expect(crawlerStub.calledTwice).to.be.true
     })
 
     it('should error the FetchRates', async () => {
@@ -45,41 +50,272 @@ describe('AragonRates: FetchRates', () => {
       await FetchRates.start()
 
       expect(stubLogger.calledWith('End FetchRates' as any)).to.be.true
-      expect(stubLoggerError.calledOnce).to.be.true
-      expect(crawlerStub.calledOnce).to.be.true
+      expect(stubLoggerError.calledTwice).to.be.true
+      expect(crawlerStub.calledTwice).to.be.true
+    })
+
+    it('should query and update the token', async () => {
+      const tokens = [
+        '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+        '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+      ]
+
+      await Promise.all(
+        tokens.map(async token => {
+          await Models.Token.create({
+            network: NetworksEnum.ethereumMainnet,
+            type: ITokenType.ERC20,
+            address: token,
+            logo: 'fake-logo',
+            name: NetworksEnum.ethereumMainnet,
+            symbol: 'WETH',
+            decimals: 18,
+            holders: 1,
+            totalSupply: '1',
+            priceChangeOnDayUsd: '1',
+            priceUsd: '1.1',
+            lastUpdatedAt: new Date(Date.now() - 1000 * 60 * 60 * 7),
+          })
+        }),
+      )
+
+      sandbox.stub(logger, 'verbose')
+      const onDocStub = sandbox.stub(FetchRates, 'onMainnetDocument')
+      await FetchRates.start()
+      expect(onDocStub.callCount).to.be.equal(3)
     })
   })
 
-  it('onDocument', async () => {
-    const fakeRate = { priceUsd: 1, priceChangeOnDayUsd: 1 }
-    const stubFetchRates = sandbox.stub(RateModule, 'fetchRate').resolves(fakeRate as any)
-    const stubLogger = sandbox.stub(logger, 'verbose')
-
-    sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(true)
-
-    const tokenDb = await Models.Token.create({
-      network: NetworksEnum.ethereumMainnet,
-      type: ITokenType.ERC20,
-      address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-      logo: 'fake-logo',
-      name: NetworksEnum.ethereumMainnet,
-      symbol: 'WETH',
-      decimals: 18,
-      holders: 10,
-      totalSupply: '100',
-      priceChangeOnDayUsd: '1',
-      priceUsd: '1',
+  describe('onMainnetDocument', () => {
+    let tokenDb: any
+    beforeEach(async () => {
+      tokenDb = await Models.Token.create({
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.ERC20,
+        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        logo: 'fake-logo',
+        name: NetworksEnum.ethereumMainnet,
+        symbol: 'WETH',
+        decimals: 18,
+        holders: 1,
+        totalSupply: '1',
+        priceChangeOnDayUsd: '1',
+        priceUsd: '1.1',
+      })
     })
 
-    await FetchRates.onDocument(tokenDb)
+    it('should return early if fetchTokenUpdate returns null', async () => {
+      // Stub fetchTokenUpdate to return null.
+      sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(null)
 
-    expect(stubFetchRates.calledOnceWith(tokenDb.address, tokenDb.network)).to.be.true
-    expect(stubLogger.calledOnceWith('Token rate updated' as any)).to.be.true
+      const skipFetchStub = sandbox.stub(ProxyToken, 'shouldSkipFetch')
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
-    const updatedToken = await Models.Token.findByTokenAddressAndNetwork(tokenDb.address, tokenDb.network)
-    expect(updatedToken.priceUsd).to.be.equal('1')
-    expect(updatedToken.priceChangeOnDayUsd).to.be.equal('1')
-    expect(updatedToken.lastUpdatedAt).to.exist
-    expect(updatedToken.skipFetchRate).to.be.true
+      await FetchRates.onMainnetDocument(tokenDb)
+
+      expect(skipFetchStub.notCalled).to.be.true
+      expect(loggerVerboseStub.notCalled).to.be.true
+    })
+
+    it('should return early if token data is identical to fetched update', async () => {
+      const fakeTokenUpdates = {
+        priceUsd: '1.1',
+        holders: 1,
+        totalSupply: '1',
+        priceChangeOnDayUsd: '1',
+      }
+
+      sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(fakeTokenUpdates)
+      const updateStub = sandbox.stub(tokenDb, 'update')
+      await FetchRates.onMainnetDocument(tokenDb)
+      expect(updateStub.notCalled).to.be.true
+    })
+
+    it('should update token with skipFetchRate if shouldSkipFetch returns true', async () => {
+      const fakeTokenUpdates = {
+        priceUsd: '1.2',
+        holders: 2,
+        totalSupply: '2',
+        priceChangeOnDayUsd: '2',
+      }
+
+      sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(fakeTokenUpdates)
+      sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(true)
+      sandbox.stub(logger, 'verbose')
+      await FetchRates.onMainnetDocument(tokenDb)
+      const reloadedToken = await Models.Token.findOne({ address: tokenDb.address })
+      expect(reloadedToken.skipFetchRate).to.be.true
+      expect(reloadedToken.holders).to.be.equal(2)
+      expect(reloadedToken.totalSupply).to.be.equal('2')
+      expect(reloadedToken.priceUsd).to.be.equal('1.2')
+    })
+
+    it('should update token with fetched data', async () => {
+      const fakeTokenUpdates = {
+        priceUsd: '1.2',
+        holders: 2,
+        totalSupply: '2',
+        priceChangeOnDayUsd: '2',
+      }
+
+      sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(fakeTokenUpdates)
+      sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(false)
+      sandbox.stub(logger, 'verbose')
+
+      await FetchRates.onMainnetDocument(tokenDb)
+      const reloadedToken = await Models.Token.findOne({ address: tokenDb.address })
+
+      expect(reloadedToken.skipFetchRate).to.be.false
+      expect(reloadedToken.holders).to.be.equal(2)
+      expect(reloadedToken.totalSupply).to.be.equal('2')
+      expect(reloadedToken.priceUsd).to.be.equal('1.2')
+    })
+
+    it('should throw error', async () => {
+      const tokenDb = await Models.Token.create({
+        id: 'token-123',
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.ERC20,
+        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        logo: 'fake-logo',
+        name: NetworksEnum.ethereumMainnet,
+        symbol: 'WETH',
+        decimals: 18,
+        holders: 1,
+        totalSupply: '1',
+        priceChangeOnDayUsd: '1',
+        priceUsd: '1.1',
+      })
+      sandbox.stub(TokenUtils, 'fetchTokenUpdate').rejects(new Error('error'))
+      const stubError = sandbox.stub(logger, 'error')
+      await FetchRates.onMainnetDocument(tokenDb)
+
+      expect(stubError.calledOnceWith('Error FetchRates' as any)).to.be.true
+    })
+  })
+
+  describe('onTestnetDocument', () => {
+    it('should return early if blockscout info is null', async () => {
+      const tokenDb = await Models.Token.create({
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.ERC20,
+        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        logo: 'fake-logo',
+        name: NetworksEnum.ethereumMainnet,
+        symbol: 'WETH',
+        decimals: 18,
+        holders: 1,
+        totalSupply: '1',
+        priceChangeOnDayUsd: '1',
+        priceUsd: '1.1',
+      })
+      const stubTokenFullDetails = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(null)
+      const stubUpdate = sandbox.stub(tokenDb, 'update')
+      await FetchRates.onTestnetDocument(tokenDb)
+      expect(stubTokenFullDetails.calledOnce).to.be.true
+      expect(stubUpdate.notCalled).to.be.true
+    })
+
+    it('should return early if blockScoutInfo is missing holders or totalSupply', async () => {
+      const tokenDb = await Models.Token.create({
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.ERC20,
+        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        logo: 'fake-logo',
+        name: NetworksEnum.ethereumMainnet,
+        symbol: 'WETH',
+        decimals: 18,
+        holders: 1,
+        totalSupply: '1',
+        priceChangeOnDayUsd: '1',
+        priceUsd: '1.1',
+      })
+      const blockScoutInfo = {
+        holders: 0,
+        totalSupply: '0',
+      }
+      const stubTokenFullDetails = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(blockScoutInfo as any)
+      const stubUpdate = sandbox.stub(tokenDb, 'update')
+      await FetchRates.onTestnetDocument(tokenDb)
+      expect(stubTokenFullDetails.calledOnce).to.be.true
+      expect(stubUpdate.notCalled).to.be.true
+    })
+
+    it('should return early if token data is identical to fetched update', async () => {
+      const tokenDb = await Models.Token.create({
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.ERC20,
+        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        logo: 'fake-logo',
+        name: NetworksEnum.ethereumMainnet,
+        symbol: 'WETH',
+        decimals: 18,
+        holders: 1,
+        totalSupply: '1',
+        priceChangeOnDayUsd: '1',
+        priceUsd: '1.1',
+      })
+      const blockScoutInfo = {
+        holders: 1,
+        totalSupply: '1',
+      }
+      const stubTokenFullDetails = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(blockScoutInfo as any)
+      const stubUpdate = sandbox.stub(tokenDb, 'update')
+      await FetchRates.onTestnetDocument(tokenDb)
+      expect(stubTokenFullDetails.calledOnce).to.be.true
+      expect(stubUpdate.notCalled).to.be.true
+    })
+
+    it('should update token with fetched data', async () => {
+      const tokenDb = await Models.Token.create({
+        id: 'token-123',
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.ERC20,
+        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        logo: 'fake-logo',
+        name: NetworksEnum.ethereumMainnet,
+        symbol: 'WETH',
+        decimals: 18,
+        holders: 1,
+        totalSupply: '1',
+        priceChangeOnDayUsd: '1',
+        priceUsd: '1.1',
+      })
+      const blockScoutInfo = {
+        holders: 2,
+        totalSupply: '2',
+      }
+      const stubTokenFullDetails = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(blockScoutInfo as any)
+      await FetchRates.onTestnetDocument(tokenDb)
+      expect(stubTokenFullDetails.calledOnce).to.be.true
+      const tokenReloaded = await Models.Token.findOne({
+        id: 'token-123',
+      })
+      expect(tokenReloaded.holders).to.be.equal(2)
+      expect(tokenReloaded.totalSupply).to.be.equal('2')
+    })
+
+    it('should throw error', async () => {
+      const tokenDb = await Models.Token.create({
+        id: 'token-123',
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.ERC20,
+        address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        logo: 'fake-logo',
+        name: NetworksEnum.ethereumMainnet,
+        symbol: 'WETH',
+        decimals: 18,
+        holders: 1,
+        totalSupply: '1',
+        priceChangeOnDayUsd: '1',
+        priceUsd: '1.1',
+      })
+      sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').rejects(new Error('error'))
+      const stubError = sandbox.stub(logger, 'error')
+      await FetchRates.onTestnetDocument(tokenDb)
+
+      expect(stubError.calledOnceWith('Error FetchRates on testnet' as any)).to.be.true
+    })
   })
 })
