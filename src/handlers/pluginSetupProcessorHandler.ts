@@ -105,9 +105,13 @@ export const PluginSetupProcessorHandler = {
     )
 
     if (metadataLog) {
-      const parsedEvent = Web3Helper.parseLog(metadataLog, iFace)
-      if (parsedEvent) {
-        await MetadataHandler.metadataSet(parsedEvent, info)
+      try {
+        const parsedEvent = Web3Helper.parseLog(metadataLog, iFace)
+        if (parsedEvent) {
+          await MetadataHandler.metadataSet(parsedEvent, info)
+        }
+      } catch (_) {
+        // skip
       }
     }
   },
