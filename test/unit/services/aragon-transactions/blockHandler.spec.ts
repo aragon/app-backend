@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { NetworksEnum } from '@types'
+import { ITokenVotingLogs, LockErc721Token, NetworksEnum } from '@types'
 import ProviderModule from '@modules/provider'
 import { Models } from '@dbModels'
 import { RabbitMQHelper } from '@helpers/radditMQ'
@@ -13,6 +13,8 @@ import Web3Helper from '@helpers/web3'
 import { Interface } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+import { TokenVoting } from '@src/aragonContracts'
+import { ERC721 } from '@artifacts/ERC721'
 
 describe('AragonTransactions: BlockHandler', () => {
   let sandbox: SinonSandbox
@@ -176,6 +178,81 @@ describe('AragonTransactions: BlockHandler', () => {
       const fakeBlock = { number: 123 }
       const stubGetLogs = sandbox.stub(Web3Helper, 'getLogs').resolves([])
       await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
+
+      expect(stubGetLogs.calledOnce).to.be.true
+    })
+
+    describe('_decodeTransferLogs', async () => {
+      it('should decode ERC20 transfer logs correctly', () => {
+        const mockLog = {
+          blockNumber: 7737041,
+          blockHash: '0xdc9c7656f025e293daf87c59c44558b91e8852d04d2d34f12d73ccd96a81766a',
+          transactionIndex: 5,
+          removed: false,
+          address: '0x4A6c2662808618125f4F9C6d21A441316817b7DA',
+          data: '0x000000000000000000000000000000000000000000000000000000000000006a',
+          topics: [
+            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+            '0x000000000000000000000000707938eeec2af03eb4e61e75180d6ef68b19aabf',
+            '0x000000000000000000000000a59978e23c986d8ec6b50ed8f041e9399fa06362',
+          ],
+          transactionHash: '0x880a304d39c6763dbde588089adee9fa49b5a2a279a9fad1ce8d1c557e92686d',
+          logIndex: 0,
+        }
+
+        const result = BlockHandler._decodeTransferLogs(mockLog as any)
+
+        expect(result).to.equal('0xa59978e23c986d8Ec6b50eD8F041E9399FA06362')
+      })
+
+      it('should decode ERC721 transfer logs if ERC20 fails', () => {
+        const mockLog = {
+          blockNumber: 21876602,
+          blockHash: '0x73d8ecd65c3e7d78bee607f6935decbca736b74664624a21985cc068e9584d1e',
+          transactionIndex: 30,
+          removed: false,
+          address: '0x0a252663DBCc0b073063D6420a40319e438Cfa59',
+          data: '0x',
+          topics: [
+            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+            '0x0000000000000000000000000000000000000000000000000000000000000000',
+            '0x0000000000000000000000008459382fd8649d8aab602e5fc96c8cd4132ef12e',
+            '0x0000000000000000000000000000000000000000000000000000000000011176',
+          ],
+          transactionHash: '0xbab828ee01e9840835fef4721b50ccc00a6de7091b30567d944d34f4eba68cc6',
+          logIndex: 247,
+        }
+
+        const result = BlockHandler._decodeTransferLogs(mockLog as any)
+
+        expect(result).to.equal('0x8459382fD8649D8aab602e5fc96C8cd4132Ef12E')
+      })
+
+      it('should decode ERC721 transfer logs if ERC20 fails', () => {
+        const mockLog = {
+          blockNumber: 21876602,
+          blockHash: '0x73d8ecd65c3e7d78bee607f6935decbca736b74664624a21985cc068e9584d1e',
+          transactionIndex: 30,
+          removed: false,
+          address: '0x0a252663DBCc0b073063D6420a40319e438Cfa59',
+          data: '0x',
+          topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'],
+          transactionHash: '0xbab828ee01e9840835fef4721b50ccc00a6de7091b30567d944d34f4eba68cc6',
+          logIndex: 247,
+        }
+
+        const stubLogger = sandbox.stub(logger, 'warn')
+        const result = BlockHandler._decodeTransferLogs(mockLog as any)
+
+        expect(result).to.be.null
+        expect(stubLogger.calledOnce).to.be.true
+      })
+    })
+
+    it('should do nothing if logs are empty', async () => {
+      const fakeBlock = { number: 123 }
+      const stubGetLogs = sandbox.stub(Web3Helper, 'getLogs').resolves([])
+      await BlockHandler._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
 
       expect(stubGetLogs.calledOnce).to.be.true
     })
