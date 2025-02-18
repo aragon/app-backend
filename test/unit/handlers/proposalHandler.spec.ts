@@ -762,6 +762,34 @@ describe('Indexer: ProposalHandler', () => {
       expect(warnLoggerStub.calledOnceWith('VoteCast - Proposal not found' as any)).to.be.true
     })
 
+    it('should log a warning if the plugin is not supported with missing token', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xMissingProposalTx',
+        address: '0xplugin-address',
+        blockNumber: 20,
+        network,
+        eventName: 'voteCast',
+        transactionIndex: 3,
+        logIndex: 4,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 3n,
+          voter: '0xvoter-address',
+          voteOption: 1n,
+          votingPower: 200n,
+        },
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({...PluginList[0], tokenAddress: null, isSupported: false} as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(true)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+
+      await ProposalHandler.voteCast(fakeEvent as any, info)
+      expect(warnLoggerStub.calledOnceWith('VoteCast - plugin not supported' as any)).to.be.true
+    })
+
     it('should return early when existingLog exists and not create a new vote', async () => {
       const info: ILogInfo = {
         transactionHash: '0xExistingVoteTx',
