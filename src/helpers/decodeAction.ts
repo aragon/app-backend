@@ -9,6 +9,7 @@ import {
   type IProposalActionInputData,
   type IProposalActionInputDataParameter,
   type IRawAction,
+  ITokenType,
   KnownActionSignature,
   type NetworksEnum,
 } from '@types'
@@ -45,6 +46,7 @@ import { ERC1155 } from '@artifacts/ERC1155'
 import Utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import BlockScoutHelper from '@helpers/blockScout'
+import TokenDetector from '@helpers/tokenDetector'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -188,6 +190,15 @@ class DecodeActions {
     }
 
     const receiver = decodedData.parameters[0].value
+    const tokenAddress = action.to
+
+    const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, document.network!)
+
+    if ([ITokenType.unknown, ITokenType.native].includes(tokenTypeInfo.type)) {
+      logger.error('parseMintAction token unknown', llo({ decodedData, action, document }))
+      return null
+    }
+
     const member = await ProxyMember.createMember(receiver)
 
     if (!member) {
@@ -196,13 +207,13 @@ class DecodeActions {
 
     const [currentBalance, tokenInfo, token] = await Promise.all([
       Web3Helper.getTokenBalanceAtBlock({
-        tokenAddress: action.to,
+        tokenAddress,
         address: receiver,
         network: document.network!,
         blockNumber: document.blockNumber!,
       }),
-      Covalent.getTokenSupplyAndHolders(action.to, document.network!, document.blockNumber),
-      ProxyToken.saveAndGetToken(action.to, document.network!),
+      Covalent.getTokenSupplyAndHolders(tokenAddress, document.network!, document.blockNumber),
+      ProxyToken.saveAndGetToken(tokenAddress, document.network!),
     ])
 
     return {

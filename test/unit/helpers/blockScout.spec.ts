@@ -18,6 +18,14 @@ describe('Helpers: BlockScout', () => {
     sandbox && sandbox.restore()
   })
 
+  it('parseTokenType', async () => {
+    expect(BlockScoutHelper.parseTokenType(ITokenType.unknown)).to.eq(ITokenType.unknown)
+    expect(BlockScoutHelper.parseTokenType('ERC-20')).to.eq(ITokenType.ERC20)
+    expect(BlockScoutHelper.parseTokenType('ERC-721')).to.eq(ITokenType.ERC721)
+    expect(BlockScoutHelper.parseTokenType('ERC-1155')).to.eq(ITokenType.ERC1155)
+    expect(BlockScoutHelper.parseTokenType(ITokenType.native)).to.eq(ITokenType.unknown)
+  })
+
   it('should get axios instance', async () => {
     const stubAxios = sandbox.stub(axios, 'create')
     BlockScoutHelper.axiosInstance(NetworksEnum.ethereumMainnet)
@@ -54,7 +62,7 @@ describe('Helpers: BlockScout', () => {
       sandbox.stub(BlockScoutHelper, 'axiosInstance').returns({
         get: getCall,
       } as any)
-      const loggerStub = sandbox.stub(logger, 'error')
+      const loggerStub = sandbox.stub(logger, 'warn')
 
       try {
         await BlockScoutHelper._rpCall('tokens/0x1234567890', { apikey: 'valid-api-key' }, NetworksEnum.ethereumMainnet)
