@@ -1,8 +1,6 @@
 import logger from '@logger'
 import { ethers, Interface, type Log } from 'ethers'
 import { EnumQueueName, type NetworksEnum } from '@types'
-import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { Models } from '@dbModels'
 import { RabbitMQHelper } from '@helpers/radditMQ'
@@ -44,7 +42,7 @@ export const BlockHandler = {
 
   processReceiver: async (transactionHash: string, toAddresses: string[], network: NetworksEnum) => {
     const daos = await Models.Dao.find({ address: { $in: toAddresses }, network })
-    if (!daos.length) return
+    if (!daos || daos.length === 0) return
 
     await Promise.all(
       daos.map(async (dao: any) => {
@@ -63,7 +61,6 @@ export const BlockHandler = {
 
   _checkIfDepositEvents: async (block: any, network: NetworksEnum) => {
     const blockHex = '0x' + Number(block.number).toString(16)
-    const provider = ProviderModule.getAnyRpcProvider(network)
     const topicHash = [
       new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
       new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
@@ -75,9 +72,7 @@ export const BlockHandler = {
       topics: [[topicHash[0], topicHash[1]]],
     }
 
-    const logs = await retryRequest(async () =>
-      BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getLogs(filter)),
-    )
+    const logs = await Web3Helper.getLogs(filter, network)
 
     if (!logs || logs.length === 0) {
       return
