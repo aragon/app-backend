@@ -403,6 +403,44 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(findByAddressStub.calledOnce).to.be.true
       expect(rabbiMqStub.calledOnce).to.be.true
     })
+
+    it('should return when plugin not found', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 2,
+        logIndex: 2,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          metadata: 'fake-metadata',
+          dao: '0x456',
+          preparedSetupId: '0x453',
+          appliedSetupId: '0x452',
+          plugin: '0x450',
+        },
+      }
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const stubFindExistingLog = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
+      const PluginSetupProcessorHandlerAggLogStub = sandbox
+        .stub(PluginSetupProcessorHandler, 'pluginHandler')
+        .resolves()
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
+      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(false)
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo, true)
+
+      expect(stubLogger.calledOnceWith('Plugin preInstall error' as any)).to.be.true
+      expect(findByAddressStub.calledOnce).to.be.true
+      expect(stubFindDao.calledOnce).to.be.true
+      expect(stubFindExistingLog.calledOnce).to.be.true
+      expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
+    })
   })
 
   describe('installationPrepared', () => {
@@ -530,6 +568,43 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(pluginHandlerStub.calledOnceWith(IPluginActionType.preInstall)).to.be.true
       expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
       expect(handleFromReceiptStub.calledOnce).to.be.true
+    })
+
+    it('should return when plugin not found', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 2,
+        logIndex: 2,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          dao: '0x456',
+          sender: '0xSender',
+          preparedSetupId: '0x453',
+          pluginSetupRepo: '0xRepo',
+          plugin: '0x450',
+          versionTag: { release: '1', build: '1' },
+          preparedSetupData: {
+            permissions: [],
+          },
+        },
+      }
+
+      const stubPluginProcessor = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler').resolves()
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const stubFindPlugin = sandbox.stub(Models.Plugin, 'findByAddress').resolves(false)
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
+
+      expect(stubPluginProcessor.calledOnce).to.be.true
+      expect(stubFindDao.calledOnceWith(fakeEvent.args.dao, logInfo.network)).to.be.true
+      expect(stubFindPlugin.calledOnceWith(fakeEvent.args.plugin, logInfo.network)).to.be.true
+      expect(stubLogger.calledOnceWith('Plugin preInstall error' as any)).to.be.true
     })
   })
 
