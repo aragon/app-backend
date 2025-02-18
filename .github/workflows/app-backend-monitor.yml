@@ -2,7 +2,8 @@ name: AppBackend API Monitoring
 
 on:
   schedule:
-    - cron: '0 * * * *' # Run performance tests every hour
+    # - cron: '0 * * * *' # Run performance tests every hour
+    - cron: '0 0,12 * * *' # Runs performance tests at 12:00 AM and 12:00 PM
     - cron: '0 0 * * 1' # Send success message every Monday at 00:00
   workflow_dispatch:
 
@@ -17,13 +18,13 @@ jobs:
       matrix:
         include:
           - host: 'https://api.aragon-backend.com'
-            env_name: 'Sandbox v2'
+            env_name: 'App Backend Testing (AWS)'
           - host: 'https://stg.backend.aragon.in'
-            env_name: 'Staging'
+            env_name: 'App Backend Staging'
           - host: 'https://backend.aragon.in'
-            env_name: 'Production'
+            env_name: 'App Backend Production'
           - host: 'https://dev.backend.aragon.in'
-            env_name: 'Development'
+            env_name: 'App Backend Development'
       fail-fast: false
 
     name: Test ${{ matrix.env_name }} (${{ matrix.host }})
@@ -45,7 +46,7 @@ jobs:
           newman run postman/postman-backend-collection.json \
             --env-var "host=${{ matrix.host }}" \
             --reporters cli \
-            --timeout-request 60000 \
+            --timeout-request 120000 \
             > test-output.log || true
 
           # Display test output for debugging

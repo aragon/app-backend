@@ -6,6 +6,8 @@ import Dao from '@models/schema/dao'
 import { Models } from '@dbModels'
 import { PluginList } from '@test/mock/fakePlugins'
 import { DaoList } from '@test/mock/fakeDao'
+import ModelUtils from '@models/utils/models'
+
 describe('Model: Dao', () => {
   let sandbox: SinonSandbox
   let rawDao: Partial<Dao>
@@ -184,6 +186,21 @@ describe('Model: Dao', () => {
       await Promise.all(fakeDaos.map(w => Models.Dao.create(w)))
     })
 
+    it('Should return empty pagination response when memberAddress is provided and extraQueryData.daoAddresses is empty', async () => {
+      const paginationParams = { page: 1, pageSize: 10 }
+      const extraParams = { memberAddress: '0xMemberAddress' }
+      const extraQueryData = { daoAddresses: [] }
+
+      const result = await Models.Dao.findWithPagination({
+        extraParams,
+        paginationParams,
+        extraQueryData,
+      })
+
+      const expected = ModelUtils.paginateEmptyResponse(paginationParams.pageSize)
+      expect(result).to.deep.equal(expected)
+    })
+
     it('Should find Pagination', async () => {
       const {
         data,
@@ -326,6 +343,36 @@ describe('Model: Dao', () => {
       expect(result.metadata.totalRecords).to.eq(3)
       expect(result.metadata.page).to.eq(1)
       expect(result.metadata.totalPages).to.eq(2)
+    })
+
+    it('Should not add excluded keys to the filter', async () => {
+      const extraParams = {
+        network: NetworksEnum.polygonMainnet,
+        pluginAddress: '0xPluginAddress',
+        memberAddress: '0xMemberAddress',
+        excludeDaoId: '0xExcludedDaoId',
+        excludedDao: '0xExcludedDao',
+        someOtherParam: 'someValue', // This one should be kept
+      }
+
+      const paginationParams = {}
+
+      // Stub the MongoDB aggregate call to capture the actual query filter
+      const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').resolves([])
+
+      await Models.Dao.findWithPagination({
+        extraParams,
+        paginationParams,
+      })
+
+      // Get the actual filter that was passed to MongoDB
+      const generatedFilter = aggregateStub.args[0][0].find(step => step.$match)?.$match
+
+      expect(generatedFilter).to.not.have.property('pluginAddress')
+      expect(generatedFilter).to.not.have.property('memberAddress')
+      expect(generatedFilter).to.not.have.property('excludeDaoId')
+      expect(generatedFilter).to.not.have.property('excludedDao')
+      expect(generatedFilter).to.have.property('someOtherParam', 'someValue')
     })
 
     it('Should not found documents', async () => {

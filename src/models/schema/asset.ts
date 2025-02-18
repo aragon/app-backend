@@ -110,6 +110,8 @@ export default class Asset extends Model {
             name: 1,
             type: 1,
             logo: 1,
+            isGovernance: 1,
+            underlying: 1,
             decimals: 1,
             priceChangeOnDayUsd: 1,
             priceUsd: 1,

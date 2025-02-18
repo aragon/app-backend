@@ -1,33 +1,19 @@
 import logger from '@logger'
-import {
-  EnumQueueName,
-  IEventLogPluginMembership,
-  IEventLogPluginType,
-  type ILogInfo,
-  IPluginInterfaceType,
-} from '@types'
+import { EnumQueueName, IEventLogPluginType, type ILogInfo, IPluginActionType, IPluginInterfaceType } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
-import { TokenVoting } from '@artifacts/TokenVoting'
 import { ProxyToken } from '@modules/proxyToken'
 import { PluginHandler } from '@src/handlers/pluginHandler'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import DbOperations from '@models/utils/dbOperations'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
-import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import GaugeHelper from '@helpers/gauge'
+import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
-
-export enum IPluginActionType {
-  preInstall = 'pre-install',
-  installed = 'installed',
-  updated = 'updated',
-  uninstalled = 'uninstalled',
-}
 
 export const PluginSetupProcessorHandler = {
   pluginHandler: async (action: IPluginActionType, logDb: LogPluginSetupProcessor) => {
@@ -54,8 +40,9 @@ export const PluginSetupProcessorHandler = {
     }
   },
 
-  installationPrepared: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
+  installationPrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const daoAddress = parsedEvent.args.dao
+    const pluginAddress = parsedEvent.args.plugin
     const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
 
     if (!existingDao) {
@@ -63,114 +50,50 @@ export const PluginSetupProcessorHandler = {
       return
     }
 
-    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-
-    const memberShipAnnouncedLogs = Web3Helper.findLogsByName(
-      txReceipt!,
-      IEventLogPluginMembership.MembershipContractAnnounced,
-      TokenVoting.abi,
-    )
-
-    const parsedMembershipAnnouncedLogs = memberShipAnnouncedLogs.reduce((parsed: any, log: any) => {
-      parsed.push({
-        [log.txLog.address]: log.parsed.args[0],
-      })
-      return parsed
-    }, [])
-
-    const installationPreparingLogs = Web3Helper.findLogsByName(
-      txReceipt!,
-      IEventLogPluginType.InstallationPrepared,
-      PluginSetupProcessor.abi,
-    )
-
-    await Promise.all(
-      installationPreparingLogs.map(async (installationPreparingLog: any) => {
-        const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
-          network: info.network,
-          transactionHash: installationPreparingLog.txLog.transactionHash,
-          transactionIndex: installationPreparingLog.txLog.transactionIndex,
-          logIndex: installationPreparingLog.txLog.logIndex,
-          event: IEventLogPluginType.InstallationPrepared,
-        })
-        if (!existingLog) {
-          const logInfo = Web3Helper.parseInfoLog(installationPreparingLog.txLog, 'InstallationPrepared', info.network)
-          const memberShipAnnouncedLog = parsedMembershipAnnouncedLogs.find(
-            (parsed: any) => parsed[installationPreparingLog.parsed.args.plugin],
-          )
-
-          const { plugin } = installationPreparingLog.parsed.args
-
-          // TODO: make this better
-          // Get token address from standard plugin
-          let tokenAddress = memberShipAnnouncedLog?.[plugin]
-
-          if (!tokenAddress) {
-            // try to get token address from gauge plugin
-            tokenAddress = await GaugeHelper.getTokenAddress(plugin, info.network)
-          }
-
-          await PluginSetupProcessorHandler.handleSingleInstallationPrepared(
-            installationPreparingLog,
-            logInfo,
-            tokenAddress,
-          )
-        }
-      }),
-    )
-
-    if (!isHistorical) return
-
-    const plugins = await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
-
-    await Promise.all([
-      ...plugins.map(async (plugin: any) => {
-        // if (!plugin.isSupported) return
-        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-          id: plugin.address,
-          params: { address: plugin.address, network: plugin.network },
-        })
-      }),
-    ])
-  },
-
-  handleSingleInstallationPrepared: async ({ txLog, parsed }: any, logInfo: ILogInfo, tokenAddress?: any) => {
     const rawPluginLog: Partial<LogPluginSetupProcessor> = {
       event: IEventLogPluginType.InstallationPrepared,
-      network: logInfo.network,
-      transactionHash: txLog.transactionHash,
-      transactionIndex: txLog.transactionIndex,
-      logIndex: txLog.logIndex,
-      permissions: Utils.parsePermissions(parsed.args?.preparedSetupData?.permissions),
-      sender: parsed.args.sender,
-      daoAddress: parsed.args.dao,
-      preparedSetupId: parsed.args.preparedSetupId,
-      pluginSetupRepo: parsed.args.pluginSetupRepo,
-      pluginAddress: parsed.args.plugin,
-      release: parsed.args.versionTag.release,
-      build: parsed.args.versionTag.build,
-      blockNumber: txLog.blockNumber,
+      network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+      permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
+      sender: parsedEvent.args.sender,
+      daoAddress: parsedEvent.args.dao,
+      preparedSetupId: parsedEvent.args.preparedSetupId,
+      pluginSetupRepo: parsedEvent.args.pluginSetupRepo,
+      pluginAddress: parsedEvent.args.plugin,
+      release: parsedEvent.args.versionTag.release,
+      build: parsedEvent.args.versionTag.build,
+      blockNumber: info.blockNumber,
       tokenAddress: undefined,
-    }
-
-    if (tokenAddress) {
-      const tokenDb = await ProxyToken.saveAndGetToken(tokenAddress, logInfo.network)
-      rawPluginLog.tokenAddress = tokenDb?.address || tokenAddress
     }
 
     const logDb = await DbOperations.createDocument(
       Models.LogPluginSetupProcessor,
       rawPluginLog,
-      logInfo,
+      info,
       'New InstallationPrepared',
       llo,
     )
 
+    // create the plugin as preInstall
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.preInstall, logDb)
+    const pluginDb = await Models.Plugin.findByAddress(parsedEvent.args.plugin, info.network)
+    if (!pluginDb) {
+      logger.error('Plugin preInstall error', llo({ pluginAddress, info }))
+      return
+    }
+
+    await PluginSetupProcessorHandler.findAndUpdateTokenAddress(pluginDb, info)
+
+    // find settings
+    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+    await PluginSettingHandler.handlePluginSettingByType(pluginDb, txReceipt!, info)
   },
 
   installationApplied: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     const daoAddress = parsedEvent.args.dao
+    const pluginAddress = parsedEvent.args.plugin
     const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
 
     if (!existingDao) {
@@ -196,7 +119,7 @@ export const PluginSetupProcessorHandler = {
       daoAddress,
       preparedSetupId: parsedEvent.args.preparedSetupId,
       appliedSetupId: parsedEvent.args.appliedSetupId,
-      pluginAddress: parsedEvent.args.plugin,
+      pluginAddress,
       blockNumber: info.blockNumber,
     }
 
@@ -207,37 +130,31 @@ export const PluginSetupProcessorHandler = {
       'New InstallationApplied',
       llo,
     )
+    // update the plugin as install
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.installed, logDb)
 
-    const pluginDb = await Models.Plugin.findByAddress(parsedEvent.args.plugin, info.network)
-
-    if (pluginDb?.interfaceType === IPluginInterfaceType.spp) {
-      if (isHistorical) {
-        const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-        await PluginSettingHandler.handleFromReceipt(txReceipt!, info)
-
-        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-          id: pluginDb.address,
-          params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
-        })
-      }
-    } else if (pluginDb?.interfaceType === IPluginInterfaceType.admin) {
-      await PluginSettingHandler.isSupported(pluginDb, info)
-      if (isHistorical) {
-        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-          id: pluginDb.address,
-          params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
-        })
-      }
-    } else if (pluginDb?.interfaceType === IPluginInterfaceType.gauge) {
-      await PluginSettingHandler.isSupported(pluginDb, info)
-      if (isHistorical) {
-        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-          id: pluginDb.address,
-          params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
-        })
-      }
+    // find settings
+    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+    const pluginDb = await Models.Plugin.findByAddress(pluginAddress, info.network)
+    if (!pluginDb) {
+      logger.error('Plugin preInstall error', llo({ pluginAddress, info }))
+      return
     }
+
+    await PluginSettingHandler.handlePluginSettingByType(pluginDb, txReceipt!, info)
+
+    if (
+      pluginDb?.interfaceType === IPluginInterfaceType.admin ||
+      pluginDb?.interfaceType === IPluginInterfaceType.gauge
+    ) {
+      // mark as active plugin with no settings
+      await PluginSettingHandler.isSupported(pluginDb, info)
+    }
+
+    await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+      id: pluginDb.address,
+      params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
+    })
   },
 
   updatePrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -401,5 +318,24 @@ export const PluginSetupProcessorHandler = {
       llo,
     )
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
+  },
+
+  findAndUpdateTokenAddress: async (pluginDb: Plugin, info: ILogInfo) => {
+    let tokenAddress: any = null
+    switch (pluginDb.interfaceType) {
+      case IPluginInterfaceType.tokenVoting:
+        tokenAddress = await Web3Helper.getVotingToken(pluginDb.address, info.network)
+        break
+      case IPluginInterfaceType.gauge:
+        tokenAddress = await GaugeHelper.getTokenAddress(pluginDb.address, info.network)
+        break
+      default:
+        break
+    }
+
+    if (tokenAddress) {
+      await ProxyToken.saveAndGetToken(tokenAddress, info.network)
+      await DbOperations.updateDocument(pluginDb, { tokenAddress }, info, 'Update Voting plugin token', llo)
+    }
   },
 }

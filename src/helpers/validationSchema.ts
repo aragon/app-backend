@@ -19,7 +19,7 @@ const ValidationSchema = {
     .messages({
       'string.invalid': '{{#label}} is not a valid address',
     }),
-  joiDaoId: Joi.string().custom((value, helpers) => {
+  joiDaoId: Joi.string().custom(value => {
     try {
       const regex = new RegExp(`(${Object.values(NetworksEnum).join('|')})-(0x[0-9a-fA-F]{40})`)
       const match = value.match(regex)

@@ -32,6 +32,13 @@ const Utils = {
     return typeof avatar === 'string' ? avatar : null
   },
 
+  getProtocolPrefixes(ssl: boolean): { wsPrefix: string; httpPrefix: string } {
+    return {
+      wsPrefix: ssl ? 'wss://' : 'ws://',
+      httpPrefix: ssl ? 'https://' : 'http://',
+    }
+  },
+
   extractAdditionalParams: (
     knownParams: Record<string, any> = {},
     queryParams: Record<string, any> = {},
@@ -53,7 +60,7 @@ const Utils = {
       return [[]]
     }
     return array?.length > size
-      ? Array.from({ length: Math.ceil(array.length / size) }, (v, i) => array.slice(i * size, i * size + size))
+      ? Array.from({ length: Math.ceil(array.length / size) }, (_, i) => array.slice(i * size, i * size + size))
       : [array]
   },
 
@@ -128,7 +135,7 @@ const Utils = {
     const cache: any[] = []
     return JSON.stringify(
       object,
-      function (key: string, value: any) {
+      function (_, value: any) {
         if (typeof value === 'bigint') {
           return value.toString()
         }
@@ -290,11 +297,12 @@ const Utils = {
     return value === true || value === 'true'
   },
 
-  parseNumber: (value: any): number | undefined => {
+  parseNumber: (value: any): number | null | undefined => {
     if (value === undefined || value === 'undefined') {
       return
     }
-    return Number(value)
+    const parsedNumber = Number(value)
+    return isNaN(parsedNumber) ? undefined : parsedNumber
   },
 
   isScientificNumber: (value: number) => {

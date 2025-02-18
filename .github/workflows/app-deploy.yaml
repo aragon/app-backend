@@ -92,11 +92,13 @@ jobs:
           OP_VAULT_ITEM: configs_app_backend2_${{env.DEPLOY_ENV}}
         run: |
           ls
-          op item get --vault ${{env.OP_VAULT}} "${{env.OP_VAULT_ITEM}}" --format json | jq -r '.fields.[].label'|sed 1d > configs
+          op item get --vault "${{env.OP_VAULT}}" "${{env.OP_VAULT_ITEM}}" --format json | jq -r '.fields.[].label'|sed 1d > configs
           while IFS= read -r line; do
           	echo -e "\n $line"
-          	op item get --vault temporal_backend2 "configs_app_backend2_dev" --fields "$line" | sed '1s/^"//;;$s/"$//' > temp_file
+          	op item get --vault "${{env.OP_VAULT}}" "${{env.OP_VAULT_ITEM}}" --fields "$line" | sed '1s/^"//;;$s/"$//' > temp_file
           	IFS=';' read -ra CONFIG_FILES <<< "$line"
+
+            ## Set up specific env configs values for LOGZIO
           	for conf_single in "${CONFIG_FILES[@]}"; do
           		CONFIG_FILE_NAME=".env.$conf_single"
           		cp temp_file "$CONFIG_FILE_NAME"

@@ -72,7 +72,13 @@ export const GovernanceErc20Handler = {
 
       const token = await ProxyToken.saveAndGetToken(info.address, info.network)
       if (existingLog) {
-        return await GovernanceErc20Handler._handleDaoMemberShip(existingLog, token?.type!, plugins, info)
+        return await GovernanceErc20Handler._handleDaoMemberShip(
+          existingLog,
+          token?.type!,
+          token?.isGovernance!,
+          plugins,
+          info,
+        )
       }
 
       if (!isHistorical) {
@@ -90,7 +96,7 @@ export const GovernanceErc20Handler = {
       let tokenBal: string = '0'
       let memberVotingPower: string = '0'
 
-      if (token?.type === ITokenType.GovernanceERC20) {
+      if (token?.type === ITokenType.ERC20 && token?.isGovernance) {
         tokenBal = BigInt(parsedEvent?.args?.value || 0)?.toString()
         memberVotingPower = await GovernanceErc20Helper.getPastVotes(
           memberAddress,
@@ -143,30 +149,29 @@ export const GovernanceErc20Handler = {
         return memberTransaction
       })
 
-      await GovernanceErc20Handler._handleDaoMemberShip(memberTransaction, token?.type!, plugins, info)
+      await GovernanceErc20Handler._handleDaoMemberShip(
+        memberTransaction,
+        token?.type!,
+        token?.isGovernance!,
+        plugins,
+        info,
+      )
     } catch (error) {
       logger.error(`Transfer - ${transferType} transfer error`, llo({ error, info }))
     }
   },
 
-  /**
-   * Handles DAO membership state based on token ownership and voting power
-   * @param memberTx - Must contain balance/voting power at event block
-   * @param tokenType - Determines requirement rules (ERC20 vs ERC721)
-   * @param plugins - All DAO plugins associated with this token
-   * @param info - Log info
-   */
-
   _handleDaoMemberShip: async (
     memberTx: Partial<MemberTransaction>,
     tokenType: ITokenType,
+    tokenIsGovernance: boolean,
     plugins: Plugin[],
     info: ILogInfo,
   ) => {
     let userBalance = 0n
     let votingPower = 0n
 
-    if (tokenType === ITokenType.GovernanceERC20) {
+    if (tokenType === ITokenType.ERC20 && tokenIsGovernance) {
       votingPower = BigInt(memberTx.memberVotingPower!)
       userBalance = BigInt(memberTx.memberBalance!)
     } else {
@@ -192,8 +197,7 @@ export const GovernanceErc20Handler = {
         }
 
         const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        const meetsRequirements =
-          tokenType === ITokenType.GovernanceERC20 ? votingPower > 0n || userBalance > 0n : BigInt(userBalance) > 0n
+        const meetsRequirements = tokenIsGovernance ? votingPower > 0n || userBalance > 0n : BigInt(userBalance) > 0n
 
         if (!isMember && meetsRequirements) {
           await ProxyMember.addToDao(memberShipParams)
@@ -257,7 +261,8 @@ export const GovernanceErc20Handler = {
       if (typeof votingPowerResult !== 'bigint') {
         return await GovernanceErc20Handler._handleDaoMemberShip(
           votingPowerResult as MemberTransaction,
-          ITokenType.GovernanceERC20,
+          ITokenType.ERC20,
+          true,
           plugins,
           info,
         )
@@ -276,12 +281,13 @@ export const GovernanceErc20Handler = {
           memberBalance: memberBalance.toString(),
           memberVotingPower: votingPowerResult.toString(),
         },
-        ITokenType.GovernanceERC20,
+        ITokenType.ERC20,
+        true,
         plugins,
         info,
       )
 
-      const { from, to } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
+      const { from, to, delegator } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
 
       if (from === utils.zeroAddress || to === utils.zeroAddress || from === to) {
         // Note we skip all delegation happened on transfer, mint, burn, etc
@@ -326,30 +332,59 @@ export const GovernanceErc20Handler = {
         logger.verbose('Transfer outgoing - MemberTransaction', llo({ logId: logDb?.id, info }))
       })
 
-      await Promise.all(
-        plugins.map(async (plg: Plugin) => {
-          if (side === ITransferSide.incoming) {
-            await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
-              memberAddress,
-              pluginAddress: plg.address,
-              network: plg.network,
-            })
-          } else if (side === ITransferSide.outgoing) {
-            await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
-              memberAddress,
-              pluginAddress: plg.address,
-              network: plg.network,
-            })
-          }
+      if (delegator !== utils.zeroAddress && delegator !== to) {
+        // increase
+        await Promise.all(
+          plugins.map(async (plg: Plugin) => {
+            if (side === ITransferSide.incoming) {
+              await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
+                memberAddress,
+                pluginAddress: plg.address,
+                network: plg.network,
+              })
+            } else if (side === ITransferSide.outgoing) {
+              await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
+                memberAddress,
+                pluginAddress: plg.address,
+                network: plg.network,
+              })
+            }
 
-          await ProxyMember.updateActivity({
-            memberAddress,
-            pluginAddress: plg.address,
-            network: info.network,
-            blockNumber: info.blockNumber,
-          })
-        }),
-      )
+            await ProxyMember.updateActivity({
+              memberAddress,
+              pluginAddress: plg.address,
+              network: info.network,
+              blockNumber: info.blockNumber,
+            })
+          }),
+        )
+      } else if (delegator !== utils.zeroAddress && delegator === to) {
+        // it means that it's revoking the delegation
+        await Promise.all(
+          plugins.map(async (plg: Plugin) => {
+            if (side === ITransferSide.incoming) {
+              await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateSentCount, {
+                memberAddress,
+                pluginAddress: plg.address,
+                network: plg.network,
+              })
+            } else if (side === ITransferSide.outgoing) {
+              await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateReceivedCount, {
+                memberAddress,
+                pluginAddress: plg.address,
+                network: plg.network,
+              })
+            }
+
+            await ProxyMember.updateActivity({
+              memberAddress,
+              pluginAddress: plg.address,
+              network: info.network,
+              blockNumber: info.blockNumber,
+            })
+          }),
+        )
+      }
     } catch (error) {
       logger.error('DelegateVotesChanged - error', llo({ error, parsedEvent, info }))
     }
@@ -358,6 +393,7 @@ export const GovernanceErc20Handler = {
   _findDelegatorsFromReceipt: async (parsedEvent: LogDescription, info: ILogInfo) => {
     let from = utils.zeroAddress
     let to = utils.zeroAddress
+    let delegator = utils.zeroAddress
 
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
 
@@ -374,6 +410,10 @@ export const GovernanceErc20Handler = {
           parsed?.args?.toDelegate === parsedEvent?.args?.delegate,
       )
 
+      if (log?.parsed?.args?.delegator) {
+        delegator = log?.parsed?.args.delegator
+      }
+
       if (log?.parsed?.args?.fromDelegate) {
         from = log.parsed.args.fromDelegate
       }
@@ -383,6 +423,6 @@ export const GovernanceErc20Handler = {
       }
     }
 
-    return { from, to }
+    return { from, to, delegator }
   },
 }

@@ -99,7 +99,7 @@ describe('Helpers: GovernanceErc20', () => {
       const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await MockedGoveranceErc20Helper.getVotes('0x123', '0x123', NetworksEnum.ethereumMainnet)
-      expect(result).to.eq('0')
+      expect(result).to.eq(0n)
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getting votes' as any)).to.be.true
     })
@@ -190,6 +190,53 @@ describe('Helpers: GovernanceErc20', () => {
       expect(result).to.eq('0')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getting delegates' as any)).to.be.true
+    })
+  })
+
+  describe('getPastVotes', () => {
+    it('should return past votes as a string when call is successful', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const pastVotesStub = sandbox.stub().resolves(10n)
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { getPastVotes: pastVotesStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, NetworksEnum.ethereumMainnet)
+
+      expect(result).to.eq('10')
+      expect(pastVotesStub.calledOnce).to.be.true
+    })
+
+    it('should return "0" when getPastVotes fails', async () => {
+      const pastVotesStub = sandbox.stub().rejects(new Error('RPC Call Failed'))
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { getPastVotes: pastVotesStub }
+          },
+        },
+      })
+
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, NetworksEnum.ethereumMainnet)
+
+      expect(result).to.eq('0')
+      expect(loggerStub.calledTwice).to.be.true
+      expect(loggerStub.calledWithMatch('Error getting past votes - blockNumber' as any)).to.be.true
+      expect(loggerStub.calledWithMatch('Error getting past votes - blockTimestamp' as any)).to.be.true
     })
   })
 })

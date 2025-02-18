@@ -8,6 +8,7 @@ import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 import type Dao from '@models/schema/dao'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
+import TokenUtils from '@helpers/tokenUtils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
@@ -73,6 +74,11 @@ export const DaoAssets = {
         tokenBalances
           .filter(token => Number(token.tokenBalance) > 0)
           .map(async (token: IAlchemyTokenBalance) => {
+            const isSyncableToken = await TokenUtils.isTokenSyncable(token.contractAddress!, document.network)
+            if (!isSyncableToken) {
+              logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: token.contractAddress }))
+              return
+            }
             const tokenDb = await ProxyToken.saveAndGetToken(token?.contractAddress!, document.network)
             const rawData: Partial<Asset> = {
               amount: token.tokenBalance,

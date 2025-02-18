@@ -1,4 +1,4 @@
-import { type NetworksEnum, type SupportedEnsNetworksEnum } from './networks'
+import { type HexAddress, type NetworksEnum, type SupportedEnsNetworksEnum } from './networks'
 
 export enum IEnumEnvironment {
   production = 'production',
@@ -13,8 +13,21 @@ export enum IEnumNodeEnv {
 }
 
 interface ITokenData {
-  address: string
+  address: HexAddress
   network: NetworksEnum
+}
+
+export interface IRawNodeConfig {
+  ALCHEMY_API_KEY: string
+  ARAGON_WS: string
+  ARAGON_RPC: string
+  FROM_BLOCK: number
+  CONFIRMATION_BLOCKS: number
+  INTERVAL_BLOCK_TIME: number
+  ETHERSCAN_API_KEY: string
+  ETHERSCAN_API_URL: string
+  BLOCKSCOUT_API_URL: string
+  BLOCKSCOUT_API_KEY: string
 }
 
 export interface IConfig {
@@ -27,62 +40,13 @@ export interface IConfig {
   ENS_DOMAIN: string
   CONFIRMATION_BLOCKS: number
   NODES: {
-    ETHEREUM_MAINNET: {
-      WS: string
-      FROM_BLOCK: number
-      CONFIRMATION_BLOCKS: number
-      INTERVAL_BLOCK_TIME: number
-      ETHERSCAN_API_KEY: string
-      ETHERSCAN_API_URL: string
-    }
-    ETHEREUM_SEPOLIA: {
-      WS: string
-      FROM_BLOCK: number
-      CONFIRMATION_BLOCKS: number
-      INTERVAL_BLOCK_TIME: number
-      ETHERSCAN_API_KEY: string
-      ETHERSCAN_API_URL: string
-    }
-    POLYGON_MAINNET: {
-      WS: string
-      FROM_BLOCK: number
-      CONFIRMATION_BLOCKS: number
-      INTERVAL_BLOCK_TIME: number
-      ETHERSCAN_API_KEY: string
-      ETHERSCAN_API_URL: string
-    }
-    BASE_MAINNET: {
-      WS: string
-      FROM_BLOCK: number
-      CONFIRMATION_BLOCKS: number
-      INTERVAL_BLOCK_TIME: number
-      ETHERSCAN_API_KEY: string
-      ETHERSCAN_API_URL: string
-    }
-    ARBITRUM_MAINNET: {
-      WS: string
-      FROM_BLOCK: number
-      CONFIRMATION_BLOCKS: number
-      INTERVAL_BLOCK_TIME: number
-      ETHERSCAN_API_KEY: string
-      ETHERSCAN_API_URL: string
-    }
-    ZKSYNC_SEPOLIA: {
-      WS: string
-      FROM_BLOCK: number
-      CONFIRMATION_BLOCKS: number
-      INTERVAL_BLOCK_TIME: number
-      ETHERSCAN_API_KEY: string
-      ETHERSCAN_API_URL: string
-    }
-    ZKSYNC_MAINNET: {
-      WS: string
-      FROM_BLOCK: number
-      CONFIRMATION_BLOCKS: number
-      INTERVAL_BLOCK_TIME: number
-      ETHERSCAN_API_KEY: string
-      ETHERSCAN_API_URL: string
-    }
+    ETHEREUM_MAINNET: IRawNodeConfig
+    ETHEREUM_SEPOLIA: IRawNodeConfig
+    POLYGON_MAINNET: IRawNodeConfig
+    BASE_MAINNET: IRawNodeConfig
+    ARBITRUM_MAINNET: IRawNodeConfig
+    ZKSYNC_SEPOLIA: IRawNodeConfig
+    ZKSYNC_MAINNET: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
@@ -102,6 +66,8 @@ export interface IConfig {
     RECONNECT_INTERVAL: number
   }
   BOTTLENECK: {
+    BLOCKSCOUT_API_MAX_CONCURRENT: number
+    BLOCKSCOUT_API_MIN_TIME: number
     ETHERSCAN_MAX_CONCURRENT: number
     ETHERSCAN_MIN_TIME: number
     NODE_MAX_CONCURRENT: number

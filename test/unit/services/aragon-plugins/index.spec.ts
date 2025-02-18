@@ -51,7 +51,8 @@ describe('AragonPlugins: index', () => {
         network: NetworksEnum.ethereumMainnet,
       })
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
       } as any)
       const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
 
@@ -207,7 +208,8 @@ describe('AragonPlugins: index', () => {
         network: NetworksEnum.ethereumMainnet,
       })
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
       } as any)
       const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
 

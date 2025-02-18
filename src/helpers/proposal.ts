@@ -47,7 +47,7 @@ const ProposalHelper = {
     sppPluginAddress: HexAddress,
     network: NetworksEnum,
   ): Promise<number | false> {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(sppPluginAddress, StagedProposalProcessor.abi, provider)
     try {
       return await retryRequest(async () =>
@@ -69,7 +69,7 @@ const ProposalHelper = {
     pluginAddress: HexAddress
     network: NetworksEnum
   }): Promise<IProposalSPPOnChain | null> {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(pluginAddress, StagedProposalProcessor.abi, provider)
     try {
       return await retryRequest(async () =>
@@ -90,7 +90,7 @@ const ProposalHelper = {
     pluginAddress: HexAddress
     network: NetworksEnum
   }): Promise<IProposalTokenVotingOnChain | null> {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(pluginAddress, TokenVoting.abi, provider)
     try {
       return await retryRequest(async () =>
@@ -111,7 +111,7 @@ const ProposalHelper = {
     pluginAddress: HexAddress
     network: NetworksEnum
   }): Promise<IProposalMultisigOnChain | null> {
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(pluginAddress, Multisig.abi, provider)
     try {
       return await retryRequest(async () =>

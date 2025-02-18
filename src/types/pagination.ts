@@ -7,6 +7,7 @@ import { type ISettingStatus } from '@src/types/plugin'
 export interface ITokenExtraParams {
   network?: NetworksEnum
   type?: ITokenType
+  isGovernance?: boolean
 }
 
 export interface IVoteExtraParams {

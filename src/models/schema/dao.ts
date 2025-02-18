@@ -170,7 +170,12 @@ export default class Dao extends Model {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
       Object.entries(extraParams).filter(
-        ([key, value]) => value !== undefined && key !== 'pluginAddress' && key !== 'memberAddress',
+        ([key, value]) =>
+          value !== undefined &&
+          key !== 'pluginAddress' &&
+          key !== 'memberAddress' &&
+          key !== 'excludeDaoId' &&
+          key !== 'excludedDao',
       ),
     )
     const filter = {
@@ -189,8 +194,13 @@ export default class Dao extends Model {
     filter.isHidden = { $ne: true }
     filter.isActive = { $eq: true }
 
-    if (extraQueryData?.daoAddresses?.length! > 0) {
+    if (extraQueryData.daoAddresses?.length! > 0) {
       filter.address = { $in: extraQueryData.daoAddresses }
+    }
+
+    if (extraParams.memberAddress && extraQueryData.daoAddresses?.length === 0) {
+      // no dao for member
+      return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
     const aggQuery = [

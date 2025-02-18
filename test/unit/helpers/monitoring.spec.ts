@@ -5,7 +5,7 @@ import TooBusyMonitor from '@helpers/monitoring'
 import Toobusy from 'toobusy-js'
 import logger from '@logger'
 
-describe('Module:Monitoring - TooBusyMonitor', () => {
+describe('Helpers: Monitoring', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {

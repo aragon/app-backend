@@ -33,7 +33,8 @@ describe('Manual: Token', () => {
     const network = NetworksEnum.ethereumMainnet
 
     sandbox.stub(TokenDetector, 'detectTokenType').resolves({
-      type: ITokenType.GovernanceERC20,
+      type: ITokenType.ERC20,
+      isGovernance: true,
       implementationAddress: null,
     } as any)
     sandbox.stub(RateModule, 'fetchRate').resolves({
