@@ -188,6 +188,13 @@ class DecodeActions {
     }
 
     const receiver = decodedData.parameters[0].value
+    const tokenAddress = action.to
+
+    if (receiver === tokenAddress) {
+      logger.error('Parse action misconfiguration parseMint', llo({ decodedData, action, document }))
+      return null
+    }
+
     const member = await ProxyMember.createMember(receiver)
 
     if (!member) {
