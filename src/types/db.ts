@@ -42,6 +42,17 @@ export enum ICollectionNames {
   DaoPermission = 'DaoPermission',
 }
 
+export enum ITransactionIndexedModel {
+  Transaction = 'Transaction',
+  Proposal = 'Proposal',
+  Vote = 'Vote',
+  Dao = 'Dao',
+  LogPluginSetupProcessor = 'LogPluginSetupProcessor',
+  LogMetadata = 'LogMetadata',
+  Setting = 'Setting',
+  MemberTransaction = 'MemberTransaction',
+}
+
 export interface IMongoModel {
   Dao: typeof Dao
   Token: typeof Token
