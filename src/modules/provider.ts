@@ -103,18 +103,14 @@ const ProviderModule = {
         network: ProviderModule.parseAlchemyNetwork(network),
         maxRetries: 10,
       }
-      const alchemyConnection: IAlchemyNodeConnection | any = {
-        alchemy: new Alchemy(alchemySettings),
-      }
 
-      alchemyConnection.rpc = alchemyConnection.alchemy.core
-      alchemyConnection.ws = alchemyConnection.alchemy.ws
-      alchemyConnection.nft = alchemyConnection.alchemy.nft
+      const alchemyConnection: any = new Alchemy(alchemySettings)
+      alchemyConnection.rpc = alchemyConnection.core
 
       ProviderModule.providerProxies[network].alchemy = alchemyConnection
 
-      if (alchemyConnection.alchemy.ws && typeof alchemyConnection.alchemy.ws.on === 'function') {
-        ProviderModule.setupWSListeners(alchemyConnection.alchemy.ws, IProviderType.ALCHEMY, network)
+      if (alchemyConnection.ws && typeof alchemyConnection.ws.on === 'function') {
+        ProviderModule.setupWSListeners(alchemyConnection.ws, IProviderType.ALCHEMY, network)
       }
     } else if (nodeConfig.providerType === IProviderType.ARAGON) {
       const aragonConfig = nodeConfig as IAragonNodeConfig
