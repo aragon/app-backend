@@ -364,4 +364,17 @@ describe('Module: provider', () => {
       ).to.be.true
     })
   })
+
+  it('should get core provider', async () => {
+    const network = NetworksEnum.ethereumMainnet
+    const providerStub = sandbox.stub(ProviderModule, 'getProvider').returns({
+      config: {
+        getProvider: sandbox.stub().resolves('coreProvider'),
+      },
+    })
+
+    const result = await ProviderModule.getCoreProvider(network)
+    expect(result).to.equal('coreProvider')
+    expect(providerStub.calledWith(network)).to.be.true
+  })
 })
