@@ -373,7 +373,7 @@ describe('Module: provider', () => {
       },
     })
 
-    const result = await ProviderModule.getCoreProvider(network)
+    const result = await ProviderModule.getProvider(network, IProviderType.ARAGON)
     expect(result).to.equal('coreProvider')
     expect(providerStub.calledWith(network)).to.be.true
   })

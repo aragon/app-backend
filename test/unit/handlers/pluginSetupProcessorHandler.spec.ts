@@ -18,6 +18,9 @@ import DbOperations from '@models/utils/dbOperations'
 import GaugeHelper from '@helpers/gauge'
 import TokenUtils from '@helpers/tokenUtils'
 import { PluginList } from '@test/mock/fakePlugins'
+import { Interface } from 'ethers'
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
+import { MetadataHandler } from '@handlers/metadataHandler'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -505,6 +508,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         address: '0x450',
       })
       const findTokenAndUpdateStub = sandbox.stub(PluginSetupProcessorHandler, 'findAndUpdateTokenAddress')
+      const handleMetadataStub = sandbox.stub(PluginSetupProcessorHandler, 'updateMetadataOnPreInstall')
       const pluginHandlerStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
       const handleFromReceiptStub = sandbox
@@ -519,6 +523,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(pluginHandlerStub.calledOnceWith(IPluginActionType.preInstall)).to.be.true
       expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
       expect(handleFromReceiptStub.calledOnce).to.be.true
+      expect(handleMetadataStub.calledOnce).to.be.true
       expect(
         findTokenAndUpdateStub.calledOnceWith({
           address: '0x450',
@@ -553,6 +558,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const stubFindPlugin = sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
       const findTokenStub = sandbox.stub(PluginSetupProcessorHandler, 'findAndUpdateTokenAddress')
+      const handleMetadataStub = sandbox.stub(PluginSetupProcessorHandler, 'updateMetadataOnPreInstall')
       const pluginHandlerStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
       const handleFromReceiptStub = sandbox
@@ -568,6 +574,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(pluginHandlerStub.calledOnceWith(IPluginActionType.preInstall)).to.be.true
       expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
       expect(handleFromReceiptStub.calledOnce).to.be.true
+      expect(handleMetadataStub.calledOnce).to.be.true
     })
 
     it('should return when plugin not found', async () => {
@@ -605,6 +612,39 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindDao.calledOnceWith(fakeEvent.args.dao, logInfo.network)).to.be.true
       expect(stubFindPlugin.calledOnceWith(fakeEvent.args.plugin, logInfo.network)).to.be.true
       expect(stubLogger.calledOnceWith('Plugin preInstall error' as any)).to.be.true
+    })
+  })
+
+  describe('updateMetadataOnPreInstall', () => {
+    it('should updateMetadataOnPreInstall', async () => {
+      const logDb = {
+        address: '0xPlugin',
+      } as any
+
+      const txInfo = {
+        address: '0xPlugin',
+        transactionHash: '0xtxHash',
+      } as any
+
+      const log = {
+        address: '0xPlugin',
+        data: '0xData',
+        topics: [new Interface(StagedProposalProcessor.abi).getEvent('MetadataSet')?.topicHash!],
+      }
+
+      const txReceipt = {
+        status: '0x1',
+        logs: [log],
+      } as any
+
+      const metadataHandlerStub = sandbox.stub(MetadataHandler, 'metadataSet')
+      const web3HelperStub = sandbox.stub(Web3Helper, 'parseLog').returns(log as any)
+
+      await PluginSetupProcessorHandler.updateMetadataOnPreInstall(logDb, txReceipt, txInfo)
+
+      expect(metadataHandlerStub.calledOnce).to.be.true
+      expect(metadataHandlerStub.calledWith(log as any, txInfo)).to.be.true
+      expect(web3HelperStub.calledOnce).to.be.true
     })
   })
 
