@@ -18,6 +18,14 @@ describe('Helpers: BlockScout', () => {
     sandbox && sandbox.restore()
   })
 
+  it('parseTokenType', async () => {
+    expect(BlockScoutHelper.parseTokenType(ITokenType.unknown)).to.eq(ITokenType.unknown)
+    expect(BlockScoutHelper.parseTokenType(ITokenType.ERC20)).to.eq(ITokenType.ERC20)
+    expect(BlockScoutHelper.parseTokenType(ITokenType.ERC721)).to.eq(ITokenType.ERC721)
+    expect(BlockScoutHelper.parseTokenType(ITokenType.ERC1155)).to.eq(ITokenType.ERC1155)
+    expect(BlockScoutHelper.parseTokenType(ITokenType.native)).to.eq(ITokenType.native)
+  })
+
   it('should get axios instance', async () => {
     const stubAxios = sandbox.stub(axios, 'create')
     BlockScoutHelper.axiosInstance(NetworksEnum.ethereumMainnet)

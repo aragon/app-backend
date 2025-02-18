@@ -97,6 +97,7 @@ export const PluginSetupProcessorHandler = {
   },
 
   updateMetadataOnPreInstall: async (plugin: Plugin, txReceipt: TransactionReceipt, info: ILogInfo) => {
+    const iFace = new Interface(StagedProposalProcessor.abi)
     const metadataLogTopics = new Interface(StagedProposalProcessor.abi).getEvent('MetadataSet')?.topicHash!
 
     const metadataLog = txReceipt?.logs.find(
@@ -104,7 +105,7 @@ export const PluginSetupProcessorHandler = {
     )
 
     if (metadataLog) {
-      const parsedEvent = Web3Helper.parseLog(metadataLog, StagedProposalProcessor.abi)
+      const parsedEvent = Web3Helper.parseLog(metadataLog, iFace)
       if (parsedEvent) {
         await MetadataHandler.metadataSet(parsedEvent, info)
       }
