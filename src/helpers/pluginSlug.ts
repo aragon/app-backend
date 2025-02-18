@@ -106,7 +106,10 @@ export const PluginSlug = {
     }
 
     // If maxRetries exceeded, return null
-    logger.error('Failed to generate unique slug after maximum retries', llo({ candidateKey, plugin }))
+    logger.error(
+      'Failed to generate unique slug after maximum retries',
+      llo({ candidateKey, pluginAddress: plugin.address }),
+    )
     return null
   },
 

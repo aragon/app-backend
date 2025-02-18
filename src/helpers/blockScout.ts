@@ -28,7 +28,7 @@ const BlockScoutHelper = {
       )
       return response?.data
     } catch (error) {
-      logger.error('Error in BLockScoutApi API call', llo({ error, path, params }))
+      logger.warn('BLockScoutApi API call', llo({ error, path, params }))
       throw error
     }
   },

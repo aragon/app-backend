@@ -44,7 +44,7 @@ const AragonTransactionsService: IExtendedService = {
   async processNewBlock(blockNumber: number, network: NetworksEnum) {
     const block = await Web3Helper.getBlock(blockNumber, network)
     if (!block) {
-      logger.error('Error fetching block data', llo({ network, blockNumber }))
+      logger.error('Error fetching block data', llo({ network, blockNumber, block }))
       return
     }
     await BlockHandler.processNewBlock(block, network)

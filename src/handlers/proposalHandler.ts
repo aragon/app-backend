@@ -327,6 +327,11 @@ export const ProposalHandler = {
         return
       }
 
+      if (!plugin.isSupported && !plugin.tokenAddress) {
+        logger.warn('VoteCast - plugin not supported', llo(info))
+        return
+      }
+
       const existingLog = await Models.Vote.findExistingLog({
         network: info.network,
         transactionHash: info.transactionHash,
