@@ -121,8 +121,8 @@ export default class Token extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  static async findByTokenAddressAndNetwork(address: HexAddress, network: NetworksEnum) {
-    return await this.findOne({ address, network })
+  static async findByTokenAddressAndNetwork(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return await this.findOne({ address, network }, null, tOpts)
   }
 
   static async findWithPagination({
