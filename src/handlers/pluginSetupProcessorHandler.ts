@@ -21,6 +21,7 @@ import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import GaugeHelper from '@helpers/gauge'
 import TokenUtils from '@helpers/tokenUtils'
+import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
 
@@ -77,12 +78,6 @@ export const PluginSetupProcessorHandler = {
       tokenAddress: undefined,
     }
 
-    const tokenAddress = await PluginSetupProcessorHandler.findTokenFromLog(pluginAddress, info)
-    if (tokenAddress) {
-      const tokenDb = await ProxyToken.saveAndGetToken(tokenAddress, info.network)
-      rawPluginLog.tokenAddress = tokenDb?.address || tokenAddress
-    }
-
     const logDb = await DbOperations.createDocument(
       Models.LogPluginSetupProcessor,
       rawPluginLog,
@@ -98,6 +93,8 @@ export const PluginSetupProcessorHandler = {
       logger.error('Plugin preInstall error', llo({ pluginAddress, info }))
       return
     }
+
+    await PluginSetupProcessorHandler.findAndUpdateTokenAddress(pluginDb, info)
 
     // find settings
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
@@ -331,6 +328,25 @@ export const PluginSetupProcessorHandler = {
       llo,
     )
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
+  },
+
+  findAndUpdateTokenAddress: async (pluginDb: Plugin, info: ILogInfo) => {
+    let tokenAddress: any = null
+    switch (pluginDb.interfaceType) {
+      case IPluginInterfaceType.tokenVoting:
+        tokenAddress = await Web3Helper.getVotingToken(pluginDb.address, info.network)
+        break
+      case IPluginInterfaceType.gauge:
+        tokenAddress = await GaugeHelper.getTokenAddress(pluginDb.address, info.network)
+        break
+      default:
+        break
+    }
+
+    if (tokenAddress) {
+      await ProxyToken.saveAndGetToken(tokenAddress, info.network)
+      await DbOperations.updateDocument(pluginDb, { tokenAddress }, info, 'Update Voting plugin token', llo)
+    }
   },
 
   findTokenFromLog: async (pluginAddress: HexAddress, info: ILogInfo): Promise<HexAddress | null> => {
