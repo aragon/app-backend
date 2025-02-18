@@ -155,7 +155,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_BASE_MAINNET_ETHERSCAN_API_URL',
           'https://api.basescan.org/api',
         ),
-        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_BLOCKSCOUT_API_URL', null),
+        BLOCKSCOUT_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_BASE_MAINNET_BLOCKSCOUT_API_URL',
+          'https://base.blockscout.com/api/',
+        ),
         BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
       ARBITRUM_MAINNET: {
@@ -186,7 +191,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           sourceConfig,
           'string',
           'NODES_ARBITRUM_MAINNET_BLOCKSCOUT_API_URL',
-          null,
+          'https://arbitrum.blockscout.com/api/',
         ),
         BLOCKSCOUT_API_KEY: utils.configParser(
           sourceConfig,
@@ -209,7 +214,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ZKSYNC_SEPOLIA_ETHERSCAN_API_URL',
           'https://block-explorer-api.sepolia.zksync.dev/api',
         ),
-        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_BLOCKSCOUT_API_URL', null),
+        BLOCKSCOUT_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ZKSYNC_SEPOLIA_BLOCKSCOUT_API_URL',
+          'https://zksync-sepolia.blockscout.com/api/',
+        ),
         BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_BLOCKSCOUT_API_KEY', null),
       },
       ZKSYNC_MAINNET: {
@@ -226,7 +236,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ZKSYNC_MAINNET_ETHERSCAN_API_URL',
           'https://block-explorer-api.mainnet.zksync.io/api',
         ),
-        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_BLOCKSCOUT_API_URL', null),
+        BLOCKSCOUT_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_ZKSYNC_MAINNET_BLOCKSCOUT_API_URL',
+          'https://zksync.blockscout.com/api/',
+        ),
         BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
     },
