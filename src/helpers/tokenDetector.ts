@@ -47,12 +47,15 @@ export const GOVERNANCE_ERC20_FUNCTIONS = [
   'getPastVotes(address,uint256)',
 ]
 
+export const HAS_UNDERLYING = ['underlying()']
+
 const allFunctions = [
   ...ERC20_FUNCTIONS,
   ...ERC721_FUNCTIONS,
   ...ERC1155_FUNCTIONS,
   ...ERC777_FUNCTIONS,
   ...GOVERNANCE_ERC20_FUNCTIONS,
+  ...HAS_UNDERLYING,
 ]
 
 const functionHashes = allFunctions.reduce<Record<string, string>>((acc, func) => {
@@ -60,16 +63,18 @@ const functionHashes = allFunctions.reduce<Record<string, string>>((acc, func) =
   return acc
 }, {})
 
-async function detectTokenType(address: string, network: NetworksEnum): Promise<ITokenInfo | null> {
+async function detectTokenType(address: string, network: NetworksEnum): Promise<ITokenInfo> {
   if (address === ZeroAddress) {
     return {
       type: ITokenType.native,
       proxy: false,
       implementationAddress: null,
+      isGovernance: false,
+      isUnderlying: false,
     }
   }
 
-  const provider = ProviderModule.getProvider(network)!
+  const provider = ProviderModule.getAnyRpcProvider(network)
   let contractAddress = address
 
   // Check if the contract is a proxy and get the implementation address
@@ -82,6 +87,8 @@ async function detectTokenType(address: string, network: NetworksEnum): Promise<
     proxy: !!implementationAddress,
     implementationAddress: implementationAddress || null,
     type: ITokenType.unknown,
+    isGovernance: false,
+    isUnderlying: false,
   }
 
   try {
@@ -90,18 +97,22 @@ async function detectTokenType(address: string, network: NetworksEnum): Promise<
     if (!bytecode || bytecode === '0x') return contractDetails
 
     function hasFunction(signature: string): boolean {
-      return bytecode.includes(functionHashes[signature].replace('0x', ''))
+      return bytecode.includes(functionHashes[signature]?.replace('0x', ''))
     }
 
     function hasFunctions(functions: string[]): boolean {
       return functions.every(func => hasFunction(func))
     }
 
+    if (hasFunctions(GOVERNANCE_ERC20_FUNCTIONS)) {
+      contractDetails.isGovernance = true
+    }
+
+    if (hasFunctions(HAS_UNDERLYING)) {
+      contractDetails.isUnderlying = true
+    }
+
     if (hasFunctions(ERC20_FUNCTIONS)) {
-      if (hasFunctions(GOVERNANCE_ERC20_FUNCTIONS)) {
-        contractDetails.type = ITokenType.GovernanceERC20
-        return contractDetails
-      }
       contractDetails.type = ITokenType.ERC20
     } else if (hasFunctions(ERC721_FUNCTIONS)) {
       contractDetails.type = ITokenType.ERC721

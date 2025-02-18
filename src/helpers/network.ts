@@ -6,8 +6,7 @@ export const NetworkHelper = {
     const networks = Object.values(NetworksEnum)
 
     const result = networks.reduce((acc: any, networkName) => {
-      const provider = ProviderModule.getProvider(networkName)!
-
+      const provider = ProviderModule.getAnyRpcProvider(networkName)
       if (provider) {
         const rawNetwork = {
           networkName,

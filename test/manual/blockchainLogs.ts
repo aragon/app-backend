@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { NetworksEnum } from '@types'
+import { IConnectionType, IProviderType, NetworksEnum } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
@@ -99,7 +99,7 @@ describe('Manual: BlockchainLogs', () => {
     await ProviderModule.connectToAllNetworks()
 
     const network = NetworksEnum.ethereumSepolia
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getProvider(network, IProviderType.ARAGON, IConnectionType.RPC)
 
     const sppTopics = StagedProposalProcessor.abi
       .filter((item: any) => item.type && ['StagesUpdated'].includes(item.name))
@@ -127,7 +127,7 @@ describe('Manual: BlockchainLogs', () => {
     await ProviderModule.connectToAllNetworks()
 
     const network = NetworksEnum.ethereumSepolia
-    const provider = ProviderModule.getProvider(network)!
+    const provider = ProviderModule.getProvider(network, IProviderType.ARAGON, IConnectionType.RPC)
 
     const sppTopics = TokenVoting.abi
       .filter((item: any) => item.type && ['ProposalCreated'].includes(item.name))

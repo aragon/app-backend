@@ -54,6 +54,7 @@ describe('Modules: ProxyToken', () => {
         priceUsd: '1',
         priceChangeOnDayUsd: '1',
         address: '0x123',
+        isGovernance: false,
         network: NetworksEnum.ethereumMainnet,
         type: ITokenType.ERC20,
       }
@@ -61,10 +62,16 @@ describe('Modules: ProxyToken', () => {
 
     it('should fetch token details when token is native', async () => {
       tokenRate.type = ITokenType.native
+      tokenRate.isGovernance = false
 
       const ratesStub = sandbox.stub(RateModule, 'fetchRate').resolves(tokenRate)
 
-      const result = await ProxyToken._fetchTokenDetails(tokenRate.type, tokenRate.address, tokenRate.network)
+      const result = await ProxyToken._fetchTokenDetails(
+        tokenRate.type,
+        tokenRate.isGovernance,
+        tokenRate.address,
+        tokenRate.network,
+      )
 
       expect(ratesStub.calledOnce).to.be.true
       expect(result.tokenRate.priceUsd).to.equal('1')
@@ -79,6 +86,7 @@ describe('Modules: ProxyToken', () => {
         symbol: 'TST',
         decimals: 18,
         logo: 'fake-logo',
+        isGovernance: true,
         type: ITokenType.ERC20,
         holders: 10,
         totalSupply: '100',
@@ -86,7 +94,12 @@ describe('Modules: ProxyToken', () => {
 
       const tokenFullDetailsStub = sandbox.stub(BlockScout, 'getTokenFullDetails').resolves(tokenFullDetails as any)
 
-      const result = await ProxyToken._fetchTokenDetails(tokenRate.type, tokenRate.address, tokenRate.network)
+      const result = await ProxyToken._fetchTokenDetails(
+        tokenRate.type,
+        tokenRate.isGovernance,
+        tokenRate.address,
+        tokenRate.network,
+      )
 
       expect(ratesStub.calledOnce).to.be.true
       expect(tokenFullDetailsStub.calledOnce).to.be.true
@@ -100,7 +113,8 @@ describe('Modules: ProxyToken', () => {
     })
 
     it('should fetch token details when token is not native and tokenFullDetails is null', async () => {
-      tokenRate.type = ITokenType.GovernanceERC20
+      tokenRate.type = ITokenType.ERC20
+      tokenRate.isGovernance = true
 
       const ratesStub = sandbox.stub(RateModule, 'fetchRate').resolves(tokenRate)
       const tokenFullDetailsStub = sandbox.stub(BlockScout, 'getTokenFullDetails').resolves(null as any)
@@ -112,7 +126,12 @@ describe('Modules: ProxyToken', () => {
         .stub(CovalentHelper, 'getTokenSupplyAndHolders')
         .resolves(covalentMetrics as any)
 
-      const result = await ProxyToken._fetchTokenDetails(tokenRate.type, tokenRate.address, tokenRate.network)
+      const result = await ProxyToken._fetchTokenDetails(
+        tokenRate.type,
+        tokenRate.isGovernance,
+        tokenRate.address,
+        tokenRate.network,
+      )
 
       expect(ratesStub.calledOnce).to.be.true
       expect(tokenFullDetailsStub.calledOnce).to.be.true
@@ -123,7 +142,8 @@ describe('Modules: ProxyToken', () => {
     })
 
     it('should fetch token details when token rate is missing name, symbol, or decimals', async () => {
-      tokenRate.type = ITokenType.GovernanceERC20
+      tokenRate.isGovernance = true
+      tokenRate.type = ITokenType.ERC20
       tokenRate.name = null
       tokenRate.symbol = null
       tokenRate.decimals = null
@@ -146,7 +166,12 @@ describe('Modules: ProxyToken', () => {
       }
       const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo').resolves(onChainTokenInfo as any)
 
-      const result = await ProxyToken._fetchTokenDetails(tokenRate.type, tokenRate.address, tokenRate.network)
+      const result = await ProxyToken._fetchTokenDetails(
+        tokenRate.type,
+        tokenRate.isGovernance,
+        tokenRate.address,
+        tokenRate.network,
+      )
 
       expect(ratesStub.calledOnce).to.be.true
       expect(tokenFullDetailsStub.calledOnce).to.be.true
@@ -162,7 +187,8 @@ describe('Modules: ProxyToken', () => {
     })
 
     it('should fetch token details when token is GovernanceERC20 and tokenMetrics are missing', async () => {
-      tokenRate.type = ITokenType.GovernanceERC20
+      tokenRate.type = ITokenType.ERC20
+      tokenRate.isGovernance = true
       tokenRate.priceUsd = '0'
       tokenRate.name = null
       tokenRate.decimals = null
@@ -184,11 +210,16 @@ describe('Modules: ProxyToken', () => {
       }
       const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo').resolves(onChainTokenInfo as any)
 
-      const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves('10')
+      const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(10n)
 
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
-      const result = await ProxyToken._fetchTokenDetails(tokenRate.type, tokenRate.address, tokenRate.network)
+      const result = await ProxyToken._fetchTokenDetails(
+        tokenRate.type,
+        tokenRate.isGovernance,
+        tokenRate.address,
+        tokenRate.network,
+      )
 
       expect(ratesStub.calledOnce).to.be.true
       expect(tokenFullDetailsStub.calledOnce).to.be.true
@@ -227,14 +258,20 @@ describe('Modules: ProxyToken', () => {
         symbol: 'TST',
         decimals: 18,
         logo: 'fake-logo',
+        isGovernance: false,
       }
       const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo').resolves(onChainTokenInfo as any)
 
-      const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves('10')
+      const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(10n)
 
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
-      const result = await ProxyToken._fetchTokenDetails(tokenRate.type, tokenRate.address, tokenRate.network)
+      const result = await ProxyToken._fetchTokenDetails(
+        tokenRate.type,
+        tokenRate.isGovernance,
+        tokenRate.address,
+        tokenRate.network,
+      )
 
       expect(ratesStub.calledOnce).to.be.true
       expect(tokenFullDetailsStub.calledOnce).to.be.true
@@ -294,7 +331,8 @@ describe('Modules: ProxyToken', () => {
       })
 
       sandbox.stub(TokenDetector, 'detectTokenType').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
         implementationAddress: null,
       } as any)
 
@@ -347,7 +385,8 @@ describe('Modules: ProxyToken', () => {
         skipFetchRate: false,
         network,
         address: tokenAddress,
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
       })
 
       const proxyTokenFetchDetailsStub = sandbox.stub(ProxyToken, '_fetchTokenDetails').resolves({
@@ -379,7 +418,8 @@ describe('Modules: ProxyToken', () => {
       })
 
       const tokenDetectorStub = sandbox.stub(TokenDetector, 'detectTokenType').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
         implementationAddress: null,
       } as any)
 
@@ -470,7 +510,7 @@ describe('Modules: ProxyToken', () => {
 
   describe('shouldSkipFetch', () => {
     it('should return true if token is GovernanceERC20 with price 0', () => {
-      const token = { type: ITokenType.GovernanceERC20 }
+      const token = { type: ITokenType.ERC20, isGovernance: true }
       const tokenRate = { priceUsd: '0' }
 
       const result = ProxyToken.shouldSkipFetch(token as any, tokenRate as any)

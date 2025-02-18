@@ -22,6 +22,7 @@ describe('Router: Token', () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
         type: ITokenType.ERC721,
+        isGovernance: true,
       }
       const paginationParams = {
         pageSize: 10,
@@ -84,7 +85,7 @@ describe('Router: Token', () => {
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
         ...filterParams,
-        ...{ type: undefined },
+        ...{ type: undefined, isGovernance: undefined },
       })
     })
   })

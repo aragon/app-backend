@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events'
 import { type WebSocketProvider } from 'ethers'
 
-export type IConfig = Record<string, any>
+export type IConfigState = Record<string, any>
 
 export enum ConfigEvents {
   CONFIG_UPDATED = 'CONFIG_UPDATED',
@@ -14,7 +14,7 @@ export enum ConfigEvents {
  */
 export class ConfigState extends EventEmitter {
   static instance: ConfigState
-  config: IConfig = {}
+  config: IConfigState = {}
 
   private constructor() {
     super()
@@ -44,7 +44,7 @@ export class ConfigState extends EventEmitter {
     return this.config[key]
   }
 
-  public getAllConfigItems(): IConfig {
+  public getAllConfigItems(): IConfigState {
     return { ...this.config }
   }
 

@@ -1,13 +1,5 @@
 import { type HexAddress } from '@src/types/networks'
 import { type WebSocketProvider } from 'ethers'
-import { type Alchemy } from 'alchemy-sdk'
-
-export interface IProviderProxy {
-  provider: IWebSocketProvider
-  alchemy: Alchemy
-  reconnectAttempts: number
-  subscriptions: any
-}
 
 export interface IWebSocketProvider extends WebSocketProvider {
   updateProvider: (newProvider: WebSocketProvider) => void
