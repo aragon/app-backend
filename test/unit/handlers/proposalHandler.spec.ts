@@ -782,7 +782,9 @@ describe('Indexer: ProposalHandler', () => {
         },
       }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({...PluginList[0], tokenAddress: null, isSupported: false} as any)
+      sandbox
+        .stub(Models.Plugin, 'findByAddress')
+        .resolves({ ...PluginList[0], tokenAddress: null, isSupported: false } as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(true)
       const warnLoggerStub = sandbox.stub(logger, 'warn')
 
