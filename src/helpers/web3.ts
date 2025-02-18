@@ -494,6 +494,18 @@ const Web3Helper = {
     }
   },
 
+  async getLogs(filter: { fromBlock: string; toBlock: string; topics: any }, network: NetworksEnum) {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getLogs(filter)),
+      )
+    } catch (error) {
+      logger.error('Error getLogs', llo({ filter, network, error }))
+      return null
+    }
+  },
+
   async getBlockTimestamp(blockNumber: number, network: NetworksEnum): Promise<number> {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
