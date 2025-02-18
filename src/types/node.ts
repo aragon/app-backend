@@ -29,6 +29,7 @@ export interface INodeConnection {
 
 export interface IAlchemyNodeConnection extends INodeConnection {
   nft: any
+  alchemy: any
   // add any additional alchemy-specific properties if needed
 }
 
