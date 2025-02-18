@@ -142,4 +142,25 @@ describe('Router: Transaction', () => {
       })
     })
   })
+
+  describe('getTransactionIndexingStatus', async () => {
+    it('Should get transaction indexing status', async () => {
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionIndexingStatus').returns(true as any)
+
+      const ctx: any = {
+        params: {
+          transactionHash: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      }
+
+      await TransactionRouter.getTransactionIndexingStatus(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+
+      expect(stubCtrl.args[0][0]).to.eq(ctx.params.transactionHash)
+      expect(stubCtrl.args[0][1]).to.eq(ctx.params.network)
+    })
+  })
 })
