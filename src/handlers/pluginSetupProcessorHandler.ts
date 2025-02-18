@@ -1,18 +1,9 @@
 import logger from '@logger'
-import {
-  EnumQueueName,
-  type HexAddress,
-  IEventLogPluginMembership,
-  IEventLogPluginType,
-  type ILogInfo,
-  IPluginActionType,
-  IPluginInterfaceType,
-} from '@types'
+import { EnumQueueName, IEventLogPluginType, type ILogInfo, IPluginActionType, IPluginInterfaceType } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
-import { TokenVoting } from '@artifacts/TokenVoting'
 import { ProxyToken } from '@modules/proxyToken'
 import { PluginHandler } from '@src/handlers/pluginHandler'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
@@ -20,7 +11,6 @@ import DbOperations from '@models/utils/dbOperations'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import GaugeHelper from '@helpers/gauge'
-import TokenUtils from '@helpers/tokenUtils'
 import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
