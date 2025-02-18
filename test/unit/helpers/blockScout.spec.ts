@@ -20,10 +20,10 @@ describe('Helpers: BlockScout', () => {
 
   it('parseTokenType', async () => {
     expect(BlockScoutHelper.parseTokenType(ITokenType.unknown)).to.eq(ITokenType.unknown)
-    expect(BlockScoutHelper.parseTokenType(ITokenType.ERC20)).to.eq(ITokenType.ERC20)
-    expect(BlockScoutHelper.parseTokenType(ITokenType.ERC721)).to.eq(ITokenType.ERC721)
-    expect(BlockScoutHelper.parseTokenType(ITokenType.ERC1155)).to.eq(ITokenType.ERC1155)
-    expect(BlockScoutHelper.parseTokenType(ITokenType.native)).to.eq(ITokenType.native)
+    expect(BlockScoutHelper.parseTokenType('ERC-20')).to.eq(ITokenType.ERC20)
+    expect(BlockScoutHelper.parseTokenType('ERC-721')).to.eq(ITokenType.ERC721)
+    expect(BlockScoutHelper.parseTokenType('ERC-1155')).to.eq(ITokenType.ERC1155)
+    expect(BlockScoutHelper.parseTokenType(ITokenType.native)).to.eq(ITokenType.unknown)
   })
 
   it('should get axios instance', async () => {
