@@ -348,36 +348,4 @@ export const PluginSetupProcessorHandler = {
       await DbOperations.updateDocument(pluginDb, { tokenAddress }, info, 'Update Voting plugin token', llo)
     }
   },
-
-  findTokenFromLog: async (pluginAddress: HexAddress, info: ILogInfo): Promise<HexAddress | null> => {
-    try {
-      const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-
-      const memberShipAnnouncedLogs = Web3Helper.findLogsByName(
-        txReceipt!,
-        IEventLogPluginMembership.MembershipContractAnnounced,
-        TokenVoting.abi,
-      )
-
-      let tokenAddress: any = null
-      const memberShipLog = memberShipAnnouncedLogs.find(log => log.txLog.address === pluginAddress)
-      if (memberShipLog) {
-        tokenAddress = memberShipLog?.parsed?.args[0]
-      }
-
-      if (!tokenAddress) {
-        // TODO: check if it has the type on abi then call
-        // try to get token address from gauge plugin
-        tokenAddress = await GaugeHelper.getTokenAddress(pluginAddress, info.network)
-      }
-
-      if (tokenAddress) {
-        return (await TokenUtils.isTokenSyncable(tokenAddress, info.network)) ? tokenAddress : null
-      }
-    } catch (error) {
-      logger.error('Error finding token from log', llo({ pluginAddress, info, error }))
-    }
-
-    return null
-  },
 }
