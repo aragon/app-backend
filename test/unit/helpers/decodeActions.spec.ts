@@ -5,7 +5,7 @@ import { expect } from 'chai'
 import { Fragment, FunctionFragment } from 'ethers'
 import FourByte from '@helpers/4byte'
 import Logger from '@logger'
-import { KnownActionSignature, NetworksEnum, ProposalActionType } from '@types'
+import { ITokenType, KnownActionSignature, NetworksEnum, ProposalActionType } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import Web3Helper from '@helpers/web3'
 import Covalent from '@helpers/covalent'
@@ -17,6 +17,7 @@ import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
 import BlockScoutHelper from '@helpers/blockScout'
 import EtherscanHelper from '@helpers/etherscan'
+import TokenDetector from '@helpers/tokenDetector'
 
 describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
@@ -1405,7 +1406,7 @@ describe('Helpers: DecodeActions', () => {
         symbol: 'MOCK',
         decimals: 18,
         logo: 'https://mock.com/logo.png',
-        type: 'ERC20',
+        type: ITokenType.ERC20,
       } as any)
 
       const covalentTokenInfo = sandbox.stub(Covalent, 'getTokenSupplyAndHolders').resolves({
@@ -1418,9 +1419,13 @@ describe('Helpers: DecodeActions', () => {
         ens: 'abc.eth',
       } as any)
 
+      const stubDetectTokenType = sandbox
+        .stub(TokenDetector, 'detectTokenType')
+        .resolves({ type: ITokenType.ERC20 } as any)
       const tokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1000000000000000000')
 
       const result = await decodeActions._parseMintAction(baseAction, action, document as any)
+      expect(stubDetectTokenType.calledOnce).to.be.true
       expect(createMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true
