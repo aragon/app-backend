@@ -104,7 +104,7 @@ const ProviderModule = {
         maxRetries: 10,
       }
 
-      const alchemyConnection: any = new Alchemy(alchemySettings)
+      const alchemyConnection: any = new Alchemy(alchemySettings) as IAlchemyNodeConnection
       alchemyConnection.rpc = alchemyConnection.core
 
       ProviderModule.providerProxies[network].alchemy = alchemyConnection
