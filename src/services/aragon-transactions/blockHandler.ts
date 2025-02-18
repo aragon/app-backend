@@ -21,7 +21,10 @@ export const BlockHandler = {
     if (!block?.transactions.length) return
 
     const provider = ProviderModule.getAnyRpcProvider(network)
-    if (!provider) return logger.error('Provider not available for network', llo({ network }))
+    if (!provider) {
+      logger.error('Provider not available for network', llo({ network }))
+      return
+    }
 
     const blockReceipts = await Web3Helper.getBlockReceipts(network, block.number)
     if (!blockReceipts || blockReceipts.length === 0) return

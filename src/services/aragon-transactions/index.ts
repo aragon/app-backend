@@ -1,16 +1,15 @@
 import logger from '@logger'
-import { EnumConnection, type IService, type IWebSocketProvider, type NetworksEnum } from '@types'
+import { EnumConnection, type IService, type NetworksEnum } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { NetworkHelper } from '@helpers/network'
 import ProviderModule from '@modules/provider'
-import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
 export interface IExtendedService extends IService {
-  processNewBlock: (provider: IWebSocketProvider, blockNumber: number, network: NetworksEnum) => Promise<void>
+  processNewBlock: (blockNumber: number, network: NetworksEnum) => Promise<void>
 }
 
 const AragonTransactionsService: IExtendedService = {
@@ -29,7 +28,7 @@ const AragonTransactionsService: IExtendedService = {
       }
 
       ProviderModule.subscribeToNewBlock(networkName, async (blockNumber: number) =>
-        AragonTransactionsService.processNewBlock(provider, blockNumber, networkName),
+        AragonTransactionsService.processNewBlock(blockNumber, networkName),
       )
       logger.verbose('Listening to new block events', llo({ network: networkName }))
     }
@@ -42,15 +41,13 @@ const AragonTransactionsService: IExtendedService = {
     logger.info('IndexerService service stopped', llo({}))
   },
 
-  async processNewBlock(provider: IWebSocketProvider, blockNumber: number, network: NetworksEnum) {
-    try {
-      const block = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber)),
-      )
-      await BlockHandler.processNewBlock(block, network)
-    } catch (error) {
-      logger.warn('Error fetching block data', llo({ network, blockNumber, error }))
+  async processNewBlock(blockNumber: number, network: NetworksEnum) {
+    const block = await Web3Helper.getBlock(blockNumber, network)
+    if (!block) {
+      logger.error('Error fetching block data', llo({ network, blockNumber }))
+      return
     }
+    await BlockHandler.processNewBlock(block, network)
   },
 }
 

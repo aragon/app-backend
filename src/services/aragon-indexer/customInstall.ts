@@ -38,7 +38,7 @@ export const CustomInstall = {
 
     await Promise.all(
       CustomInstall.daos.map(async dao => {
-        const provider = await ProviderModule.getAnyRpcProvider(dao.network)
+        const provider = ProviderModule.getAnyRpcProvider(dao.network)
         if (!provider) return // network not supported
 
         const daoDb = await Models.Dao.findByAddress(dao.address, dao.network)
