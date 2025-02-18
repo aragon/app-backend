@@ -111,7 +111,7 @@ export const PluginSetupProcessorHandler = {
           await MetadataHandler.metadataSet(parsedEvent, info)
         }
       } catch (_) {
-        // skip
+        logger.error('Error parsing metadata log', llo({ pluginAddress: plugin.address, info }))
       }
     }
   },
