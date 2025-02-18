@@ -1,10 +1,12 @@
 import logger from '@logger'
-import { type LogDescription, Interface, type Log } from 'ethers'
+import { Interface, type Log, type LogDescription } from 'ethers'
 import {
+  IConnectionType,
   type ICrawlParam,
   type ICrawlSetting,
   type IFormattedLog,
   type IIndexerConfig,
+  IProviderType,
   type NetworksEnum,
 } from '@types'
 import BottleneckModule from '@modules/bottleneck'
@@ -341,7 +343,7 @@ class BlockchainLogCrawler {
   }
 
   async getProvider(): Promise<any> {
-    const provider = ProviderModule.getProvider(this.crawlParams.network)
+    const provider = ProviderModule.getProvider(this.crawlParams.network, IProviderType.ALCHEMY, IConnectionType.RPC)
     return await provider.config.getProvider()
   }
 

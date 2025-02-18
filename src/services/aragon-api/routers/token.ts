@@ -13,6 +13,7 @@ const TokenRouter = {
     const extraParams: ITokenExtraParams = {
       network: ctx.query.network as NetworksEnum,
       type: ctx.query.type as ITokenType,
+      isGovernance: Utils.parseBoolean(ctx.query.isGovernance),
     }
     const anyInvalidParams = Utils.extractAdditionalParams({ ...paginationParams, ...extraParams }, ctx.query)
 

@@ -52,7 +52,7 @@ export const FetchRates = {
       },
       where: {
         $and: [
-          { type: ITokenType.GovernanceERC20 },
+          { type: ITokenType.ERC20, isGovernance: true },
           { network: { $in: [NetworksEnum.zksyncSepolia, NetworksEnum.ethereumSepolia] } },
           {
             $or: [

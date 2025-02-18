@@ -133,7 +133,7 @@ describe('Module: EventListener', () => {
       const mockProvider = {
         getLogs: sandbox.stub().resolves([{ topics: ['0xTopic1'], data: '0xData' }]),
       }
-      sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider)
 
       const configLogs = [
         { topic: '0xTopic1', config: [{ abi: ['event TestEvent()'], handler: sandbox.stub().resolves() }] },
@@ -159,7 +159,7 @@ describe('Module: EventListener', () => {
       const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
       const mockProvider = { getLogs: sandbox.stub().resolves([]) }
 
-      sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider)
       const logError = sandbox.stub(logger, 'error')
 
       await listener.handleOnNewBlock(101)
@@ -174,7 +174,7 @@ describe('Module: EventListener', () => {
       ])
       const mockProvider = { getLogs: sandbox.stub().resolves([{ topics: ['0xUnknownTopic'], data: '0xData' }]) }
 
-      sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider)
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider)
       const logError = sandbox.stub(logger, 'error')
 
       await listener.handleOnNewBlock(101)

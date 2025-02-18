@@ -82,6 +82,21 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(sppStub.calledOnceWith('sppLog' as any, 'sppInfo' as any)).to.be.true
       expect(result).to.deep.equal({ address: '0xspp-plugin' })
     })
+
+    it('should process not a supported type', async () => {
+      const txReceipt = { logs: [{ topics: ['0xspp'], data: '0x03' }] } as any
+      const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.unknown } as any
+      const info = { network: NetworksEnum.ethereumMainnet } as any
+
+      const stubFind = sandbox.stub(Web3Helper, 'findLogsByName')
+      const stubWarn = sandbox.stub(logger, 'warn')
+
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+
+      expect(result).to.be.undefined
+      expect(stubFind.notCalled).to.be.true
+      expect(stubWarn.calledOnceWith('Plugin is not a supported type' as any)).to.be.true
+    })
   })
 
   describe('votingSettingsUpdated', () => {
@@ -104,7 +119,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(false)
       const stubLogger = sandbox.stub(logger, 'warn')
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
       } as any)
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
 
@@ -169,7 +185,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubWarn = sandbox.stub(logger, 'warn')
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
       } as any)
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
@@ -217,7 +234,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.GovernanceERC20,
+        type: ITokenType.ERC20,
+        isGovernance: true,
       } as any)
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
@@ -267,7 +285,7 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.GovernanceERC20 } as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.ERC20, isGovernance: true } as any)
 
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
 

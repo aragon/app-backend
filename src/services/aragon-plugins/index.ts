@@ -52,7 +52,7 @@ const AragonPluginsService: IService = {
         }
         case IPluginInterfaceType.tokenVoting: {
           const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
-          if (token?.type === ITokenType.GovernanceERC20) {
+          if (token?.type === ITokenType.ERC20 && token.isGovernance) {
             await LogTokenVoting.start(plugin, token, isHistorical)
           } else {
             logger.warn('Sync plugin: token not governance erc20', llo({ plugin: plugin.address, token }))

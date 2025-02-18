@@ -67,6 +67,9 @@ export default class Token extends Model {
   @prop({ type: () => Boolean, default: false })
   public skipFetchRate!: boolean
 
+  @prop({ type: () => Boolean, default: false })
+  public isGovernance!: boolean
+
   @prop({ type: () => String, default: null })
   public name!: string
 
@@ -75,6 +78,9 @@ export default class Token extends Model {
 
   @prop({ type: () => Number, default: 18 })
   public decimals!: number
+
+  @prop({ type: () => String, default: null })
+  public underlying!: HexAddress | null
 
   @prop({ type: () => Number, default: 0 })
   public holders!: number
