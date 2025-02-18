@@ -56,7 +56,7 @@ describe('Helpers: BlockScout', () => {
       ).to.be.true
     })
 
-    it.only('Should handle errors in _rpCall', async () => {
+    it('Should handle errors in _rpCall', async () => {
       const expectedResult = new Error('RPC Call Failed')
       const getCall = sandbox.stub().rejects(expectedResult)
       sandbox.stub(BlockScoutHelper, 'axiosInstance').returns({
