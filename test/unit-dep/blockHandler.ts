@@ -5,7 +5,7 @@ import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import Web3Helper from '@helpers/web3'
 import { expect } from 'chai'
 
-describe.only('Unit-dep: Block Handler', () => {
+describe('Unit-dep: Block Handler', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
