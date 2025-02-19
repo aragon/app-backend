@@ -14,7 +14,7 @@ import { Interface } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 
-describe.only('AragonTransactions: BlockHandler', () => {
+describe('AragonTransactions: BlockHandler', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
