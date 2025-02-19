@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { EnumQueueName, IEventLogPluginType, type ILogInfo, IPluginActionType, IPluginInterfaceType } from '@types'
-import { type LogDescription } from 'ethers'
+import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
@@ -12,6 +12,9 @@ import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import GaugeHelper from '@helpers/gauge'
 import type Plugin from '@models/schema/plugin'
+
+import { MetadataHandler } from '@handlers/metadataHandler'
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
 
@@ -84,11 +87,33 @@ export const PluginSetupProcessorHandler = {
       return
     }
 
-    await PluginSetupProcessorHandler.findAndUpdateTokenAddress(pluginDb, info)
-
-    // find settings
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+    // check and update token
+    await PluginSetupProcessorHandler.findAndUpdateTokenAddress(pluginDb, info)
+    // check and handle metadata
+    await PluginSetupProcessorHandler.updateMetadataOnPreInstall(pluginDb, txReceipt!, info)
+    // find settings
     await PluginSettingHandler.handlePluginSettingByType(pluginDb, txReceipt!, info)
+  },
+
+  updateMetadataOnPreInstall: async (plugin: Plugin, txReceipt: TransactionReceipt, info: ILogInfo) => {
+    const iFace = new Interface(StagedProposalProcessor.abi)
+    const metadataLogTopics = new Interface(StagedProposalProcessor.abi).getEvent('MetadataSet')?.topicHash!
+
+    const metadataLog = txReceipt?.logs.find(
+      log => log.topics[0] === metadataLogTopics && log.address === plugin.address,
+    )
+
+    if (metadataLog) {
+      try {
+        const parsedEvent = Web3Helper.parseLog(metadataLog, iFace)
+        if (parsedEvent) {
+          await MetadataHandler.metadataSet(parsedEvent, info)
+        }
+      } catch (_) {
+        logger.error('Error parsing metadata log', llo({ pluginAddress: plugin.address, info }))
+      }
+    }
   },
 
   installationApplied: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
