@@ -17,10 +17,9 @@ import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
 import BlockScoutHelper from '@helpers/blockScout'
 import EtherscanHelper from '@helpers/etherscan'
-import TokenDetector from '@helpers/tokenDetector'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
 
-describe.only('Helpers: DecodeActions', () => {
+describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {

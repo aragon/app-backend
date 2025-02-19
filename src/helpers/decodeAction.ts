@@ -9,7 +9,6 @@ import {
   type IProposalActionInputData,
   type IProposalActionInputDataParameter,
   type IRawAction,
-  ITokenType,
   KnownActionSignature,
   type NetworksEnum,
 } from '@types'
@@ -46,7 +45,7 @@ import { ERC1155 } from '@artifacts/ERC1155'
 import Utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import BlockScoutHelper from '@helpers/blockScout'
-import TokenDetector from '@helpers/tokenDetector'
+
 import { IBlockScoutAddressType } from '@src/types/blockScout'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
