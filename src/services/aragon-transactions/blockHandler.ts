@@ -103,7 +103,7 @@ export const BlockHandler = {
       try {
         decoded = erc721Interface.parseLog(log)
       } catch (e) {
-        logger.warn('Error decoding transfer event', llo({ error: e, transactionHash: log.transactionHash }))
+        // skip
       }
     }
     return decoded ? decoded.args.to : null
