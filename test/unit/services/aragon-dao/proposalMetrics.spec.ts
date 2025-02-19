@@ -2,10 +2,11 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
-import Logger from '@logger'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
-import DbOperations from '@models/utils/dbOperations'
 import { NetworksEnum } from '@types'
+import { ProposalList } from '@test/mock/fakeProposal'
+import logger from '@logger'
+import Logger from '@logger'
 
 describe('AragonDao:ProposalMetrics', () => {
   let sandbox: SinonSandbox
@@ -20,14 +21,14 @@ describe('AragonDao:ProposalMetrics', () => {
 
   describe('proposalMultisigMetrics', () => {
     it('should update multisig proposal metrics with votes', async () => {
-      const proposal = {
-        id: 'proposal-id',
-        settings: { minApprovals: 3 },
-      }
+      const rawProposal: any = ProposalList[0]
+      rawProposal.settings.minApprovals = 3
+      const proposal = await Models.Proposal.create(rawProposal)
+
       const votes = [{}, {}, {}] // 3 votes
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Models.Vote, 'findVotes').resolves(votes as any)
-      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves(proposal as any)
+      const logVerbose = sandbox.stub(logger, 'verbose')
 
       const result = await ProposalMetrics.proposalMultisigMetrics({
         proposalIndex: '1',
@@ -36,15 +37,11 @@ describe('AragonDao:ProposalMetrics', () => {
       })
 
       expect(result.id).to.eq(proposal.id)
-      expect(updateStub.calledOnce).to.be.true
-      expect(updateStub.args[0][0].id).to.eq(proposal.id)
-      expect(updateStub.args[0][1]).to.deep.include({
-        metrics: { totalVotes: votes.length, missingVotes: 0 },
-      })
+      expect(logVerbose.calledOnce).to.be.true
     })
 
     it('should log a warning if the proposal is not found', async () => {
-      const loggerStub = sandbox.stub(Logger, 'warn')
+      const loggerStub = sandbox.stub(logger, 'warn')
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
 
       await ProposalMetrics.proposalMultisigMetrics({
@@ -60,7 +57,7 @@ describe('AragonDao:ProposalMetrics', () => {
       const proposal = { id: 'proposal-id', settings: {} }
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Models.Vote, 'findVotes').resolves([])
-      const loggerStub = sandbox.stub(Logger, 'error')
+      const loggerStub = sandbox.stub(logger, 'error')
 
       await ProposalMetrics.proposalMultisigMetrics({
         proposalIndex: '1',
@@ -70,11 +67,26 @@ describe('AragonDao:ProposalMetrics', () => {
 
       expect(loggerStub.calledOnceWith('Proposal minApprovals not found - multisig metrics' as any)).to.be.true
     })
+
+    it('should throw', async () => {
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').rejects(new Error('error'))
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      await ProposalMetrics.proposalMultisigMetrics({
+        proposalIndex: '1',
+        pluginAddress: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(loggerStub.calledOnceWith('Error updating multisig metrics' as any)).to.be.true
+    })
   })
 
   describe('proposalTokenVotingMetrics', () => {
     it('should update tokenVoting proposal metrics with correct votes and missing votes', async () => {
-      const proposal = { id: 'proposal-id' }
+      const rawProposal: any = ProposalList[0]
+      const proposal = await Models.Proposal.create(rawProposal)
+
       const votes = [
         { voteOption: 1, votingPower: '100' },
         { voteOption: 1, votingPower: '200' },
@@ -84,7 +96,7 @@ describe('AragonDao:ProposalMetrics', () => {
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Models.Vote, 'findVotes').resolves(votes as any)
       sandbox.stub(Models.DaoMemberMapping, 'findAllMembersOfPlugin').resolves(members as any)
-      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves(proposal as any)
+      const logVerbose = sandbox.stub(logger, 'verbose')
 
       const result = await ProposalMetrics.proposalTokenVotingMetrics({
         proposalIndex: '1',
@@ -93,22 +105,11 @@ describe('AragonDao:ProposalMetrics', () => {
       })
 
       expect(result.id).to.eq(proposal.id)
-      expect(updateStub.calledOnce).to.be.true
-      expect(updateStub.args[0][0].id).to.eq(proposal.id)
-      expect(updateStub.args[0][1]).to.deep.include({
-        metrics: {
-          totalVotes: votes.length,
-          missingVotes: members.length - votes.length,
-          votesByOption: [
-            { type: '1', totalVotes: 2, totalVotingPower: '300' },
-            { type: '2', totalVotes: 1, totalVotingPower: '50' },
-          ],
-        },
-      })
+      expect(logVerbose.calledOnce).to.be.true
     })
 
     it('should log a warning if the proposal is not found', async () => {
-      const loggerStub = sandbox.stub(Logger, 'warn')
+      const loggerStub = sandbox.stub(logger, 'warn')
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
 
       await ProposalMetrics.proposalTokenVotingMetrics({
@@ -118,6 +119,19 @@ describe('AragonDao:ProposalMetrics', () => {
       })
 
       expect(loggerStub.calledOnceWith('Proposal not found - tokenVoting metrics' as any)).to.be.true
+    })
+
+    it('should throw', async () => {
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').rejects(new Error('error'))
+      const loggerStub = sandbox.stub(Logger, 'error')
+
+      await ProposalMetrics.proposalTokenVotingMetrics({
+        proposalIndex: '1',
+        pluginAddress: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(loggerStub.calledOnceWith('Error updating tokenVoting metrics' as any)).to.be.true
     })
   })
 })

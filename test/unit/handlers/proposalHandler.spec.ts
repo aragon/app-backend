@@ -870,7 +870,9 @@ describe('Indexer: ProposalHandler', () => {
 
   describe('proposalExecuted', () => {
     it('should update proposal as executed and send dao metrics', async () => {
-      const proposal = await Models.Proposal.create({ ...(ProposalList[0] as any) })
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+      })
       const network = proposal.network
       const info: ILogInfo = {
         transactionHash: '0xExecutedTx',
@@ -1052,7 +1054,7 @@ describe('Indexer: ProposalHandler', () => {
     it('should update parent and sub-proposals correctly on stage advance', async () => {
       // Pre-populate parent proposal
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         subProposals: [],
         stageExecutions: [],
@@ -1084,7 +1086,7 @@ describe('Indexer: ProposalHandler', () => {
 
       // Create plugin with subPlugins configuration
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: [subProposal.pluginAddress] }],
@@ -1186,7 +1188,7 @@ describe('Indexer: ProposalHandler', () => {
 
     it('should skip sub-proposals already executed', async () => {
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         subProposals: [],
         stageExecutions: [],
       })
@@ -1207,7 +1209,7 @@ describe('Indexer: ProposalHandler', () => {
       })
 
       await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         address: parentProposal.pluginAddress,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: [executedSubProposal.pluginAddress] }],
@@ -1237,7 +1239,7 @@ describe('Indexer: ProposalHandler', () => {
     it('should return early when stage execution already exists', async () => {
       // Create a mock parent proposal
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         stageExecutions: [
           {
@@ -1252,7 +1254,7 @@ describe('Indexer: ProposalHandler', () => {
 
       // Create a mock plugin with subPlugins configuration
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: ['0xPluginAddress'] }],
@@ -1292,7 +1294,7 @@ describe('Indexer: ProposalHandler', () => {
 
     it('should log a warning and return when subProposalDb is not found', async () => {
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         subProposals: [
           {
@@ -1307,7 +1309,7 @@ describe('Indexer: ProposalHandler', () => {
       })
 
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
       })
@@ -1350,14 +1352,14 @@ describe('Indexer: ProposalHandler', () => {
 
     it('should log an error and continue execution when subProposalDb is not found', async () => {
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         subProposals: [],
         stageExecutions: [],
       })
 
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: ['0xMissingSubPlugin'] }],
@@ -1409,7 +1411,7 @@ describe('Indexer: ProposalHandler', () => {
       })
 
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         subProposals: [
           {
@@ -1424,7 +1426,7 @@ describe('Indexer: ProposalHandler', () => {
       })
 
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
       })
@@ -1470,13 +1472,13 @@ describe('Indexer: ProposalHandler', () => {
 
     it('should log an error when subPlugins are missing for the stage', async () => {
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         subProposals: [],
         stageExecutions: [],
       })
 
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [],
       })
@@ -1503,7 +1505,7 @@ describe('Indexer: ProposalHandler', () => {
 
     it('should log a warning if the sub-proposal already exists', async () => {
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         subProposals: [],
         stageExecutions: [],
@@ -1529,7 +1531,7 @@ describe('Indexer: ProposalHandler', () => {
       })
 
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: ['0xPluginAddress'] }],
@@ -1567,13 +1569,14 @@ describe('Indexer: ProposalHandler', () => {
 
     it('should log an error when ProposalHelper.getSppSubPluginProposals fails', async () => {
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         subProposals: [],
       })
 
       await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
+        isSupported: true,
         network,
         address: parentProposal.pluginAddress,
         interfaceType: IPluginInterfaceType.spp,
@@ -1752,7 +1755,7 @@ describe('Indexer: ProposalHandler', () => {
       const updateDocumentSpy = sandbox.spy(DbOperations, 'updateDocument')
 
       const fakeProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         ...{
           id: 'proposal-id',
           rawActions: [
@@ -1830,7 +1833,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         network,
         pluginAddress: '0xPluginAddress',
@@ -1904,7 +1907,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         network,
         pluginAddress: '0xPluginAddress',
@@ -1938,7 +1941,7 @@ describe('Indexer: ProposalHandler', () => {
         blockNumber: 100,
       }
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         network,
         pluginAddress: '0xPluginAddress',
@@ -1963,7 +1966,7 @@ describe('Indexer: ProposalHandler', () => {
         blockNumber: 100,
       }
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         transactionHash: '0xTxHash',
         network,
@@ -1992,7 +1995,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         network,
         pluginAddress: '0xPluginAddress',
@@ -2034,7 +2037,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         pluginAddress: info.address,
         network,
@@ -2138,7 +2141,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         pluginAddress: info.address,
         network,
@@ -2222,7 +2225,7 @@ describe('Indexer: ProposalHandler', () => {
 
     it('should return an empty array when decodeData fails', async () => {
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
       })
 
