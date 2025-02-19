@@ -1,6 +1,13 @@
 import logger from '@logger'
-import { EnumQueueName, IEventLogPluginType, type ILogInfo, IPluginActionType, IPluginInterfaceType } from '@types'
-import { type LogDescription } from 'ethers'
+import {
+  EnumQueueName,
+  IEventLogPluginType,
+  type ILogInfo,
+  IPluginActionType,
+  IPluginInterfaceType,
+  ISPPLogs,
+} from '@types'
+import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
@@ -12,6 +19,10 @@ import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { RabbitMQHelper } from '@helpers/radditMQ'
 import GaugeHelper from '@helpers/gauge'
 import type Plugin from '@models/schema/plugin'
+
+import { MetadataHandler } from '@handlers/metadataHandler'
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
 
@@ -41,54 +52,86 @@ export const PluginSetupProcessorHandler = {
   },
 
   installationPrepared: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const daoAddress = parsedEvent.args.dao
-    const pluginAddress = parsedEvent.args.plugin
-    const existingDao = await Models.Dao.findByAddress(daoAddress, info.network)
+    try {
+      const daoAddress = parsedEvent.args.dao
+      const pluginAddress = parsedEvent.args.plugin
 
-    if (!existingDao) {
-      logger.warn('Dao not found', llo({ ...info, daoAddress }))
-      return
+      const logPlugin = await DbTx.executeTxFn(async ({ session }) => {
+        const existingDao = await Models.Dao.findByAddress(daoAddress, info.network, { session })
+
+        if (!existingDao) {
+          logger.warn('Dao not found', llo({ ...info, daoAddress }))
+          return
+        }
+
+        const rawPluginLog: Partial<LogPluginSetupProcessor> = {
+          event: IEventLogPluginType.InstallationPrepared,
+          network: info.network,
+          transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+          permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
+          sender: parsedEvent.args.sender,
+          daoAddress,
+          preparedSetupId: parsedEvent.args.preparedSetupId,
+          pluginSetupRepo: parsedEvent.args.pluginSetupRepo,
+          pluginAddress,
+          release: parsedEvent.args.versionTag.release,
+          build: parsedEvent.args.versionTag.build,
+          blockNumber: info.blockNumber,
+          tokenAddress: undefined,
+        }
+
+        const logDb = await Models.LogPluginSetupProcessor.create(rawPluginLog, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Created new document - New InstallationPrepared', llo({ ...info, logId: logDb.id }))
+
+        return logDb
+      })
+
+      if (!logPlugin) return
+
+      // create the plugin as preInstall
+      await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.preInstall, logPlugin)
+      const pluginDb = await Models.Plugin.findByAddress(parsedEvent.args.plugin, info.network)
+      if (!pluginDb) {
+        logger.error('Plugin preInstall error', llo({ pluginAddress, info }))
+        return
+      }
+
+      const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+      // check and update token
+      await PluginSetupProcessorHandler.findAndUpdateTokenAddress(pluginDb, info)
+      // check and handle metadata
+      await PluginSetupProcessorHandler.updateMetadataOnPreInstall(pluginDb, txReceipt!)
+      // find settings
+      await PluginSettingHandler.handlePluginSettingByType(pluginDb, txReceipt!, info)
+    } catch (error) {
+      logger.error('Error in installationPrepared', llo({ error, info }))
     }
+  },
 
-    const rawPluginLog: Partial<LogPluginSetupProcessor> = {
-      event: IEventLogPluginType.InstallationPrepared,
-      network: info.network,
-      transactionHash: info.transactionHash,
-      transactionIndex: info.transactionIndex,
-      logIndex: info.logIndex,
-      permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
-      sender: parsedEvent.args.sender,
-      daoAddress: parsedEvent.args.dao,
-      preparedSetupId: parsedEvent.args.preparedSetupId,
-      pluginSetupRepo: parsedEvent.args.pluginSetupRepo,
-      pluginAddress: parsedEvent.args.plugin,
-      release: parsedEvent.args.versionTag.release,
-      build: parsedEvent.args.versionTag.build,
-      blockNumber: info.blockNumber,
-      tokenAddress: undefined,
-    }
+  updateMetadataOnPreInstall: async (plugin: Plugin, txReceipt: TransactionReceipt) => {
+    const iFace = new Interface(StagedProposalProcessor.abi)
+    const metadataLogTopics = iFace.getEvent('MetadataSet')?.topicHash!
 
-    const logDb = await DbOperations.createDocument(
-      Models.LogPluginSetupProcessor,
-      rawPluginLog,
-      info,
-      'New InstallationPrepared',
-      llo,
+    const metadataLog = txReceipt?.logs.find(
+      log => log.topics[0] === metadataLogTopics && log.address === plugin.address,
     )
 
-    // create the plugin as preInstall
-    await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.preInstall, logDb)
-    const pluginDb = await Models.Plugin.findByAddress(parsedEvent.args.plugin, info.network)
-    if (!pluginDb) {
-      logger.error('Plugin preInstall error', llo({ pluginAddress, info }))
-      return
+    if (metadataLog) {
+      try {
+        const parsedEvent = Web3Helper.parseLog(metadataLog, iFace)
+        if (parsedEvent) {
+          const logInfo = Web3Helper.parseInfoLog(metadataLog, ISPPLogs.MetadataSet, plugin.network)
+
+          await MetadataHandler.metadataSet(parsedEvent, logInfo)
+        }
+      } catch (_) {
+        logger.error('Error parsing metadata log', llo({ pluginAddress: plugin.address }))
+      }
     }
-
-    await PluginSetupProcessorHandler.findAndUpdateTokenAddress(pluginDb, info)
-
-    // find settings
-    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-    await PluginSettingHandler.handlePluginSettingByType(pluginDb, txReceipt!, info)
   },
 
   installationApplied: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {

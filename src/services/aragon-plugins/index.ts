@@ -73,7 +73,6 @@ const AragonPluginsService: IService = {
           break
         }
         default: {
-          logger.error('PluginSyncService: interfaceType not found', llo({ plugin: plugin.address }))
           break
         }
       }
