@@ -9,3 +9,8 @@ export interface ITokenFullDetails {
   type?: string
   priceUsd: string
 }
+
+export enum IBlockScoutAddressType {
+  ADDRESS = 'address',
+  TOKEN = 'token',
+}
