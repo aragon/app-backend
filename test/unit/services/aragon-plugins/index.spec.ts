@@ -361,7 +361,6 @@ describe('AragonPlugins: index', () => {
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         interfaceType: 'not-supported',
       })
-      const loggerStub = sandbox.stub(logger, 'warn')
 
       await AragonPluginsService.start()
 
@@ -372,7 +371,6 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginWithNoType', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(loggerStub.calledWith('plugin interfaceType not supported' as any)).to.be.true
     })
   })
 })

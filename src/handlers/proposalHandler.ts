@@ -320,15 +320,15 @@ export const ProposalHandler = {
         return
       }
 
+      if (!plugin.isSupported && !plugin.tokenAddress) {
+        logger.warn('VoteCast - plugin not supported', llo(info))
+        return
+      }
+
       const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
 
       if (!proposal) {
         logger.warn('VoteCast - Proposal not found', llo(info))
-        return
-      }
-
-      if (!plugin.isSupported && !plugin.tokenAddress) {
-        logger.warn('VoteCast - plugin not supported', llo(info))
         return
       }
 

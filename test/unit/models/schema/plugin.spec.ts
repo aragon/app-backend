@@ -107,12 +107,27 @@ describe('Model: Plugin', () => {
     expect(foundPlugin.address).to.be.eq(plugin.address)
   })
 
-  it('should find by address', async () => {
-    const plugin = await Models.Plugin.create(rawPlugin)
+  it('should find by address not supported', async () => {
+    const plugin = await Models.Plugin.create({ ...rawPlugin, isSupported: false })
     const foundPlugin = await Models.Plugin.findByAddress(plugin.address, plugin.network)
     expect(foundPlugin.network).to.be.eq(plugin.network)
     expect(foundPlugin.transactionHash).to.be.eq(plugin.transactionHash)
     expect(foundPlugin.address).to.be.eq(plugin.address)
+    expect(foundPlugin.isSupported).to.be.false
+  })
+
+  it('should find by address isSupported', async () => {
+    const rawPlugin2 = {
+      ...PluginList[0],
+      interfaceType: IPluginInterfaceType.multisig,
+      isSupported: true,
+    }
+    const plugin = await Models.Plugin.create(rawPlugin2)
+    const foundPlugin = await Models.Plugin.findByAddress(plugin.address, plugin.network)
+    expect(foundPlugin.network).to.be.eq(plugin.network)
+    expect(foundPlugin.transactionHash).to.be.eq(plugin.transactionHash)
+    expect(foundPlugin.address).to.be.eq(plugin.address)
+    expect(foundPlugin.isSupported).to.be.true
   })
 
   describe('getPluginIdBySlugAndDao', async () => {

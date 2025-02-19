@@ -26,10 +26,6 @@ export const PluginSlug = {
       case IPluginInterfaceType.gauge:
         return IPluginSlug.gauge
       default:
-        logger.warn(
-          'Unrecognized plugin interface type',
-          llo({ interfaceType: plugin.interfaceType, pluginAddress: plugin.address }),
-        )
         return null
     }
   },
