@@ -348,12 +348,10 @@ const Web3Helper = {
 
       const matchingLogs = txReceipt.logs.filter((log: any) => log.topics[0] === eventTopicHash)
 
-      const parsedEvents = matchingLogs.map(log => ({
+      return matchingLogs.map(log => ({
         parsed: new Interface(abi).parseLog(log),
         txLog: log,
       }))
-
-      return parsedEvents
     } catch (error) {
       logger.error('Error parse eventTopicHash', llo({ txReceipt, eventName, error }))
       return []
@@ -626,11 +624,9 @@ const Web3Helper = {
 
       const nameHashed = namehash(ensName)
 
-      const recordExists = await retryRequest(async () =>
+      return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => ensContract.recordExists(nameHashed)),
       )
-
-      return recordExists
     } catch (error) {
       logger.warn(
         'Error subdomainExists',
@@ -923,11 +919,9 @@ const Web3Helper = {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
       const contract = new Contract(pluginAddress, GaugeVoter.abi, provider)
-      const response = await retryRequest(async () =>
+      return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.escrow()),
       )
-
-      return response
     } catch (error) {
       return null
     }
@@ -937,11 +931,9 @@ const Web3Helper = {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
       const contract = new Contract(votingEscrowAddress, VotingEscrow.abi, provider)
-      const response = await retryRequest(async () =>
+      return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.lockNFT()),
       )
-
-      return response
     } catch (error) {
       return null
     }
