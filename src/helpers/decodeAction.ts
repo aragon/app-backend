@@ -9,7 +9,6 @@ import {
   type IProposalActionInputData,
   type IProposalActionInputDataParameter,
   type IRawAction,
-  ITokenType,
   KnownActionSignature,
   type NetworksEnum,
 } from '@types'
@@ -46,7 +45,8 @@ import { ERC1155 } from '@artifacts/ERC1155'
 import Utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import BlockScoutHelper from '@helpers/blockScout'
-import TokenDetector from '@helpers/tokenDetector'
+
+import { IBlockScoutAddressType } from '@src/types/blockScout'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -192,17 +192,36 @@ class DecodeActions {
     const receiver = decodedData.parameters[0].value
     const tokenAddress = action.to
 
-    const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, document.network!)
-
-    if ([ITokenType.unknown, ITokenType.native].includes(tokenTypeInfo.type)) {
-      logger.error('parseMintAction token unknown', llo({ decodedData, action, document }))
-      return null
-    }
+    const tokenDetails = await BlockScoutHelper.searchDetails(tokenAddress, document.network!)
 
     const member = await ProxyMember.createMember(receiver)
 
     if (!member) {
       logger.error('Missing member', llo({ member, receiver, decodedData }))
+    }
+
+    if (!tokenDetails || tokenDetails.type !== IBlockScoutAddressType.TOKEN) {
+      return {
+        ...action,
+        inputData: decodedData,
+        type: ProposalActionType.Mint,
+        receivers: {
+          address: receiver,
+          ens: member?.ens,
+          currentBalance: '0',
+          newBalance: decodedData.parameters[1].value.toString(),
+        },
+        totalSupply: '0',
+        holdersCount: 0,
+        token: {
+          address: tokenAddress,
+          name: 'Unknown',
+          symbol: 'Unknown',
+          decimals: 0,
+          logo: null,
+          priceUsd: null,
+        },
+      }
     }
 
     const [currentBalance, tokenInfo, token] = await Promise.all([
@@ -226,15 +245,15 @@ class DecodeActions {
         currentBalance: currentBalance.toString(),
         newBalance: (BigInt(decodedData.parameters[1].value) + BigInt(currentBalance)).toString(),
       },
-      totalSupply: tokenInfo?.totalSupply,
-      holdersCount: tokenInfo?.totalHolders,
+      totalSupply: tokenInfo.totalSupply,
+      holdersCount: tokenInfo.totalHolders,
       token: {
+        address: token!.address,
         name: token!.name,
         symbol: token!.symbol,
         decimals: token!.decimals,
         logo: token!.logo,
         priceUsd: token!.priceUsd,
-        address: token!.address,
       },
     }
   }

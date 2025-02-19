@@ -471,10 +471,10 @@ describe('Helpers: BlockScout', () => {
 
   describe('getTransactionOfAnAddress', () => {
     it('Should get transaction of an address', async () => {
-      const expectedResult = { items: [{ hash: '0x1234567890' }] }
+      const expectedResult = { items: [{ hash: '0x1234567890', block_number: 123232 }] }
       const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
       const result = await BlockScoutHelper.getTransactionOfAnAddress('0x1234567890', NetworksEnum.ethereumMainnet)
-      expect(result).to.deep.eq([{ txHash: '0x1234567890' }])
+      expect(result).to.deep.eq([{ txHash: '0x1234567890', blockNumber: 123232 }])
       expect(rpCallStub.calledOnce).to.be.true
       expect(
         rpCallStub.calledWith(

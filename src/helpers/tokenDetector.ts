@@ -15,6 +15,7 @@ export const ERC20_FUNCTIONS = [
 
 export const ERC721_FUNCTIONS = [
   'ownerOf(uint256)',
+  'balanceOf(address)',
   'approve(address,uint256)',
   'getApproved(uint256)',
   'setApprovalForAll(address,bool)',

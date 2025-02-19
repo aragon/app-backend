@@ -42,7 +42,6 @@ export const PluginSettingHandler = {
         handler = PluginSettingHandler.sppSettingsUpdated
         break
       default:
-        logger.warn('Plugin is not a supported type', llo(info))
         return
     }
 
