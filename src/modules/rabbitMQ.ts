@@ -11,16 +11,12 @@ const RabbitMQ = {
   reconnectTimer: null as NodeJS.Timeout | null,
   isReconnecting: false,
 
-  /**
-   * Establish a connection and channel.
-   * Attaches event handlers to auto-reconnect on failure.
-   */
-  async connect(): Promise<void> {
-    // If already connected or reconnecting, skip re-connecting
+  async _connect(): Promise<void> {
     if (RabbitMQ.isConnected()) {
       logger.verbose('RabbitMQ: Already connected', llo({}))
       return
     }
+
     if (RabbitMQ.isReconnecting) {
       logger.verbose('RabbitMQ: Reconnect attempt already in progress', llo({}))
       return
@@ -31,15 +27,18 @@ const RabbitMQ = {
     try {
       RabbitMQ.connection = await amqp.connect(config.RABBITMQ.URI)
 
-      // Listen for connection-level errors/closures
-      RabbitMQ.connection.on('close', async err => RabbitMQ.handleCloseOrError('Connection closed', err))
-      RabbitMQ.connection.on('error', async err => RabbitMQ.handleCloseOrError('Connection error', err))
+      RabbitMQ.connection.on('close', async err => {
+        logger.error('RabbitMQ connection closed', llo({ err }))
+        await RabbitMQ.handleReconnect(true) // Full reconnect
+      })
 
-      RabbitMQ.channel = await RabbitMQ.connection.createChannel()
+      RabbitMQ.connection.on('error', async err => {
+        logger.error('RabbitMQ connection error', llo({ err }))
+        await RabbitMQ.handleReconnect(true) // Full reconnect
+      })
 
-      // Listen for channel-level errors/closures
-      RabbitMQ.channel.on('close', async err => RabbitMQ.handleCloseOrError('Channel closed', err))
-      RabbitMQ.channel.on('error', async err => RabbitMQ.handleCloseOrError('Channel error', err))
+      // Create initial channel
+      await RabbitMQ.createChannel()
 
       if (config.RABBITMQ.CLEAN_QUEUE) {
         await RabbitMQ.cleanAllQueues()
@@ -50,35 +49,75 @@ const RabbitMQ = {
     } catch (err) {
       RabbitMQ.isReconnecting = false
       logger.error('RabbitMQ connection error', llo({ err }))
+      throw err
+    }
+  },
+
+  async connect(): Promise<void> {
+    try {
+      await RabbitMQ._connect()
+    } catch (_) {
       RabbitMQ.scheduleReconnect()
     }
   },
 
   /**
-   * Handle any close/error event by force-closing everything and scheduling a reconnect.
+   * Create a new channel without resetting the connection.
    */
-  async handleCloseOrError(reason: string, err: unknown) {
-    logger.error(`[RabbitMQ] ${reason}`, llo({ err }))
-    await RabbitMQ.forceClose()
-    RabbitMQ.scheduleReconnect()
+  async createChannel(): Promise<void> {
+    if (!RabbitMQ.connection) {
+      logger.error('RabbitMQ: No active connection to create a channel', llo({}))
+      return
+    }
+
+    try {
+      RabbitMQ.channel = await RabbitMQ.connection.createChannel()
+
+      RabbitMQ.channel.on('close', async () => {
+        logger.error('RabbitMQ channel closed', llo({}))
+        await RabbitMQ.handleReconnect(false) // Only recreate the channel
+      })
+
+      RabbitMQ.channel.on('error', async err => {
+        logger.error('RabbitMQ channel error', llo({ err }))
+        await RabbitMQ.handleReconnect(false) // Only recreate the channel
+      })
+
+      logger.verbose('RabbitMQ channel created', llo({}))
+    } catch (err) {
+      logger.error('Failed to create RabbitMQ channel', llo({ err }))
+      await RabbitMQ.handleReconnect(true) // Full reconnect if channel creation fails
+    }
+  },
+
+  /**
+   * Handle reconnection logic.
+   * @param fullReconnect If true, restarts the entire connection. Otherwise, just reopens the channel.
+   */
+  async handleReconnect(fullReconnect: boolean): Promise<void> {
+    if (fullReconnect) {
+      await RabbitMQ.forceClose()
+      RabbitMQ.scheduleReconnect()
+    } else {
+      await RabbitMQ.createChannel()
+    }
   },
 
   /**
    * Schedule a reconnect with a delay, avoiding repeated timers.
    */
   scheduleReconnect() {
-    // If there's already a timer set, do nothing
+    const delay = config.RABBITMQ.RECONNECT_TIME || 5000
+
     if (RabbitMQ.reconnectTimer) {
-      logger.error('RabbitMQ reconnectTimer should be false', llo({ reconnectTimer: RabbitMQ.reconnectTimer }))
-      return
+      clearTimeout(RabbitMQ.reconnectTimer)
     }
 
-    const delay = config.RABBITMQ.RECONNECT_TIME || 5000
     RabbitMQ.reconnectTimer = setTimeout(async () => {
-      RabbitMQ.reconnectTimer = null
       try {
-        await RabbitMQ.connect()
-        logger.verbose('RabbitMQ connected', llo({}))
+        await RabbitMQ._connect()
+        RabbitMQ.reconnectTimer = null
+        logger.verbose('RabbitMQ successfully reconnected', llo({}))
       } catch (reconnectErr) {
         logger.error('RabbitMQ reconnection attempt failed', llo({ reconnectErr }))
         RabbitMQ.scheduleReconnect()
@@ -87,7 +126,7 @@ const RabbitMQ = {
   },
 
   /**
-   * Clean up all specified queues by purging their messages.
+   * Purges all messages from queues.
    */
   async cleanAllQueues(): Promise<void> {
     try {
@@ -97,8 +136,8 @@ const RabbitMQ = {
       }
 
       for (const queueName of Object.values(EnumQueueName)) {
-        await RabbitMQ?.channel?.purgeQueue(queueName)
-        logger.info(`Queue "${queueName}" has been purged`, llo({ queueName }))
+        await RabbitMQ.channel.purgeQueue(queueName)
+        logger.info(`Queue "${queueName}" purged`, llo({ queueName }))
       }
     } catch (err) {
       logger.error('Failed to clean RabbitMQ queues', llo({ err }))
@@ -106,7 +145,7 @@ const RabbitMQ = {
   },
 
   /**
-   * Close the channel and connection, and clear any scheduled reconnect.
+   * Force close RabbitMQ connection and channel.
    */
   async forceClose(): Promise<void> {
     if (RabbitMQ.reconnectTimer) {
@@ -169,10 +208,7 @@ const RabbitMQ = {
       const queueStatus: Replies.AssertQueue = await RabbitMQ.channel.checkQueue(queueName)
       logger.info(
         `Queue "${queueName}" has ${queueStatus.messageCount} messages`,
-        llo({
-          queueName,
-          messageCount: queueStatus.messageCount,
-        }),
+        llo({ queueName, messageCount: queueStatus.messageCount }),
       )
       return queueStatus.messageCount
     } catch (err) {
