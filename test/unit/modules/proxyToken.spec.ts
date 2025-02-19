@@ -276,8 +276,9 @@ describe('Modules: ProxyToken', () => {
 
     it('should fetch token details when token is in whitelisted', async () => {
       tokenRate.priceUsd = '0'
-      tokenRate.name = null
-      tokenRate.decimals = null
+      tokenRate.name = 'test'
+      tokenRate.symbol = 'TST'
+      tokenRate.decimals = 0
       tokenRate.type = ITokenType.ERC721
 
       const ratesStub = sandbox.stub(RateModule, 'fetchRate').resolves(tokenRate)
@@ -291,14 +292,7 @@ describe('Modules: ProxyToken', () => {
 
       const isWhiteListedTokenStub = sandbox.stub(Web3Helper, 'isWhitelistedToken').resolves(true)
 
-      const onChainTokenInfo = {
-        name: 'test',
-        symbol: 'TST',
-        decimals: 18,
-        logo: 'fake-logo',
-        isGovernance: false,
-      }
-      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo').resolves(onChainTokenInfo as any)
+      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo')
 
       const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(10n)
 
@@ -313,13 +307,12 @@ describe('Modules: ProxyToken', () => {
 
       expect(ratesStub.calledOnce).to.be.true
       expect(tokenFullDetailsStub.calledOnce).to.be.true
-      expect(onChainTokenInfoStub.calledOnce).to.be.true
+      expect(onChainTokenInfoStub.calledOnce).to.be.false
       expect(covalentTokenMetricsStub.calledOnce).to.be.true
       expect(result.tokenRate.priceUsd).to.equal('0')
       expect(result.tokenRate.name).to.equal('test')
       expect(result.tokenRate.symbol).to.equal('TST')
-      expect(result.tokenRate.decimals).to.equal(18)
-      expect(result.tokenRate.logo).to.equal('fake-logo')
+      expect(result.tokenRate.decimals).to.equal(0)
       expect(result.tokenMetrics.totalHolders).to.equal(0)
       expect(result.tokenMetrics.totalSupply).to.equal('10')
       expect(rabbitMQStub.calledOnce).to.be.true
