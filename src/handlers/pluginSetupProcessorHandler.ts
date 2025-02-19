@@ -1,5 +1,13 @@
 import logger from '@logger'
-import { EnumQueueName, IEventLogPluginType, type ILogInfo, IPluginActionType, IPluginInterfaceType } from '@types'
+import {
+  EnumQueueName,
+  IEventLogPluginType,
+  type ILogInfo,
+  IPluginActionType,
+  IPluginInterfaceType,
+  ISPPLogs,
+  NetworksEnum,
+} from '@types'
 import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import Utils from '@helpers/utils'
@@ -91,12 +99,12 @@ export const PluginSetupProcessorHandler = {
     // check and update token
     await PluginSetupProcessorHandler.findAndUpdateTokenAddress(pluginDb, info)
     // check and handle metadata
-    await PluginSetupProcessorHandler.updateMetadataOnPreInstall(pluginDb, txReceipt!, info)
+    await PluginSetupProcessorHandler.updateMetadataOnPreInstall(pluginDb, txReceipt!)
     // find settings
     await PluginSettingHandler.handlePluginSettingByType(pluginDb, txReceipt!, info)
   },
 
-  updateMetadataOnPreInstall: async (plugin: Plugin, txReceipt: TransactionReceipt, info: ILogInfo) => {
+  updateMetadataOnPreInstall: async (plugin: Plugin, txReceipt: TransactionReceipt) => {
     const iFace = new Interface(StagedProposalProcessor.abi)
     const metadataLogTopics = iFace.getEvent('MetadataSet')?.topicHash!
 
@@ -108,10 +116,12 @@ export const PluginSetupProcessorHandler = {
       try {
         const parsedEvent = Web3Helper.parseLog(metadataLog, iFace)
         if (parsedEvent) {
-          await MetadataHandler.metadataSet(parsedEvent, info)
+          const logInfo = Web3Helper.parseInfoLog(metadataLog, ISPPLogs.MetadataSet, plugin.network)
+
+          await MetadataHandler.metadataSet(parsedEvent, logInfo)
         }
       } catch (_) {
-        logger.error('Error parsing metadata log', llo({ pluginAddress: plugin.address, info }))
+        logger.error('Error parsing metadata log', llo({ pluginAddress: plugin.address }))
       }
     }
   },
