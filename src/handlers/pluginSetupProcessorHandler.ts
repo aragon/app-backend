@@ -98,7 +98,7 @@ export const PluginSetupProcessorHandler = {
 
   updateMetadataOnPreInstall: async (plugin: Plugin, txReceipt: TransactionReceipt, info: ILogInfo) => {
     const iFace = new Interface(StagedProposalProcessor.abi)
-    const metadataLogTopics = new Interface(StagedProposalProcessor.abi).getEvent('MetadataSet')?.topicHash!
+    const metadataLogTopics = iFace.getEvent('MetadataSet')?.topicHash!
 
     const metadataLog = txReceipt?.logs.find(
       log => log.topics[0] === metadataLogTopics && log.address === plugin.address,
