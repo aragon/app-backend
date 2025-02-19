@@ -96,7 +96,7 @@ describe('AragonTransactions: BlockHandler', () => {
       await BlockHandler.processNewBlock(fakeBlock, NetworksEnum.ethereumMainnet)
 
       expect(stubUtilsWait.calledOnce).to.be.true
-      expect(stubCheckIfDepositEvents.calledOnceWith(fakeBlock, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(stubCheckIfDepositEvents.calledOnceWith(fakeReceipts, NetworksEnum.ethereumMainnet)).to.be.true
       expect(stubProcessReceiver.calledOnce).to.be.true
       expect(stubProcessReceiver.firstCall.args[0]).to.equal('0xblockHash')
       expect(stubProcessReceiver.firstCall.args[1]).to.deep.equal([
@@ -155,8 +155,6 @@ describe('AragonTransactions: BlockHandler', () => {
   })
 
   describe('_checkIfDepositEvents', () => {
-    let stubGetProvider: sinon.SinonStub
-    let stubProviderGetLogs: sinon.SinonStub
     let stubProcessReceiver: sinon.SinonStub
 
     let topicHash: string[] = []
@@ -167,8 +165,6 @@ describe('AragonTransactions: BlockHandler', () => {
         new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
       ]
 
-      stubGetProvider = sandbox.stub(ProviderModule, 'getAnyRpcProvider')
-      stubProviderGetLogs = sandbox.stub()
       stubProcessReceiver = sandbox.stub(BlockHandler, 'processReceiver').resolves()
     })
 
@@ -177,101 +173,136 @@ describe('AragonTransactions: BlockHandler', () => {
     })
 
     it('should do nothing if logs are empty', async () => {
-      const fakeBlock = { number: 123 }
-      const fakeProvider = { getLogs: stubProviderGetLogs }
+      const fakeReceipts = [
+        {
+          transactionHash: '0xhash',
+          logs: [
+            {
+              address: '0xlogaddress',
+              topics: ['0x00'],
+              transactionHash: '0xhash',
+              data: '0x00',
+            },
+          ],
+        },
+      ]
 
-      stubGetProvider.returns(fakeProvider)
-      stubProviderGetLogs.resolves([])
-
-      await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
-
-      expect(stubProviderGetLogs.calledOnce).to.be.true
-    })
-
-    it('should call processReceiver for transfer', async () => {
-      const fakeBlock = { number: 123 }
-      const fakeProvider = { getLogs: stubProviderGetLogs }
-      const logs = [{ transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]] }]
-
-      const fakeDecoded = { args: { to: '0xdecoded' } }
-      const parseLogStub = sandbox.stub(Interface.prototype, 'parseLog').returns(fakeDecoded as any)
-
-      stubGetProvider.returns(fakeProvider)
-      stubProviderGetLogs.resolves(logs)
-
-      await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
-
-      expect(stubProviderGetLogs.calledOnce).to.be.true
-      expect(parseLogStub.calledOnce).to.be.true
-
-      expect(stubProcessReceiver.calledOnceWith('0xabc', ['0xdecoded'], NetworksEnum.ethereumMainnet)).to.be.true
-    })
-
-    it('should processReceiver for transfer of nft when erc fails', async () => {
-      const fakeBlock = { number: 123 }
-      const fakeProvider = { getLogs: stubProviderGetLogs }
-      const logs = [{ transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]] }]
-
-      const parseLogStub = sandbox
-        .stub(Interface.prototype, 'parseLog')
-        .onFirstCall()
-        .throws(new Error('Error decoding transfer event'))
-        .onSecondCall()
-        .returns({ args: { to: '0xdecoded' } } as any)
-
-      stubGetProvider.returns(fakeProvider)
-      stubProviderGetLogs.resolves(logs)
-
-      await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
-
-      expect(stubProviderGetLogs.calledOnce).to.be.true
-      expect(parseLogStub.calledTwice).to.be.true
-
-      expect(stubProcessReceiver.calledOnce).to.be.true
-      expect(stubProcessReceiver.calledWith('0xabc', ['0xdecoded'], NetworksEnum.ethereumMainnet)).to.be.true
-    })
-
-    it('should log error when erc and nft fails', async () => {
-      const fakeBlock = { number: 123 }
-      const fakeProvider = { getLogs: stubProviderGetLogs }
-      const logs = [{ transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]] }]
-
-      const parseLogStub = sandbox
-        .stub(Interface.prototype, 'parseLog')
-        .onFirstCall()
-        .throws(new Error('Error decoding transfer event'))
-        .onSecondCall()
-        .throws(new Error('Error decoding transfer event'))
-
-      stubGetProvider.returns(fakeProvider)
-      stubProviderGetLogs.resolves(logs)
-
-      const loggerError = sandbox.stub(logger, 'warn')
-
-      await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
-
-      expect(stubProviderGetLogs.calledOnce).to.be.true
-      expect(parseLogStub.calledTwice).to.be.true
-      expect(loggerError.calledOnce).to.be.true
-
+      await (BlockHandler as any)._checkIfDepositEvents(fakeReceipts, NetworksEnum.ethereumMainnet)
       expect(stubProcessReceiver.calledOnce).to.be.false
     })
 
+    describe('_decodeTransferLogs', async () => {
+      it('should decode ERC20 transfer logs correctly', () => {
+        const mockLog = {
+          blockNumber: 7737041,
+          blockHash: '0xdc9c7656f025e293daf87c59c44558b91e8852d04d2d34f12d73ccd96a81766a',
+          transactionIndex: 5,
+          removed: false,
+          address: '0x4A6c2662808618125f4F9C6d21A441316817b7DA',
+          data: '0x000000000000000000000000000000000000000000000000000000000000006a',
+          topics: [
+            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+            '0x000000000000000000000000707938eeec2af03eb4e61e75180d6ef68b19aabf',
+            '0x000000000000000000000000a59978e23c986d8ec6b50ed8f041e9399fa06362',
+          ],
+          transactionHash: '0x880a304d39c6763dbde588089adee9fa49b5a2a279a9fad1ce8d1c557e92686d',
+          logIndex: 0,
+        }
+
+        const result = BlockHandler._decodeTransferLogs(mockLog as any)
+
+        expect(result).to.equal('0xa59978e23c986d8Ec6b50eD8F041E9399FA06362')
+      })
+
+      it('should decode ERC721 transfer logs if ERC20 fails', () => {
+        const mockLog = {
+          blockNumber: 21876602,
+          blockHash: '0x73d8ecd65c3e7d78bee607f6935decbca736b74664624a21985cc068e9584d1e',
+          transactionIndex: 30,
+          removed: false,
+          address: '0x0a252663DBCc0b073063D6420a40319e438Cfa59',
+          data: '0x',
+          topics: [
+            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+            '0x0000000000000000000000000000000000000000000000000000000000000000',
+            '0x0000000000000000000000008459382fd8649d8aab602e5fc96c8cd4132ef12e',
+            '0x0000000000000000000000000000000000000000000000000000000000011176',
+          ],
+          transactionHash: '0xbab828ee01e9840835fef4721b50ccc00a6de7091b30567d944d34f4eba68cc6',
+          logIndex: 247,
+        }
+
+        const result = BlockHandler._decodeTransferLogs(mockLog as any)
+
+        expect(result).to.equal('0x8459382fD8649D8aab602e5fc96C8cd4132Ef12E')
+      })
+
+      it('should decode ERC721 transfer logs if ERC20 fails', () => {
+        const mockLog = {
+          blockNumber: 21876602,
+          blockHash: '0x73d8ecd65c3e7d78bee607f6935decbca736b74664624a21985cc068e9584d1e',
+          transactionIndex: 30,
+          removed: false,
+          address: '0x0a252663DBCc0b073063D6420a40319e438Cfa59',
+          data: '0x',
+          topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'],
+          transactionHash: '0xbab828ee01e9840835fef4721b50ccc00a6de7091b30567d944d34f4eba68cc6',
+          logIndex: 247,
+        }
+
+        const result = BlockHandler._decodeTransferLogs(mockLog as any)
+
+        expect(result).to.be.null
+      })
+    })
+
+    it('should do nothing if logs are empty', async () => {
+      const fakeBlock = []
+      await BlockHandler._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
+      expect(stubProcessReceiver.calledOnce).to.be.false
+    })
+
+    it('should call processReceiver for transfer events', async () => {
+      const fakeReceipts = [
+        {
+          transactionHash: '0xhash',
+          logs: [
+            {
+              address: '0xlogaddress',
+              topics: [topicHash[1], '0xsender', '0xreceiver'],
+              transactionHash: '0xhash',
+              data: '0x00',
+            },
+          ],
+        },
+      ]
+
+      const stubDecode = sandbox.stub(BlockHandler, '_decodeTransferLogs').returns('0xreceiver')
+
+      await (BlockHandler as any)._checkIfDepositEvents(fakeReceipts, NetworksEnum.ethereumMainnet)
+
+      expect(stubDecode.calledOnce).to.be.true
+      expect(stubProcessReceiver.calledOnceWith('0xhash', ['0xreceiver'], NetworksEnum.ethereumMainnet)).to.be.true
+    })
+
     it('should call processReceiver for each log found for native token deposit', async () => {
-      const fakeBlock = { number: 123 }
-      const fakeProvider = { getLogs: stubProviderGetLogs }
       const logs = [
         { transactionHash: '0xabc', address: '0x123', topics: [topicHash[0]] },
         { transactionHash: '0xdef', address: '0x456', topics: [topicHash[0]] },
       ]
 
-      stubGetProvider.returns(fakeProvider)
-      stubProviderGetLogs.resolves(logs)
+      const receipts = [
+        {
+          transactionHash: '0xabc',
+          logs: [logs[0]],
+        },
+        {
+          transactionHash: '0xdef',
+          logs: [logs[1]],
+        },
+      ]
 
-      await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
-
-      expect(stubProviderGetLogs.calledOnce).to.be.true
-
+      await (BlockHandler as any)._checkIfDepositEvents(receipts, NetworksEnum.ethereumMainnet)
       expect(stubProcessReceiver.calledOnceWith('0xabc', ['0x123', '0x456'], NetworksEnum.ethereumMainnet))
     })
   })

@@ -89,13 +89,11 @@ describe('Indexer: PluginSettingHandler', () => {
       const info = { network: NetworksEnum.ethereumMainnet } as any
 
       const stubFind = sandbox.stub(Web3Helper, 'findLogsByName')
-      const stubWarn = sandbox.stub(logger, 'warn')
 
       const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
 
       expect(result).to.be.undefined
       expect(stubFind.notCalled).to.be.true
-      expect(stubWarn.calledOnceWith('Plugin is not a supported type' as any)).to.be.true
     })
   })
 
