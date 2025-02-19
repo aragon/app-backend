@@ -181,7 +181,7 @@ export const ProxyToken = {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
     }
 
-    if (tokenRate.decimals === null || !tokenRate.name || !tokenRate.symbol) {
+    if (tokenType === ITokenType.ERC20 && (tokenRate.decimals === null || !tokenRate.name || !tokenRate.symbol)) {
       const onChainTokenInfo = await Web3Helper.getTokenInfo(tokenAddress, network)
       Object.assign(tokenRate, onChainTokenInfo)
     }
