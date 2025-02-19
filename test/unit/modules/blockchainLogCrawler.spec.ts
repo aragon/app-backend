@@ -105,7 +105,7 @@ describe('Module: blockchainLogCrawler', () => {
     ] as any
 
     const parseLogStub = sandbox.stub(Web3Helper, 'parseLog').callsFake(
-      (log, iface) =>
+      (log, iface: any) =>
         ({
           event: iface.fragments[0].name,
           args: {},
