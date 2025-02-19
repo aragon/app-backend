@@ -1049,6 +1049,62 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('getLogs', () => {
+    it('should getBlockTimestamp', async () => {
+      const stubGetLogs = sandbox.stub().resolves(true)
+      const resolveName = sandbox.stub().resolves('0x000001')
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        resolveName,
+        getLogs: stubGetLogs,
+      } as any)
+
+      const filter = {
+        fromBlock: '0x760d40',
+        toBlock: '0x760d40',
+        topics: [
+          [
+            '0x62c2c8e34665db7c56b2cabd7f5fb9702ccd352ffa8150147e450797e9f8e8f3',
+            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+          ],
+        ],
+      }
+
+      const res = await Web3Helper.getLogs(filter, NetworksEnum.ethereumMainnet)
+
+      expect(res).to.be.true
+      expect(stubGetLogs.calledOnceWith(filter)).to.be.true
+    })
+
+    it('should fail getLogs', async () => {
+      const stubLogger = sandbox.stub(Logger, 'error')
+      const stubGetLogs = sandbox.stub().rejects(new Error('fake-error'))
+      const resolveName = sandbox.stub().resolves('0x000001')
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        resolveName,
+        getLogs: stubGetLogs,
+      } as any)
+
+      const filter = {
+        fromBlock: '0x760d40',
+        toBlock: '0x760d40',
+        topics: [
+          [
+            '0x62c2c8e34665db7c56b2cabd7f5fb9702ccd352ffa8150147e450797e9f8e8f3',
+            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+          ],
+        ],
+      }
+
+      const res = await Web3Helper.getLogs(filter, NetworksEnum.ethereumMainnet)
+
+      expect(res).to.be.null
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubGetLogs.calledOnceWith(filter)).to.be.true
+    })
+  })
+
   describe('subdomainExists', () => {
     it('should check if subdomainExists', async () => {
       const stubConfigState = {
