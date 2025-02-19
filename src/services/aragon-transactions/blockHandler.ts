@@ -35,7 +35,7 @@ export const BlockHandler = {
       config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME * 1000 * config.CONFIRMATION_BLOCKS,
     )
 
-    await BlockHandler._checkIfDepositEvents(block, network)
+    await BlockHandler._checkIfDepositEvents(blockReceipts, network)
 
     await BlockHandler.processReceiver(block.hash, toAddresses, network)
   },
@@ -59,20 +59,18 @@ export const BlockHandler = {
     )
   },
 
-  _checkIfDepositEvents: async (block: any, network: NetworksEnum) => {
-    const blockHex = '0x' + Number(block.number).toString(16)
+  _checkIfDepositEvents: async (blockReceipts: any, network: NetworksEnum) => {
     const topicHash = [
       new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
       new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
     ]
 
-    const filter = {
-      fromBlock: blockHex,
-      toBlock: blockHex,
-      topics: [[topicHash[0], topicHash[1]]],
-    }
-
-    const logs = await Web3Helper.getLogs(filter, network)
+    const logs = blockReceipts.reduce((acc: any, receipt: any) => {
+      const logsToHandle = receipt.logs.filter((log: any) => {
+        return topicHash.includes(log.topics[0])
+      })
+      return acc.concat(logsToHandle)
+    }, [])
 
     if (!logs || logs.length === 0) {
       return

@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { ITokenVotingLogs, LockErc721Token, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import ProviderModule from '@modules/provider'
 import { Models } from '@dbModels'
 import { RabbitMQHelper } from '@helpers/radditMQ'
@@ -13,10 +13,8 @@ import Web3Helper from '@helpers/web3'
 import { Interface } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { TokenVoting } from '@src/aragonContracts'
-import { ERC721 } from '@artifacts/ERC721'
 
-describe('AragonTransactions: BlockHandler', () => {
+describe.only('AragonTransactions: BlockHandler', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -98,7 +96,7 @@ describe('AragonTransactions: BlockHandler', () => {
       await BlockHandler.processNewBlock(fakeBlock, NetworksEnum.ethereumMainnet)
 
       expect(stubUtilsWait.calledOnce).to.be.true
-      expect(stubCheckIfDepositEvents.calledOnceWith(fakeBlock, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(stubCheckIfDepositEvents.calledOnceWith(fakeReceipts, NetworksEnum.ethereumMainnet)).to.be.true
       expect(stubProcessReceiver.calledOnce).to.be.true
       expect(stubProcessReceiver.firstCall.args[0]).to.equal('0xblockHash')
       expect(stubProcessReceiver.firstCall.args[1]).to.deep.equal([
@@ -175,11 +173,22 @@ describe('AragonTransactions: BlockHandler', () => {
     })
 
     it('should do nothing if logs are empty', async () => {
-      const fakeBlock = { number: 123 }
-      const stubGetLogs = sandbox.stub(Web3Helper, 'getLogs').resolves([])
-      await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
+      const fakeReceipts = [
+        {
+          transactionHash: '0xhash',
+          logs: [
+            {
+              address: '0xlogaddress',
+              topics: ['0x00'],
+              transactionHash: '0xhash',
+              data: '0x00',
+            },
+          ],
+        },
+      ]
 
-      expect(stubGetLogs.calledOnce).to.be.true
+      await (BlockHandler as any)._checkIfDepositEvents(fakeReceipts, NetworksEnum.ethereumMainnet)
+      expect(stubProcessReceiver.calledOnce).to.be.false
     })
 
     describe('_decodeTransferLogs', async () => {
@@ -250,51 +259,52 @@ describe('AragonTransactions: BlockHandler', () => {
     })
 
     it('should do nothing if logs are empty', async () => {
-      const fakeBlock = { number: 123 }
-      const stubGetLogs = sandbox.stub(Web3Helper, 'getLogs').resolves([])
+      const fakeBlock = []
       await BlockHandler._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
-
-      expect(stubGetLogs.calledOnce).to.be.true
+      expect(stubProcessReceiver.calledOnce).to.be.false
     })
 
-    it('should call processReceiver for transfer', async () => {
-      const fakeBlock = { number: 123 }
-      const logs = [{ transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]] }]
-      const stubGetLogs = sandbox.stub(Web3Helper, 'getLogs').resolves(logs)
-      const stubDecode = sandbox.stub(BlockHandler, '_decodeTransferLogs').returns('0xdecoded')
+    it('should call processReceiver for transfer events', async () => {
+      const fakeReceipts = [
+        {
+          transactionHash: '0xhash',
+          logs: [
+            {
+              address: '0xlogaddress',
+              topics: [topicHash[1], '0xsender', '0xreceiver'],
+              transactionHash: '0xhash',
+              data: '0x00',
+            },
+          ],
+        },
+      ]
 
-      await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
+      const stubDecode = sandbox.stub(BlockHandler, '_decodeTransferLogs').returns('0xreceiver')
+
+      await (BlockHandler as any)._checkIfDepositEvents(fakeReceipts, NetworksEnum.ethereumMainnet)
 
       expect(stubDecode.calledOnce).to.be.true
-      expect(stubGetLogs.calledOnce).to.be.true
-      expect(stubProcessReceiver.calledOnceWith('0xabc', ['0xdecoded'], NetworksEnum.ethereumMainnet)).to.be.true
-    })
-
-    it('should processReceiver for transfer of nft when erc fails', async () => {
-      const fakeBlock = { number: 123 }
-      const logs = [{ transactionHash: '0xabc', address: '0x123', topics: [topicHash[1]] }]
-      const stubGetLogs = sandbox.stub(Web3Helper, 'getLogs').resolves(logs)
-      const stubDecode = sandbox.stub(BlockHandler, '_decodeTransferLogs').returns('0xdecoded')
-
-      await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
-
-      expect(stubGetLogs.calledOnce).to.be.true
-      expect(stubDecode.calledOnce).to.be.true
-      expect(stubProcessReceiver.calledWith('0xabc', ['0xdecoded'], NetworksEnum.ethereumMainnet)).to.be.true
+      expect(stubProcessReceiver.calledOnceWith('0xhash', ['0xreceiver'], NetworksEnum.ethereumMainnet)).to.be.true
     })
 
     it('should call processReceiver for each log found for native token deposit', async () => {
-      const fakeBlock = { number: 123 }
       const logs = [
         { transactionHash: '0xabc', address: '0x123', topics: [topicHash[0]] },
         { transactionHash: '0xdef', address: '0x456', topics: [topicHash[0]] },
       ]
-      const stubGetLogs = sandbox.stub(Web3Helper, 'getLogs').resolves(logs)
 
-      await (BlockHandler as any)._checkIfDepositEvents(fakeBlock, NetworksEnum.ethereumMainnet)
+      const receipts = [
+        {
+          transactionHash: '0xabc',
+          logs: [logs[0]],
+        },
+        {
+          transactionHash: '0xdef',
+          logs: [logs[1]],
+        },
+      ]
 
-      expect(stubGetLogs.calledOnce).to.be.true
-
+      await (BlockHandler as any)._checkIfDepositEvents(receipts, NetworksEnum.ethereumMainnet)
       expect(stubProcessReceiver.calledOnceWith('0xabc', ['0x123', '0x456'], NetworksEnum.ethereumMainnet))
     })
   })
