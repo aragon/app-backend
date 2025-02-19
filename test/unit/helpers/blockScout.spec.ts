@@ -18,6 +18,14 @@ describe('Helpers: BlockScout', () => {
     sandbox && sandbox.restore()
   })
 
+  it('parseTokenType', async () => {
+    expect(BlockScoutHelper.parseTokenType(ITokenType.unknown)).to.eq(ITokenType.unknown)
+    expect(BlockScoutHelper.parseTokenType('ERC-20')).to.eq(ITokenType.ERC20)
+    expect(BlockScoutHelper.parseTokenType('ERC-721')).to.eq(ITokenType.ERC721)
+    expect(BlockScoutHelper.parseTokenType('ERC-1155')).to.eq(ITokenType.ERC1155)
+    expect(BlockScoutHelper.parseTokenType(ITokenType.native)).to.eq(ITokenType.unknown)
+  })
+
   it('should get axios instance', async () => {
     const stubAxios = sandbox.stub(axios, 'create')
     BlockScoutHelper.axiosInstance(NetworksEnum.ethereumMainnet)
@@ -54,7 +62,7 @@ describe('Helpers: BlockScout', () => {
       sandbox.stub(BlockScoutHelper, 'axiosInstance').returns({
         get: getCall,
       } as any)
-      const loggerStub = sandbox.stub(logger, 'error')
+      const loggerStub = sandbox.stub(logger, 'warn')
 
       try {
         await BlockScoutHelper._rpCall('tokens/0x1234567890', { apikey: 'valid-api-key' }, NetworksEnum.ethereumMainnet)
@@ -463,10 +471,10 @@ describe('Helpers: BlockScout', () => {
 
   describe('getTransactionOfAnAddress', () => {
     it('Should get transaction of an address', async () => {
-      const expectedResult = { items: [{ hash: '0x1234567890' }] }
+      const expectedResult = { items: [{ hash: '0x1234567890', block_number: 123232 }] }
       const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
       const result = await BlockScoutHelper.getTransactionOfAnAddress('0x1234567890', NetworksEnum.ethereumMainnet)
-      expect(result).to.deep.eq([{ txHash: '0x1234567890' }])
+      expect(result).to.deep.eq([{ txHash: '0x1234567890', blockNumber: 123232 }])
       expect(rpCallStub.calledOnce).to.be.true
       expect(
         rpCallStub.calledWith(

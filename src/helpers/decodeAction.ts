@@ -46,6 +46,8 @@ import Utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import BlockScoutHelper from '@helpers/blockScout'
 
+import { IBlockScoutAddressType } from '@src/types/blockScout'
+
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
 interface Signature {
@@ -188,21 +190,49 @@ class DecodeActions {
     }
 
     const receiver = decodedData.parameters[0].value
+    const tokenAddress = action.to
+
+    const tokenDetails = await BlockScoutHelper.searchDetails(tokenAddress, document.network!)
+
     const member = await ProxyMember.createMember(receiver)
 
     if (!member) {
       logger.error('Missing member', llo({ member, receiver, decodedData }))
     }
 
+    if (!tokenDetails || tokenDetails.type !== IBlockScoutAddressType.TOKEN) {
+      return {
+        ...action,
+        inputData: decodedData,
+        type: ProposalActionType.Mint,
+        receivers: {
+          address: receiver,
+          ens: member?.ens,
+          currentBalance: '0',
+          newBalance: decodedData.parameters[1].value.toString(),
+        },
+        totalSupply: '0',
+        holdersCount: 0,
+        token: {
+          address: tokenAddress,
+          name: 'Unknown',
+          symbol: 'Unknown',
+          decimals: 0,
+          logo: null,
+          priceUsd: null,
+        },
+      }
+    }
+
     const [currentBalance, tokenInfo, token] = await Promise.all([
       Web3Helper.getTokenBalanceAtBlock({
-        tokenAddress: action.to,
+        tokenAddress,
         address: receiver,
         network: document.network!,
         blockNumber: document.blockNumber!,
       }),
-      Covalent.getTokenSupplyAndHolders(action.to, document.network!, document.blockNumber),
-      ProxyToken.saveAndGetToken(action.to, document.network!),
+      Covalent.getTokenSupplyAndHolders(tokenAddress, document.network!, document.blockNumber),
+      ProxyToken.saveAndGetToken(tokenAddress, document.network!),
     ])
 
     return {
@@ -215,15 +245,15 @@ class DecodeActions {
         currentBalance: currentBalance.toString(),
         newBalance: (BigInt(decodedData.parameters[1].value) + BigInt(currentBalance)).toString(),
       },
-      totalSupply: tokenInfo?.totalSupply,
-      holdersCount: tokenInfo?.totalHolders,
+      totalSupply: tokenInfo.totalSupply,
+      holdersCount: tokenInfo.totalHolders,
       token: {
+        address: token!.address,
         name: token!.name,
         symbol: token!.symbol,
         decimals: token!.decimals,
         logo: token!.logo,
         priceUsd: token!.priceUsd,
-        address: token!.address,
       },
     }
   }

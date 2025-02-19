@@ -1,8 +1,6 @@
 import logger from '@logger'
 import { ethers, Interface, type Log } from 'ethers'
 import { EnumQueueName, type NetworksEnum } from '@types'
-import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { Models } from '@dbModels'
 import { RabbitMQHelper } from '@helpers/radditMQ'
@@ -37,14 +35,14 @@ export const BlockHandler = {
       config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME * 1000 * config.CONFIRMATION_BLOCKS,
     )
 
-    await BlockHandler._checkIfDepositEvents(block, network)
+    await BlockHandler._checkIfDepositEvents(blockReceipts, network)
 
     await BlockHandler.processReceiver(block.hash, toAddresses, network)
   },
 
   processReceiver: async (transactionHash: string, toAddresses: string[], network: NetworksEnum) => {
     const daos = await Models.Dao.find({ address: { $in: toAddresses }, network })
-    if (!daos.length) return
+    if (!daos || daos.length === 0) return
 
     await Promise.all(
       daos.map(async (dao: any) => {
@@ -61,23 +59,18 @@ export const BlockHandler = {
     )
   },
 
-  _checkIfDepositEvents: async (block: any, network: NetworksEnum) => {
-    const blockHex = '0x' + Number(block.number).toString(16)
-    const provider = ProviderModule.getAnyRpcProvider(network)
+  _checkIfDepositEvents: async (blockReceipts: any, network: NetworksEnum) => {
     const topicHash = [
       new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
       new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
     ]
 
-    const filter = {
-      fromBlock: blockHex,
-      toBlock: blockHex,
-      topics: [[topicHash[0], topicHash[1]]],
-    }
-
-    const logs = await retryRequest(async () =>
-      BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getLogs(filter)),
-    )
+    const logs = blockReceipts.reduce((acc: any, receipt: any) => {
+      const logsToHandle = receipt.logs.filter((log: any) => {
+        return topicHash.includes(log.topics[0])
+      })
+      return acc.concat(logsToHandle)
+    }, [])
 
     if (!logs || logs.length === 0) {
       return
@@ -110,7 +103,7 @@ export const BlockHandler = {
       try {
         decoded = erc721Interface.parseLog(log)
       } catch (e) {
-        logger.warn('Error decoding transfer event', llo({ error: e, transactionHash: log.transactionHash }))
+        // skip
       }
     }
     return decoded ? decoded.args.to : null
