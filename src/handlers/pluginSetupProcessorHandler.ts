@@ -6,7 +6,6 @@ import {
   IPluginActionType,
   IPluginInterfaceType,
   ISPPLogs,
-  NetworksEnum,
 } from '@types'
 import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
