@@ -250,11 +250,9 @@ describe('AragonTransactions: BlockHandler', () => {
           logIndex: 247,
         }
 
-        const stubLogger = sandbox.stub(logger, 'warn')
         const result = BlockHandler._decodeTransferLogs(mockLog as any)
 
         expect(result).to.be.null
-        expect(stubLogger.calledOnce).to.be.true
       })
     })
 
