@@ -120,6 +120,7 @@ export const ProxyToken = {
       underlying: tokenTypeInfo.isUnderlying ? await Web3Helper.getUnderlying(tokenAddress, network) : null,
       type: tokenTypeInfo.type,
       isGovernance: tokenTypeInfo.isGovernance,
+      hasDelegate: tokenTypeInfo.hasDelegate,
       implementationAddress: tokenTypeInfo.implementationAddress! ?? null,
       network,
       lastUpdatedAt: dayjs.utc().toDate(),
