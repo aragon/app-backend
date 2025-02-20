@@ -10,6 +10,8 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   IPluginStatus,
+  ITransferSide,
+  ITransferType,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -306,6 +308,42 @@ export default class Member extends Model {
             proposalCount: 1,
           },
         ),
+        AggregationQueryHelper.memberTransaction(
+          {
+            memberAddress: '$address',
+            tokenAddress: '$daoPlugin.tokenAddress',
+            network: '$daoPlugin.network',
+            side: ITransferSide.outgoing,
+            type: ITransferType.delegate,
+          },
+          'memberTransaction',
+          {
+            transactionHash: 1,
+            blockNumber: 1,
+            address: 1,
+            from: 1,
+            to: 1,
+          },
+          {
+            blockNumber: -1,
+          },
+          1,
+        ),
+        AggregationQueryHelper.token(
+          {
+            address: '$daoPlugin.tokenAddress',
+            network: '$daoPlugin.network',
+          },
+          'token',
+          {
+            isGovernance: 1,
+          },
+        ),
+        {
+          $addFields: {
+            delegation: { $ifNull: [{ $arrayElemAt: ['$token.isGovernance', 0] }, false] },
+          },
+        },
       )
     }
 
@@ -331,6 +369,20 @@ export default class Member extends Model {
               proposalCount: 0,
             },
           ],
+        },
+        features: {
+          isGovernance: '$delegation',
+          lastDelegate: {
+            $ifNull: [
+              {
+                $let: {
+                  vars: { tx: { $arrayElemAt: ['$memberTransaction', 0] } },
+                  in: '$$tx.to',
+                },
+              },
+              null,
+            ],
+          },
         },
       },
     })
