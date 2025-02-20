@@ -336,12 +336,12 @@ export default class Member extends Model {
           },
           'token',
           {
-            isGovernance: 1,
+            hasDelegate: 1,
           },
         ),
         {
           $addFields: {
-            delegation: { $ifNull: [{ $arrayElemAt: ['$token.isGovernance', 0] }, false] },
+            hasDelegate: { $ifNull: [{ $arrayElemAt: ['$token.hasDelegate', 0] }, false] },
           },
         },
       )
@@ -370,19 +370,18 @@ export default class Member extends Model {
             },
           ],
         },
-        features: {
-          isGovernance: '$delegation',
-          lastDelegate: {
-            $ifNull: [
-              {
-                $let: {
-                  vars: { tx: { $arrayElemAt: ['$memberTransaction', 0] } },
-                  in: '$$tx.to',
-                },
+        isGovernance: '$delegation',
+        hasDelegate: '$hasDelegate',
+        lastDelegate: {
+          $ifNull: [
+            {
+              $let: {
+                vars: { tx: { $arrayElemAt: ['$memberTransaction', 0] } },
+                in: '$$tx.to',
               },
-              null,
-            ],
-          },
+            },
+            null,
+          ],
         },
       },
     })
