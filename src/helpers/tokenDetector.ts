@@ -48,6 +48,8 @@ export const GOVERNANCE_ERC20_FUNCTIONS = [
   'getPastVotes(address,uint256)',
 ]
 
+export const HAS_DELEGATE = ['delegate(address)']
+
 export const HAS_UNDERLYING = ['underlying()']
 
 const allFunctions = [
@@ -56,6 +58,7 @@ const allFunctions = [
   ...ERC1155_FUNCTIONS,
   ...ERC777_FUNCTIONS,
   ...GOVERNANCE_ERC20_FUNCTIONS,
+  ...HAS_DELEGATE,
   ...HAS_UNDERLYING,
 ]
 
@@ -72,6 +75,7 @@ async function detectTokenType(address: string, network: NetworksEnum): Promise<
       implementationAddress: null,
       isGovernance: false,
       isUnderlying: false,
+      hasDelegate: false,
     }
   }
 
@@ -89,6 +93,7 @@ async function detectTokenType(address: string, network: NetworksEnum): Promise<
     implementationAddress: implementationAddress || null,
     type: ITokenType.unknown,
     isGovernance: false,
+    hasDelegate: false,
     isUnderlying: false,
   }
 
@@ -103,6 +108,10 @@ async function detectTokenType(address: string, network: NetworksEnum): Promise<
 
     function hasFunctions(functions: string[]): boolean {
       return functions.every(func => hasFunction(func))
+    }
+
+    if (hasFunctions(HAS_DELEGATE)) {
+      contractDetails.hasDelegate = true
     }
 
     if (hasFunctions(GOVERNANCE_ERC20_FUNCTIONS)) {
