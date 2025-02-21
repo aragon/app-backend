@@ -5,7 +5,7 @@ import TokenDetector, {
   ERC20_FUNCTIONS,
   ERC721_FUNCTIONS,
   ERC777_FUNCTIONS,
-  GOVERNANCE_ERC20_FUNCTIONS,
+  ERC20_VOTES_FUNCTIONS,
   HAS_UNDERLYING,
 } from '@helpers/tokenDetector'
 import { beforeEach } from 'mocha'
@@ -62,7 +62,7 @@ describe('Helper: TokenDetector', () => {
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox
         .stub()
-        .resolves(simulateBytecodeForFunctions([...ERC20_FUNCTIONS, ...GOVERNANCE_ERC20_FUNCTIONS, ...HAS_UNDERLYING])),
+        .resolves(simulateBytecodeForFunctions([...ERC20_FUNCTIONS, ...ERC20_VOTES_FUNCTIONS, ...HAS_UNDERLYING])),
     } as any)
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
