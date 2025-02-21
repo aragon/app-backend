@@ -74,23 +74,6 @@ const GovernanceErc20Helper = {
       return '0'
     }
   },
-
-  async getDelegates(
-    memberAddress: HexAddress,
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<HexAddress | false> {
-    const provider = ProviderModule.getAnyRpcProvider(network)
-    const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
-    try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.delegates(memberAddress)),
-      )
-    } catch (error) {
-      logger.error('Error getting delegates', llo({ memberAddress, tokenAddress, network, error }))
-      return '0'
-    }
-  },
 }
 
 export default GovernanceErc20Helper
