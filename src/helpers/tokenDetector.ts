@@ -41,12 +41,7 @@ export const ERC777_FUNCTIONS = [
   'operatorBurn(address,uint256,bytes,bytes)',
 ]
 
-export const GOVERNANCE_ERC20_FUNCTIONS = [
-  'delegates(address)',
-  'delegate(address)',
-  'getVotes(address)',
-  'getPastVotes(address,uint256)',
-]
+export const ERC20_VOTES_FUNCTIONS = ['getVotes(address)', 'getPastVotes(address,uint256)']
 
 export const HAS_DELEGATE = ['delegate(address)']
 
@@ -57,7 +52,7 @@ const allFunctions = [
   ...ERC721_FUNCTIONS,
   ...ERC1155_FUNCTIONS,
   ...ERC777_FUNCTIONS,
-  ...GOVERNANCE_ERC20_FUNCTIONS,
+  ...ERC20_VOTES_FUNCTIONS,
   ...HAS_DELEGATE,
   ...HAS_UNDERLYING,
 ]
@@ -114,7 +109,7 @@ async function detectTokenType(address: string, network: NetworksEnum): Promise<
       contractDetails.hasDelegate = true
     }
 
-    if (hasFunctions(GOVERNANCE_ERC20_FUNCTIONS)) {
+    if (hasFunctions(ERC20_VOTES_FUNCTIONS)) {
       contractDetails.isGovernance = true
     }
 
