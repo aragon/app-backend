@@ -50,6 +50,7 @@ const TransactionRouter = {
     const params = {
       transactionHash: ctx.params.transactionHash,
       network: ctx.params.network,
+      type: ctx.query.type,
     }
 
     const formattedParams = await ValidationSchema.validateParams(
@@ -59,12 +60,24 @@ const TransactionRouter = {
 
     ctx.body = await TransactionController.getTransactionIndexingStatus(
       formattedParams.transactionHash,
+      formattedParams.type,
       formattedParams.network,
     )
   },
 
   router() {
     const router = new Router()
+
+    /**
+     * @api {get} /:network/:txHash/status Get Transaction Indexing Status
+     * @apiName TransactionIndexingStatus
+     * @apiGroup Transactions
+     * @apiDescription Get Transaction Indexing Status
+     * @apiParam {String} Network
+     * @apiParam {String} txHash Transaction Hash
+     * @queryParam {String} [type] Transaction Type
+     */
+    router.get('/:network/:txHash/status', TransactionRouter.getTransactionIndexingStatus)
 
     /**
      * @api {get} / Get Transactions
@@ -77,16 +90,7 @@ const TransactionRouter = {
      */
     router.get('/', TransactionRouter.getWithPagination)
 
-    /**
-     * @api {get} /indexing-status Get Transaction Indexing Status
-     * @apiName Transaction Indexing Status
-     * @apiGroup Transactions
-     * @apiDescription Get Transaction Indexing Status
-     *
-     * @apiParam {String} transactionHash Transaction Hash
-     */
-
-    return router.get('/indexing-status/:network/:transactionHash', TransactionRouter.getTransactionIndexingStatus)
+    return router
   },
 }
 
