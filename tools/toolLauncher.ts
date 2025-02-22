@@ -20,6 +20,7 @@ import ToolsSyncCustomPlugin from '@tools/syncCustomPlugin'
 import ToolsManualSyncToken from '@tools/manualFixTokenRate'
 import ToolsFixMissingVotes from '@tools/fixMissingVotes'
 import RefetchProposalsMetrics from '@tools/refetchProposalMetrics'
+import ManualSyncNectorDao from '@tools/manualSyncNectar'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -45,6 +46,7 @@ const runners = {
   ToolsManualSyncToken,
   ToolsFixMissingVotes,
   RefetchProposalsMetrics,
+  ManualSyncNectorDao,
 }
 
 const appToRun = runners[TOOL_RUN!]
