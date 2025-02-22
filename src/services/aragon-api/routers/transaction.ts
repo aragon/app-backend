@@ -48,7 +48,7 @@ const TransactionRouter = {
   },
   getTransactionIndexingStatus: async function (ctx: RouterContext) {
     const params = {
-      transactionHash: ctx.params.transactionHash,
+      transactionHash: ctx.params.txHash,
       network: ctx.params.network,
       type: ctx.query.type,
     }
