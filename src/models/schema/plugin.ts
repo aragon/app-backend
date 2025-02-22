@@ -76,6 +76,7 @@ class Link {
 @index({ network: 1, address: 1, daoAddress: 1, tokenAddress: 1 })
 @index({ network: 1, tokenAddress: 1 })
 @index({ network: 1, status: 1, interfaceType: 1 })
+@index({ address: 1 })
 export default class Plugin extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -203,7 +204,11 @@ export default class Plugin extends Model {
   }
 
   static async findByAddress(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    return await this.findOne({ address, network }, null, tOpts)
+    const supportedPlugin = await this.findOne({ address, network, isSupported: true }, null, tOpts)
+    if (supportedPlugin) {
+      return supportedPlugin
+    }
+    return await this.findOne({ address, network, isSupported: false }, null, tOpts)
   }
 
   static async findByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {

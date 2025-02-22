@@ -120,6 +120,7 @@ export const ProxyToken = {
       underlying: tokenTypeInfo.isUnderlying ? await Web3Helper.getUnderlying(tokenAddress, network) : null,
       type: tokenTypeInfo.type,
       isGovernance: tokenTypeInfo.isGovernance,
+      hasDelegate: tokenTypeInfo.hasDelegate,
       implementationAddress: tokenTypeInfo.implementationAddress! ?? null,
       network,
       lastUpdatedAt: dayjs.utc().toDate(),
@@ -181,7 +182,7 @@ export const ProxyToken = {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
     }
 
-    if (tokenRate.decimals === null || !tokenRate.name || !tokenRate.symbol) {
+    if (tokenType === ITokenType.ERC20 && (tokenRate.decimals === null || !tokenRate.name || !tokenRate.symbol)) {
       const onChainTokenInfo = await Web3Helper.getTokenInfo(tokenAddress, network)
       Object.assign(tokenRate, onChainTokenInfo)
     }

@@ -6,6 +6,7 @@ export interface ITokenInfo {
   implementationAddress: string | null
   isGovernance: boolean
   isUnderlying: boolean
+  hasDelegate: boolean
 }
 
 export interface ITokenRate {

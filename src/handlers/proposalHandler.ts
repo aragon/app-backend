@@ -320,15 +320,15 @@ export const ProposalHandler = {
         return
       }
 
+      if (!plugin.isSupported && !plugin.tokenAddress) {
+        logger.warn('VoteCast - plugin not supported', llo(info))
+        return
+      }
+
       const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
 
       if (!proposal) {
         logger.warn('VoteCast - Proposal not found', llo(info))
-        return
-      }
-
-      if (!plugin.isSupported && !plugin.tokenAddress) {
-        logger.warn('VoteCast - plugin not supported', llo(info))
         return
       }
 
@@ -423,30 +423,38 @@ export const ProposalHandler = {
       const parsedParams = {
         proposalIndex: parsedEvent.args.proposalId.toString(),
       }
-      const proposal = await Models.Proposal.findByProposalIndex(parsedParams.proposalIndex, info.address, info.network)
-      if (!proposal) {
-        logger.warn('proposal not found', llo({ ...info, parsedEvent }))
-        return
-      }
 
-      if (proposal?.executed?.status) return
+      const proposal = await DbTx.executeTxFn(async ({ session }) => {
+        const proposal = await Models.Proposal.findByProposalIndex(
+          parsedParams.proposalIndex,
+          info.address,
+          info.network,
+          { session },
+        )
+        if (!proposal) {
+          logger.warn('proposal not found', llo({ ...info, parsedEvent }))
+          return
+        }
 
-      const rawUpdate = {
-        executed: {
-          status: true,
-          blockNumber: info.blockNumber,
-          transactionHash: info.transactionHash,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
-        },
-      }
+        if (proposal?.executed?.status) return
 
-      await DbOperations.updateDocument(
-        proposal,
-        rawUpdate,
-        { logId: proposal.id, info },
-        'Update proposalExecuted',
-        llo,
-      )
+        const rawUpdate = {
+          executed: {
+            status: true,
+            blockNumber: info.blockNumber,
+            transactionHash: info.transactionHash,
+            blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+          },
+        }
+
+        const logDb = await proposal.update(rawUpdate, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Updated proposal executed', llo({ logDb: logDb.id, info }))
+        return logDb
+      })
+
+      if (!proposal) return
 
       await Promise.all([
         RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
