@@ -30,6 +30,7 @@ const TransactionRouter = {
     const anyInvalidParams = Utils.extractAdditionalParams(
       { ...paginationParams, ...extraParams, ...pairParams },
       ctx.query,
+      ['address'],
     )
 
     const [formattedPaginationParams, formattedExtraParams, formattedPairParams] = await Promise.all([

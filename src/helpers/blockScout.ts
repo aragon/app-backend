@@ -214,7 +214,7 @@ const BlockScoutHelper = {
       }
       const results = await BlockScoutHelper._rpCall(`addresses/${address}/transactions`, params, network)
       if (results.items.length) {
-        return results.items.map((item: any) => ({ txHash: item.hash }))
+        return results.items.map((item: any) => ({ txHash: item.hash, blockNumber: item.block_number }))
       }
     } catch (error) {
       logger.warn('Error getTransactionOfAnAddress', llo({ error }))

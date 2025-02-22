@@ -15,6 +15,7 @@ export const ERC20_FUNCTIONS = [
 
 export const ERC721_FUNCTIONS = [
   'ownerOf(uint256)',
+  'balanceOf(address)',
   'approve(address,uint256)',
   'getApproved(uint256)',
   'setApprovalForAll(address,bool)',
@@ -40,12 +41,9 @@ export const ERC777_FUNCTIONS = [
   'operatorBurn(address,uint256,bytes,bytes)',
 ]
 
-export const GOVERNANCE_ERC20_FUNCTIONS = [
-  'delegates(address)',
-  'delegate(address)',
-  'getVotes(address)',
-  'getPastVotes(address,uint256)',
-]
+export const ERC20_VOTES_FUNCTIONS = ['getVotes(address)', 'getPastVotes(address,uint256)']
+
+export const HAS_DELEGATE = ['delegate(address)']
 
 export const HAS_UNDERLYING = ['underlying()']
 
@@ -54,7 +52,8 @@ const allFunctions = [
   ...ERC721_FUNCTIONS,
   ...ERC1155_FUNCTIONS,
   ...ERC777_FUNCTIONS,
-  ...GOVERNANCE_ERC20_FUNCTIONS,
+  ...ERC20_VOTES_FUNCTIONS,
+  ...HAS_DELEGATE,
   ...HAS_UNDERLYING,
 ]
 
@@ -71,6 +70,7 @@ async function detectTokenType(address: string, network: NetworksEnum): Promise<
       implementationAddress: null,
       isGovernance: false,
       isUnderlying: false,
+      hasDelegate: false,
     }
   }
 
@@ -88,6 +88,7 @@ async function detectTokenType(address: string, network: NetworksEnum): Promise<
     implementationAddress: implementationAddress || null,
     type: ITokenType.unknown,
     isGovernance: false,
+    hasDelegate: false,
     isUnderlying: false,
   }
 
@@ -104,7 +105,11 @@ async function detectTokenType(address: string, network: NetworksEnum): Promise<
       return functions.every(func => hasFunction(func))
     }
 
-    if (hasFunctions(GOVERNANCE_ERC20_FUNCTIONS)) {
+    if (hasFunctions(HAS_DELEGATE)) {
+      contractDetails.hasDelegate = true
+    }
+
+    if (hasFunctions(ERC20_VOTES_FUNCTIONS)) {
       contractDetails.isGovernance = true
     }
 

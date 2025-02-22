@@ -33,6 +33,7 @@ const customName = ICollectionNames.Token
 })
 @index({ id: 1 }, { unique: true })
 @index({ address: 1, network: 1 })
+@index({ lastUpdatedAt: 1, network: 1, skipFetchRate: 1 })
 export default class Token extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -96,6 +97,9 @@ export default class Token extends Model {
 
   @utcDateProp({ default: null })
   public lastUpdatedAt!: Date
+
+  @prop({ type: () => Boolean, default: false })
+  public hasDelegate!: boolean
 
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
     if (!rawData.id) {

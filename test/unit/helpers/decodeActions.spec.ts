@@ -17,7 +17,7 @@ import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
 import BlockScoutHelper from '@helpers/blockScout'
 import EtherscanHelper from '@helpers/etherscan'
-import TokenDetector from '@helpers/tokenDetector'
+import { IBlockScoutAddressType } from '@src/types/blockScout'
 
 describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
@@ -1398,7 +1398,12 @@ describe('Helpers: DecodeActions', () => {
         daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         value: '0x40c10f19',
+        network: NetworksEnum.ethereumSepolia,
       }
+
+      const searchDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves({
+        type: IBlockScoutAddressType.TOKEN,
+      } as any)
 
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
@@ -1419,13 +1424,10 @@ describe('Helpers: DecodeActions', () => {
         ens: 'abc.eth',
       } as any)
 
-      const stubDetectTokenType = sandbox
-        .stub(TokenDetector, 'detectTokenType')
-        .resolves({ type: ITokenType.ERC20 } as any)
       const tokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1000000000000000000')
 
       const result = await decodeActions._parseMintAction(baseAction, action, document as any)
-      expect(stubDetectTokenType.calledOnce).to.be.true
+
       expect(createMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true
@@ -1433,6 +1435,66 @@ describe('Helpers: DecodeActions', () => {
       expect(result!.totalSupply).to.be.eq('1000000000000000000')
       expect(result!.holdersCount).to.be.eq(1)
       expect(tokenBalanceAtBlockStub.calledOnce).to.be.true
+      expect(searchDetailsStub.calledOnce).to.be.true
+    })
+
+    it('should return not proper info when the token is not exist on-chain', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'mint(address,uint256)',
+        function: 'mint',
+        contract: 'IERC20Mint',
+        parameters: [
+          {
+            name: 'to',
+            type: 'address',
+            value: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          },
+          {
+            name: 'amount',
+            type: 'uint256',
+            value: 10n,
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc319700',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0x40c10f19',
+        network: NetworksEnum.ethereumSepolia,
+      }
+
+      const searchDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves({
+        type: IBlockScoutAddressType.ADDRESS,
+      } as any)
+
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
+
+      const covalentTokenInfo = sandbox.stub(Covalent, 'getTokenSupplyAndHolders')
+
+      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
+        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        ens: 'abc.eth',
+      } as any)
+
+      const tokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock')
+      const result = await decodeActions._parseMintAction(baseAction, action, document as any)
+
+      expect(createMemberStub.calledOnce).to.be.true
+      expect(result?.type).to.be.eq(ProposalActionType.Mint)
+      expect(saveAndGetTokenStub.calledOnce).to.be.false
+      expect(covalentTokenInfo.calledOnce).to.be.false
+      expect(tokenBalanceAtBlockStub.calledOnce).to.be.false
+      expect(searchDetailsStub.calledOnce).to.be.true
+      expect(result!.totalSupply).to.be.eq('0')
+      expect(result!.holdersCount).to.be.eq(0)
     })
 
     it('should retunr null if the signature is not correct for updateDaoMetadata', async () => {
