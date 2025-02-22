@@ -1,10 +1,11 @@
 import { Models } from '@dbModels'
 import {
+  IndexCheckTypeToModel,
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
   type ITransactionExtraParams,
-  ITransactionIndexedModel,
+  ITransactionIndexCheckType,
   type ITransactionResponse,
   type NetworksEnum,
 } from '@types'
@@ -25,17 +26,38 @@ const TransactionController = {
     return result
   },
 
-  getTransactionIndexingStatus: async (txHash: string, network: NetworksEnum): Promise<boolean> => {
-    try {
-      const results = await Promise.all(
-        Object.values(ITransactionIndexedModel).map(modelName =>
-          Models[modelName].findOne({ transactionHash: txHash, network }),
-        ),
-      )
+  getTransactionIndexingStatus: async (
+    txHash: string,
+    action: ITransactionIndexCheckType,
+    network: NetworksEnum,
+  ): Promise<{ isProcessed: boolean }> => {
+    const response = { isProcessed: false }
 
-      return results.some(result => !!result)
+    try {
+      const model = IndexCheckTypeToModel[action]
+      let queryToCheck: any
+      switch (action) {
+        case ITransactionIndexCheckType.PROPOSAL_EXECUTE:
+          queryToCheck = {
+            'executed.transactionHash': txHash,
+            network,
+          }
+          break
+        case ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE:
+          queryToCheck = {
+            'stageExecutions.transactionHash': txHash,
+            network,
+          }
+          break
+        default:
+          queryToCheck = { transactionHash: txHash, network }
+          break
+      }
+
+      response.isProcessed = !!(await Models[model].findOne(queryToCheck))
+      return response
     } catch (error) {
-      return false
+      return response
     }
   },
 }
