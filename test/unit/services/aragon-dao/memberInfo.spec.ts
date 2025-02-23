@@ -39,9 +39,9 @@ describe('AragonDao: memberInfo', () => {
       expect(getVotesStub.calledOnce).to.be.false
       expect(getDelegateStub.calledOnce).to.be.false
       expect(result).to.deep.equal({
-        balance: undefined,
-        votingPower: undefined,
-        currentDelegate: undefined,
+        balance: null,
+        votingPower: null,
+        currentDelegate: null,
       })
     })
 
@@ -69,7 +69,7 @@ describe('AragonDao: memberInfo', () => {
       expect(result).to.deep.equal({
         balance: '100',
         votingPower: '200',
-        currentDelegate: undefined,
+        currentDelegate: null,
       })
     })
 
@@ -123,9 +123,9 @@ describe('AragonDao: memberInfo', () => {
       expect(proxyTokenStub.calledWith('0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
       expect(getDelegateStub.calledOnce).to.be.false
       expect(result).to.deep.equal({
-        balance: undefined,
-        votingPower: undefined,
-        currentDelegate: undefined,
+        balance: null,
+        votingPower: null,
+        currentDelegate: null,
       })
     })
 
@@ -143,9 +143,9 @@ describe('AragonDao: memberInfo', () => {
       expect(proxyTokenStub.calledOnce).to.be.false
       expect(getDelegateStub.calledOnce).to.be.false
       expect(result).to.deep.equal({
-        balance: undefined,
-        votingPower: undefined,
-        currentDelegate: undefined,
+        balance: null,
+        votingPower: null,
+        currentDelegate: null,
       })
     })
 
@@ -167,9 +167,9 @@ describe('AragonDao: memberInfo', () => {
       expect(pluginStub.calledOnce).to.be.true
       expect(proxyTokenStub.calledOnce).to.be.false
       expect(result).to.deep.equal({
-        balance: undefined,
-        votingPower: undefined,
-        currentDelegate: undefined,
+        balance: null,
+        votingPower: null,
+        currentDelegate: null,
       })
     })
 
@@ -189,9 +189,9 @@ describe('AragonDao: memberInfo', () => {
       expect(pluginStub.calledOnce).to.be.true
       expect(proxyTokenStub.calledOnce).to.be.false
       expect(result).to.deep.equal({
-        balance: undefined,
-        votingPower: undefined,
-        currentDelegate: undefined,
+        balance: null,
+        votingPower: null,
+        currentDelegate: null,
       })
     })
 
