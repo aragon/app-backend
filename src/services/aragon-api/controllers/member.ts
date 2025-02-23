@@ -36,13 +36,11 @@ const MemberController = {
       return ModelUtils.paginateEmptyResponse(paginationParams.limit!)
     }
 
-    const result = await Models.Member.findWithPagination({
+    return await Models.Member.findWithPagination({
       extraParams,
       paginationParams,
       extraQueryData: { memberAddresses },
     })
-
-    return result
   },
 
   getMemberByAddress: async (
