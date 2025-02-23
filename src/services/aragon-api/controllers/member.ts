@@ -66,9 +66,10 @@ const MemberController = {
             },
           },
           { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
-        )) as unknown as { balance: string; votingPower: string }
+        )) as unknown as { balance: string; votingPower: string; currentDelegate: null }
         member.balance = balanceInfo.balance
         member.votingPower = balanceInfo.votingPower
+        member.currentDelegate = balanceInfo.currentDelegate
       } catch (error) {
         return member
       }

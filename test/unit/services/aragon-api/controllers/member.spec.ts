@@ -318,6 +318,7 @@ describe('Controller: Member', () => {
     const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').returns({
       votingPower: '1',
       balance: '1',
+      currentDelegate: '0xdelegate',
     } as any)
 
     const response = await MemberController.getMemberByAddress(
@@ -344,6 +345,7 @@ describe('Controller: Member', () => {
     expect(response.ens).to.eq(rawMember.ens)
     expect(response.balance).to.eq('1')
     expect(response.votingPower).to.eq('1')
+    expect(response.currentDelegate).to.eq('0xdelegate')
   })
 
   it('should return the member even if RabbitMQHelper.sendMessage throws an error', async () => {
@@ -372,5 +374,6 @@ describe('Controller: Member', () => {
     expect(response.ens).to.eq(rawMember.ens)
     expect(response.balance).to.be.undefined
     expect(response.votingPower).to.be.null
+    expect(response.currentDelegate).to.be.null
   })
 })
