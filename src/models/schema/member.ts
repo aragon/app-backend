@@ -59,8 +59,7 @@ export default class Member extends Model {
   }
 
   static getEntityId(params: IMemberIdParams) {
-    const entityId = `${params.address}`
-    return entityId
+    return `${params.address}`
   }
 
   static async findExistingLog(params: IMemberIdParams, tOpts?: SaveOptions) {
