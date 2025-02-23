@@ -374,6 +374,6 @@ describe('Controller: Member', () => {
     expect(response.ens).to.eq(rawMember.ens)
     expect(response.balance).to.be.undefined
     expect(response.votingPower).to.be.null
-    expect(response.currentDelegate).to.be.null
+    expect(response.currentDelegate).to.be.undefined
   })
 })
