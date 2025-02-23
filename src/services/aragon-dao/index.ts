@@ -77,8 +77,8 @@ const AragonDaoService: IService = {
     })
 
     await RabbitMQHelper.process(EnumQueueName.memberBalance, config.RABBITMQ.DEFAULT_CONCURRENCY, async (job: any) => {
-      const { userAddress, tokenAddress, network } = job.params as IQueueMemberBalanceInfo
-      return await MemberInfo.getByTokenAddress(userAddress, tokenAddress, network)
+      const { userAddress, tokenAddress, network, pluginAddress } = job.params as IQueueMemberBalanceInfo
+      return await MemberInfo.getByTokenAddress(userAddress, pluginAddress, tokenAddress, network)
     })
 
     await RabbitMQHelper.process(

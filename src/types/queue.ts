@@ -40,6 +40,7 @@ export interface IQueueVoteInfo {
 export interface IQueueMemberBalanceInfo {
   userAddress: HexAddress
   tokenAddress: HexAddress
+  pluginAddress: HexAddress
   network: NetworksEnum
 }
 
