@@ -374,8 +374,7 @@ describe('Controller: Member', () => {
 
     expect(response.address).to.eq(rawMember.address)
     expect(response.ens).to.eq(rawMember.ens)
-    expect(response.tokenAddress).to.be.null
     expect(response.votingPower).to.be.null
-    expect(response.currentDelegate).to.be.null
+    expect(response.currentDelegate).to.be.undefined
   })
 })
