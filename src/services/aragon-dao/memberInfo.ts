@@ -12,7 +12,7 @@ export const MemberInfo = {
     const response = {
       balance: '0',
       votingPower: '0',
-      currentDelegate: '',
+      currentDelegate: null,
     }
 
     try {
