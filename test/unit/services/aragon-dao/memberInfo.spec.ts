@@ -27,11 +27,10 @@ describe('AragonDao: memberInfo', () => {
 
       const result = await MemberInfo.getByTokenAddress('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)
 
-      expect(getERC20BalanceStub.calledOnce).to.be.true
-      expect(getERC20BalanceStub.calledWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
-      expect(getVotesStub.calledOnce).to.be.false
       expect(proxyTokenStub.calledOnce).to.be.true
       expect(proxyTokenStub.calledWith('0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(getERC20BalanceStub.calledOnce).to.be.false
+      expect(getVotesStub.calledOnce).to.be.false
       expect(getDelegateStub.calledOnce).to.be.false
       expect(result).to.deep.equal({
         balance: '0',
