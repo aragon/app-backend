@@ -11,14 +11,14 @@ export const MemberInfo = {
     tokenAddress: string | null,
     network: NetworksEnum,
   ): Promise<{
-    balance: string | undefined
-    votingPower: string | undefined
-    currentDelegate: string | undefined
+    balance: string | null
+    votingPower: string | null
+    currentDelegate: string | null
   }> => {
     const response = {
-      balance: undefined,
-      votingPower: undefined,
-      currentDelegate: undefined,
+      balance: null,
+      votingPower: null,
+      currentDelegate: null,
     }
 
     try {
