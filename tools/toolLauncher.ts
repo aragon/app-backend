@@ -21,6 +21,7 @@ import ToolsManualSyncToken from '@tools/manualFixTokenRate'
 import ToolsFixMissingVotes from '@tools/fixMissingVotes'
 import RefetchProposalsMetrics from '@tools/refetchProposalMetrics'
 import ManualSyncNectorDao from '@tools/manualSyncNectar'
+import RefetchDaoMetrics from '@tools/refetchDaoMetrics'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -47,6 +48,7 @@ const runners = {
   ToolsFixMissingVotes,
   RefetchProposalsMetrics,
   ManualSyncNectorDao,
+  RefetchDaoMetrics,
 }
 
 const appToRun = runners[TOOL_RUN!]
