@@ -218,10 +218,9 @@ class DBCrawler {
     if (!this.useAggregate) {
       this.nbTotal = await this.model.countDocuments(where)
     } else {
-      // count with aggregation query
-      // const countAggregatePipeline = [...this.aggregate(undefined, undefined), { $count: 'totalRecords' }]
-      // const countResponse = await this.model.aggregate(countAggregatePipeline).exec()
-      // this.nbTotal = countResponse.length > 0 && countResponse[0]?.totalRecords ? countResponse[0].totalRecords : 0
+      const countAggregatePipeline = [...this.aggregate(undefined, undefined), { $count: 'totalRecords' }]
+      const countResponse = await this.model.aggregate(countAggregatePipeline).exec()
+      this.nbTotal = countResponse.length > 0 && countResponse[0]?.totalRecords ? countResponse[0].totalRecords : 0
     }
 
     this.crawlResult.nbTotal = this.nbTotal
