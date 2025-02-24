@@ -504,11 +504,15 @@ export const ProposalHandler = {
       const subPlugins = plugin.subPlugins.find((subPlugin: { stageIndex: any }) => subPlugin.stageIndex === newStage)
 
       const timestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
+      const previousStageSubProposals = proposal.subProposals.filter(
+        (subProposal: any) => subProposal.stageIndex === newStage - 1,
+      )
+
       /**
        * We need to mark as executed all the sub proposals of the previous stage
        */
       await Promise.all(
-        proposal.subProposals.map(async (subProposal: any) => {
+        previousStageSubProposals.map(async (subProposal: any) => {
           const subProposalDb = await Models.Proposal.findByProposalIndex(
             subProposal.proposalIndex,
             subProposal.pluginAddress,
