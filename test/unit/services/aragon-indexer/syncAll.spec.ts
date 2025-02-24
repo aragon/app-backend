@@ -10,7 +10,7 @@ import RabbitMQ from '@modules/rabbitMQ'
 import utils from '@helpers/utils'
 import { SyncAll } from '@indexer/syncAll'
 import { EnumQueueName, NetworksEnum } from '@types'
-import DBCrawler from "@models/utils/crawler";
+import DBCrawler from '@models/utils/crawler'
 
 describe('AragonIndexer: SyncAll', () => {
   let sandbox: SinonSandbox
@@ -176,7 +176,6 @@ describe('AragonIndexer: SyncAll', () => {
       sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         this.aggregate()
       })
-
 
       await SyncAll.start()
 
