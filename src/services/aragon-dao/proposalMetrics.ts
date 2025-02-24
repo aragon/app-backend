@@ -24,7 +24,7 @@ export const ProposalMetrics = {
           return
         }
 
-        const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network })
+        const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network }, { session })
         let missingVotes = 0
         if (!proposal.settings?.minApprovals) {
           logger.error(
