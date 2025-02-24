@@ -214,7 +214,7 @@ export default class Asset extends Model {
     }
   }
 
-  static async getDaoTvl(daoAddress: HexAddress, network: NetworksEnum) {
+  static async getDaoTvl(daoAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
     const query = [
       {
         $match: { daoAddress, network },
@@ -232,7 +232,11 @@ export default class Asset extends Model {
         },
       },
     ]
-    const response = await this.aggregate(query)
+    const aggregate = this.aggregate(query)
+    if (tOpts?.session) {
+      aggregate.session(tOpts.session)
+    }
+    const response = await aggregate
     return {
       tvlUsd: response[0]?.tvlUsd || 0,
       daoAddress,
