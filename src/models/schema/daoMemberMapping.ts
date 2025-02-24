@@ -47,8 +47,8 @@ export default class DaoMemberMapping extends Model {
     return await data.save(tOpts)
   }
 
-  static async countUniqueMembers(daoAddress: string, network: NetworksEnum) {
-    const result = await this.aggregate([
+  static async countUniqueMembers(daoAddress: string, network: NetworksEnum, tOpts?: SaveOptions) {
+    const aggregate = this.aggregate([
       {
         $match: {
           daoAddress,
@@ -65,6 +65,11 @@ export default class DaoMemberMapping extends Model {
       },
     ])
 
+    if (tOpts?.session) {
+      aggregate.session(tOpts.session)
+    }
+
+    const result = await aggregate
     return result[0]?.uniqueMemberCount || 0
   }
 
