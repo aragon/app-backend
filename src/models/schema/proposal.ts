@@ -204,6 +204,7 @@ class TxInfo {
 @index({ pluginAddress: 1 })
 @index({ 'rawActions.data': 1 })
 @index({ transactionHash: 1 })
+@index({ network: 1 })
 export default class Proposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
