@@ -40,7 +40,10 @@ const AragonPluginsService: IService = {
         logger.error('PluginSyncService: plugin not found', llo({ address, network }))
         return
       }
-      logger.verbose('PluginSyncService: start', llo({ address, network, pluginInterface: plugin.interfaceType }))
+      logger.verbose(
+        'PluginSyncService: start',
+        llo({ address, network, tokenAddress: plugin.tokenAddress, pluginInterface: plugin.interfaceType }),
+      )
 
       switch (plugin.interfaceType) {
         case IPluginInterfaceType.admin: {
