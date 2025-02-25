@@ -49,6 +49,8 @@ export const VoteInfo = {
           return await VoteInfo._handleForTokenVoting(voteInfo.userAddress, proposalInfo, plugin)
         case IPluginInterfaceType.multisig:
           return await VoteInfo._handleForMultiSig(voteInfo.userAddress, proposalInfo, plugin)
+        default:
+          return false
       }
     } catch (error) {
       return false

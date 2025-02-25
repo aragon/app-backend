@@ -198,10 +198,13 @@ describe('AragonDao: index', () => {
           userAddress: 'userAddress',
           tokenAddress: 'tokenAddress',
           network: NetworksEnum.ethereumMainnet,
+          pluginAddress: 'pluginAddress',
         },
       } as any)
 
-      expect(memberInfoStub.calledOnceWith('userAddress', 'tokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(
+        memberInfoStub.calledOnceWith('userAddress', 'pluginAddress', 'tokenAddress', NetworksEnum.ethereumMainnet),
+      ).to.be.true
     })
 
     it('should handle contractDecoder queue', async () => {

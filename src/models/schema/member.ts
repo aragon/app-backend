@@ -316,6 +316,12 @@ export default class Member extends Model {
             isGovernance: 1,
           },
         ),
+        {
+          $addFields: {
+            hasDelegate: { $ifNull: [{ $arrayElemAt: ['$token.hasDelegate', 0] }, false] },
+            isGovernance: { $ifNull: [{ $arrayElemAt: ['$token.isGovernance', 0] }, false] },
+          },
+        },
       )
     }
 

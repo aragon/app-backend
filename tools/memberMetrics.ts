@@ -7,7 +7,7 @@ import logger from '@logger'
 import { ProxyMember } from '@modules/proxyMember'
 import DbOperations from '@models/utils/dbOperations'
 
-const llo = logger.logMeta.bind(null, { service: 'Tools: DelegationCount' })
+const llo = logger.logMeta.bind(null, { service: 'Tools: MemberMetrics' })
 
 export interface IExtendedService extends IService {
   delegationCount: (member: Member) => Promise<void>
