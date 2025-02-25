@@ -138,14 +138,6 @@ class BlockchainLogCrawler {
 
       return await retryRequest(async () => Promise.all(batchRequests))
     } catch (e: any) {
-      const requestBody = JSON.parse(e?.requestBody).params[0]
-      logger.error(
-        'Error getting logs by batch',
-        llo({
-          fromBlock: Number(requestBody.fromBlock),
-          toBlock: Number(requestBody.toBlock),
-        }),
-      )
       throw e
     }
   }
