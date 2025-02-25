@@ -5,12 +5,12 @@ import { FetchRates } from '@services/aragon-rates/fetchRates'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
-import { RateModule } from '@modules/rates'
-import { ITokenType, NetworksEnum } from '@types'
+import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import BlockScoutHelper from '@helpers/blockScout'
-import CovalentHelper from '@helpers/covalent'
 import TokenUtils from '@helpers/tokenUtils'
+import { RabbitMQHelper } from '@helpers/radditMQ'
+import { FakeAsset } from '@test/mock/fakeAsset'
 
 describe('AragonRates: FetchRates', () => {
   let sandbox: SinonSandbox
@@ -28,16 +28,18 @@ describe('AragonRates: FetchRates', () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubFetchRates = sandbox.stub(FetchRates, 'onMainnetDocument')
       const stubFetchTestnetRates = sandbox.stub(FetchRates, 'onTestnetDocument')
+      const stubDaoMetrics = sandbox.stub(FetchRates, 'updateDaoMetrics')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onDocument(true)
       })
 
       await FetchRates.start()
 
-      expect(stubLogger.calledWith('End FetchRates' as any)).to.be.true
+      expect(stubLogger.calledWith('End FetchRates and dao metrics' as any)).to.be.true
       expect(stubFetchRates.calledOnceWith(true as any)).to.be.true
       expect(stubFetchTestnetRates.calledOnceWith(true as any)).to.be.true
       expect(crawlerStub.calledTwice).to.be.true
+      expect(stubDaoMetrics.calledOnce).to.be.true
     })
 
     it('should error the FetchRates', async () => {
@@ -46,12 +48,14 @@ describe('AragonRates: FetchRates', () => {
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onError(true)
       })
+      const stubDaoMetrics = sandbox.stub(FetchRates, 'updateDaoMetrics')
 
       await FetchRates.start()
 
-      expect(stubLogger.calledWith('End FetchRates' as any)).to.be.true
+      expect(stubLogger.calledWith('End FetchRates and dao metrics' as any)).to.be.true
       expect(stubLoggerError.calledTwice).to.be.true
       expect(crawlerStub.calledTwice).to.be.true
+      expect(stubDaoMetrics.calledOnce).to.be.true
     })
 
     it('should query and update the token', async () => {
@@ -82,6 +86,7 @@ describe('AragonRates: FetchRates', () => {
 
       sandbox.stub(logger, 'verbose')
       const onDocStub = sandbox.stub(FetchRates, 'onMainnetDocument')
+      sandbox.stub(FetchRates, 'updateDaoMetrics')
       await FetchRates.start()
       expect(onDocStub.callCount).to.be.equal(3)
     })
@@ -286,6 +291,7 @@ describe('AragonRates: FetchRates', () => {
         holders: 2,
         totalSupply: '2',
       }
+      sandbox.stub(logger, 'verbose')
       const stubTokenFullDetails = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(blockScoutInfo as any)
       await FetchRates.onTestnetDocument(tokenDb)
       expect(stubTokenFullDetails.calledOnce).to.be.true
@@ -316,6 +322,93 @@ describe('AragonRates: FetchRates', () => {
       await FetchRates.onTestnetDocument(tokenDb)
 
       expect(stubError.calledOnceWith('Error FetchRates on testnet' as any)).to.be.true
+    })
+  })
+
+  describe('updateDaoMetrics after rates', () => {
+    it('should update dao metrics', async () => {
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubOnDaoDocument = sandbox.stub(FetchRates, 'onDaoDocument')
+      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onDocument(true)
+      })
+
+      await FetchRates.updateDaoMetrics()
+
+      expect(stubLogger.calledWith('End Dao Metrics Update' as any)).to.be.true
+      expect(stubOnDaoDocument.calledOnceWith(true as any)).to.be.true
+      expect(crawlerStub.calledOnce).to.be.true
+    })
+
+    it('should error the dao metrics update', async () => {
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onError(true)
+      })
+
+      await FetchRates.updateDaoMetrics()
+
+      expect(stubLogger.calledWith('End Dao Metrics Update' as any)).to.be.true
+      expect(stubLoggerError.calledOnceWith('Error Dao Metrics Update' as any)).to.be.true
+      expect(crawlerStub.calledOnce).to.be.true
+    })
+
+    it('should handle the aggregation query and handle the crawler', async () => {
+      const stubLogger = sandbox.stub(logger, 'verbose')
+
+      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.aggregate()
+      })
+
+      await FetchRates.updateDaoMetrics()
+
+      expect(stubLogger.calledWithMatch('Start Dao Metrics Update' as any)).to.be.true
+      expect(stubLogger.calledWithMatch('End Dao Metrics Update' as any)).to.be.true
+      expect(crawlerStub.calledOnce).to.be.true
+    })
+
+    it('should handle the onDaoDocument', async () => {
+      const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      await FetchRates.onDaoDocument({ daoAddress: '0xdao', network: NetworksEnum.ethereumMainnet })
+      expect(
+        stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics as any, {
+          id: '0xdao',
+          params: { address: '0xdao', network: NetworksEnum.ethereumMainnet },
+        }),
+      ).to.be.true
+    })
+
+    it('should replicate the crawler', async () => {
+      const assets = [
+        {
+          ...FakeAsset,
+          id: '0xdao1',
+          daoAddress: '0xdao1',
+          network: NetworksEnum.polygonMainnet,
+        },
+        {
+          ...FakeAsset,
+          id: '0xdao2',
+          daoAddress: '0xdao2',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      ]
+
+      await Promise.all(
+        assets.map(async asset => {
+          await Models.Asset.create(asset)
+        }),
+      )
+
+      sandbox.stub(logger, 'verbose')
+      const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await FetchRates.updateDaoMetrics()
+
+      expect(stubSendMessage.calledTwice).to.be.true
+      expect(stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics as any, { id: '0xdao1' })).to.be.true
+      expect(stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics as any, { id: '0xdao2' })).to.be.true
     })
   })
 })
