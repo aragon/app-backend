@@ -77,3 +77,9 @@ export interface ITokenUpdate {
   holders: number
   totalSupply: string
 }
+
+export interface IMemberTokenInfo {
+  balance: string
+  votingPower: string
+  currentDelegate: HexAddress | null
+}
