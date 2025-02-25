@@ -46,4 +46,12 @@ describe('GovernanceErc20Helper', () => {
     const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(blockNumber, tokenAddress, network)
     expect(totalSupply).to.eq(500000000000000000000n)
   })
+
+  it('getDelegates', async () => {
+    const memberAddress = '0xc1d60f584879f024299DA0F19Cdb47B931E35b53'
+    const tokenAddress = '0xe4fBbB0B11b3B48D10B4753a1D2c00244b247b33'
+    const network = NetworksEnum.ethereumMainnet
+    const delegate = await GovernanceErc20Helper.getDelegates(memberAddress, tokenAddress, network)
+    expect(delegate).to.eq('0xc1d60f584879f024299DA0F19Cdb47B931E35b53')
+  })
 })

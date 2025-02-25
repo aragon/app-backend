@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
-import { IPluginStatus, NetworksEnum } from '@types'
+import { IPluginStatus, ITransferSide, ITransferType, NetworksEnum } from '@types'
 
 describe('AggregationQueryHelper', () => {
   let sandbox: SinonSandbox
@@ -414,6 +414,88 @@ describe('AggregationQueryHelper', () => {
           },
         },
       ])
+    })
+  })
+
+  describe('memberTransactions', () => {
+    it('should construct a valid aggregation query for memberTransactions', () => {
+      const response = AggregationQueryHelper.memberTransaction(
+        {
+          memberAddress: '0xMemberAddress',
+          tokenAddress: '0xtoken',
+          network: NetworksEnum.ethereumMainnet,
+          type: ITransferType.tokenTransfer,
+          side: ITransferSide.outgoing,
+        },
+        'memberTransaction',
+        {
+          transactionHash: 1,
+          blockNumber: 1,
+          address: 1,
+          from: 1,
+          to: 1,
+        },
+        {
+          blockNumber: -1,
+        },
+        1,
+      )
+
+      expect(response).to.deep.eq({
+        $lookup: {
+          from: 'MemberTransaction',
+          let: {
+            network: 'ethereum-mainnet',
+            type: 'tokenTransfer',
+            side: 'outgoing',
+            address: '0xMemberAddress',
+            tokenAddress: '0xtoken',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {
+                      $eq: ['$$network', '$network'],
+                    },
+                    {
+                      $eq: ['$$type', '$type'],
+                    },
+                    {
+                      $eq: ['$$side', '$side'],
+                    },
+                    {
+                      $eq: ['$$address', '$address'],
+                    },
+                    {
+                      $eq: ['$$tokenAddress', '$tokenAddress'],
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $sort: {
+                blockNumber: -1,
+              },
+            },
+            {
+              $limit: 1,
+            },
+            {
+              $project: {
+                transactionHash: 1,
+                blockNumber: 1,
+                address: 1,
+                from: 1,
+                to: 1,
+              },
+            },
+          ],
+          as: 'memberTransaction',
+        },
+      })
     })
   })
 })
