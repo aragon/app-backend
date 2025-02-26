@@ -57,11 +57,14 @@ const AragonPluginsService: IService = {
           })
 
           if (token?.type === ITokenType.ERC20 && token.isGovernance) {
-            logger.info('Sync plugin: token is ERC721', llo({ plugin: plugin.address, token }))
+            logger.info('Sync plugin: token is ERC721', llo({ plugin: plugin.address, token: token.address }))
 
             await LogTokenVoting.start(plugin, token, isHistorical)
           } else {
-            logger.warn('Sync plugin: token not governance erc20', llo({ plugin: plugin.address, token }))
+            logger.warn(
+              'Sync plugin: token not governance erc20',
+              llo({ plugin: plugin.address, token: token.address }),
+            )
           }
           break
         }
@@ -75,10 +78,10 @@ const AragonPluginsService: IService = {
             network: plugin.network,
           })
           if (token?.type === ITokenType.ERC721) {
-            logger.info('Sync plugin: token is ERC721', llo({ plugin: plugin.address, token }))
+            logger.info('Sync plugin: token is ERC721', llo({ plugin: plugin.address, token: token.address }))
             await LogGauge.start(plugin, token, isHistorical)
           } else {
-            logger.warn('Sync plugin: token not ERC721', llo({ plugin: plugin.address, token }))
+            logger.warn('Sync plugin: token not ERC721', llo({ plugin: plugin.address, token: token.address }))
           }
           break
         }
