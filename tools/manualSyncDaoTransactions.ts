@@ -83,9 +83,11 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
       network: dao.network,
     })
 
-    await depoConfigIndexerDb?.update({
-      lastSync: daoDb.blockNumber,
-    })
+    if (depoConfigIndexerDb) {
+      await depoConfigIndexerDb?.update({
+        lastSync: daoDb.blockNumber,
+      })
+    }
 
     const logWithdrawService = `withdraw-${dao.address}-${IEnumIndexerService.withdrawTxs}`
     const withdrawConfigIndexerDb = await Models.ConfigIndexer.findOne({
@@ -93,9 +95,11 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
       network: dao.network,
     })
 
-    await withdrawConfigIndexerDb?.update({
-      lastSync: daoDb.blockNumber,
-    })
+    if (withdrawConfigIndexerDb) {
+      await withdrawConfigIndexerDb?.update({
+        lastSync: daoDb.blockNumber,
+      })
+    }
 
     logger.verbose('Previous block number cleard', llo({ dao: dao.daoAddress }))
 
