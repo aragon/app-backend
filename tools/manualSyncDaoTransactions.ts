@@ -41,6 +41,7 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
               {
                 $match: {
                   network: networkName,
+                  daoAddress: '0x86380e136A3AaD5677A210Ad02713694c4E6a5b9',
                 },
               },
               {
@@ -77,10 +78,10 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
     if (!daoDb) return
 
     // fix block number first
-    const logDepositService = `deposit-${dao.address}-${IEnumIndexerService.depositTxs}`
+    const logDepositService = `deposit-${daoDb.address}-${IEnumIndexerService.depositTxs}`
     const depoConfigIndexerDb = await Models.ConfigIndexer.findOne({
       service: logDepositService,
-      network: dao.network,
+      network: daoDb.network,
     })
 
     if (depoConfigIndexerDb) {
@@ -89,10 +90,10 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
       })
     }
 
-    const logWithdrawService = `withdraw-${dao.address}-${IEnumIndexerService.withdrawTxs}`
+    const logWithdrawService = `withdraw-${daoDb.address}-${IEnumIndexerService.withdrawTxs}`
     const withdrawConfigIndexerDb = await Models.ConfigIndexer.findOne({
       service: logWithdrawService,
-      network: dao.network,
+      network: daoDb.network,
     })
 
     if (withdrawConfigIndexerDb) {
@@ -101,14 +102,14 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
       })
     }
 
-    logger.verbose('Previous block number cleard', llo({ dao: dao.daoAddress }))
+    logger.verbose('Previous block number cleard', llo({ dao: daoDb.daoAddress }))
 
-    const category = DaoTransactions.getCategories(dao.network)
+    const category = DaoTransactions.getCategories(daoDb.network)
     const depositTxCrawler = new BlockchainTransferCrawler({
-      network: dao.network,
+      network: daoDb.network,
       filter: {
-        toAddress: dao.address,
-        fromBlock: dao.blockNumber,
+        toAddress: daoDb.address,
+        fromBlock: daoDb.blockNumber,
         category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) => {
@@ -119,19 +120,19 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
       onError: async (error: any) => {
         logger.error(
           'Error deposit transfer',
-          llo({ error, type: ITransactionType.withdraw, daoId: dao.id, network: dao.network }),
+          llo({ error, type: ITransactionType.withdraw, daoId: daoDb.id, network: daoDb.network }),
         )
       },
-      logService: `deposit-${dao.address}-${IEnumIndexerService.depositTxs}` as any,
+      logService: `deposit-${daoDb.address}-${IEnumIndexerService.depositTxs}` as any,
       stopOnError: true,
     })
 
     // txs from daoAddress
     const withdrawTxCrawler = new BlockchainTransferCrawler({
-      network: dao.network,
+      network: daoDb.network,
       filter: {
-        fromAddress: dao.address,
-        fromBlock: dao.blockNumber,
+        fromAddress: daoDb.address,
+        fromBlock: daoDb.blockNumber,
         category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) => {
@@ -141,25 +142,25 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
       onError: async (error: any) => {
         logger.error(
           'Error withdraw transfer',
-          llo({ error, type: ITransactionType.withdraw, daoId: dao.id, network: dao.network }),
+          llo({ error, type: ITransactionType.withdraw, daoId: daoDb.id, network: daoDb.network }),
         )
       },
-      logService: `withdraw-${dao.address}-${IEnumIndexerService.withdrawTxs}` as any,
+      logService: `withdraw-${daoDb.address}-${IEnumIndexerService.withdrawTxs}` as any,
       stopOnError: true,
     })
 
     await Promise.all([depositTxCrawler.crawl(), withdrawTxCrawler.crawl()])
   },
 
-  fixOldTransactions: async (txLog: IAlchemyTransferResponse, dao: any) => {
+  fixOldTransactions: async (txLog: IAlchemyTransferResponse, daoDb: any) => {
     const oldTx = await Models.Transaction.findOne({
       transactionHash: txLog.hash,
-      network: dao.network,
+      network: daoDb.network,
     })
 
     if (oldTx && !oldTx.uniqueId) {
       await oldTx.remove()
-      logger.info('Remove old transaction', llo({ txLog, dao: dao.address }))
+      logger.info('Remove old transaction', llo({ txLog, dao: daoDb.address }))
     }
   },
 
