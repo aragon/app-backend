@@ -15,7 +15,7 @@ import { LogDao } from '@services/aragon-plugins/logDao'
 import { LogMultiSig } from '@services/aragon-plugins/logMultisig'
 import { LogSpp } from '@services/aragon-plugins/logSPP'
 import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
-import { ProxyToken } from '@modules/proxyToken'
+
 import config from '@config'
 import { LogGauge } from '@plugins/logGauge'
 
@@ -51,11 +51,20 @@ const AragonPluginsService: IService = {
           break
         }
         case IPluginInterfaceType.tokenVoting: {
-          const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
+          const token = await Models.Token.findOne({
+            address: plugin.tokenAddress,
+            network: plugin.network,
+          })
+
           if (token?.type === ITokenType.ERC20 && token.isGovernance) {
+            logger.info('Sync plugin: token is ERC721', llo({ plugin: plugin.address, token: token.address }))
+
             await LogTokenVoting.start(plugin, token, isHistorical)
           } else {
-            logger.warn('Sync plugin: token not governance erc20', llo({ plugin: plugin.address, token }))
+            logger.warn(
+              'Sync plugin: token not governance erc20',
+              llo({ plugin: plugin.address, token: token.address }),
+            )
           }
           break
         }
@@ -64,11 +73,15 @@ const AragonPluginsService: IService = {
           break
         }
         case IPluginInterfaceType.gauge: {
-          const token = await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
+          const token = await Models.Token.findOne({
+            address: plugin.tokenAddress,
+            network: plugin.network,
+          })
           if (token?.type === ITokenType.ERC721) {
+            logger.info('Sync plugin: token is ERC721', llo({ plugin: plugin.address, token: token.address }))
             await LogGauge.start(plugin, token, isHistorical)
           } else {
-            logger.warn('Sync plugin: token not ERC721', llo({ plugin: plugin.address, token }))
+            logger.warn('Sync plugin: token not ERC721', llo({ plugin: plugin.address, token: token.address }))
           }
           break
         }
