@@ -161,7 +161,7 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
       await Models.Transaction.deleteOne({
         _id: oldTx._id,
       })
-      logger.info('Remove old transaction', llo({ txLog, dao: daoDb.address }))
+      logger.info('Remove old transaction', llo({ txLog: txLog.hash, dao: daoDb.address }))
     }
   },
 
