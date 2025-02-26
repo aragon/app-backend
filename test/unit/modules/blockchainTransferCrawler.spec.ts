@@ -202,7 +202,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
         getBlockNumber: getBlockNumberStub,
         send: sandbox.stub().resolves({ transfers: [] }),
       }
-      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => providerStub as any)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(_network => providerStub as any)
       const onTxStub = sandbox.stub().resolves()
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
@@ -215,22 +215,23 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
 
     it('should handle transfers correctly - call convertToHexNumber', async () => {
-      const getBlockNumberStub = sandbox.stub().resolves(10)
+      const getBlockNumberStub = sandbox.stub().resolves(20)
+
       const providerStub = {
         getBlockNumber: getBlockNumberStub,
         send: sandbox.stub().resolves({ transfers: [] }),
       }
       const convertToHexNumberStub = sandbox.spy(Web3Helper, 'convertToHexNumber')
-      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => providerStub as any)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(_network => providerStub as any)
 
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
-        filter: { fromBlock: 0, toBlock: 0 },
+        filter: { fromBlock: 123, toBlock: 123 },
         onTx: async () => {},
       })
 
       sandbox.stub(crawler, 'updateAndCheckConditions').onFirstCall().resolves(true).onSecondCall().resolves(false)
-      sandbox.stub(crawler, 'getBlockNumber').onFirstCall().resolves(1).onSecondCall().resolves(0)
+      sandbox.stub(crawler, 'getBlockNumber').onFirstCall().resolves(1).onSecondCall().resolves(10)
       const stubProcessTxs = sandbox.stub(crawler, 'processTxs').resolves(true as any)
 
       await crawler.crawl()
@@ -240,23 +241,23 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
 
     it('should handle transfers correctly - shutdown', async () => {
-      const getBlockNumberStub = sandbox.stub().resolves(10)
+      const getBlockNumberStub = sandbox.stub().onCall(0).resolves(10).onCall(1).resolves(20)
       const providerStub = {
         getBlockNumber: getBlockNumberStub,
         send: sandbox.stub().resolves({ transfers: [] }),
       }
       const convertToHexNumberStub = sandbox.spy(Web3Helper, 'convertToHexNumber')
-      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => providerStub as any)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(_network => providerStub as any)
 
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
-        filter: { fromBlock: 0, toBlock: 0 },
+        filter: { fromBlock: 123, toBlock: 1234 },
         onTx: async () => {},
         shutdown: true,
       })
 
       sandbox.stub(crawler, 'updateAndCheckConditions').onFirstCall().resolves(true)
-      sandbox.stub(crawler, 'getBlockNumber').onFirstCall().resolves(1).onSecondCall().resolves(0)
+      sandbox.stub(crawler, 'getBlockNumber').onFirstCall().resolves(1).onSecondCall().resolves(200)
       const stubProcessTxs = sandbox.stub(crawler, 'processTxs').resolves(true as any)
 
       await crawler.crawl()
