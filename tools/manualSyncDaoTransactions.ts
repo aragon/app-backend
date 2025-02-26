@@ -41,7 +41,6 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
               {
                 $match: {
                   network: networkName,
-                  daoAddress: '0x86380e136A3AaD5677A210Ad02713694c4E6a5b9',
                 },
               },
               {
