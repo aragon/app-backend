@@ -1,76 +1,42 @@
-import { v4 as uuidv4 } from 'uuid'
-import { type ConsumeMessage } from 'amqplib'
-import { Mutex } from 'async-mutex'
 import RabbitMQ from '@modules/rabbitMQ'
-import { type EnumQueueName, type IQueueMessage, type ISendOptions } from '@types'
+import { type EnumQueueName } from '@types'
 import logger from '@logger'
-
-type MessageHandler = (message: IQueueMessage) => Promise<any>
+import { type ConfirmChannel, type ConsumeMessage, type Options } from 'amqplib'
+import { v4 as uuidv4 } from 'uuid'
+import { Mutex } from 'async-mutex'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'RabbitMQHelper' })
 
-export const RabbitMQHelper = {
+export interface ISendOptions {
+  waitResponse?: boolean
+  timeout?: number
+}
+
+const RabbitMQHelper = {
   queuedMessages: new Set<string>(),
   mutex: new Mutex(),
 
-  async ensureChannelConnected() {
-    if (!RabbitMQ.isConnected()) {
-      logger.warn('RabbitMQ not connected. Attempting to connect...', llo({}))
-      await RabbitMQ.connect()
-      if (!RabbitMQ.isConnected()) {
-        throw new Error('Unable to establish a RabbitMQ channel')
-      }
-    }
+  async isMessageDuplicate(uniqueKey: string): Promise<boolean> {
+    return await RabbitMQHelper.executeWithMutex(() => {
+      return RabbitMQHelper.queuedMessages.has(uniqueKey)
+    })
   },
 
-  async process(queueName: EnumQueueName, concurrency: number, messageHandler: MessageHandler): Promise<void> {
-    await RabbitMQHelper.ensureChannelConnected()
-    const channel = RabbitMQ.getChannel()
-    if (!channel) {
-      throw new Error('RabbitMQ channel is not initialized.')
-    }
-
-    // Set up prefetch for concurrency control
-    channel.prefetch(concurrency)
-
-    // Start consuming messages from the specified queue
-    await channel.assertQueue(queueName, { durable: true })
-
-    channel.consume(
-      queueName,
-      async (msg: ConsumeMessage | null) => {
-        if (msg === null) return // Exit if the message is null
-
-        const message: IQueueMessage = JSON.parse(msg.content.toString())
-        const uniqueQueueKey = `${queueName}-${message.id}` // Unique key per queue and message ID
-
-        try {
-          const response = await messageHandler(message) // Process the message using the handler
-          if (msg.properties.replyTo && msg.properties.correlationId) {
-            channel.sendToQueue(msg.properties.replyTo, Buffer.from(JSON.stringify(response)), {
-              correlationId: msg.properties.correlationId,
-            })
-          }
-        } catch (error) {
-          logger.error('Error processing message', llo({ error, queueName, messageId: message.id }))
-        } finally {
-          // Ensure cleanup happens regardless of resolve or reject
-          await RabbitMQHelper.executeWithMutex(() => {
-            RabbitMQHelper.queuedMessages.delete(uniqueQueueKey)
-          })
-
-          if (RabbitMQ.isConnected() && channel === RabbitMQ.getChannel()) {
-            channel.ack(msg)
-          } else {
-            logger.warn('Channel closed before ack could be sent', llo({ queueName, messageId: message.id }))
-          }
-        }
-      },
-      { noAck: false },
-    )
+  async addMessageToQueue(uniqueKey: string): Promise<void> {
+    await RabbitMQHelper.executeWithMutex(() => {
+      RabbitMQHelper.queuedMessages.add(uniqueKey)
+    })
   },
 
-  async executeWithMutex<T>(callback: () => Promise<T> | T): Promise<T> {
+  async clearMessageFromQueue(uniqueKey: string): Promise<void> {
+    await RabbitMQHelper.executeWithMutex(() => {
+      RabbitMQHelper.queuedMessages.delete(uniqueKey)
+    })
+  },
+
+  // Execute a callback under mutex protection.
+  executeWithMutex: async <T>(callback: () => T | Promise<T>): Promise<T> => {
     const release = await RabbitMQHelper.mutex.acquire()
     try {
       return await callback()
@@ -79,90 +45,164 @@ export const RabbitMQHelper = {
     }
   },
 
-  async sendMessage(queueName: EnumQueueName, message: IQueueMessage, opts: ISendOptions = {}): Promise<void> {
-    await RabbitMQHelper.ensureChannelConnected()
-
-    const channel = RabbitMQ.getChannel()
-    if (!channel) {
-      throw new Error('RabbitMQ channel is not initialized.')
-    }
-
-    // Ensure the queue exists
-    await channel.assertQueue(queueName, { durable: true })
-    const uniqueQueueKey = `${queueName}-${message.id}` // Unique key per queue and message ID
-
-    // Use the mutex utility to handle queuedMessages safely
-    const isDuplicate = await RabbitMQHelper.executeWithMutex(() => {
-      if (RabbitMQHelper.queuedMessages.has(uniqueQueueKey)) {
-        logger.warn('Skipping duplicate message', llo({ uniqueQueueKey, messageId: message.id }))
-        return true
-      }
-      // Mark it as queued
-      RabbitMQHelper.queuedMessages.add(uniqueQueueKey)
-      return false
-    })
-
-    if (isDuplicate) {
-      return // Duplicate found; message not sent
-    }
-
-    if (opts.waitResponse) {
-      const replyQueue = await channel.assertQueue('', { exclusive: true })
-      const correlationId = uuidv4()
-
-      return new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(async () => {
-          // Clean up the queuedMessages in case of timeout
-          await RabbitMQHelper.executeWithMutex(() => {
-            RabbitMQHelper.queuedMessages.delete(uniqueQueueKey)
-          })
-          reject(new Error('Response timed out.'))
-        }, opts.timeout || 5000)
-
-        channel.consume(
-          replyQueue.queue,
+  async process(queueName: EnumQueueName, handler: (data: any) => Promise<any>): Promise<void> {
+    try {
+      const channelWrapper = RabbitMQ.getChannel(queueName)
+      await channelWrapper.addSetup(async (channel: ConfirmChannel) => {
+        await channel.consume(
+          queueName,
           async (msg: ConsumeMessage | null) => {
-            if (msg && msg.properties.correlationId === correlationId) {
-              clearTimeout(timeout)
-              const response = JSON.parse(msg.content.toString())
-
-              if (RabbitMQ.isConnected() && channel === RabbitMQ.getChannel()) {
-                channel.ack(msg)
-              } else {
-                logger.warn('Channel closed before ack could be sent', llo({ queueName, messageId: message.id }))
+            if (!msg) {
+              logger.warn('No message to consume', llo({ queueName }))
+              return null
+            }
+            try {
+              let data = msg.content
+              if (Buffer.isBuffer(data)) {
+                try {
+                  data = JSON.parse(data.toString('utf8'))
+                } catch (parseErr) {
+                  logger.error('Failed to parse Buffer as JSON', llo({ queueName, parseErr }))
+                }
               }
-
-              // Cleanup after successful response
-              await RabbitMQHelper.executeWithMutex(() => {
-                RabbitMQHelper.queuedMessages.delete(uniqueQueueKey)
-              })
-
-              resolve(response)
+              const response = await handler(data)
+              if (msg.properties.replyTo && msg.properties.correlationId) {
+                const publishOpts: Options.Publish = {
+                  correlationId: msg.properties.correlationId,
+                  contentType: 'application/json',
+                }
+                await channelWrapper.sendToQueue(msg.properties.replyTo, response, publishOpts)
+              }
+            } catch (handlerErr) {
+              channel.nack(msg, false, true) // Requeue the message
+              logger.error('Error in messageHandler', llo({ queueName, error: handlerErr }))
+            } finally {
+              try {
+                channel.ack(msg)
+              } catch (ackErr) {
+                logger.warn('Failed to ack message—channel may be closed', llo({ queueName, ackErr }))
+              }
             }
           },
           { noAck: false },
         )
+      })
+    } catch (err) {
+      logger.error('rabbit process error', llo({ queueName, err }))
+    }
+  },
 
-        channel.sendToQueue(queueName, Buffer.from(JSON.stringify(message)), {
-          persistent: true,
-          replyTo: replyQueue.queue,
-          correlationId,
+  async sendMessage(
+    queueName: EnumQueueName,
+    payload: any,
+    opts: ISendOptions = { waitResponse: false, timeout: config.RABBITMQ.TIMEOUT },
+  ): Promise<any> {
+    const uniqueKey = `${queueName}-${payload.id}`
+
+    if (!opts?.waitResponse && (await RabbitMQHelper.isMessageDuplicate(uniqueKey))) {
+      logger.warn('Duplicate message detected', llo({ queueName, uniqueKey }))
+      return null
+    }
+
+    if (!opts?.waitResponse) {
+      await RabbitMQHelper.addMessageToQueue(uniqueKey)
+    }
+
+    try {
+      const channelWrapper = RabbitMQ.getChannel(queueName)
+      if (opts.waitResponse) {
+        return await RabbitMQHelper._sendMessageWithResponse(channelWrapper, queueName, payload, uniqueKey, opts)
+      }
+      await channelWrapper.sendToQueue(queueName, payload, { persistent: true, contentType: 'application/json' })
+      return null
+    } catch (err) {
+      logger.error('sendMessage error', llo({ queueName, err }))
+      return null
+    } finally {
+      if (!opts?.waitResponse) {
+        await RabbitMQHelper.clearMessageFromQueue(uniqueKey)
+      }
+    }
+  },
+
+  async _sendMessageWithResponse(
+    channelWrapper: any,
+    queueName: EnumQueueName,
+    payload: any,
+    uniqueKey: string,
+    opts: ISendOptions,
+  ): Promise<any> {
+    const correlationId = uuidv4()
+    try {
+      const response = await new Promise(resolve => {
+        const timeoutId = setTimeout(async () => {
+          logger.warn('Timeout waiting for response', { queueName, correlationId })
+          resolve(null)
+        }, opts.timeout || 5000)
+        channelWrapper.addSetup(async (channel: ConfirmChannel) => {
+          const { queue: replyQueue } = await channel.assertQueue('', { exclusive: true })
+          const { consumerTag } = await channel.consume(replyQueue, async (msg: ConsumeMessage | null) => {
+            if (!msg) return null
+            if (msg.properties.correlationId === correlationId) {
+              try {
+                channel.ack(msg)
+              } catch (ackErr) {
+                logger.warn('Failed to ack ephemeral msg', llo({ queueName, ackErr }))
+              }
+              let responseData: any = msg.content
+              if (Buffer.isBuffer(responseData)) {
+                try {
+                  responseData = JSON.parse(responseData.toString('utf8'))
+                } catch (parseErr) {
+                  logger.error('Failed to parse ephemeral response as JSON', llo({ queueName, parseErr }))
+                }
+              }
+              clearTimeout(timeoutId)
+              resolve(responseData)
+            }
+          })
+          const publishOpts: Options.Publish = {
+            persistent: true,
+            correlationId,
+            replyTo: replyQueue,
+            contentType: 'application/json',
+          }
+          const queueResult = await channelWrapper.sendToQueue(queueName, payload, publishOpts)
+          if (!queueResult) {
+            if (consumerTag) {
+              try {
+                await channel.cancel(consumerTag)
+              } catch (cancelErr) {
+                logger.warn('Failed to cancel ephemeral consumer on timeout', llo({ queueName, cancelErr }))
+              }
+            }
+            logger.error('Failed to send message to queue', llo({ queueName, correlationId, payload }))
+            resolve(null)
+          }
         })
       })
-    } else {
-      // Send the message without waiting for a response
-      channel.sendToQueue(queueName, Buffer.from(JSON.stringify(message)), { persistent: true })
-      return Promise.resolve()
+      return response
+    } catch (err) {
+      logger.error('_sendMessageWithResponse error', llo({ queueName, payload, uniqueKey, err }))
+      return null
     }
   },
 
-  async getQueueMessageCount(queueName: EnumQueueName) {
-    const channel = RabbitMQ.getChannel()
-    if (!channel) {
-      throw new Error('RabbitMQ channel is not initialized.')
+  async getQueueMessageCount(queueName: EnumQueueName): Promise<number | null> {
+    try {
+      const channelWrapper = RabbitMQ.getChannel(queueName)
+      let messageCount: number | null = null
+      await channelWrapper.addSetup(async (channel: ConfirmChannel) => {
+        const queueInfo = await channel.checkQueue(queueName)
+        messageCount = queueInfo.messageCount
+        logger.verbose(`Queue "${queueName}" has ${messageCount} messages`, llo({ queueName, messageCount }))
+      })
+      return messageCount
+    } catch (err) {
+      logger.error('getQueueMessageCount error', llo({ queueName, err }))
+      return null
     }
-
-    const queueInfo = await channel.checkQueue(queueName)
-    return { count: queueInfo.messageCount }
   },
 }
+
+export default RabbitMQHelper

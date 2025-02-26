@@ -20,7 +20,7 @@ import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/radditMQ'
 import BlockScoutHelper from '@helpers/blockScout'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
