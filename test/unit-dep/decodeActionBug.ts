@@ -41,7 +41,7 @@ describe('Unit-dep: Block Handler', () => {
         symbol: 'Unknown',
         decimals: 0,
         logo: null,
-        priceUsd: null,
+        priceUsd: '0',
       })
       expect(proxyTokenSpy.calledOnce).to.be.false
     })
