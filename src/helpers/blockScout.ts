@@ -69,8 +69,7 @@ const BlockScoutHelper = {
         return tokenDetails
       }
     } catch (error) {
-      const stack = new Error().stack
-      logger.warn('Error getTokenDetails', llo({ error, customStack: stack }))
+      logger.warn('Error getTokenDetails', llo({ error }))
     }
 
     return null
