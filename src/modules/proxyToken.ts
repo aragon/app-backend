@@ -173,7 +173,7 @@ export const ProxyToken = {
         decimals: tokenFullDetails.decimals,
         logo: tokenFullDetails.logo,
         type: tokenFullDetails.type,
-        priceUsd: tokenRate.priceUsd || tokenFullDetails.priceUsd,
+        priceUsd: tokenFullDetails.priceUsd || tokenRate.priceUsd,
       })
       Object.assign(tokenMetrics, {
         totalHolders: tokenFullDetails.holders,
