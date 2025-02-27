@@ -28,6 +28,7 @@ describe('Model: Transaction', () => {
       transactionHash: rawTransaction.transactionHash!,
       category: rawTransaction.category!,
       network: rawTransaction.network!,
+      uniqueId: rawTransaction.uniqueId!,
     })
     const createdToken = await Models.Transaction.create(rawTransaction)
 
@@ -36,6 +37,7 @@ describe('Model: Transaction', () => {
     expect(createdToken.blockNumber).to.eq(rawTransaction.blockNumber)
     expect(createdToken.network).to.eq(rawTransaction.network)
     expect(createdToken.type).to.eq(rawTransaction.type)
+    expect(createdToken.uniqueId).to.eq(rawTransaction.uniqueId)
     expect(createdToken.category).to.eq(rawTransaction.category)
     expect(createdToken.fromAddress).to.eq(rawTransaction.fromAddress)
     expect(createdToken.toAddress).to.eq(rawTransaction.toAddress)
@@ -54,11 +56,12 @@ describe('Model: Transaction', () => {
   })
 
   it('Should getEntityId', async () => {
-    const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+    const transactionHash = '0X123123BAD'
+    const uniqueId = '0X123'
     const category = ITransactionCategory.ERC20
     const network = NetworksEnum.ethereumMainnet
-    const entityId = Models.Transaction.getEntityId({ transactionHash, category, network })
-    expect(entityId).to.eq(`${transactionHash}-${category}-${network}`)
+    const entityId = Models.Transaction.getEntityId({ transactionHash, category, network, uniqueId })
+    expect(entityId).to.eq(`${transactionHash}-${uniqueId}-${category}-${network}`)
   })
 
   it('Should findExistingLog', async () => {
@@ -67,6 +70,7 @@ describe('Model: Transaction', () => {
       transactionHash: createdLogDao.transactionHash,
       category: createdLogDao.category,
       network: createdLogDao.network,
+      uniqueId: createdLogDao.uniqueId,
     })
     expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
@@ -101,6 +105,7 @@ describe('Model: Transaction', () => {
         {
           transactionHash: '0xb02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
           blockNumber: 1,
+          uniqueId: '0x123',
           network: NetworksEnum.ethereumMainnet,
           type: ITransactionType.deposit,
           category: ITransactionCategory.Internal,
@@ -131,6 +136,7 @@ describe('Model: Transaction', () => {
         {
           transactionHash: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
           blockNumber: 1,
+          uniqueId: '0x1234',
           network: NetworksEnum.ethereumMainnet,
           type: ITransactionType.deposit,
           category: ITransactionCategory.Internal,
@@ -258,7 +264,7 @@ describe('Model: Transaction', () => {
     expect(filterDao.tokenAddress).to.undefined
     expect(filterDao.updatedAt).to.be.undefined
     expect(filterDao.token._id).to.be.undefined
-    expect(Object.keys(filterDao).length).to.eq(16)
+    expect(Object.keys(filterDao).length).to.eq(17)
   })
 
   it('Should filterKeys without token', async () => {
