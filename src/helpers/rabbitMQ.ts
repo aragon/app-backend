@@ -149,13 +149,15 @@ const RabbitMQHelper = {
               } catch (ackErr) {
                 logger.warn('Failed to ack ephemeral msg', llo({ queueName, ackErr }))
               }
-              let responseData: any = msg.content
-              if (Buffer.isBuffer(responseData)) {
-                try {
-                  responseData = JSON.parse(responseData.toString('utf8'))
-                } catch (parseErr) {
-                  logger.error('Failed to parse ephemeral response as JSON', llo({ queueName, parseErr }))
+              let responseData: any = null
+              try {
+                if (Buffer.isBuffer(msg.content)) {
+                  responseData = JSON.parse(msg.content.toString('utf8'))
+                } else {
+                  responseData = msg.content
                 }
+              } catch (parseErr) {
+                logger.error('Failed to parse ephemeral response as JSON', llo({ queueName, parseErr }))
               }
               clearTimeout(timeoutId)
               resolve(responseData)

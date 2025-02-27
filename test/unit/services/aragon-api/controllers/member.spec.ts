@@ -14,7 +14,7 @@ import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
 import MemberBalance from '@models/schema/memberBalance'
 import { HexAddress } from '@types'
 import { NetworksEnum } from '@types'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import ModelUtils from '@models/utils/models'
 
 describe('Controller: Member', () => {

@@ -10,7 +10,7 @@ import {
 } from '@types'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
-import RabbitMQHelper from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import { IPermission } from '@src/types/permission'
 import { PluginHandler } from '@handlers/pluginHandler'
 import DbTx from '@modules/dbTx'
