@@ -15,7 +15,6 @@ import { LogDao } from '@services/aragon-plugins/logDao'
 import { LogMultiSig } from '@services/aragon-plugins/logMultisig'
 import { LogSpp } from '@services/aragon-plugins/logSPP'
 import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
-import config from '@config'
 import { LogGauge } from '@plugins/logGauge'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
