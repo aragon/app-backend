@@ -10,7 +10,7 @@ import { ProxyToken } from '@modules/proxyToken'
 
 import TokenUtils from '@helpers/tokenUtils'
 import BlockScoutHelper from '@helpers/blockScout'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 

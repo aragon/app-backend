@@ -16,7 +16,7 @@ import { PluginHandler } from '@src/handlers/pluginHandler'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import DbOperations from '@models/utils/dbOperations'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import GaugeHelper from '@helpers/gauge'
 import type Plugin from '@models/schema/plugin'
 

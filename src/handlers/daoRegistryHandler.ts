@@ -9,7 +9,7 @@ import { MetadataHandler } from '@src/handlers/metadataHandler'
 import { ProxyMember } from '@modules/proxyMember'
 import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:DaoRegistryHandler' })
 
