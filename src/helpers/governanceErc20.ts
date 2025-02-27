@@ -24,7 +24,9 @@ const GovernanceErc20Helper = {
           contract.getPastVotes(memberAddress, blockNumber),
         ),
       )
-      return BigInt(pastVotes || 0)?.toString()
+      if (pastVotes > 0n) {
+        return BigInt(pastVotes || 0)?.toString()
+      }
     } catch (error) {
       logger.error(
         'Error getting past votes - blockNumber',

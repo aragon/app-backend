@@ -5,7 +5,13 @@ export interface ITokenInfo {
   proxy: boolean
   implementationAddress: string | null
   isGovernance: boolean
-  isUnderlying: boolean
+  hasUnderlying: boolean
+  hasBalanceOfERC20: boolean
+  hasBalanceOfERC777: boolean
+  hasName: boolean
+  hasSymbol: boolean
+  hasDecimals: boolean
+  hasTotalSupply: boolean
   hasDelegate: boolean
 }
 
