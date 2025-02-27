@@ -15,7 +15,7 @@ import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import dbTx from '@modules/dbTx'
 import logger from '@logger'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import BlockScout from '@helpers/blockScout'
 
 describe('Modules: ProxyToken', () => {

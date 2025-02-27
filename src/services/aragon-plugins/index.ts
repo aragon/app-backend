@@ -8,7 +8,7 @@ import {
   type IService,
   ITokenType,
 } from '@types'
-import RabbitMQHelper from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import { LogAdmin } from '@services/aragon-plugins/logAdmin'
 import { Models } from '@dbModels'
 import { LogDao } from '@services/aragon-plugins/logDao'
