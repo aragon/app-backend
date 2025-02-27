@@ -9,7 +9,7 @@ import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import BlockScoutHelper from '@helpers/blockScout'
 import TokenUtils from '@helpers/tokenUtils'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import { FakeAsset } from '@test/mock/fakeAsset'
 
 describe('AragonRates: FetchRates', () => {
