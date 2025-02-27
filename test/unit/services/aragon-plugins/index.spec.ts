@@ -4,10 +4,9 @@ import { expect } from 'chai'
 import AragonPluginsService from '@services/aragon-plugins/index'
 import logger from '@logger'
 import { EnumQueueName, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import { Models } from '@dbModels'
 import { LogDao } from '@plugins/logDao'
-import config from '@config'
 import { ProxyToken } from '@modules/proxyToken'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { LogAdmin } from '@plugins/logAdmin'
@@ -34,9 +33,11 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      expect(processStub.calledWith(EnumQueueName.logDao, config.RABBITMQ.DEFAULT_CONCURRENCY)).to.be.true
+      expect(processStub.calledTwice).to.be.true
+      expect(processStub.args[0][0]).to.eq(EnumQueueName.logDao)
+      expect(processStub.args[1][0]).to.eq(EnumQueueName.plugins)
 
-      const handler = processStub.getCall(0).args[2]
+      const handler = processStub.getCall(0).args[1]
       await handler({ id: 'some-id', params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } })
 
       expect(daoStub.calledOnceWith('0xDaoAddress', NetworksEnum.ethereumMainnet)).to.be.true
@@ -58,9 +59,9 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      expect(processStub.calledWith(EnumQueueName.plugins, config.RABBITMQ.PLUGINS_CONCURRENCY)).to.be.true
+      expect(processStub.calledTwice).to.be.true
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: {
@@ -82,7 +83,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: {
@@ -93,7 +94,7 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xMissingPlugin', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(loggerStub.calledWithMatch(/plugin not found/)).to.be.true
+      expect(loggerStub.calledWith('PluginSyncService: plugin not found' as any)).to.be.true
     })
 
     it('should log an error if interfaceType is missing', async () => {
@@ -105,7 +106,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: {
@@ -138,7 +139,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(0).args[2]
+      const handler = processStub.getCall(0).args[1]
       await handler({ id: 'some-id', params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } })
 
       expect(daoStub.calledOnceWith('0xDaoAddress', NetworksEnum.ethereumMainnet)).to.be.true
@@ -152,7 +153,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(0).args[2]
+      const handler = processStub.getCall(0).args[1]
       await handler({ id: 'some-id', params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } })
 
       expect(daoStub.calledOnceWith('0xDaoAddress', NetworksEnum.ethereumMainnet)).to.be.true
@@ -170,7 +171,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -190,7 +191,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -215,7 +216,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -240,7 +241,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -260,7 +261,8 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -284,7 +286,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -309,7 +311,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -327,7 +329,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xMissingPlugin', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -346,7 +348,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginWithNoType', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -364,7 +366,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginWithNoType', network: NetworksEnum.ethereumMainnet, isHistorical: false },
