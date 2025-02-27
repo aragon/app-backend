@@ -133,10 +133,7 @@ export default class Asset extends Model {
                   $and: [{ $gt: ['$tokenDetails.priceUsd', 0] }, { $gt: ['$tokenDetails.decimals', 0] }],
                 },
                 then: {
-                  $multiply: [
-                    { $divide: [{ $toDecimal: '$amount' }, { $pow: [10, { $toDecimal: '$tokenDetails.decimals' }] }] },
-                    { $toDecimal: '$tokenDetails.priceUsd' },
-                  ],
+                  $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
                 },
                 else: 0,
               },
@@ -219,6 +216,39 @@ export default class Asset extends Model {
       {
         $match: { daoAddress, network },
       },
+      AggregationQueryHelper.token(
+        {
+          network: '$network',
+          address: '$tokenAddress',
+        },
+        'tokenDetails',
+        {
+          _id: 0,
+          network: 1,
+          address: 1,
+          priceUsd: 1,
+          mintableByDao: 1,
+        },
+      ),
+      {
+        $unwind: {
+          path: '$tokenDetails',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          amountUsd: {
+            $cond: {
+              if: { $gt: ['$tokenDetails.priceUsd', 0] },
+              then: {
+                $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
+              },
+              else: 0,
+            },
+          },
+        },
+      },
       {
         $group: {
           _id: null,
@@ -228,7 +258,7 @@ export default class Asset extends Model {
       {
         $project: {
           _id: 0,
-          tvlUsd: 1,
+          tvlUsd: { $round: [{ $toDouble: '$tvlUsd' }, 2] },
         },
       },
     ]
@@ -244,7 +274,7 @@ export default class Asset extends Model {
     }
   }
 
-  async update(params: Partial<Plugin>, tOpts?: SaveOptions) {
+  async update(params: Partial<Asset>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
