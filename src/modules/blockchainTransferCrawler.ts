@@ -7,7 +7,7 @@ import {
   type IEnumIndexerService,
   type IEnumIndexerServiceStatic,
   IProviderType,
-  NetworksEnum,
+  type NetworksEnum,
 } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import Web3Helper from '@helpers/web3'
@@ -99,9 +99,7 @@ class BlockchainTransferCrawler {
       try {
         const provider = this.getProvider()
         return await retryRequest(async () =>
-          BottleneckModule.getNodeTransferLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
-            provider.getBlockNumber(),
-          ),
+          BottleneckModule.getNodeTransferLimiter(this.network)!.schedule(async () => provider.getBlockNumber()),
         )
       } catch (error) {
         logger.error(
@@ -152,8 +150,8 @@ class BlockchainTransferCrawler {
             BottleneckModule.getNodeTransferLimiter(this.network)!.schedule(async () =>
               provider.send('alchemy_getAssetTransfers', [
                 {
-                  fromBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(currentBlock) : undefined,
-                  toBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(toBlock) : undefined,
+                  fromBlock: currentBlock !== 0 ? Web3Helper.convertToHexNumber(currentBlock) : undefined,
+                  toBlock: toBlock !== 0 ? Web3Helper.convertToHexNumber(toBlock) : 'latest',
                   fromAddress: this.filter.fromAddress,
                   toAddress: this.filter.toAddress,
                   category: this.filter.category,

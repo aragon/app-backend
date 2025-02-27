@@ -164,8 +164,10 @@ describe('Model: Asset', () => {
 
   it('should get dao tvl', async () => {
     await Models.Asset.create(rawAsset)
+    const rawTokenDb = await Models.Token.findOne({ address: rawAsset.tokenAddress })
+    await rawTokenDb?.update({ priceUsd: '123.23' })
     const tvl = await Models.Asset.getDaoTvl(rawAsset.daoAddress, rawAsset.network)
-    expect(tvl.tvlUsd.toString()).to.be.eq('8125101180')
+    expect(tvl.tvlUsd.toString()).to.be.eq('12365.27')
     expect(tvl.daoAddress).to.be.eq(rawAsset.daoAddress)
     expect(tvl.network).to.be.eq(rawAsset.network)
   })
