@@ -1,5 +1,5 @@
 import { type NetworksEnum, EnumQueueName, type IRawAction } from '@types'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
 
 const ContractController = {

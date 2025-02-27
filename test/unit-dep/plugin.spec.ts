@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { DAORegistry } from '@artifacts/daoRegistry'
