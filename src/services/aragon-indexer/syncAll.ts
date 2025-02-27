@@ -2,10 +2,9 @@ import logger from '@logger'
 import { EnumQueueName, ICollectionNames, IPluginInterfaceType, IPluginStatus } from '@types'
 import { Models } from '@dbModels'
 import { NetworkHelper } from '@helpers/network'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import type Plugin from '@models/schema/plugin'
 import Web3Helper from '@helpers/web3'
-import RabbitMQ from '@modules/rabbitMQ'
 import utils from '@helpers/utils'
 import DBCrawler from '@models/utils/crawler'
 
@@ -117,7 +116,7 @@ export const SyncAll = {
     const retryDelay = 1000 // 1 second
 
     while (true) {
-      const count = await RabbitMQ.getMessageCount(EnumQueueName.plugins)
+      const count = await RabbitMQHelper.getQueueMessageCount(EnumQueueName.plugins)
 
       if (count === null) {
         logger.error(

@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import AragonDaoService from '@services/aragon-dao/index'
 import logger from '@logger'
 import { EnumQueueName, NetworksEnum } from '@types'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
@@ -65,7 +65,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(0).args[2]
+      const handler = processStub.getCall(0).args[1]
       await handler({ params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } } as any)
 
       expect(
@@ -82,7 +82,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({ params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } } as any)
 
       expect(
@@ -99,7 +99,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(2).args[2]
+      const handler = processStub.getCall(2).args[1]
       await handler({ params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } } as any)
 
       expect(
@@ -116,7 +116,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(3).args[2]
+      const handler = processStub.getCall(3).args[1]
       await handler({
         params: {
           proposalIndex: '1',
@@ -140,7 +140,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(4).args[2]
+      const handler = processStub.getCall(4).args[1]
       await handler({
         params: {
           proposalIndex: '1',
@@ -164,7 +164,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(5).args[2]
+      const handler = processStub.getCall(5).args[1]
       await handler({ params: { address: '0x0', network: NetworksEnum.ethereumMainnet } } as any)
 
       expect(contractStub.args[0][0]).to.equal(NetworksEnum.ethereumMainnet)
@@ -178,7 +178,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(6).args[2]
+      const handler = processStub.getCall(6).args[1]
       await handler({ params: { proposalId: '1', userAddress: '0x' } } as any)
 
       expect(contractStub.args[0][0].proposalId).to.eq('1')
@@ -192,7 +192,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(7).args[2]
+      const handler = processStub.getCall(7).args[1]
       await handler({
         params: {
           userAddress: 'userAddress',
@@ -213,7 +213,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(8).args[2]
+      const handler = processStub.getCall(8).args[1]
       await handler({
         params: {
           from: 'userAddress1',
@@ -239,7 +239,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(9).args[2]
+      const handler = processStub.getCall(9).args[1]
       await handler({
         params: {
           address: 'userAddress1',
