@@ -300,6 +300,7 @@ describe('Controller: Member', () => {
   })
 
   it('it should get member by address', async () => {
+    sandbox.stub(RabbitMQHelper, 'sendMessage')
     const response = await MemberController.getMemberByAddress(
       rawMember.address as HexAddress,
       {

@@ -84,6 +84,9 @@ export default class Transaction extends Model {
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
 
+  @prop({ type: () => String, default: null })
+  public uniqueId!: HexAddress
+
   @prop({ type: () => Number, required: true })
   public blockNumber!: number
 
@@ -140,8 +143,10 @@ export default class Transaction extends Model {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.category, 'category is required')
       assert(!!rawData.network, 'network is required')
+      assert(!!rawData.uniqueId, 'uniqueId is required')
       rawData.id = this.getEntityId({
         transactionHash: rawData?.transactionHash!,
+        uniqueId: rawData?.uniqueId!,
         category: rawData?.category!,
         network: rawData?.network!,
       })
@@ -151,8 +156,7 @@ export default class Transaction extends Model {
   }
 
   static getEntityId(params: ITransactionIdParams) {
-    const entityId = `${params.transactionHash}-${params.category}-${params.network}`
-    return entityId
+    return `${params.transactionHash}-${params.uniqueId}-${params.category}-${params.network}`
   }
 
   static async findExistingLog(params: ITransactionIdParams, tOpts?: SaveOptions) {

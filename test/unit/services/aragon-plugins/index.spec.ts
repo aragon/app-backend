@@ -7,7 +7,7 @@ import { EnumQueueName, IPluginInterfaceType, ITokenType, NetworksEnum } from '@
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { Models } from '@dbModels'
 import { LogDao } from '@plugins/logDao'
-import { ProxyToken } from '@modules/proxyToken'
+import config from '@config'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
@@ -31,6 +31,7 @@ describe('AragonPlugins: index', () => {
       const daoStub = sandbox.stub(Models.Dao, 'findByAddress').resolves({} as any)
       const logDaoStub = sandbox.stub(LogDao, 'start').resolves()
 
+      sandbox.stub(logger, 'info')
       await AragonPluginsService.start()
 
       expect(processStub.calledTwice).to.be.true
@@ -51,11 +52,13 @@ describe('AragonPlugins: index', () => {
         tokenAddress: '0xTokenAddress',
         network: NetworksEnum.ethereumMainnet,
       })
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: ITokenType.ERC20,
         isGovernance: true,
       } as any)
       const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
+
+      sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -72,7 +75,8 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
       expect(logTokenVotingStub.calledOnce).to.be.true
     })
 
@@ -80,6 +84,8 @@ describe('AragonPlugins: index', () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
       const loggerStub = sandbox.stub(logger, 'error')
+
+      sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -98,6 +104,8 @@ describe('AragonPlugins: index', () => {
     })
 
     it('should log an error if interfaceType is missing', async () => {
+      sandbox.stub(logger, 'info')
+
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         interfaceType: null,
@@ -208,7 +216,7 @@ describe('AragonPlugins: index', () => {
         tokenAddress: '0xTokenAddress',
         network: NetworksEnum.ethereumMainnet,
       })
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: ITokenType.ERC20,
         isGovernance: true,
       } as any)
@@ -223,7 +231,10 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
       expect(logTokenVotingStub.calledOnce).to.be.true
     })
 
@@ -234,7 +245,7 @@ describe('AragonPlugins: index', () => {
         tokenAddress: '0xTokenAddress',
         network: NetworksEnum.ethereumMainnet,
       })
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: 'NonGovernanceToken',
       } as any)
       const loggerStub = sandbox.stub(logger, 'warn')
@@ -248,7 +259,10 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
       expect(loggerStub.calledWithMatch('token not governance erc20' as any)).to.be.true
     })
 
@@ -260,7 +274,6 @@ describe('AragonPlugins: index', () => {
       const logSPPStub = sandbox.stub(LogSpp, 'start').resolves()
 
       await AragonPluginsService.start()
-
 
       const handler = processStub.getCall(1).args[1]
       await handler({
@@ -279,7 +292,7 @@ describe('AragonPlugins: index', () => {
         tokenAddress: '0xTokenAddress',
         network: NetworksEnum.ethereumMainnet,
       })
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: ITokenType.ERC721,
       } as any)
       const logGaugeStub = sandbox.stub(LogGauge, 'start').resolves()
@@ -293,7 +306,10 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
       expect(logGaugeStub.calledOnce).to.be.true
     })
 
@@ -304,7 +320,7 @@ describe('AragonPlugins: index', () => {
         tokenAddress: '0xTokenAddress',
         network: NetworksEnum.ethereumMainnet,
       })
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: 'NonGovernanceToken',
       } as any)
       const loggerStub = sandbox.stub(logger, 'warn')
@@ -318,7 +334,10 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
       expect(loggerStub.calledWithMatch('Sync plugin: token not ERC721' as any)).to.be.true
     })
 
