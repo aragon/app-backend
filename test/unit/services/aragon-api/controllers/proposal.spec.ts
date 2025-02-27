@@ -17,7 +17,7 @@ import Setting from '@models/schema/setting'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { PluginList } from '@test/mock/fakePlugins'
 import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import Logger from '@logger'
 
 describe('Controller: Proposal', () => {
