@@ -4,9 +4,8 @@ import { expect } from 'chai'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import { NetworkHelper } from '@helpers/network'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
-import RabbitMQ from '@modules/rabbitMQ'
 import utils from '@helpers/utils'
 import { SyncAll } from '@indexer/syncAll'
 import { EnumQueueName, NetworksEnum } from '@types'
@@ -93,7 +92,7 @@ describe('AragonIndexer: SyncAll', () => {
   describe('onDocument', () => {
     it('should send a message to the queue if below the limit', async () => {
       const plugin = { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet }
-      const getMessageCountStub = sandbox.stub(RabbitMQ, 'getMessageCount').resolves(20)
+      const getMessageCountStub = sandbox.stub(RabbitMQHelper, 'getQueueMessageCount').resolves(20)
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const waitStub = sandbox.stub(utils, 'wait')
       const loggerStub = sandbox.stub(logger, 'verbose')
@@ -114,7 +113,7 @@ describe('AragonIndexer: SyncAll', () => {
     it('should retry sending a message when the queue is full', async () => {
       const plugin = { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet }
       const getMessageCountStub = sandbox
-        .stub(RabbitMQ, 'getMessageCount')
+        .stub(RabbitMQHelper, 'getQueueMessageCount')
         .onCall(0)
         .resolves(50) // Full queue
         .onCall(1)
@@ -137,7 +136,7 @@ describe('AragonIndexer: SyncAll', () => {
       const plugin = { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet }
 
       const getMessageCountStub = sandbox
-        .stub(RabbitMQ, 'getMessageCount')
+        .stub(RabbitMQHelper, 'getQueueMessageCount')
         .onCall(0)
         .resolves(null)
         .onCall(1)
