@@ -1,159 +1,139 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import PluginDetector from '@helpers/pluginDetector'
-import { ethers } from 'ethers'
+import { beforeEach } from 'mocha'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
+import { ZeroAddress } from 'ethers'
 import { expect } from 'chai'
 import ProxyContractHelper from '@helpers/proxyContract'
-import { TOKEN_VOTING_FUNCTIONS, SPP_FUNCTIONS, ADMIN_FUNCTIONS, MULTISIG_FUNCTIONS } from '@helpers/pluginDetector'
+import ProviderModule from '@modules/provider'
+import utils from '@helpers/utils'
 
-describe('Helpers: PluginDetector', () => {
+describe('Helper: PluginDetector', () => {
   let sandbox: SinonSandbox
-  let providerStub: any
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    providerStub = {
-      getCode: sandbox.stub(),
-    }
-
-    // Mock ProviderModule.getProvider to return a mocked provider
-    sandbox.stub(require('@modules/provider').default, 'getAnyRpcProvider').returns(providerStub)
   })
 
   afterEach(() => {
     sandbox.restore()
   })
 
-  describe('detectPluginType', () => {
-    it('should return unknown plugin type if address is ZeroAddress', async () => {
-      const result = await PluginDetector.detectPluginType(ethers.ZeroAddress, NetworksEnum.ethereumSepolia)
-      expect(result).to.deep.equal({
-        type: IPluginInterfaceType.unknown,
-        proxy: false,
-        implementationAddress: null,
-      })
-    })
+  const simulateBytecodeForFunctions = (functions: string[]): string => {
+    // Construct a bytecode string that includes the first 10 characters of the keccak hash for each function signature
+    return '0x' + functions.map(func => PluginDetector._generateFunctionHash(func)).join('')
+  }
 
-    it('should return unknown plugin type if contract is not a proxy', async () => {
-      const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-      providerStub.getCode.resolves('0x')
+  it('should return unknown plugin for ZeroAddress', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress')
+    const result = await PluginDetector.detectPluginType(ZeroAddress, NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.unknown)
+    expect(result.proxy).to.be.false
+    expect(result.implementationAddress).to.be.null
+    expect(getImplementationAddressStub.notCalled).to.be.true
+  })
 
-      const result = await PluginDetector.detectPluginType('0xcontractAddress', NetworksEnum.ethereumSepolia)
-      expect(getImplementationAddressStub.calledOnce).to.be.true
-      expect(result).to.deep.equal({
-        type: IPluginInterfaceType.unknown,
-        proxy: false,
-        implementationAddress: null,
-      })
-    })
+  it('should detect tokenVoting plugin', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(PluginDetector.TOKEN_VOTING_FUNCTIONS)),
+    } as any)
 
-    it('should return unknown plugin type if contract bytecode is empty', async () => {
-      const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-      providerStub.getCode.resolves('0x')
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.tokenVoting)
+    expect(result.proxy).to.be.false
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
 
-      const result = await PluginDetector.detectPluginType('0xcontractAddress', NetworksEnum.ethereumSepolia)
-      expect(getImplementationAddressStub.calledOnce).to.be.true
-      expect(result).to.deep.equal({
-        type: IPluginInterfaceType.unknown,
-        proxy: false,
-        implementationAddress: null,
-      })
-    })
+  it('should detect spp plugin', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(PluginDetector.SPP_FUNCTIONS)),
+    } as any)
 
-    it('should return unknown plugin type if contract bytecode does not contain any function hash', async () => {
-      const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-      providerStub.getCode.resolves('0x1234567890')
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.spp)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
 
-      const result = await PluginDetector.detectPluginType('0xcontractAddress', NetworksEnum.ethereumSepolia)
-      expect(getImplementationAddressStub.calledOnce).to.be.true
-      expect(result).to.deep.equal({
-        type: IPluginInterfaceType.unknown,
-        proxy: false,
-        implementationAddress: null,
-      })
-    })
+  it('should detect multisig plugin', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(PluginDetector.MULTISIG_FUNCTIONS)),
+    } as any)
 
-    describe('when contract bytecode contains function hash', () => {
-      it('should return tokenVoting plugin type if contract bytecode contains token voting functions', async () => {
-        const getImplementationAddressStub = sandbox
-          .stub(ProxyContractHelper, 'getImplementationAddress')
-          .resolves('0xcontractAddress')
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.multisig)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
 
-        const partialByteCode = TOKEN_VOTING_FUNCTIONS.map((sig: string) => {
-          return PluginDetector.functionHashes[sig].replace('0x', '')
-        }).join('00')
+  it('should detect admin plugin', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(PluginDetector.ADMIN_FUNCTIONS)),
+    } as any)
 
-        providerStub.getCode.resolves('0x1234567890' + partialByteCode)
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.admin)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
 
-        const result = await PluginDetector.detectPluginType('0xcontractAddress', NetworksEnum.ethereumSepolia)
-        expect(getImplementationAddressStub.calledOnce).to.be.true
-        expect(result).to.deep.equal({
-          type: IPluginInterfaceType.tokenVoting,
-          proxy: true,
-          implementationAddress: '0xcontractAddress',
-        })
-      })
+  it('should detect gauge plugin', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(PluginDetector.GAUGE_VOTER_FUNCTIONS)),
+    } as any)
 
-      it('should return spp plugin type if contract bytecode contains spp functions', async () => {
-        const getImplementationAddressStub = sandbox
-          .stub(ProxyContractHelper, 'getImplementationAddress')
-          .resolves('0xcontractAddress')
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.gauge)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
 
-        const partialByteCode = SPP_FUNCTIONS.map((sig: string) => {
-          return PluginDetector.functionHashes[sig].replace('0x', '')
-        }).join('00')
+  it('should return unknown plugin when bytecode does not match any functions', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox.stub().resolves('0xUnrelatedBytecodeThatDoesNotMatchAnyFunctionHashes'),
+    } as any)
 
-        providerStub.getCode.resolves('0x1234567890' + partialByteCode)
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.unknown)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
 
-        const result = await PluginDetector.detectPluginType('0xcontractAddress', NetworksEnum.ethereumSepolia)
-        expect(getImplementationAddressStub.calledOnce).to.be.true
-        expect(result).to.deep.equal({
-          type: IPluginInterfaceType.spp,
-          proxy: true,
-          implementationAddress: '0xcontractAddress',
-        })
-      })
+  it('should get getCode from implementation address if proxy is set', async () => {
+    const implementationAddress = '0xImplementation'
+    const getImplementationAddressStub = sandbox
+      .stub(ProxyContractHelper, 'getImplementationAddress')
+      .resolves(implementationAddress)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(PluginDetector.MULTISIG_FUNCTIONS)),
+    } as any)
 
-      it('should return multisig plugin type if contract bytecode contains multisig functions', async () => {
-        const getImplementationAddressStub = sandbox
-          .stub(ProxyContractHelper, 'getImplementationAddress')
-          .resolves('0xcontractAddress')
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.multisig)
+    expect(result.proxy).to.be.true
+    expect(result.implementationAddress).to.equal(implementationAddress)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
 
-        const partialByteCode = MULTISIG_FUNCTIONS.map((sig: string) => {
-          return PluginDetector.functionHashes[sig].replace('0x', '')
-        }).join('00')
+  it('should handle an error when fetching bytecode', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox.stub().rejects(new Error('Failed to fetch bytecode')),
+    } as any)
 
-        providerStub.getCode.resolves('0x1234567890' + partialByteCode)
-
-        const result = await PluginDetector.detectPluginType('0xcontractAddress', NetworksEnum.ethereumSepolia)
-        expect(getImplementationAddressStub.calledOnce).to.be.true
-        expect(result).to.deep.equal({
-          type: IPluginInterfaceType.multisig,
-          proxy: true,
-          implementationAddress: '0xcontractAddress',
-        })
-      })
-
-      it('should return admin plugin type if contract bytecode contains admin functions', async () => {
-        const getImplementationAddressStub = sandbox
-          .stub(ProxyContractHelper, 'getImplementationAddress')
-          .resolves('0xcontractAddress')
-
-        const partialByteCode = ADMIN_FUNCTIONS.map((sig: string) => {
-          return PluginDetector.functionHashes[sig].replace('0x', '')
-        }).join('00')
-
-        providerStub.getCode.resolves('0x1234567890' + partialByteCode)
-
-        const result = await PluginDetector.detectPluginType('0xcontractAddress', NetworksEnum.ethereumSepolia)
-        expect(getImplementationAddressStub.calledOnce).to.be.true
-        expect(result).to.deep.equal({
-          type: IPluginInterfaceType.admin,
-          proxy: true,
-          implementationAddress: '0xcontractAddress',
-        })
-      })
-    })
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.unknown)
+    expect(result.proxy).to.be.false
+    expect(result.implementationAddress).to.be.null
+    expect(getImplementationAddressStub.calledOnce).to.be.true
   })
 })
