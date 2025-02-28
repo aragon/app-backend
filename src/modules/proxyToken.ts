@@ -31,25 +31,30 @@ export const ProxyToken = {
     network: NetworksEnum,
     forceUpdate: boolean = false,
   ): Promise<null | Token> => {
-    return await DbTx.executeTxFn(async ({ session }) => {
-      const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
 
-      // Check for existing token
-      const existingToken = await Models.Token.findExistingLog(
-        {
-          address: parsedTokenAddress,
-          network,
-        },
-        { session },
-      )
+        // Check for existing token
+        const existingToken = await Models.Token.findExistingLog(
+          {
+            address: parsedTokenAddress,
+            network,
+          },
+          { session },
+        )
 
-      if (existingToken) {
-        return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate, session)
-      }
+        if (existingToken) {
+          return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate, session)
+        }
 
-      // Create a new token
-      return await ProxyToken.createNewToken(parsedTokenAddress, network, session)
-    })
+        // Create a new token
+        return await ProxyToken.createNewToken(parsedTokenAddress, network, session)
+      })
+    } catch (error) {
+      logger.error('Error saveAndGetToken', llo({ error, document }))
+      return null
+    }
   },
 
   updateTokenMetrics: async (
@@ -79,9 +84,8 @@ export const ProxyToken = {
       }
 
       await token.update(updates, { session })
-      if (session) {
-        await session.commitTransaction()
-      }
+      await session?.commitTransaction()
+      await session?.endSession()
       logger.verbose('Updated Token Metrics', llo({ logId: token.id }))
     }
 
@@ -152,6 +156,7 @@ export const ProxyToken = {
     // Save token and commit transaction
     const savedToken = await Models.Token.create(rawToken, { session })
     await session?.commitTransaction()
+    await session?.endSession()
 
     logger.verbose('New Token Created', llo({ logId: savedToken.id }))
     return savedToken
