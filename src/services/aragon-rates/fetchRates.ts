@@ -4,12 +4,13 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Token from '@models/schema/token'
 import dayjs from '@helpers/dayjs'
-import { ITokenType, NetworksEnum } from '@types'
+import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
 import config from '@config'
 import { ProxyToken } from '@modules/proxyToken'
 
 import TokenUtils from '@helpers/tokenUtils'
 import BlockScoutHelper from '@helpers/blockScout'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
@@ -69,15 +70,88 @@ export const FetchRates = {
 
     await Promise.all([crawlerMainnet.crawl(), crawlerTestnet.crawl()])
 
+    await FetchRates.updateDaoMetrics()
+
     const duration = Date.now() - startTime
+
     logger.verbose(
-      'End FetchRates',
+      'End FetchRates and dao metrics',
       llo({
         lastTimeSyncMainnet: crawlerMainnet.crawlResult.lastCreatedAt,
         lastTimeSyncTestnet: crawlerTestnet.crawlResult,
         duration: `${duration}ms`,
       }),
     )
+  },
+
+  async updateDaoMetrics() {
+    logger.verbose(
+      'Start Dao Metrics Update',
+      llo({
+        startTime: Date.now(),
+      }),
+    )
+
+    const crawler = new DBCrawler({
+      model: Models.Asset,
+      useAggregate: true,
+      aggregate: (_skip: number | undefined, _limit: number | undefined) => {
+        return [
+          {
+            $match: {
+              network: {
+                $nin: [NetworksEnum.ethereumSepolia, NetworksEnum.zksyncSepolia],
+              },
+            },
+          },
+          {
+            $group: {
+              _id: '$daoAddress',
+              fields: {
+                $last: {
+                  daoAddress: '$daoAddress',
+                  network: '$network',
+                },
+              },
+            },
+          },
+          {
+            $skip: _skip ?? 0,
+          },
+          {
+            $limit: _limit ?? 500,
+          },
+          {
+            $addFields: {
+              daoAddress: '$fields.daoAddress',
+              network: '$fields.network',
+            },
+          },
+          {
+            $project: {
+              daoAddress: 1,
+              network: 1,
+            },
+          },
+        ]
+      },
+      onDocument: FetchRates.onDaoDocument,
+      onError: (error: any, document: any) => {
+        logger.error('Error Dao Metrics Update', llo({ error, document }))
+      },
+      batchSize: 100,
+      concurrency: 10,
+    })
+
+    await crawler.crawl()
+    logger.verbose('End Dao Metrics Update', llo({}))
+  },
+
+  async onDaoDocument(document: any) {
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: document.daoAddress,
+      params: { address: document.daoAddress, network: document.network },
+    })
   },
 
   async onTestnetDocument(token: Token) {

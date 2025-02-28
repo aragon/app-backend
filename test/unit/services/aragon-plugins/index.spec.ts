@@ -4,11 +4,10 @@ import { expect } from 'chai'
 import AragonPluginsService from '@services/aragon-plugins/index'
 import logger from '@logger'
 import { EnumQueueName, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import { Models } from '@dbModels'
 import { LogDao } from '@plugins/logDao'
 import config from '@config'
-import { ProxyToken } from '@modules/proxyToken'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
@@ -32,11 +31,14 @@ describe('AragonPlugins: index', () => {
       const daoStub = sandbox.stub(Models.Dao, 'findByAddress').resolves({} as any)
       const logDaoStub = sandbox.stub(LogDao, 'start').resolves()
 
+      sandbox.stub(logger, 'info')
       await AragonPluginsService.start()
 
-      expect(processStub.calledWith(EnumQueueName.logDao, config.RABBITMQ.DEFAULT_CONCURRENCY)).to.be.true
+      expect(processStub.calledTwice).to.be.true
+      expect(processStub.args[0][0]).to.eq(EnumQueueName.logDao)
+      expect(processStub.args[1][0]).to.eq(EnumQueueName.plugins)
 
-      const handler = processStub.getCall(0).args[2]
+      const handler = processStub.getCall(0).args[1]
       await handler({ id: 'some-id', params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } })
 
       expect(daoStub.calledOnceWith('0xDaoAddress', NetworksEnum.ethereumMainnet)).to.be.true
@@ -50,17 +52,19 @@ describe('AragonPlugins: index', () => {
         tokenAddress: '0xTokenAddress',
         network: NetworksEnum.ethereumMainnet,
       })
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: ITokenType.ERC20,
         isGovernance: true,
       } as any)
       const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
 
+      sandbox.stub(logger, 'info')
+
       await AragonPluginsService.start()
 
-      expect(processStub.calledWith(EnumQueueName.plugins, config.RABBITMQ.PLUGINS_CONCURRENCY)).to.be.true
+      expect(processStub.calledTwice).to.be.true
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: {
@@ -71,7 +75,8 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
       expect(logTokenVotingStub.calledOnce).to.be.true
     })
 
@@ -80,9 +85,11 @@ describe('AragonPlugins: index', () => {
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
       const loggerStub = sandbox.stub(logger, 'error')
 
+      sandbox.stub(logger, 'info')
+
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: {
@@ -93,10 +100,12 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xMissingPlugin', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(loggerStub.calledWithMatch(/plugin not found/)).to.be.true
+      expect(loggerStub.calledWith('PluginSyncService: plugin not found' as any)).to.be.true
     })
 
     it('should log an error if interfaceType is missing', async () => {
+      sandbox.stub(logger, 'info')
+
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         interfaceType: null,
@@ -105,7 +114,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: {
@@ -138,7 +147,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(0).args[2]
+      const handler = processStub.getCall(0).args[1]
       await handler({ id: 'some-id', params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } })
 
       expect(daoStub.calledOnceWith('0xDaoAddress', NetworksEnum.ethereumMainnet)).to.be.true
@@ -152,7 +161,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(0).args[2]
+      const handler = processStub.getCall(0).args[1]
       await handler({ id: 'some-id', params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } })
 
       expect(daoStub.calledOnceWith('0xDaoAddress', NetworksEnum.ethereumMainnet)).to.be.true
@@ -170,7 +179,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -190,7 +199,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -207,7 +216,7 @@ describe('AragonPlugins: index', () => {
         tokenAddress: '0xTokenAddress',
         network: NetworksEnum.ethereumMainnet,
       })
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: ITokenType.ERC20,
         isGovernance: true,
       } as any)
@@ -215,14 +224,17 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
       expect(logTokenVotingStub.calledOnce).to.be.true
     })
 
@@ -233,21 +245,24 @@ describe('AragonPlugins: index', () => {
         tokenAddress: '0xTokenAddress',
         network: NetworksEnum.ethereumMainnet,
       })
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: 'NonGovernanceToken',
       } as any)
       const loggerStub = sandbox.stub(logger, 'warn')
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
       expect(loggerStub.calledWithMatch('token not governance erc20' as any)).to.be.true
     })
 
@@ -260,7 +275,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -277,21 +292,24 @@ describe('AragonPlugins: index', () => {
         tokenAddress: '0xTokenAddress',
         network: NetworksEnum.ethereumMainnet,
       })
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: ITokenType.ERC721,
       } as any)
       const logGaugeStub = sandbox.stub(LogGauge, 'start').resolves()
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
       expect(logGaugeStub.calledOnce).to.be.true
     })
 
@@ -302,21 +320,24 @@ describe('AragonPlugins: index', () => {
         tokenAddress: '0xTokenAddress',
         network: NetworksEnum.ethereumMainnet,
       })
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: 'NonGovernanceToken',
       } as any)
       const loggerStub = sandbox.stub(logger, 'warn')
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
       expect(loggerStub.calledWithMatch('Sync plugin: token not ERC721' as any)).to.be.true
     })
 
@@ -327,7 +348,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xMissingPlugin', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -346,7 +367,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginWithNoType', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -364,7 +385,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[2]
+      const handler = processStub.getCall(1).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginWithNoType', network: NetworksEnum.ethereumMainnet, isHistorical: false },
