@@ -49,6 +49,8 @@ const RabbitMQHelper = {
     try {
       const channelWrapper = RabbitMQ.getChannel(queueName)
       await channelWrapper.addSetup(async (channel: ConfirmChannel) => {
+        const concurrency = config.RABBITMQ.DEFAULT_CONCURRENCY
+        await channel.prefetch(concurrency)
         await channel.consume(
           queueName,
           async (msg: ConsumeMessage | null) => {
@@ -72,16 +74,10 @@ const RabbitMQHelper = {
                   contentType: 'application/json',
                 }
                 await channelWrapper.sendToQueue(msg.properties.replyTo, response, publishOpts)
+                channel.ack(msg)
               }
             } catch (handlerErr) {
-              channel.nack(msg, false, true) // Requeue the message
               logger.error('Error in messageHandler', llo({ queueName, error: handlerErr }))
-            } finally {
-              try {
-                channel.ack(msg)
-              } catch (ackErr) {
-                logger.warn('Failed to ack message—channel may be closed', llo({ queueName, ackErr }))
-              }
             }
           },
           { noAck: false },
