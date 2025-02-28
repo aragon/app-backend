@@ -125,7 +125,7 @@ const RabbitMQHelper = {
       if (opts.waitResponse) {
         return await RabbitMQHelper._sendMessageWithResponse(channelWrapper, queueName, payload, uniqueKey, opts)
       }
-      await channelWrapper.sendToQueue(queueName, Buffer.from(JSON.stringify(payload)), {
+      await channelWrapper.sendToQueue(queueName, payload, {
         persistent: true,
         contentType: 'application/json',
       })
@@ -173,12 +173,7 @@ const RabbitMQHelper = {
             replyTo: replyQueue,
             contentType: 'application/json',
           }
-          const queueResult = await channelWrapper.sendToQueue(
-            queueName,
-            Buffer.from(JSON.stringify(payload)),
-            publishOpts,
-          )
-          // const queueResult = await channelWrapper.sendToQueue(queueName, payload, publishOpts)
+          const queueResult = await channelWrapper.sendToQueue(queueName, payload, publishOpts)
           if (!queueResult) {
             if (consumerTag) {
               try {
