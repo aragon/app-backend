@@ -2,10 +2,12 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TransactionController from '@services/aragon-api/controllers/transaction'
-import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
+import { ITokenType, ITransactionCategory, ITransactionIndexCheckType, ITransactionType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Transaction from '@models/schema/transaction'
 import PairDataModule from '@modules/pairData'
+import { DaoList } from '@test/mock/fakeDao'
+import { ProposalList } from '@test/mock/fakeProposal'
 
 describe('Controller: Transaction', () => {
   let sandbox: SinonSandbox
@@ -17,6 +19,7 @@ describe('Controller: Transaction', () => {
     rawTransaction = {
       transactionHash: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
       blockNumber: 1,
+      uniqueId: '0x123213',
       network: NetworksEnum.ethereumMainnet,
       type: ITransactionType.deposit,
       category: ITransactionCategory.Internal,
@@ -220,31 +223,98 @@ describe('Controller: Transaction', () => {
 
   describe('getTransactionIndexingStatus', () => {
     it('should get transaction indexing status', async () => {
-      const txHash = rawTransaction.transactionHash
-      const network = rawTransaction.network
-      const spyReq = sandbox.spy(Models.Transaction, 'findOne')
-      const response = await TransactionController.getTransactionIndexingStatus(txHash!, network!)
+      const fakeDao = DaoList[0]
+      await Models.Dao.create(fakeDao)
+
+      const txHash = fakeDao.transactionHash
+      const network = fakeDao.network
+      const spyReq = sandbox.spy(Models.Dao, 'findOne')
+      const response = await TransactionController.getTransactionIndexingStatus(
+        txHash!,
+        ITransactionIndexCheckType.DAO_CREATE,
+        network!,
+      )
       expect(spyReq.calledOnce).to.be.true
-      expect(response).to.be.true
+      expect(response).to.deep.eq({
+        isProcessed: true,
+      })
+    })
+
+    it('should get transaction indexing status - proposal advance', async () => {
+      await Models.Proposal.create({
+        ...ProposalList[0],
+        stageExecutions: [
+          {
+            transactionHash: '0x123',
+          },
+        ],
+      })
+
+      const network = ProposalList[0].network
+      const spyReq = sandbox.spy(Models.Proposal, 'findOne')
+
+      const response = await TransactionController.getTransactionIndexingStatus(
+        '0x123',
+        ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE,
+        network!,
+      )
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.deep.eq({
+        isProcessed: true,
+      })
+    })
+
+    it('should get transaction indexing status - proposal executed', async () => {
+      await Models.Proposal.create({
+        ...ProposalList[0],
+        executed: {
+          transactionHash: '0x123',
+        },
+      })
+
+      const network = ProposalList[0].network
+      const spyReq = sandbox.spy(Models.Proposal, 'findOne')
+
+      const response = await TransactionController.getTransactionIndexingStatus(
+        '0x123',
+        ITransactionIndexCheckType.PROPOSAL_EXECUTE,
+        network!,
+      )
+      expect(spyReq.calledOnce).to.be.true
+      expect(response).to.deep.eq({
+        isProcessed: true,
+      })
     })
 
     it('should get transaction indexing status - not found', async () => {
-      const txHash = '0x'
+      const txHash = '0x123'
       const network = rawTransaction.network
-      const spyReq = sandbox.spy(Models.Transaction, 'findOne')
+      const spyReq = sandbox.spy(Models.Proposal, 'findOne')
 
-      const response = await TransactionController.getTransactionIndexingStatus(txHash, network!)
+      const response = await TransactionController.getTransactionIndexingStatus(
+        txHash,
+        ITransactionIndexCheckType.PROPOSAL_CREATE,
+        network!,
+      )
       expect(spyReq.calledOnce).to.be.true
-      expect(response).to.be.false
+      expect(response).to.deep.eq({
+        isProcessed: false,
+      })
     })
 
     it('should return false when error', async () => {
       const txHash = '0x'
       const network = rawTransaction.network
-      sandbox.stub(Models.Transaction, 'findOne').rejects(new Error('fake-error'))
+      sandbox.stub(Models.Proposal, 'findOne').rejects(new Error('fake-error'))
 
-      const response = await TransactionController.getTransactionIndexingStatus(txHash, network!)
-      expect(response).to.be.false
+      const response = await TransactionController.getTransactionIndexingStatus(
+        txHash,
+        ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE,
+        network!,
+      )
+      expect(response).to.deep.eq({
+        isProcessed: false,
+      })
     })
   })
 })

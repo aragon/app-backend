@@ -101,6 +101,24 @@ export default class Token extends Model {
   @prop({ type: () => Boolean, default: false })
   public hasDelegate!: boolean
 
+  @prop({ type: () => Boolean, default: false })
+  public hasBalanceOfERC20!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public hasBalanceOfERC777!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public hasName!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public hasSymbol!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public hasDecimals!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public hasTotalSupply!: boolean
+
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.address, 'address is required')

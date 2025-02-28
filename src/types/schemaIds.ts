@@ -107,6 +107,7 @@ export interface ITransactionIdParams {
   transactionHash: HexAddress
   category: ITransactionCategory
   network: NetworksEnum
+  uniqueId: string
 }
 
 export interface IDaoPermissionId {

@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DAORegistry } from '@artifacts/daoRegistry'

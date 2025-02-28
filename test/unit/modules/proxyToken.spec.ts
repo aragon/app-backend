@@ -15,7 +15,7 @@ import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import dbTx from '@modules/dbTx'
 import logger from '@logger'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import BlockScout from '@helpers/blockScout'
 
 describe('Modules: ProxyToken', () => {
@@ -90,6 +90,7 @@ describe('Modules: ProxyToken', () => {
         type: ITokenType.ERC20,
         holders: 10,
         totalSupply: '100',
+        priceUsd: '1',
       }
 
       const tokenFullDetailsStub = sandbox.stub(BlockScout, 'getTokenFullDetails').resolves(tokenFullDetails as any)

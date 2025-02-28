@@ -10,7 +10,7 @@ import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
-import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
@@ -22,7 +22,7 @@ describe('Module: blockchainLogCrawler', () => {
     sandbox = sinon.createSandbox()
     mockProvider = {
       getBlockNumber: sandbox.stub(),
-      _send: sandbox.stub(),
+      send: sandbox.stub(),
     }
     logVerbose = sandbox.stub(logger, 'verbose')
     logError = sandbox.stub(logger, 'error')
@@ -44,14 +44,14 @@ describe('Module: blockchainLogCrawler', () => {
       onError: () => {},
     })
 
-    sandbox.stub(crawler, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
 
     mockProvider.getBlockNumber
       .onFirstCall()
       .resolves(100) // Starting block number
       .onSecondCall()
       .resolves(200) // Latest block number
-    mockProvider._send
+    mockProvider.send
       .onFirstCall()
       .resolves([
         { transactionHash: '0x1', blockNumber: 101, transactionIndex: 1 },
@@ -73,7 +73,7 @@ describe('Module: blockchainLogCrawler', () => {
     await crawler.crawl()
 
     expect(updateAndCheckConditionsStub.calledOnce).to.be.true
-    expect(mockProvider._send.calledOnce).to.be.true
+    expect(mockProvider.send.calledOnce).to.be.true
     expect(processLogsSpy.calledOnceWith(sandbox.match.array)).to.be.true
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
     expect(onSaveProgressStub.calledOnce).to.be.true
@@ -124,7 +124,7 @@ describe('Module: blockchainLogCrawler', () => {
       onError: sandbox.stub(),
     })
 
-    sandbox.stub(crawler, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
     const processLogsSpy = sandbox.spy(crawler, 'processLogs')
 
     await crawler.processLogs(unsortedLogs)
@@ -178,7 +178,8 @@ describe('Module: blockchainLogCrawler', () => {
       logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: sandbox.stub(),
     })
-    sandbox.stub(crawler, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+
     const stubSaveProgress = sandbox.stub(crawler, 'onSaveProgress').resolves()
     const processLogsSpy = sandbox.spy(crawler, 'processLogs')
 
@@ -220,7 +221,7 @@ describe('Module: blockchainLogCrawler', () => {
     })
 
     mockProvider.getBlockNumber.onFirstCall().resolves(100)
-    mockProvider._send
+    mockProvider.send
       .onFirstCall()
       .resolves([
         { blockNumber: 101, transactionIndex: 1, index: 5, topics: ['0xTopic1'], data: '0xData1' },
@@ -231,7 +232,8 @@ describe('Module: blockchainLogCrawler', () => {
       ])
       .onSecondCall()
       .resolves([])
-    sandbox.stub(crawler, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+
     const updateAndCheckConditionsStub = sandbox
       .stub(crawler, 'updateAndCheckConditions')
       .onFirstCall()
@@ -248,7 +250,7 @@ describe('Module: blockchainLogCrawler', () => {
 
     const response = await crawler.crawl()
     expect(updateAndCheckConditionsStub.calledOnce).to.be.true
-    expect(mockProvider._send.calledOnce).to.be.true
+    expect(mockProvider.send.calledOnce).to.be.true
     expect(processLogsSpy.calledOnce).to.be.false
     expect(formatLogStub.callCount).to.equal(5)
     expect(response?.length).to.equal(5)
@@ -275,7 +277,8 @@ describe('Module: blockchainLogCrawler', () => {
       onError: sandbox.stub(),
     })
 
-    sandbox.stub(crawler, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+
     await crawler.processLogs(logs)
 
     expect(logError.calledOnce).to.be.true
@@ -317,7 +320,8 @@ describe('Module: blockchainLogCrawler', () => {
       logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: onErrorStub,
     })
-    sandbox.stub(crawler, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+
     await crawler.processLogs(logs)
 
     expect(events[0].config[0].handler.calledOnce).to.be.true
@@ -361,16 +365,14 @@ describe('Module: blockchainLogCrawler', () => {
         { transactionHash: '0x2', blockNumber: 102 },
       ])
 
-    const bottleneckStub = sandbox.stub(BottleneckModule as any, 'getAlchemyBatchRequest').returns({
-      schedule: retryStub as any,
-    })
-
-    sandbox.stub(crawler, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getProvider').returns({
+      ...mockProvider,
+      send: retryStub,
+    } as any)
 
     await crawler.crawl()
 
     expect(waitStub.calledOnce).to.be.true
-    expect(bottleneckStub.calledTwice).to.be.true
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
@@ -394,18 +396,16 @@ describe('Module: blockchainLogCrawler', () => {
       .onSecondCall()
       .resolves([{ transactionHash: '0x1', blockNumber: 101 }])
 
-    const bottleneckStub = sandbox.stub(BottleneckModule as any, 'getAlchemyBatchRequest').returns({
-      schedule: retryStub as any,
-    })
+    sandbox.stub(ProviderModule, 'getProvider').returns({
+      getBlockNumber: sandbox.stub().resolves(200),
+      send: retryStub,
+    } as any)
 
-    mockProvider.getBlockNumber.resolves(200)
-    sandbox.stub(crawler, 'getProvider').returns(mockProvider as any)
     const originalBatchSize = crawler.crawlSetting.originalBatchSize
 
     await crawler.crawl()
 
     expect(crawler.crawlSetting.batchSize).to.be.lessThanOrEqual(originalBatchSize)
-    expect(bottleneckStub.calledTwice).to.be.true
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
   })
 
@@ -422,11 +422,13 @@ describe('Module: blockchainLogCrawler', () => {
     })
 
     const batchSizeError = new Error('Log response size exceeded')
+
     const retryStub = sandbox.stub().rejects(batchSizeError)
 
-    const bottleneckStub = sandbox.stub(BottleneckModule as any, 'getAlchemyBatchRequest').returns({
-      schedule: retryStub as any,
-    })
+    sandbox.stub(ProviderModule, 'getProvider').returns({
+      getBlockNumber: sandbox.stub().resolves(300),
+      send: retryStub,
+    } as any)
 
     let batchSize = crawler.crawlSetting.batchSize
     sandbox.stub(crawler.crawlSetting, 'batchSize').get(() => batchSize)
@@ -434,14 +436,10 @@ describe('Module: blockchainLogCrawler', () => {
       batchSize = value
     })
 
-    mockProvider.getBlockNumber.resolves(300)
-    sandbox.stub(crawler, 'getProvider').returns(mockProvider as any)
-
     await crawler.crawl()
 
     expect(logError.calledWith('Batch size too small, stopping crawl')).to.be.true
     expect(crawler.crawlSetting.batchSize).to.eq(1)
-    expect(bottleneckStub.callCount).to.eq(20)
   })
 
   it('should throw an error if block interval time is not found for the network', () => {

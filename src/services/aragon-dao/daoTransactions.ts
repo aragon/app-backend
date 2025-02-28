@@ -71,6 +71,7 @@ export const DaoTransactions = {
       network: dao.network,
       filter: {
         toAddress: dao.address,
+        fromBlock: dao.blockNumber,
         category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) =>
@@ -91,6 +92,7 @@ export const DaoTransactions = {
       network: dao.network,
       filter: {
         fromAddress: dao.address,
+        fromBlock: dao.blockNumber,
         category,
       },
       onTx: async (txLog: IAlchemyTransferResponse) =>
@@ -125,6 +127,18 @@ export const DaoTransactions = {
       let pluginAddress: string | undefined
       let proposalIndex: string | undefined
 
+      const existingLog = await Models.Transaction.findExistingLog({
+        transactionHash: tx.hash,
+        network: dao.network,
+        category: tx.category,
+        uniqueId: tx.uniqueId,
+      })
+
+      if (existingLog) {
+        logger.verbose('Transaction already saved', llo({ logId: existingLog.id }))
+        return
+      }
+
       const proposalExecutionLog = Web3Helper.findLogsByName(transactionReceipt, 'Executed', DAO.abi)
       if (proposalExecutionLog?.length) {
         daoAddress = proposalExecutionLog[0].txLog.address
@@ -144,6 +158,7 @@ export const DaoTransactions = {
           return
         }
       }
+
       const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), dao.network)
       const tokenAddress = tx.rawContract?.address || utils.zeroAddress
       const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)
@@ -153,6 +168,7 @@ export const DaoTransactions = {
 
       const rawTx: Partial<Transaction> = {
         transactionHash: tx.hash,
+        uniqueId: tx.uniqueId,
         blockNumber: Number(tx.blockNum),
         blockTimestamp,
         network: dao.network,

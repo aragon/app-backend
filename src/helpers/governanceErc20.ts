@@ -24,7 +24,9 @@ const GovernanceErc20Helper = {
           contract.getPastVotes(memberAddress, blockNumber),
         ),
       )
-      return BigInt(pastVotes || 0)?.toString()
+      if (pastVotes > 0n) {
+        return BigInt(pastVotes || 0)?.toString()
+      }
     } catch (error) {
       logger.error(
         'Error getting past votes - blockNumber',
@@ -75,20 +77,16 @@ const GovernanceErc20Helper = {
     }
   },
 
-  async getDelegates(
-    memberAddress: HexAddress,
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<HexAddress | false> {
+  async getDelegates(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<any> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.delegates(memberAddress)),
       )
-    } catch (error) {
-      logger.error('Error getting delegates', llo({ memberAddress, tokenAddress, network, error }))
-      return '0'
+    } catch (e) {
+      logger.error('Error getting delegate', llo({ memberAddress, tokenAddress, network, error: e }))
+      return null
     }
   },
 }

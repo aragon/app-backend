@@ -2,6 +2,7 @@ import { NetworksEnum, ITransactionType, ITransactionCategory, ITokenType } from
 
 export const FakeTransaction = {
   transactionHash: '0x14c9c85a416679f1b3e89e98e5c1e5d99bb4426d11c5c9e2694d6c9ead52637e',
+  uniqueId: '0x123213',
   blockNumber: 40941880,
   blockTimestamp: 1680186396,
   network: NetworksEnum.polygonMainnet,

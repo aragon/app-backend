@@ -9,7 +9,6 @@ import {
   IProviderType,
   type NetworksEnum,
 } from '@types'
-import BottleneckModule from '@modules/bottleneck'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import config from '@config'
@@ -118,6 +117,31 @@ class BlockchainLogCrawler {
     return topicChunks
   }
 
+  async getLogsByBatch(topicChunks: string[], currentBlock: number, toBlock: number) {
+    try {
+      const coreProvider = await ProviderModule.getProvider(
+        this.crawlParams.network,
+        IProviderType.ALCHEMY,
+        IConnectionType.RPC,
+      )
+
+      const batchRequests = topicChunks.map((topics: any) =>
+        coreProvider.send('eth_getLogs', [
+          {
+            fromBlock: `0x${currentBlock.toString(16)}`,
+            toBlock: `0x${toBlock.toString(16)}`,
+            topics,
+            address: this.crawlParams.address,
+          },
+        ]),
+      )
+
+      return await retryRequest(async () => Promise.all(batchRequests))
+    } catch (e: any) {
+      throw e
+    }
+  }
+
   async crawl(): Promise<IFormattedLog[] | undefined> {
     if (this.crawlSetting.crawling) {
       throw new Error('Already crawling')
@@ -153,28 +177,7 @@ class BlockchainLogCrawler {
 
       while (!success) {
         try {
-          const coreProvider = await this.getProvider()
-          const batchRequests = topicChunks.map((topics: any) =>
-            coreProvider._send(
-              'eth_getLogs',
-              [
-                {
-                  address: this.crawlSetting.filter.address,
-                  topics,
-                  fromBlock: `0x${currentBlock.toString(16)}`,
-                  toBlock: `0x${toBlock.toString(16)}`,
-                },
-              ],
-              'eth_getLogs',
-              true,
-            ),
-          )
-
-          const logs = await retryRequest(async () =>
-            BottleneckModule.getAlchemyBatchRequest(this.crawlParams.network)!.schedule(async () =>
-              Promise.all(batchRequests),
-            ),
-          )
+          const logs = await this.getLogsByBatch(topicChunks, currentBlock, toBlock)
 
           allLogs.push(...logs.flat())
           this.crawlSetting.nbTotal += logs.length
@@ -331,13 +334,18 @@ class BlockchainLogCrawler {
   }
 
   isRateLimited(error: any): boolean {
-    const messages = ['Your app has exceeded its compute units per second capacity', 'query exceeds max block range']
+    const messages = ['Your app has exceeded its compute units per second capacity']
 
     return messages.some(msg => error.message?.includes(msg))
   }
 
   isBatchSizeError(error: any): boolean {
-    const messages = ['The query timed out', 'Log response size exceeded']
+    const messages = [
+      'The query timed out',
+      'Response size is larger than 150MB limit',
+      'Log response size exceeded',
+      'Consider reducing your block range',
+    ]
 
     return messages.some(msg => error.message?.includes(msg))
   }
