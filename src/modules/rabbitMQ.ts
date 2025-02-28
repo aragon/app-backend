@@ -28,17 +28,15 @@ const RabbitMQ = {
 
     // For each queue in EnumQueueName, create a dedicated channel wrapper
     for (const queueName of Object.values(EnumQueueName)) {
-      const concurrency = config.RABBITMQ.DEFAULT_CONCURRENCY
       const channelWrapper = RabbitMQ.connection.createChannel({
         json: true,
         confirm: true,
         setup: async (channel: ConfirmChannel) => {
           try {
             await channel.assertQueue(queueName, { durable: true })
-            await channel.prefetch(concurrency)
-            logger.verbose(`Channel set up for queue=${queueName}`, llo({ concurrency }))
+            logger.verbose(`Channel set up for queue`, llo({ queueName }))
           } catch (err) {
-            logger.error(`Failed to set up channel for queue=${queueName}`, llo({ err }))
+            logger.error(`Failed to set up channel for queue`, llo({ queueName, err }))
             throw err
           }
         },
