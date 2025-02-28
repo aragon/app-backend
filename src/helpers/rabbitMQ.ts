@@ -97,8 +97,6 @@ const RabbitMQHelper = {
     } catch (err) {
       logger.error('sendMessage error', llo({ queueName, err }))
       return null
-    } finally {
-      await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.queuedMessages.delete(uniqueKey))
     }
   },
 
