@@ -20,7 +20,7 @@ import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import BlockScoutHelper from '@helpers/blockScout'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
@@ -117,10 +117,16 @@ export const ProxyToken = {
       holders: tokenMetrics.totalHolders,
       totalSupply: tokenMetrics.totalSupply,
       address: tokenAddress,
-      underlying: tokenTypeInfo.isUnderlying ? await Web3Helper.getUnderlying(tokenAddress, network) : null,
+      underlying: tokenTypeInfo.hasUnderlying ? await Web3Helper.getUnderlying(tokenAddress, network) : null,
       type: tokenTypeInfo.type,
       isGovernance: tokenTypeInfo.isGovernance,
       hasDelegate: tokenTypeInfo.hasDelegate,
+      hasBalanceOfERC20: tokenTypeInfo.hasBalanceOfERC20,
+      hasBalanceOfERC777: tokenTypeInfo.hasBalanceOfERC777,
+      hasName: tokenTypeInfo.hasName,
+      hasSymbol: tokenTypeInfo.hasSymbol,
+      hasDecimals: tokenTypeInfo.hasDecimals,
+      hasTotalSupply: tokenTypeInfo.hasTotalSupply,
       implementationAddress: tokenTypeInfo.implementationAddress! ?? null,
       network,
       lastUpdatedAt: dayjs.utc().toDate(),

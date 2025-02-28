@@ -122,6 +122,18 @@ describe('Model: MemberMetrics', () => {
     expect(createdLogDao.address).to.eq(rawMemberMetrics.address)
   })
 
+  it('should decreaseDelegateReceivedCount', async () => {
+    const member = await Models.MemberMetrics.create({ ...rawMemberMetrics, delegateReceivedCount: 1 })
+    const updatedMember = await member.decreaseDelegateReceivedCount(1)
+    expect(updatedMember.delegateReceivedCount).to.eq(0)
+  })
+
+  it('should decreaseDelegateSentCount', async () => {
+    const member = await Models.MemberMetrics.create({ ...rawMemberMetrics, delegateSentCount: 1 })
+    const updatedMember = await member.decreaseDelegateSentCount(1)
+    expect(updatedMember.delegateSentCount).to.eq(0)
+  })
+
   it('should increaseDelegateReceivedCount', async () => {
     const member = await Models.MemberMetrics.create(rawMemberMetrics)
     const updatedMember = await member.increaseDelegateReceivedCount(1)

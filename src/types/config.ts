@@ -57,7 +57,6 @@ export interface IConfig {
     URI: string
     TIMEOUT: number
     DEFAULT_CONCURRENCY: number
-    PLUGINS_CONCURRENCY: number
     RECONNECT_TIME: number
     CLEAN_QUEUE: boolean
   }

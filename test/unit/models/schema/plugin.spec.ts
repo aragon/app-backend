@@ -116,6 +116,24 @@ describe('Model: Plugin', () => {
     expect(foundPlugin.isSupported).to.be.false
   })
 
+  it('Should find Plugin by address and networks', async () => {
+    const createdPlugin = await Models.Plugin.create(rawPlugin)
+    const plugin = await Models.Plugin.findByTokenAddress(
+      createdPlugin.tokenAddress,
+      createdPlugin.network as NetworksEnum,
+    )
+    expect(plugin?.address).to.eq(createdPlugin.address)
+  })
+
+  it('Should find Plugin by address and networks', async () => {
+    const createdPlugin = await Models.Plugin.create(rawPlugin)
+    const plugins = await Models.Plugin.findAllByTokenAddress(
+      createdPlugin.tokenAddress,
+      createdPlugin.network as NetworksEnum,
+    )
+    expect(plugins[0].address).to.eq(createdPlugin.address)
+  })
+
   it('should find by address isSupported', async () => {
     const rawPlugin2 = {
       ...PluginList[0],

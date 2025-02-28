@@ -27,7 +27,7 @@ export const ManualSyncNectorDao: IService = {
 
     token.isGovernance = interfaceType.isGovernance
     token.hasDelegate = interfaceType.hasDelegate
-    token.underlying = interfaceType.isUnderlying
+    token.underlying = interfaceType.hasUnderlying
       ? await Web3Helper.getUnderlying(tokenAddress, NetworksEnum.ethereumSepolia)
       : null
 
