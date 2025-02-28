@@ -40,21 +40,24 @@ export const DaoAssets = {
       if (Number(ethBalance) > 0) {
         const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, document.network)
 
-        const ethAssetData: Partial<Asset> = {
-          amount: ethBalance,
-          network: document.network,
-          daoAddress: document.address,
-          tokenAddress: utils.zeroAddress, // native token
-          amountUsd: Web3Helper.convertBalanceToUsd(ethBalance, token?.priceUsd || '0', token?.decimals || 0),
-        }
-
-        const existingEthAssetDb = await Models.Asset.findExistingLog({
-          daoAddress: document.address,
-          tokenAddress: utils.zeroAddress,
-          network: document.network,
-        })
-
         await DbTx.executeTxFn(async ({ session }) => {
+          const existingEthAssetDb = await Models.Asset.findExistingLog(
+            {
+              daoAddress: document.address,
+              tokenAddress: utils.zeroAddress,
+              network: document.network,
+            },
+            { session },
+          )
+
+          const ethAssetData: Partial<Asset> = {
+            amount: ethBalance,
+            network: document.network,
+            daoAddress: document.address,
+            tokenAddress: utils.zeroAddress, // native token
+            amountUsd: Web3Helper.convertBalanceToUsd(ethBalance, token?.priceUsd || '0', token?.decimals || 0),
+          }
+
           let logDb: any
           if (existingEthAssetDb) {
             logDb = await existingEthAssetDb.update(ethAssetData, { session })
