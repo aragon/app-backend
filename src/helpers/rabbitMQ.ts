@@ -17,24 +17,6 @@ const RabbitMQHelper = {
   queuedMessages: new Set<string>(),
   mutex: new Mutex(),
 
-  async isMessageDuplicate(uniqueKey: string): Promise<boolean> {
-    return await RabbitMQHelper.executeWithMutex(() => {
-      return RabbitMQHelper.queuedMessages.has(uniqueKey)
-    })
-  },
-
-  async addMessageToQueue(uniqueKey: string): Promise<void> {
-    await RabbitMQHelper.executeWithMutex(() => {
-      RabbitMQHelper.queuedMessages.add(uniqueKey)
-    })
-  },
-
-  async clearMessageFromQueue(uniqueKey: string): Promise<void> {
-    await RabbitMQHelper.executeWithMutex(() => {
-      RabbitMQHelper.queuedMessages.delete(uniqueKey)
-    })
-  },
-
   // Execute a callback under mutex protection.
   executeWithMutex: async <T>(callback: () => T | Promise<T>): Promise<T> => {
     const release = await RabbitMQHelper.mutex.acquire()
@@ -95,14 +77,15 @@ const RabbitMQHelper = {
   ): Promise<any> {
     const uniqueKey = `${queueName}-${payload.id}`
 
-    if (!opts?.waitResponse && (await RabbitMQHelper.isMessageDuplicate(uniqueKey))) {
-      logger.warn('Duplicate message detected', llo({ queueName, uniqueKey }))
-      return null
-    }
-
-    if (!opts?.waitResponse) {
-      await RabbitMQHelper.addMessageToQueue(uniqueKey)
-    }
+    const isDuplicate = await RabbitMQHelper.executeWithMutex(() => {
+      if (RabbitMQHelper.queuedMessages.has(uniqueKey)) {
+        logger.warn('Skipping duplicate message', llo({ queueName, messageId: payload.id }))
+        return true
+      }
+      RabbitMQHelper.queuedMessages.add(uniqueKey)
+      return false
+    })
+    if (isDuplicate) return null
 
     try {
       const channelWrapper = RabbitMQ.getChannel(queueName)
@@ -115,9 +98,7 @@ const RabbitMQHelper = {
       logger.error('sendMessage error', llo({ queueName, err }))
       return null
     } finally {
-      if (!opts?.waitResponse) {
-        await RabbitMQHelper.clearMessageFromQueue(uniqueKey)
-      }
+      await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.queuedMessages.delete(uniqueKey))
     }
   },
 
@@ -155,6 +136,7 @@ const RabbitMQHelper = {
               } catch (parseErr) {
                 logger.error('Failed to parse ephemeral response as JSON', llo({ queueName, parseErr }))
               }
+              await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.queuedMessages.delete(uniqueKey))
               clearTimeout(timeoutId)
               resolve(responseData)
             }
@@ -174,6 +156,7 @@ const RabbitMQHelper = {
                 logger.warn('Failed to cancel ephemeral consumer on timeout', llo({ queueName, cancelErr }))
               }
             }
+            await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.queuedMessages.delete(uniqueKey))
             logger.error('Failed to send message to queue', llo({ queueName, correlationId, payload }))
             resolve(null)
           }
