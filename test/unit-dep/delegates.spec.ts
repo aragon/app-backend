@@ -253,6 +253,8 @@ describe('Integ: Delegates', () => {
     member2Balance = await Models.MemberBalance.findOne({ address: member2 })
     member2Metrics = await Models.MemberMetrics.findOne({ address: member2 })
 
+    // member2 got delegate member1
+    // member1 got delegate member2, member3, member4
     expect(member2Txs).to.have.length(2)
     expect(member2Txs[0].side).to.eq(ITransferSide.incoming)
     expect(member2Txs[0].from).to.eq(member1)

@@ -14,7 +14,7 @@ import { beforeEach } from 'mocha'
 import { MultisigHandler } from '@handlers/multisigHandler'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 describe('Indexer: MemberHandler', () => {
   let sandbox: SinonSandbox
