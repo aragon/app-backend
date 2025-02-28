@@ -74,8 +74,8 @@ const RabbitMQHelper = {
                   contentType: 'application/json',
                 }
                 await channelWrapper.sendToQueue(msg.properties.replyTo, response, publishOpts)
-                channel.ack(msg)
               }
+              channel.ack(msg)
             } catch (handlerErr) {
               logger.error('Error in messageHandler', llo({ queueName, error: handlerErr }))
             }
