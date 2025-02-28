@@ -67,12 +67,15 @@ const RabbitMQHelper = {
             const uniqueKey = `${queueName}-${data?.id}`
 
             const release = await this.mutex.acquire()
-            if (this.activeJobs.has(uniqueKey)) {
-              channel.ack(msg)
-              return
+            try {
+              if (this.activeJobs.has(uniqueKey)) {
+                channel.ack(msg)
+                return
+              }
+              this.activeJobs.set(uniqueKey, true)
+            } finally {
+              release()
             }
-            this.activeJobs.set(uniqueKey, true)
-            release()
 
             try {
               const response = await handler(data)
@@ -150,7 +153,7 @@ const RabbitMQHelper = {
         const timeoutId = setTimeout(async () => {
           logger.warn('Timeout waiting for response', { queueName, correlationId })
           resolve(null)
-        }, opts.timeout || 135000)
+        }, opts.timeout || 5000)
         channelWrapper.addSetup(async (channel: ConfirmChannel) => {
           const { queue: replyQueue } = await channel.assertQueue('', { exclusive: true })
           const { consumerTag } = await channel.consume(replyQueue, async (msg: ConsumeMessage | null) => {
