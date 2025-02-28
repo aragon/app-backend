@@ -12,7 +12,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { ProxyMember } from '@modules/proxyMember'
 import config from '@config'
 import utils from '@helpers/utils'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import { ProxyToken } from '@modules/proxyToken'
 import { ProposalList } from '@test/mock/fakeProposal'
 import ProposalHelper from '@helpers/proposal'
@@ -1191,12 +1191,14 @@ describe('Indexer: ProposalHandler', () => {
         ...ProposalList[0],
         subProposals: [],
         stageExecutions: [],
+        network,
       })
 
       const executedSubProposal = await Models.Proposal.create({
         ...ProposalList[1],
         executed: { status: true },
         parentProposal: { proposalIndex: parentProposal.proposalIndex },
+        network,
       })
 
       await Models.Proposal.findByIdAndUpdate(parentProposal._id, {
@@ -1204,6 +1206,7 @@ describe('Indexer: ProposalHandler', () => {
           subProposals: {
             proposalIndex: executedSubProposal.proposalIndex,
             pluginAddress: executedSubProposal.pluginAddress,
+            stageIndex: 1,
           },
         },
       })
@@ -1213,6 +1216,7 @@ describe('Indexer: ProposalHandler', () => {
         address: parentProposal.pluginAddress,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: [executedSubProposal.pluginAddress] }],
+        network,
       })
       const info = {
         transactionHash: '0xAdvancedTx',
@@ -1228,6 +1232,8 @@ describe('Indexer: ProposalHandler', () => {
 
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({ lastStageTransition: 1800000000 } as any)
+      sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1)
+      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
@@ -1277,6 +1283,15 @@ describe('Indexer: ProposalHandler', () => {
         },
       }
 
+      await Models.Proposal.create({
+        ...ProposalList[1],
+        executed: { status: true },
+        parentProposal: { proposalIndex: parentProposal.proposalIndex },
+        network,
+        proposalIndex: '1',
+        pluginAddress: '0xPluginAddress',
+      })
+
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({
         lastStageTransition: 1800000000,
@@ -1285,11 +1300,14 @@ describe('Indexer: ProposalHandler', () => {
 
       const warnLoggerStub = sandbox.stub(logger, 'warn')
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+      sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1)
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
+      expect(updateDocumentStub.callCount).to.be.equal(1)
+      expect(updateDocumentStub.args[0][3]).to.be.eq('Update subProposal with length: 1')
+      expect(updateDocumentStub.args[0][3]).to.be.not.eq('Proposal Updated - lastStageTransition')
       expect(warnLoggerStub.calledOnceWith('Stage execution already exists in the array' as any)).to.be.true
-      expect(updateDocumentStub.notCalled).to.be.true
     })
 
     it('should log a warning and return when subProposalDb is not found', async () => {
@@ -1312,6 +1330,7 @@ describe('Indexer: ProposalHandler', () => {
         ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
+        subPlugins: [{ stageIndex: 2, addresses: ['0xNonExistentPlugin'] }],
       })
 
       const info = {
@@ -1344,6 +1363,8 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
 
       const warnLoggerStub = sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
@@ -1395,6 +1416,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
 
       const errorLoggerStub = sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
@@ -1429,6 +1451,7 @@ describe('Indexer: ProposalHandler', () => {
         ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
+        subPlugins: [{ stageIndex: 2, addresses: ['0xSubPluginAddress'] }],
       })
 
       const info = {
@@ -1463,11 +1486,15 @@ describe('Indexer: ProposalHandler', () => {
         return null
       })
 
+      sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'verbose')
+
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
-      expect(updateDocumentStub.notCalled).to.be.true
+      expect(updateDocumentStub.callCount).to.be.eq(1)
+      expect(updateDocumentStub.args[0][3]).to.be.not.eq('Proposal Executed - Sub Proposal')
     })
 
     it('should log an error when subPlugins are missing for the stage', async () => {
@@ -1497,6 +1524,7 @@ describe('Indexer: ProposalHandler', () => {
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
       const errorLoggerStub = sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
@@ -2313,6 +2341,7 @@ describe('Indexer: ProposalHandler', () => {
         { field: 'network', payload: { pluginAddress: '0xPlugin', proposalIndex: '123' } },
         { field: 'proposalIndex', payload: { pluginAddress: '0xPlugin', network: NetworksEnum.ethereumSepolia } },
       ]
+      const errorStub = sandbox.stub(logger, 'error')
 
       for (const { field, payload } of requiredFields) {
         try {
@@ -2321,6 +2350,7 @@ describe('Indexer: ProposalHandler', () => {
           expect(error.message).to.include(`${field} is required`)
         }
       }
+      expect(errorStub.callCount).to.be.eq(3)
     })
 
     it('should throw an error if the plugin is not found', async () => {

@@ -2,10 +2,10 @@ import ProviderModule from '@modules/provider'
 import { Models } from '@dbModels'
 import sinon from 'sinon'
 import Web3Helper from '@helpers/web3'
-import { type IIndexerConfig, ITokenVotingLogs, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 describe.skip('ToolsFixSettingIssue', () => {
   before(async () => {
     await ProviderModule.connectToAllNetworks()
