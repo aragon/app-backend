@@ -10,40 +10,44 @@ const RabbitMQ = {
   connection: null as AmqpConnectionManager | null,
   channelsMap: new Map<EnumQueueName, ChannelWrapper>(),
 
-  async connect(): Promise<void> {
-    // Avoid re-connecting if already connected
-    if (RabbitMQ.connection) return
+  async connect(): Promise<boolean> {
+    return await new Promise((resolve, _reject) => {
+      // Avoid re-connecting if already connected
+      if (RabbitMQ.connection) resolve(true)
 
-    RabbitMQ.connection = connect([config.RABBITMQ.URI], {
-      heartbeatIntervalInSeconds: 10,
-      reconnectTimeInSeconds: 5,
-    })
-
-    RabbitMQ.connection.on('connect', () => {
-      logger.info('RabbitMQ connected', llo({ uri: config.RABBITMQ.URI }))
-    })
-    RabbitMQ.connection.on('disconnect', err => {
-      logger.error('RabbitMQ disconnected', llo({ reason: err }))
-    })
-
-    // For each queue in EnumQueueName, create a dedicated channel wrapper
-    for (const queueName of Object.values(EnumQueueName)) {
-      const channelWrapper = RabbitMQ.connection.createChannel({
-        json: true,
-        confirm: true,
-        setup: async (channel: ConfirmChannel) => {
-          try {
-            await channel.assertQueue(queueName, { durable: true })
-            logger.verbose(`Channel set up for queue`, llo({ queueName }))
-          } catch (err) {
-            logger.error(`Failed to set up channel for queue`, llo({ queueName, err }))
-            throw err
-          }
-        },
+      RabbitMQ.connection = connect([config.RABBITMQ.URI], {
+        heartbeatIntervalInSeconds: 10,
+        reconnectTimeInSeconds: 5,
       })
 
-      RabbitMQ.channelsMap.set(queueName, channelWrapper)
-    }
+      RabbitMQ.connection.on('connect', () => {
+        logger.info('RabbitMQ connected', llo({ uri: config.RABBITMQ.URI }))
+        resolve(true)
+      })
+      RabbitMQ.connection.on('disconnect', err => {
+        logger.error('RabbitMQ disconnected', llo({ reason: err }))
+        resolve(false)
+      })
+
+      // For each queue in EnumQueueName, create a dedicated channel wrapper
+      for (const queueName of Object.values(EnumQueueName)) {
+        const channelWrapper = RabbitMQ.connection.createChannel({
+          json: true,
+          confirm: true,
+          setup: async (channel: ConfirmChannel) => {
+            try {
+              await channel.assertQueue(queueName, { durable: true })
+              logger.verbose('Channel set up for queue', llo({ queueName }))
+            } catch (err) {
+              logger.error('Failed to set up channel for queue', llo({ queueName, err }))
+              throw err
+            }
+          },
+        })
+
+        RabbitMQ.channelsMap.set(queueName, channelWrapper)
+      }
+    })
   },
 
   getChannel(queueName: EnumQueueName): ChannelWrapper {
