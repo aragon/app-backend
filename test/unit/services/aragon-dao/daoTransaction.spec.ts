@@ -259,6 +259,7 @@ describe('AragonDao: DaoTransactions', () => {
           transactionHash: tx.hash,
           category: tx.category,
           network: daoRegistry.network,
+          uniqueId: tx.uniqueId,
         })
 
         expect(findTxReceiptStub.calledOnce).to.be.true
@@ -349,6 +350,36 @@ describe('AragonDao: DaoTransactions', () => {
       await DaoTransactions.saveTransaction(tx as any, ITransactionType.deposit, daoRegistry as any)
 
       expect(stubLogger.calledOnceWith('Error saveTransaction' as any)).to.be.true
+    })
+
+    it('should return if already exist', async () => {
+      const daoRegistry: Partial<Dao> = {
+        id: 'daoRegistryId',
+        address: '0x01',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const tx = {
+        transactionHash: '0x0',
+      }
+
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      sandbox.stub(Models.Transaction, 'findExistingLog').resolves({} as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        network: daoRegistry.network,
+        address: '0x01',
+        decimals: 18,
+        name: 'test',
+        symbol: 'tst',
+        type: ITokenType.ERC20,
+      } as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
+      sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
+      sandbox.stub(Web3Helper, 'findLogsByName').returns([] as any)
+
+      await DaoTransactions.saveTransaction(tx as any, ITransactionType.deposit, daoRegistry as any)
+
+      expect(stubLogger.calledOnceWith('Transaction already saved' as any)).to.be.true
     })
 
     it(`should saveTransaction in parallel`, async () => {
@@ -456,7 +487,14 @@ describe('AragonDao: DaoTransactions', () => {
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
       const loggerStub = sandbox.stub(Logger, 'verbose')
 
-      const tx = { hash: '0x123', blockNum: '0x1', category: ITransactionCategory.ERC20, from: '0x', to: '0x' } as any
+      const tx = {
+        uniqueId: '0xuniq',
+        hash: '0x123',
+        blockNum: '0x1',
+        category: ITransactionCategory.ERC20,
+        from: '0x',
+        to: '0x',
+      } as any
       const daoRegistry = { address: '0x123', network: NetworksEnum.ethereumMainnet } as Dao
 
       await DaoTransactions.saveTransaction(tx, ITransactionType.deposit, daoRegistry)
