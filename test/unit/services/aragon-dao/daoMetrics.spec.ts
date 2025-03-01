@@ -5,6 +5,7 @@ import { Models } from '@dbModels'
 import { NetworksEnum } from '@types'
 import Logger from '@logger'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
+import DbTx from "@modules/dbTx";
 
 describe('AragonDao:DaoMetrics', () => {
   let sandbox: SinonSandbox
@@ -76,6 +77,21 @@ describe('AragonDao:DaoMetrics', () => {
 
       expect(document.updateMetrics.calledOnceWith(fakeMetrics)).to.be.true
       expect(stubLogger.calledWithMatch('Update Dao metrics' as any)).to.be.true
+    })
+
+    it('should throw error', async () => {
+      const document = {
+        address: '0xDaoAddress',
+        network: NetworksEnum.ethereumMainnet,
+        updateMetrics: sandbox.stub(),
+      } as any
+
+      sandbox.stub(DbTx, 'executeTxFn').rejects(new Error('Test error'))
+      const stubLogger = sandbox.stub(Logger, 'error')
+
+      await DaoMetrics.onDocument(document)
+
+      expect(stubLogger.calledWith('Error DaoMetrics' as any)).to.be.true
     })
   })
 
