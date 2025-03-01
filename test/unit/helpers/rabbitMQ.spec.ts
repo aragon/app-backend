@@ -44,7 +44,7 @@ describe('Helpers:RabbitMQ', () => {
   })
 
   describe('process', () => {
-    it.only('should consume a message and process it successfully', async () => {
+    it('should consume a message and process it successfully', async () => {
       const queueName = EnumQueueName.contractInfo
       const fakeMsg: any = {
         content: Buffer.from(JSON.stringify({ id: 'msg-1', data: 'test' })),
