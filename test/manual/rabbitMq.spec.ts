@@ -5,7 +5,7 @@ import Utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { EnumQueueName } from '@types'
 
-describe.only('RabbitMq Test', () => {
+describe('RabbitMq Test', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -30,7 +30,7 @@ describe.only('RabbitMq Test', () => {
 
     for (let i = 0; i < 100; i++) {
       await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-        id: '123'+ i,
+        id: '123' + i,
         params: {
           a: 1,
           b: 2,
