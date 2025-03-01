@@ -371,27 +371,34 @@ class BlockchainLogCrawler {
   }
 
   async onSaveProgress(blockNumber: number) {
-    const existingConfig = await Models.ConfigIndexer.findExistingLog({
-      network: this.crawlParams.network,
-      service: this.crawlParams.logService!,
-    })
-
-    await DbTx.executeTxFn(async ({ session }) => {
-      if (existingConfig) {
-        await existingConfig.update({ lastSync: blockNumber })
-      } else {
-        await Models.ConfigIndexer.create(
+    try {
+      await DbTx.executeTxFn(async ({ session }) => {
+        const existingConfig = await Models.ConfigIndexer.findExistingLog(
           {
             network: this.crawlParams.network,
             service: this.crawlParams.logService!,
-            lastSync: blockNumber,
           },
-          { session } as any,
+          { session },
         )
-      }
-      await session.commitTransaction()
-      await session.endSession()
-    })
+
+        if (existingConfig) {
+          await existingConfig.update({ lastSync: blockNumber }, { session })
+        } else {
+          await Models.ConfigIndexer.create(
+            {
+              network: this.crawlParams.network,
+              service: this.crawlParams.logService!,
+              lastSync: blockNumber,
+            },
+            { session },
+          )
+        }
+        await session.commitTransaction()
+        await session.endSession()
+      })
+    } catch (error) {
+      logger.error('Error saving progress', llo({ ...this.parseCrawlerInfoLog(), error }))
+    }
   }
 
   parseCrawlerInfoLog() {

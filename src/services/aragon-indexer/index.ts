@@ -7,6 +7,7 @@ import utils from '@helpers/utils'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import EventListener from '@modules/eventListener'
 import { SyncAll } from '@indexer/syncAll'
+
 import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
 
@@ -38,18 +39,14 @@ const AragonIndexerService: IService & { repeaters: any } = {
           stopOnError: true,
         })
         await crawler.crawl()
-      }),
-    )
 
-    logger.info('IndexerService historical logs end', llo({}))
-
-    // realtime
-    await Promise.all(
-      networks.map(async ({ networkName }) => {
+        // realtime after sync
         const eventListener = new EventListener(networkName, configIndexer)
         eventListener.subscribeEventsByNewBlock()
       }),
     )
+
+    logger.info('IndexerService historical logs end', llo({}))
 
     // re-sync all installed plugins
     const taskOptions = {
