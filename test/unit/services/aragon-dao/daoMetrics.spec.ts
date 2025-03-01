@@ -5,7 +5,7 @@ import { Models } from '@dbModels'
 import { NetworksEnum } from '@types'
 import Logger from '@logger'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import DbTx from "@modules/dbTx";
+import DbTx from '@modules/dbTx'
 
 describe('AragonDao:DaoMetrics', () => {
   let sandbox: SinonSandbox

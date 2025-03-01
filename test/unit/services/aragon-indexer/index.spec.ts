@@ -26,40 +26,42 @@ describe('AragonIndexer: index', () => {
 
   describe('start', () => {
     it('should start the indexer service and execute historical crawlers', async () => {
-      sandbox.stub(config.SERVICES.ARAGON_INDEXER, 'SYNC_ALL').value(true);
+      sandbox.stub(config.SERVICES.ARAGON_INDEXER, 'SYNC_ALL').value(true)
 
-      const loggerStub = sandbox.stub(logger, 'info');
-      sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any]);
-      sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }]);
-      const customInstall = sandbox.stub(CustomInstall, 'install').resolves();
-      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves();
-      const subscribeStub = sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock');
-      const schedulerStartStub = sandbox.stub(TaskSchedulerState.getInstance(), 'startTask').callsFake(async (taskName: string, options: any) => {
-        if (taskName === 'allPlugins') {
-          for (const taskGroup of options.fn()) {
-            for (const task of taskGroup) {
-              const taskName = Object.keys(task)[0];
-              await task[taskName].start();
+      const loggerStub = sandbox.stub(logger, 'info')
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
+      sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
+      const customInstall = sandbox.stub(CustomInstall, 'install').resolves()
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const subscribeStub = sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock')
+      const schedulerStartStub = sandbox
+        .stub(TaskSchedulerState.getInstance(), 'startTask')
+        .callsFake(async (taskName: string, options: any) => {
+          if (taskName === 'allPlugins') {
+            for (const taskGroup of options.fn()) {
+              for (const task of taskGroup) {
+                const taskName = Object.keys(task)[0]
+                await task[taskName].start()
+              }
             }
           }
-        }
-      });
+        })
 
-      const SyncAllStub = { start: sandbox.stub().resolves() };
+      const SyncAllStub = { start: sandbox.stub().resolves() }
       const IndexerServiceProxy = proxyquire.noCallThru()('@services/aragon-indexer/index', {
         '@indexer/syncAll': { SyncAll: SyncAllStub },
-      }).default;
+      }).default
 
-      await IndexerServiceProxy.start();
+      await IndexerServiceProxy.start()
 
-      expect(loggerStub.calledWith('IndexerService historical started' as any)).to.be.true;
-      expect(customInstall.calledOnce).to.be.true;
-      expect(crawlStub.calledOnce).to.be.true;
-      expect(subscribeStub.calledOnce).to.be.true;
-      expect(schedulerStartStub.calledOnce).to.be.true;
-      expect(loggerStub.calledWith('IndexerService historical logs end' as any)).to.be.true;
-      expect(SyncAllStub.start.calledOnce).to.be.true;
-    });
+      expect(loggerStub.calledWith('IndexerService historical started' as any)).to.be.true
+      expect(customInstall.calledOnce).to.be.true
+      expect(crawlStub.calledOnce).to.be.true
+      expect(subscribeStub.calledOnce).to.be.true
+      expect(schedulerStartStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('IndexerService historical logs end' as any)).to.be.true
+      expect(SyncAllStub.start.calledOnce).to.be.true
+    })
 
     it('should log an error when sync all plugins fails', async () => {
       sandbox.stub(config.SERVICES.ARAGON_INDEXER, 'SYNC_ALL').value(true)
@@ -77,24 +79,26 @@ describe('AragonIndexer: index', () => {
         }
       })
 
-      const schedulerStub = sandbox.stub(TaskSchedulerState.prototype, 'startTask').callsFake(async (taskName: string, options: any) => {
-        if (taskName === 'allPlugins' && options.onError) {
-          await options.onError(error);
-        }
-      });
-      sandbox.stub(TaskSchedulerState, 'getInstance').returns({ startTask: schedulerStub } as any);
+      const schedulerStub = sandbox
+        .stub(TaskSchedulerState.prototype, 'startTask')
+        .callsFake(async (taskName: string, options: any) => {
+          if (taskName === 'allPlugins' && options.onError) {
+            await options.onError(error)
+          }
+        })
+      sandbox.stub(TaskSchedulerState, 'getInstance').returns({ startTask: schedulerStub } as any)
 
-      await IndexerService.start();
+      await IndexerService.start()
 
       expect(subscribeStub.calledOnce).to.be.true
       expect(loggerErrorStub.calledTwice).to.be.true
-      expect(loggerErrorStub.calledWith('Error Indexer' as any)).to.be.true;
-      expect(loggerErrorStub.calledWith('Error sync all plugins' as any)).to.be.true;
+      expect(loggerErrorStub.calledWith('Error Indexer' as any)).to.be.true
+      expect(loggerErrorStub.calledWith('Error sync all plugins' as any)).to.be.true
 
       expect(crawlStub.calledOnce).to.be.true
-      expect(schedulerStub.calledOnce).to.be.true;
+      expect(schedulerStub.calledOnce).to.be.true
       expect(schedulerStartStub.notCalled).to.be.true
-    });
+    })
   })
 
   describe('stop', () => {
