@@ -6,7 +6,6 @@ import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
 import { EnumQueueName } from '@types'
 import proxyquire from 'proxyquire'
-import utils from '@helpers/utils'
 
 describe('Modules: RabbitMQ', () => {
   let sandbox: SinonSandbox
@@ -23,18 +22,61 @@ describe('Modules: RabbitMQ', () => {
 
   describe('connect', () => {
     it('should establish a connection and set up channels', async () => {
-      const { default: RabbitMQ } = proxyquire.noCallThru()('@modules/rabbitMQ', {
-        'amqp-connection-manager': {
-          connect: sandbox.stub().returns({
-            on: sandbox.stub(),
-            createChannel: sandbox.stub().returns({ on: sandbox.stub() }),
-          }),
-        },
-      })
+      const connectionStub = {
+        on: sandbox.stub(),
+        createChannel: sandbox.stub().returns({
+          on: sandbox.stub(),
+          assertQueue: sandbox.stub().resolves(),
+        }),
+      }
 
-      await RabbitMQ.connect()
+      const connectStub = sandbox.stub().returns(connectionStub)
 
-      expect(RabbitMQ.channelsMap.size).to.eq(Object.values(EnumQueueName).length)
+      const RabbitMQWrapper = proxyquire.noCallThru()('@modules/rabbitMQ', {
+        'amqp-connection-manager': { connect: connectStub },
+      }).default
+
+      // Simulate the 'connect' event being emitted
+      setTimeout(() => {
+        connectionStub.on.getCall(0).args[1]()
+      }, 10)
+
+      await RabbitMQWrapper.connect()
+
+      expect(RabbitMQWrapper.channelsMap.size).to.eq(Object.values(EnumQueueName).length)
+      expect(
+        connectStub.calledOnceWith([config.RABBITMQ.URI], {
+          heartbeatIntervalInSeconds: 10,
+          reconnectTimeInSeconds: 5,
+        }),
+      ).to.be.true
+    })
+
+    it('should handle disconnection and log an error', async () => {
+      const loggerStub = sandbox.stub(logger, 'error')
+      const disconnectError = new Error('Connection lost')
+      const connectionStub = {
+        on: sandbox.stub(),
+        createChannel: sandbox.stub().returns({
+          on: sandbox.stub(),
+          assertQueue: sandbox.stub().resolves(),
+        }),
+      }
+
+      const connectStub = sandbox.stub().returns(connectionStub)
+
+      const RabbitMQWrapper = proxyquire.noCallThru()('@modules/rabbitMQ', {
+        'amqp-connection-manager': { connect: connectStub },
+      }).default
+
+      // Simulate the 'disconnect' event being emitted
+      setTimeout(() => {
+        connectionStub.on.withArgs('disconnect').callArgWith(1, disconnectError)
+      }, 10)
+
+      await RabbitMQWrapper.connect()
+
+      expect(loggerStub.calledWith('RabbitMQ disconnected' as any)).to.be.true
     })
 
     it('should not reconnect if already connected', async () => {
