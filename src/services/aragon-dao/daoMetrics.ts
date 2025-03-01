@@ -21,38 +21,42 @@ export const DaoMetrics = {
   },
 
   onDocument: async (document: Dao) => {
-    await DbTx.executeTxFn(async ({ session }) => {
-      const [tvlUSD, proposalsCreated, proposalsExecuted, members, votes, uniqueVoters] = await Promise.all([
-        DaoMetrics.getDaoTvl(document, { session }),
-        Models.Proposal.countDocuments({ daoAddress: document.address, network: document.network }, { session }),
-        Models.Proposal.countDocuments(
+    try {
+      await DbTx.executeTxFn(async ({ session }) => {
+        const [tvlUSD, proposalsCreated, proposalsExecuted, members, votes, uniqueVoters] = await Promise.all([
+          DaoMetrics.getDaoTvl(document, { session }),
+          Models.Proposal.countDocuments({ daoAddress: document.address, network: document.network }, { session }),
+          Models.Proposal.countDocuments(
+            {
+              daoAddress: document.address,
+              network: document.network,
+              'executed.status': true,
+            },
+            { session },
+          ),
+          Models.DaoMemberMapping.countUniqueMembers(document.address, document.network, { session }),
+          Models.Vote.countDocuments({ daoAddress: document.address, network: document.network }, { session }),
+          DaoMetrics.countUniqueMemberVotesByPlugin(document.address, { session }),
+        ])
+
+        const logDb = await document.updateMetrics(
           {
-            daoAddress: document.address,
-            network: document.network,
-            'executed.status': true,
+            tvlUSD,
+            uniqueVoters,
+            proposalsCreated,
+            proposalsExecuted,
+            votes,
+            members,
           },
           { session },
-        ),
-        Models.DaoMemberMapping.countUniqueMembers(document.address, document.network, { session }),
-        Models.Vote.countDocuments({ daoAddress: document.address, network: document.network }, { session }),
-        DaoMetrics.countUniqueMemberVotesByPlugin(document.address, { session }),
-      ])
-
-      const logDb = await document.updateMetrics(
-        {
-          tvlUSD,
-          uniqueVoters,
-          proposalsCreated,
-          proposalsExecuted,
-          votes,
-          members,
-        },
-        { session },
-      )
-      await session.commitTransaction()
-      await session.endSession()
-      logger.verbose('Update Dao metrics', llo({ logId: logDb?.id }))
-    })
+        )
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Update Dao metrics', llo({ logId: logDb?.id }))
+      })
+    } catch (error) {
+      logger.error('Error DaoMetrics', llo({ error }))
+    }
   },
 
   countUniqueMemberVotesByPlugin: async (daoAddress: HexAddress, tOpts?: SaveOptions) => {
