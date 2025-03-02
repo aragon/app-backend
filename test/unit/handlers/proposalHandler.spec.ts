@@ -2194,35 +2194,28 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       sandbox.stub(DecodeActions.prototype, 'decodeData').resolves({ decoded: 'decodedData1' } as any)
       sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves({ decoded: 'decodedData2' })
-      const updateDocumentStub = sandbox.spy(DbOperations, 'updateDocument')
 
       await ProposalHandler.proposalEdited(fakeEvent as any, info)
 
-      expect(
-        updateDocumentStub.calledOnceWith(
-          proposal,
-          {
-            title: proposalMetadata.title,
-            description: proposalMetadata.description,
-            summary: proposalMetadata.summary,
-            resources: proposalMetadata.resources,
-            media: proposalMetadata.media,
-            rawActions: [
-              { to: '0xAction1', value: 100n, data: '0x1234567890abcdef' },
-              { to: '0xAction2', value: 200n, data: '0xdata' },
-            ],
-            editedTxInfo: {
-              blockNumber: info.blockNumber,
-              transactionHash: info.transactionHash,
-              blockTimestamp: 1800000000,
-            },
-            actions: decodedActions,
-          },
-          { logId: proposal.id, info },
-          'Update proposalEdited',
-          sandbox.match.any,
-        ),
-      ).to.be.true
+      const refreshProposal = await proposal.reload()
+
+      expect(refreshProposal.title).to.eq(proposalMetadata.title)
+      expect(refreshProposal.description).to.eq(proposalMetadata.description)
+      expect(refreshProposal.summary).to.eq(proposalMetadata.summary)
+      expect(refreshProposal.resources.length).to.eq(proposalMetadata.resources.length)
+      expect(refreshProposal.media.header).to.eq(proposalMetadata.media.header)
+      expect(refreshProposal.media.logo).to.eq(proposalMetadata.media.logo)
+      expect(refreshProposal.rawActions[0].to).to.eq('0xAction1')
+      expect(refreshProposal.rawActions[0].value).to.eq('100')
+      expect(refreshProposal.rawActions[0].data).to.eq('0x1234567890abcdef')
+
+      expect(refreshProposal.rawActions[1].to).to.eq('0xAction2')
+      expect(refreshProposal.rawActions[1].value).to.eq('200')
+      expect(refreshProposal.rawActions[1].data).to.eq('0xdata')
+      expect(refreshProposal.editedTxInfo.blockNumber).to.eq(info.blockNumber)
+      expect(refreshProposal.editedTxInfo.transactionHash).to.eq(info.transactionHash)
+      expect(refreshProposal.editedTxInfo.blockTimestamp).to.eq(1800000000)
+      expect(refreshProposal.actions.length).to.eq(decodedActions.length)
     })
 
     it('should log a warning if the proposal is not found', async () => {
@@ -2296,15 +2289,10 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(DecodeActions.prototype, 'decodeData').resolves(null)
       sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves(null)
 
-      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
-
       await ProposalHandler.proposalEdited(fakeEvent as any, info)
 
-      expect(updateStub.calledOnce).to.be.true
-
-      const updatedProposal = updateStub.args[0][1]
-
-      expect(updatedProposal.actions).to.deep.equal([[], []])
+      const refreshProposal = await proposal.reload()
+      expect(refreshProposal.actions).to.deep.equal([[], []])
     })
 
     it('should log an error if an exception occurs', async () => {
