@@ -7,6 +7,7 @@ import { FakeMember } from '@test/mock/fakeMember'
 import Logger from '@logger'
 import chaiAsPromised from 'chai-as-promised'
 import chai from 'chai'
+import DbTx from '@modules/dbTx'
 
 chai.use(chaiAsPromised)
 const llo = (obj: any) => obj
@@ -42,13 +43,11 @@ describe('Model:Utils: dbOperations', () => {
 
     it('should fail to create a new database document', async () => {
       const loggerStub = sandbox.stub(Logger, 'error')
-      sandbox.stub(Models.Member, 'create').throws(new Error('Failed to create document'))
+      sandbox.stub(DbTx, 'executeTxFn').throws(new Error('Failed to create document'))
 
-      await expect(DbOperation.createDocument(Models.Member, FakeMember, {}, 'DbOperations', llo)).to.be.rejectedWith(
-        Error,
-        'Failed to create document',
-      )
+      const result = await DbOperation.createDocument(Models.Member, FakeMember, {}, 'DbOperations', llo)
 
+      expect(result).to.be.null
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error creating document - DbOperations' as any)).to.be.true
     })
