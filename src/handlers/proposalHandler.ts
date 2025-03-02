@@ -851,59 +851,65 @@ export const ProposalHandler = {
 
   proposalEdited: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      const proposal = await Models.Proposal.findByProposalIndex(
-        parsedEvent.args.proposalId.toString(),
-        info.address,
-        info.network,
-      )
+      await DbTx.executeTxFn(async ({ session }) => {
+        const proposal = await Models.Proposal.findByProposalIndex(
+          parsedEvent.args.proposalId.toString(),
+          info.address,
+          info.network,
+          { session },
+        )
 
-      if (!proposal) {
-        logger.warn('Proposal not found', llo(info))
-        return
-      }
+        if (!proposal) {
+          logger.warn('Proposal not found', llo(info))
+          return
+        }
 
-      const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
-      const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
+        const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
+        const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
-      const rawUpdate: Partial<Proposal> = {
-        title: proposalMetadata?.title!,
-        description: proposalMetadata?.description!,
-        summary: proposalMetadata?.summary!,
-        resources: proposalMetadata?.resources as any,
-        media: proposalMetadata?.media as any,
-        rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({
-          to: w.to,
-          value: w.value,
-          data: w.data,
-        })),
-        editedTxInfo: {
-          blockNumber: info.blockNumber,
-          transactionHash: info.transactionHash,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || null,
-        },
-      }
+        const rawUpdate: Partial<Proposal> = {
+          title: proposalMetadata?.title!,
+          description: proposalMetadata?.description!,
+          summary: proposalMetadata?.summary!,
+          resources: proposalMetadata?.resources as any,
+          media: proposalMetadata?.media as any,
+          rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({
+            to: w.to,
+            value: w.value,
+            data: w.data,
+          })),
+          editedTxInfo: {
+            blockNumber: info.blockNumber,
+            transactionHash: info.transactionHash,
+            blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || null,
+          },
+        }
 
-      const decodeActions = new DecodeActions()
+        const decodeActions = new DecodeActions()
 
-      rawUpdate.actions = await Promise.all(
-        rawUpdate.rawActions!.map(async (action: any) => {
-          let decodeData: any
+        rawUpdate.actions = await Promise.all(
+          rawUpdate.rawActions!.map(async (action: any) => {
+            let decodeData: any
 
-          if (action.data?.length >= 10) {
-            decodeData = await decodeActions.decodeData(action, proposal)
-          } else {
-            decodeData = await decodeActions.decodeTransfer(action, proposal)
-          }
+            if (action.data?.length >= 10) {
+              decodeData = await decodeActions.decodeData(action, proposal)
+            } else {
+              decodeData = await decodeActions.decodeTransfer(action, proposal)
+            }
 
-          if (decodeData) {
-            return decodeData
-          }
+            if (decodeData) {
+              return decodeData
+            }
 
-          return []
-        }),
-      )
+            return []
+          }),
+        )
 
-      await DbOperations.updateDocument(proposal, rawUpdate, { logId: proposal.id, info }, 'Update proposalEdited', llo)
+        const dbLog = await proposal.update(rawUpdate, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Update proposalEdited', llo({ logId: dbLog.id }))
+      })
     } catch (error) {
       logger.error('Error proposalEdited', llo({ ...info, error, parsedEvent }))
     }
