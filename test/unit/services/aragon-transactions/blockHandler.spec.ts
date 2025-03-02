@@ -6,7 +6,6 @@ import { NetworksEnum } from '@types'
 import ProviderModule from '@modules/provider'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import utils from '@helpers/utils'
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import type Dao from '@models/schema/dao'
 import Web3Helper from '@helpers/web3'
@@ -29,7 +28,6 @@ describe('AragonTransactions: BlockHandler', () => {
     let stubLoggerError: sinon.SinonStub
     let stubGetProvider: sinon.SinonStub
     let stubGetBlockReceipts: sinon.SinonStub
-    let stubUtilsWait: sinon.SinonStub
     let stubCheckIfDepositEvents: sinon.SinonStub
     let stubProcessReceiver: sinon.SinonStub
 
@@ -37,7 +35,6 @@ describe('AragonTransactions: BlockHandler', () => {
       stubLoggerError = sandbox.stub(logger, 'error')
       stubGetProvider = sandbox.stub(ProviderModule, 'getAnyRpcProvider')
       stubGetBlockReceipts = sandbox.stub(Web3Helper, 'getBlockReceipts')
-      stubUtilsWait = sandbox.stub(utils, 'wait').resolves()
       stubCheckIfDepositEvents = sandbox.stub(BlockHandler as any, '_checkIfDepositEvents').resolves()
       stubProcessReceiver = sandbox.stub(BlockHandler, 'processReceiver').resolves()
     })
@@ -73,7 +70,6 @@ describe('AragonTransactions: BlockHandler', () => {
 
       await BlockHandler.processNewBlock(fakeBlock, NetworksEnum.ethereumMainnet)
 
-      expect(stubUtilsWait.called).to.be.false
       expect(stubCheckIfDepositEvents.called).to.be.false
       expect(stubProcessReceiver.called).to.be.false
     })
@@ -95,7 +91,6 @@ describe('AragonTransactions: BlockHandler', () => {
 
       await BlockHandler.processNewBlock(fakeBlock, NetworksEnum.ethereumMainnet)
 
-      expect(stubUtilsWait.calledOnce).to.be.true
       expect(stubCheckIfDepositEvents.calledOnceWith(fakeReceipts, NetworksEnum.ethereumMainnet)).to.be.true
       expect(stubProcessReceiver.calledOnce).to.be.true
       expect(stubProcessReceiver.firstCall.args[0]).to.equal('0xblockHash')
