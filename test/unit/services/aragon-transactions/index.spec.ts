@@ -11,7 +11,7 @@ import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import Web3Helper from '@helpers/web3'
 import Utils from '@helpers/utils'
 
-describe.only('AragonTransactions: index', () => {
+describe('AragonTransactions: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
