@@ -5,6 +5,8 @@ import { NetworkHelper } from '@helpers/network'
 import ProviderModule from '@modules/provider'
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import Web3Helper from '@helpers/web3'
+import utils from '@helpers/utils'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -42,6 +44,9 @@ const AragonTransactionsService: IExtendedService = {
   },
 
   async processNewBlock(blockNumber: number, network: NetworksEnum) {
+    await utils.wait(
+      config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME * 1000 * config.CONFIRMATION_BLOCKS,
+    )
     const block = await Web3Helper.getBlock(blockNumber, network)
     if (!block) {
       logger.error('Error fetching block data', llo({ network, blockNumber, block }))
