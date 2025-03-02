@@ -5,8 +5,6 @@ import ProviderModule from '@modules/provider'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import type Dao from '@models/schema/dao'
-import utils from '@helpers/utils'
-import config from '@config'
 import { DAO } from '@artifacts/dao'
 import Web3Helper from '@helpers/web3'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
@@ -30,10 +28,6 @@ export const BlockHandler = {
     const toAddresses = blockReceipts
       .filter((receipt: any) => receipt.to)
       .map((receipt: any) => ethers.getAddress(receipt.to))
-
-    await utils.wait(
-      config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME * 1000 * config.CONFIRMATION_BLOCKS,
-    )
 
     await BlockHandler._checkIfDepositEvents(blockReceipts, network)
 

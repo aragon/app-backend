@@ -1,5 +1,5 @@
 import RabbitMQ from '@modules/rabbitMQ'
-import { type EnumQueueName } from '@types'
+import { type EnumQueueName, type IQueueMessage } from '@types'
 import logger from '@logger'
 import { type ConfirmChannel, type ConsumeMessage, type Options } from 'amqplib'
 import { v4 as uuidv4 } from 'uuid'
@@ -14,25 +14,26 @@ export interface ISendOptions {
 }
 
 const RabbitMQHelper = {
+  activeJobs: new Map<string, boolean>(),
   queuedMessages: new Set<string>(),
   mutex: new Mutex(),
 
-  async isMessageDuplicate(uniqueKey: string): Promise<boolean> {
-    return await RabbitMQHelper.executeWithMutex(() => {
-      return RabbitMQHelper.queuedMessages.has(uniqueKey)
-    })
-  },
+  parseData(msg: ConsumeMessage): IQueueMessage | any {
+    let data: IQueueMessage | any = null
+    if (Buffer.isBuffer(msg.content)) {
+      try {
+        data = JSON.parse(msg?.content?.toString('utf8')) as IQueueMessage
+      } catch (error) {
+        logger.error('Failed to parse Buffer as JSON', llo({ error }))
+      }
+    } else {
+      data = msg.content as any as IQueueMessage
+    }
 
-  async addMessageToQueue(uniqueKey: string): Promise<void> {
-    await RabbitMQHelper.executeWithMutex(() => {
-      RabbitMQHelper.queuedMessages.add(uniqueKey)
-    })
-  },
-
-  async clearMessageFromQueue(uniqueKey: string): Promise<void> {
-    await RabbitMQHelper.executeWithMutex(() => {
-      RabbitMQHelper.queuedMessages.delete(uniqueKey)
-    })
+    if (data?.type === 'Buffer') {
+      data = JSON.parse(Buffer.from(data?.data).toString('utf8')) as IQueueMessage
+    }
+    return data
   },
 
   // Execute a callback under mutex protection.
@@ -49,6 +50,9 @@ const RabbitMQHelper = {
     try {
       const channelWrapper = RabbitMQ.getChannel(queueName)
       await channelWrapper.addSetup(async (channel: ConfirmChannel) => {
+        const concurrency = config.RABBITMQ.DEFAULT_CONCURRENCY
+        await channel.prefetch(concurrency)
+        await channel.assertQueue(queueName, { durable: true })
         await channel.consume(
           queueName,
           async (msg: ConsumeMessage | null) => {
@@ -56,32 +60,41 @@ const RabbitMQHelper = {
               logger.warn('No message to consume', llo({ queueName }))
               return null
             }
+
+            // decode data
+            const data = RabbitMQHelper.parseData(msg)
+            // Unique key per queue and message ID
+            const uniqueKey = `${queueName}-${data?.id}`
+
+            const release = await this.mutex.acquire()
             try {
-              let data = msg.content
-              if (Buffer.isBuffer(data)) {
-                try {
-                  data = JSON.parse(data.toString('utf8'))
-                } catch (parseErr) {
-                  logger.error('Failed to parse Buffer as JSON', llo({ queueName, parseErr }))
-                }
+              if (this.activeJobs.has(uniqueKey)) {
+                channel.ack(msg)
+                return
               }
+              this.activeJobs.set(uniqueKey, true)
+            } finally {
+              release()
+            }
+
+            try {
               const response = await handler(data)
               if (msg.properties.replyTo && msg.properties.correlationId) {
-                const publishOpts: Options.Publish = {
+                await channelWrapper.sendToQueue(msg.properties.replyTo, Buffer.from(JSON.stringify(response)), {
                   correlationId: msg.properties.correlationId,
                   contentType: 'application/json',
-                }
-                await channelWrapper.sendToQueue(msg.properties.replyTo, response, publishOpts)
+                })
               }
-            } catch (handlerErr) {
-              channel.nack(msg, false, true) // Requeue the message
-              logger.error('Error in messageHandler', llo({ queueName, error: handlerErr }))
-            } finally {
+              const releaseFinal = await this.mutex.acquire()
               try {
-                channel.ack(msg)
-              } catch (ackErr) {
-                logger.warn('Failed to ack message—channel may be closed', llo({ queueName, ackErr }))
+                this.activeJobs.delete(uniqueKey) // Remove the job from active jobs map
+                this.queuedMessages.delete(uniqueKey) // Remove from queuedMessages
+              } finally {
+                releaseFinal()
               }
+              channel.ack(msg)
+            } catch (handlerErr) {
+              logger.error('Error in messageHandler', llo({ queueName, error: handlerErr }))
             }
           },
           { noAck: false },
@@ -99,13 +112,15 @@ const RabbitMQHelper = {
   ): Promise<any> {
     const uniqueKey = `${queueName}-${payload.id}`
 
-    if (!opts?.waitResponse && (await RabbitMQHelper.isMessageDuplicate(uniqueKey))) {
-      logger.warn('Duplicate message detected', llo({ queueName, uniqueKey }))
-      return null
-    }
-
-    if (!opts?.waitResponse) {
-      await RabbitMQHelper.addMessageToQueue(uniqueKey)
+    const release = await this.mutex.acquire()
+    try {
+      if (this.queuedMessages.has(uniqueKey)) {
+        logger.warn('Skipping duplicate message', llo({ uniqueKey }))
+        return
+      }
+      this.queuedMessages.add(uniqueKey)
+    } finally {
+      release()
     }
 
     try {
@@ -113,15 +128,15 @@ const RabbitMQHelper = {
       if (opts.waitResponse) {
         return await RabbitMQHelper._sendMessageWithResponse(channelWrapper, queueName, payload, uniqueKey, opts)
       }
-      await channelWrapper.sendToQueue(queueName, payload, { persistent: true, contentType: 'application/json' })
+      await channelWrapper.sendToQueue(queueName, payload, {
+        persistent: true,
+        contentType: 'application/json',
+      })
+      // channelWrapper.ack(msg)
       return null
     } catch (err) {
       logger.error('sendMessage error', llo({ queueName, err }))
       return null
-    } finally {
-      if (!opts?.waitResponse) {
-        await RabbitMQHelper.clearMessageFromQueue(uniqueKey)
-      }
     }
   },
 
@@ -149,16 +164,8 @@ const RabbitMQHelper = {
               } catch (ackErr) {
                 logger.warn('Failed to ack ephemeral msg', llo({ queueName, ackErr }))
               }
-              let responseData: any = null
-              try {
-                if (Buffer.isBuffer(msg.content)) {
-                  responseData = JSON.parse(msg.content.toString('utf8'))
-                } else {
-                  responseData = msg.content
-                }
-              } catch (parseErr) {
-                logger.error('Failed to parse ephemeral response as JSON', llo({ queueName, parseErr }))
-              }
+              const responseData = RabbitMQHelper.parseData(msg)
+              await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.queuedMessages.delete(uniqueKey))
               clearTimeout(timeoutId)
               resolve(responseData)
             }
@@ -178,6 +185,7 @@ const RabbitMQHelper = {
                 logger.warn('Failed to cancel ephemeral consumer on timeout', llo({ queueName, cancelErr }))
               }
             }
+            await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.queuedMessages.delete(uniqueKey))
             logger.error('Failed to send message to queue', llo({ queueName, correlationId, payload }))
             resolve(null)
           }

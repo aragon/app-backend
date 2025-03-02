@@ -30,7 +30,7 @@ const GovernanceErc20Helper = {
     } catch (error) {
       logger.error(
         'Error getting past votes - blockNumber',
-        llo({ memberAddress, tokenAddress, blockNumber, network, error }),
+        llo({ memberAddress, tokenAddress, blockNumber, blockTimestamp, network, error }),
       )
     }
 
@@ -44,7 +44,7 @@ const GovernanceErc20Helper = {
     } catch (error) {
       logger.error(
         'Error getting past votes - blockTimestamp',
-        llo({ memberAddress, tokenAddress, blockNumber, network, error }),
+        llo({ memberAddress, tokenAddress, blockNumber, blockTimestamp, network, error }),
       )
     }
 
