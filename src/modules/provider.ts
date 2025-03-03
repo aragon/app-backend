@@ -77,7 +77,7 @@ const ProviderModule = {
         }
 
         // Connect the Aragon node if both WS and RPC endpoints are provided.
-        if (rawConfig.ARAGON_WS && rawConfig.ARAGON_RPC) {
+        if (rawConfig.ARAGON_WS || rawConfig.ARAGON_RPC) {
           const aragonConfig: IAragonNodeConfig = {
             providerType: IProviderType.ARAGON,
             wsEndpoint: rawConfig.ARAGON_WS,
@@ -115,8 +115,8 @@ const ProviderModule = {
       }
     } else if (nodeConfig.providerType === IProviderType.ARAGON) {
       const aragonConfig = nodeConfig as IAragonNodeConfig
-      const wsProvider = new WebSocketProvider(aragonConfig.wsEndpoint)
-      const rpcProvider = new JsonRpcProvider(aragonConfig.rpcEndpoint)
+      const wsProvider = aragonConfig.wsEndpoint ? new WebSocketProvider(aragonConfig.wsEndpoint) : null
+      const rpcProvider = aragonConfig.rpcEndpoint ? new JsonRpcProvider(aragonConfig.rpcEndpoint) : null
       const aragonConnection: INodeConnection = {
         rpc: rpcProvider,
         ws: wsProvider,
@@ -172,29 +172,22 @@ const ProviderModule = {
     providerConnection.ws.on(filter, wrappedListener)
   },
 
-  subscribeToNewBlock(
-    network: NetworksEnum,
-    listener: (...args: any[]) => void,
-    connectionType: IConnectionType = IConnectionType.WS,
-    providerType?: IProviderType,
-  ) {
-    if (providerType) {
-      // Use the specified provider type
+  subscribeToNewBlock(network: NetworksEnum, listener: (...args: any[]) => void, providerType?: IProviderType) {
+    if (providerType && ProviderModule.providerProxies[network]?.[providerType]) {
       const providerConnection = ProviderModule.providerProxies[network]?.[providerType]
-      if (!providerConnection?.[connectionType]) {
-        throw new Error(`Provider ${providerType} for network ${network} does not support ${connectionType}`)
-      }
+      const connectionType = providerConnection.ws ? IConnectionType.WS : IConnectionType.RPC
       providerConnection[connectionType].on('block', listener)
+      return
+    }
+
+    const providerProxy =
+      ProviderModule.providerProxies[network]?.aragon || ProviderModule.providerProxies[network]?.alchemy
+    const connectionType = providerProxy?.ws ? IConnectionType.WS : IConnectionType.RPC
+
+    if (providerProxy?.[connectionType]) {
+      providerProxy[connectionType].on('block', listener)
     } else {
-      // No provider type specified; try Aragon first, then Alchemy
-      const providerProxy = ProviderModule.providerProxies[network]
-      if (providerProxy?.aragon?.[connectionType]) {
-        providerProxy.aragon[connectionType].on('block', listener)
-      } else if (providerProxy?.alchemy?.[connectionType]) {
-        providerProxy.alchemy[connectionType].on('block', listener)
-      } else {
-        throw new Error(`No ${connectionType} provider available for network ${network}`)
-      }
+      throw new Error(`No ${connectionType} provider available for network ${network}`)
     }
   },
 

@@ -83,16 +83,7 @@ class EventListener {
 
   subscribeEventsByNewBlock() {
     logger.verbose('Start real-time listening', llo({ network: this.network }))
-    if (SubscanApiHelper.isPeaqNetwork(this.network)) {
-      ProviderModule.subscribeToNewBlock(
-        this.network,
-        this.handleOnNewBlock.bind(this),
-        IConnectionType.RPC,
-        IProviderType.ARAGON,
-      )
-    } else {
-      ProviderModule.subscribeToNewBlock(this.network, this.handleOnNewBlock.bind(this))
-    }
+    ProviderModule.subscribeToNewBlock(this.network, this.handleOnNewBlock.bind(this))
   }
 
   async handleOnNewBlock(blockNumber: number) {

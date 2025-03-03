@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { EnumConnection, IConnectionType, IProviderType, type IService, type NetworksEnum } from '@types'
+import { EnumConnection, type IService, type NetworksEnum } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { NetworkHelper } from '@helpers/network'
 import ProviderModule from '@modules/provider'
@@ -7,7 +7,6 @@ import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import Web3Helper from '@helpers/web3'
 import utils from '@helpers/utils'
 import config from '@config'
-import SubscanApiHelper from '@helpers/subscanApi'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -27,17 +26,6 @@ const AragonTransactionsService: IExtendedService = {
       const provider = ProviderModule.getAnyRpcProvider(networkName)
       if (!provider) {
         logger.error('Provider not available for network', llo({ network: networkName }))
-        return
-      }
-
-      if (SubscanApiHelper.isPeaqNetwork(networkName)) {
-        ProviderModule.subscribeToNewBlock(
-          networkName,
-          async (blockNumber: number) => AragonTransactionsService.processNewBlock(blockNumber, networkName),
-          IConnectionType.RPC,
-          IProviderType.ARAGON,
-        )
-        logger.verbose('Listening to new block events', llo({ network: networkName }))
         return
       }
 

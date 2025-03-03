@@ -66,7 +66,7 @@ const SubscanApiHelper = {
       symbol: null,
       decimals: 0,
       type: ITokenType.unknown,
-      totalSupply: 0,
+      totalSupply: '0',
       totalHolders: 0,
       priceUsd: '0',
       logo: '',
@@ -259,26 +259,35 @@ const SubscanApiHelper = {
       include_extends: true,
     }
 
+    const tokenResponse = {
+      address: utils.zeroAddress,
+      name: 'PEAQ',
+      symbol: 'PEAQ',
+      decimals: 18,
+      logo: '',
+      priceUsd: '0',
+      type: ITokenType.native,
+      totalSupply: '0',
+      totalHolders: 0,
+    }
+
     try {
       const response = await SubscanApiHelper._rpCall('', params, network, 'api/v2/scan/token/native')
       if (response?.data?.token) {
         const price = await SubscanApiHelper.getCurrentPrice(network)
 
-        return {
-          address: utils.zeroAddress,
-          name: response.data.token.name,
-          symbol: response.data.token.symbol,
-          decimals: response.data.token.decimals,
-          logo: '',
-          priceUsd: price,
-          type: ITokenType.native,
-          totalSupply: '0',
-          totalHolders: 0,
-        }
+        tokenResponse.name = response.data.token.name
+        tokenResponse.symbol = response.data.token.symbol
+        tokenResponse.decimals = response.data.token.decimals
+        tokenResponse.logo = ''
+        tokenResponse.priceUsd = price
+        tokenResponse.totalSupply = response.data.token.total_supply
+        tokenResponse.totalHolders = response.data.token.holders
       }
     } catch (error) {
       logger.warn('Error getNativeTokenInfo', llo({ error }))
     }
+    return tokenResponse
   },
 
   getCurrentPrice: async (network: NetworksEnum) => {

@@ -1,4 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+import { type ITokenMetrics } from '@src/types/covalent'
 
 export interface ITokenInfo {
   type: ITokenType
@@ -88,4 +89,12 @@ export interface IMemberTokenInfo {
   balance: string
   votingPower: string
   currentDelegate: HexAddress | null
+}
+
+export interface ITokenDetailsProvider {
+  fetchTokenDetails: (
+    tokenTypeInfo: { type: ITokenType; isGovernance: boolean },
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+  ) => Promise<{ tokenRate: any; tokenMetrics: ITokenMetrics }>
 }

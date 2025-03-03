@@ -7,7 +7,7 @@ import {
   type IFormattedLog,
   type IIndexerConfig,
   IProviderType,
-  NetworksEnum,
+  type NetworksEnum,
 } from '@types'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -91,7 +91,8 @@ class BlockchainLogCrawler {
       throw new Error(`Block interval time not found for network: ${network}`)
     }
 
-    return network === NetworksEnum.peaqMainnet ? 30000 : Math.floor(SECONDS_IN_MONTH / blockIntervalTime)
+    // Calculate the batch size
+    return Math.floor(SECONDS_IN_MONTH / blockIntervalTime)
   }
 
   async updateAndCheckConditions(currentBlock: number, latestBlock: number): Promise<boolean> {
@@ -344,11 +345,6 @@ class BlockchainLogCrawler {
     ]
 
     return messages.some(msg => error.message?.includes(msg))
-  }
-
-  async getProvider(): Promise<any> {
-    const provider = ProviderModule.getProvider(this.crawlParams.network, IProviderType.ALCHEMY, IConnectionType.RPC)
-    return await provider.config.getProvider()
   }
 
   async getServiceStartBlock() {
