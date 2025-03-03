@@ -24,11 +24,13 @@ import ManualSyncNectorDao from '@tools/manualSyncNectar'
 import RefetchDaoMetrics from '@tools/refetchDaoMetrics'
 import IntegrityToolMemberCheck from '@tools/integrityCheck/memberCheck'
 import IntegrityToolProposalCheck from '@tools/integrityCheck/proposalCheck'
+import SyncMemberVP from '@tools/syncMemberVP'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
 
 const runners = {
+  SyncMemberVP,
   ToolsSyncCustomPlugin,
   ToolsCleanDb,
   ToolsEnsFetch,
