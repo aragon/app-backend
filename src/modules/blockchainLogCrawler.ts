@@ -119,11 +119,7 @@ class BlockchainLogCrawler {
 
   async getLogsByBatch(topicChunks: string[], currentBlock: number, toBlock: number) {
     try {
-      const coreProvider = await ProviderModule.getProvider(
-        this.crawlParams.network,
-        IProviderType.ALCHEMY,
-        IConnectionType.RPC,
-      )
+      const coreProvider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
 
       const batchRequests = topicChunks.map((topics: any) =>
         coreProvider.send('eth_getLogs', [
@@ -345,6 +341,7 @@ class BlockchainLogCrawler {
       'Response size is larger than 150MB limit',
       'Log response size exceeded',
       'Consider reducing your block range',
+      'query timeout of 10 seconds exceeded',
     ]
 
     return messages.some(msg => error.message?.includes(msg))

@@ -22,6 +22,8 @@ import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import BlockScoutHelper from '@helpers/blockScout'
+import SubscanApi from '@helpers/subscanApi'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -168,6 +170,18 @@ export const ProxyToken = {
     tokenAddress: HexAddress,
     network: NetworksEnum,
   ): Promise<{ tokenRate: ITokenRate; tokenMetrics: ITokenMetrics }> {
+    // TODO: Refactor this so we can handle multiple chain
+
+    if (SubscanApi.isPeaqNetwork(network)) {
+      const tokenDetails = await ProxyToken.getPeaqToken(tokenAddress, network)
+      if (tokenDetails) {
+        return {
+          tokenRate: tokenDetails.tokenRate,
+          tokenMetrics: tokenDetails.metrics,
+        }
+      }
+    }
+
     const tokenRate = await RateModule.fetchRate(tokenAddress, network)
     let tokenMetrics: ITokenMetrics = { totalHolders: 0, totalSupply: '0' }
 
@@ -268,5 +282,22 @@ export const ProxyToken = {
     const secondCheck = regex.test(name + symbol)
 
     return firstCheck || secondCheck
+  },
+
+  getPeaqToken: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<any> => {
+    const tokenInfo =
+      tokenAddress === utils.zeroAddress
+        ? await SubscanApi.getNativeTokenInfo(network)
+        : await SubscanApi.getTokenFullDetails(tokenAddress, network)
+
+    if (tokenInfo?.name) {
+      return {
+        tokenRate: tokenInfo,
+        metrics: {
+          totalHolders: tokenInfo.totalHolders,
+          totalSupply: tokenInfo.totalSupply,
+        },
+      }
+    }
   },
 }
