@@ -2,11 +2,12 @@ import { Interface, type Log, type LogDescription } from 'ethers'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import { type IIndexerConfig, type NetworksEnum } from '@types'
+import { IConnectionType, type IIndexerConfig, IProviderType, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import DbTx from '@modules/dbTx'
+import SubscanApiHelper from '@helpers/subscanApi'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
@@ -82,7 +83,16 @@ class EventListener {
 
   subscribeEventsByNewBlock() {
     logger.verbose('Start real-time listening', llo({ network: this.network }))
-    ProviderModule.subscribeToNewBlock(this.network, this.handleOnNewBlock.bind(this))
+    if (SubscanApiHelper.isPeaqNetwork(this.network)) {
+      ProviderModule.subscribeToNewBlock(
+        this.network,
+        this.handleOnNewBlock.bind(this),
+        IConnectionType.RPC,
+        IProviderType.ARAGON,
+      )
+    } else {
+      ProviderModule.subscribeToNewBlock(this.network, this.handleOnNewBlock.bind(this))
+    }
   }
 
   async handleOnNewBlock(blockNumber: number) {
