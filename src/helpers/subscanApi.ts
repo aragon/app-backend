@@ -3,7 +3,13 @@ import axios from 'axios'
 import config from '@config'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
-import { type HexAddress, ITokenType, NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type ISubScanAccountBalances,
+  type ISubScanAssetTransfer,
+  ITokenType,
+  NetworksEnum,
+} from '@types'
 import { ethers } from 'ethers'
 import utils from '@helpers/utils'
 
@@ -18,10 +24,12 @@ const SubscanApiHelper = {
         'X-API-KEY': SubscanApiHelper._parseNetworkToConfig(network).SUBSCAN_API_KEY || undefined,
       },
     }),
+
   _parseNetworkToConfig: (network: NetworksEnum) => {
     const networkConfigKey = network.replace('-', '_').toUpperCase()
     return config.NODES[networkConfigKey]
   },
+
   isPeaqNetwork: (network: NetworksEnum) => network === NetworksEnum.peaqMainnet,
 
   _rpCall: async (path: string, params: object, network: NetworksEnum, replacedPath?: any) => {
@@ -108,41 +116,35 @@ const SubscanApiHelper = {
     return tokenDetails
   },
 
-  getAccountBalance: async (address: HexAddress, network: NetworksEnum) => {
-    const path = 'account/tokens'
-    const params = {
+  getAccountBalance: async (address: HexAddress, network: NetworksEnum): Promise<ISubScanAccountBalances> => {
+    const apiEndpoint = 'account/tokens'
+    const queryParams = {
       address,
       row: 100,
     }
 
-    const toReturn = {
+    const balances: ISubScanAccountBalances = {
       native: '0',
       erc20: [],
-    } as {
-      native: string
-      erc20: Array<{
-        contractAddress: HexAddress
-        tokenBalance: string
-      }>
     }
 
     try {
-      const response = await SubscanApiHelper._rpCall(path, params, network)
+      const response = await SubscanApiHelper._rpCall(apiEndpoint, queryParams, network)
       if (response?.data?.native && response.data.ERC20) {
-        toReturn.native = response.data.native[0].balance
-        toReturn.erc20 = response.data.ERC20.map((token: any) => ({
-          contract: ethers.getAddress(token.contract),
+        balances.native = response.data.native[0].balance
+        balances.erc20 = response.data.ERC20.map((token: any) => ({
+          contractAddress: ethers.getAddress(token.contract), // Fixed key name
           tokenBalance: token.balance,
         }))
       }
     } catch (error) {
-      logger.warn('SubscanApi getAccountBalance', llo({ error, address }))
+      logger.warn('SubscanApi fetchTokenBalances', { error, address })
     }
 
-    return toReturn
+    return balances
   },
 
-  getAccountInfoByKey: async (address: HexAddress, network: NetworksEnum) => {
+  getAccountInfoByKey: async (address: HexAddress, network: NetworksEnum): Promise<string | undefined> => {
     const path = 'search'
     const params = {
       key: address,
@@ -158,34 +160,35 @@ const SubscanApiHelper = {
     }
   },
 
-  getAssetTransfer: async (address: HexAddress, network: NetworksEnum) => {
-    // first native transfers
+  getAssetTransfer: async (address: HexAddress, network: NetworksEnum): Promise<ISubScanAssetTransfer[]> => {
+    // Convert to Substrate Address
     const substrateAddress = await SubscanApiHelper.getAccountInfoByKey(address, network)
     if (!substrateAddress) {
       return []
     }
-    const nativeTransferPath = 'transfers'
 
-    const nativeTxParams = {
+    const nativeTransferEndpoint = 'transfers'
+    const nativeQueryParams = {
       page: 0,
       row: 100,
       address: substrateAddress,
     }
 
-    let transfers = []
+    let allTransfers: ISubScanAssetTransfer[] = []
 
     try {
       const response = await SubscanApiHelper._rpCall(
-        nativeTransferPath,
-        nativeTxParams,
+        nativeTransferEndpoint,
+        nativeQueryParams,
         network,
         'api/v2/scan/transfers',
       )
+
       if (response?.data?.transfers) {
-        transfers = response.data.transfers.map((transfer: any) => ({
+        allTransfers = response.data.transfers.map((transfer: any) => ({
           blockNum: transfer.block_num,
           from: ethers.getAddress(transfer.from_account_display.evm_address),
-          to: ethers.getAddress(transfer.to_account_display?.evm_address || utils.zeroAddress),
+          to: ethers.getAddress(transfer.to_account_display?.evm_address || ethers.ZeroAddress),
           uniqueId: transfer.transfer_id,
           blockTimestamp: transfer.block_timestamp,
           value: transfer.amount,
@@ -194,22 +197,24 @@ const SubscanApiHelper = {
         }))
       }
     } catch (error) {
-      logger.warn('SubscanApi getAssetTransfer', llo({ error, address }))
+      logger.warn('SubscanApi fetchAssetTransfers (native)', { error, address })
     }
 
-    const erc20Transfers = {
+    // ERC20 Transfers
+    const erc20QueryParams = {
       address,
       row: 100,
       page: 0,
       category: 'erc20',
     }
 
-    const erc20TransferPath = 'evm/token/transfer'
+    const erc20TransferEndpoint = 'evm/token/transfer'
 
     try {
-      const response = await SubscanApiHelper._rpCall(erc20TransferPath, erc20Transfers, network)
+      const response = await SubscanApiHelper._rpCall(erc20TransferEndpoint, erc20QueryParams, network)
+
       if (response?.data?.list) {
-        const tokenTransferDetails = await Promise.all(
+        const tokenTransferDetails: ISubScanAssetTransfer[] = await Promise.all(
           response.data.list.map(async (transfer: any) => {
             const txDetails = await SubscanApiHelper.getTransactionInfoByHash(transfer.hash, network)
             return {
@@ -230,16 +235,16 @@ const SubscanApiHelper = {
           }),
         )
 
-        transfers = transfers.concat(tokenTransferDetails as any).sort((a: any, b: any) => b.blockNum - a.blockNum)
+        allTransfers = allTransfers.concat(tokenTransferDetails).sort((a, b) => b.blockNum - a.blockNum)
       }
     } catch (error) {
-      logger.warn('SubscanApi getAssetTransfer', llo({ error, address }))
+      logger.warn('SubscanApi fetchAssetTransfers (ERC20)', { error, address })
     }
 
-    return transfers
+    return allTransfers
   },
 
-  async getTransactionInfoByHash(txHash: string, network: NetworksEnum) {
+  getTransactionInfoByHash: async (txHash: string, network: NetworksEnum) => {
     const path = 'evm/transaction'
     const params = {
       hash: txHash,
@@ -290,7 +295,7 @@ const SubscanApiHelper = {
     return tokenResponse
   },
 
-  getCurrentPrice: async (network: NetworksEnum) => {
+  getCurrentPrice: async (network: NetworksEnum): Promise<string> => {
     const path = 'price/history'
     const todayDate = new Date().toISOString().split('T')[0]
     const params = {

@@ -43,6 +43,26 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ALCHEMY_API_KEY', null),
         ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ARAGON_RPC', null),
+        ARAGON_RPC_OPTIONS: {
+          POLLING_INTERVAL: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ETHEREUM_MAINNET_ARAGON_RPC_OPTIONS_POLLING_INTERVAL',
+            15000,
+          ),
+          BATCH_MAX_COUNT: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ETHEREUM_MAINNET_ARAGON_RPC_OPTIONS_BATCH_MAX_COUNT',
+            5,
+          ),
+          BATCH_STALL_TIME: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ETHEREUM_MAINNET_ARAGON_RPC_OPTIONS_BATCH_STALL_TIME',
+            100,
+          ),
+        },
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_MAINNET_FROM_BLOCK', 16721812),
         CONFIRMATION_BLOCKS: utils.configParser(
           sourceConfig,
@@ -80,6 +100,26 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ALCHEMY_API_KEY', null),
         ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ARAGON_RPC', null),
+        ARAGON_RPC_OPTIONS: {
+          POLLING_INTERVAL: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ETHEREUM_SEPOLIA_ARAGON_RPC_OPTIONS_POLLING_INTERVAL',
+            15000,
+          ),
+          BATCH_MAX_COUNT: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ETHEREUM_SEPOLIA_ARAGON_RPC_OPTIONS_BATCH_MAX_COUNT',
+            5,
+          ),
+          BATCH_STALL_TIME: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ETHEREUM_SEPOLIA_ARAGON_RPC_OPTIONS_BATCH_STALL_TIME',
+            100,
+          ),
+        },
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_SEPOLIA_FROM_BLOCK', 4415294),
         CONFIRMATION_BLOCKS: utils.configParser(
           sourceConfig,
@@ -117,6 +157,26 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ALCHEMY_API_KEY', null),
         ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ARAGON_RPC', null),
+        ARAGON_RPC_OPTIONS: {
+          POLLING_INTERVAL: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_POLYGON_MAINNET_ARAGON_RPC_OPTIONS_POLLING_INTERVAL',
+            2100,
+          ),
+          BATCH_MAX_COUNT: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_POLYGON_MAINNET_ARAGON_RPC_OPTIONS_BATCH_MAX_COUNT',
+            5,
+          ),
+          BATCH_STALL_TIME: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_POLYGON_MAINNET_ARAGON_RPC_OPTIONS_BATCH_STALL_TIME',
+            100,
+          ),
+        },
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_FROM_BLOCK', 40830344),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_INTERVAL_BLOCK_TIME', 2),
@@ -144,6 +204,26 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ALCHEMY_API_KEY', null),
         ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ARAGON_RPC', null),
+        ARAGON_RPC_OPTIONS: {
+          POLLING_INTERVAL: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_BASE_MAINNET_ARAGON_RPC_OPTIONS_POLLING_INTERVAL',
+            2000,
+          ),
+          BATCH_MAX_COUNT: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_BASE_MAINNET_ARAGON_RPC_OPTIONS_BATCH_MAX_COUNT',
+            5,
+          ),
+          BATCH_STALL_TIME: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_BASE_MAINNET_ARAGON_RPC_OPTIONS_BATCH_STALL_TIME',
+            100,
+          ),
+        },
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_FROM_BLOCK', 2094724),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 12),
@@ -166,6 +246,26 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ALCHEMY_API_KEY', null),
         ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ARAGON_RPC', null),
+        ARAGON_RPC_OPTIONS: {
+          POLLING_INTERVAL: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ARBITRUM_MAINNET_ARAGON_RPC_OPTIONS_POLLING_INTERVAL',
+            2300,
+          ),
+          BATCH_MAX_COUNT: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ARBITRUM_MAINNET_ARAGON_RPC_OPTIONS_BATCH_MAX_COUNT',
+            5,
+          ),
+          BATCH_STALL_TIME: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ARBITRUM_MAINNET_ARAGON_RPC_OPTIONS_BATCH_STALL_TIME',
+            100,
+          ),
+        },
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_FROM_BLOCK', 2441204),
         CONFIRMATION_BLOCKS: utils.configParser(
           sourceConfig,
@@ -203,6 +303,26 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ALCHEMY_API_KEY', null),
         ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ARAGON_RPC', null),
+        ARAGON_RPC_OPTIONS: {
+          POLLING_INTERVAL: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ZKSYNC_SEPOLIA_ARAGON_RPC_OPTIONS_POLLING_INTERVAL',
+            4300,
+          ),
+          BATCH_MAX_COUNT: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ZKSYNC_SEPOLIA_ARAGON_RPC_OPTIONS_BATCH_MAX_COUNT',
+            5,
+          ),
+          BATCH_STALL_TIME: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ZKSYNC_SEPOLIA_ARAGON_RPC_OPTIONS_BATCH_STALL_TIME',
+            100,
+          ),
+        },
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_FROM_BLOCK', 37460765), // zkSync ERA
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_INTERVAL_BLOCK_TIME', 3),
@@ -225,6 +345,26 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ALCHEMY_API_KEY', null),
         ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ARAGON_RPC', null),
+        ARAGON_RPC_OPTIONS: {
+          POLLING_INTERVAL: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ZKSYNC_MAINNET_ARAGON_RPC_OPTIONS_POLLING_INTERVAL',
+            1600,
+          ),
+          BATCH_MAX_COUNT: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ZKSYNC_MAINNET_ARAGON_RPC_OPTIONS_BATCH_MAX_COUNT',
+            5,
+          ),
+          BATCH_STALL_TIME: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_ZKSYNC_MAINNET_ARAGON_RPC_OPTIONS_BATCH_STALL_TIME',
+            100,
+          ),
+        },
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_FROM_BLOCK', 145462155),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_INTERVAL_BLOCK_TIME', 5),
@@ -247,6 +387,26 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ALCHEMY_API_KEY', null),
         ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ARAGON_RPC', null),
+        ARAGON_RPC_OPTIONS: {
+          POLLING_INTERVAL: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_PEAQ_MAINNET_ARAGON_RPC_OPTIONS_POLLING_INTERVAL',
+            6000,
+          ),
+          BATCH_MAX_COUNT: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_PEAQ_MAINNET_ARAGON_RPC_OPTIONS_BATCH_MAX_COUNT',
+            5,
+          ),
+          BATCH_STALL_TIME: utils.configParser(
+            sourceConfig,
+            'number',
+            'NODES_PEAQ_MAINNET_ARAGON_RPC_OPTIONS_BATCH_STALL_TIME',
+            100,
+          ),
+        },
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_FROM_BLOCK', 0),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_INTERVAL_BLOCK_TIME', 5),
