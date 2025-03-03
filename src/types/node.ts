@@ -22,6 +22,11 @@ export enum IConnectionType {
 export interface IAragonNodeConfig extends Omit<IAlchemyConfig, 'alchemyApiKey'> {
   wsEndpoint: string
   rpcEndpoint: string
+  rpcOptions: {
+    pollingInterval: number
+    batchMaxCount: number
+    batchStallTime: number
+  }
 }
 
 export interface INodeConnection {
