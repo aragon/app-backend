@@ -1,8 +1,8 @@
 import {
+  type IAlchemyConfig,
   type IAlchemyNodeConnection,
   type IAragonNodeConfig,
-  type IConnectionType,
-  type IAlchemyConfig,
+  IConnectionType,
   type IProviderProxy,
   IProviderType,
   type IRawNodeConfig,
@@ -172,23 +172,28 @@ const ProviderModule = {
     providerConnection.ws.on(filter, wrappedListener)
   },
 
-  subscribeToNewBlock(network: NetworksEnum, listener: (...args: any[]) => void, providerType?: IProviderType) {
+  subscribeToNewBlock(
+    network: NetworksEnum,
+    listener: (...args: any[]) => void,
+    connectionType: IConnectionType = IConnectionType.WS,
+    providerType?: IProviderType,
+  ) {
     if (providerType) {
       // Use the specified provider type
       const providerConnection = ProviderModule.providerProxies[network]?.[providerType]
-      if (!providerConnection?.ws) {
-        throw new Error(`Provider ${providerType} for network ${network} is not available`)
+      if (!providerConnection?.[connectionType]) {
+        throw new Error(`Provider ${providerType} for network ${network} does not support ${connectionType}`)
       }
-      providerConnection.ws.on('block', listener)
+      providerConnection[connectionType].on('block', listener)
     } else {
       // No provider type specified; try Aragon first, then Alchemy
       const providerProxy = ProviderModule.providerProxies[network]
-      if (providerProxy?.aragon?.ws) {
-        providerProxy.aragon.ws.on('block', listener)
-      } else if (providerProxy?.alchemy?.ws) {
-        providerProxy.alchemy.ws.on('block', listener)
+      if (providerProxy?.aragon?.[connectionType]) {
+        providerProxy.aragon[connectionType].on('block', listener)
+      } else if (providerProxy?.alchemy?.[connectionType]) {
+        providerProxy.alchemy[connectionType].on('block', listener)
       } else {
-        throw new Error(`No websocket provider available for network ${network}`)
+        throw new Error(`No ${connectionType} provider available for network ${network}`)
       }
     }
   },
