@@ -7,7 +7,7 @@ import {
   type IFormattedLog,
   type IIndexerConfig,
   IProviderType,
-  type NetworksEnum,
+  NetworksEnum,
 } from '@types'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -91,8 +91,7 @@ class BlockchainLogCrawler {
       throw new Error(`Block interval time not found for network: ${network}`)
     }
 
-    // Calculate the batch size
-    return Math.floor(SECONDS_IN_MONTH / blockIntervalTime)
+    return network === NetworksEnum.peaqMainnet ? 30000 : Math.floor(SECONDS_IN_MONTH / blockIntervalTime)
   }
 
   async updateAndCheckConditions(currentBlock: number, latestBlock: number): Promise<boolean> {
