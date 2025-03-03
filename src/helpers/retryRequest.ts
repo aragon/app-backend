@@ -68,6 +68,7 @@ export function isErrorRelatedToServerIssue(error: any): boolean {
       'alchemy_getAssetTransfers',
       'eth_getBlockByNumber',
       'eth_getBlockReceipts',
+      'eth_getTransactionReceipt',
     ]
 
     const isEthGetLogsWithSameBlock = method === 'eth_getLogs' && params?.fromBlock === params?.toBlock

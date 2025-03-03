@@ -22,6 +22,8 @@ import ToolsFixMissingVotes from '@tools/fixMissingVotes'
 import RefetchProposalsMetrics from '@tools/refetchProposalMetrics'
 import ManualSyncNectorDao from '@tools/manualSyncNectar'
 import RefetchDaoMetrics from '@tools/refetchDaoMetrics'
+import IntegrityToolMemberCheck from '@tools/integrityCheck/memberCheck'
+import IntegrityToolProposalCheck from '@tools/integrityCheck/proposalCheck'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -49,6 +51,9 @@ const runners = {
   RefetchProposalsMetrics,
   ManualSyncNectorDao,
   RefetchDaoMetrics,
+
+  IntegrityToolMemberCheck,
+  IntegrityToolProposalCheck,
 }
 
 const appToRun = runners[TOOL_RUN!]

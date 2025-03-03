@@ -9,6 +9,7 @@ import { NetworkHelper } from '@helpers/network'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import Web3Helper from '@helpers/web3'
+import Utils from '@helpers/utils'
 
 describe('AragonTransactions: index', () => {
   let sandbox: SinonSandbox
@@ -62,6 +63,12 @@ describe('AragonTransactions: index', () => {
   })
 
   describe('processNewBlock', () => {
+    let utilsStub
+
+    beforeEach(() => {
+      utilsStub = sandbox.stub(Utils, 'wait').resolves()
+    })
+
     it('should fetch a block and call BlockHandler.processNewBlock', async () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
       const blockMock = { blockNumber: 12345 }
@@ -70,6 +77,7 @@ describe('AragonTransactions: index', () => {
 
       await AragonTransactionsService.processNewBlock(blockMock.blockNumber, NetworksEnum.ethereumMainnet)
 
+      expect(utilsStub.calledOnce).to.be.true
       expect(stubGetBlock.calledOnceWith(blockMock.blockNumber, NetworksEnum.ethereumMainnet)).to.be.true
       expect(blockHandlerStub.calledOnceWith(blockMock, NetworksEnum.ethereumMainnet)).to.be.true
       expect(loggerErrorStub.notCalled).to.be.true
@@ -81,6 +89,7 @@ describe('AragonTransactions: index', () => {
 
       await AragonTransactionsService.processNewBlock(12345, NetworksEnum.ethereumMainnet)
       const blockHandlerStub = sandbox.stub(BlockHandler, 'processNewBlock').resolves()
+      expect(utilsStub.calledOnce).to.be.true
 
       expect(loggerErrorStub.calledOnceWith('Error fetching block data' as any)).to.be.true
       expect(blockHandlerStub.notCalled).to.be.true
