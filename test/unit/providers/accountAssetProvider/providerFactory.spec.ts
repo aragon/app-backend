@@ -2,6 +2,7 @@ import * as sinon from 'sinon'
 import { expect } from 'chai'
 import { SubscanProvider } from '@providers/accountAssetProvider/subscanProvider'
 import { AlchemyProvider } from '@providers/accountAssetProvider/alchemyProvider'
+import AccountAssetProvider from '@providers/accountAssetProvider/providerFactory'
 import { NetworksEnum } from '@types'
 
 describe('Asset ProviderFactory', () => {
@@ -31,7 +32,7 @@ describe('Asset ProviderFactory', () => {
     const accountAddress = 'accountAddress'
     const network = NetworksEnum.peaqMainnet
 
-    const resultSubscan = await SubscanProvider.getAccountBalances(accountAddress, network)
+    const resultSubscan = await AccountAssetProvider.getAccountBalances(accountAddress, network)
     expect(resultSubscan).to.deep.equal([
       {
         tokenBalance: '1',
@@ -61,7 +62,7 @@ describe('Asset ProviderFactory', () => {
     const accountAddress = 'accountAddress'
     const network = NetworksEnum.ethereumMainnet
 
-    const resultAlchemy = await AlchemyProvider.getAccountBalances(accountAddress, network)
+    const resultAlchemy = await AccountAssetProvider.getAccountBalances(accountAddress, network)
     expect(resultAlchemy).to.deep.equal([
       {
         tokenBalance: '1',

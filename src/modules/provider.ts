@@ -82,11 +82,6 @@ const ProviderModule = {
             providerType: IProviderType.ARAGON,
             wsEndpoint: rawConfig.ARAGON_WS,
             rpcEndpoint: rawConfig.ARAGON_RPC,
-            rpcOptions: {
-              pollingInterval: rawConfig.ARAGON_RPC_OPTIONS.POLLING_INTERVAL,
-              batchMaxCount: rawConfig.ARAGON_RPC_OPTIONS.BATCH_MAX_COUNT,
-              batchStallTime: rawConfig.ARAGON_RPC_OPTIONS.BATCH_STALL_TIME,
-            },
             fromBlock: rawConfig.FROM_BLOCK,
             confirmationBlocks: rawConfig.CONFIRMATION_BLOCKS,
             intervalBlockTime: rawConfig.INTERVAL_BLOCK_TIME,
@@ -121,14 +116,7 @@ const ProviderModule = {
     } else if (nodeConfig.providerType === IProviderType.ARAGON) {
       const aragonConfig = nodeConfig as IAragonNodeConfig
       const wsProvider = aragonConfig.wsEndpoint ? new WebSocketProvider(aragonConfig.wsEndpoint) : null
-      const rpcProvider = aragonConfig.rpcEndpoint
-        ? new JsonRpcProvider(aragonConfig.rpcEndpoint, undefined, {
-            polling: true, // Enables polling instead of WebSocket-based event listeners
-            pollingInterval: aragonConfig.rpcOptions.pollingInterval,
-            batchMaxCount: aragonConfig.rpcOptions.batchMaxCount, // Limits batch request count to avoid overload
-            batchStallTime: aragonConfig.rpcOptions.batchStallTime, // Batches requests for 100ms before sending
-          })
-        : null
+      const rpcProvider = aragonConfig.rpcEndpoint ? new JsonRpcProvider(aragonConfig.rpcEndpoint) : null
       const aragonConnection: INodeConnection = {
         rpc: rpcProvider,
         ws: wsProvider,

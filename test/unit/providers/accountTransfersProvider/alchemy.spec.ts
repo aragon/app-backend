@@ -94,6 +94,41 @@ describe('Providers: AlchemyProvider', () => {
         'Logger.error should be called for withdraw transfer error',
       ).to.be.true
     })
+
+    it('should not call the callback when the transaction is not formatted', async () => {
+      const daoRegistry: Partial<Dao> = {
+        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const txLog: any = {
+        hash: '0x123',
+        category: ITransactionCategory.ERC20,
+        uniqueId: 'unique-id',
+        from: '0xfrom',
+        to: '0xto',
+        value: 1000,
+        blockNum: 1,
+      }
+
+      const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
+      fakeProviders.send = sandbox.stub().resolves({ transfers: [txLog] })
+      sandbox.stub(ProviderModule, 'getProvider').callsFake((network: NetworksEnum) => fakeProviders[network])
+
+      const formatLogStub = sandbox.stub(AlchemyProvider, 'formatTxLog').resolves(undefined)
+
+      const crawlStub = sandbox.stub(BlockchainTransferCrawler.prototype, 'crawl').callsFake(async function (
+        this: any,
+      ) {
+        await this.onTx(txLog)
+      })
+      const stubCallback = sandbox.stub()
+      await AlchemyProvider.getAssetTransfers(daoRegistry as Dao, stubCallback)
+
+      expect(crawlStub.calledTwice).to.be.true
+      expect(stubCallback.callCount).to.be.eq(0)
+      expect(formatLogStub.calledTwice).to.be.true
+    })
   })
 
   describe('getCategories', () => {
@@ -396,6 +431,17 @@ describe('Providers: AlchemyProvider', () => {
           type: zeroAddressToken.type,
         },
       })
+    })
+
+    it('should handle errors and log them', async () => {
+      const txLog = { ...baseTxLog, rawContract: { address: '0xTokenAddress' } }
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(dummyTimestamp)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').throws(new Error('fake-error'))
+      const errorStub = sandbox.stub(logger, 'error')
+      const result = await AlchemyProvider.formatTxLog(txLog as any, NetworksEnum.ethereumMainnet)
+      expect(result).to.be.undefined
+      expect(errorStub.calledOnce).to.be.true
     })
   })
 })
