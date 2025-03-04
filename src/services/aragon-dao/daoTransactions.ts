@@ -76,7 +76,7 @@ export const DaoTransactions = {
       const rawTx: Partial<Transaction> = {
         transactionHash: tx.hash,
         uniqueId: tx.uniqueId,
-        blockNumber: tx.blockNum,
+        blockNumber: Number(tx.blockNum),
         blockTimestamp: tx.blockTimestamp,
         network: dao.network,
         type,
@@ -84,10 +84,13 @@ export const DaoTransactions = {
         pluginAddress,
         fromAddress: tx.from,
         toAddress: tx.to,
-        value: tx.value.toString(),
+        value: tx.value?.toString() || '0',
         tokenId: tx.tokenId ? BigInt(tx.tokenId).toString() : undefined,
         erc721TokenId: tx.erc721TokenId ? BigInt(tx.erc721TokenId).toString() : undefined,
-        erc1155Metadata: tx.erc1155Metadata,
+        erc1155Metadata: tx.erc1155Metadata?.map((w: any) => ({
+          tokenId: BigInt(w.tokenId)?.toString(),
+          value: w.value?.toString(),
+        })),
         category: tx.category,
         proposalIndex,
       }

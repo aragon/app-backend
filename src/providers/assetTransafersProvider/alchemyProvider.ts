@@ -100,7 +100,7 @@ export const AlchemyProvider: IAssetTransferProvider & {
         to: txLog.to,
         value: txLog.value!,
         blockNum: Number(txLog.blockNum),
-        category: txLog.category!,
+        category: txLog.category,
         blockTimestamp: await Web3Helper.getBlockTimestamp(Number(txLog.blockNum), network),
         tokenId: txLog.tokenId ? BigInt(txLog.tokenId).toString() : undefined,
         erc721TokenId: txLog.erc721TokenId ? BigInt(txLog.erc721TokenId).toString() : undefined,

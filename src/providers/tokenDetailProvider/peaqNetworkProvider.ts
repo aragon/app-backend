@@ -7,12 +7,12 @@ const llo = logger.logMeta.bind(null, { service: 'provider:PeaqTokenProvider' })
 
 export const PeaqNetworkTokenProvider: ITokenDetailsProvider = {
   async fetchTokenDetails(_tokenTypeInfo: ITokenProviderInfoArg, tokenAddress: string, network: NetworksEnum) {
-    const tokenInfo =
+    const tokenInfo: any =
       tokenAddress === utils.zeroAddress
         ? await SubscanApi.getNativeTokenInfo(network)
         : await SubscanApi.getTokenFullDetails(tokenAddress, network)
 
-    if (tokenInfo.name === '') {
+    if (!tokenInfo.name || tokenInfo.name === '') {
       logger.error(
         'Token name is empty for token address',
         llo({

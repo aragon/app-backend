@@ -42,7 +42,7 @@ export interface IAlchemyTransferResponse {
   erc1155Metadata?: IAlchemyERC1155Metadata[]
   tokenId?: string | null
   asset?: string | null
-  category?: ITransactionCategory
+  category?: ITransactionCategory | undefined
   rawContract: IAlchemyRawContract
 }
 

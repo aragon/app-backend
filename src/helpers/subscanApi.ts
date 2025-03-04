@@ -6,12 +6,16 @@ import BottleneckModule from '@modules/bottleneck'
 import {
   type HexAddress,
   type ISubScanAssetTransfer,
+  type ISubScanContractCreation,
+  type ISubScanNativeTokenInfo,
   type ISubScanTokenBalance,
+  type ISubScanTokenInfo,
   ITokenType,
   type NetworksEnum,
 } from '@types'
 import { ethers } from 'ethers'
 import utils from '@helpers/utils'
+import dayjs from '@helpers/dayjs'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:SubscanApiHelper' })
 
@@ -65,7 +69,10 @@ const SubscanApiHelper = {
     }
   },
 
-  async fetchContractCreation(contractAddress: string, network: NetworksEnum) {
+  async fetchContractCreation(
+    contractAddress: string,
+    network: NetworksEnum,
+  ): Promise<ISubScanContractCreation | null> {
     const path = 'evm/contract'
     const params = {
       address: contractAddress,
@@ -87,17 +94,19 @@ const SubscanApiHelper = {
     return null
   },
 
-  async getTokenFullDetails(address: HexAddress, network: NetworksEnum) {
-    const tokenDetails = {
+  async getTokenFullDetails(address: HexAddress, network: NetworksEnum): Promise<ISubScanTokenInfo> {
+    const tokenDetails: ISubScanTokenInfo = {
       address,
-      name: '',
-      symbol: '',
-      decimals: 0,
+      decimals: null,
+      name: null,
+      symbol: null,
+      priceUsd: '0',
+      priceChangeOnDayUsd: '0',
       type: ITokenType.unknown,
+      logo: null,
+      lastUpdatedAt: null,
       totalSupply: '0',
       totalHolders: 0,
-      priceUsd: '0',
-      logo: '',
     }
     try {
       const path = 'evm/tokens'
@@ -114,6 +123,7 @@ const SubscanApiHelper = {
         tokenDetails.symbol = tokenInfo.symbol
         tokenDetails.decimals = tokenInfo.decimals
         tokenDetails.priceUsd = tokenInfo.price
+        tokenDetails.lastUpdatedAt = dayjs.utc().toDate()
 
         switch (tokenInfo.category) {
           case 'erc20':
@@ -280,17 +290,17 @@ const SubscanApiHelper = {
     }
   },
 
-  getNativeTokenInfo: async (network: NetworksEnum) => {
+  getNativeTokenInfo: async (network: NetworksEnum): Promise<ISubScanNativeTokenInfo> => {
     const params = {
       include_extends: true,
     }
 
-    const tokenResponse = {
+    const tokenResponse: ISubScanNativeTokenInfo = {
       address: utils.zeroAddress,
       name: 'PEAQ',
       symbol: 'PEAQ',
       decimals: 18,
-      logo: '',
+      logo: null,
       priceUsd: '0',
       type: ITokenType.native,
       totalSupply: '0',

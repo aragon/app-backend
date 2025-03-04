@@ -44,7 +44,7 @@ export interface IAssetTransferTxLog {
   erc1155Metadata?: any | null
   tokenId?: string | null
   asset?: string
-  category: ITransactionCategory
+  category: ITransactionCategory | undefined
   rawContract?: {
     address: string
     decimals: number
@@ -52,7 +52,7 @@ export interface IAssetTransferTxLog {
     name: string
     symbol: string
     priceUpdatedAt: number
-    logo?: string
+    logo?: string | null
     type: ITokenType
   }
 }

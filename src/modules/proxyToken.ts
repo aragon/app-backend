@@ -94,7 +94,7 @@ export const ProxyToken = {
     const rawTokenRate = {
       ...tokenDetails,
       decimals: tokenDetails.decimals ?? 0,
-      logo: tokenDetails.logo || '',
+      logo: tokenDetails.logo || null,
     }
 
     // Construct raw token data
