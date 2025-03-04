@@ -2,7 +2,6 @@ import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import type { ITokenMetrics } from '@src/types/covalent'
 import { type ITokenType } from '@src/types/token'
 import type Dao from '@models/schema/dao'
-import { ITransferSide, type ITransferType } from '@src/types/transfer'
 import { type ITransactionType } from '@src/types/db'
 import { type ITransactionCategory } from '@src/types/alchemy'
 

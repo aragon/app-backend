@@ -2,12 +2,11 @@ import { Interface, type Log, type LogDescription } from 'ethers'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import { IConnectionType, type IIndexerConfig, IProviderType, type NetworksEnum } from '@types'
+import { type IIndexerConfig, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import DbTx from '@modules/dbTx'
-import SubscanApiHelper from '@helpers/subscanApi'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
