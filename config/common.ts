@@ -251,12 +251,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_INTERVAL_BLOCK_TIME', 5),
         ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ETHERSCAN_API_KEY', null),
-        ETHERSCAN_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_PEAQ_MAINNET_ETHERSCAN_API_URL',
-          'https://api.peaque.io/api',
-        ),
+        ETHERSCAN_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ETHERSCAN_API_URL', null),
         BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_URL', null),
         BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_KEY', null),
         SUBSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_SUBSCAN_API_KEY', null),

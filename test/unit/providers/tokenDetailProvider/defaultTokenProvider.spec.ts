@@ -10,6 +10,7 @@ import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import EtherscanHelper from '@helpers/etherscan'
+import BlockScoutHelper from '@helpers/blockScout'
 
 describe('Module: DefaultTokenProvider', () => {
   let sandbox: SinonSandbox
@@ -328,6 +329,44 @@ describe('Module: DefaultTokenProvider', () => {
 
       const result = ProxyToken.analyzeIfScamToken(name, symbol)
       expect(result).to.be.true
+    })
+  })
+
+  describe('_fetchContractSourceCode', () => {
+    it('should fetch contract source code', async () => {
+      const getContractSourceCode = sandbox.stub(EtherscanHelper, 'fetchContractSourceCode').resolves([
+        {
+          SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
+          ContractName: 'IERC20MintableUpgradeable',
+          ABI: '[]',
+        },
+      ])
+
+      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getContractSourceCode')
+
+      await DefaultNetworkTokenProvider.fetchContractSourceCode('0xto', NetworksEnum.ethereumMainnet)
+
+      expect(getContractSourceCode.calledOnce).to.be.true
+      expect(getContractSourceCode.args[0][0].contractAddress).to.be.eq('0xto')
+      expect(blockScoutStub.calledOnce).to.be.false
+    })
+
+    it('should fetch contract source code from blockscout if not found', async () => {
+      const getContractSourceCode = sandbox.stub(EtherscanHelper, 'fetchContractSourceCode').resolves(null)
+      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getContractSourceCode').resolves([
+        {
+          SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
+          ContractName: 'IERC20MintableUpgradeable',
+          ABI: '[]',
+        },
+      ])
+
+      await DefaultNetworkTokenProvider.fetchContractSourceCode('0xto', NetworksEnum.ethereumMainnet)
+
+      expect(getContractSourceCode.calledOnce).to.be.true
+      expect(blockScoutStub.calledOnce).to.be.true
+      expect(blockScoutStub.args[0][0]).to.be.eq('0xto')
+      expect(blockScoutStub.args[0][1]).to.be.eq(NetworksEnum.ethereumMainnet)
     })
   })
 })
