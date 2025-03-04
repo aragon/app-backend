@@ -1,6 +1,9 @@
 import SubscanApi from '@helpers/subscanApi'
 import { type ITokenDetailsProvider, type ITokenProviderInfoArg, type NetworksEnum } from '@types'
 import utils from '@helpers/utils'
+import logger from '@logger'
+
+const llo = logger.logMeta.bind(null, { service: 'provider:PeaqTokenProvider' })
 
 export const PeaqNetworkTokenProvider: ITokenDetailsProvider = {
   async fetchTokenDetails(_tokenTypeInfo: ITokenProviderInfoArg, tokenAddress: string, network: NetworksEnum) {
@@ -8,6 +11,17 @@ export const PeaqNetworkTokenProvider: ITokenDetailsProvider = {
       tokenAddress === utils.zeroAddress
         ? await SubscanApi.getNativeTokenInfo(network)
         : await SubscanApi.getTokenFullDetails(tokenAddress, network)
+
+    if (tokenInfo.name === '') {
+      logger.error(
+        'Token name is empty for token address',
+        llo({
+          tokenInfo,
+          tokenAddress,
+          network,
+        }),
+      )
+    }
 
     return {
       tokenDetails: tokenInfo,
