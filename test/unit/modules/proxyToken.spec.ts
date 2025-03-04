@@ -13,7 +13,7 @@ import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import dbTx from '@modules/dbTx'
 import logger from '@logger'
-import TokenDetailProvider from "@modules/tokenDetail/providerFactory";
+import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
 
 describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox
@@ -80,7 +80,7 @@ describe('Modules: ProxyToken', () => {
       const network = NetworksEnum.ethereumMainnet
 
       sandbox.stub(TokenDetailProvider, 'fetchTokenDetails').resolves({
-        tokenRate: { priceUsd: '1', priceChangeOnDayUsd: '1' } as any,
+        tokenDetails: { priceUsd: '1', priceChangeOnDayUsd: '1' } as any,
         tokenMetrics: { totalHolders: 10, totalSupply: '11' },
       })
 
@@ -143,8 +143,8 @@ describe('Modules: ProxyToken', () => {
         isGovernance: true,
       })
 
-      const proxyTokenFetchDetailsStub =   sandbox.stub(TokenDetailProvider, 'fetchTokenDetails').resolves({
-        tokenRate: { priceUsd: '1', priceChangeOnDayUsd: '0.1' } as any,
+      const proxyTokenFetchDetailsStub = sandbox.stub(TokenDetailProvider, 'fetchTokenDetails').resolves({
+        tokenDetails: { priceUsd: '1', priceChangeOnDayUsd: '0.1' } as any,
         tokenMetrics: { totalHolders: 20, totalSupply: '1000' },
       })
 
@@ -166,8 +166,8 @@ describe('Modules: ProxyToken', () => {
       const tOpts = await dbTx.transactionOptions()
       tOpts.startTransaction()
 
-      const proxyTokenFetchDetailsStub =   sandbox.stub(TokenDetailProvider, 'fetchTokenDetails').resolves({
-        tokenRate: { priceUsd: '1', priceChangeOnDayUsd: '0.1' } as any,
+      const proxyTokenFetchDetailsStub = sandbox.stub(TokenDetailProvider, 'fetchTokenDetails').resolves({
+        tokenDetails: { priceUsd: '1', priceChangeOnDayUsd: '0.1' } as any,
         tokenMetrics: { totalHolders: 20, totalSupply: '1000' },
       })
 
@@ -206,8 +206,8 @@ describe('Modules: ProxyToken', () => {
       const tOpts = await dbTx.transactionOptions()
       tOpts.startTransaction()
 
-      const proxyTokenFetchDetailsStub =   sandbox.stub(TokenDetailProvider, 'fetchTokenDetails').resolves({
-        tokenRate: { priceUsd: '1', priceChangeOnDayUsd: '0.1', type: ITokenType.ERC20 } as any,
+      const proxyTokenFetchDetailsStub = sandbox.stub(TokenDetailProvider, 'fetchTokenDetails').resolves({
+        tokenDetails: { priceUsd: '1', priceChangeOnDayUsd: '0.1', type: ITokenType.ERC20 } as any,
         tokenMetrics: { totalHolders: 20, totalSupply: '1000' },
       })
 

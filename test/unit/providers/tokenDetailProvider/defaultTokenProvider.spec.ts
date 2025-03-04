@@ -1,15 +1,15 @@
-import { DefaultNetworkTokenProvider } from '@modules/tokenDetail/defaultNetworkProvider'
+import { DefaultNetworkTokenProvider } from '@providers/tokenDetailProvider/defaultNetworkProvider'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { ITokenType, NetworksEnum } from '@types'
-import {expect} from "chai";
-import utils from "@helpers/utils";
-import {RateModule} from "@modules/rates";
-import {ProxyToken} from "@modules/proxyToken";
-import BlockScout from "@helpers/blockScout";
-import CovalentHelper from "@helpers/covalent";
-import Web3Helper from "@helpers/web3";
-import RabbitMQHelper from "@helpers/rabbitMQ";
+import { expect } from 'chai'
+import utils from '@helpers/utils'
+import { RateModule } from '@modules/rates'
+import { ProxyToken } from '@modules/proxyToken'
+import BlockScout from '@helpers/blockScout'
+import CovalentHelper from '@helpers/covalent'
+import Web3Helper from '@helpers/web3'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 describe('Module: DefaultTokenProvider', () => {
   let sandbox: SinonSandbox
@@ -48,7 +48,7 @@ describe('Module: DefaultTokenProvider', () => {
       )
 
       expect(ratesStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('1')
+      expect(result.tokenDetails.priceUsd).to.equal('1')
       expect(result.tokenMetrics.totalHolders).to.equal(0)
       expect(result.tokenMetrics.totalSupply).to.equal('0')
     })
@@ -77,11 +77,11 @@ describe('Module: DefaultTokenProvider', () => {
 
       expect(ratesStub.calledOnce).to.be.true
       expect(tokenFullDetailsStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('1')
-      expect(result.tokenRate.name).to.equal('test')
-      expect(result.tokenRate.symbol).to.equal('TST')
-      expect(result.tokenRate.decimals).to.equal(18)
-      expect(result.tokenRate.logo).to.equal('fake-logo')
+      expect(result.tokenDetails.priceUsd).to.equal('1')
+      expect(result.tokenDetails.name).to.equal('test')
+      expect(result.tokenDetails.symbol).to.equal('TST')
+      expect(result.tokenDetails.decimals).to.equal(18)
+      expect(result.tokenDetails.logo).to.equal('fake-logo')
       expect(result.tokenMetrics.totalHolders).to.equal(10)
       expect(result.tokenMetrics.totalSupply).to.equal('100')
     })
@@ -109,7 +109,7 @@ describe('Module: DefaultTokenProvider', () => {
       expect(ratesStub.calledOnce).to.be.true
       expect(tokenFullDetailsStub.calledOnce).to.be.true
       expect(covalentMetricsStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('1')
+      expect(result.tokenDetails.priceUsd).to.equal('1')
       expect(result.tokenMetrics.totalHolders).to.equal(10)
       expect(result.tokenMetrics.totalSupply).to.equal('100')
     })
@@ -143,10 +143,10 @@ describe('Module: DefaultTokenProvider', () => {
       expect(tokenFullDetailsStub.calledOnce).to.be.true
       expect(onChainTokenInfoStub.calledOnce).to.be.false
       expect(covalentTokenMetricsStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('0')
-      expect(result.tokenRate.name).to.equal('Test')
-      expect(result.tokenRate.symbol).to.equal('TST')
-      expect(result.tokenRate.decimals).to.equal(0)
+      expect(result.tokenDetails.priceUsd).to.equal('0')
+      expect(result.tokenDetails.name).to.equal('Test')
+      expect(result.tokenDetails.symbol).to.equal('TST')
+      expect(result.tokenDetails.decimals).to.equal(0)
       expect(result.tokenMetrics.totalHolders).to.equal(10)
       expect(result.tokenMetrics.totalSupply).to.equal('100')
     })
@@ -186,11 +186,11 @@ describe('Module: DefaultTokenProvider', () => {
       expect(tokenFullDetailsStub.calledOnce).to.be.true
       expect(onChainTokenInfoStub.calledOnce).to.be.true
       expect(covalentTokenMetricsStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('0')
-      expect(result.tokenRate.name).to.equal('test')
-      expect(result.tokenRate.symbol).to.equal('TST')
-      expect(result.tokenRate.decimals).to.equal(18)
-      expect(result.tokenRate.logo).to.equal('fake-logo')
+      expect(result.tokenDetails.priceUsd).to.equal('0')
+      expect(result.tokenDetails.name).to.equal('test')
+      expect(result.tokenDetails.symbol).to.equal('TST')
+      expect(result.tokenDetails.decimals).to.equal(18)
+      expect(result.tokenDetails.logo).to.equal('fake-logo')
       expect(result.tokenMetrics.totalHolders).to.equal(10)
       expect(result.tokenMetrics.totalSupply).to.equal('100')
     })
@@ -233,11 +233,11 @@ describe('Module: DefaultTokenProvider', () => {
       expect(tokenFullDetailsStub.calledOnce).to.be.true
       expect(onChainTokenInfoStub.calledOnce).to.be.true
       expect(covalentTokenMetricsStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('0')
-      expect(result.tokenRate.name).to.equal('test')
-      expect(result.tokenRate.symbol).to.equal('TST')
-      expect(result.tokenRate.decimals).to.equal(18)
-      expect(result.tokenRate.logo).to.equal('fake-logo')
+      expect(result.tokenDetails.priceUsd).to.equal('0')
+      expect(result.tokenDetails.name).to.equal('test')
+      expect(result.tokenDetails.symbol).to.equal('TST')
+      expect(result.tokenDetails.decimals).to.equal(18)
+      expect(result.tokenDetails.logo).to.equal('fake-logo')
       expect(result.tokenMetrics.totalHolders).to.equal(0)
       expect(result.tokenMetrics.totalSupply).to.equal('10')
       expect(rabbitMQStub.calledOnce).to.be.true
@@ -278,10 +278,10 @@ describe('Module: DefaultTokenProvider', () => {
       expect(tokenFullDetailsStub.calledOnce).to.be.true
       expect(onChainTokenInfoStub.calledOnce).to.be.false
       expect(covalentTokenMetricsStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('0')
-      expect(result.tokenRate.name).to.equal('test')
-      expect(result.tokenRate.symbol).to.equal('TST')
-      expect(result.tokenRate.decimals).to.equal(0)
+      expect(result.tokenDetails.priceUsd).to.equal('0')
+      expect(result.tokenDetails.name).to.equal('test')
+      expect(result.tokenDetails.symbol).to.equal('TST')
+      expect(result.tokenDetails.decimals).to.equal(0)
       expect(result.tokenMetrics.totalHolders).to.equal(0)
       expect(result.tokenMetrics.totalSupply).to.equal('10')
       expect(rabbitMQStub.calledOnce).to.be.true

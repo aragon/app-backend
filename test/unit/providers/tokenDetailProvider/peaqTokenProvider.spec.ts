@@ -1,10 +1,10 @@
-import { PeaqNetworkTokenProvider } from '@modules/tokenDetail/peaqNetworkProvider'
+import { PeaqNetworkTokenProvider } from '@providers/tokenDetailProvider/peaqNetworkProvider'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { ITokenType, NetworksEnum } from '@types'
 import SubscanApi from '@helpers/subscanApi'
-import {expect} from "chai";
-import utils from "@helpers/utils";
+import { expect } from 'chai'
+import utils from '@helpers/utils'
 
 describe('Module: PeaqTokenProvider', () => {
   let sandbox: SinonSandbox
@@ -34,7 +34,7 @@ describe('Module: PeaqTokenProvider', () => {
     }
 
     const getNativeTokenInfoStub = sandbox.stub(SubscanApi, 'getNativeTokenInfo')
-    const getTokenFullDetailsStub = sandbox.stub(SubscanApi, 'getTokenFullDetails')
+    const getTokenFullDetailsStub = sandbox.stub(SubscanApi, 'getTokenFullDetails').resolves(tokenDetails as any)
 
     const response = await PeaqNetworkTokenProvider.fetchTokenDetails(tokenInfo, '0x123', NetworksEnum.peaqMainnet)
 
@@ -43,11 +43,10 @@ describe('Module: PeaqTokenProvider', () => {
       totalSupply: tokenDetails.totalSupply,
     })
 
-    expect(response.tokenRate).to.deep.equal(tokenDetails)
+    expect(response.tokenDetails).to.deep.equal(tokenDetails)
     expect(getNativeTokenInfoStub.calledOnce).to.be.false
     expect(getTokenFullDetailsStub.calledOnce).to.be.true
     expect(getTokenFullDetailsStub.calledWith('0x123', NetworksEnum.peaqMainnet)).to.be.true
-
   })
 
   it('Should fetch native token detail for peaq network', async () => {
@@ -67,17 +66,21 @@ describe('Module: PeaqTokenProvider', () => {
       priceUsd: 1,
     }
 
-    const getNativeTokenInfoStub = sandbox.stub(SubscanApi, 'getNativeTokenInfo')
+    const getNativeTokenInfoStub = sandbox.stub(SubscanApi, 'getNativeTokenInfo').resolves(tokenDetails as any)
     const getTokenFullDetailsStub = sandbox.stub(SubscanApi, 'getTokenFullDetails')
 
-    const response = await PeaqNetworkTokenProvider.fetchTokenDetails(tokenInfo, utils.zeroAddress, NetworksEnum.peaqMainnet)
+    const response = await PeaqNetworkTokenProvider.fetchTokenDetails(
+      tokenInfo,
+      utils.zeroAddress,
+      NetworksEnum.peaqMainnet,
+    )
 
     expect(response.tokenMetrics).to.deep.equal({
       totalHolders: tokenDetails.totalHolders,
       totalSupply: tokenDetails.totalSupply,
     })
 
-    expect(response.tokenRate).to.deep.equal(tokenDetails)
+    expect(response.tokenDetails).to.deep.equal(tokenDetails)
     expect(getNativeTokenInfoStub.calledOnce).to.be.true
     expect(getTokenFullDetailsStub.calledOnce).to.be.false
     expect(getNativeTokenInfoStub.calledWith(NetworksEnum.peaqMainnet)).to.be.true

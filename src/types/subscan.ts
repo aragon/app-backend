@@ -3,11 +3,9 @@ import { type HexAddress } from '@src/types/networks'
 export interface ISubScanTokenBalance {
   contractAddress: HexAddress
   tokenBalance: string
-}
-
-export interface ISubScanAccountBalances {
-  native: string
-  erc20: ISubScanTokenBalance[]
+  decimals: number
+  name: string
+  symbol: string
 }
 
 export interface ISubScanRawContractDetails {

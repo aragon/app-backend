@@ -139,6 +139,7 @@ describe('Helpers:Utils', () => {
       'arbitrum-mainnet': 'ARBITRUM_MAINNET',
       'zksync-sepolia': 'ZKSYNC_SEPOLIA',
       'zksync-mainnet': 'ZKSYNC_MAINNET',
+      'peaq-mainnet': 'PEAQ_MAINNET',
     }
 
     Object.keys(NetworksEnum).forEach(key => {

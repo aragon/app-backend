@@ -5,8 +5,8 @@ import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import {
   type HexAddress,
-  type ISubScanAccountBalances,
   type ISubScanAssetTransfer,
+  type ISubScanTokenBalance,
   ITokenType,
   NetworksEnum,
 } from '@types'
@@ -70,8 +70,8 @@ const SubscanApiHelper = {
   async getTokenFullDetails(address: HexAddress, network: NetworksEnum) {
     const tokenDetails = {
       address,
-      name: null,
-      symbol: null,
+      name: '',
+      symbol: '',
       decimals: 0,
       type: ITokenType.unknown,
       totalSupply: '0',
@@ -116,32 +116,29 @@ const SubscanApiHelper = {
     return tokenDetails
   },
 
-  getAccountBalance: async (address: HexAddress, network: NetworksEnum): Promise<ISubScanAccountBalances> => {
+  getAccountBalance: async (address: HexAddress, network: NetworksEnum): Promise<ISubScanTokenBalance[]> => {
     const apiEndpoint = 'account/tokens'
     const queryParams = {
       address,
       row: 100,
     }
 
-    const balances: ISubScanAccountBalances = {
-      native: '0',
-      erc20: [],
-    }
-
     try {
       const response = await SubscanApiHelper._rpCall(apiEndpoint, queryParams, network)
       if (response?.data?.native && response.data.ERC20) {
-        balances.native = response.data.native[0].balance
-        balances.erc20 = response.data.ERC20.map((token: any) => ({
+        return response.data.ERC20.map((token: any) => ({
           contractAddress: ethers.getAddress(token.contract), // Fixed key name
           tokenBalance: token.balance,
+          decimals: token.decimals,
+          name: token.name,
+          symbol: token.symbol,
         }))
       }
     } catch (error) {
       logger.warn('SubscanApi fetchTokenBalances', { error, address })
     }
 
-    return balances
+    return []
   },
 
   getAccountInfoByKey: async (address: HexAddress, network: NetworksEnum): Promise<string | undefined> => {
@@ -187,7 +184,7 @@ const SubscanApiHelper = {
       if (response?.data?.transfers) {
         allTransfers = response.data.transfers.map((transfer: any) => ({
           blockNum: transfer.block_num,
-          from: ethers.getAddress(transfer.from_account_display.evm_address),
+          from: ethers.getAddress(transfer.from_account_display.evm_address || ethers.ZeroAddress),
           to: ethers.getAddress(transfer.to_account_display?.evm_address || ethers.ZeroAddress),
           uniqueId: transfer.transfer_id,
           blockTimestamp: transfer.block_timestamp,

@@ -11,7 +11,7 @@ import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
-import TokenDetailProvider from '@modules/tokenDetail/providerFactory'
+import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -42,7 +42,7 @@ export const ProxyToken = {
         return await ProxyToken.createNewToken(parsedTokenAddress, network, session)
       })
     } catch (error) {
-      logger.error('Error saveAndGetToken', llo({ error, document }))
+      logger.error('Error saveAndGetToken', llo({ error }))
       return null
     }
   },
@@ -58,14 +58,14 @@ export const ProxyToken = {
     let updates: Partial<Token> = {}
 
     if (shouldUpdate || forceUpdate) {
-      const { tokenRate, tokenMetrics } = await TokenDetailProvider.fetchTokenDetails(network, tokenAddress, {
+      const { tokenDetails, tokenMetrics } = await TokenDetailProvider.fetchTokenDetails(network, tokenAddress, {
         type: token.type,
         isGovernance: token.isGovernance,
       })
 
       updates = {
-        priceUsd: tokenRate.priceUsd,
-        priceChangeOnDayUsd: tokenRate.priceChangeOnDayUsd,
+        priceUsd: tokenDetails.priceUsd,
+        priceChangeOnDayUsd: tokenDetails.priceChangeOnDayUsd,
         holders: tokenMetrics.totalHolders,
         totalSupply: tokenMetrics.totalSupply,
         lastUpdatedAt: dayjs.utc().toDate(),
@@ -82,7 +82,7 @@ export const ProxyToken = {
 
   createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum, session?: ClientSession): Promise<Token> => {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
-    const { tokenRate, tokenMetrics } = await TokenDetailProvider.fetchTokenDetails(network, tokenAddress, {
+    const { tokenDetails, tokenMetrics } = await TokenDetailProvider.fetchTokenDetails(network, tokenAddress, {
       type: tokenTypeInfo.type,
       isGovernance: tokenTypeInfo.isGovernance,
     })
@@ -93,9 +93,9 @@ export const ProxyToken = {
         : { address: '', transactionHash: null, blockNumber: 0 }
 
     const rawTokenRate = {
-      ...tokenRate,
-      decimals: tokenRate.decimals ?? 0,
-      logo: tokenRate.logo || '',
+      ...tokenDetails,
+      decimals: tokenDetails.decimals ?? 0,
+      logo: tokenDetails.logo || '',
     }
 
     // Construct raw token data
@@ -122,20 +122,20 @@ export const ProxyToken = {
       mintableByDao: await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session),
       skipFetchRate: ProxyToken.shouldSkipFetch(
         {
-          ...tokenRate,
+          ...tokenDetails,
           holders: tokenMetrics.totalHolders,
           totalSupply: tokenMetrics.totalSupply,
           address: tokenAddress,
           type: tokenTypeInfo.type,
           network,
         },
-        tokenRate,
+        tokenDetails as ITokenRate,
       ),
     }
 
     // Ensure correct token type
-    if (rawToken.type === ITokenType.unknown && tokenRate.type !== ITokenType.unknown) {
-      rawToken.type = tokenRate.type
+    if (rawToken.type === ITokenType.unknown && tokenDetails.type !== ITokenType.unknown) {
+      rawToken.type = tokenDetails.type
     }
 
     // Save token and commit transaction

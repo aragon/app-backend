@@ -580,48 +580,6 @@ const Web3Helper = {
     }
   },
 
-  async getTokenBalances(address: HexAddress, network: NetworksEnum): Promise<IAlchemyTokenBalance[] | []> {
-    try {
-      const provider = ProviderModule.getProvider(network, IProviderType.ALCHEMY, IConnectionType.RPC)
-
-      const response = await retryRequest(async () =>
-        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
-          provider.send('alchemy_getTokenBalances', [address]),
-        ),
-      )
-
-      const balances = await Promise.all(
-        response?.tokenBalances
-          ?.filter(
-            (token: any) => token.tokenBalance !== '0x0000000000000000000000000000000000000000000000000000000000000000',
-          )
-          ?.map(async (alchemyBalance: any) => {
-            const token = await ProxyToken.saveAndGetToken(alchemyBalance.contractAddress, network)
-            // check if alchemy return strange balance
-            Web3Helper.alchemyCrazyBalanceOnError(
-              alchemyBalance.contractAddress,
-              token?.address!,
-              network,
-              alchemyBalance.tokenBalance,
-              token?.decimals!,
-            )
-            const result: IAlchemyTokenBalance = {
-              contractAddress:
-                Web3Helper.parseAddress(alchemyBalance.contractAddress) || alchemyBalance.contractAddress,
-              tokenBalance: Web3Helper.handleAlchemyCrazyBalance(alchemyBalance.tokenBalance, token?.decimals),
-              originalBalance: alchemyBalance.tokenBalance,
-            }
-            return result
-          }),
-      )
-
-      return balances.filter((token: any) => token.tokenBalance !== '0')
-    } catch (error) {
-      logger.error('Error getTokenBalances', llo({ address, network, error }))
-      return []
-    }
-  },
-
   parseSubdomainToEns(subdomain: string): ENS | undefined {
     return `${subdomain}.${config.ENS_DOMAIN}` as ENS
   },
