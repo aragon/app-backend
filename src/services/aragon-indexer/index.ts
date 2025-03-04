@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { EnumConnection, type IService } from '@types'
+import { EnumConnection, EnumQueueName, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { NetworkHelper } from '@helpers/network'
 import configIndexer from '@indexer/configIndexer'
@@ -10,6 +10,7 @@ import { SyncAll } from '@indexer/syncAll'
 
 import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -47,6 +48,11 @@ const AragonIndexerService: IService & { repeaters: any } = {
     )
 
     logger.info('IndexerService historical logs end', llo({}))
+
+    await RabbitMQHelper.sendMessage(EnumQueueName.allMetrics, {
+      id: EnumQueueName.allMetrics,
+      params: {},
+    })
 
     // re-sync all installed plugins
     const taskOptions = {
