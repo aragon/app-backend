@@ -1,12 +1,9 @@
 import {
   type ENS,
   type HexAddress,
-  type IAlchemyTokenBalance,
-  IConnectionType,
   type ILogInfo,
   type IMetadata,
   type IProposalMetadata,
-  IProviderType,
   ITransactionType,
   type NetworksEnum,
 } from '@types'

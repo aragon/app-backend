@@ -1,6 +1,4 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
-import { type ITokenMetrics } from '@src/types/covalent'
-
 export interface ITokenInfo {
   type: ITokenType
   proxy: boolean

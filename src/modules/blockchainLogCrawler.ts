@@ -7,7 +7,7 @@ import {
   type IFormattedLog,
   type IIndexerConfig,
   IProviderType,
-  NetworksEnum,
+  type NetworksEnum,
 } from '@types'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
