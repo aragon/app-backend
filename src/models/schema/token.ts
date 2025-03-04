@@ -63,7 +63,7 @@ export default class Token extends Model {
   public implementationAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public logo!: string
+  public logo!: string | null
 
   @prop({ type: () => Boolean, default: false })
   public skipFetchRate!: boolean

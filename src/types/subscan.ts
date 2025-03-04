@@ -1,5 +1,6 @@
 import { type HexAddress } from '@src/types/networks'
 import { type ITransactionType } from '@src/types/db'
+import { type ITokenType } from '@src/types/token'
 
 export interface ISubScanTokenBalance {
   contractAddress: HexAddress
@@ -7,6 +8,38 @@ export interface ISubScanTokenBalance {
   decimals: number
   name: string
   symbol: string
+}
+
+export interface ISubScanContractCreation {
+  address: HexAddress
+  transactionHash: string
+  blockNumber: number
+}
+
+export interface ISubScanNativeTokenInfo {
+  address: HexAddress
+  decimals: number | null
+  name: string | null
+  symbol: string | null
+  priceUsd: string
+  type: ITokenType
+  logo: string | null
+  totalSupply: string
+  totalHolders: number
+}
+
+export interface ISubScanTokenInfo {
+  address: HexAddress
+  decimals: number | null
+  name: string | null
+  symbol: string | null
+  priceUsd: string
+  priceChangeOnDayUsd: string | null
+  type: ITokenType
+  logo: string | null
+  lastUpdatedAt: string | null | Date
+  totalSupply: string
+  totalHolders: number
 }
 
 export interface ISubScanRawContractDetails {
