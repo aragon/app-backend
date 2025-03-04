@@ -102,11 +102,6 @@ describe('Module: provider', () => {
         ETHERSCAN_API_URL: 'test',
         BLOCKSCOUT_API_URL: 'test',
         BLOCKSCOUT_API_KEY: 'test',
-        ARAGON_RPC_OPTIONS: {
-          POLLING_INTERVAL: 1000,
-          BATCH_MAX_COUNT: 100,
-          BATCH_STALL_TIME: 10,
-        },
       },
       POLYGON_MAINNET: {
         ALCHEMY_API_KEY: 'test-alchemy-key2',
@@ -119,11 +114,6 @@ describe('Module: provider', () => {
         ETHERSCAN_API_URL: 'test',
         BLOCKSCOUT_API_URL: 'test',
         BLOCKSCOUT_API_KEY: 'test',
-        ARAGON_RPC_OPTIONS: {
-          POLLING_INTERVAL: 1000,
-          BATCH_MAX_COUNT: 100,
-          BATCH_STALL_TIME: 10,
-        },
       },
     }
     sandbox.stub(config, 'NODES').value(rawNodes)
@@ -165,7 +155,7 @@ describe('Module: provider', () => {
       expect(fakeAlchemy.ws.on.callCount).to.equal(3)
     })
 
-    it.skip('connectToNetwork should configure an Aragon connection', async () => {
+    it('connectToNetwork should configure an Aragon connection', async () => {
       const network = NetworksEnum.ethereumMainnet
       const aragonConfig = {
         providerType: IProviderType.ARAGON,
@@ -201,11 +191,6 @@ describe('Module: provider', () => {
         fromBlock: 0,
         confirmationBlocks: 12,
         intervalBlockTime: 15,
-        rpcOptions: {
-          pollingInterval: 1000,
-          batchMaxCount: 100,
-          batchStallTime: 10,
-        },
       }
       // Stub providers
       const fakeRpcProvider = {}
@@ -300,38 +285,6 @@ describe('Module: provider', () => {
       ProviderModule.subscribeToNewBlock(network, listener, IProviderType.ALCHEMY)
       expect(wsOnStub.calledOnce).to.be.true
       expect(wsOnStub.calledWith('block', listener)).to.be.true
-    })
-
-    it('should subscribe to new block using Aragon RPC provider', () => {
-      const network = NetworksEnum.ethereumMainnet
-      const onStub = sandbox.stub()
-      const fakeRpcProvider = { on: onStub }
-      const alchemyWsOnStub = sandbox.stub()
-      ProviderModule.providerProxies[network] = {
-        aragon: { rpc: fakeRpcProvider, ws: null },
-        alchemy: { rpc: {}, ws: { on: alchemyWsOnStub } },
-      }
-      const listener = sandbox.stub()
-      ProviderModule.subscribeToNewBlock(network, listener)
-      expect(onStub.calledOnce).to.be.true
-      expect(alchemyWsOnStub.notCalled).to.be.true
-      expect(onStub.calledWith('block', listener)).to.be.true
-    })
-
-    it('should subscribe to new block using Aragon WS provider', () => {
-      const network = NetworksEnum.ethereumMainnet
-      const onStub = sandbox.stub()
-      const fakeWsProvider = { on: onStub }
-      const alchemyWsOnStub = sandbox.stub()
-      ProviderModule.providerProxies[network] = {
-        aragon: { rpc: null, ws: fakeWsProvider },
-        alchemy: { rpc: {}, ws: { on: alchemyWsOnStub } },
-      }
-      const listener = sandbox.stub()
-      ProviderModule.subscribeToNewBlock(network, listener, IProviderType.ARAGON)
-      expect(onStub.calledOnce).to.be.true
-      expect(alchemyWsOnStub.notCalled).to.be.true
-      expect(onStub.calledWith('block', listener)).to.be.true
     })
   })
 

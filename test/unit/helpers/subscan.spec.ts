@@ -120,17 +120,17 @@ describe('Helpers:Subscan', () => {
       const response = { data: { list: [tokenInfo] } }
       const rpCallStub = sandbox.stub(Subscan, '_rpCall').resolves(response)
       const result = await Subscan.getTokenFullDetails('0x1234567890', NetworksEnum.peaqMainnet)
-      expect(result).to.deep.eq({
-        address: '0x1234567890',
-        name: 'Test Token',
-        symbol: 'TT',
-        decimals: 18,
-        type: ITokenType.ERC20,
-        totalSupply: '1000',
-        totalHolders: 10,
-        priceUsd: '1',
-        logo: '',
-      })
+
+      expect(result.address).to.eq('0x1234567890')
+      expect(result.name).to.eq('Test Token')
+      expect(result.symbol).to.eq('TT')
+      expect(result.decimals).to.eq(18)
+      expect(result.type).to.eq(ITokenType.ERC20)
+      expect(result.logo).to.eq(null)
+      expect(result.priceUsd).to.eq('1')
+      expect(result.totalSupply).to.eq('1000')
+      expect(result.totalHolders).to.eq(10)
+      expect(result.lastUpdatedAt).to.exist
       expect(rpCallStub.calledOnce).to.be.true
     })
 
@@ -139,17 +139,18 @@ describe('Helpers:Subscan', () => {
       const rpCallStub = sandbox.stub(Subscan, '_rpCall').rejects(error)
       const warnStub = sandbox.stub(logger, 'warn')
       const result = await Subscan.getTokenFullDetails('0x1234567890', NetworksEnum.peaqMainnet)
-      expect(result).to.deep.eq({
-        address: '0x1234567890',
-        name: '',
-        symbol: '',
-        decimals: 0,
-        type: ITokenType.unknown,
-        totalSupply: '0',
-        totalHolders: 0,
-        priceUsd: '0',
-        logo: '',
-      })
+
+      expect(result.address).to.eq('0x1234567890')
+      expect(result.name).to.eq(null)
+      expect(result.symbol).to.eq(null)
+      expect(result.decimals).to.eq(null)
+      expect(result.type).to.eq(ITokenType.unknown)
+      expect(result.logo).to.eq(null)
+      expect(result.priceUsd).to.eq('0')
+      expect(result.totalSupply).to.eq('0')
+      expect(result.totalHolders).to.eq(0)
+      !expect(result.lastUpdatedAt).to.not.exist
+
       expect(rpCallStub.calledOnce).to.be.true
       expect(warnStub.calledOnce).to.be.true
     })
@@ -167,17 +168,17 @@ describe('Helpers:Subscan', () => {
       const response = { data: { list: [tokenInfo] } }
       const rpCallStub = sandbox.stub(Subscan, '_rpCall').resolves(response)
       const result = await Subscan.getTokenFullDetails('0x1234567890', NetworksEnum.peaqMainnet)
-      expect(result).to.deep.eq({
-        address: '0x1234567890',
-        name: 'Test Token',
-        symbol: 'TT',
-        decimals: 18,
-        type: ITokenType.ERC721,
-        totalSupply: '1000',
-        totalHolders: 10,
-        priceUsd: '1',
-        logo: '',
-      })
+
+      expect(result.address).to.eq('0x1234567890')
+      expect(result.name).to.eq('Test Token')
+      expect(result.symbol).to.eq('TT')
+      expect(result.decimals).to.eq(18)
+      expect(result.type).to.eq(ITokenType.ERC721)
+      expect(result.logo).to.eq(null)
+      expect(result.priceUsd).to.eq('1')
+      expect(result.totalSupply).to.eq('1000')
+      expect(result.totalHolders).to.eq(10)
+      expect(result.lastUpdatedAt).to.exist
       expect(rpCallStub.calledOnce).to.be.true
     })
 
@@ -194,17 +195,17 @@ describe('Helpers:Subscan', () => {
       const response = { data: { list: [tokenInfo] } }
       const rpCallStub = sandbox.stub(Subscan, '_rpCall').resolves(response)
       const result = await Subscan.getTokenFullDetails('0x1234567890', NetworksEnum.peaqMainnet)
-      expect(result).to.deep.eq({
-        address: '0x1234567890',
-        name: 'Test Token',
-        symbol: 'TT',
-        decimals: 18,
-        type: ITokenType.ERC1155,
-        totalSupply: '1000',
-        totalHolders: 10,
-        priceUsd: '1',
-        logo: '',
-      })
+
+      expect(result.address).to.eq('0x1234567890')
+      expect(result.name).to.eq('Test Token')
+      expect(result.symbol).to.eq('TT')
+      expect(result.decimals).to.eq(18)
+      expect(result.type).to.eq(ITokenType.ERC1155)
+      expect(result.logo).to.eq(null)
+      expect(result.priceUsd).to.eq('1')
+      expect(result.totalSupply).to.eq('1000')
+      expect(result.totalHolders).to.eq(10)
+      expect(result.lastUpdatedAt).to.exist
       expect(rpCallStub.calledOnce).to.be.true
     })
 
@@ -221,17 +222,17 @@ describe('Helpers:Subscan', () => {
       const response = { data: { list: [tokenInfo] } }
       const rpCallStub = sandbox.stub(Subscan, '_rpCall').resolves(response)
       const result = await Subscan.getTokenFullDetails('0x1234567890', NetworksEnum.peaqMainnet)
-      expect(result).to.deep.eq({
-        address: '0x1234567890',
-        name: 'Test Token',
-        symbol: 'TT',
-        decimals: 18,
-        type: ITokenType.unknown,
-        totalSupply: '1000',
-        totalHolders: 10,
-        priceUsd: '1',
-        logo: '',
-      })
+
+      expect(result.address).to.eq('0x1234567890')
+      expect(result.name).to.eq('Test Token')
+      expect(result.symbol).to.eq('TT')
+      expect(result.decimals).to.eq(18)
+      expect(result.type).to.eq(ITokenType.unknown)
+      expect(result.logo).to.eq(null)
+      expect(result.priceUsd).to.eq('1')
+      expect(result.totalSupply).to.eq('1000')
+      expect(result.totalHolders).to.eq(10)
+      expect(result.lastUpdatedAt).to.exist
       expect(rpCallStub.calledOnce).to.be.true
     })
   })
@@ -448,7 +449,7 @@ describe('Helpers:Subscan', () => {
         name: 'PEAQ',
         symbol: 'PEAQ',
         decimals: 18,
-        logo: '',
+        logo: null,
         priceUsd: '1',
         type: ITokenType.native,
         totalSupply: '1000000',
@@ -468,7 +469,7 @@ describe('Helpers:Subscan', () => {
         name: 'PEAQ',
         symbol: 'PEAQ',
         decimals: 18,
-        logo: '',
+        logo: null,
         priceUsd: '0',
         type: ITokenType.native,
         totalSupply: '0',
