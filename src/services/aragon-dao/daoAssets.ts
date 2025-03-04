@@ -1,4 +1,4 @@
-import { type HexAddress, type IAlchemyTokenBalance, type NetworksEnum } from '@types'
+import { type HexAddress, type IProviderAsset, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
@@ -9,8 +9,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import type Dao from '@models/schema/dao'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import TokenUtils from '@helpers/tokenUtils'
-import SubscanApi from '@helpers/subscanApi'
-import { ethers } from 'ethers'
+import TokenBalancesProvider from '@providers/accountAssetProvider/providerFactory'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
@@ -28,11 +27,7 @@ export const DaoAssets = {
   },
 
   onDocument: async (document: Dao) => {
-    if (SubscanApi.isPeaqNetwork(document.network)) {
-      await DaoAssets.forPeaqNetwork(document)
-    } else {
-      await DaoAssets.assets(document)
-    }
+    await DaoAssets.assets(document)
     await DaoMetrics.start({ daoAddress: document.address, network: document.network })
   },
 
@@ -40,7 +35,7 @@ export const DaoAssets = {
     try {
       const [ethBalance, tokenBalances] = await Promise.all([
         Web3Helper.getBalance(document.address, document.network),
-        Web3Helper.getTokenBalances(document.address, document.network),
+        TokenBalancesProvider.getAccountBalances(document.address, document.network),
       ])
 
       if (Number(ethBalance) > 0) {
@@ -82,13 +77,13 @@ export const DaoAssets = {
       await Promise.all(
         tokenBalances
           .filter(token => Number(token.tokenBalance) > 0)
-          .map(async (token: IAlchemyTokenBalance) => {
-            const isSyncableToken = await TokenUtils.isTokenSyncable(token.contractAddress!, document.network)
+          .map(async (token: IProviderAsset) => {
+            const isSyncableToken = await TokenUtils.isTokenSyncable(token.contractAddress, document.network)
             if (!isSyncableToken) {
               logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: token.contractAddress }))
               return
             }
-            const tokenDb = await ProxyToken.saveAndGetToken(token?.contractAddress!, document.network)
+            const tokenDb = await ProxyToken.saveAndGetToken(token?.contractAddress, document.network)
             const rawData: Partial<Asset> = {
               amount: token.tokenBalance,
               network: document.network,
@@ -126,96 +121,5 @@ export const DaoAssets = {
     } catch (error) {
       logger.error('Error DaoAssets', llo({ error, logId: document.id }))
     }
-  },
-
-  forPeaqNetwork: async (dao: Dao) => {
-    const daoAssets = await SubscanApi.getAccountBalance(dao.address, dao.network)
-    if (!daoAssets) return
-
-    const ethBalance = daoAssets.native
-    if (Number(ethBalance) > 0) {
-      const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, dao.network)
-
-      await DbTx.executeTxFn(async ({ session }) => {
-        try {
-          const existingEthAssetDb = await Models.Asset.findExistingLog(
-            {
-              daoAddress: dao.address,
-              tokenAddress: utils.zeroAddress,
-              network: dao.network,
-            },
-            { session },
-          )
-
-          const formattedAmount = ethers.formatUnits(ethBalance, token?.decimals || 0)
-          const ethAssetData: Partial<Asset> = {
-            amount: formattedAmount,
-            network: dao.network,
-            daoAddress: dao.address,
-            tokenAddress: utils.zeroAddress, // native token
-            amountUsd: Web3Helper.convertBalanceToUsd(formattedAmount, token?.priceUsd || '0', token?.decimals || 0),
-          }
-
-          let logDb: any
-          if (existingEthAssetDb) {
-            logDb = await existingEthAssetDb.update(ethAssetData, { session })
-          } else {
-            logDb = await Models.Asset.create(ethAssetData, { session } as any)
-          }
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose(
-            existingEthAssetDb ? 'Update Native Asset' : 'New Native Asset',
-            llo({ logId: logDb?.id, network: logDb?.network }),
-          )
-        } catch (error) {
-          logger.error('Error DaoAssets', llo({ error, logId: dao.id }))
-        }
-      })
-    }
-
-    await Promise.all(
-      daoAssets.erc20
-        .filter(token => Number(token.tokenBalance) > 0)
-        .map(async (token: any) => {
-          const tokenDb = await ProxyToken.saveAndGetToken(token.contract, dao.network)
-
-          await DbTx.executeTxFn(async ({ session }) => {
-            try {
-              const formattedAmount = ethers.formatUnits(token.tokenBalance, tokenDb?.decimals || 0)
-              const rawData: Partial<Asset> = {
-                amount: formattedAmount,
-                network: dao.network,
-                daoAddress: dao.address,
-                tokenAddress: token.contract,
-                amountUsd: Web3Helper.convertBalanceToUsd(
-                  formattedAmount,
-                  tokenDb?.priceUsd || '0',
-                  tokenDb?.decimals || 0,
-                ),
-              }
-
-              const existingAssetDb = await Models.Asset.findExistingLog({
-                daoAddress: dao.address,
-                tokenAddress: token.contract,
-                network: dao.network,
-              })
-
-              let logDb: any
-              if (existingAssetDb) {
-                logDb = await existingAssetDb.update(rawData, { session })
-              } else {
-                logDb = await Models.Asset.create(rawData, { session } as any)
-              }
-              await session.commitTransaction()
-              await session.endSession()
-              logger.verbose(existingAssetDb ? 'Update Token Asset' : 'New Token Asset', llo({ logId: logDb?.id }))
-              return logDb
-            } catch (e) {
-              logger.error('Error DaoAssets', llo({ error: e, logId: dao.id }))
-            }
-          })
-        }),
-    )
   },
 }

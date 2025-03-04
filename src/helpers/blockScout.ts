@@ -20,7 +20,8 @@ const BlockScoutHelper = {
   },
 
   _rpCall: async (path: string, params: object, network: NetworksEnum) => {
-    if (BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_URL === undefined) {
+    if (!BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_URL) {
+      logger.warn('BlockScout API is not configured', llo({ network }))
       return null
     }
     try {

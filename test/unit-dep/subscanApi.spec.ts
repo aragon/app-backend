@@ -11,7 +11,7 @@ import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 
 import logger from '@logger'
 
-describe('Manual: Subscan Api', () => {
+describe.only('Manual: Subscan Api', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {

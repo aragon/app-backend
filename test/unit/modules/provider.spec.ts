@@ -1,10 +1,10 @@
 import * as sinon from 'sinon'
-import {SinonSandbox} from 'sinon'
-import {expect} from 'chai'
+import { SinonSandbox } from 'sinon'
+import { expect } from 'chai'
 import ProviderModule from '@modules/provider'
-import { IProviderType, NetworksEnum} from '@types'
+import { IProviderType, NetworksEnum } from '@types'
 import config from '@config'
-import {Network} from 'alchemy-sdk'
+import { Network } from 'alchemy-sdk'
 import logger from '@logger'
 
 describe('Module: provider', () => {
@@ -102,6 +102,11 @@ describe('Module: provider', () => {
         ETHERSCAN_API_URL: 'test',
         BLOCKSCOUT_API_URL: 'test',
         BLOCKSCOUT_API_KEY: 'test',
+        ARAGON_RPC_OPTIONS: {
+          POLLING_INTERVAL: 1000,
+          BATCH_MAX_COUNT: 100,
+          BATCH_STALL_TIME: 10,
+        },
       },
       POLYGON_MAINNET: {
         ALCHEMY_API_KEY: 'test-alchemy-key2',
@@ -114,6 +119,11 @@ describe('Module: provider', () => {
         ETHERSCAN_API_URL: 'test',
         BLOCKSCOUT_API_URL: 'test',
         BLOCKSCOUT_API_KEY: 'test',
+        ARAGON_RPC_OPTIONS: {
+          POLLING_INTERVAL: 1000,
+          BATCH_MAX_COUNT: 100,
+          BATCH_STALL_TIME: 10,
+        },
       },
     }
     sandbox.stub(config, 'NODES').value(rawNodes)
@@ -164,6 +174,11 @@ describe('Module: provider', () => {
         fromBlock: 0,
         confirmationBlocks: 12,
         intervalBlockTime: 15,
+        rpcOptions: {
+          pollingInterval: 1000,
+          batchMaxCount: 100,
+          batchStallTime: 10,
+        },
       }
       // Stub providers
       const fakeWsProvider = { on: sandbox.stub() }
@@ -186,6 +201,11 @@ describe('Module: provider', () => {
         fromBlock: 0,
         confirmationBlocks: 12,
         intervalBlockTime: 15,
+        rpcOptions: {
+          pollingInterval: 1000,
+          batchMaxCount: 100,
+          batchStallTime: 10,
+        },
       }
       // Stub providers
       const fakeRpcProvider = {}
@@ -292,7 +312,7 @@ describe('Module: provider', () => {
         alchemy: { rpc: {}, ws: { on: alchemyWsOnStub } },
       }
       const listener = sandbox.stub()
-      ProviderModule.subscribeToNewBlock(network, listener,)
+      ProviderModule.subscribeToNewBlock(network, listener)
       expect(onStub.calledOnce).to.be.true
       expect(alchemyWsOnStub.notCalled).to.be.true
       expect(onStub.calledWith('block', listener)).to.be.true

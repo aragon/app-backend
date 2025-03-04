@@ -10,6 +10,7 @@ import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
 import TokenUtils from '@helpers/tokenUtils'
+import TokenBalancesProvider from '@providers/accountAssetProvider/providerFactory'
 
 describe('AragonDao:Assets', () => {
   let sandbox: SinonSandbox
@@ -106,7 +107,7 @@ describe('AragonDao:Assets', () => {
       }
 
       sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
-      sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
+      sandbox.stub(TokenBalancesProvider, 'getAccountBalances').resolves(fakeTokenBalances as any)
       const saveAndGetProxyToken = sandbox
         .stub(ProxyToken, 'saveAndGetToken')
         .onCall(0)
@@ -150,7 +151,7 @@ describe('AragonDao:Assets', () => {
       const fakeTokenBalances: IAlchemyTokenBalance[] = [{ contractAddress: '0xToken1', tokenBalance: '700000' } as any]
 
       sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
-      sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
+      sandbox.stub(TokenBalancesProvider, 'getAccountBalances').resolves(fakeTokenBalances as any)
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0xToken1',
