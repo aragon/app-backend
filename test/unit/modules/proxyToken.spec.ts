@@ -8,7 +8,6 @@ import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
 import { ProxyToken } from '@modules/proxyToken'
 import Web3Helper from '@helpers/web3'
-import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import dbTx from '@modules/dbTx'
@@ -90,7 +89,7 @@ describe('Modules: ProxyToken', () => {
         implementationAddress: null,
       } as any)
 
-      sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
+      sandbox.stub(TokenDetailProvider, 'fetchContractCreation').resolves({
         blockNumber: 100,
         transactionHash: '0x000',
         address: tokenAddress,
@@ -177,7 +176,7 @@ describe('Modules: ProxyToken', () => {
         implementationAddress: null,
       } as any)
 
-      const getContractCreationInfoStub = sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
+      const getContractCreationInfoStub = sandbox.stub(TokenDetailProvider, 'fetchContractCreation').resolves({
         blockNumber: 100,
         transactionHash: '0x000',
         address: tokenAddress,
@@ -216,7 +215,7 @@ describe('Modules: ProxyToken', () => {
         implementationAddress: null,
       } as any)
 
-      const getContractCreationInfoStub = sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
+      const getContractCreationInfoStub = sandbox.stub(TokenDetailProvider, 'fetchContractCreation').resolves({
         blockNumber: 100,
         transactionHash: '0x000',
         address: tokenAddress,
@@ -279,44 +278,6 @@ describe('Modules: ProxyToken', () => {
       const result = ProxyToken.shouldSkipFetch(token as any, tokenRate as any)
 
       expect(result).to.be.false
-    })
-  })
-
-  describe('getContractCreationInfo', () => {
-    it('should return contract creation info', async () => {
-      const tokenAddress = '0x123456789abcdef'
-      const network = NetworksEnum.ethereumMainnet
-
-      sandbox.stub(EtherscanHelper, 'fetchContractCreation').resolves([{ txHash: '0xabc', address: tokenAddress }])
-      sandbox.stub(Web3Helper, 'getTransaction').resolves({ blockNumber: 123 })
-
-      const result = await ProxyToken.getContractCreationInfo(tokenAddress, network)
-
-      expect(result.transactionHash).to.equal('0xabc')
-      expect(result.blockNumber).to.equal(123)
-    })
-
-    it('should return contract creation info', async () => {
-      const tokenAddress = '0x123456789abcdef'
-      const network = NetworksEnum.ethereumMainnet
-
-      sandbox.stub(EtherscanHelper, 'fetchContractCreation').resolves(null as any)
-      const stubGetTx = sandbox.stub(Web3Helper, 'getTransaction')
-
-      const result = await ProxyToken.getContractCreationInfo(tokenAddress, network)
-
-      expect(result.blockNumber).to.equal(0)
-      expect(result.transactionHash).to.equal(null)
-      expect(result.address).to.equal(tokenAddress)
-      expect(stubGetTx.notCalled).to.be.true
-    })
-
-    it('should check if token is scam or not', async () => {
-      const name = 'CLAIM REWARDS ON DEBRIDGETHER.COM'
-      const symbol = 'BRIDGE'
-
-      const result = ProxyToken.analyzeIfScamToken(name, symbol)
-      expect(result).to.be.true
     })
   })
 })

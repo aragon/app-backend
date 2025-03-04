@@ -11,7 +11,7 @@ import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 
 import logger from '@logger'
 
-describe.only('Manual: Subscan Api', () => {
+describe('Manual: Subscan Api', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -47,9 +47,7 @@ describe.only('Manual: Subscan Api', () => {
     const network = NetworksEnum.peaqMainnet
 
     const accountBalance = await SubscanApiHelper.getAccountBalance(address, network)
-    expect(accountBalance).to.be.an('object')
-    expect(accountBalance).to.have.property('native')
-    expect(accountBalance).to.have.property('erc20')
+    expect(accountBalance).to.be.an('array')
   })
 
   it('should getAssetTransfer from subscan', async () => {

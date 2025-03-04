@@ -54,7 +54,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
             sourceConfig,
             'number',
             'NODES_ETHEREUM_MAINNET_ARAGON_RPC_OPTIONS_BATCH_MAX_COUNT',
-            5,
+            20,
           ),
           BATCH_STALL_TIME: utils.configParser(
             sourceConfig,
@@ -417,12 +417,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_PEAQ_MAINNET_ETHERSCAN_API_URL',
           'https://api.peaque.io/api',
         ),
-        BLOCKSCOUT_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_URL',
-          'https://peaque.blockscout.com/api/',
-        ),
+        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_URL', null),
         BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_KEY', null),
         SUBSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_SUBSCAN_API_KEY', null),
         SUBSCAN_API_URL: utils.configParser(

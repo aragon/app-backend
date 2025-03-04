@@ -11,6 +11,7 @@ import BlockScoutHelper from '@helpers/blockScout'
 import Web3Helper from '@helpers/web3'
 import CovalentHelper from '@helpers/covalent'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import EtherscanHelper from '@helpers/etherscan'
 
 export const DefaultNetworkTokenProvider: ITokenDetailsProvider = {
   async fetchTokenDetails(tokenTypeInfo: ITokenProviderInfoArg, tokenAddress: string, network: NetworksEnum) {
@@ -63,5 +64,24 @@ export const DefaultNetworkTokenProvider: ITokenDetailsProvider = {
     }
 
     return { tokenDetails, tokenMetrics }
+  },
+
+  async fetchContractCreation(tokenAddress: string, network: NetworksEnum) {
+    const contractInfo = await EtherscanHelper.fetchContractCreation({
+      contractAddress: tokenAddress,
+      network,
+    })
+
+    if (contractInfo?.length) {
+      const txHash = contractInfo[0].txHash
+      const txReceipt = await Web3Helper.getTransaction(txHash, network)
+      return {
+        blockNumber: txReceipt?.blockNumber || 0,
+        transactionHash: txHash,
+        address: tokenAddress,
+      }
+    }
+
+    return { blockNumber: 0, transactionHash: null, address: tokenAddress }
   },
 }

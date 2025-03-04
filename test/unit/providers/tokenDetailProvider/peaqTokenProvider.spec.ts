@@ -85,4 +85,22 @@ describe('Module: PeaqTokenProvider', () => {
     expect(getTokenFullDetailsStub.calledOnce).to.be.false
     expect(getNativeTokenInfoStub.calledWith(NetworksEnum.peaqMainnet)).to.be.true
   })
+
+  it('should fetch contract creation', async () => {
+    const fetchContractCreationStub = sandbox
+      .stub(SubscanApi, 'fetchContractCreation')
+      .resolves({ blockNumber: 0, transactionHash: null, address: '0x123' } as any)
+    const response = await PeaqNetworkTokenProvider.fetchContractCreation('0x123', NetworksEnum.peaqMainnet)
+    expect(response).to.deep.equal({ blockNumber: 0, transactionHash: null, address: '0x123' })
+    expect(fetchContractCreationStub.calledOnce).to.be.true
+    expect(fetchContractCreationStub.calledWith('0x123', NetworksEnum.peaqMainnet)).to.be.true
+  })
+
+  it('should return default values if contract creation is not found', async () => {
+    const fetchContractCreationStub = sandbox.stub(SubscanApi, 'fetchContractCreation').resolves(null as any)
+    const response = await PeaqNetworkTokenProvider.fetchContractCreation('0x123', NetworksEnum.peaqMainnet)
+    expect(response).to.deep.equal({ blockNumber: 0, transactionHash: null, address: '0x123' })
+    expect(fetchContractCreationStub.calledOnce).to.be.true
+    expect(fetchContractCreationStub.calledWith('0x123', NetworksEnum.peaqMainnet)).to.be.true
+  })
 })

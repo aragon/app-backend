@@ -3,13 +3,13 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
-import utils from '@helpers/utils'
 import { RateModule } from '@modules/rates'
 import { ProxyToken } from '@modules/proxyToken'
 import BlockScout from '@helpers/blockScout'
 import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import EtherscanHelper from '@helpers/etherscan'
 
 describe('Module: DefaultTokenProvider', () => {
   let sandbox: SinonSandbox
@@ -28,10 +28,13 @@ describe('Module: DefaultTokenProvider', () => {
       tokenRate = {
         priceUsd: '1',
         priceChangeOnDayUsd: '1',
-        address: '0x123',
+        address: '0xfC5a8B89F7f0C567D9a08c32D3321a5857619BbC',
         isGovernance: false,
         network: NetworksEnum.ethereumMainnet,
         type: ITokenType.ERC20,
+        name: 'test',
+        symbol: 'TST',
+        decimals: 18,
       }
     })
 
@@ -287,6 +290,44 @@ describe('Module: DefaultTokenProvider', () => {
       expect(rabbitMQStub.calledOnce).to.be.true
       expect(web3TokenTotalSupplyStub.calledOnce).to.be.true
       expect(isWhiteListedTokenStub.called).to.be.true
+    })
+  })
+
+  describe('getContractCreationInfo', () => {
+    it('should return contract creation info', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(EtherscanHelper, 'fetchContractCreation').resolves([{ txHash: '0xabc', address: tokenAddress }])
+      sandbox.stub(Web3Helper, 'getTransaction').resolves({ blockNumber: 123 })
+
+      const result = await DefaultNetworkTokenProvider.fetchContractCreation(tokenAddress, network)
+
+      expect(result.transactionHash).to.equal('0xabc')
+      expect(result.blockNumber).to.equal(123)
+    })
+
+    it('should return contract creation info', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(EtherscanHelper, 'fetchContractCreation').resolves(null as any)
+      const stubGetTx = sandbox.stub(Web3Helper, 'getTransaction')
+
+      const result = await DefaultNetworkTokenProvider.fetchContractCreation(tokenAddress, network)
+
+      expect(result.blockNumber).to.equal(0)
+      expect(result.transactionHash).to.equal(null)
+      expect(result.address).to.equal(tokenAddress)
+      expect(stubGetTx.notCalled).to.be.true
+    })
+
+    it('should check if token is scam or not', async () => {
+      const name = 'CLAIM REWARDS ON DEBRIDGETHER.COM'
+      const symbol = 'BRIDGE'
+
+      const result = ProxyToken.analyzeIfScamToken(name, symbol)
+      expect(result).to.be.true
     })
   })
 })
