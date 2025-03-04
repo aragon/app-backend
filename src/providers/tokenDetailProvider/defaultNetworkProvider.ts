@@ -12,7 +12,6 @@ import Web3Helper from '@helpers/web3'
 import CovalentHelper from '@helpers/covalent'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import EtherscanHelper from '@helpers/etherscan'
-import Etherscan from '@helpers/etherscan'
 
 export const DefaultNetworkTokenProvider: ITokenDetailsProvider = {
   async fetchTokenDetails(tokenTypeInfo: ITokenProviderInfoArg, tokenAddress: string, network: NetworksEnum) {
@@ -87,7 +86,7 @@ export const DefaultNetworkTokenProvider: ITokenDetailsProvider = {
   },
 
   async fetchContractSourceCode(contractAddress: string, network: NetworksEnum) {
-    let contractDetails = await Etherscan.fetchContractSourceCode({
+    let contractDetails = await EtherscanHelper.fetchContractSourceCode({
       contractAddress,
       network,
     })

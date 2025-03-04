@@ -7,7 +7,7 @@ import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { expect } from 'chai'
 import RabbitMQ from '@helpers/rabbitMQ'
 
-describe.only('Peaq Issue', () => {
+describe('Peaq Issue', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
