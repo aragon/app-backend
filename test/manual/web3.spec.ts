@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
 import EnsHelper from '@helpers/ens'
 import Web3Helper from '@helpers/web3'
-import { type IAlchemyTokenBalance, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import { AlchemyProvider } from '@providers/accountAssetProvider/alchemyProvider'
 
 describe('Manual: Web3', () => {

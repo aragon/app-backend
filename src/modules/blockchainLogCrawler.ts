@@ -105,7 +105,7 @@ class BlockchainLogCrawler {
   }
 
   getTopics(): any {
-    let topicChunks: any = []
+    let topicChunks: any
 
     if (!this.crawlParams.isCustomTopics) {
       topicChunks = utils.chunkArray(this.crawlSetting.filter.topics, 4)
