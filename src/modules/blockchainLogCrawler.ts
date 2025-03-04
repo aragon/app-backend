@@ -7,7 +7,7 @@ import {
   type IFormattedLog,
   type IIndexerConfig,
   IProviderType,
-  type NetworksEnum,
+  NetworksEnum,
 } from '@types'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -80,7 +80,13 @@ class BlockchainLogCrawler {
 
   calculateBatchSize(network: NetworksEnum): number {
     // Constants for seconds in a 30-day month
-    const days = 120
+
+    let days = 120
+    switch (network) {
+      case NetworksEnum.peaqMainnet:
+        days = 2
+    }
+
     const SECONDS_IN_MONTH = days * 24 * 3600
 
     // Get the block interval time from the config
@@ -337,6 +343,7 @@ class BlockchainLogCrawler {
   isBatchSizeError(error: any): boolean {
     const messages = [
       'The query timed out',
+      'query timeout',
       'Response size is larger than 150MB limit',
       'Log response size exceeded',
       'Consider reducing your block range',
