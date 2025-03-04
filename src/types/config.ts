@@ -22,11 +22,6 @@ export interface IRawNodeConfig {
   ARAGON_WS: string
   ARAGON_RPC: string
   FROM_BLOCK: number
-  ARAGON_RPC_OPTIONS: {
-    POLLING_INTERVAL: number
-    BATCH_MAX_COUNT: number
-    BATCH_STALL_TIME: number
-  }
   CONFIRMATION_BLOCKS: number
   INTERVAL_BLOCK_TIME: number
   ETHERSCAN_API_KEY: string

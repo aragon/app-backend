@@ -92,53 +92,57 @@ export const AlchemyProvider: IAssetTransferProvider & {
     await withdrawTxCrawler.crawl()
   },
   async formatTxLog(txLog: IAlchemyTransferResponse, network: NetworksEnum) {
-    const transferLog: IAssetTransferTxLog = {
-      hash: txLog.hash,
-      from: txLog.from,
-      uniqueId: txLog.uniqueId,
-      to: txLog.to,
-      value: txLog.value!,
-      blockNum: Number(txLog.blockNum),
-      category: txLog.category!,
-      blockTimestamp: await Web3Helper.getBlockTimestamp(Number(txLog.blockNum), network),
-      tokenId: txLog.tokenId ? BigInt(txLog.tokenId).toString() : undefined,
-      erc721TokenId: txLog.erc721TokenId ? BigInt(txLog.erc721TokenId).toString() : undefined,
-      erc1155Metadata: txLog.erc1155Metadata?.map(w => ({
-        tokenId: BigInt(w.tokenId)?.toString(),
-        value: w.value?.toString(),
-      })),
-    }
-
-    if (txLog.rawContract?.address) {
-      const isTokenSyncable = await TokenUtils.isTokenSyncable(txLog.rawContract?.address, network)
-
-      if (!isTokenSyncable) {
-        logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: txLog.rawContract?.address }))
-        return
+    try {
+      const transferLog: IAssetTransferTxLog = {
+        hash: txLog.hash,
+        from: txLog.from,
+        uniqueId: txLog.uniqueId,
+        to: txLog.to,
+        value: txLog.value!,
+        blockNum: Number(txLog.blockNum),
+        category: txLog.category!,
+        blockTimestamp: await Web3Helper.getBlockTimestamp(Number(txLog.blockNum), network),
+        tokenId: txLog.tokenId ? BigInt(txLog.tokenId).toString() : undefined,
+        erc721TokenId: txLog.erc721TokenId ? BigInt(txLog.erc721TokenId).toString() : undefined,
+        erc1155Metadata: txLog.erc1155Metadata?.map(w => ({
+          tokenId: BigInt(w.tokenId)?.toString(),
+          value: w.value?.toString(),
+        })),
       }
+
+      if (txLog.rawContract?.address) {
+        const isTokenSyncable = await TokenUtils.isTokenSyncable(txLog.rawContract?.address, network)
+
+        if (!isTokenSyncable) {
+          logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: txLog.rawContract?.address }))
+          return
+        }
+      }
+
+      const tokenAddress = txLog.rawContract?.address || utils.zeroAddress
+      const token = await ProxyToken.saveAndGetToken(tokenAddress, network)
+      Web3Helper.alchemyCrazyBalanceOnError(txLog.hash, token?.address!, network, transferLog.value, token?.decimals!)
+      const price = await RateModule.fetchRate(token?.address!, network)
+      const priceUsd = Number(price?.priceUsd || 0)
+
+      transferLog.rawContract = {
+        address: token?.address!,
+        decimals: token?.decimals!,
+        name: token?.name!,
+        symbol: token?.symbol!,
+        priceUsd: priceUsd.toString(),
+        priceUpdatedAt: transferLog.blockTimestamp,
+        type: token?.type!,
+        logo: token?.logo,
+      }
+
+      transferLog.value = Web3Helper.handleAlchemyCrazyBalance(transferLog.value || 0, token?.decimals, transferLog)
+
+      transferLog.rawContract.priceUsd = priceUsd.toString()
+      return transferLog
+    } catch (error) {
+      logger.error('Error formatting tx log', llo({ error, txLog }))
     }
-
-    const tokenAddress = txLog.rawContract?.address || utils.zeroAddress
-    const token = await ProxyToken.saveAndGetToken(tokenAddress, network)
-    Web3Helper.alchemyCrazyBalanceOnError(txLog.hash, token?.address!, network, transferLog.value, token?.decimals!)
-    const price = await RateModule.fetchRate(token?.address!, network)
-    const priceUsd = Number(price?.priceUsd || 0)
-
-    transferLog.rawContract = {
-      address: token?.address!,
-      decimals: token?.decimals!,
-      name: token?.name!,
-      symbol: token?.symbol!,
-      priceUsd: priceUsd.toString(),
-      priceUpdatedAt: transferLog.blockTimestamp,
-      type: token?.type!,
-      logo: token?.logo,
-    }
-
-    transferLog.value = Web3Helper.handleAlchemyCrazyBalance(transferLog.value || 0, token?.decimals, transferLog)
-
-    transferLog.rawContract.priceUsd = priceUsd.toString()
-    return transferLog
   },
 
   calculateAmountUsd: (rawValue: number, ratePriceUsd: number): string => {

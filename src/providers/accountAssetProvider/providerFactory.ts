@@ -4,7 +4,7 @@ import { SubscanProvider } from '@providers/accountAssetProvider/subscanProvider
 
 import { AlchemyProvider } from '@providers/accountAssetProvider/alchemyProvider'
 
-class TokenBalancesProvider {
+class AccountAssetProvider {
   public static async getAccountBalances(address: string, network: NetworksEnum): Promise<IProviderAsset[]> {
     switch (network) {
       case NetworksEnum.peaqMainnet:
@@ -15,4 +15,4 @@ class TokenBalancesProvider {
   }
 }
 
-export default TokenBalancesProvider
+export default AccountAssetProvider
