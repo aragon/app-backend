@@ -103,4 +103,12 @@ describe('Module: PeaqTokenProvider', () => {
     expect(fetchContractCreationStub.calledOnce).to.be.true
     expect(fetchContractCreationStub.calledWith('0x123', NetworksEnum.peaqMainnet)).to.be.true
   })
+
+  it('should fetch contract source code', async () => {
+    const getContractSourceCodeStub = sandbox.stub(SubscanApi, 'getContractSourceCode').resolves(['source code'] as any)
+    const response = await PeaqNetworkTokenProvider.fetchContractSourceCode('0x123', NetworksEnum.peaqMainnet)
+    expect(response[0]).to.equal('source code')
+    expect(getContractSourceCodeStub.calledOnce).to.be.true
+    expect(getContractSourceCodeStub.calledWith('0x123', NetworksEnum.peaqMainnet)).to.be.true
+  })
 })

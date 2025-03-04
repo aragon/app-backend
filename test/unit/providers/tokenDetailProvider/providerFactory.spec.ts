@@ -87,4 +87,28 @@ describe('Module: ProviderFactory', () => {
 
     expect(defaultNetworkTokenProviderStub.calledWith('tokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
   })
+
+  it('should handle fetchContractSourceCode with peaq network', async () => {
+    const peaqNetworkTokenProviderStub = sandbox.stub(PeaqNetworkTokenProvider, 'fetchContractSourceCode')
+    const defaultNetworkTokenProviderStub = sandbox.stub(DefaultNetworkTokenProvider, 'fetchContractSourceCode')
+
+    await ProviderFactory.fetchContractSourceCode('tokenAddress', NetworksEnum.peaqMainnet)
+
+    expect(peaqNetworkTokenProviderStub.calledOnce).to.be.true
+    expect(defaultNetworkTokenProviderStub.calledOnce).to.be.false
+
+    expect(peaqNetworkTokenProviderStub.calledWith('tokenAddress', NetworksEnum.peaqMainnet)).to.be.true
+  })
+
+  it('should handle fetchContractSourceCode with default network', async () => {
+    const peaqNetworkTokenProviderStub = sandbox.stub(PeaqNetworkTokenProvider, 'fetchContractSourceCode')
+    const defaultNetworkTokenProviderStub = sandbox.stub(DefaultNetworkTokenProvider, 'fetchContractSourceCode')
+
+    await ProviderFactory.fetchContractSourceCode('tokenAddress', NetworksEnum.ethereumMainnet)
+
+    expect(peaqNetworkTokenProviderStub.calledOnce).to.be.false
+    expect(defaultNetworkTokenProviderStub.calledOnce).to.be.true
+
+    expect(defaultNetworkTokenProviderStub.calledWith('tokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
 })

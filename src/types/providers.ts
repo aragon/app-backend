@@ -18,6 +18,7 @@ export interface ITokenDetailsProvider {
   ) => Promise<ITokenProviderInfo>
 
   fetchContractCreation: (tokenAddress: HexAddress, network: NetworksEnum) => Promise<any>
+  fetchContractSourceCode: (contractAddress: HexAddress, network: NetworksEnum) => Promise<any>
 }
 
 export interface IAccountBalancesProvider {
