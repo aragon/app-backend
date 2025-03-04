@@ -115,8 +115,8 @@ const ProviderModule = {
       }
     } else if (nodeConfig.providerType === IProviderType.ARAGON) {
       const aragonConfig = nodeConfig as IAragonNodeConfig
-      const wsProvider = new WebSocketProvider(aragonConfig.wsEndpoint)
-      const rpcProvider = new JsonRpcProvider(aragonConfig.rpcEndpoint)
+      const wsProvider = aragonConfig.wsEndpoint ? new WebSocketProvider(aragonConfig.wsEndpoint) : null
+      const rpcProvider = aragonConfig.rpcEndpoint ? new JsonRpcProvider(aragonConfig.rpcEndpoint) : null
       const aragonConnection: INodeConnection = {
         rpc: rpcProvider,
         ws: wsProvider,

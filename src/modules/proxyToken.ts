@@ -89,7 +89,7 @@ export const ProxyToken = {
     const contractDeployInfo =
       tokenTypeInfo.isGovernance || Web3Helper.isWhitelistedToken(tokenAddress, network)
         ? await TokenDetailProvider.fetchContractCreation(tokenAddress, network)
-        : { address: '', transactionHash: null, blockNumber: 0 }
+        : { address: tokenAddress, transactionHash: null, blockNumber: 0 }
 
     const rawTokenRate = {
       ...tokenDetails,
