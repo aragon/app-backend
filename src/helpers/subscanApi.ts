@@ -8,7 +8,7 @@ import {
   type ISubScanAssetTransfer,
   type ISubScanTokenBalance,
   ITokenType,
-  NetworksEnum,
+  type NetworksEnum,
 } from '@types'
 import { ethers } from 'ethers'
 import utils from '@helpers/utils'
@@ -29,8 +29,6 @@ const SubscanApiHelper = {
     const networkConfigKey = network.replace('-', '_').toUpperCase()
     return config.NODES[networkConfigKey]
   },
-
-  isPeaqNetwork: (network: NetworksEnum) => network === NetworksEnum.peaqMainnet,
 
   _rpCall: async (path: string, params: object, network: NetworksEnum, replacedPath?: any) => {
     try {
@@ -65,6 +63,28 @@ const SubscanApiHelper = {
     } catch (error) {
       logger.warn('SubscanApi getContractSourceCode', llo({ error, address }))
     }
+  },
+
+  async fetchContractCreation(contractAddress: string, network: NetworksEnum) {
+    const path = 'evm/contract'
+    const params = {
+      address: contractAddress,
+    }
+
+    try {
+      const response = await SubscanApiHelper._rpCall(path, params, network)
+      if (response?.data) {
+        return {
+          address: contractAddress,
+          transactionHash: response.data.transaction_hash,
+          blockNumber: response.data.block_num,
+        }
+      }
+    } catch (error) {
+      logger.warn('SubscanApi getContractSourceCode', llo({ error, address: contractAddress }))
+    }
+
+    return null
   },
 
   async getTokenFullDetails(address: HexAddress, network: NetworksEnum) {
@@ -191,6 +211,7 @@ const SubscanApiHelper = {
           value: transfer.amount,
           hash: transfer.hash,
           category: 'external',
+          decimals: 18,
         }))
       }
     } catch (error) {
@@ -227,6 +248,9 @@ const SubscanApiHelper = {
                 value: transfer.value,
                 address: ethers.getAddress(transfer.contract),
                 decimals: transfer.decimals,
+                name: transfer.name,
+                symbol: transfer.symbol,
+                priceUsd: '0',
               },
             }
           }),

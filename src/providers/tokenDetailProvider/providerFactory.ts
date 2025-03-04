@@ -10,6 +10,15 @@ class TokenDetailProvider {
         return DefaultNetworkTokenProvider.fetchTokenDetails(tokenTypeInfo, tokenAddress, network)
     }
   }
+
+  static async fetchContractCreation(tokenAddress: string, network: NetworksEnum) {
+    switch (network) {
+      case NetworksEnum.peaqMainnet:
+        return PeaqNetworkTokenProvider.fetchContractCreation(tokenAddress, network)
+      default:
+        return DefaultNetworkTokenProvider.fetchContractCreation(tokenAddress, network)
+    }
+  }
 }
 
 export default TokenDetailProvider

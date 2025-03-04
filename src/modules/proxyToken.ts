@@ -1,13 +1,12 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { type HexAddress, type IContractDeployInfo, type ITokenRate, ITokenType, type NetworksEnum } from '@types'
+import { type HexAddress, type ITokenRate, ITokenType, type NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Token from '@models/schema/token'
 import dayjs from '@helpers/dayjs'
 import CovalentHelper from '@helpers/covalent'
-import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
@@ -89,7 +88,7 @@ export const ProxyToken = {
 
     const contractDeployInfo =
       tokenTypeInfo.isGovernance || Web3Helper.isWhitelistedToken(tokenAddress, network)
-        ? await ProxyToken.getContractCreationInfo(tokenAddress, network)
+        ? await TokenDetailProvider.fetchContractCreation(tokenAddress, network)
         : { address: '', transactionHash: null, blockNumber: 0 }
 
     const rawTokenRate = {
@@ -172,25 +171,6 @@ export const ProxyToken = {
       token.type === ITokenType.unknown ||
       CovalentHelper.skipTestNetworks.includes(token.network!)) &&
     tokenRate.priceUsd === '0',
-
-  getContractCreationInfo: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<IContractDeployInfo> => {
-    const contractInfo = await EtherscanHelper.fetchContractCreation({
-      contractAddress: tokenAddress,
-      network,
-    })
-
-    if (contractInfo?.length) {
-      const txHash = contractInfo[0].txHash
-      const txReceipt = await Web3Helper.getTransaction(txHash, network)
-      return {
-        blockNumber: txReceipt?.blockNumber || 0,
-        transactionHash: txHash,
-        address: tokenAddress,
-      }
-    }
-
-    return { blockNumber: 0, transactionHash: null, address: tokenAddress }
-  },
 
   analyzeIfScamToken: (name: string, symbol: string): boolean => {
     const regex =

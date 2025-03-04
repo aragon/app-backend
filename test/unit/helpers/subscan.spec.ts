@@ -76,6 +76,36 @@ describe('Helpers:Subscan', () => {
     })
   })
 
+  describe('fetchContractCreation', () => {
+    it('should get contract creation infp', async () => {
+      const expectedResponse = {
+        data: {
+          contract: '0x1234567890',
+          transaction_hash: 'txHash',
+          block_num: 100,
+        },
+      }
+      const rpCallStub = sandbox.stub(Subscan, '_rpCall').resolves(expectedResponse)
+      const result = await Subscan.fetchContractCreation('0x1234567890', NetworksEnum.peaqMainnet)
+      expect(result).to.deep.eq({
+        address: '0x1234567890',
+        transactionHash: 'txHash',
+        blockNumber: 100,
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+    })
+
+    it('should handle errors in fetchContractCreation', async () => {
+      const error = new Error('RPC Call Failed')
+      const rpCallStub = sandbox.stub(Subscan, '_rpCall').rejects(error)
+      const warnStub = sandbox.stub(logger, 'warn')
+      const result = await Subscan.fetchContractCreation('0x1234567890', NetworksEnum.peaqMainnet)
+      expect(result).to.be.eq(null)
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(warnStub.calledOnce).to.be.true
+    })
+  })
+
   describe('getTokenFullDetails', () => {
     it('should return token details on successful response', async () => {
       const tokenInfo = {
@@ -177,6 +207,33 @@ describe('Helpers:Subscan', () => {
       })
       expect(rpCallStub.calledOnce).to.be.true
     })
+
+    it('should get if the token is unknown', async () => {
+      const tokenInfo = {
+        totalSupply: '1000',
+        holders: 10,
+        name: 'Test Token',
+        symbol: 'TT',
+        decimals: 18,
+        price: '1',
+        category: 'unknown',
+      }
+      const response = { data: { list: [tokenInfo] } }
+      const rpCallStub = sandbox.stub(Subscan, '_rpCall').resolves(response)
+      const result = await Subscan.getTokenFullDetails('0x1234567890', NetworksEnum.peaqMainnet)
+      expect(result).to.deep.eq({
+        address: '0x1234567890',
+        name: 'Test Token',
+        symbol: 'TT',
+        decimals: 18,
+        type: ITokenType.unknown,
+        totalSupply: '1000',
+        totalHolders: 10,
+        priceUsd: '1',
+        logo: '',
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+    })
   })
 
   describe('getAccountBalance', () => {
@@ -258,13 +315,15 @@ describe('Helpers:Subscan', () => {
         data: {
           transfers: [
             {
-              block_num: 100,
+              block_num: 180,
               from_account_display: { evm_address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' },
               to_account_display: { evm_address: null },
               transfer_id: 'id1',
               block_timestamp: 'timestamp1',
               amount: '50',
               hash: 'txHash1',
+              name: 'test',
+              symbol: 'test',
             },
           ],
         },
@@ -280,6 +339,8 @@ describe('Helpers:Subscan', () => {
               id: 'id2',
               value: '200',
               contract: '0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5',
+              name: 'test',
+              symbol: 'test',
               decimals: 18,
             },
           ],
@@ -293,6 +354,17 @@ describe('Helpers:Subscan', () => {
 
       const result = await Subscan.getAssetTransfer('0x1234567890', NetworksEnum.peaqMainnet)
       expect(result[0]).to.deep.include({
+        blockNum: 180,
+        from: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        to: '0x0000000000000000000000000000000000000000',
+        uniqueId: 'id1',
+        blockTimestamp: 'timestamp1',
+        value: '50',
+        hash: 'txHash1',
+        category: 'external',
+        decimals: 18,
+      })
+      expect(result[1]).to.deep.eq({
         blockNum: 150,
         from: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
         to: '0xc12aAA39b223fE8D0a0E5C4f27EaD9083c756Cc2',
@@ -304,18 +376,11 @@ describe('Helpers:Subscan', () => {
         rawContract: {
           value: '200',
           address: '0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5',
+          name: 'test',
+          symbol: 'test',
+          priceUsd: '0',
           decimals: 18,
         },
-      })
-      expect(result[1]).to.deep.eq({
-        blockNum: 100,
-        from: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        to: '0x0000000000000000000000000000000000000000',
-        uniqueId: 'id1',
-        blockTimestamp: 'timestamp1',
-        value: '50',
-        hash: 'txHash1',
-        category: 'external',
       })
       expect(getAccountInfoByKeyStub.calledOnce).to.be.true
       expect(rpCallStub.callCount).to.equal(2)
@@ -327,6 +392,18 @@ describe('Helpers:Subscan', () => {
       const result = await Subscan.getAssetTransfer('0x1234567890', NetworksEnum.peaqMainnet)
       expect(result).to.deep.eq([])
       expect(getAccountInfoByKeyStub.calledOnce).to.be.true
+    })
+
+    it('should log error when native transfer list fetch failed', async () => {
+      const substrateAddress = 'substrateAddress'
+      const getAccountInfoByKeyStub = sandbox.stub(Subscan, 'getAccountInfoByKey').resolves(substrateAddress)
+      const error = new Error('RPC Call Failed')
+      const rpCallStub = sandbox.stub(Subscan, '_rpCall').rejects(error)
+      const warnStub = sandbox.stub(logger, 'warn')
+      await Subscan.getAssetTransfer('0x1234567890', NetworksEnum.peaqMainnet)
+      expect(warnStub.calledTwice).to.be.true
+      expect(getAccountInfoByKeyStub.calledOnce).to.be.true
+      expect(rpCallStub.calledTwice).to.be.true
     })
   })
 

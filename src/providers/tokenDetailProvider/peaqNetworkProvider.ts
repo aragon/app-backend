@@ -17,4 +17,13 @@ export const PeaqNetworkTokenProvider: ITokenDetailsProvider = {
       },
     }
   },
+
+  async fetchContractCreation(tokenAddress: string, network: NetworksEnum) {
+    const contractInfo = await SubscanApi.fetchContractCreation(tokenAddress, network)
+    if (contractInfo) {
+      return contractInfo
+    }
+
+    return { blockNumber: 0, transactionHash: null, address: tokenAddress }
+  },
 }
