@@ -2,7 +2,7 @@ import { Interface, type Log, type LogDescription } from 'ethers'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import { type IIndexerConfig, type NetworksEnum } from '@types'
+import { type IIndexerConfig, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
@@ -89,6 +89,10 @@ class EventListener {
     if (this.isProcessingBlock === blockNumber) {
       logger.verbose('Skipping block as another process is ongoing', llo({ blockNumber, network: this.network }))
       return
+    }
+
+    if (this.network === NetworksEnum.peaqMainnet) {
+      logger.info('Block From Peaq Mainnet', llo({ blockNumber, network: this.network }))
     }
 
     this.isProcessingBlock = blockNumber
