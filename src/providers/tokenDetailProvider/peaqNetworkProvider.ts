@@ -1,7 +1,9 @@
 import SubscanApi from '@helpers/subscanApi'
-import { type ITokenDetailsProvider, type ITokenProviderInfoArg, type NetworksEnum } from '@types'
+import { EnumQueueName, type ITokenDetailsProvider, type ITokenProviderInfoArg, type NetworksEnum } from '@types'
 import utils from '@helpers/utils'
 import logger from '@logger'
+import type Token from '@models/schema/token'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:PeaqTokenProvider' })
 
@@ -21,6 +23,11 @@ export const PeaqNetworkTokenProvider: ITokenDetailsProvider = {
           network,
         }),
       )
+
+      await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
+        id: `token-metrics${tokenAddress}`,
+        params: { address: tokenAddress, network },
+      })
     }
 
     return {
@@ -43,5 +50,9 @@ export const PeaqNetworkTokenProvider: ITokenDetailsProvider = {
 
   async fetchContractSourceCode(contractAddress: string, network: NetworksEnum) {
     return SubscanApi.getContractSourceCode(contractAddress, network)
+  },
+
+  async fetchBasicTokenInfo(tokenDb: Token) {
+    return SubscanApi.getTokenFullDetails(tokenDb.address, tokenDb.network)
   },
 }

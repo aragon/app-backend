@@ -1,9 +1,10 @@
-import { type ITokenMetrics, type NetworksEnum } from '@types'
-import CovalentHelper from '@helpers/covalent'
+import { type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import Utils from '@helpers/utils'
 import DbTx from '@modules/dbTx'
+import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
+import { type SaveOptions } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'tokenInfo' })
 
@@ -12,29 +13,34 @@ interface PollingOptions {
   timeoutMs: number
 }
 
-export const TokenMetrics = {
+export const TokenDetailFetcherWithRetry = {
   async update(tokenAddress: string, network: NetworksEnum): Promise<void> {
-    try {
-      await DbTx.executeTxFn(async ({ session }) => {
-        const token = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network, { session })
+    await DbTx.executeTxFn(async ({ session }) => {
+      try {
+        const pluginAttachedToken = await Models.Plugin.findByTokenAddress(tokenAddress, network, { session })
 
-        if (!token) {
-          logger.warn('Token not found', llo({ tokenAddress, network }))
+        if (!pluginAttachedToken) {
+          logger.warn('Token not okay for pooling', llo({ tokenAddress, network }))
           return
         }
 
-        let tokenMetrics: any = null
+        let tokenInfo: { tokenDb: any; tokenDetails: any } | undefined = { tokenDb: null, tokenDetails: null }
+
         try {
-          tokenMetrics = await TokenMetrics.pollWithRetry(tokenAddress, network)
+          tokenInfo = await TokenDetailFetcherWithRetry.pollWithRetry(tokenAddress, network, session)
         } catch (_) {
-          // skip
+          //
         }
 
-        if (tokenMetrics) {
-          await token.update(
+        if (tokenInfo?.tokenDb) {
+          await tokenInfo.tokenDb.update(
             {
-              totalSupply: tokenMetrics.totalSupply,
-              holders: tokenMetrics.totalHolders,
+              name: tokenInfo.tokenDetails.name,
+              symbol: tokenInfo.tokenDetails.symbol,
+              totalSupply: tokenInfo.tokenDetails.totalSupply,
+              holders: tokenInfo.tokenDetails.totalHolders,
+              decimals: tokenInfo.tokenDetails.decimals,
+              priceUsd: tokenInfo.tokenDetails.priceUsd,
             },
             { session },
           )
@@ -42,27 +48,33 @@ export const TokenMetrics = {
           await session.commitTransaction()
           await session.endSession()
 
-          logger.verbose('Updated Token Metrics', llo({ logId: token.id }))
+          logger.verbose('Updated Token Metrics', llo({ logId: tokenInfo?.tokenDb.id }))
         }
-      })
-    } catch (error) {
-      logger.error('Failed to update token metrics', llo({ error, tokenAddress, network }))
-    }
+      } catch (error) {
+        logger.error('Error updating token metrics', llo({ tokenAddress, network, error }))
+      }
+    })
   },
 
   async pollWithRetry(
     tokenAddress: string,
     network: NetworksEnum,
-    options: PollingOptions = { intervalMs: 60000, timeoutMs: 600000 }, // interval 1 minute, timeout 10 minutes for safety
-  ): Promise<ITokenMetrics | undefined> {
+    session: SaveOptions,
+    options: PollingOptions = { intervalMs: 15000, timeoutMs: 300000 }, // interval 15 minute, timeout 5 minutes for safety
+  ): Promise<{ tokenDb: any; tokenDetails: any } | undefined> {
     const { intervalMs, timeoutMs } = options
     const startTime = Date.now()
 
     while (Date.now() - startTime < timeoutMs) {
-      const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
-
-      if (TokenMetrics.isValidMetrics(metrics)) {
-        return metrics
+      const tokenDb = await Models.Token.findOne({ address: tokenAddress, network }, null, { session })
+      if (tokenDb) {
+        const tokenDetails = await TokenDetailProvider.fetchBasicTokenInfo(tokenDb)
+        if (TokenDetailFetcherWithRetry.hasValidInfo(tokenDetails)) {
+          return {
+            tokenDb,
+            tokenDetails,
+          }
+        }
       }
 
       await Utils.wait(intervalMs)
@@ -71,9 +83,9 @@ export const TokenMetrics = {
     throw new Error(`Token metrics polling timed out after ${timeoutMs}ms`)
   },
 
-  isValidMetrics(metrics: ITokenMetrics): boolean {
-    return metrics.totalHolders > 0 && parseFloat(metrics.totalSupply) > 0
+  hasValidInfo(tokenDetails: any): boolean {
+    return !!(tokenDetails.name && tokenDetails.symbol && tokenDetails.totalSupply && tokenDetails.totalHolders)
   },
 }
 
-export default TokenMetrics
+export default TokenDetailFetcherWithRetry

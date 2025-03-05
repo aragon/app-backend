@@ -4,6 +4,7 @@ import { type ITokenType } from '@src/types/token'
 import type Dao from '@models/schema/dao'
 import { type ITransactionType } from '@src/types/db'
 import { type ITransactionCategory } from '@src/types/alchemy'
+import type Token from '@models/schema/token'
 
 export interface IProviderAsset {
   contractAddress: HexAddress
@@ -19,6 +20,7 @@ export interface ITokenDetailsProvider {
 
   fetchContractCreation: (tokenAddress: HexAddress, network: NetworksEnum) => Promise<any>
   fetchContractSourceCode: (contractAddress: HexAddress, network: NetworksEnum) => Promise<any>
+  fetchBasicTokenInfo: (tokenDb: Token) => Promise<any>
 }
 
 export interface IAccountBalancesProvider {

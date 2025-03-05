@@ -1,6 +1,7 @@
 import { type ITokenProviderInfoArg, NetworksEnum } from '@types'
 import { PeaqNetworkTokenProvider } from '@providers/tokenDetailProvider/peaqNetworkProvider'
 import { DefaultNetworkTokenProvider } from '@providers/tokenDetailProvider/defaultNetworkProvider'
+import type Token from '@models/schema/token'
 
 class TokenDetailProvider {
   static async fetchTokenDetails(network: NetworksEnum, tokenAddress: string, tokenTypeInfo: ITokenProviderInfoArg) {
@@ -27,6 +28,15 @@ class TokenDetailProvider {
         return PeaqNetworkTokenProvider.fetchContractSourceCode(contractAddress, network)
       default:
         return DefaultNetworkTokenProvider.fetchContractSourceCode(contractAddress, network)
+    }
+  }
+
+  static async fetchBasicTokenInfo(tokenDb: Token) {
+    switch (tokenDb.network) {
+      case NetworksEnum.peaqMainnet:
+        return PeaqNetworkTokenProvider.fetchBasicTokenInfo(tokenDb)
+      default:
+        return DefaultNetworkTokenProvider.fetchBasicTokenInfo(tokenDb)
     }
   }
 }

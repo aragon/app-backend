@@ -1,163 +1,242 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import TokenMetrics from '@services/aragon-dao/tokenInfo'
-import { Models } from '@dbModels'
-import { type ITokenMetrics, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import { Models } from '@dbModels'
+import { NetworksEnum } from '@types'
 import logger from '@logger'
-import dayjs from '@helpers/dayjs'
-import Token from '@models/schema/token'
-import CovalentHelper from '@helpers/covalent'
-import utils from '@helpers/utils'
+import TokenDetailFetcherWithRetry from '@services/aragon-dao/tokenInfo'
+import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
+import Utils from '@helpers/utils'
+import { FakeToken } from '@test/mock/fakeToken'
 
-describe('TokenInfo Service', () => {
+describe('TokenDetailFetcherWithRetry', () => {
   let sandbox: SinonSandbox
   const tokenAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
   const network = NetworksEnum.ethereumSepolia
-  let rawToken: Partial<Token>
 
-  beforeEach(async () => {
+  beforeEach(() => {
     sandbox = sinon.createSandbox()
-
-    rawToken = {
-      network,
-      type: ITokenType.ERC20,
-      address: tokenAddress,
-      logo: 'fake-logo',
-      name: 'token name',
-      symbol: 'WETH',
-      decimals: 18,
-      totalSupply: '0',
-      holders: 0,
-      priceChangeOnDayUsd: '1',
-      priceUsd: '1',
-      lastUpdatedAt: dayjs.utc().toDate() as any,
-    }
-
-    await Models.Token.create(rawToken)
   })
 
   afterEach(() => {
     sandbox.restore()
   })
 
-  describe('update', async () => {
-    it('should update metrics', async () => {
-      const metricsMock = { totalSupply: '1000', totalHolders: 10 }
-
-      const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubMetrics = sandbox.stub(TokenMetrics, 'pollWithRetry').resolves(metricsMock)
-
-      await TokenMetrics.update(tokenAddress, network)
-
-      const token = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network)
-      expect(token.totalSupply).to.equal(metricsMock.totalSupply)
-      expect(token.holders).to.equal(metricsMock.totalHolders)
-      expect(stubMetrics.calledOnce).to.be.true
-      expect(stubLogger.calledOnce).to.be.true
+  describe('hasValidInfo', () => {
+    it('should return true for metrics with all required fields', () => {
+      const validTokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        totalSupply: '1000',
+        totalHolders: 10,
+      }
+      expect(TokenDetailFetcherWithRetry.hasValidInfo(validTokenDetails)).to.be.true
     })
 
-    it('should skip if token not found', async () => {
-      const metricsMock = { totalSupply: '1000', totalHolders: 10 }
-
-      const stubLogger = sandbox.stub(logger, 'warn')
-      const stubMetrics = sandbox.stub(TokenMetrics, 'pollWithRetry').resolves(metricsMock)
-      await TokenMetrics.update('0xED79E70122E06bB036EB6668e772FaCE4566a4cC', network)
-
-      const token = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network)
-      expect(token.totalSupply).to.equal('0')
-      expect(token.holders).to.equal(0)
-      expect(stubMetrics.notCalled).to.be.true
-      expect(stubLogger.calledOnceWith('Token not found' as any)).to.be.true
+    it('should return false when missing name', () => {
+      const invalidTokenDetails = {
+        name: '',
+        symbol: 'TEST',
+        totalSupply: '1000',
+        totalHolders: 10,
+      }
+      expect(TokenDetailFetcherWithRetry.hasValidInfo(invalidTokenDetails)).to.be.false
     })
 
-    it('should skip if metrics fails', async () => {
-      const stubLogger = sandbox.stub(logger, 'warn')
-      sandbox.stub(TokenMetrics, 'pollWithRetry').rejects(new Error('fake-error'))
-      await TokenMetrics.update(tokenAddress, network)
-
-      const token = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network)
-      expect(token.totalSupply).to.equal('0')
-      expect(token.holders).to.equal(0)
-      expect(stubLogger.notCalled).to.be.true
+    it('should return false when missing symbol', () => {
+      const invalidTokenDetails = {
+        name: 'Test Token',
+        symbol: '',
+        totalSupply: '1000',
+        totalHolders: 10,
+      }
+      expect(TokenDetailFetcherWithRetry.hasValidInfo(invalidTokenDetails)).to.be.false
     })
 
-    it('should throw an error', async () => {
-      const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').rejects(new Error('fake-error'))
-      await TokenMetrics.update(tokenAddress, network)
+    it('should return false when missing totalSupply', () => {
+      const invalidTokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        totalSupply: '',
+        totalHolders: 10,
+      }
+      expect(TokenDetailFetcherWithRetry.hasValidInfo(invalidTokenDetails)).to.be.false
+    })
 
-      expect(stubLogger.calledOnceWith('Failed to update token metrics' as any)).to.be.true
+    it('should return false when missing totalHolders', () => {
+      const invalidTokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        totalSupply: '1000',
+        totalHolders: 0,
+      }
+      expect(TokenDetailFetcherWithRetry.hasValidInfo(invalidTokenDetails)).to.be.false
     })
   })
 
-  describe('update', async () => {
-    it('should return valid metrics on first attempt', async () => {
-      const metricsMock = { totalSupply: '1000', totalHolders: 10 }
-      const stubMetrics = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves(metricsMock)
-      const stubLogger = sandbox.stub(logger, 'error')
+  describe('pollWithRetry', () => {
+    it('should return valid token details on first attempt', async () => {
+      const mockTokenDb = { address: tokenAddress, network }
+      const validTokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        totalSupply: '1000',
+        totalHolders: 10,
+        decimals: 18,
+        priceUsd: '1.5',
+      }
 
-      const result = await TokenMetrics.pollWithRetry(tokenAddress, network)
+      sandbox.stub(Models.Token, 'findOne').resolves(mockTokenDb)
+      sandbox.stub(TokenDetailProvider, 'fetchBasicTokenInfo').resolves(validTokenDetails)
 
-      expect(result).to.deep.equal(metricsMock)
-      expect(stubMetrics.calledOnce).to.be.true
-      expect(stubLogger.notCalled).to.be.true
+      const result = await TokenDetailFetcherWithRetry.pollWithRetry(tokenAddress, network, undefined as any, {
+        intervalMs: 10,
+        timeoutMs: 50,
+      })
+
+      expect(result).to.deep.include({
+        tokenDb: mockTokenDb,
+        tokenDetails: validTokenDetails,
+      })
     })
 
     it('should retry until valid metrics are returned', async () => {
-      const validMetrics = { totalSupply: '1000', totalHolders: 10 }
-      const invalidMetrics = { totalSupply: '0', totalHolders: 0 }
-      const stubMetrics = sandbox
-        .stub(CovalentHelper, 'getTokenSupplyAndHolders')
-        .onFirstCall()
-        .resolves(invalidMetrics)
-        .onSecondCall()
-        .resolves(validMetrics)
+      const mockTokenDb = { address: tokenAddress, network }
+      const invalidTokenDetails = {
+        name: '',
+        symbol: '',
+        totalSupply: '',
+        totalHolders: 0,
+      }
+      const validTokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        totalSupply: '1000',
+        totalHolders: 10,
+        decimals: 18,
+        priceUsd: '1.5',
+      }
 
-      const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(utils, 'wait').resolves()
+      const findOneStub = sandbox.stub(Models.Token, 'findOne')
+      const fetchTokenInfoStub = sandbox.stub(TokenDetailProvider, 'fetchBasicTokenInfo')
+      const waitStub = sandbox.stub(Utils, 'wait').resolves()
 
-      const result = await TokenMetrics.pollWithRetry(tokenAddress, network, { intervalMs: 10, timeoutMs: 50 })
+      findOneStub.resolves(mockTokenDb)
+      fetchTokenInfoStub.onFirstCall().resolves(invalidTokenDetails).onSecondCall().resolves(validTokenDetails)
 
-      expect(result).to.deep.equal(validMetrics)
-      expect(stubMetrics.callCount).to.equal(2)
-      expect(stubLogger.notCalled).to.be.true
+      const result = await TokenDetailFetcherWithRetry.pollWithRetry(tokenAddress, network, undefined as any, {
+        intervalMs: 10,
+        timeoutMs: 50,
+      })
+
+      expect(result).to.deep.include({
+        tokenDb: mockTokenDb,
+        tokenDetails: validTokenDetails,
+      })
+      expect(findOneStub.callCount).to.equal(2)
+      expect(fetchTokenInfoStub.callCount).to.equal(2)
+      expect(waitStub.callCount).to.equal(1)
     })
 
-    it('should timeout if no valid metrics are found', async () => {
-      const invalidMetrics = { totalSupply: '0', totalHolders: 0 }
-      const stubMetrics = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves(invalidMetrics)
-      const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(utils, 'wait').resolves()
+    it('should throw timeout error if no valid metrics found', async () => {
+      const mockTokenDb = { address: tokenAddress, network }
+      const invalidTokenDetails = {
+        name: '',
+        symbol: '',
+        totalSupply: '',
+        totalHolders: 0,
+      }
+
+      sandbox.stub(Models.Token, 'findOne').resolves(mockTokenDb)
+      sandbox.stub(TokenDetailProvider, 'fetchBasicTokenInfo').resolves(invalidTokenDetails)
+      sandbox.stub(Utils, 'wait').resolves()
 
       await expect(
-        TokenMetrics.pollWithRetry(tokenAddress, network, { intervalMs: 10, timeoutMs: 50 }),
-      ).to.be.rejectedWith(`Token metrics polling timed out after 50ms`)
-
-      expect(stubMetrics.callCount).to.be.greaterThan(1)
-      expect(stubLogger.notCalled).to.be.true
+        TokenDetailFetcherWithRetry.pollWithRetry(tokenAddress, network, undefined as any, {
+          intervalMs: 10,
+          timeoutMs: 50,
+        }),
+      ).to.be.rejectedWith('Token metrics polling timed out after 50ms')
     })
   })
 
-  describe('TokenMetrics Service - isValidMetrics', () => {
-    it('should return true for valid metrics', () => {
-      const validMetrics: ITokenMetrics = { totalSupply: '1000', totalHolders: 10 }
-      expect(TokenMetrics.isValidMetrics(validMetrics)).to.be.true
+  describe('update', () => {
+    it('should update token metrics successfully', async () => {
+      await Models.Token.create({
+        ...FakeToken,
+        totalSupply: '0',
+        holders: 0,
+      })
+
+      const validTokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        totalSupply: '1000',
+        totalHolders: 10,
+        decimals: 18,
+        priceUsd: '1.5',
+      }
+
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves({
+        tokenAddress: FakeToken.address,
+        network: FakeToken.network,
+      })
+
+      const loggerStub = sandbox.stub(logger, 'verbose')
+
+      const tokenDetailProviderStub = sandbox
+        .stub(TokenDetailProvider, 'fetchBasicTokenInfo')
+        .resolves(validTokenDetails)
+
+      await TokenDetailFetcherWithRetry.update(FakeToken.address, FakeToken.network)
+
+      expect(pluginStub.calledOnce).to.be.eq(true)
+      expect(pluginStub.calledWith(FakeToken.address, FakeToken.network)).to.be.true
+      expect(tokenDetailProviderStub.calledOnce).to.be.true
+      expect(tokenDetailProviderStub.args[0][0].address).to.be.eq(FakeToken.address)
+      expect(loggerStub.calledOnce).to.be.true
+      const token = await Models.Token.findOne({ address: FakeToken.address, network: FakeToken.network })
+      expect(token.totalSupply).to.be.eq(validTokenDetails.totalSupply)
+      expect(token.holders).to.be.eq(validTokenDetails.totalHolders)
+      expect(token.decimals).to.be.eq(validTokenDetails.decimals)
+      expect(token.priceUsd).to.be.eq(validTokenDetails.priceUsd)
     })
 
-    it('should return false for metrics with zero totalHolders', () => {
-      const invalidMetrics: ITokenMetrics = { totalSupply: '1000', totalHolders: 0 }
-      expect(TokenMetrics.isValidMetrics(invalidMetrics)).to.be.false
+    it('should skip update if plugin token not found', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(null)
+      const loggerStub = sandbox.stub(logger, 'warn')
+
+      await TokenDetailFetcherWithRetry.update(tokenAddress, network)
+
+      expect(pluginStub.calledOnceWith(tokenAddress, network)).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
     })
 
-    it('should return false for metrics with zero totalSupply', () => {
-      const invalidMetrics: ITokenMetrics = { totalSupply: '0', totalHolders: 10 }
-      expect(TokenMetrics.isValidMetrics(invalidMetrics)).to.be.false
-    })
+    it('throw error if token details update failed', async () => {
+      const validTokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        totalSupply: '1000',
+        totalHolders: 10,
+        decimals: 18,
+        priceUsd: '1.5',
+      }
 
-    it('should return false for metrics with zero totalSupply and zero totalHolders', () => {
-      const invalidMetrics: ITokenMetrics = { totalSupply: '0', totalHolders: 0 }
-      expect(TokenMetrics.isValidMetrics(invalidMetrics)).to.be.false
+      const warnStub = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves({})
+
+      const poolWithRetryStub = sandbox.stub(TokenDetailFetcherWithRetry, 'pollWithRetry').resolves({
+        tokenDb: { address: tokenAddress, network, update: sandbox.stub().rejects() },
+        tokenDetails: validTokenDetails,
+      })
+
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      await TokenDetailFetcherWithRetry.update(tokenAddress, network)
+
+      expect(poolWithRetryStub.calledOnce).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
+      expect(warnStub.calledOnce).to.be.true
     })
   })
 })
