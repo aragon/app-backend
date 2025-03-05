@@ -15,7 +15,6 @@ interface PollingOptions {
 
 export const TokenDetailFetcherWithRetry = {
   async update(tokenAddress: string, network: NetworksEnum): Promise<void> {
-    logger.verbose('Updating Token with pooling', llo({ tokenAddress, network }))
     await DbTx.executeTxFn(async ({ session }) => {
       try {
         const pluginAttachedToken = await Models.Plugin.findByTokenAddress(tokenAddress, network, { session })
@@ -24,6 +23,8 @@ export const TokenDetailFetcherWithRetry = {
           logger.warn('Token not okay for pooling', llo({ tokenAddress, network }))
           return
         }
+
+        logger.verbose('Updating Token with pooling', llo({ tokenAddress, network }))
 
         let tokenInfo: { tokenDb: any; tokenDetails: any } | undefined = { tokenDb: null, tokenDetails: null }
 
@@ -71,11 +72,14 @@ export const TokenDetailFetcherWithRetry = {
       if (tokenDb) {
         const tokenDetails = await TokenDetailProvider.fetchBasicTokenInfo(tokenDb)
         if (TokenDetailFetcherWithRetry.hasValidInfo(tokenDetails)) {
+          logger.verbose('Token metrics fetched', llo({ tokenAddress, network, tokenDetails }))
           return {
             tokenDb,
             tokenDetails,
           }
         }
+      } else {
+        logger.error('Token not found in DB. Waiting..', llo({ tokenAddress, network }))
       }
 
       await Utils.wait(intervalMs)
