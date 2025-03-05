@@ -15,6 +15,7 @@ class EventListener {
   public configLogs: IIndexerConfig[]
   public maxTopicsPerBatch = 4
   public isProcessingBlock = 0
+  public lastBlock = 0
 
   constructor(network: NetworksEnum, configLogs: IIndexerConfig[]) {
     this.network = network
@@ -91,18 +92,19 @@ class EventListener {
       return
     }
 
-    if (this.isProcessingBlock + 1 !== blockNumber) {
+    if (this.lastBlock + 1 !== blockNumber) {
       logger.verbose(
         'Block Missed from on-chain',
         llo({
           currentBlock: blockNumber,
-          prevBlock: this.isProcessingBlock,
+          prevBlock: this.lastBlock,
           network: this.network,
         }),
       )
     }
 
     this.isProcessingBlock = blockNumber
+    this.lastBlock = blockNumber
 
     try {
       const provider = ProviderModule.getAnyRpcProvider(this.network)
