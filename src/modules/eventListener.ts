@@ -91,7 +91,7 @@ class EventListener {
       return
     }
 
-    if (this.isProcessingBlock + 1 === blockNumber) {
+    if (this.isProcessingBlock + 1 !== blockNumber) {
       logger.verbose(
         'Block Missed from on-chain',
         llo({
