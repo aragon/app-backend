@@ -12,6 +12,7 @@ import Web3Helper from '@helpers/web3'
 import CovalentHelper from '@helpers/covalent'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import EtherscanHelper from '@helpers/etherscan'
+import type Token from '@models/schema/token'
 
 export const DefaultNetworkTokenProvider: ITokenDetailsProvider = {
   async fetchTokenDetails(tokenTypeInfo: ITokenProviderInfoArg, tokenAddress: string, network: NetworksEnum) {
@@ -96,5 +97,20 @@ export const DefaultNetworkTokenProvider: ITokenDetailsProvider = {
     }
 
     return contractDetails
+  },
+
+  async fetchBasicTokenInfo(tokenDb: Token) {
+    let tokenDetails = await BlockScoutHelper.getTokenFullDetails(tokenDb.address, tokenDb.network)
+    if (!tokenDetails) {
+      const tokenDetailsWithRate = await RateModule.fetchRate(tokenDb.address, tokenDb.network)
+      if (tokenDb.isGovernance) {
+        const tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenDb.address, tokenDb.network)
+        tokenDetails = {
+          ...Object.assign(tokenDetailsWithRate, tokenMetrics),
+        }
+      }
+    }
+
+    return tokenDetails
   },
 }
