@@ -520,7 +520,8 @@ export const PluginHandler = {
         return
       }
 
-      if (Number(plugin.build) >= 4) {
+      // TODO: before here the build was 4 and in peaq network we have 3
+      if (Number(plugin.build) >= 3) {
         const targetConfig = await Web3Helper.getTargetConfig(network, plugin.address)
         if (targetConfig && targetConfig !== plugin.daoAddress) {
           return
