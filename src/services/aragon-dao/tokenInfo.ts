@@ -15,6 +15,7 @@ interface PollingOptions {
 
 export const TokenDetailFetcherWithRetry = {
   async update(tokenAddress: string, network: NetworksEnum): Promise<void> {
+    logger.verbose('Updating Token with pooling', llo({ tokenAddress, network }))
     await DbTx.executeTxFn(async ({ session }) => {
       try {
         const pluginAttachedToken = await Models.Plugin.findByTokenAddress(tokenAddress, network, { session })
@@ -48,7 +49,7 @@ export const TokenDetailFetcherWithRetry = {
           await session.commitTransaction()
           await session.endSession()
 
-          logger.verbose('Updated Token Metrics', llo({ logId: tokenInfo?.tokenDb.id }))
+          logger.verbose('Updated Token with pooling', llo({ logId: tokenInfo?.tokenDb.id }))
         }
       } catch (error) {
         logger.error('Error updating token metrics', llo({ tokenAddress, network, error }))
