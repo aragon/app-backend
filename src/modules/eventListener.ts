@@ -2,7 +2,7 @@ import { Interface, type Log, type LogDescription } from 'ethers'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import { type IIndexerConfig, NetworksEnum } from '@types'
+import { type IIndexerConfig, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
@@ -91,8 +91,15 @@ class EventListener {
       return
     }
 
-    if (this.network === NetworksEnum.peaqMainnet) {
-      logger.info('Block From Peaq Mainnet', llo({ blockNumber, network: this.network }))
+    if (this.isProcessingBlock + 1 === blockNumber) {
+      logger.verbose(
+        'Block Missed from on-chain',
+        llo({
+          currentBlock: blockNumber,
+          prevBlock: this.isProcessingBlock,
+          network: this.network,
+        }),
+      )
     }
 
     this.isProcessingBlock = blockNumber
