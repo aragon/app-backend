@@ -2,9 +2,10 @@ import { Interface, type Log, type LogDescription } from 'ethers'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import { type IIndexerConfig, type NetworksEnum } from '@types'
+import { type IIndexerConfig, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
@@ -105,6 +106,10 @@ class EventListener {
     this.lastBlock = blockNumber
 
     try {
+      if (this.network === NetworksEnum.peaqMainnet) {
+        await Utils.wait(1000 * 2)
+      }
+
       const blockReceipts = await Web3Helper.getBlockReceipts(this.network, blockNumber)
       if (!blockReceipts || blockReceipts.length === 0) return
 
