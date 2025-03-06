@@ -4,8 +4,6 @@ import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { type IIndexerConfig, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
 import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
@@ -107,26 +105,25 @@ class EventListener {
     this.lastBlock = blockNumber
 
     try {
-      const provider = ProviderModule.getAnyRpcProvider(this.network)
-      const blockHex = '0x' + Number(blockNumber).toString(16)
+      const blockReceipts = await Web3Helper.getBlockReceipts(this.network, blockNumber)
+      if (!blockReceipts || blockReceipts.length === 0) return
 
-      const filter = {
-        fromBlock: blockHex,
-        toBlock: blockHex,
-      }
+      const priorityTopics = this.configLogs.map(config => config.topic)
 
-      const logs = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(this.network)!.schedule(async () => provider.getLogs(filter)),
-      )
+      const logs = blockReceipts.reduce((acc: any, receipt: any) => {
+        const logsToHandle = receipt.logs.filter((log: any) => {
+          return priorityTopics.includes(log.topics[0])
+        })
+        return acc.concat(logsToHandle)
+      }, [])
 
       if (!logs || logs.length === 0) {
         return
       }
 
-      const priorityTopics = this.configLogs.map(config => config.topic)
-      const sortedLogs = logs
-        .filter((log: Log) => priorityTopics.includes(log.topics[0]))
-        .sort((a: Log, b: Log) => priorityTopics.indexOf(a.topics[0]) - priorityTopics.indexOf(b.topics[0]))
+      const sortedLogs = logs.sort(
+        (a: Log, b: Log) => priorityTopics.indexOf(a.topics[0]) - priorityTopics.indexOf(b.topics[0]),
+      )
 
       if (sortedLogs.length === 0) {
         logger.silly('No logs found for topics', llo({ blockNumber, network: this.network }))
