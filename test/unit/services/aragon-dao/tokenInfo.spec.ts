@@ -89,7 +89,7 @@ describe('TokenDetailFetcherWithRetry', () => {
       sandbox.stub(Models.Token, 'findOne').resolves(mockTokenDb)
       sandbox.stub(TokenDetailProvider, 'fetchBasicTokenInfo').resolves(validTokenDetails)
 
-      const result = await TokenDetailFetcherWithRetry.pollWithRetry(tokenAddress, network,  {
+      const result = await TokenDetailFetcherWithRetry.pollWithRetry(tokenAddress, network, {
         intervalMs: 10,
         timeoutMs: 50,
       })
@@ -124,7 +124,7 @@ describe('TokenDetailFetcherWithRetry', () => {
       findOneStub.resolves(mockTokenDb)
       fetchTokenInfoStub.onFirstCall().resolves(invalidTokenDetails).onSecondCall().resolves(validTokenDetails)
 
-      const result = await TokenDetailFetcherWithRetry.pollWithRetry(tokenAddress, network,  {
+      const result = await TokenDetailFetcherWithRetry.pollWithRetry(tokenAddress, network, {
         intervalMs: 10,
         timeoutMs: 50,
       })
@@ -152,7 +152,7 @@ describe('TokenDetailFetcherWithRetry', () => {
       sandbox.stub(Utils, 'wait').resolves()
 
       await expect(
-        TokenDetailFetcherWithRetry.pollWithRetry(tokenAddress, network,  {
+        TokenDetailFetcherWithRetry.pollWithRetry(tokenAddress, network, {
           intervalMs: 10,
           timeoutMs: 50,
         }),
