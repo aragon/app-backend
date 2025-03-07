@@ -16,6 +16,10 @@ export enum EnumQueueName {
   tokenInfo = 'token.info',
 }
 
+export interface IQueueAllMetrics {
+  network: NetworksEnum
+}
+
 export interface IQueueDao {
   address: HexAddress
   network: NetworksEnum

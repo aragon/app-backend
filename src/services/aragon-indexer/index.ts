@@ -44,15 +44,16 @@ const AragonIndexerService: IService & { repeaters: any } = {
         // realtime after sync
         const eventListener = new EventListener(networkName, configIndexer)
         eventListener.subscribeEventsByNewBlock()
+
+        // resync all metrics by network
+        await RabbitMQHelper.sendMessage(EnumQueueName.allMetrics, {
+          id: `${EnumQueueName.allMetrics}-${networkName}`,
+          params: { network: networkName },
+        })
       }),
     )
 
     logger.info('IndexerService historical logs end', llo({}))
-
-    await RabbitMQHelper.sendMessage(EnumQueueName.allMetrics, {
-      id: EnumQueueName.allMetrics,
-      params: {},
-    })
 
     // re-sync all installed plugins
     const taskOptions = {
