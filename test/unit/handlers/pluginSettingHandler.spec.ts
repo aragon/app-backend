@@ -319,18 +319,53 @@ describe('Indexer: PluginSettingHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ daoAddress: '0xdao', tokenAddress: '0xtoken' } as any)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ daoAddress: '0xdao', tokenAddress: '0xtoken', interfaceType: IPluginInterfaceType.tokenVoting } as any)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
       sandbox.stub(Models.Setting, 'findActive').resolves(false)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       sandbox.stub(DbOperations, 'createDocument').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+      const stubError = sandbox.stub(logger, 'error')
 
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
 
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
 
       expect(isSupportedStub.notCalled).to.be.true
+      expect(stubError.calledOnceWith('votingSettingsUpdated token not found' as any)).to.be.true
+    })
+
+    it('should not call isSupported if tokenDb is null', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 2n,
+          supportThreshold: 150n,
+          minParticipation: 222n,
+          minDuration: 1312312125n,
+          minProposerVotingPower: 10n,
+        },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ daoAddress: '0xdao', tokenAddress: '0xtoken', interfaceType: IPluginInterfaceType.tokenVoting } as any)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      sandbox.stub(Models.Setting, 'findActive').resolves(false)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      sandbox.stub(DbOperations, 'createDocument').resolves()
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+      const stubError = sandbox.stub(logger, 'error')
+
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
+
+      await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(isSupportedStub.notCalled).to.be.true
+      expect(stubError.calledOnceWith('votingSettingsUpdated token not found' as any)).to.be.true
     })
   })
 
