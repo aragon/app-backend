@@ -4,8 +4,9 @@ import { expect } from 'chai'
 import ProviderModule from '@modules/provider'
 import AragonTransactionsService from '@services/aragon-transactions'
 import { NetworksEnum } from '@types'
+import utils from "@helpers/utils";
 
-describe('AragonTransactions', () => {
+describe.only('AragonTransactions', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -17,6 +18,7 @@ describe('AragonTransactions', () => {
   })
 
   it('Aragon Indexer should start realtime', async () => {
+    sandbox.stub(utils, 'wait').resolves()
     const stubProcessBlock = sandbox.stub(AragonTransactionsService, 'processNewBlock').resolves()
 
     await AragonTransactionsService.start()
