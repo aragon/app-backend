@@ -46,18 +46,18 @@ describe('AragonDao:AllMetrics', () => {
   describe('allDaoMetrics', () => {
     it('should process allDaoMetrics', async () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubDaoMetrics = sandbox.stub(DaoMetrics, 'onDocument')
+      const stubDaoMetrics = sandbox.stub(DaoMetrics, 'onDocument').resolves()
+
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
-        await DaoMetrics.onDocument(true as any)
+        await this.onDocument({ id: 'testDao' } as any)
       })
 
       const network = NetworksEnum.ethereumMainnet
       await AllMetrics.allDaoMetrics(network)
 
       expect(stubLogger.calledWith('End allDaoMetrics' as any)).to.be.true
-      expect(stubDaoMetrics.calledOnceWith(true as any)).to.be.true
+      expect(stubDaoMetrics.calledOnceWith({ id: 'testDao' } as any)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
-      expect(stubDaoMetrics.calledOnce).to.be.true
     })
 
     it('should error the allDaoMetrics', async () => {

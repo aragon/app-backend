@@ -68,8 +68,10 @@ describe('AragonDao: index', () => {
       await AragonDaoService.start()
 
       const handler = processStub.getCall(0).args[1]
+      const queueName = processStub.getCall(0).args[0]
       await handler({ params: { network: NetworksEnum.ethereumMainnet } } as any)
 
+      expect(queueName).to.eq(EnumQueueName.allMetrics)
       expect(
         allMetricsStub.calledOnceWith({
           network: NetworksEnum.ethereumMainnet,
@@ -83,9 +85,11 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(0).args[1]
+      const handler = processStub.getCall(1).args[1]
+      const queueName = processStub.getCall(1).args[0]
       await handler({ params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } } as any)
 
+      expect(queueName).to.eq(EnumQueueName.daoTransactions)
       expect(
         daoTransactionsStub.calledOnceWith({
           daoAddress: '0xDaoAddress',
@@ -100,9 +104,11 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
+      const queueName = processStub.getCall(2).args[0]
       await handler({ params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } } as any)
 
+      expect(queueName).to.eq(EnumQueueName.daoAssets)
       expect(
         daoAssetsStub.calledOnceWith({
           daoAddress: '0xDaoAddress',
@@ -117,9 +123,11 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(2).args[1]
+      const handler = processStub.getCall(3).args[1]
+      const queueName = processStub.getCall(3).args[0]
       await handler({ params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } } as any)
 
+      expect(queueName).to.eq(EnumQueueName.daoMetrics)
       expect(
         daoMetricsStub.calledOnceWith({
           daoAddress: '0xDaoAddress',
@@ -134,7 +142,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(3).args[1]
+      const handler = processStub.getCall(4).args[1]
+      const queueName = processStub.getCall(4).args[0]
       await handler({
         params: {
           proposalIndex: '1',
@@ -143,6 +152,7 @@ describe('AragonDao: index', () => {
         },
       } as any)
 
+      expect(queueName).to.eq(EnumQueueName.proposalMultisigMetrics)
       expect(
         proposalMetricsStub.calledOnceWith({
           proposalIndex: '1',
@@ -158,7 +168,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(4).args[1]
+      const handler = processStub.getCall(5).args[1]
+      const queueName = processStub.getCall(5).args[0]
       await handler({
         params: {
           proposalIndex: '1',
@@ -167,6 +178,7 @@ describe('AragonDao: index', () => {
         },
       } as any)
 
+      expect(queueName).to.eq(EnumQueueName.proposalTokenVotingMetrics)
       expect(
         proposalMetricsStub.calledOnceWith({
           proposalIndex: '1',
@@ -182,9 +194,11 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(5).args[1]
+      const handler = processStub.getCall(6).args[1]
+      const queueName = processStub.getCall(6).args[0]
       await handler({ params: { address: '0x0', network: NetworksEnum.ethereumMainnet } } as any)
 
+      expect(queueName).to.eq(EnumQueueName.contractInfo)
       expect(contractStub.args[0][0]).to.equal(NetworksEnum.ethereumMainnet)
       expect(contractStub.args[0][1]).to.equal('0x0')
       expect(contractStub.calledOnce).to.be.true
@@ -196,9 +210,11 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(6).args[1]
+      const handler = processStub.getCall(7).args[1]
+      const queueName = processStub.getCall(7).args[0]
       await handler({ params: { proposalId: '1', userAddress: '0x' } } as any)
 
+      expect(queueName).to.eq(EnumQueueName.voteInfo)
       expect(contractStub.args[0][0].proposalId).to.eq('1')
       expect(contractStub.args[0][0].userAddress).to.eq('0x')
       expect(contractStub.calledOnce).to.be.true
@@ -210,7 +226,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(7).args[1]
+      const handler = processStub.getCall(8).args[1]
+      const queueName = processStub.getCall(8).args[0]
       await handler({
         params: {
           userAddress: 'userAddress',
@@ -220,6 +237,7 @@ describe('AragonDao: index', () => {
         },
       } as any)
 
+      expect(queueName).to.eq(EnumQueueName.memberBalance)
       expect(
         memberInfoStub.calledOnceWith('userAddress', 'pluginAddress', 'tokenAddress', NetworksEnum.ethereumMainnet),
       ).to.be.true
@@ -231,7 +249,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(8).args[1]
+      const handler = processStub.getCall(9).args[1]
+      const queueName = processStub.getCall(9).args[0]
       await handler({
         params: {
           from: 'userAddress1',
@@ -242,6 +261,7 @@ describe('AragonDao: index', () => {
         },
       } as any)
 
+      expect(queueName).to.eq(EnumQueueName.contractDecoder)
       expect(decodeStub.args[0][0]).to.deep.equal({
         from: 'userAddress1',
         to: 'userAddress2',
@@ -257,7 +277,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(9).args[1]
+      const handler = processStub.getCall(10).args[1]
+      const queueName = processStub.getCall(10).args[0]
       await handler({
         params: {
           address: 'userAddress1',
@@ -265,6 +286,7 @@ describe('AragonDao: index', () => {
         },
       } as any)
 
+      expect(queueName).to.eq(EnumQueueName.tokenInfo)
       expect(tokenInfoStub.calledWith('userAddress1', NetworksEnum.ethereumMainnet)).to.be.true
     })
   })
