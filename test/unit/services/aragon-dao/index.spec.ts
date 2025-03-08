@@ -14,6 +14,7 @@ import { MemberInfo } from '@services/aragon-dao/memberInfo'
 import { VoteInfo } from '@services/aragon-dao/voteInfo'
 import ActionDecoder from '@services/aragon-dao/actionDecoder'
 import TokenInfo from '@services/aragon-dao/tokenInfo'
+import { AllMetrics } from '@services/aragon-dao/allMetrics'
 
 describe('AragonDao: index', () => {
   let sandbox: SinonSandbox
@@ -33,7 +34,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(10) // Total queues in the service
+      expect(processStub.callCount).to.equal(11) // Total queues in the service
+      expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoMetrics)).to.be.true
@@ -59,6 +61,22 @@ describe('AragonDao: index', () => {
   })
 
   describe('RabbitMQ queue handlers', () => {
+    it('should handle allMetrics queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const allMetricsStub = sandbox.stub(AllMetrics, 'start').resolves()
+
+      await AragonDaoService.start()
+
+      const handler = processStub.getCall(0).args[1]
+      await handler({ params: { network: NetworksEnum.ethereumMainnet } } as any)
+
+      expect(
+        allMetricsStub.calledOnceWith({
+          network: NetworksEnum.ethereumMainnet,
+        }),
+      ).to.be.true
+    })
+
     it('should handle daoTransactions queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const daoTransactionsStub = sandbox.stub(DaoTransactions, 'start').resolves()

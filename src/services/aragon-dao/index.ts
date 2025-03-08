@@ -2,6 +2,7 @@ import logger from '@logger'
 import {
   EnumConnection,
   EnumQueueName,
+  type IQueueAllMetrics,
   type IQueueContractInfo,
   type IQueueDao,
   type IQueueMemberBalanceInfo,
@@ -28,8 +29,9 @@ const AragonDaoService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   start: async function () {
-    await RabbitMQHelper.process(EnumQueueName.allMetrics, async _ => {
-      await AllMetrics.start()
+    await RabbitMQHelper.process(EnumQueueName.allMetrics, async job => {
+      const { network } = job.params as IQueueAllMetrics
+      await AllMetrics.start({ network })
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoTransactions, async job => {
