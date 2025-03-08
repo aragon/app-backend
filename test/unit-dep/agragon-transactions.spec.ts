@@ -4,9 +4,9 @@ import { expect } from 'chai'
 import ProviderModule from '@modules/provider'
 import AragonTransactionsService from '@services/aragon-transactions'
 import { NetworksEnum } from '@types'
-import utils from "@helpers/utils";
+import utils from '@helpers/utils'
 
-describe.only('AragonTransactions', () => {
+describe('AragonTransactions', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
