@@ -166,6 +166,25 @@ describe('AragonDao:Assets', () => {
       expect(stubLogger.calledWithMatch('Update Native Asset' as any)).to.be.true
     })
 
+    it('should handle missing token', async () => {
+      const dao = { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } as any
+      const fakeEthBalance = '1000000000000000000'
+      const fakeTokenBalances: IAlchemyTokenBalance[] = [
+        { contractAddress: '0xToken1', tokenBalance: '500000' } as any,
+        { contractAddress: '0xToken2', tokenBalance: '300000' } as any,
+        { contractAddress: '0xToken3', tokenBalance: '2000' } as any,
+      ]
+
+      sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
+      sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+      const stubLogger = sandbox.stub(Logger, 'error')
+
+      await DaoAssets.assets(dao)
+
+      expect(stubLogger.calledOnceWith('assets token not found' as any)).to.be.true
+    })
+
     it('should handle errors while processing assets', async () => {
       const dao = { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } as any
       sandbox.stub(Web3Helper, 'getBalance').rejects(new Error('Test error'))

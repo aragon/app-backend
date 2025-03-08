@@ -319,7 +319,11 @@ describe('Indexer: PluginSettingHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ daoAddress: '0xdao', tokenAddress: '0xtoken', interfaceType: IPluginInterfaceType.tokenVoting } as any)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xdao',
+        tokenAddress: '0xtoken',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      } as any)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
       sandbox.stub(Models.Setting, 'findActive').resolves(false)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
@@ -352,7 +356,11 @@ describe('Indexer: PluginSettingHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ daoAddress: '0xdao', tokenAddress: '0xtoken', interfaceType: IPluginInterfaceType.tokenVoting } as any)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xdao',
+        tokenAddress: '0xtoken',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      } as any)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
       sandbox.stub(Models.Setting, 'findActive').resolves(false)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)

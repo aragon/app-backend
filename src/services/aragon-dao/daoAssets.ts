@@ -40,6 +40,11 @@ export const DaoAssets = {
       if (Number(ethBalance) > 0) {
         const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, document.network)
 
+        if (!token) {
+          logger.error('assets token not found', llo())
+          return
+        }
+
         await DbTx.executeTxFn(async ({ session }) => {
           const existingEthAssetDb = await Models.Asset.findExistingLog(
             {
@@ -83,6 +88,12 @@ export const DaoAssets = {
               return
             }
             const tokenDb = await ProxyToken.saveAndGetToken(token?.contractAddress!, document.network)
+
+            if (!tokenDb) {
+              logger.error('tokenBalances token not found', llo())
+              return
+            }
+
             const rawData: Partial<Asset> = {
               amount: token.tokenBalance,
               network: document.network,

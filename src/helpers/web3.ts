@@ -570,9 +570,15 @@ const Web3Helper = {
       )
 
       const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, network)
+
+      if (!token) {
+        logger.error('getBalance token not found', llo())
+        return '0'
+      }
+
       const balance = Web3Helper.handleAlchemyCrazyBalance(response, token?.decimals)
       // check if alchemy return strange balance
-      Web3Helper.alchemyCrazyBalanceOnError(address, token?.address!, network, response, token?.decimals!)
+      Web3Helper.alchemyCrazyBalanceOnError(address, token?.address, network, response, token?.decimals)
       return balance
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
