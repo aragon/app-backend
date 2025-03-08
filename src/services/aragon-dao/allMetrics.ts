@@ -1,4 +1,4 @@
-import { type HexAddress, type IAlchemyTokenBalance, IPluginInterfaceType, type NetworksEnum } from '@types'
+import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import type Dao from '@models/schema/dao'
@@ -13,22 +13,23 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
 export const AllMetrics = {
-  start: async () => {
+  start: async ({ network }: { network: NetworksEnum }) => {
     logger.verbose('Start AllMetrics', llo())
-    await AllMetrics.allDaoMetrics()
-    await AllMetrics.allProposalMetrics()
-    await AllMetrics.rebaseTokens()
+    await AllMetrics.allDaoMetrics(network)
+    await AllMetrics.allProposalMetrics(network)
+    await AllMetrics.rebaseTokens(network)
     logger.verbose('End AllMetrics', llo())
   },
 
-  allDaoMetrics: async () => {
+  allDaoMetrics: async (network?: NetworksEnum) => {
+    const where = network ? { network } : {}
     const crawler = new DBCrawler({
       model: Models.Dao,
       onDocument: async (dao: Dao) => DaoMetrics.onDocument(dao),
       onError: (error: any, document: any) => {
         logger.error('Error Dao Metrics', { document, error })
       },
-      where: {},
+      where,
       batchSize: 2000,
       concurrency: 100,
     })
@@ -37,7 +38,8 @@ export const AllMetrics = {
     logger.verbose('End allDaoMetrics', llo())
   },
 
-  allProposalMetrics: async () => {
+  allProposalMetrics: async (network?: NetworksEnum) => {
+    const where = network ? { network } : {}
     const crawler = new DBCrawler({
       model: Models.Proposal,
       onDocument: async (proposal: Proposal) => {
@@ -59,7 +61,7 @@ export const AllMetrics = {
       onError: (error: any, document: any) => {
         logger.error('Error RefetchProposalsMetrics', { document, error })
       },
-      where: {},
+      where,
       batchSize: 2000,
       concurrency: 100,
     })
@@ -68,7 +70,9 @@ export const AllMetrics = {
     logger.verbose('End allProposalMetrics', llo())
   },
 
-  rebaseTokens: async () => {
+  rebaseTokens: async (network?: NetworksEnum) => {
+    if (network !== NetworksEnum.ethereumSepolia) return
+    // we only rebase for the token address 0x01403157c847B2c0291c05DF5055876eB4e039bc on ethereum sepolia
     const dbCrawler = new DBCrawler({
       model: Models.MemberBalance,
       onDocument: async (doc: MemberBalance) => {
