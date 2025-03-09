@@ -33,6 +33,7 @@ const customName = ICollectionNames.Token
 })
 @index({ id: 1 }, { unique: true })
 @index({ address: 1, network: 1 })
+@index({ lastUpdatedAt: 1, network: 1, skipFetchRate: 1 })
 export default class Token extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -97,6 +98,27 @@ export default class Token extends Model {
   @utcDateProp({ default: null })
   public lastUpdatedAt!: Date
 
+  @prop({ type: () => Boolean, default: false })
+  public hasDelegate!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public hasBalanceOfERC20!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public hasBalanceOfERC777!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public hasName!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public hasSymbol!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public hasDecimals!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public hasTotalSupply!: boolean
+
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
@@ -121,8 +143,8 @@ export default class Token extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  static async findByTokenAddressAndNetwork(address: HexAddress, network: NetworksEnum) {
-    return await this.findOne({ address, network })
+  static async findByTokenAddressAndNetwork(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return await this.findOne({ address, network }, null, tOpts)
   }
 
   static async findWithPagination({

@@ -42,6 +42,22 @@ export enum ICollectionNames {
   DaoPermission = 'DaoPermission',
 }
 
+export enum ITransactionIndexCheckType {
+  DAO_CREATE = 'daoCreate',
+  PROPOSAL_CREATE = 'proposalCreate',
+  PROPOSAL_ADVANCE_STAGE = 'proposalAdvanceStage',
+  PROPOSAL_VOTE = 'proposalVote',
+  PROPOSAL_EXECUTE = 'proposalExecute',
+}
+
+export const IndexCheckTypeToModel: Record<ITransactionIndexCheckType, ICollectionNames> = {
+  [ITransactionIndexCheckType.DAO_CREATE]: ICollectionNames.Dao,
+  [ITransactionIndexCheckType.PROPOSAL_CREATE]: ICollectionNames.Proposal,
+  [ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE]: ICollectionNames.Proposal,
+  [ITransactionIndexCheckType.PROPOSAL_VOTE]: ICollectionNames.Vote,
+  [ITransactionIndexCheckType.PROPOSAL_EXECUTE]: ICollectionNames.Proposal,
+}
+
 export interface IMongoModel {
   Dao: typeof Dao
   Token: typeof Token

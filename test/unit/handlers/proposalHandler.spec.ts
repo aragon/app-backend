@@ -12,7 +12,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { ProxyMember } from '@modules/proxyMember'
 import config from '@config'
 import utils from '@helpers/utils'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import { ProxyToken } from '@modules/proxyToken'
 import { ProposalList } from '@test/mock/fakeProposal'
 import ProposalHelper from '@helpers/proposal'
@@ -762,6 +762,36 @@ describe('Indexer: ProposalHandler', () => {
       expect(warnLoggerStub.calledOnceWith('VoteCast - Proposal not found' as any)).to.be.true
     })
 
+    it('should log a warning if the plugin is not supported with missing token', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xMissingProposalTx',
+        address: '0xplugin-address',
+        blockNumber: 20,
+        network,
+        eventName: 'voteCast',
+        transactionIndex: 3,
+        logIndex: 4,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 3n,
+          voter: '0xvoter-address',
+          voteOption: 1n,
+          votingPower: 200n,
+        },
+      }
+
+      sandbox
+        .stub(Models.Plugin, 'findByAddress')
+        .resolves({ ...PluginList[0], tokenAddress: null, isSupported: false } as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(true)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+
+      await ProposalHandler.voteCast(fakeEvent as any, info)
+      expect(warnLoggerStub.calledOnceWith('VoteCast - plugin not supported' as any)).to.be.true
+    })
+
     it('should return early when existingLog exists and not create a new vote', async () => {
       const info: ILogInfo = {
         transactionHash: '0xExistingVoteTx',
@@ -840,7 +870,9 @@ describe('Indexer: ProposalHandler', () => {
 
   describe('proposalExecuted', () => {
     it('should update proposal as executed and send dao metrics', async () => {
-      const proposal = await Models.Proposal.create({ ...(ProposalList[0] as any) })
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+      })
       const network = proposal.network
       const info: ILogInfo = {
         transactionHash: '0xExecutedTx',
@@ -1022,7 +1054,7 @@ describe('Indexer: ProposalHandler', () => {
     it('should update parent and sub-proposals correctly on stage advance', async () => {
       // Pre-populate parent proposal
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         subProposals: [],
         stageExecutions: [],
@@ -1054,7 +1086,7 @@ describe('Indexer: ProposalHandler', () => {
 
       // Create plugin with subPlugins configuration
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: [subProposal.pluginAddress] }],
@@ -1156,15 +1188,17 @@ describe('Indexer: ProposalHandler', () => {
 
     it('should skip sub-proposals already executed', async () => {
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         subProposals: [],
         stageExecutions: [],
+        network,
       })
 
       const executedSubProposal = await Models.Proposal.create({
         ...ProposalList[1],
         executed: { status: true },
         parentProposal: { proposalIndex: parentProposal.proposalIndex },
+        network,
       })
 
       await Models.Proposal.findByIdAndUpdate(parentProposal._id, {
@@ -1172,15 +1206,17 @@ describe('Indexer: ProposalHandler', () => {
           subProposals: {
             proposalIndex: executedSubProposal.proposalIndex,
             pluginAddress: executedSubProposal.pluginAddress,
+            stageIndex: 1,
           },
         },
       })
 
       await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         address: parentProposal.pluginAddress,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: [executedSubProposal.pluginAddress] }],
+        network,
       })
       const info = {
         transactionHash: '0xAdvancedTx',
@@ -1196,6 +1232,8 @@ describe('Indexer: ProposalHandler', () => {
 
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({ lastStageTransition: 1800000000 } as any)
+      sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1)
+      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
@@ -1207,7 +1245,7 @@ describe('Indexer: ProposalHandler', () => {
     it('should return early when stage execution already exists', async () => {
       // Create a mock parent proposal
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         stageExecutions: [
           {
@@ -1222,7 +1260,7 @@ describe('Indexer: ProposalHandler', () => {
 
       // Create a mock plugin with subPlugins configuration
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: ['0xPluginAddress'] }],
@@ -1245,6 +1283,15 @@ describe('Indexer: ProposalHandler', () => {
         },
       }
 
+      await Models.Proposal.create({
+        ...ProposalList[1],
+        executed: { status: true },
+        parentProposal: { proposalIndex: parentProposal.proposalIndex },
+        network,
+        proposalIndex: '1',
+        pluginAddress: '0xPluginAddress',
+      })
+
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({
         lastStageTransition: 1800000000,
@@ -1253,16 +1300,19 @@ describe('Indexer: ProposalHandler', () => {
 
       const warnLoggerStub = sandbox.stub(logger, 'warn')
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+      sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1)
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
+      expect(updateDocumentStub.callCount).to.be.equal(1)
+      expect(updateDocumentStub.args[0][3]).to.be.eq('Update subProposal with length: 1')
+      expect(updateDocumentStub.args[0][3]).to.be.not.eq('Proposal Updated - lastStageTransition')
       expect(warnLoggerStub.calledOnceWith('Stage execution already exists in the array' as any)).to.be.true
-      expect(updateDocumentStub.notCalled).to.be.true
     })
 
     it('should log a warning and return when subProposalDb is not found', async () => {
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         subProposals: [
           {
@@ -1277,9 +1327,10 @@ describe('Indexer: ProposalHandler', () => {
       })
 
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
+        subPlugins: [{ stageIndex: 2, addresses: ['0xNonExistentPlugin'] }],
       })
 
       const info = {
@@ -1312,6 +1363,8 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
 
       const warnLoggerStub = sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
@@ -1320,14 +1373,14 @@ describe('Indexer: ProposalHandler', () => {
 
     it('should log an error and continue execution when subProposalDb is not found', async () => {
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         subProposals: [],
         stageExecutions: [],
       })
 
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: ['0xMissingSubPlugin'] }],
@@ -1363,6 +1416,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
 
       const errorLoggerStub = sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
@@ -1379,7 +1433,7 @@ describe('Indexer: ProposalHandler', () => {
       })
 
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         subProposals: [
           {
@@ -1394,9 +1448,10 @@ describe('Indexer: ProposalHandler', () => {
       })
 
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
+        subPlugins: [{ stageIndex: 2, addresses: ['0xSubPluginAddress'] }],
       })
 
       const info = {
@@ -1431,22 +1486,26 @@ describe('Indexer: ProposalHandler', () => {
         return null
       })
 
+      sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'verbose')
+
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
-      expect(updateDocumentStub.notCalled).to.be.true
+      expect(updateDocumentStub.callCount).to.be.eq(1)
+      expect(updateDocumentStub.args[0][3]).to.be.not.eq('Proposal Executed - Sub Proposal')
     })
 
     it('should log an error when subPlugins are missing for the stage', async () => {
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         subProposals: [],
         stageExecutions: [],
       })
 
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [],
       })
@@ -1465,6 +1524,7 @@ describe('Indexer: ProposalHandler', () => {
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
       const errorLoggerStub = sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
@@ -1473,7 +1533,7 @@ describe('Indexer: ProposalHandler', () => {
 
     it('should log a warning if the sub-proposal already exists', async () => {
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         subProposals: [],
         stageExecutions: [],
@@ -1499,7 +1559,7 @@ describe('Indexer: ProposalHandler', () => {
       })
 
       const plugin = await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
         network,
         interfaceType: IPluginInterfaceType.spp,
         subPlugins: [{ stageIndex: 2, addresses: ['0xPluginAddress'] }],
@@ -1537,13 +1597,14 @@ describe('Indexer: ProposalHandler', () => {
 
     it('should log an error when ProposalHelper.getSppSubPluginProposals fails', async () => {
       const parentProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
         subProposals: [],
       })
 
       await Models.Plugin.create({
-        ...(PluginList[0] as any),
+        ...PluginList[0],
+        isSupported: true,
         network,
         address: parentProposal.pluginAddress,
         interfaceType: IPluginInterfaceType.spp,
@@ -1722,7 +1783,7 @@ describe('Indexer: ProposalHandler', () => {
       const updateDocumentSpy = sandbox.spy(DbOperations, 'updateDocument')
 
       const fakeProposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         ...{
           id: 'proposal-id',
           rawActions: [
@@ -1800,7 +1861,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         network,
         pluginAddress: '0xPluginAddress',
@@ -1874,7 +1935,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         network,
         pluginAddress: '0xPluginAddress',
@@ -1908,7 +1969,7 @@ describe('Indexer: ProposalHandler', () => {
         blockNumber: 100,
       }
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         network,
         pluginAddress: '0xPluginAddress',
@@ -1933,7 +1994,7 @@ describe('Indexer: ProposalHandler', () => {
         blockNumber: 100,
       }
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         transactionHash: '0xTxHash',
         network,
@@ -1962,7 +2023,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         network,
         pluginAddress: '0xPluginAddress',
@@ -2004,7 +2065,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         pluginAddress: info.address,
         network,
@@ -2108,7 +2169,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         proposalIndex: '1',
         pluginAddress: info.address,
         network,
@@ -2133,35 +2194,28 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       sandbox.stub(DecodeActions.prototype, 'decodeData').resolves({ decoded: 'decodedData1' } as any)
       sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves({ decoded: 'decodedData2' })
-      const updateDocumentStub = sandbox.spy(DbOperations, 'updateDocument')
 
       await ProposalHandler.proposalEdited(fakeEvent as any, info)
 
-      expect(
-        updateDocumentStub.calledOnceWith(
-          proposal,
-          {
-            title: proposalMetadata.title,
-            description: proposalMetadata.description,
-            summary: proposalMetadata.summary,
-            resources: proposalMetadata.resources,
-            media: proposalMetadata.media,
-            rawActions: [
-              { to: '0xAction1', value: 100n, data: '0x1234567890abcdef' },
-              { to: '0xAction2', value: 200n, data: '0xdata' },
-            ],
-            editedTxInfo: {
-              blockNumber: info.blockNumber,
-              transactionHash: info.transactionHash,
-              blockTimestamp: 1800000000,
-            },
-            actions: decodedActions,
-          },
-          { logId: proposal.id, info },
-          'Update proposalEdited',
-          sandbox.match.any,
-        ),
-      ).to.be.true
+      const refreshProposal = await proposal.reload()
+
+      expect(refreshProposal.title).to.eq(proposalMetadata.title)
+      expect(refreshProposal.description).to.eq(proposalMetadata.description)
+      expect(refreshProposal.summary).to.eq(proposalMetadata.summary)
+      expect(refreshProposal.resources.length).to.eq(proposalMetadata.resources.length)
+      expect(refreshProposal.media.header).to.eq(proposalMetadata.media.header)
+      expect(refreshProposal.media.logo).to.eq(proposalMetadata.media.logo)
+      expect(refreshProposal.rawActions[0].to).to.eq('0xAction1')
+      expect(refreshProposal.rawActions[0].value).to.eq('100')
+      expect(refreshProposal.rawActions[0].data).to.eq('0x1234567890abcdef')
+
+      expect(refreshProposal.rawActions[1].to).to.eq('0xAction2')
+      expect(refreshProposal.rawActions[1].value).to.eq('200')
+      expect(refreshProposal.rawActions[1].data).to.eq('0xdata')
+      expect(refreshProposal.editedTxInfo.blockNumber).to.eq(info.blockNumber)
+      expect(refreshProposal.editedTxInfo.transactionHash).to.eq(info.transactionHash)
+      expect(refreshProposal.editedTxInfo.blockTimestamp).to.eq(1800000000)
+      expect(refreshProposal.actions.length).to.eq(decodedActions.length)
     })
 
     it('should log a warning if the proposal is not found', async () => {
@@ -2192,7 +2246,7 @@ describe('Indexer: ProposalHandler', () => {
 
     it('should return an empty array when decodeData fails', async () => {
       const proposal = await Models.Proposal.create({
-        ...(ProposalList[0] as any),
+        ...ProposalList[0],
         network,
       })
 
@@ -2235,15 +2289,10 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(DecodeActions.prototype, 'decodeData').resolves(null)
       sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves(null)
 
-      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
-
       await ProposalHandler.proposalEdited(fakeEvent as any, info)
 
-      expect(updateStub.calledOnce).to.be.true
-
-      const updatedProposal = updateStub.args[0][1]
-
-      expect(updatedProposal.actions).to.deep.equal([[], []])
+      const refreshProposal = await proposal.reload()
+      expect(refreshProposal.actions).to.deep.equal([[], []])
     })
 
     it('should log an error if an exception occurs', async () => {
@@ -2280,6 +2329,7 @@ describe('Indexer: ProposalHandler', () => {
         { field: 'network', payload: { pluginAddress: '0xPlugin', proposalIndex: '123' } },
         { field: 'proposalIndex', payload: { pluginAddress: '0xPlugin', network: NetworksEnum.ethereumSepolia } },
       ]
+      const errorStub = sandbox.stub(logger, 'error')
 
       for (const { field, payload } of requiredFields) {
         try {
@@ -2288,6 +2338,7 @@ describe('Indexer: ProposalHandler', () => {
           expect(error.message).to.include(`${field} is required`)
         }
       }
+      expect(errorStub.callCount).to.be.eq(3)
     })
 
     it('should throw an error if the plugin is not found', async () => {

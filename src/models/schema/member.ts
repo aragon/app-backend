@@ -59,8 +59,7 @@ export default class Member extends Model {
   }
 
   static getEntityId(params: IMemberIdParams) {
-    const entityId = `${params.address}`
-    return entityId
+    return `${params.address}`
   }
 
   static async findExistingLog(params: IMemberIdParams, tOpts?: SaveOptions) {
@@ -306,6 +305,23 @@ export default class Member extends Model {
             proposalCount: 1,
           },
         ),
+        AggregationQueryHelper.token(
+          {
+            address: '$daoPlugin.tokenAddress',
+            network: '$daoPlugin.network',
+          },
+          'token',
+          {
+            hasDelegate: 1,
+            isGovernance: 1,
+          },
+        ),
+        {
+          $addFields: {
+            hasDelegate: { $ifNull: [{ $arrayElemAt: ['$token.hasDelegate', 0] }, false] },
+            isGovernance: { $ifNull: [{ $arrayElemAt: ['$token.isGovernance', 0] }, false] },
+          },
+        },
       )
     }
 
@@ -332,6 +348,8 @@ export default class Member extends Model {
             },
           ],
         },
+        isGovernance: '$isGovernance',
+        hasDelegate: '$hasDelegate',
       },
     })
 

@@ -20,7 +20,7 @@ import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import BlockScoutHelper from '@helpers/blockScout'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
@@ -31,25 +31,30 @@ export const ProxyToken = {
     network: NetworksEnum,
     forceUpdate: boolean = false,
   ): Promise<null | Token> => {
-    return await DbTx.executeTxFn(async ({ session }) => {
-      const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
 
-      // Check for existing token
-      const existingToken = await Models.Token.findExistingLog(
-        {
-          address: parsedTokenAddress,
-          network,
-        },
-        { session },
-      )
+        // Check for existing token
+        const existingToken = await Models.Token.findExistingLog(
+          {
+            address: parsedTokenAddress,
+            network,
+          },
+          { session },
+        )
 
-      if (existingToken) {
-        return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate, session)
-      }
+        if (existingToken) {
+          return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate, session)
+        }
 
-      // Create a new token
-      return await ProxyToken.createNewToken(parsedTokenAddress, network, session)
-    })
+        // Create a new token
+        return await ProxyToken.createNewToken(parsedTokenAddress, network, session)
+      })
+    } catch (error) {
+      logger.error('Error saveAndGetToken', llo({ error, document }))
+      return null
+    }
   },
 
   updateTokenMetrics: async (
@@ -79,9 +84,8 @@ export const ProxyToken = {
       }
 
       await token.update(updates, { session })
-      if (session) {
-        await session.commitTransaction()
-      }
+      await session?.commitTransaction()
+      await session?.endSession()
       logger.verbose('Updated Token Metrics', llo({ logId: token.id }))
     }
 
@@ -117,9 +121,16 @@ export const ProxyToken = {
       holders: tokenMetrics.totalHolders,
       totalSupply: tokenMetrics.totalSupply,
       address: tokenAddress,
-      underlying: tokenTypeInfo.isUnderlying ? await Web3Helper.getUnderlying(tokenAddress, network) : null,
+      underlying: tokenTypeInfo.hasUnderlying ? await Web3Helper.getUnderlying(tokenAddress, network) : null,
       type: tokenTypeInfo.type,
       isGovernance: tokenTypeInfo.isGovernance,
+      hasDelegate: tokenTypeInfo.hasDelegate,
+      hasBalanceOfERC20: tokenTypeInfo.hasBalanceOfERC20,
+      hasBalanceOfERC777: tokenTypeInfo.hasBalanceOfERC777,
+      hasName: tokenTypeInfo.hasName,
+      hasSymbol: tokenTypeInfo.hasSymbol,
+      hasDecimals: tokenTypeInfo.hasDecimals,
+      hasTotalSupply: tokenTypeInfo.hasTotalSupply,
       implementationAddress: tokenTypeInfo.implementationAddress! ?? null,
       network,
       lastUpdatedAt: dayjs.utc().toDate(),
@@ -145,6 +156,7 @@ export const ProxyToken = {
     // Save token and commit transaction
     const savedToken = await Models.Token.create(rawToken, { session })
     await session?.commitTransaction()
+    await session?.endSession()
 
     logger.verbose('New Token Created', llo({ logId: savedToken.id }))
     return savedToken
@@ -172,6 +184,7 @@ export const ProxyToken = {
         decimals: tokenFullDetails.decimals,
         logo: tokenFullDetails.logo,
         type: tokenFullDetails.type,
+        priceUsd: tokenFullDetails.priceUsd || tokenRate.priceUsd,
       })
       Object.assign(tokenMetrics, {
         totalHolders: tokenFullDetails.holders,
@@ -181,7 +194,7 @@ export const ProxyToken = {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
     }
 
-    if (tokenRate.decimals === null || !tokenRate.name || !tokenRate.symbol) {
+    if (tokenType === ITokenType.ERC20 && (tokenRate.decimals === null || !tokenRate.name || !tokenRate.symbol)) {
       const onChainTokenInfo = await Web3Helper.getTokenInfo(tokenAddress, network)
       Object.assign(tokenRate, onChainTokenInfo)
     }

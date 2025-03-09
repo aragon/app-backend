@@ -21,7 +21,7 @@ import type Plugin from '@models/schema/plugin'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import DbOperations from '@models/utils/dbOperations'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import DbTx from '@modules/dbTx'
 import ProposalHelper from '@helpers/proposal'
 import { TokenVoting } from '@src/aragonContracts'
@@ -315,8 +315,13 @@ export const ProposalHandler = {
       const proposalIndex = parsedEvent.args.proposalId.toString()
 
       const plugin = await Models.Plugin.findByAddress(info.address, info.network)
-      if (!plugin || plugin.isSupported === false) {
+      if (!plugin) {
         logger.warn('VoteCast - Plugin not found', llo(info))
+        return
+      }
+
+      if (!plugin.isSupported && !plugin.tokenAddress) {
+        logger.warn('VoteCast - plugin not supported', llo(info))
         return
       }
 
@@ -418,30 +423,38 @@ export const ProposalHandler = {
       const parsedParams = {
         proposalIndex: parsedEvent.args.proposalId.toString(),
       }
-      const proposal = await Models.Proposal.findByProposalIndex(parsedParams.proposalIndex, info.address, info.network)
-      if (!proposal) {
-        logger.warn('proposal not found', llo({ ...info, parsedEvent }))
-        return
-      }
 
-      if (proposal?.executed?.status) return
+      const proposal = await DbTx.executeTxFn(async ({ session }) => {
+        const proposal = await Models.Proposal.findByProposalIndex(
+          parsedParams.proposalIndex,
+          info.address,
+          info.network,
+          { session },
+        )
+        if (!proposal) {
+          logger.warn('proposal not found', llo({ ...info, parsedEvent }))
+          return
+        }
 
-      const rawUpdate = {
-        executed: {
-          status: true,
-          blockNumber: info.blockNumber,
-          transactionHash: info.transactionHash,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
-        },
-      }
+        if (proposal?.executed?.status) return
 
-      await DbOperations.updateDocument(
-        proposal,
-        rawUpdate,
-        { logId: proposal.id, info },
-        'Update proposalExecuted',
-        llo,
-      )
+        const rawUpdate = {
+          executed: {
+            status: true,
+            blockNumber: info.blockNumber,
+            transactionHash: info.transactionHash,
+            blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+          },
+        }
+
+        const logDb = await proposal.update(rawUpdate, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Updated proposal executed', llo({ logDb: logDb.id, info }))
+        return logDb
+      })
+
+      if (!proposal) return
 
       await Promise.all([
         RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
@@ -491,11 +504,15 @@ export const ProposalHandler = {
       const subPlugins = plugin.subPlugins.find((subPlugin: { stageIndex: any }) => subPlugin.stageIndex === newStage)
 
       const timestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
+      const previousStageSubProposals = proposal.subProposals.filter(
+        (subProposal: any) => subProposal.stageIndex === newStage - 1,
+      )
+
       /**
        * We need to mark as executed all the sub proposals of the previous stage
        */
       await Promise.all(
-        proposal.subProposals.map(async (subProposal: any) => {
+        previousStageSubProposals.map(async (subProposal: any) => {
           const subProposalDb = await Models.Proposal.findByProposalIndex(
             subProposal.proposalIndex,
             subProposal.pluginAddress,
@@ -834,59 +851,65 @@ export const ProposalHandler = {
 
   proposalEdited: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      const proposal = await Models.Proposal.findByProposalIndex(
-        parsedEvent.args.proposalId.toString(),
-        info.address,
-        info.network,
-      )
+      await DbTx.executeTxFn(async ({ session }) => {
+        const proposal = await Models.Proposal.findByProposalIndex(
+          parsedEvent.args.proposalId.toString(),
+          info.address,
+          info.network,
+          { session },
+        )
 
-      if (!proposal) {
-        logger.warn('Proposal not found', llo(info))
-        return
-      }
+        if (!proposal) {
+          logger.warn('Proposal not found', llo(info))
+          return
+        }
 
-      const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
-      const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
+        const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
+        const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
-      const rawUpdate: Partial<Proposal> = {
-        title: proposalMetadata?.title!,
-        description: proposalMetadata?.description!,
-        summary: proposalMetadata?.summary!,
-        resources: proposalMetadata?.resources as any,
-        media: proposalMetadata?.media as any,
-        rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({
-          to: w.to,
-          value: w.value,
-          data: w.data,
-        })),
-        editedTxInfo: {
-          blockNumber: info.blockNumber,
-          transactionHash: info.transactionHash,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || null,
-        },
-      }
+        const rawUpdate: Partial<Proposal> = {
+          title: proposalMetadata?.title!,
+          description: proposalMetadata?.description!,
+          summary: proposalMetadata?.summary!,
+          resources: proposalMetadata?.resources as any,
+          media: proposalMetadata?.media as any,
+          rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({
+            to: w.to,
+            value: w.value,
+            data: w.data,
+          })),
+          editedTxInfo: {
+            blockNumber: info.blockNumber,
+            transactionHash: info.transactionHash,
+            blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || null,
+          },
+        }
 
-      const decodeActions = new DecodeActions()
+        const decodeActions = new DecodeActions()
 
-      rawUpdate.actions = await Promise.all(
-        rawUpdate.rawActions!.map(async (action: any) => {
-          let decodeData: any
+        rawUpdate.actions = await Promise.all(
+          rawUpdate.rawActions!.map(async (action: any) => {
+            let decodeData: any
 
-          if (action.data?.length >= 10) {
-            decodeData = await decodeActions.decodeData(action, proposal)
-          } else {
-            decodeData = await decodeActions.decodeTransfer(action, proposal)
-          }
+            if (action.data?.length >= 10) {
+              decodeData = await decodeActions.decodeData(action, proposal)
+            } else {
+              decodeData = await decodeActions.decodeTransfer(action, proposal)
+            }
 
-          if (decodeData) {
-            return decodeData
-          }
+            if (decodeData) {
+              return decodeData
+            }
 
-          return []
-        }),
-      )
+            return []
+          }),
+        )
 
-      await DbOperations.updateDocument(proposal, rawUpdate, { logId: proposal.id, info }, 'Update proposalEdited', llo)
+        const dbLog = await proposal.update(rawUpdate, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Update proposalEdited', llo({ logId: dbLog.id }))
+      })
     } catch (error) {
       logger.error('Error proposalEdited', llo({ ...info, error, parsedEvent }))
     }

@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TransactionRouter from '@services/aragon-api/routers/transaction'
 import TransactionController from '@services/aragon-api/controllers/transaction'
-import { ITransactionCategory, NetworksEnum } from '@types'
+import { ITransactionCategory, ITransactionIndexCheckType, NetworksEnum } from '@types'
 
 describe('Router: Transaction', () => {
   let sandbox: SinonSandbox
@@ -140,6 +140,31 @@ describe('Router: Transaction', () => {
           category: undefined,
         },
       })
+    })
+  })
+
+  describe('getTransactionIndexingStatus', async () => {
+    it('Should get transaction indexing status', async () => {
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionIndexingStatus').returns(true as any)
+
+      const ctx: any = {
+        params: {
+          txHash: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+          network: NetworksEnum.ethereumMainnet,
+        },
+        query: {
+          type: ITransactionIndexCheckType.PROPOSAL_CREATE,
+        },
+      }
+
+      await TransactionRouter.getTransactionIndexingStatus(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+
+      expect(stubCtrl.args[0][0]).to.eq(ctx.params.txHash)
+      expect(stubCtrl.args[0][1]).to.eq(ctx.query.type)
+      expect(stubCtrl.args[0][2]).to.eq(ctx.params.network)
     })
   })
 })

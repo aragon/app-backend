@@ -1,5 +1,5 @@
 import Joi from 'joi'
-import { ITransactionCategory, NetworksEnum } from '@types'
+import { ITransactionCategory, ITransactionIndexCheckType, NetworksEnum } from '@types'
 import ValidationSchema from '@helpers/validationSchema'
 
 const TransactionSchema = {
@@ -14,6 +14,15 @@ const TransactionSchema = {
     category: Joi.string()
       .valid(...Object.values(ITransactionCategory))
       .optional(),
+  }),
+  getTransactionIndexingStatus: Joi.object({
+    transactionHash: Joi.string().required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    type: Joi.string()
+      .valid(...Object.values(ITransactionIndexCheckType))
+      .required(),
   }),
 }
 
