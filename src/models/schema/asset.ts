@@ -111,6 +111,7 @@ export default class Asset extends Model {
             type: 1,
             logo: 1,
             isGovernance: 1,
+            hasDelegate: 1,
             underlying: 1,
             decimals: 1,
             priceChangeOnDayUsd: 1,
@@ -132,10 +133,7 @@ export default class Asset extends Model {
                   $and: [{ $gt: ['$tokenDetails.priceUsd', 0] }, { $gt: ['$tokenDetails.decimals', 0] }],
                 },
                 then: {
-                  $multiply: [
-                    { $divide: [{ $toDecimal: '$amount' }, { $pow: [10, { $toDecimal: '$tokenDetails.decimals' }] }] },
-                    { $toDecimal: '$tokenDetails.priceUsd' },
-                  ],
+                  $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
                 },
                 else: 0,
               },
@@ -213,10 +211,43 @@ export default class Asset extends Model {
     }
   }
 
-  static async getDaoTvl(daoAddress: HexAddress, network: NetworksEnum) {
+  static async getDaoTvl(daoAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
     const query = [
       {
         $match: { daoAddress, network },
+      },
+      AggregationQueryHelper.token(
+        {
+          network: '$network',
+          address: '$tokenAddress',
+        },
+        'tokenDetails',
+        {
+          _id: 0,
+          network: 1,
+          address: 1,
+          priceUsd: 1,
+          mintableByDao: 1,
+        },
+      ),
+      {
+        $unwind: {
+          path: '$tokenDetails',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          amountUsd: {
+            $cond: {
+              if: { $gt: ['$tokenDetails.priceUsd', 0] },
+              then: {
+                $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
+              },
+              else: 0,
+            },
+          },
+        },
       },
       {
         $group: {
@@ -227,11 +258,15 @@ export default class Asset extends Model {
       {
         $project: {
           _id: 0,
-          tvlUsd: 1,
+          tvlUsd: { $round: [{ $toDouble: '$tvlUsd' }, 2] },
         },
       },
     ]
-    const response = await this.aggregate(query)
+    const aggregate = this.aggregate(query)
+    if (tOpts?.session) {
+      aggregate.session(tOpts.session)
+    }
+    const response = await aggregate
     return {
       tvlUsd: response[0]?.tvlUsd || 0,
       daoAddress,
@@ -239,7 +274,7 @@ export default class Asset extends Model {
     }
   }
 
-  async update(params: Partial<Plugin>, tOpts?: SaveOptions) {
+  async update(params: Partial<Asset>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {

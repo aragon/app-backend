@@ -43,6 +43,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
           llo({ retryCount, wait: retryDelay(retryCount), error }),
         )
         await Utils.wait(retryDelay(retryCount))
+        retryCount++
       } else {
         // logger.warn('Error in Retry Request', llo({ error }))
         throw error
@@ -67,6 +68,7 @@ export function isErrorRelatedToServerIssue(error: any): boolean {
       'alchemy_getAssetTransfers',
       'eth_getBlockByNumber',
       'eth_getBlockReceipts',
+      'eth_getTransactionReceipt',
     ]
 
     const isEthGetLogsWithSameBlock = method === 'eth_getLogs' && params?.fromBlock === params?.toBlock

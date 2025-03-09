@@ -2,99 +2,88 @@ import { keccak256, ZeroAddress } from 'ethers'
 import { type IPluginInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
+import logger from '@logger'
+import utils from '@helpers/utils'
 
-export const SPP_FUNCTIONS = ['getStages(uint256)']
+const llo = logger.logMeta.bind(null, { service: 'helper:PluginDetector' })
 
-export const TOKEN_VOTING_FUNCTIONS = ['getVotingToken()', 'totalVotingPower(uint256)']
+const PluginDetector = {
+  SPP_FUNCTIONS: ['getStages(uint256)'],
+  TOKEN_VOTING_FUNCTIONS: ['getVotingToken()', 'totalVotingPower(uint256)'],
+  MULTISIG_FUNCTIONS: ['isMember(address)', 'isListed(address)'],
+  ADMIN_FUNCTIONS: ['isMember(address)'],
+  GAUGE_VOTER_FUNCTIONS: [
+    'createGauge(address,string)',
+    'deactivateGauge(address)',
+    'activateGauge(address)',
+    'updateGaugeMetadata(address,string)',
+    'votingActive()',
+    'epochStart()',
+    'epochVoteStart()',
+    'epochVoteEnd()',
+  ],
 
-export const MULTISIG_FUNCTIONS = ['isMember(address)', 'isListed(address)']
+  _generateFunctionHash(functionSignature: string): string {
+    return keccak256(Buffer.from(functionSignature)).slice(0, 10)
+  },
 
-export const ADMIN_FUNCTIONS = ['isMember(address)']
+  async detectPluginType(address: string, network: NetworksEnum): Promise<IPluginInfo> {
+    if (address === ZeroAddress) {
+      return {
+        type: IPluginInterfaceType.unknown,
+        proxy: false,
+        implementationAddress: null,
+      }
+    }
 
-export const GAUGE_VOTER_FUNCTIONS = [
-  'createGauge(address,string)',
-  'deactivateGauge(address)',
-  'activateGauge(address)',
-  'updateGaugeMetadata(address,string)',
-  'votingActive()',
-  'epochStart()',
-  'epochVoteStart()',
-  'epochVoteEnd()',
-]
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    let contractAddress = address
 
-const allFunctions = [
-  ...SPP_FUNCTIONS,
-  ...MULTISIG_FUNCTIONS,
-  ...TOKEN_VOTING_FUNCTIONS,
-  ...ADMIN_FUNCTIONS,
-  ...GAUGE_VOTER_FUNCTIONS,
-]
+    // Check if the contract is a proxy and get its implementation address
+    const implementationAddress = await ProxyContractHelper.getImplementationAddress(address, network)
+    if (implementationAddress) {
+      contractAddress = implementationAddress
+    }
 
-const functionHashes = allFunctions.reduce<Record<string, string>>((acc, func) => {
-  acc[func] = keccak256(Buffer.from(func)).slice(0, 10)
-  return acc
-}, {})
-
-async function detectPluginType(address: string, network: NetworksEnum): Promise<IPluginInfo | null> {
-  if (address === ZeroAddress) {
-    return {
+    const pluginDetails: IPluginInfo = {
+      proxy: !!implementationAddress,
+      implementationAddress: implementationAddress || null,
       type: IPluginInterfaceType.unknown,
-      proxy: false,
-      implementationAddress: null,
-    }
-  }
-
-  const provider = ProviderModule.getAnyRpcProvider(network)
-  let contractAddress = address
-
-  // Check if the contract is a proxy and get the implementation address
-  const implementationAddress = await ProxyContractHelper.getImplementationAddress(address, network)
-  if (implementationAddress) {
-    contractAddress = implementationAddress
-  }
-
-  const contractDetails = {
-    proxy: !!implementationAddress,
-    implementationAddress: implementationAddress || null,
-    type: IPluginInterfaceType.unknown,
-  }
-
-  try {
-    const bytecode = await provider.getCode(contractAddress)
-    if (!bytecode || bytecode === '0x') {
-      return contractDetails
     }
 
-    function hasFunction(signature: string): boolean {
-      const functionHash = functionHashes[signature]
-      return functionHash ? bytecode.includes(functionHash.replace('0x', '')) : false
-    }
+    try {
+      const contractCodeAddress = contractAddress === utils.zeroAddress ? address : contractAddress
+      const bytecode = await provider.getCode(contractCodeAddress)
+      if (!bytecode || bytecode === '0x') return pluginDetails
 
-    function hasFunctions(functions: string[]): boolean {
-      return functions.every(hasFunction)
-    }
+      function hasFunction(signature: string): boolean {
+        return bytecode.includes(PluginDetector._generateFunctionHash(signature).replace('0x', ''))
+      }
 
-    if (hasFunctions(TOKEN_VOTING_FUNCTIONS)) {
-      contractDetails.type = IPluginInterfaceType.tokenVoting
-    } else if (hasFunctions(SPP_FUNCTIONS)) {
-      contractDetails.type = IPluginInterfaceType.spp
-    } else if (hasFunctions(MULTISIG_FUNCTIONS)) {
-      contractDetails.type = IPluginInterfaceType.multisig
-    } else if (hasFunctions(ADMIN_FUNCTIONS)) {
-      contractDetails.type = IPluginInterfaceType.admin
-    } else if (hasFunctions(GAUGE_VOTER_FUNCTIONS)) {
-      contractDetails.type = IPluginInterfaceType.gauge
-    } else {
-      contractDetails.type = IPluginInterfaceType.unknown
-    }
+      function hasFunctions(functions: string[]): boolean {
+        return functions.every(hasFunction)
+      }
 
-    return contractDetails
-  } catch (error) {
-    return contractDetails
-  }
+      if (hasFunctions(PluginDetector.TOKEN_VOTING_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.tokenVoting
+      } else if (hasFunctions(PluginDetector.SPP_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.spp
+      } else if (hasFunctions(PluginDetector.MULTISIG_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.multisig
+      } else if (hasFunctions(PluginDetector.ADMIN_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.admin
+      } else if (hasFunctions(PluginDetector.GAUGE_VOTER_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.gauge
+      } else {
+        pluginDetails.type = IPluginInterfaceType.unknown
+      }
+
+      return pluginDetails
+    } catch (error) {
+      logger.error('Error detecting plugin type', llo({ address, error }))
+      return pluginDetails
+    }
+  },
 }
 
-export default {
-  detectPluginType,
-  functionHashes,
-}
+export default PluginDetector

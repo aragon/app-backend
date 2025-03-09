@@ -11,6 +11,7 @@ import { NetworkHelper } from '@helpers/network'
 import { NetworksEnum } from '@types'
 import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
+import proxyquire from 'proxyquire'
 
 describe('AragonIndexer: index', () => {
   let sandbox: SinonSandbox
@@ -24,24 +25,34 @@ describe('AragonIndexer: index', () => {
   })
 
   describe('start', () => {
-    it('should start the indexer service and execute historical crawlers, and verify startTask fn is called', async () => {
-      const configBackup = config.SERVICES.ARAGON_INDEXER.SYNC_ALL
-      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = true
+    it('should start the indexer service and execute historical crawlers', async () => {
+      sandbox.stub(config.SERVICES.ARAGON_INDEXER, 'SYNC_ALL').value(true)
+
       const loggerStub = sandbox.stub(logger, 'info')
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
       sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
       const customInstall = sandbox.stub(CustomInstall, 'install').resolves()
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-
       const subscribeStub = sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock')
       const schedulerStartStub = sandbox
         .stub(TaskSchedulerState.getInstance(), 'startTask')
         .callsFake(async (taskName: string, options: any) => {
-          const tasks = options.fn()
-          expect(tasks[0][0].syncAllPlugins.start).to.exist
+          if (taskName === 'allPlugins') {
+            for (const taskGroup of options.fn()) {
+              for (const task of taskGroup) {
+                const taskName = Object.keys(task)[0]
+                await task[taskName].start()
+              }
+            }
+          }
         })
 
-      await IndexerService.start()
+      const SyncAllStub = { start: sandbox.stub().resolves() }
+      const IndexerServiceProxy = proxyquire.noCallThru()('@services/aragon-indexer/index', {
+        '@indexer/syncAll': { SyncAll: SyncAllStub },
+      }).default
+
+      await IndexerServiceProxy.start()
 
       expect(loggerStub.calledWith('IndexerService historical started' as any)).to.be.true
       expect(customInstall.calledOnce).to.be.true
@@ -49,47 +60,44 @@ describe('AragonIndexer: index', () => {
       expect(subscribeStub.calledOnce).to.be.true
       expect(schedulerStartStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('IndexerService historical logs end' as any)).to.be.true
-
-      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = configBackup
+      expect(SyncAllStub.start.calledOnce).to.be.true
     })
 
-    it('should handle errors during historical crawling', async () => {
-      const configBackup = config.SERVICES.ARAGON_INDEXER.SYNC_ALL
-      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = true
-
-      const error = new Error('Test error during historical crawling')
+    it('should log an error when sync all plugins fails', async () => {
+      sandbox.stub(config.SERVICES.ARAGON_INDEXER, 'SYNC_ALL').value(true)
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
-      sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
-      sandbox.stub(CustomInstall, 'install').resolves()
-      sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock').resolves()
-
-      const schedulerStub = sandbox
-        .stub(TaskSchedulerState.getInstance(), 'startTask')
-        .callsFake(async (taskName: string, options: any) => {
-          if (options.onError) {
-            options.onError(error)
-          }
-        })
+      const error = new Error('Test error from crawler')
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      const subscribeStub = sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock')
+      const schedulerStartStub = sandbox.stub(TaskSchedulerState.getInstance(), 'startTask').resolves()
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
         this: BlockchainLogCrawler,
       ): Promise<any> {
         if ((this as any).crawlParams.onError) {
-          await (this as any).crawlParams.onError(error)
+          await (this as any).crawlParams.onError(error, { proposalIndex: '99999999999999999999' })
         }
       })
 
-      const loggerStub = sandbox.stub(logger, 'error')
+      const schedulerStub = sandbox
+        .stub(TaskSchedulerState.prototype, 'startTask')
+        .callsFake(async (taskName: string, options: any) => {
+          if (taskName === 'allPlugins' && options.onError) {
+            await options.onError(error)
+          }
+        })
+      sandbox.stub(TaskSchedulerState, 'getInstance').returns({ startTask: schedulerStub } as any)
 
       await IndexerService.start()
 
+      expect(subscribeStub.calledOnce).to.be.true
+      expect(loggerErrorStub.calledTwice).to.be.true
+      expect(loggerErrorStub.calledWith('Error Indexer' as any)).to.be.true
+      expect(loggerErrorStub.calledWith('Error sync all plugins' as any)).to.be.true
+
       expect(crawlStub.calledOnce).to.be.true
       expect(schedulerStub.calledOnce).to.be.true
-      expect(loggerStub.calledTwice).to.be.true
-      expect(loggerStub.calledWith('Error Indexer' as any)).to.be.true
-      expect(loggerStub.calledWith('Error sync all plugins' as any)).to.be.true
-
-      config.SERVICES.ARAGON_INDEXER.SYNC_ALL = configBackup
+      expect(schedulerStartStub.notCalled).to.be.true
     })
   })
 
@@ -110,15 +118,14 @@ describe('AragonIndexer: index', () => {
       const customInstall = sandbox.stub(CustomInstall, 'install').resolves()
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
       sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
-
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const subscribeStub = sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock').resolves()
 
       await IndexerService.start()
 
-      expect(customInstall.calledOnce).to.be.true // Ensure the crawl method was called once
-      expect(crawlStub.calledOnce).to.be.true // Ensure the crawl method was called once
-      expect(subscribeStub.calledOnce).to.be.true // Ensure the subscribe method was stubbed and not executed
+      expect(customInstall.calledOnce).to.be.true
+      expect(crawlStub.calledOnce).to.be.true
+      expect(subscribeStub.calledOnce).to.be.true
     })
   })
 
@@ -144,7 +151,6 @@ describe('AragonIndexer: index', () => {
       sandbox.stub(CustomInstall, 'install').resolves()
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       sandbox.stub(EventListener.prototype, 'subscribeEventsByNewBlock')
-
       const schedulerStub = sandbox.stub(TaskSchedulerState.getInstance(), 'startTask').resolves()
 
       await IndexerService.start()

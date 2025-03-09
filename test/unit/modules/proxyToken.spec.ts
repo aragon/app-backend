@@ -15,7 +15,7 @@ import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import dbTx from '@modules/dbTx'
 import logger from '@logger'
-import { RabbitMQHelper } from '@helpers/radditMQ'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import BlockScout from '@helpers/blockScout'
 
 describe('Modules: ProxyToken', () => {
@@ -90,6 +90,7 @@ describe('Modules: ProxyToken', () => {
         type: ITokenType.ERC20,
         holders: 10,
         totalSupply: '100',
+        priceUsd: '1',
       }
 
       const tokenFullDetailsStub = sandbox.stub(BlockScout, 'getTokenFullDetails').resolves(tokenFullDetails as any)
@@ -137,6 +138,44 @@ describe('Modules: ProxyToken', () => {
       expect(tokenFullDetailsStub.calledOnce).to.be.true
       expect(covalentMetricsStub.calledOnce).to.be.true
       expect(result.tokenRate.priceUsd).to.equal('1')
+      expect(result.tokenMetrics.totalHolders).to.equal(10)
+      expect(result.tokenMetrics.totalSupply).to.equal('100')
+    })
+
+    it('should not fetch details when token is not erc20 and it is nft with no decimals', async () => {
+      tokenRate.isGovernance = true
+      tokenRate.type = ITokenType.ERC721
+      tokenRate.name = 'Test'
+      tokenRate.symbol = 'TST'
+      tokenRate.decimals = 0
+      tokenRate.priceUsd = '0'
+
+      const ratesStub = sandbox.stub(RateModule, 'fetchRate').resolves(tokenRate)
+
+      const tokenFullDetailsStub = sandbox.stub(BlockScout, 'getTokenFullDetails').resolves(null)
+
+      const covalentTokenMetricsStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
+        totalHolders: 10,
+        totalSupply: '100',
+      })
+
+      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo')
+
+      const result = await ProxyToken._fetchTokenDetails(
+        tokenRate.type,
+        tokenRate.isGovernance,
+        tokenRate.address,
+        tokenRate.network,
+      )
+
+      expect(ratesStub.calledOnce).to.be.true
+      expect(tokenFullDetailsStub.calledOnce).to.be.true
+      expect(onChainTokenInfoStub.calledOnce).to.be.false
+      expect(covalentTokenMetricsStub.calledOnce).to.be.true
+      expect(result.tokenRate.priceUsd).to.equal('0')
+      expect(result.tokenRate.name).to.equal('Test')
+      expect(result.tokenRate.symbol).to.equal('TST')
+      expect(result.tokenRate.decimals).to.equal(0)
       expect(result.tokenMetrics.totalHolders).to.equal(10)
       expect(result.tokenMetrics.totalSupply).to.equal('100')
     })
@@ -238,8 +277,9 @@ describe('Modules: ProxyToken', () => {
 
     it('should fetch token details when token is in whitelisted', async () => {
       tokenRate.priceUsd = '0'
-      tokenRate.name = null
-      tokenRate.decimals = null
+      tokenRate.name = 'test'
+      tokenRate.symbol = 'TST'
+      tokenRate.decimals = 0
       tokenRate.type = ITokenType.ERC721
 
       const ratesStub = sandbox.stub(RateModule, 'fetchRate').resolves(tokenRate)
@@ -253,14 +293,7 @@ describe('Modules: ProxyToken', () => {
 
       const isWhiteListedTokenStub = sandbox.stub(Web3Helper, 'isWhitelistedToken').resolves(true)
 
-      const onChainTokenInfo = {
-        name: 'test',
-        symbol: 'TST',
-        decimals: 18,
-        logo: 'fake-logo',
-        isGovernance: false,
-      }
-      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo').resolves(onChainTokenInfo as any)
+      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo')
 
       const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(10n)
 
@@ -275,13 +308,12 @@ describe('Modules: ProxyToken', () => {
 
       expect(ratesStub.calledOnce).to.be.true
       expect(tokenFullDetailsStub.calledOnce).to.be.true
-      expect(onChainTokenInfoStub.calledOnce).to.be.true
+      expect(onChainTokenInfoStub.calledOnce).to.be.false
       expect(covalentTokenMetricsStub.calledOnce).to.be.true
       expect(result.tokenRate.priceUsd).to.equal('0')
       expect(result.tokenRate.name).to.equal('test')
       expect(result.tokenRate.symbol).to.equal('TST')
-      expect(result.tokenRate.decimals).to.equal(18)
-      expect(result.tokenRate.logo).to.equal('fake-logo')
+      expect(result.tokenRate.decimals).to.equal(0)
       expect(result.tokenMetrics.totalHolders).to.equal(0)
       expect(result.tokenMetrics.totalSupply).to.equal('10')
       expect(rabbitMQStub.calledOnce).to.be.true

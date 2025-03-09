@@ -1049,6 +1049,62 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('getLogs', () => {
+    it('should getBlockTimestamp', async () => {
+      const stubGetLogs = sandbox.stub().resolves(true)
+      const resolveName = sandbox.stub().resolves('0x000001')
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        resolveName,
+        getLogs: stubGetLogs,
+      } as any)
+
+      const filter = {
+        fromBlock: '0x760d40',
+        toBlock: '0x760d40',
+        topics: [
+          [
+            '0x62c2c8e34665db7c56b2cabd7f5fb9702ccd352ffa8150147e450797e9f8e8f3',
+            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+          ],
+        ],
+      }
+
+      const res = await Web3Helper.getLogs(filter, NetworksEnum.ethereumMainnet)
+
+      expect(res).to.be.true
+      expect(stubGetLogs.calledOnceWith(filter)).to.be.true
+    })
+
+    it('should fail getLogs', async () => {
+      const stubLogger = sandbox.stub(Logger, 'error')
+      const stubGetLogs = sandbox.stub().rejects(new Error('fake-error'))
+      const resolveName = sandbox.stub().resolves('0x000001')
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        resolveName,
+        getLogs: stubGetLogs,
+      } as any)
+
+      const filter = {
+        fromBlock: '0x760d40',
+        toBlock: '0x760d40',
+        topics: [
+          [
+            '0x62c2c8e34665db7c56b2cabd7f5fb9702ccd352ffa8150147e450797e9f8e8f3',
+            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+          ],
+        ],
+      }
+
+      const res = await Web3Helper.getLogs(filter, NetworksEnum.ethereumMainnet)
+
+      expect(res).to.be.null
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubGetLogs.calledOnceWith(filter)).to.be.true
+    })
+  })
+
   describe('subdomainExists', () => {
     it('should check if subdomainExists', async () => {
       const stubConfigState = {
@@ -1854,6 +1910,58 @@ describe('Helpers:Web3', () => {
       expect(result).to.eq(0n)
       expect(stubTotalSupply.calledOnce).to.be.true
       expect(stubLogger.calledWith('Error getting token total supply' as any)).to.be.true
+    })
+  })
+
+  describe('getVotingToken', () => {
+    it('should return the voting token address successfully', async () => {
+      const stubVotingToken = sandbox.stub().resolves('0xVotingTokenAddress')
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { getVotingToken: stubVotingToken }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakePluginAddress = '0xPluginAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.getVotingToken(fakePluginAddress, fakeNetwork)
+
+      expect(result).to.equal('0xVotingTokenAddress')
+      expect(stubVotingToken.calledOnce).to.be.true
+    })
+
+    it('should return null if fetching voting token address fails', async () => {
+      const stubVotingToken = sandbox.stub().rejects(new Error('fake-error'))
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { getVotingToken: stubVotingToken }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakePluginAddress = '0xPluginAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.getVotingToken(fakePluginAddress, fakeNetwork)
+
+      expect(result).to.be.null
+      expect(stubVotingToken.calledOnce).to.be.true
     })
   })
 

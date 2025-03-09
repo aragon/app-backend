@@ -206,12 +206,16 @@ export const ProxyMember = {
     const metricUpdateFn = metricActionsMap[metricAction]
 
     if (metricUpdateFn) {
-      await DbTx.executeTxFn(async ({ session }) => {
-        const logDb = await metricUpdateFn.call(metrics, 1, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('Updated Member DAO metrics', { logId: logDb.id })
-      })
+      try {
+        await DbTx.executeTxFn(async ({ session }) => {
+          const logDb = await metricUpdateFn.call(metrics, 1, { session })
+          await session.commitTransaction()
+          await session.endSession()
+          logger.verbose('Updated Member DAO metrics', { logId: logDb.id })
+        })
+      } catch (error) {
+        logger.error('Error updating member metrics', llo({ error, memberAddress, pluginAddress, network }))
+      }
     } else {
       logger.error('Unsupported metric action', llo({ metricAction, memberAddress, pluginAddress, network }))
     }

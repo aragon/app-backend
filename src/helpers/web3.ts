@@ -35,6 +35,7 @@ import utils from '@helpers/utils'
 import { Multisig } from '@artifacts/Multisig'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
+import { TokenVoting } from '@artifacts/TokenVoting'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -493,6 +494,18 @@ const Web3Helper = {
     }
   },
 
+  async getLogs(filter: { fromBlock: string; toBlock: string; topics: any }, network: NetworksEnum) {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getLogs(filter)),
+      )
+    } catch (error) {
+      logger.error('Error getLogs', llo({ filter, network, error }))
+      return null
+    }
+  },
+
   async getBlockTimestamp(blockNumber: number, network: NetworksEnum): Promise<number> {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
@@ -902,6 +915,18 @@ const Web3Helper = {
       return response.target
     } catch (error) {
       logger.error('Error getTargetConfig', llo({ pluginAddress, network, error }))
+      return null
+    }
+  },
+
+  async getVotingToken(pluginAddress: string, Network: NetworksEnum): Promise<string | null> {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(Network)
+      const contract = new Contract(pluginAddress, TokenVoting.abi, provider)
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(Network)!.schedule(async () => contract.getVotingToken()),
+      )
+    } catch (error) {
       return null
     }
   },

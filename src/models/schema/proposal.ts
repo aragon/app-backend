@@ -202,6 +202,9 @@ class TxInfo {
   },
 })
 @index({ pluginAddress: 1 })
+@index({ 'rawActions.data': 1 })
+@index({ transactionHash: 1 })
+@index({ network: 1 })
 export default class Proposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -428,6 +431,7 @@ export default class Proposal extends Model {
         decimals: 1,
         logo: 1,
         isGovernance: 1,
+        hasDelegate: 1,
         underlying: 1,
         type: 1,
         mintableByDao: 1,
@@ -704,6 +708,7 @@ export default class Proposal extends Model {
         decimals: 1,
         logo: 1,
         isGovernance: 1,
+        hasDelegate: 1,
         underlying: 1,
         type: 1,
         mintableByDao: 1,

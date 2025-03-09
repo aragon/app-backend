@@ -1,7 +1,7 @@
 import logger from '@logger'
 import { Models } from '@dbModels'
-import DbOperations from '@models/utils/dbOperations'
 import { type IVoteAggregation } from '@types'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:ProposalMetrics' })
 
@@ -15,40 +15,49 @@ export const ProposalMetrics = {
     pluginAddress: string
     network: string
   }) => {
-    const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, pluginAddress, network)
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, pluginAddress, network, { session })
 
-    if (!proposal) {
-      logger.warn('Proposal not found - multisig metrics', llo({ proposalIndex, pluginAddress, network }))
-      return
-    }
+        if (!proposal) {
+          logger.warn('Proposal not found - multisig metrics', llo({ proposalIndex, pluginAddress, network }))
+          return
+        }
 
-    const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network })
-    let missingVotes = 0
-    if (!proposal.settings?.minApprovals) {
-      logger.error('Proposal minApprovals not found - multisig metrics', llo({ proposalIndex, pluginAddress, network }))
-      return
-    } else {
-      missingVotes =
-        votes.length >= proposal.settings.minApprovals
-          ? votes.length - proposal.settings.minApprovals
-          : proposal.settings.minApprovals - votes.length
-    }
+        const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network }, { session })
+        let missingVotes = 0
+        if (!proposal.settings?.minApprovals) {
+          logger.error(
+            'Proposal minApprovals not found - multisig metrics',
+            llo({ proposalIndex, pluginAddress, network }),
+          )
+          return
+        } else {
+          missingVotes =
+            votes.length >= proposal.settings.minApprovals
+              ? votes.length - proposal.settings.minApprovals
+              : proposal.settings.minApprovals - votes.length
+        }
 
-    const rawMetrics = {
-      // TODO: add this feature to know if approvalReached
-      // approvalReached: votes.length >= proposal.settings.minApprovals,
-      metrics: {
-        totalVotes: votes.length,
-        missingVotes,
-      },
+        const rawMetrics = {
+          // TODO: add this feature to know if approvalReached
+          // approvalReached: votes.length >= proposal.settings.minApprovals,
+          metrics: {
+            totalVotes: votes.length,
+            missingVotes,
+          },
+        }
+
+        const logDb = await proposal.update(rawMetrics, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Updated multisig metrics', llo({ logDb: logDb.id, proposalIndex, pluginAddress, network }))
+
+        return logDb
+      })
+    } catch (error) {
+      logger.error('Error updating multisig metrics', llo({ proposalIndex, pluginAddress, network, error }))
     }
-    return await DbOperations.updateDocument(
-      proposal,
-      rawMetrics,
-      { logId: proposal.id },
-      'Update multisig metrics',
-      llo,
-    )
   },
 
   proposalTokenVotingMetrics: async ({
@@ -60,57 +69,64 @@ export const ProposalMetrics = {
     pluginAddress: string
     network: string
   }) => {
-    const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, pluginAddress, network)
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, pluginAddress, network, { session })
 
-    if (!proposal) {
-      logger.warn('Proposal not found - tokenVoting metrics', llo({ proposalIndex, pluginAddress, network }))
-      return
-    }
-
-    const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network })
-    const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
-      pluginAddress,
-      network,
-    })
-
-    const voteAggregation: Record<number, IVoteAggregation> = votes.reduce(
-      (acc: Record<number, IVoteAggregation>, { voteOption, votingPower }) => {
-        if (!acc[voteOption]) {
-          acc[voteOption] = {
-            type: voteOption,
-            totalVotes: 0,
-            totalVotingPower: BigInt(0),
-          }
+        if (!proposal) {
+          logger.warn('Proposal not found - tokenVoting metrics', llo({ proposalIndex, pluginAddress, network }))
+          return
         }
 
-        // Increment totalVotes and totalVotingPower
-        acc[voteOption].totalVotes += 1
-        acc[voteOption].totalVotingPower += BigInt(votingPower)
+        const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network }, { session })
+        const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+          pluginAddress,
+          network,
+        })
 
-        return acc
-      },
-      {},
-    )
+        const voteAggregation: Record<number, IVoteAggregation> = votes.reduce(
+          (acc: Record<number, IVoteAggregation>, { voteOption, votingPower }) => {
+            if (!acc[voteOption]) {
+              acc[voteOption] = {
+                type: voteOption,
+                totalVotes: 0,
+                totalVotingPower: BigInt(0),
+              }
+            }
 
-    const rawMetrics = {
-      // TODO: add this feature to know if approvalReached
-      // approvalReached: votes.length >= proposal.settings.minApprovals,
-      metrics: {
-        totalVotes: votes.length,
-        missingVotes: votes.length >= members.length ? votes.length - members.length : members.length - votes.length,
-        votesByOption: Object.entries(voteAggregation).map(([type, data]) => ({
-          type,
-          totalVotes: data.totalVotes,
-          totalVotingPower: data.totalVotingPower.toString(),
-        })),
-      },
+            // Increment totalVotes and totalVotingPower
+            acc[voteOption].totalVotes += 1
+            acc[voteOption].totalVotingPower += BigInt(votingPower)
+
+            return acc
+          },
+          {},
+        )
+
+        const rawMetrics = {
+          // TODO: add this feature to know if approvalReached
+          // approvalReached: votes.length >= proposal.settings.minApprovals,
+          metrics: {
+            totalVotes: votes.length,
+            missingVotes:
+              votes.length >= members.length ? votes.length - members.length : members.length - votes.length,
+            votesByOption: Object.entries(voteAggregation).map(([type, data]) => ({
+              type,
+              totalVotes: data.totalVotes,
+              totalVotingPower: data.totalVotingPower.toString(),
+            })),
+          },
+        }
+
+        const logDb = await proposal.update(rawMetrics, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Updated tokenVoting metrics', llo({ logDb: logDb.id, proposalIndex, pluginAddress, network }))
+
+        return logDb
+      })
+    } catch (error) {
+      logger.error('Error updating tokenVoting metrics', llo({ proposalIndex, pluginAddress, network, error }))
     }
-    return await DbOperations.updateDocument(
-      proposal,
-      rawMetrics,
-      { logId: proposal.id },
-      'Update tokenVoting metrics',
-      llo,
-    )
   },
 }

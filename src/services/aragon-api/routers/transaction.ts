@@ -46,9 +46,38 @@ const TransactionRouter = {
       formattedPairParams,
     )
   },
+  getTransactionIndexingStatus: async function (ctx: RouterContext) {
+    const params = {
+      transactionHash: ctx.params.txHash,
+      network: ctx.params.network,
+      type: ctx.query.type,
+    }
+
+    const formattedParams = await ValidationSchema.validateParams(
+      TransactionSchema.getTransactionIndexingStatus,
+      params,
+    )
+
+    ctx.body = await TransactionController.getTransactionIndexingStatus(
+      formattedParams.transactionHash,
+      formattedParams.type,
+      formattedParams.network,
+    )
+  },
 
   router() {
     const router = new Router()
+
+    /**
+     * @api {get} /:network/:txHash/status Get Transaction Indexing Status
+     * @apiName TransactionIndexingStatus
+     * @apiGroup Transactions
+     * @apiDescription Get Transaction Indexing Status
+     * @apiParam {String} Network
+     * @apiParam {String} txHash Transaction Hash
+     * @queryParam {String} [type] Transaction Type
+     */
+    router.get('/:network/:txHash/status', TransactionRouter.getTransactionIndexingStatus)
 
     /**
      * @api {get} / Get Transactions

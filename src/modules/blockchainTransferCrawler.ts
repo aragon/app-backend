@@ -7,7 +7,7 @@ import {
   type IEnumIndexerService,
   type IEnumIndexerServiceStatic,
   IProviderType,
-  NetworksEnum,
+  type NetworksEnum,
 } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import Web3Helper from '@helpers/web3'
@@ -99,9 +99,7 @@ class BlockchainTransferCrawler {
       try {
         const provider = this.getProvider()
         return await retryRequest(async () =>
-          BottleneckModule.getNodeTransferLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
-            provider.getBlockNumber(),
-          ),
+          BottleneckModule.getNodeTransferLimiter(this.network)!.schedule(async () => provider.getBlockNumber()),
         )
       } catch (error) {
         logger.error(
@@ -152,8 +150,8 @@ class BlockchainTransferCrawler {
             BottleneckModule.getNodeTransferLimiter(this.network)!.schedule(async () =>
               provider.send('alchemy_getAssetTransfers', [
                 {
-                  fromBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(currentBlock) : undefined,
-                  toBlock: toBlock === 0 ? Web3Helper.convertToHexNumber(toBlock) : undefined,
+                  fromBlock: currentBlock !== 0 ? Web3Helper.convertToHexNumber(currentBlock) : undefined,
+                  toBlock: toBlock !== 0 ? Web3Helper.convertToHexNumber(toBlock) : 'latest',
                   fromAddress: this.filter.fromAddress,
                   toAddress: this.filter.toAddress,
                   category: this.filter.category,
@@ -258,27 +256,34 @@ class BlockchainTransferCrawler {
   }
 
   async onSaveProgress(blockNumber: number) {
-    const existingConfig = await Models.ConfigIndexer.findExistingLog({
-      network: this.crawlResult.network,
-      service: this.logService!,
-    })
-
-    await DbTx.executeTxFn(async ({ session }) => {
-      if (existingConfig) {
-        await existingConfig.update({ lastSync: blockNumber })
-      } else {
-        await Models.ConfigIndexer.create(
+    try {
+      await DbTx.executeTxFn(async ({ session }) => {
+        const existingConfig = await Models.ConfigIndexer.findExistingLog(
           {
             network: this.crawlResult.network,
             service: this.logService!,
-            lastSync: blockNumber,
           },
-          { session } as any,
+          { session },
         )
-      }
-      await session.commitTransaction()
-      await session.endSession()
-    })
+
+        if (existingConfig) {
+          await existingConfig.update({ lastSync: blockNumber }, { session })
+        } else {
+          await Models.ConfigIndexer.create(
+            {
+              network: this.crawlResult.network,
+              service: this.logService!,
+              lastSync: blockNumber,
+            },
+            { session } as any,
+          )
+        }
+        await session.commitTransaction()
+        await session.endSession()
+      })
+    } catch (error) {
+      logger.error('Error onSaveProgress', llo({ error }))
+    }
   }
 }
 

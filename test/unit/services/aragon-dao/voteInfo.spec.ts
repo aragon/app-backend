@@ -151,6 +151,17 @@ describe('AragonDao:VoteInfo', () => {
       expect(_handleForTokenVotingStub.calledOnce).to.be.true
     })
 
+    it('should return false is plugin type is not multisig or token voting', async () => {
+      const plugin = await Models.Plugin.findOne({})
+
+      await plugin.update({
+        interfaceType: IPluginInterfaceType.spp,
+      })
+
+      const result = await VoteInfo.getVoteInfo({ proposalId: ProposalList[1].id!, userAddress: '0xUserAddress' })
+      expect(result).to.be.false
+    })
+
     it('should return true if only listed is false', async () => {
       const plugin = await Models.Plugin.findOne({})
 
