@@ -333,8 +333,21 @@ export const GovernanceErc20Handler = {
         logger.verbose('Transfer outgoing - MemberTransaction', llo({ logId: logDb?.id, info }))
       })
 
-      if (delegator !== utils.zeroAddress && delegator !== to) {
-        // increase
+      // Note: we need to update the metrics for the member
+      // delegator != to && delegator == from
+      // if incoming - member increase received delegation
+      // if outgoing - member increase sent delegation
+
+      // delegator == to
+      // if incoming - member decrease sent delegation
+      // if outgoing - member decrease received delegation
+
+      // delegator != to && delegator != from
+      // if incoming - member increase received delegation
+      // if outgoing - member decrease received delegation
+
+      if (delegator !== utils.zeroAddress && delegator !== to && delegator === from) {
+        // it means that it's giving delegation
         await Promise.all(
           plugins.map(async (plg: Plugin) => {
             if (side === ITransferSide.incoming) {
@@ -365,6 +378,32 @@ export const GovernanceErc20Handler = {
           plugins.map(async (plg: Plugin) => {
             if (side === ITransferSide.incoming) {
               await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateSentCount, {
+                memberAddress,
+                pluginAddress: plg.address,
+                network: plg.network,
+              })
+            } else if (side === ITransferSide.outgoing) {
+              await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateReceivedCount, {
+                memberAddress,
+                pluginAddress: plg.address,
+                network: plg.network,
+              })
+            }
+
+            await ProxyMember.updateActivity({
+              memberAddress,
+              pluginAddress: plg.address,
+              network: info.network,
+              blockNumber: info.blockNumber,
+            })
+          }),
+        )
+      } else if (delegator !== utils.zeroAddress && delegator !== to && delegator !== from) {
+        // it means that delegator is moving the delegation from an member to another
+        await Promise.all(
+          plugins.map(async (plg: Plugin) => {
+            if (side === ITransferSide.incoming) {
+              await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
                 memberAddress,
                 pluginAddress: plg.address,
                 network: plg.network,

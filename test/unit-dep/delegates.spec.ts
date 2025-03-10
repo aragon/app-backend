@@ -6,7 +6,7 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { Models } from '@dbModels'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
-import {ProxyMember} from "@modules/proxyMember";
+import { ProxyMember } from '@modules/proxyMember'
 
 describe('Integ: Delegates', () => {
   let sandbox: SinonSandbox
@@ -19,7 +19,185 @@ describe('Integ: Delegates', () => {
     sandbox && sandbox.restore()
   })
 
-  it.only('should test delegates', async () => {
+  it('should test moving delegation from an member to another', async () => {
+    const network = NetworksEnum.ethereumSepolia
+    const daoAddress = '0x93368A3b5CFf6EbDa9306C0A6238A2c618fEdc8b'
+    const tokenAddress = '0xA72a261d67d065e5722C39D1F9CfB7e7aCbffd8B'
+    const pluginAddress = '0xb63B12FF0E70a30E2D3386bd491Aaf2dB4a769e6'
+    const member1 = '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31'
+    const member2 = '0xeF32DC2B02bFA082F11aa6f57154f4079FFE9Bbc'
+    const member3 = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
+
+    await Models.Plugin.create({
+      id: 'ethereum-sepolia-0x09d09ce070dc07a6793becb16b48f2ea8ad928a78cb2cf7fab10df2b1a320526-0xb63B12FF0E70a30E2D3386bd491Aaf2dB4a769e6',
+      transactionHash: '0x09d09ce070dc07a6793becb16b48f2ea8ad928a78cb2cf7fab10df2b1a320526',
+      blockNumber: 7802904,
+      blockTimestamp: 1740737700,
+      network,
+      address: pluginAddress,
+      implementationAddress: '0x0749047B49B472a7f80C1c8f0a4dbBcecBc54339',
+      interfaceType: 'tokenVoting',
+      status: 'installed',
+      isSupported: true,
+      daoAddress,
+      tokenAddress,
+      pluginSetupRepoAddress: '0x424F4cA6FA9c24C03f2396DF0E96057eD11CF7dF',
+      sender: '0x7a62da7B56fB3bfCdF70E900787010Bc4c9Ca42e',
+      release: '1',
+      build: '2',
+      subdomain: 'token-voting',
+      permissions: [],
+      uninstalled: {
+        status: false,
+        transactionHash: null,
+        blockNumber: null,
+        blockTimestamp: null,
+      },
+      isProcess: true,
+      isBody: true,
+      isSubPlugin: false,
+      metadataIpfs: null,
+      name: null,
+      description: null,
+      processKey: null,
+      subPlugins: [],
+      links: [],
+    })
+
+    // member 1 delegate to member 2
+    const tx1 = await UnitDepUtils.getData(
+      GovernanceERC20.abi,
+      IEventLogMember.DelegateVotesChanged,
+      '0x633784b253c0b57bf673ce5f54e181ced04db805a117fe99015184cf55c1762e',
+      network,
+    )
+
+    for (const { event, logInfo } of tx1) {
+      await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
+    }
+
+    // test member created
+    expect(await Models.Member.findByAddress(member1)).to.exist
+    expect(await Models.Member.findByAddress(member2)).to.exist
+
+    // test member1 have a transaction, balance and correct metrics
+    let member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
+    let member1Balance = await Models.MemberBalance.findOne({ address: member1 })
+    let member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+
+    expect(member1Txs).to.have.length(1)
+    expect(member1Txs[0].side).to.eq(ITransferSide.outgoing)
+    expect(member1Txs[0].from).to.eq(member1)
+    expect(member1Txs[0].to).to.eq(member2)
+    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
+    expect(member1Txs[0].memberVotingPower).to.eq('0')
+    expect(member1Balance.votingPower).to.eq('0')
+    expect(member1Balance.amount).to.eq('0')
+    expect(member1Metrics.delegateReceivedCount).to.eq(0)
+    expect(member1Metrics.delegateSentCount).to.eq(1)
+
+    // test member2 have a transaction, balance and correct metrics
+    let member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
+    let member2Balance = await Models.MemberBalance.findOne({ address: member2 })
+    let member2Metrics = await Models.MemberMetrics.findOne({ address: member2 })
+
+    expect(member2Txs).to.have.length(1)
+    expect(member2Txs[0].side).to.eq(ITransferSide.incoming)
+    expect(member2Txs[0].from).to.eq(member1)
+    expect(member2Txs[0].to).to.eq(member2)
+    expect(member2Txs[0].memberBalance).to.eq('0')
+    expect(member2Txs[0].memberVotingPower).to.eq('1000000000000000000')
+    expect(member2Balance.votingPower).to.eq('1000000000000000000')
+    expect(member2Balance.amount).to.eq('0')
+    expect(member2Metrics.delegateReceivedCount).to.eq(1)
+    expect(member2Metrics.delegateSentCount).to.eq(0)
+
+    let count = await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      pluginAddress,
+      tokenAddress,
+      network,
+    })
+    expect(count).to.eq(0)
+
+    let count1 = await ProxyMember.updateDelegationMetrics({
+      memberAddress: member2,
+      pluginAddress,
+      tokenAddress,
+      network,
+    })
+    expect(count1).to.eq(1)
+
+    console.log('end tx1')
+
+    // member 1 move delegation from member 2 to member 3
+    const tx2 = await UnitDepUtils.getData(
+      GovernanceERC20.abi,
+      IEventLogMember.DelegateVotesChanged,
+      '0xae2279736a8a881eebddf8852f2e66248dd3d55bc9317c56dab2e214232fcd31',
+      network,
+    )
+
+    for (const { event, logInfo } of tx2) {
+      await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
+    }
+
+    // test member created
+    expect(await Models.Member.findByAddress(member3)).to.exist
+
+    // test member1 have a transaction, balance and correct metrics
+    member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
+    member1Balance = await Models.MemberBalance.findOne({ address: member1 })
+    member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+
+    expect(member1Txs).to.have.length(1)
+    expect(member1Txs[0].side).to.eq(ITransferSide.outgoing)
+    expect(member1Txs[0].from).to.eq(member1)
+    expect(member1Txs[0].to).to.eq(member2)
+    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
+    expect(member1Txs[0].memberVotingPower).to.eq('0')
+    expect(member1Balance.votingPower).to.eq('0')
+    expect(member1Balance.amount).to.eq('0')
+    expect(member1Metrics.delegateReceivedCount).to.eq(0)
+    expect(member1Metrics.delegateSentCount).to.eq(1)
+
+    // test member2 have a transaction, balance and correct metrics
+    member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
+    member2Balance = await Models.MemberBalance.findOne({ address: member2 })
+    member2Metrics = await Models.MemberMetrics.findOne({ address: member2 })
+
+    expect(member2Txs).to.have.length(2)
+    expect(member2Txs[0].side).to.eq(ITransferSide.outgoing)
+    expect(member2Txs[0].from).to.eq(member2)
+    expect(member2Txs[0].to).to.eq(member3)
+    expect(member2Txs[0].memberBalance).to.eq('0')
+    expect(member2Txs[0].memberVotingPower).to.eq('0')
+    expect(member2Balance.votingPower).to.eq('0')
+    expect(member2Balance.amount).to.eq('0')
+    expect(member2Metrics.delegateReceivedCount).to.eq(0)
+    expect(member2Metrics.delegateSentCount).to.eq(0)
+
+    // test member3 have a transaction, balance and correct metrics
+    let member3Txs = await Models.MemberTransaction.find({ address: member3 }).sort({ createdAt: -1 })
+    let member3Balance = await Models.MemberBalance.findOne({ address: member3 })
+    let member3Metrics = await Models.MemberMetrics.findOne({ address: member3 })
+
+    expect(member3Txs).to.have.length(1)
+    expect(member3Txs[0].side).to.eq(ITransferSide.incoming)
+    expect(member3Txs[0].from).to.eq(member2)
+    expect(member3Txs[0].to).to.eq(member3)
+    expect(member3Txs[0].memberBalance).to.eq('0')
+    expect(member3Txs[0].memberVotingPower).to.eq('1000000000000000000')
+    expect(member3Balance.votingPower).to.eq('1000000000000000000')
+    expect(member3Balance.amount).to.eq('0')
+    expect(member3Metrics.delegateReceivedCount).to.eq(1)
+    expect(member3Metrics.delegateSentCount).to.eq(0)
+
+    console.log('end tx2')
+  })
+
+  it('should test delegates', async function () {
+    this.timeout(1600000) // Increase timeout for the test
     const network = NetworksEnum.ethereumSepolia
     const daoAddress = '0x3e5fba52959d12f41266028f3a3d7ecc7462dd81'
     const tokenAddress = '0xa936c7F3913941e64CAdF88d61c3a8846C8Ef426'
