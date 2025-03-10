@@ -853,7 +853,7 @@ describe('Helpers:Web3', () => {
     it('should return the original Arbitrum block number and log an error if an exception occurs', async () => {
       const arbBlock = 987654
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(new Error('fake error'))
-      const stubLogger = sandbox.stub(Logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'error')
 
       const result = await Web3Helper.getChainAdjustedBlockNumber(arbBlock, NetworksEnum.arbitrumMainnet)
       expect(result).to.equal(arbBlock)
