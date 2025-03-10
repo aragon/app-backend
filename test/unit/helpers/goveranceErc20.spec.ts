@@ -4,6 +4,7 @@ import { expect } from 'chai'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import proxyquire from 'proxyquire'
+import Web3Helper from '@helpers/web3'
 
 describe('Helpers: GovernanceErc20', () => {
   let sandbox: SinonSandbox
@@ -23,6 +24,7 @@ describe('Helpers: GovernanceErc20', () => {
       }
 
       const getPastVotesStub = sandbox.stub().resolves(1)
+      const getChainAdjustedBlockNumberStub = sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(1)
 
       const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
         ethers: {
@@ -35,13 +37,17 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, NetworksEnum.ethereumMainnet)
+      const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, 2, NetworksEnum.ethereumMainnet)
+
+      expect(getChainAdjustedBlockNumberStub.calledWith(1, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(getPastVotesStub.calledWith('0x123', 1)).to.be.true
       expect(result).to.eq('1')
     })
 
     it('should handle errors in getPastVotes', async () => {
       const expectedResult = new Error('RPC Call Failed')
       const getPastVotesStub = sandbox.stub().rejects(expectedResult)
+      sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(1)
 
       const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
         ethers: {
@@ -53,7 +59,7 @@ describe('Helpers: GovernanceErc20', () => {
 
       const loggerStub = sandbox.stub(logger, 'error')
 
-      const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, NetworksEnum.ethereumMainnet)
+      const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, 1, NetworksEnum.ethereumMainnet)
       expect(result).to.eq('0')
       expect(loggerStub.calledTwice).to.be.true
       expect(loggerStub.calledWith('Error getting past votes - blockNumber' as any)).to.be.true
@@ -66,6 +72,7 @@ describe('Helpers: GovernanceErc20', () => {
       }
 
       const pastVotesStub = sandbox.stub().resolves(10n)
+      sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(1)
 
       const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
         ethers: {
@@ -78,7 +85,7 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, NetworksEnum.ethereumMainnet)
+      const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, 1, NetworksEnum.ethereumMainnet)
 
       expect(result).to.eq('10')
       expect(pastVotesStub.calledOnce).to.be.true
@@ -97,7 +104,7 @@ describe('Helpers: GovernanceErc20', () => {
 
       const loggerStub = sandbox.stub(logger, 'error')
 
-      const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, NetworksEnum.ethereumMainnet)
+      const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, 1, NetworksEnum.ethereumMainnet)
 
       expect(result).to.eq('0')
       expect(loggerStub.calledTwice).to.be.true
@@ -187,6 +194,7 @@ describe('Helpers: GovernanceErc20', () => {
       }
 
       const getPastTotalSupplyStub = sandbox.stub().resolves(1)
+      const getChainAdjustedBlockNumberStub = sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(1)
 
       const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
         ethers: {
@@ -200,12 +208,14 @@ describe('Helpers: GovernanceErc20', () => {
       })
 
       const result = await MockedGoveranceErc20Helper.getPastTotalSupply(1, '0x123', NetworksEnum.ethereumMainnet)
+      expect(getChainAdjustedBlockNumberStub.calledWith(1, NetworksEnum.ethereumMainnet)).to.be.true
       expect(result).to.eq(1)
     })
 
     it('should handle errors in getPastTotalSupply', async () => {
       const expectedResult = new Error('RPC Call Failed')
       const getPastTotalSupplyStub = sandbox.stub().rejects(expectedResult)
+      sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(1)
 
       const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
         ethers: {

@@ -479,6 +479,100 @@ describe('GovernanceErc20Handler', () => {
       expect(rabbitMqStub.args[1][1].id).to.be.eq(plugins[1].daoAddress)
     })
 
+    it('should handle token return null', async () => {
+      const parsedEvent = {
+        args: {
+          from: '0xFrom',
+          to: '0xTo',
+          value: '1000',
+        },
+      } as unknown as LogDescription
+
+      const info = {
+        network,
+        blockNumber: 12345678,
+        transactionHash: '0xTransactionHash',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: FakeToken.address,
+      }
+
+      const plugins = [
+        {
+          daoAddress: '0xDaoAddress',
+          address: '0xPluginAddress',
+          tokenAddress: FakeToken.address,
+          network,
+        },
+        {
+          daoAddress: '0xDaoAddress2',
+          address: '0xPluginAddress2',
+          tokenAddress: FakeToken.address,
+          network,
+        },
+      ]
+
+      saveAndGetTokenStub.resolves(null)
+      const createMemberSpy = sandbox.spy(ProxyMember, 'createMember')
+      const getBalanceSpy = sandbox.spy(ProxyMember, 'getBalances')
+      const addMemberToDaoSpy = sandbox.spy(ProxyMember, 'addToDao')
+
+      const stubLogger = sandbox.stub(logger, 'error')
+      const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('2000')
+      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
+
+      await GovernanceErc20Handler._handleTransfer(parsedEvent, info as any, ITransferSide.incoming, plugins as any)
+
+      expect(createMemberSpy.calledWith(parsedEvent.args.to)).to.be.true
+      const members = await Models.Member.find({})
+      expect(members.length).to.be.eq(1)
+      expect(members[0].address).to.be.eq(parsedEvent.args.to)
+
+      expect(
+        findExistingLogStub.calledOnceWith({
+          network: info.network,
+          transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+          address: '0xTo',
+        }),
+      ).to.be.true
+
+      expect(
+        getBalanceSpy.calledOnceWith({
+          address: parsedEvent.args.to,
+          tokenAddress: info.address,
+          network: info.network,
+        }),
+      ).to.be.true
+
+      const memberBalance = await Models.MemberBalance.findOne({
+        address: parsedEvent.args.to,
+      })
+      expect(memberBalance).to.be.not.null
+
+      expect(getBlockTimestampStub.calledOnceWith(info.blockNumber, info.network)).to.be.true
+
+      expect(saveAndGetTokenStub.calledOnceWith(info.address, info.network)).to.be.true
+      expect(getPastVotesStub.notCalled).to.be.true
+      expect(addMemberToDaoSpy.notCalled).to.be.true
+
+      //wait for internal db session to finish
+      await utils.wait(1000)
+      expect(addMemberToDaoSpy.notCalled).to.be.true
+
+      const tokenBalance = await Models.MemberBalance.findOne({
+        address: parsedEvent.args.to,
+      })
+
+      expect(tokenBalance.amount).to.be.eq('0')
+
+      expect(stubLogger.calledWith('handleTransfer token not found' as any)).to.be.true
+      expect(rabbitMqStub.calledTwice).to.be.true
+      expect(rabbitMqStub.args[0][1].id).to.be.eq(plugins[0].daoAddress)
+      expect(rabbitMqStub.args[1][1].id).to.be.eq(plugins[1].daoAddress)
+    })
+
     it('should handle if the existing log is found', async () => {
       const parsedEvent = {
         args: {
