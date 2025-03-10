@@ -34,6 +34,7 @@ describe('Integration: Plugin Setup SPP', () => {
     const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     sandbox.stub(logger, 'verbose')
     sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
+      address: '0x00',
       decimals: 18,
       name: 'Wrapped Ether',
       symbol: 'WETH',
