@@ -3,7 +3,6 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Dao from '@models/schema/dao'
-import type { SaveOptions } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoMetrics' })
 
@@ -23,21 +22,33 @@ export const DaoMetrics = {
   onDocument: async (document: Dao) => {
     try {
       await DbTx.executeTxFn(async ({ session }) => {
-        const [tvlUSD, proposalsCreated, proposalsExecuted, members, votes, uniqueVoters] = await Promise.all([
-          DaoMetrics.getDaoTvl(document, { session }),
-          Models.Proposal.countDocuments({ daoAddress: document.address, network: document.network }, { session }),
-          Models.Proposal.countDocuments(
-            {
-              daoAddress: document.address,
-              network: document.network,
-              'executed.status': true,
-            },
-            { session },
-          ),
-          Models.DaoMemberMapping.countUniqueMembers(document.address, document.network, { session }),
-          Models.Vote.countDocuments({ daoAddress: document.address, network: document.network }, { session }),
-          DaoMetrics.countUniqueMemberVotesByPlugin(document.address, { session }),
-        ])
+        const tvlUSD = await Models.Asset.getDaoTvl(document.address, document.network, { session })
+        const proposalsCreated = await Models.Proposal.countDocuments(
+          {
+            daoAddress: document.address,
+            network: document.network,
+          },
+          { session },
+        )
+        const proposalsExecuted = await Models.Proposal.countDocuments(
+          {
+            daoAddress: document.address,
+            network: document.network,
+            'executed.status': true,
+          },
+          { session },
+        )
+        const members = await Models.DaoMemberMapping.countUniqueMembers(document.address, document.network, {
+          session,
+        })
+        const votes = await Models.Vote.countDocuments(
+          {
+            daoAddress: document.address,
+            network: document.network,
+          },
+          { session },
+        )
+        const uniqueVoters = await Models.Vote.countUniqueMemberVotesByPlugin(document.address, { session })
 
         const logDb = await document.updateMetrics(
           {
@@ -57,39 +68,5 @@ export const DaoMetrics = {
     } catch (error) {
       logger.error('Error DaoMetrics', llo({ error }))
     }
-  },
-
-  countUniqueMemberVotesByPlugin: async (daoAddress: HexAddress, tOpts?: SaveOptions) => {
-    const aggregate = Models.Vote.aggregate([
-      {
-        $match: { daoAddress },
-      },
-      {
-        $group: {
-          _id: {
-            memberAddress: '$memberAddress',
-            pluginAddress: '$pluginAddress',
-          },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          uniqueVotes: { $sum: 1 },
-        },
-      },
-    ])
-
-    if (tOpts?.session) {
-      aggregate.session(tOpts.session)
-    }
-
-    const results = await aggregate
-    return results.length > 0 ? results[0].uniqueVotes : 0
-  },
-
-  getDaoTvl: async (document: Dao, tOpts?: SaveOptions): Promise<number> => {
-    const response = await Models.Asset.getDaoTvl(document.address, document.network, tOpts)
-    return Number(response?.tvlUsd || 0)
   },
 }

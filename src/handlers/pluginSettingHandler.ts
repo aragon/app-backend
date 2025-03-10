@@ -114,6 +114,10 @@ export const PluginSettingHandler = {
 
     const tokenDb = await ProxyToken.saveAndGetToken(relatedPlugin.tokenAddress, relatedPlugin.network)
 
+    if (!tokenDb) {
+      logger.error('votingSettingsUpdated token not found', llo({ info }))
+    }
+
     if (tokenDb?.isGovernance) {
       await PluginSettingHandler.isSupported(relatedPlugin, info)
     }
