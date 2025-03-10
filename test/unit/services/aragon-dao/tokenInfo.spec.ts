@@ -8,6 +8,7 @@ import TokenDetailFetcherWithRetry from '@services/aragon-dao/tokenInfo'
 import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
 import Utils from '@helpers/utils'
 import { FakeToken } from '@test/mock/fakeToken'
+import DbOperations from "@models/utils/dbOperations";
 
 describe('TokenDetailFetcherWithRetry', () => {
   let sandbox: SinonSandbox
@@ -158,6 +159,29 @@ describe('TokenDetailFetcherWithRetry', () => {
         }),
       ).to.be.rejectedWith('Token metrics polling timed out after 50ms')
     })
+
+    it('should log error when token is not found on first attempt', async () => {
+      sandbox.stub(Models.Token, 'findOne').onFirstCall().resolves(null)
+        .onSecondCall().resolves({ address: tokenAddress, network })
+
+      const loggerStub = sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(TokenDetailProvider, 'fetchBasicTokenInfo').resolves({
+        name: 'Test Token',
+        symbol: 'TEST',
+        totalSupply: '1000',
+        totalHolders: 10,
+        decimals: 18,
+        priceUsd: '1.5',
+      })
+
+      await TokenDetailFetcherWithRetry.pollWithRetry(tokenAddress, network, {
+        intervalMs: 10,
+        timeoutMs: 50,
+      })
+
+      expect(loggerStub.calledWith('Token not found in DB. Waiting..' as any)).to.be.true
+    })
   })
 
   describe('update', () => {
@@ -225,9 +249,11 @@ describe('TokenDetailFetcherWithRetry', () => {
       sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves({})
 
       const poolWithRetryStub = sandbox.stub(TokenDetailFetcherWithRetry, 'pollWithRetry').resolves({
-        tokenDb: { address: tokenAddress, network, update: sandbox.stub().rejects(new Error('fake')) },
+        tokenDb: { address: tokenAddress, network },
         tokenDetails: validTokenDetails,
       })
+
+      sandbox.stub(DbOperations, 'updateDocument').throws(new Error('Failed to update token'))
 
       const loggerStub = sandbox.stub(logger, 'error')
 

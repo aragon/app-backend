@@ -74,7 +74,7 @@ export const TokenDetailFetcherWithRetry = {
           }
         }
       } else {
-        logger.error('Token not found in DB. Waiting..', llo({ tokenAddress, network }))
+        logger.warn('Token not found in DB. Waiting..', llo({ tokenAddress, network }))
       }
 
       await Utils.wait(intervalMs)
