@@ -1,8 +1,8 @@
 import {
   type HexAddress,
-  type IToken,
   type ITokenBalanceResponse,
   type ITokenCovalentResponse,
+  type ITokenDetails,
   type ITokenHoldersResponse,
   type ITokenMetrics,
   ITokenType,
@@ -95,7 +95,7 @@ const CovalentHelper = {
     tokenContractAddress: string,
     network: NetworksEnum,
     pastDays: number = 1,
-  ): Promise<Partial<IToken> | false> => {
+  ): Promise<Partial<ITokenDetails> | false> => {
     let isNativeToken = false
 
     if (tokenContractAddress === utils.zeroAddress) {

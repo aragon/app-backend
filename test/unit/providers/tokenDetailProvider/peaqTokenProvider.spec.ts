@@ -6,6 +6,8 @@ import SubscanApi from '@helpers/subscanApi'
 import { expect } from 'chai'
 import utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
+import logger from '@logger'
 
 describe('Module: PeaqTokenProvider', () => {
   let sandbox: SinonSandbox
@@ -108,7 +110,13 @@ describe('Module: PeaqTokenProvider', () => {
       ...tokenDetails,
     } as any)
 
+    sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
+      name: 'TestToken',
+      symbol: 'tt',
+    } as any)
+
     const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    const warnStub = sandbox.stub(logger, 'warn')
 
     const response = await PeaqNetworkTokenProvider.fetchTokenDetails(tokenInfo, '0x123', NetworksEnum.peaqMainnet)
 
@@ -117,7 +125,12 @@ describe('Module: PeaqTokenProvider', () => {
       totalSupply: tokenDetails.totalSupply,
     })
 
-    expect(response.tokenDetails).to.deep.equal(tokenDetails)
+    expect(response.tokenDetails).to.deep.equal({
+      ...tokenDetails,
+      name: 'TestToken',
+      symbol: 'tt',
+    })
+    expect(warnStub.calledOnce).to.be.true
     expect(getTokenFullDetailsStub.calledOnce).to.be.true
     expect(rabbitMqStub.calledOnce).to.be.true
   })
@@ -146,5 +159,28 @@ describe('Module: PeaqTokenProvider', () => {
     expect(response[0]).to.equal('source code')
     expect(getContractSourceCodeStub.calledOnce).to.be.true
     expect(getContractSourceCodeStub.calledWith('0x123', NetworksEnum.peaqMainnet)).to.be.true
+  })
+
+  it('should return details with subscan api', async () => {
+    const tokenDetails = {
+      totalHolders: 100,
+      totalSupply: '1000000',
+      name: 'PEAQ',
+      symbol: 'PEAQ',
+      decimals: 18,
+      logo: 'http://test.com/logo.png',
+      type: ITokenType.native,
+      priceUsd: 1,
+    }
+
+    const getTokenFullDetailsStub = sandbox.stub(SubscanApi, 'getTokenFullDetails').resolves(tokenDetails as any)
+
+    const response = await PeaqNetworkTokenProvider.fetchBasicTokenInfo({
+      address: '0x123',
+      network: NetworksEnum.peaqMainnet,
+    } as any)
+
+    expect(response).to.deep.equal(tokenDetails)
+    expect(getTokenFullDetailsStub.calledOnce).to.be.true
   })
 })

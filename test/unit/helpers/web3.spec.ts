@@ -1593,13 +1593,14 @@ describe('Helpers:Web3', () => {
           ConfigState: { getInstance: () => stubConfigState },
         },
       })
-      sandbox.stub(Logger, 'error')
+      const warnStub = sandbox.stub(Logger, 'warn')
       const multisigPlugin = '0xTokenAddress'
       const fakeAddress = '0x1234567890123456789012345678901234567890'
       const fakeNetwork = NetworksEnum.ethereumMainnet
 
       const stat = await MockedWeb3Helper.isMultisigMemberAtBlock(multisigPlugin, fakeAddress, 123, fakeNetwork)
       expect(stat).to.equal(false)
+      expect(warnStub.calledWith('Error isMultisigMemberAtBlock' as any)).to.be.true
     })
   })
 

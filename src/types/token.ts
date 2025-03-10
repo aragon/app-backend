@@ -14,20 +14,7 @@ export interface ITokenInfo {
   hasDelegate: boolean
 }
 
-export interface ITokenRate {
-  priceUsd: string
-  address: HexAddress
-  priceChangeOnDayUsd: string
-  type: ITokenType
-  logo: string
-  decimals: number
-  symbol: string
-  name: string
-  lastUpdatedAt: Date
-  skipFetchRate?: boolean
-}
-
-export interface IToken {
+export interface IDBToken {
   address: HexAddress
   network: NetworksEnum
   type: ITokenType
@@ -79,7 +66,7 @@ export interface ITokenMetadata {
 
 export interface ITokenUpdate {
   priceUsd: string
-  priceChangeOnDayUsd: string
+  priceChangeOnDayUsd?: string
   holders: number
   totalSupply: string
 }

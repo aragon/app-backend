@@ -1,6 +1,6 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { type HexAddress, type ITokenRate, ITokenType, type NetworksEnum } from '@types'
+import { type HexAddress, type ITokenDetails, ITokenType, type NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -128,7 +128,7 @@ export const ProxyToken = {
           type: tokenTypeInfo.type,
           network,
         },
-        tokenDetails as ITokenRate,
+        tokenDetails,
       ),
     }
 
@@ -165,7 +165,7 @@ export const ProxyToken = {
     return !!permissionConfig
   },
 
-  shouldSkipFetch: (token: Partial<Token>, tokenRate: ITokenRate): boolean =>
+  shouldSkipFetch: (token: Partial<Token>, tokenRate: ITokenDetails): boolean =>
     (!token.symbol ||
       token.isGovernance ||
       token.type === ITokenType.unknown ||

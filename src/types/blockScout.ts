@@ -5,9 +5,9 @@ export interface ITokenFullDetails {
   decimals: number
   totalSupply?: string
   holders?: number
-  logo: string | null
+  logo?: string | null
   type?: string
-  priceUsd: string
+  priceUsd?: string
 }
 
 export enum IBlockScoutAddressType {

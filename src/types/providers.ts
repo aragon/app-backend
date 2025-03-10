@@ -59,19 +59,22 @@ export interface IAssetTransferTxLog {
   }
 }
 
+export interface ITokenDetails {
+  address: HexAddress
+  name: string
+  symbol: string
+  decimals: number
+  logo?: string | null
+  priceUsd?: string
+  type?: ITokenType
+  totalSupply?: string
+  totalHolders?: number
+  priceChangeOnDayUsd?: string | undefined
+  lastUpdatedAt?: any
+}
+
 export interface ITokenProviderInfo {
-  tokenDetails: {
-    address: HexAddress
-    name: string
-    symbol: string
-    decimals: number
-    logo?: string
-    priceUsd?: string
-    type?: ITokenType
-    totalSupply?: string
-    totalHolders?: number
-    priceChangeOnDayUsd?: string
-  }
+  tokenDetails: ITokenDetails
   tokenMetrics: ITokenMetrics
 }
 

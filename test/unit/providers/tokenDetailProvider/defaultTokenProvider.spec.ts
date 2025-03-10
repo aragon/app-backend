@@ -369,4 +369,79 @@ describe('Module: DefaultTokenProvider', () => {
       expect(blockScoutStub.args[0][1]).to.be.eq(NetworksEnum.ethereumMainnet)
     })
   })
+
+  describe('fetchBasicTokenInfo', () => {
+    it('should fetch basic token info for default provider', async () => {
+      const tokenDb = {
+        address: '0x123456789abcdef',
+        network: NetworksEnum.ethereumMainnet,
+        name: 'test',
+        symbol: 'TST',
+        decimals: 18,
+        logo: 'fake-logo',
+        isGovernance: true,
+        type: ITokenType.ERC20,
+      }
+
+      const tokenInfo = {
+        name: 'test',
+        symbol: 'TST',
+        decimals: 18,
+        logo: 'fake-logo',
+      }
+
+      const tokenInfoStub = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(tokenInfo as any)
+
+      const result = await DefaultNetworkTokenProvider.fetchBasicTokenInfo(tokenDb as any)
+
+      expect(tokenInfoStub.calledOnce).to.be.true
+      expect(tokenInfoStub.args[0][0]).to.be.eq(tokenDb.address)
+      expect(tokenInfoStub.args[0][1]).to.be.eq(tokenDb.network)
+      expect(result).to.be.deep.eq(tokenInfo)
+    })
+
+    it('should fetch detail if block scout is null', async () => {
+      const tokenDb = {
+        address: '0x123456789abcdef',
+        network: NetworksEnum.ethereumMainnet,
+        name: 'test',
+        symbol: 'TST',
+        decimals: 18,
+        logo: 'fake-logo',
+        isGovernance: true,
+        type: ITokenType.ERC20,
+      }
+
+      const tokenInfoStub = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(null)
+      const tokenDetailsWithRateStub = sandbox.stub(RateModule, 'fetchRate').resolves({
+        name: 'test',
+        symbol: 'TST',
+        decimals: 18,
+        logo: 'fake-logo',
+        priceUsd: '0',
+      } as any)
+
+      const metricStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
+        totalHolders: 1,
+        totalSupply: '1',
+      } as any)
+
+      const result = await DefaultNetworkTokenProvider.fetchBasicTokenInfo(tokenDb as any)
+
+      expect(tokenInfoStub.calledOnce).to.be.true
+      expect(tokenInfoStub.args[0][0]).to.be.eq(tokenDb.address)
+      expect(tokenInfoStub.args[0][1]).to.be.eq(tokenDb.network)
+      expect(result).to.be.deep.eq({
+        name: 'test',
+        symbol: 'TST',
+        decimals: 18,
+        priceUsd: '0',
+        logo: 'fake-logo',
+        totalHolders: 1,
+        totalSupply: '1',
+      })
+      expect(tokenDetailsWithRateStub.calledOnce).to.be.true
+      expect(metricStub.calledOnce).to.be.true
+    })
+  })
 })
