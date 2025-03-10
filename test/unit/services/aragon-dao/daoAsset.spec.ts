@@ -6,7 +6,6 @@ import { IAlchemyTokenBalance, NetworksEnum } from '@types'
 import Logger from '@logger'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
 import TokenUtils from '@helpers/tokenUtils'
@@ -62,116 +61,202 @@ describe('AragonDao:Assets', () => {
     })
   })
 
-  describe('assets', () => {
-    it('should create new assets for a DAO', async () => {
-      const dao = { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } as any
-      const fakeEthBalance = '1000000000000000000'
-      const fakeTokenBalances: IAlchemyTokenBalance[] = [
-        { contractAddress: '0xToken1', tokenBalance: '500000' } as any,
-        { contractAddress: '0xToken2', tokenBalance: '300000' } as any,
-        { contractAddress: '0xToken3', tokenBalance: '2000' } as any,
-      ]
-      const fakeNativeToken = {
-        address: utils.zeroAddress,
-        name: 'Ether',
-        symbol: 'ETH',
-        decimals: 18,
-        priceUsd: '1000',
-        network: dao.network,
-      }
-      const fakeToken1 = {
-        address: '0xToken1',
-        name: 'Token1',
-        symbol: 'T1',
-        decimals: 18,
-        priceUsd: '10',
-        network: dao.network,
-      }
-      const fakeToken2 = {
-        address: '0xToken2',
-        name: 'Token2',
-        symbol: 'T2',
-        decimals: 18,
-        priceUsd: '1',
-        network: dao.network,
-      }
-
-      const fakeToken3 = {
-        address: '0xToken2',
-        name: 'Token2',
-        symbol: 'T2',
-        decimals: 18,
-        priceUsd: '1',
-        network: dao.network,
-      }
-
-      sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
-      sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
-      const saveAndGetProxyToken = sandbox
-        .stub(ProxyToken, 'saveAndGetToken')
-        .onCall(0)
-        .resolves(fakeNativeToken as any)
-        .onCall(1)
-        .resolves(fakeToken1 as any)
-        .onCall(2)
-        .resolves(fakeToken2 as any)
-        .onCall(3)
-        .resolves(fakeToken3 as any)
-
+  describe('_handleNativeToken', () => {
+    it('should process native token correctly', async () => {
       const stubLogger = sandbox.stub(Logger, 'verbose')
-      const createStub = sandbox.stub(Models.Asset, 'create').resolves()
-      const web3TokenDetailStub = sandbox
-        .stub(TokenUtils, 'isTokenSyncable')
-        .onCall(0)
-        .resolves(true)
-        .onCall(1)
-        .resolves(false)
-        .onCall(2)
-        .resolves(true)
-
-      const loggerWarn = sandbox.stub(Logger, 'warn')
-
-      await DaoAssets.assets(dao)
-
-      expect(stubLogger.calledWithMatch('New Native Asset' as any)).to.be.true
-      expect(stubLogger.calledWithMatch('New Token Asset' as any)).to.be.true
-      expect(createStub.callCount).to.equal(3)
-      expect(web3TokenDetailStub.callCount).to.equal(3)
-      expect(web3TokenDetailStub.args[0][0]).to.be.eq(fakeToken1.address)
-      expect(web3TokenDetailStub.args[1][0]).to.be.eq(fakeToken2.address)
-
-      expect(loggerWarn.callCount).to.equal(1)
-      expect(saveAndGetProxyToken.callCount).to.equal(3)
-    })
-
-    it('should update existing assets for a DAO', async () => {
-      const dao = { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } as any
-      const fakeEthBalance = '2000000000000000000'
-      const fakeTokenBalances: IAlchemyTokenBalance[] = [{ contractAddress: '0xToken1', tokenBalance: '700000' } as any]
-
-      sandbox.stub(Web3Helper, 'getBalance').resolves(fakeEthBalance as any)
-      sandbox.stub(Web3Helper, 'getTokenBalances').resolves(fakeTokenBalances as any)
-      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        address: '0xToken1',
-        priceUsd: '5',
+      const stubSaveToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        priceUsd: '1000',
         decimals: 18,
       } as any)
-      sandbox.stub(Models.Asset, 'findExistingLog').resolves({ update: sandbox.stub().resolves() } as any)
+      const stubConvert = sandbox.stub(Web3Helper, 'convertBalanceToUsd').returns('1000')
+      const stubUpdate = sandbox.stub(Models.Asset.prototype, 'update').resolves()
+      const stubCreate = sandbox.stub(Models.Asset, 'create').resolves()
+
+      await DaoAssets._handleNativeToken({ address: '0xDao', network: NetworksEnum.ethereumMainnet } as any, '1')
+
+      expect(stubSaveToken.calledOnce).to.be.true
+      expect(stubConvert.calledOnce).to.be.true
+      expect(stubUpdate.calledOnce).to.be.false
+      expect(stubCreate.calledOnce).to.be.true
+      expect(stubLogger.calledWithMatch('New Native Asset' as any)).to.be.true
+    })
+
+    it('should update existing native asset', async () => {
       const stubLogger = sandbox.stub(Logger, 'verbose')
+      const stubSaveToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        priceUsd: '1000',
+        decimals: 18,
+      } as any)
+      const stubConvert = sandbox.stub(Web3Helper, 'convertBalanceToUsd').returns('1000')
+      const stubUpdate = sandbox.stub(Models.Asset.prototype, 'update').resolves()
+      sandbox.stub(Models.Asset, 'findExistingLog').resolves({ update: stubUpdate } as any)
 
-      await DaoAssets.assets(dao)
+      await DaoAssets._handleNativeToken({ address: '0xDao', network: NetworksEnum.ethereumMainnet } as any, '1')
 
-      expect(stubLogger.calledWithMatch('Update Token Asset' as any)).to.be.true
+      expect(stubSaveToken.calledOnce).to.be.true
+      expect(stubConvert.calledOnce).to.be.true
+      expect(stubUpdate.calledOnce).to.be.true
       expect(stubLogger.calledWithMatch('Update Native Asset' as any)).to.be.true
     })
 
-    it('should handle errors while processing assets', async () => {
-      const dao = { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } as any
-      sandbox.stub(Web3Helper, 'getBalance').rejects(new Error('Test error'))
+    it('should log error if token is not found', async () => {
       const stubLogger = sandbox.stub(Logger, 'error')
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
 
-      await DaoAssets.assets(dao)
+      await DaoAssets._handleNativeToken(
+        {
+          address: '0xDao',
+          network: NetworksEnum.ethereumMainnet,
+          id: 'dao1',
+        } as any,
+        '1',
+      )
+
+      expect(stubLogger.calledWithMatch('assets token not found' as any)).to.be.true
+    })
+
+    it('should log error on failure', async () => {
+      const stubLogger = sandbox.stub(Logger, 'error')
+      sandbox.stub(ProxyToken, 'saveAndGetToken').throws(new Error('Test Error'))
+
+      await DaoAssets._handleNativeToken(
+        {
+          address: '0xDao',
+          network: NetworksEnum.ethereumMainnet,
+          id: 'dao1',
+        } as any,
+        '1',
+      )
+
+      expect(stubLogger.calledWithMatch('error asset handle native token' as any)).to.be.true
+    })
+  })
+
+  describe('_handleErc20Token', () => {
+    it('should process ERC20 token correctly', async () => {
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      const stubSyncable = sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      const stubSaveToken = sandbox
+        .stub(ProxyToken, 'saveAndGetToken')
+        .resolves({ priceUsd: '10', decimals: 18 } as any)
+      const stubConvert = sandbox.stub(Web3Helper, 'convertBalanceToUsd').returns('5000')
+      const stubUpdate = sandbox.stub(Models.Asset.prototype, 'update').resolves()
+      const stubCreate = sandbox.stub(Models.Asset, 'create').resolves()
+
+      await DaoAssets._handleErc20Token(
+        { address: '0xDao', network: NetworksEnum.ethereumMainnet } as any,
+        { contractAddress: '0xToken', tokenBalance: '500' } as any,
+      )
+
+      expect(stubSyncable.calledOnce).to.be.true
+      expect(stubSaveToken.calledOnce).to.be.true
+      expect(stubConvert.calledOnce).to.be.true
+      expect(stubUpdate.calledOnce).to.be.false
+      expect(stubCreate.calledOnce).to.be.true
+      expect(stubLogger.calledWithMatch('New Token Asset' as any)).to.be.true
+    })
+
+    it('should update existing token asset', async () => {
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      const stubSyncable = sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      const stubSaveToken = sandbox
+        .stub(ProxyToken, 'saveAndGetToken')
+        .resolves({ priceUsd: '10', decimals: 18 } as any)
+      const stubConvert = sandbox.stub(Web3Helper, 'convertBalanceToUsd').returns('5000')
+      const stubUpdate = sandbox.stub(Models.Asset.prototype, 'update').resolves()
+      sandbox.stub(Models.Asset, 'findExistingLog').resolves({ update: stubUpdate } as any)
+
+      await DaoAssets._handleErc20Token(
+        { address: '0xDao', network: NetworksEnum.ethereumMainnet } as any,
+        { contractAddress: '0xToken', tokenBalance: '500' } as any,
+      )
+
+      expect(stubSyncable.calledOnce).to.be.true
+      expect(stubSaveToken.calledOnce).to.be.true
+      expect(stubConvert.calledOnce).to.be.true
+      expect(stubUpdate.calledOnce).to.be.true
+      expect(stubLogger.calledWithMatch('Update Token Asset' as any)).to.be.true
+    })
+
+    it('should log warning if token is marked as spam', async () => {
+      const stubLogger = sandbox.stub(Logger, 'warn')
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
+
+      await DaoAssets._handleErc20Token(
+        { address: '0xDao', network: NetworksEnum.ethereumMainnet } as any,
+        { contractAddress: '0xToken', tokenBalance: '500' } as any,
+      )
+
+      expect(stubLogger.calledWithMatch('Skip Token Asset: Marked as spam' as any)).to.be.true
+    })
+
+    it('should log error if token not found', async () => {
+      const stubLogger = sandbox.stub(Logger, 'error')
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+
+      await DaoAssets._handleErc20Token(
+        { address: '0xDao', network: NetworksEnum.ethereumMainnet, id: '123' } as any,
+        { contractAddress: '0xToken', tokenBalance: '500' } as any,
+      )
+
+      expect(stubLogger.calledOnceWith('tokenBalances token not found' as any)).to.be.true
+    })
+
+    it('should log error on failure', async () => {
+      const stubLogger = sandbox.stub(Logger, 'error')
+      sandbox.stub(TokenUtils, 'isTokenSyncable').throws(new Error('Test Error'))
+
+      await DaoAssets._handleErc20Token(
+        { address: '0xDao', network: NetworksEnum.ethereumMainnet } as any,
+        { contractAddress: '0xToken', tokenBalance: '500' } as any,
+      )
+
+      expect(stubLogger.calledWithMatch('error asset handle erc20 token' as any)).to.be.true
+    })
+  })
+
+  describe('assets', () => {
+    it('should process DAO assets correctly', async () => {
+      const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves('1')
+      const stubGetTokens = sandbox
+        .stub(Web3Helper, 'getTokenBalances')
+        .resolves([
+          { contractAddress: '0xToken', tokenBalance: '500' } as IAlchemyTokenBalance,
+          { contractAddress: '0xToken1', tokenBalance: '0' } as IAlchemyTokenBalance,
+        ])
+      const stubHandleNative = sandbox.stub(DaoAssets, '_handleNativeToken').resolves()
+      const stubHandleErc20 = sandbox.stub(DaoAssets, '_handleErc20Token').resolves()
+
+      await DaoAssets.assets({ address: '0xDao', network: NetworksEnum.ethereumMainnet } as any)
+
+      expect(stubGetBalance.calledOnce).to.be.true
+      expect(stubGetTokens.calledOnce).to.be.true
+      expect(stubHandleNative.calledOnce).to.be.true
+      expect(stubHandleErc20.calledOnce).to.be.true
+    })
+
+    it('should process _handleErc20Token when token balance not exist', async () => {
+      const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves('0')
+      const stubGetTokens = sandbox
+        .stub(Web3Helper, 'getTokenBalances')
+        .resolves([{ contractAddress: '0xToken', tokenBalance: '500' } as IAlchemyTokenBalance])
+      const stubHandleNative = sandbox.stub(DaoAssets, '_handleNativeToken')
+      const stubHandleErc20 = sandbox.stub(DaoAssets, '_handleErc20Token').resolves()
+
+      await DaoAssets.assets({ address: '0xDao', network: NetworksEnum.ethereumMainnet } as any)
+
+      expect(stubGetBalance.calledOnce).to.be.true
+      expect(stubGetTokens.calledOnce).to.be.true
+      expect(stubHandleNative.notCalled).to.be.true
+      expect(stubHandleErc20.calledOnce).to.be.true
+    })
+
+    it('should log error when processing assets fails', async () => {
+      const stubLogger = sandbox.stub(Logger, 'error')
+      sandbox.stub(Web3Helper, 'getBalance').rejects(new Error('Test Error'))
+
+      await DaoAssets.assets({ address: '0xDao', network: NetworksEnum.ethereumMainnet } as any)
 
       expect(stubLogger.calledWithMatch('Error DaoAssets' as any)).to.be.true
     })
