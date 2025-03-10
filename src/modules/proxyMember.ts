@@ -1,5 +1,5 @@
 import { Models } from '@dbModels'
-import { type HexAddress, IMetricAction, ITransferSide, ITransferType, type NetworksEnum } from '@types'
+import { type HexAddress, IMetricAction, type NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import EnsHelper from '@helpers/ens'
@@ -165,13 +165,7 @@ export const ProxyMember = {
 
     if (!metrics) return
 
-    const delegationReceived = await Models.MemberTransaction.getReceiveDelegationCount(
-      memberAddress,
-      tokenAddress,
-      network,
-    )
-    console.log('delegationReceived', delegationReceived)
-    return delegationReceived
+    return await Models.MemberTransaction.getReceiveDelegationCount(memberAddress, tokenAddress, network)
   },
 
   updateMetricsByAction: async (
