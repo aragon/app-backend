@@ -81,10 +81,10 @@ class BlockchainLogCrawler {
   calculateBatchSize(network: NetworksEnum): number {
     // Constants for seconds in a 30-day month
 
-    let days = 120
+    let days = 30
     switch (network) {
       case NetworksEnum.peaqMainnet:
-        days = 2
+        days = 0.1
     }
 
     const SECONDS_IN_MONTH = days * 24 * 3600
