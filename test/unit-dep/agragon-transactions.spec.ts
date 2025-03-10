@@ -35,7 +35,7 @@ describe('AragonTransactions', () => {
     // Stop listening to new blocks after processNewBlock gets called
     Object.keys(ProviderModule.providerProxies).forEach(network => {
       const proxy = ProviderModule.providerProxies[network as NetworksEnum]
-      if (proxy?.aragon?.ws) proxy.aragon.ws.removeAllListeners('block')
+      if (proxy?.aragon?.ws?.removeAllListeners) proxy.aragon.ws.removeAllListeners('block')
       if (proxy?.alchemy?.ws) proxy.alchemy.ws.removeAllListeners('block')
     })
   })

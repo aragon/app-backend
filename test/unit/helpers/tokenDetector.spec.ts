@@ -8,6 +8,7 @@ import { expect } from 'chai'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
 import utils from '@helpers/utils'
+import logger from '@logger'
 
 describe('Helper: TokenDetector', () => {
   let sandbox: SinonSandbox
@@ -153,11 +154,14 @@ describe('Helper: TokenDetector', () => {
       getCode: sandbox.stub().rejects(new Error('Failed to fetch bytecode')),
     } as any)
 
+    const loggerStub = sandbox.stub(logger, 'error')
+
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.implementationAddress).to.be.null
     expect(result.proxy).to.be.false
     expect(result.type).to.eq(ITokenType.unknown)
     expect(result.isGovernance).to.be.false
     expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(loggerStub.calledWith('Error detecting token type' as any)).to.be.true
   })
 })

@@ -111,4 +111,24 @@ describe('Module: ProviderFactory', () => {
 
     expect(defaultNetworkTokenProviderStub.calledWith('tokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
   })
+
+  it('should handle fetchBasicTokenInfo with peaq network', async () => {
+    const peaqNetworkTokenProviderStub = sandbox.stub(PeaqNetworkTokenProvider, 'fetchBasicTokenInfo')
+    const defaultNetworkTokenProviderStub = sandbox.stub(DefaultNetworkTokenProvider, 'fetchBasicTokenInfo')
+
+    await ProviderFactory.fetchBasicTokenInfo({ network: NetworksEnum.peaqMainnet } as any)
+
+    expect(peaqNetworkTokenProviderStub.calledOnce).to.be.true
+    expect(defaultNetworkTokenProviderStub.calledOnce).to.be.false
+  })
+
+  it('should handle fetchBasicTokenInfo with default network', async () => {
+    const peaqNetworkTokenProviderStub = sandbox.stub(PeaqNetworkTokenProvider, 'fetchBasicTokenInfo')
+    const defaultNetworkTokenProviderStub = sandbox.stub(DefaultNetworkTokenProvider, 'fetchBasicTokenInfo')
+
+    await ProviderFactory.fetchBasicTokenInfo({ network: NetworksEnum.ethereumMainnet } as any)
+
+    expect(peaqNetworkTokenProviderStub.calledOnce).to.be.false
+    expect(defaultNetworkTokenProviderStub.calledOnce).to.be.true
+  })
 })

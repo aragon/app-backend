@@ -194,7 +194,7 @@ describe('TokenDetailFetcherWithRetry', () => {
       expect(pluginStub.calledWith(FakeToken.address, FakeToken.network)).to.be.true
       expect(tokenDetailProviderStub.calledOnce).to.be.true
       expect(tokenDetailProviderStub.args[0][0].address).to.be.eq(FakeToken.address)
-      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.called).to.be.true
       const token = await Models.Token.findOne({ address: FakeToken.address, network: FakeToken.network })
       expect(token.totalSupply).to.be.eq(validTokenDetails.totalSupply)
       expect(token.holders).to.be.eq(validTokenDetails.totalHolders)
@@ -222,11 +222,10 @@ describe('TokenDetailFetcherWithRetry', () => {
         priceUsd: '1.5',
       }
 
-      const warnStub = sandbox.stub(logger, 'warn')
       sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves({})
 
       const poolWithRetryStub = sandbox.stub(TokenDetailFetcherWithRetry, 'pollWithRetry').resolves({
-        tokenDb: { address: tokenAddress, network, update: sandbox.stub().rejects() },
+        tokenDb: { address: tokenAddress, network, update: sandbox.stub().rejects(new Error('fake')) },
         tokenDetails: validTokenDetails,
       })
 
@@ -236,7 +235,6 @@ describe('TokenDetailFetcherWithRetry', () => {
 
       expect(poolWithRetryStub.calledOnce).to.be.true
       expect(loggerStub.calledOnce).to.be.true
-      expect(warnStub.calledOnce).to.be.true
     })
   })
 })

@@ -1,9 +1,16 @@
 import SubscanApi from '@helpers/subscanApi'
-import { EnumQueueName, type ITokenDetailsProvider, type ITokenProviderInfoArg, type NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  type ISubScanTokenInfo,
+  type ITokenDetailsProvider,
+  type ITokenProviderInfoArg,
+  type NetworksEnum,
+} from '@types'
 import utils from '@helpers/utils'
 import logger from '@logger'
 import type Token from '@models/schema/token'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:PeaqTokenProvider' })
 
@@ -15,7 +22,7 @@ export const PeaqNetworkTokenProvider: ITokenDetailsProvider = {
         : await SubscanApi.getTokenFullDetails(tokenAddress, network)
 
     if (!tokenInfo.name || tokenInfo.name === '') {
-      logger.error(
+      logger.warn(
         'Token name is empty for token address',
         llo({
           tokenInfo,
@@ -23,6 +30,9 @@ export const PeaqNetworkTokenProvider: ITokenDetailsProvider = {
           network,
         }),
       )
+
+      // fetch token info from web3
+      Object.assign(tokenInfo, await Web3Helper.getTokenInfo(tokenAddress, network))
 
       await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
         id: `token-metrics${tokenAddress}`,
@@ -52,7 +62,7 @@ export const PeaqNetworkTokenProvider: ITokenDetailsProvider = {
     return SubscanApi.getContractSourceCode(contractAddress, network)
   },
 
-  async fetchBasicTokenInfo(tokenDb: Token) {
+  async fetchBasicTokenInfo(tokenDb: Token): Promise<Partial<ISubScanTokenInfo>> {
     return SubscanApi.getTokenFullDetails(tokenDb.address, tokenDb.network)
   },
 }

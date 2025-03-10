@@ -92,7 +92,7 @@ class EventListener {
     }
 
     if (this.lastBlock + 1 !== blockNumber) {
-      logger.verbose(
+      logger.warn(
         'Block Missed from on-chain',
         llo({
           currentBlock: blockNumber,
@@ -129,11 +129,6 @@ class EventListener {
       const sortedLogs = logs.sort(
         (a: Log, b: Log) => priorityTopics.indexOf(a.topics[0]) - priorityTopics.indexOf(b.topics[0]),
       )
-
-      if (sortedLogs.length === 0) {
-        logger.silly('No logs found for topics', llo({ blockNumber, network: this.network }))
-        return
-      }
 
       for (const log of sortedLogs) {
         await this.handleEvent(log)

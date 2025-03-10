@@ -520,14 +520,6 @@ export const PluginHandler = {
         return
       }
 
-      // TODO: before here the build was 4 and in peaq network we have 3
-      if (Number(plugin.build) >= 3) {
-        const targetConfig = await Web3Helper.getTargetConfig(network, plugin.address)
-        if (targetConfig && targetConfig !== plugin.daoAddress) {
-          return
-        }
-      }
-
       const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
       const uninstallationAppliedLogs = Web3Helper.findLogsByName(
         txReceipt!,
@@ -537,6 +529,14 @@ export const PluginHandler = {
 
       if (uninstallationAppliedLogs.length) {
         return
+      }
+
+      const pluginInfo = await PluginDetector.detectPluginType(pluginAddress, network)
+      if (pluginInfo.hasTarget) {
+        const targetConfig = await Web3Helper.getTargetConfig(network, plugin.address)
+        if (targetConfig && targetConfig !== plugin.daoAddress) {
+          return
+        }
       }
 
       const updatedDocument = {

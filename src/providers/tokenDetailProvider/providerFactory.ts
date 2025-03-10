@@ -1,10 +1,14 @@
-import { type ITokenProviderInfoArg, NetworksEnum } from '@types'
+import { type ITokenProviderInfo, type ITokenProviderInfoArg, NetworksEnum } from '@types'
 import { PeaqNetworkTokenProvider } from '@providers/tokenDetailProvider/peaqNetworkProvider'
 import { DefaultNetworkTokenProvider } from '@providers/tokenDetailProvider/defaultNetworkProvider'
 import type Token from '@models/schema/token'
 
 class TokenDetailProvider {
-  static async fetchTokenDetails(network: NetworksEnum, tokenAddress: string, tokenTypeInfo: ITokenProviderInfoArg) {
+  static async fetchTokenDetails(
+    network: NetworksEnum,
+    tokenAddress: string,
+    tokenTypeInfo: ITokenProviderInfoArg,
+  ): Promise<ITokenProviderInfo> {
     switch (network) {
       case NetworksEnum.peaqMainnet:
         return PeaqNetworkTokenProvider.fetchTokenDetails(tokenTypeInfo, tokenAddress, network)
