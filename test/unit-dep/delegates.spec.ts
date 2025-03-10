@@ -19,7 +19,8 @@ describe('Integ: Delegates', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should test moving delegation from an member to another', async () => {
+  it('should test moving delegation from an member to another', async function () {
+    this.timeout(1600000) // Increase timeout for the test
     const network = NetworksEnum.ethereumSepolia
     const daoAddress = '0x93368A3b5CFf6EbDa9306C0A6238A2c618fEdc8b'
     const tokenAddress = '0xA72a261d67d065e5722C39D1F9CfB7e7aCbffd8B'

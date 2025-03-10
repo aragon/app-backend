@@ -71,6 +71,10 @@ export const GovernanceErc20Handler = {
       })
 
       const token = await ProxyToken.saveAndGetToken(info.address, info.network)
+      if (!token) {
+        logger.error('handleTransfer token not found', llo({ info }))
+      }
+
       if (existingLog) {
         return await GovernanceErc20Handler._handleDaoMemberShip(
           existingLog,

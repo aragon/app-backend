@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { EnumConnection, type IService } from '@types'
+import { EnumConnection, EnumQueueName, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { NetworkHelper } from '@helpers/network'
 import configIndexer from '@indexer/configIndexer'
@@ -10,6 +10,7 @@ import { SyncAll } from '@indexer/syncAll'
 
 import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -43,6 +44,12 @@ const AragonIndexerService: IService & { repeaters: any } = {
         // realtime after sync
         const eventListener = new EventListener(networkName, configIndexer)
         eventListener.subscribeEventsByNewBlock()
+
+        // resync all metrics by network
+        await RabbitMQHelper.sendMessage(EnumQueueName.allMetrics, {
+          id: `${EnumQueueName.allMetrics}-${networkName}`,
+          params: { network: networkName },
+        })
       }),
     )
 
