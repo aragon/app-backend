@@ -6,7 +6,6 @@ import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import { NetworksEnum } from '@types'
 import { ProposalList } from '@test/mock/fakeProposal'
 import logger from '@logger'
-import Logger from '@logger'
 
 describe('AragonDao:ProposalMetrics', () => {
   let sandbox: SinonSandbox
@@ -123,7 +122,7 @@ describe('AragonDao:ProposalMetrics', () => {
 
     it('should throw', async () => {
       sandbox.stub(Models.Proposal, 'findByProposalIndex').rejects(new Error('error'))
-      const loggerStub = sandbox.stub(Logger, 'error')
+      const loggerStub = sandbox.stub(logger, 'error')
 
       await ProposalMetrics.proposalTokenVotingMetrics({
         proposalIndex: '1',

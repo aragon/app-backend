@@ -32,6 +32,7 @@ describe('Integration: SPP Dao Installation  ', () => {
     this.timeout(10000000)
 
     sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
+      address: '0x00',
       decimals: 18,
       name: 'Wrapped Ether',
       symbol: 'WETH',
