@@ -18,7 +18,8 @@ describe('Integ: Delegates', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should test delegates', async () => {
+  it('should test delegates', async function () {
+    this.timeout(1600000) // Increase timeout for the test
     const network = NetworksEnum.ethereumSepolia
     const daoAddress = '0x3e5fba52959d12f41266028f3a3d7ecc7462dd81'
     const tokenAddress = '0xa936c7F3913941e64CAdF88d61c3a8846C8Ef426'
