@@ -17,6 +17,7 @@ export interface ITokenInfo {
 
 export interface ITokenRate {
   priceUsd: string
+  address: HexAddress
   priceChangeOnDayUsd: string
   type: ITokenType
   logo: string
