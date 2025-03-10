@@ -8,7 +8,7 @@ import {
   type IProposalMetadata,
   IProviderType,
   ITransactionType,
-  type NetworksEnum,
+  NetworksEnum,
 } from '@types'
 import {
   AbiCoder,
@@ -556,6 +556,31 @@ const Web3Helper = {
         llo({ rawParams: { address, tokenAddress, blockNumber, network }, error, params }),
       )
       return '0'
+    }
+  },
+
+  async getChainAdjustedBlockNumber(arbBlock: number, network: NetworksEnum): Promise<number> {
+    if (network !== NetworksEnum.arbitrumMainnet) {
+      return arbBlock
+    }
+
+    try {
+      const blockTag = `0x${BigInt(arbBlock).toString(16)}`
+      const abi = ['function getL1BlockNumber() view returns (uint256)']
+      const address = '0x7eCfBaa8742fDf5756DAC92fbc8b90a19b8815bF' // static contract
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const iface = new Interface(abi)
+      const data = iface.encodeFunctionData('getL1BlockNumber', [])
+      const params = { to: address, data }
+      const response = await retryRequest(async () =>
+        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () => provider.call(params, blockTag)),
+      )
+
+      const blockNumberOfL1 = iface.decodeFunctionResult('getL1BlockNumber', response)[0]
+      return Number(blockNumberOfL1)
+    } catch (e) {
+      logger.error('Error getBlockNumberOnArbitrum', llo({ arbBlock, network, error: e }))
+      return arbBlock
     }
   },
 
