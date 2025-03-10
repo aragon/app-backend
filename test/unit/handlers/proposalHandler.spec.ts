@@ -676,7 +676,7 @@ describe('Indexer: ProposalHandler', () => {
       const existingVote = {
         transactionHash: '0xOldTx',
         proposalIndex: '2',
-        deleteOne: sinon.stub().resolves(),
+        deleteOne: sandbox.stub().resolves(),
       }
 
       sandbox.stub(logger, 'verbose')

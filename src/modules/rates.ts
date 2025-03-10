@@ -13,6 +13,7 @@ export const RateModule = {
     pastDays?: number,
   ): Promise<ITokenRate> => {
     const tokenRate: any = {
+      address: tokenAddress,
       decimals: null,
       name: null,
       symbol: null,
