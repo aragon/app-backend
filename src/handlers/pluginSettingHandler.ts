@@ -11,6 +11,7 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
+import MultisigHelper from '@helpers/multisig'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
 
@@ -126,6 +127,7 @@ export const PluginSettingHandler = {
   },
 
   multisigSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
+    // Note: we cannot trust data from parsedEvent, as it can be manipulated
     const { address: pluginAddress, transactionHash, blockNumber, network } = info
     const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, network)
 
@@ -146,6 +148,8 @@ export const PluginSettingHandler = {
       pluginAddress,
     })
 
+    const findSettings = await MultisigHelper.findSettings(pluginAddress, network)
+
     const settingLog = {
       blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
@@ -155,8 +159,8 @@ export const PluginSettingHandler = {
       pluginAddress,
       pluginSubdomain: relatedPlugin.subdomain,
       network,
-      onlyListed: parsedEvent.args.onlyListed,
-      minApprovals: Number(parsedEvent.args.minApprovals),
+      onlyListed: findSettings?.onlyListed,
+      minApprovals: findSettings?.minApprovals || 0,
     }
 
     await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - multisigSettingsUpdated', llo)
@@ -174,7 +178,10 @@ export const PluginSettingHandler = {
       )
     }
 
-    await PluginSettingHandler.isSupported(relatedPlugin, info)
+    if (findSettings !== undefined) {
+      await PluginSettingHandler.isSupported(relatedPlugin, info)
+    }
+
     return relatedPlugin
   },
 
