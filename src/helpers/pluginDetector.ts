@@ -10,7 +10,7 @@ const llo = logger.logMeta.bind(null, { service: 'helper:PluginDetector' })
 const PluginDetector = {
   SPP_FUNCTIONS: ['getStages(uint256)'],
   TOKEN_VOTING_FUNCTIONS: ['getVotingToken()', 'totalVotingPower(uint256)'],
-  MULTISIG_FUNCTIONS: ['isMember(address)', 'isListed(address)'],
+  MULTISIG_FUNCTIONS: ['isMember(address)', 'isListed(address)', 'multisigSettings()'],
   ADMIN_FUNCTIONS: ['isMember(address)'],
   GAUGE_VOTER_FUNCTIONS: [
     'createGauge(address,string)',
