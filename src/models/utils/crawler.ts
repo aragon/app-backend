@@ -164,7 +164,7 @@ class DBCrawler {
       const documents = await response.exec()
       return documents
     } else {
-      let response = this.model.find(where).select(select).populate(populate)
+      let response: any = this.model.find(where).select(select).populate(populate)
 
       if (limit && !this.disablePagination) {
         response = response.limit(limit)

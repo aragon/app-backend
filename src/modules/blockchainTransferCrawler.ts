@@ -99,7 +99,7 @@ class BlockchainTransferCrawler {
       try {
         const provider = this.getProvider()
         return await retryRequest(async () =>
-          BottleneckModule.getNodeTransferLimiter(this.network)!.schedule(async () => provider.getBlockNumber()),
+          BottleneckModule.getNodeTransferLimiter(this.network).schedule(async () => provider.getBlockNumber()),
         )
       } catch (error) {
         logger.error(
@@ -147,7 +147,7 @@ class BlockchainTransferCrawler {
         try {
           const provider = this.getProvider()
           const response = await retryRequest(async () =>
-            BottleneckModule.getNodeTransferLimiter(this.network)!.schedule(async () =>
+            BottleneckModule.getNodeTransferLimiter(this.network).schedule(async () =>
               provider.send('alchemy_getAssetTransfers', [
                 {
                   fromBlock: currentBlock !== 0 ? Web3Helper.convertToHexNumber(currentBlock) : undefined,
