@@ -4,6 +4,11 @@ export interface IPluginInfo {
   implementationAddress: string | null
 }
 
+export interface IMultiSigSettings {
+  onlyListed: boolean
+  minApprovals: bigint
+}
+
 export enum IPluginActionType {
   preInstall = 'pre-install',
   installed = 'installed',
