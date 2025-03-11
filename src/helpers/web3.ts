@@ -3,6 +3,7 @@ import {
   type HexAddress,
   type ILogInfo,
   type IMetadata,
+  type IMultiSigSettings,
   type IProposalMetadata,
   ITransactionType,
   NetworksEnum,
@@ -713,6 +714,19 @@ const Web3Helper = {
     }
 
     return 0n
+  },
+
+  async getMultisigSettings(address: HexAddress, network: NetworksEnum): Promise<IMultiSigSettings | undefined> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const multisigInstance = new Contract(address, Multisig.abi, provider)
+
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network)!.schedule(async () => multisigInstance.multisigSettings()),
+      )
+    } catch (error) {
+      logger.warn('Error getting multisig settings', llo({ error, address }))
+    }
   },
 
   async getTokenInfo(
