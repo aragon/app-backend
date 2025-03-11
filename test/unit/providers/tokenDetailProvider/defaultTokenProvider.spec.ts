@@ -12,7 +12,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import EtherscanHelper from '@helpers/etherscan'
 import BlockScoutHelper from '@helpers/blockScout'
 
-describe.only('Module: DefaultTokenProvider', () => {
+describe('Module: DefaultTokenProvider', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
