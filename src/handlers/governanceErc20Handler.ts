@@ -291,7 +291,7 @@ export const GovernanceErc20Handler = {
 
       if ((from === utils.zeroAddress && to === utils.zeroAddress) || from === to) {
         // Note we skip all delegation happened on transfer, mint, burn, etc
-        logger.error('Error from and to address', llo({ from, to, info }))
+        logger.warn('Skip from and to address', llo({ from, to, info }))
         return
       }
 
