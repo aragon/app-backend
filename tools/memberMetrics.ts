@@ -75,7 +75,7 @@ export const ToolsMemberMetrics: IExtendedService = {
       const plugins = await Models.Plugin.find({ isSupported: true, tokenAddress: sent.tokenAddress })
 
       for (const plugin of plugins) {
-        await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
+        await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateReceivedCount, {
           memberAddress: member.address,
           pluginAddress: plugin.address,
           network: plugin.network,

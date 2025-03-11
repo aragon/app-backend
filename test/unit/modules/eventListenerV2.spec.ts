@@ -646,12 +646,6 @@ describe('Module: EventListenerV2', () => {
     it('should update the lastSync field in the database correctly', async () => {
       const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
 
-      const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
-        return await fn({
-          session: { commitTransaction: sandbox.stub().resolves(), endSession: sandbox.stub().resolves() },
-        })
-      })
-
       const updateStub = sandbox.stub()
       sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({
         lastSync: 100,
@@ -660,17 +654,11 @@ describe('Module: EventListenerV2', () => {
 
       await listener.saveProgress(101, NetworksEnum.ethereumMainnet)
 
-      expect(executeTxFnStub.calledOnce).to.be.true
       expect(updateStub.calledOnceWith({ lastSync: 101 })).to.be.true
     })
 
     it('should skip saving progress if lastSync is already up-to-date', async () => {
       const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
-      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
-        await fn({
-          session: { closeEnd: sandbox.stub().resolves() },
-        })
-      })
 
       sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({
         lastSync: 102,
@@ -687,7 +675,8 @@ describe('Module: EventListenerV2', () => {
     it('should log an error if saveProgress fails', async () => {
       const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
       const logError = sandbox.stub(logger, 'error')
-      sandbox.stub(DbTx, 'executeTxFn').throws(new Error('Transaction error'))
+
+      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').rejects(new Error('Database error'))
 
       await listener.saveProgress(101, NetworksEnum.ethereumMainnet)
 

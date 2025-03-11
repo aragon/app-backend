@@ -193,8 +193,7 @@ export default class Plugin extends Model {
   }
 
   static getEntityId(params: IPluginIdParams) {
-    const entityId = `${params.network}-${params.transactionHash}-${params.address}`
-    return entityId
+    return `${params.network}-${params.transactionHash}-${params.address}`
   }
 
   static async findExistingLog(params: IPluginIdParams, tOpts?: SaveOptions) {
