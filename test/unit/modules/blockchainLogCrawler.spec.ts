@@ -5,8 +5,8 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
-import config from '@config'
 import utils from '@helpers/utils'
+import config from '@config'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -44,7 +44,7 @@ describe('Module: blockchainLogCrawler', () => {
       onError: () => {},
     })
 
-    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     mockProvider.getBlockNumber
       .onFirstCall()
@@ -124,7 +124,7 @@ describe('Module: blockchainLogCrawler', () => {
       onError: sandbox.stub(),
     })
 
-    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
     const processLogsSpy = sandbox.spy(crawler, 'processLogs')
 
     await crawler.processLogs(unsortedLogs)
@@ -178,7 +178,7 @@ describe('Module: blockchainLogCrawler', () => {
       logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: sandbox.stub(),
     })
-    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     const stubSaveProgress = sandbox.stub(crawler, 'onSaveProgress').resolves()
     const processLogsSpy = sandbox.spy(crawler, 'processLogs')
@@ -232,7 +232,7 @@ describe('Module: blockchainLogCrawler', () => {
       ])
       .onSecondCall()
       .resolves([])
-    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     const updateAndCheckConditionsStub = sandbox
       .stub(crawler, 'updateAndCheckConditions')
@@ -277,7 +277,7 @@ describe('Module: blockchainLogCrawler', () => {
       onError: sandbox.stub(),
     })
 
-    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     await crawler.processLogs(logs)
 
@@ -320,7 +320,7 @@ describe('Module: blockchainLogCrawler', () => {
       logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: onErrorStub,
     })
-    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     await crawler.processLogs(logs)
 
@@ -365,7 +365,7 @@ describe('Module: blockchainLogCrawler', () => {
         { transactionHash: '0x2', blockNumber: 102 },
       ])
 
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       ...mockProvider,
       send: retryStub,
     } as any)
@@ -396,7 +396,40 @@ describe('Module: blockchainLogCrawler', () => {
       .onSecondCall()
       .resolves([{ transactionHash: '0x1', blockNumber: 101 }])
 
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getBlockNumber: sandbox.stub().resolves(200),
+      send: retryStub,
+    } as any)
+
+    const originalBatchSize = crawler.crawlSetting.originalBatchSize
+
+    await crawler.crawl()
+
+    expect(crawler.crawlSetting.batchSize).to.be.lessThanOrEqual(originalBatchSize)
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+  })
+
+  it('should reduce batch size and retry on batch size error on peac network', async () => {
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.peaqMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events: [],
+      stopOnError: false,
+      logService: null,
+      onError: () => {},
+    })
+
+    const batchSizeError = new Error('Log response size exceeded')
+    const retryStub = sandbox
+      .stub()
+      .onFirstCall()
+      .rejects(batchSizeError)
+      .onSecondCall()
+      .resolves([{ transactionHash: '0x1', blockNumber: 101 }])
+
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getBlockNumber: sandbox.stub().resolves(200),
       send: retryStub,
     } as any)
@@ -425,7 +458,7 @@ describe('Module: blockchainLogCrawler', () => {
 
     const retryStub = sandbox.stub().rejects(batchSizeError)
 
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getBlockNumber: sandbox.stub().resolves(300),
       send: retryStub,
     } as any)

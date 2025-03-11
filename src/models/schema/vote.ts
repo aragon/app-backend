@@ -137,12 +137,11 @@ export default class Vote extends Model {
     network: NetworksEnum
     proposalIndex: string
   }) {
-    const response = await this.findOne(
+    return await this.findOne(
       { memberAddress, pluginAddress, proposalIndex, network },
       {},
       { sort: { blockNumber: -1 } },
     )
-    return response
   }
 
   static async findWithPagination({
