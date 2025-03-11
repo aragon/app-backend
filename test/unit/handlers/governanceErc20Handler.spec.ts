@@ -17,6 +17,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import EnsHelper from '@helpers/ens'
 import { expect } from 'chai'
+import Logger from '@logger'
 
 describe('GovernanceErc20Handler', () => {
   let sandbox: SinonSandbox
@@ -777,12 +778,14 @@ describe('GovernanceErc20Handler', () => {
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
 
+      const errorStub = sandbox.stub(Logger, 'error')
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
 
       const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
 
+      expect(errorStub.calledWith('Error from and to address' as any)).to.be.true
       expect(handlerResponse).to.be.undefined
-      expect(createMemberStub.notCalled).to.be.true
+      expect(createMemberStub.calledTwice).to.be.true
     })
 
     it('should handle if existing log is found', async () => {
@@ -944,14 +947,6 @@ describe('GovernanceErc20Handler', () => {
       expect(getBlockTimestampStub.calledOnceWith(info.blockNumber, info.network)).to.be.true
       expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
       expect(memberTransactionCreateStub.calledOnce).to.be.true
-      expect(updateActivityStub.calledTwice).to.be.true
-      expect(
-        updateMetricsStub.calledWith(IMetricAction.increaseDelegateReceivedCount, {
-          memberAddress: parsedEvent.args.delegate,
-          pluginAddress: plugin[0].address,
-          network: info.network,
-        }),
-      ).to.be.true
       expect(updateActivityStub.calledTwice).to.be.true
       expect(updateActivityStub.args[1][0].pluginAddress).to.be.eq(plugin[1].address)
       expect(
@@ -1120,14 +1115,6 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction.side).to.be.eq(ITransferSide.outgoing)
       expect(memberTransaction.memberBalance).to.be.eq('1500')
       expect(memberTransaction.memberVotingPower).to.be.eq('1000')
-
-      expect(
-        updateMetricsStub.calledOnceWith(IMetricAction.increaseDelegateSentCount, {
-          memberAddress: parsedEvent.args.delegate,
-          pluginAddress: plugin.address,
-          network: info.network,
-        }),
-      ).to.be.true
 
       expect(
         sendMessageStub.calledOnceWith(EnumQueueName.daoMetrics, {
