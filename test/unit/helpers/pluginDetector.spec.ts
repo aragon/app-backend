@@ -7,7 +7,6 @@ import { ZeroAddress } from 'ethers'
 import { expect } from 'chai'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
-import utils from '@helpers/utils'
 
 describe('Helper: PluginDetector', () => {
   let sandbox: SinonSandbox
