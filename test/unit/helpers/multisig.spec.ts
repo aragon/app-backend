@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
-import MultisigHelper from "@helpers/multisig";
+import MultisigHelper from '@helpers/multisig'
 
 describe('Helpers: Multisig', () => {
   let sandbox: SinonSandbox
