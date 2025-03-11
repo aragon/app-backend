@@ -4,7 +4,6 @@ import {
   EnumQueueName,
   IEventLogMember,
   type ILogInfo,
-  IMetricAction,
   ITokenType,
   ITransferSide,
   ITransferType,
@@ -220,29 +219,26 @@ export const GovernanceErc20Handler = {
 
   // it triggers for each user the previous and new votingPower
   delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    // when realtime the plugin is undefined, check if related to aragon dao
     const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
     if (!plugins || plugins.length === 0) return
 
-    if (parsedEvent.args.delegate === utils.zeroAddress) {
-      return
-    }
-
-    const memberAddress = parsedEvent.args.delegate
-
     try {
+      const memberAddress = parsedEvent.args.delegate
+      const tokenAddress = info.address
+      const network = info.network
+
       await ProxyMember.createMember(memberAddress)
 
       const tokenBalance = await ProxyMember.getBalances({
         address: memberAddress,
-        tokenAddress: info.address,
-        network: info.network,
+        tokenAddress,
+        network,
       })
 
       const votingPowerResult = await DbTx.executeTxFn(async ({ session }) => {
         const existingLog = await Models.MemberTransaction.findExistingLog(
           {
-            network: info.network,
+            network,
             transactionHash: info.transactionHash,
             transactionIndex: info.transactionIndex,
             logIndex: info.logIndex,
@@ -274,9 +270,9 @@ export const GovernanceErc20Handler = {
 
       const memberBalance = await Web3Helper.getTokenBalanceAtBlock({
         address: memberAddress,
-        tokenAddress: info.address,
+        tokenAddress,
         blockNumber: info.blockNumber,
-        network: info.network,
+        network,
       })
 
       await GovernanceErc20Handler._handleDaoMemberShip(
@@ -293,8 +289,9 @@ export const GovernanceErc20Handler = {
 
       const { from, to, delegator } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
 
-      if (from === utils.zeroAddress || to === utils.zeroAddress || from === to) {
+      if ((from === utils.zeroAddress && to === utils.zeroAddress) || from === to) {
         // Note we skip all delegation happened on transfer, mint, burn, etc
+        logger.error('Error from and to address', llo({ from, to, info }))
         return
       }
 
@@ -313,7 +310,7 @@ export const GovernanceErc20Handler = {
       await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await Models.MemberTransaction.create(
           {
-            network: info.network,
+            network,
             transactionHash: info.transactionHash,
             transactionIndex: info.transactionIndex,
             logIndex: info.logIndex,
@@ -326,7 +323,7 @@ export const GovernanceErc20Handler = {
             from,
             to,
             amount: BigInt(parsedEvent?.args?.value || 0).toString(),
-            tokenAddress: info.address,
+            tokenAddress,
             memberBalance,
             memberVotingPower: votingPowerResult.toString(),
           },
@@ -337,98 +334,53 @@ export const GovernanceErc20Handler = {
         logger.verbose('Transfer outgoing - MemberTransaction', llo({ logId: logDb?.id, info }))
       })
 
-      // Note: we need to update the metrics for the member
-      // delegator != to && delegator == from
-      // if incoming - member increase received delegation
-      // if outgoing - member increase sent delegation
+      await Promise.all(
+        plugins.map(async (plg: Plugin) => {
+          await ProxyMember.updateDelegationMetrics({
+            memberAddress,
+            pluginAddress: plg.address,
+            tokenAddress,
+            network,
+          })
 
-      // delegator == to
-      // if incoming - member decrease sent delegation
-      // if outgoing - member decrease received delegation
+          await ProxyMember.updateActivity({
+            memberAddress,
+            pluginAddress: plg.address,
+            blockNumber: info.blockNumber,
+            network,
+          })
 
-      // delegator != to && delegator != from
-      // if incoming - member increase received delegation
-      // if outgoing - member decrease received delegation
-
-      if (delegator !== utils.zeroAddress && delegator !== to && delegator === from) {
-        // it means that it's giving delegation
-        await Promise.all(
-          plugins.map(async (plg: Plugin) => {
-            if (side === ITransferSide.incoming) {
-              await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
-                memberAddress,
-                pluginAddress: plg.address,
-                network: plg.network,
-              })
-            } else if (side === ITransferSide.outgoing) {
-              await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
-                memberAddress,
-                pluginAddress: plg.address,
-                network: plg.network,
-              })
-            }
-
-            await ProxyMember.updateActivity({
-              memberAddress,
-              pluginAddress: plg.address,
-              network: info.network,
-              blockNumber: info.blockNumber,
-            })
-          }),
-        )
-      } else if (delegator !== utils.zeroAddress && delegator === to) {
-        // it means that it's revoking the delegation
-        await Promise.all(
-          plugins.map(async (plg: Plugin) => {
-            if (side === ITransferSide.incoming) {
-              await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateSentCount, {
-                memberAddress,
-                pluginAddress: plg.address,
-                network: plg.network,
-              })
-            } else if (side === ITransferSide.outgoing) {
-              await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateReceivedCount, {
-                memberAddress,
-                pluginAddress: plg.address,
-                network: plg.network,
-              })
-            }
-
-            await ProxyMember.updateActivity({
-              memberAddress,
-              pluginAddress: plg.address,
-              network: info.network,
-              blockNumber: info.blockNumber,
-            })
-          }),
-        )
-      } else if (delegator !== utils.zeroAddress && delegator !== to && delegator !== from) {
-        // it means that delegator is moving the delegation from an member to another
-        await Promise.all(
-          plugins.map(async (plg: Plugin) => {
-            if (side === ITransferSide.incoming) {
-              await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
-                memberAddress,
-                pluginAddress: plg.address,
-                network: plg.network,
-              })
-            } else if (side === ITransferSide.outgoing) {
-              await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateReceivedCount, {
-                memberAddress,
-                pluginAddress: plg.address,
-                network: plg.network,
-              })
-            }
-
-            await ProxyMember.updateActivity({
-              memberAddress,
-              pluginAddress: plg.address,
-              network: info.network,
-              blockNumber: info.blockNumber,
-            })
-          }),
-        )
-      }
+          // if (side === ITransferSide.outgoing) {
+          //   // decrease received delegation
+          //   await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateReceivedCount, {
+          //     memberAddress,
+          //     pluginAddress: plg.address,
+          //     network: plg.network,
+          //   })
+          //
+          //   await ProxyMember.updateActivity({
+          //     memberAddress,
+          //     pluginAddress: plg.address,
+          //     network: info.network,
+          //     blockNumber: info.blockNumber,
+          //   })
+          // } else if (side === ITransferSide.incoming) {
+          //   // increase received delegation
+          //   await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
+          //     memberAddress,
+          //     pluginAddress: plg.address,
+          //     network: plg.network,
+          //   })
+          //
+          //   await ProxyMember.updateActivity({
+          //     memberAddress,
+          //     pluginAddress: plg.address,
+          //     network: info.network,
+          //     blockNumber: info.blockNumber,
+          //   })
+          // }
+        }),
+      )
     } catch (error) {
       logger.error('DelegateVotesChanged - error', llo({ error, parsedEvent, info }))
     }

@@ -129,24 +129,21 @@ export default class MemberTransaction extends Model {
     return await this.findOne({ address, network })
   }
 
-  static async getReceiveDelegationCount(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum) {
+  static async getReceiveDelegationCount(
+    memberAddress: HexAddress,
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    tOpts?: SaveOptions,
+  ): Promise<number> {
     const aggQuery: any = [
-      // 1) Match only relevant docs for this member & token
       {
         $match: {
           network,
           tokenAddress,
-          type: ITransferType.delegate,
-          $or: [
-            // user is on receiving side
-            { side: 'incoming', address: memberAddress },
-            // user is on sending side
-            { side: 'outgoing', from: memberAddress },
-          ],
+          address: memberAddress,
+          type: 'delegate',
         },
       },
-
-      // 2) Sort chronologically
       {
         $sort: {
           blockNumber: 1,
@@ -154,43 +151,40 @@ export default class MemberTransaction extends Model {
           logIndex: 1,
         },
       },
-
-      // 3) Define a 'delegator' field: who actually *delegated* to the user
-      //    If doc is "incoming" => delegator = doc.from
-      //    If doc is "outgoing" => delegator = doc.to
-      //    We'll do this with an $addFields (or $set).
+      // 3) Assign a count value: +1 for incoming, -1 for outgoing
       {
         $addFields: {
-          delegator: {
-            $cond: [{ $eq: ['$side', 'incoming'] }, '$from', '$to'],
+          delegationCount: {
+            $cond: {
+              if: { $eq: ['$side', 'incoming'] },
+              then: 1,
+              else: -1,
+            },
           },
         },
       },
-
-      // 4) Group by 'delegator', pick the *last* doc in block order
       {
         $group: {
-          _id: '$delegator',
-          lastDoc: { $last: '$$ROOT' },
+          _id: null,
+          receivedDelegationCount: { $sum: '$delegationCount' },
         },
       },
-
-      // 5) Keep only delegators whose *final* doc says side = "incoming"
-      //    i.e. the user is still on the receiving end
       {
-        $match: {
-          'lastDoc.side': 'incoming',
+        $project: {
+          _id: 0,
+          receivedDelegationCount: { $toInt: '$receivedDelegationCount' },
         },
-      },
-
-      // 6) Count how many remain
-      {
-        $count: 'activeDelegations',
       },
     ]
 
-    const a = await this.aggregate(aggQuery)
-    return a[0]?.activeDelegations || 0
+    const aggregate = this.aggregate(aggQuery)
+
+    if (tOpts?.session) {
+      aggregate.session(tOpts.session)
+    }
+
+    const response = await aggregate
+    return Number(response[0]?.receivedDelegationCount || 0)
   }
 
   static async findWithPagination({
