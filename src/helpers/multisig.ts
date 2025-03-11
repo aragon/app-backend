@@ -14,7 +14,7 @@ const MultisigHelper = {
     let minApprovals: any
     const onlyListed = settings?.onlyListed || false
 
-    if (Object.prototype.hasOwnProperty.call(settings, 'minApprovals')) {
+    if (settings && Object.prototype.hasOwnProperty.call(settings, 'minApprovals')) {
       minApprovals = Number(settings?.minApprovals)
     }
 
