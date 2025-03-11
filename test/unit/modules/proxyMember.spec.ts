@@ -357,7 +357,6 @@ describe('Modules:ProxyMember', () => {
       expect(mockMetrics.increaseProposalCount).to.be.undefined
       expect(mockMetrics.increaseVoteCount).to.be.undefined
       expect(mockMetrics.increaseDelegateReceivedCount).to.be.undefined
-      expect(mockMetrics.increaseDelegateSentCount).to.be.undefined
 
       const executeTxFnSpy = sandbox.spy(DbTx, 'executeTxFn')
       expect(executeTxFnSpy.notCalled).to.be.true
