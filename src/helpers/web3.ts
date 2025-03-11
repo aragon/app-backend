@@ -771,7 +771,7 @@ const Web3Helper = {
 
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => multisigInstance.multisigSettings()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => multisigInstance.multisigSettings()),
       )
     } catch (error) {
       logger.warn('Error getting multisig settings', llo({ error, address }))
