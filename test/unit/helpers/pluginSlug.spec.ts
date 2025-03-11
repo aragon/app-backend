@@ -111,7 +111,10 @@ describe('Helpers:PluginSlug', () => {
     })
 
     it('should not update not existing', async () => {
+      const errorLogStub = sandbox.stub(logger, 'error')
       expect(await PluginSlug.updateSlug(plugin, 'test' as any)).to.equal(null)
+      expect(errorLogStub.calledOnce).to.be.true
+      expect(errorLogStub.args[0][0]).to.contain('Plugin slug not found')
     })
 
     it('should not update non-alphanumeric characters', async () => {
@@ -315,8 +318,8 @@ describe('Helpers:PluginSlug', () => {
     })
 
     it('should return default processKey when process key is wrong', async () => {
-      const processKey = { key: 'value' }
-      const storedSlug = await PluginSlug.generateSlug(plugin, processKey as any)
+      sandbox.stub(logger, 'verbose')
+      const storedSlug = await PluginSlug.generateSlug(plugin, '' as any)
       expect(storedSlug).to.equal(IPluginSlug.tokenvoting)
     })
   })
@@ -528,9 +531,8 @@ describe('Helpers:PluginSlug', () => {
     })
 
     it('should return null if processKey is invalid', async () => {
-      const processKey = { key: 'value' }
-
-      const updateResult = await PluginSlug.updateSlug(pluginToUpdate, processKey as any)
+      sandbox.stub(logger, 'error')
+      const updateResult = await PluginSlug.updateSlug(pluginToUpdate, { key: 'value' } as any)
       expect(updateResult).to.be.null
     })
 
@@ -538,7 +540,8 @@ describe('Helpers:PluginSlug', () => {
       const newProcessKey = 'updatedslug'
 
       const updateSlugStub = sandbox.stub(PluginSlug, '_updateSlugWithRetries').throws(new Error('Transaction error'))
-
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'error')
       const updateResult = await PluginSlug.updateSlug(pluginToUpdate, newProcessKey)
       expect(updateResult).to.be.null
 

@@ -26,6 +26,7 @@ export enum NetworksEnum {
   arbitrumMainnet = 'arbitrum-mainnet',
   zksyncSepolia = 'zksync-sepolia',
   zksyncMainnet = 'zksync-mainnet',
+  peaqMainnet = 'peaq-mainnet',
 }
 
 export enum StatusNetworkEnum {
