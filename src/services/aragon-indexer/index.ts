@@ -5,12 +5,12 @@ import { NetworkHelper } from '@helpers/network'
 import configIndexer from '@indexer/configIndexer'
 import utils from '@helpers/utils'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import EventListener from '@modules/eventListener'
 import { SyncAll } from '@indexer/syncAll'
 
 import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import EventListenerV2 from '@modules/eventListenerV2'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -42,7 +42,13 @@ const AragonIndexerService: IService & { repeaters: any } = {
         await crawler.crawl()
 
         // realtime after sync
-        const eventListener = new EventListener(networkName, configIndexer)
+        const eventListener = new EventListenerV2(networkName, configIndexer, {
+          processingTimeoutMs: config.REALTIME.PROCESSING_TIMEOUT_MS,
+          maxFailures: config.REALTIME.MAX_FAILURES,
+          circuitBreakerPauseMs: config.REALTIME.CIRCUIT_BREAKER_PAUSE_MS,
+          batchWindowMs: config.NODES[utils.networkToAragon(networkName)].INTERVAL_BLOCK_TIME,
+        })
+
         eventListener.subscribeEventsByNewBlock()
 
         // resync all metrics by network

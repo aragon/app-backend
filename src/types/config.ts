@@ -39,6 +39,11 @@ export interface IConfig {
   PROXY: string | null
   ENS_DOMAIN: string
   CONFIRMATION_BLOCKS: number
+  REALTIME: {
+    PROCESSING_TIMEOUT_MS: number
+    MAX_FAILURES: number
+    CIRCUIT_BREAKER_PAUSE_MS: number
+  }
   NODES: {
     ETHEREUM_MAINNET: IRawNodeConfig
     ETHEREUM_SEPOLIA: IRawNodeConfig

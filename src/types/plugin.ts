@@ -2,6 +2,7 @@ export interface IPluginInfo {
   type: IPluginInterfaceType
   proxy: boolean
   implementationAddress: string | null
+  hasTarget: boolean
 }
 
 export enum IPluginActionType {
