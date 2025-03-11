@@ -9,6 +9,7 @@ import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
 import DbOperations from '@models/utils/dbOperations'
+import MultisigHelper from '@helpers/multisig'
 
 describe('Indexer: PluginSettingHandler', () => {
   let sandbox: SinonSandbox
@@ -453,16 +454,21 @@ describe('Indexer: PluginSettingHandler', () => {
 
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       const stubIsSupported = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+      const stubSettings = sandbox.stub(MultisigHelper, 'findSettings').resolves({
+        minApprovals: 1,
+        onlyListed: true,
+      })
 
       await PluginSettingHandler.multisigSettingsUpdated(parsedEvent as any, info as any)
 
       expect(stubFindByAddress.calledOnce).to.be.true
       expect(stubFindExistingLog.calledOnce).to.be.true
       expect(stubFindActive.calledOnce).to.be.true
+      expect(stubSettings.calledOnceWith(info.address, info.network)).to.be.true
       expect(
         stubFindActive.calledOnceWith({
           network: NetworksEnum.ethereumMainnet,
-          pluginAddress: '0x456',
+          pluginAddress: info.address,
         }),
       ).to.be.true
 
@@ -492,11 +498,16 @@ describe('Indexer: PluginSettingHandler', () => {
 
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      const stubSettings = sandbox.stub(MultisigHelper, 'findSettings').resolves({
+        minApprovals: 1,
+        onlyListed: true,
+      })
 
       await PluginSettingHandler.multisigSettingsUpdated(parsedEvent as any, info as any)
 
       expect(createDocumentStub.calledOnce).to.be.true
       expect(updateDocumentStub.calledTwice).to.be.true
+      expect(stubSettings.calledOnceWith(info.address, info.network)).to.be.true
       expect(
         updateDocumentStub.firstCall.calledWith(
           activeSetting,
