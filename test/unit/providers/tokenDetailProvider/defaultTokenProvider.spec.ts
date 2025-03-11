@@ -12,7 +12,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import EtherscanHelper from '@helpers/etherscan'
 import BlockScoutHelper from '@helpers/blockScout'
 
-describe('Module: DefaultTokenProvider', () => {
+describe.only('Module: DefaultTokenProvider', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -333,25 +333,7 @@ describe('Module: DefaultTokenProvider', () => {
   })
 
   describe('_fetchContractSourceCode', () => {
-    it('should fetch contract source code', async () => {
-      const getContractSourceCode = sandbox.stub(EtherscanHelper, 'fetchContractSourceCode').resolves([
-        {
-          SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
-          ContractName: 'IERC20MintableUpgradeable',
-          ABI: '[]',
-        },
-      ])
-
-      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getContractSourceCode')
-
-      await DefaultNetworkTokenProvider.fetchContractSourceCode('0xto', NetworksEnum.ethereumMainnet)
-
-      expect(getContractSourceCode.calledOnce).to.be.true
-      expect(getContractSourceCode.args[0][0].contractAddress).to.be.eq('0xto')
-      expect(blockScoutStub.calledOnce).to.be.false
-    })
-
-    it('should fetch contract source code from blockscout if not found', async () => {
+    it('should fetch contract source code first with blockscout firstly', async () => {
       const getContractSourceCode = sandbox.stub(EtherscanHelper, 'fetchContractSourceCode').resolves(null)
       const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getContractSourceCode').resolves([
         {
@@ -363,10 +345,28 @@ describe('Module: DefaultTokenProvider', () => {
 
       await DefaultNetworkTokenProvider.fetchContractSourceCode('0xto', NetworksEnum.ethereumMainnet)
 
-      expect(getContractSourceCode.calledOnce).to.be.true
+      expect(getContractSourceCode.calledOnce).to.be.false
       expect(blockScoutStub.calledOnce).to.be.true
       expect(blockScoutStub.args[0][0]).to.be.eq('0xto')
       expect(blockScoutStub.args[0][1]).to.be.eq(NetworksEnum.ethereumMainnet)
+    })
+
+    it('should fetch contract source code from etherscan if not found', async () => {
+      const getContractSourceCode = sandbox.stub(EtherscanHelper, 'fetchContractSourceCode').resolves([
+        {
+          SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
+          ContractName: 'IERC20MintableUpgradeable',
+          ABI: '[]',
+        },
+      ])
+
+      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getContractSourceCode').resolves(null)
+
+      await DefaultNetworkTokenProvider.fetchContractSourceCode('0xto', NetworksEnum.ethereumMainnet)
+
+      expect(getContractSourceCode.calledOnce).to.be.true
+      expect(getContractSourceCode.args[0][0].contractAddress).to.be.eq('0xto')
+      expect(blockScoutStub.calledOnce).to.be.true
     })
   })
 
