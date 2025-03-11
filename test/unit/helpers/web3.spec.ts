@@ -1962,6 +1962,57 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('getMultisigSettings', () => {
+    it('should getMultisigSettings', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubSettings = sandbox.stub().resolves({ minApprovals: 1n, isListed: true })
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { multisigSettings: stubSettings }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getMultisigSettings('0xTokenAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result.minApprovals).to.eq(1n)
+      expect(result.isListed).to.eq(true)
+      expect(stubSettings.calledOnce).to.be.true
+    })
+
+    it('should fails return multisig settings', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubSettings = sandbox.stub().rejects(new Error('Test Error'))
+      const stubLogger = sandbox.stub(logger, 'warn')
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { multisigSettings: stubSettings }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getMultisigSettings('0xTokenAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.eq(undefined)
+      expect(stubSettings.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Error getting multisig settings' as any)).to.be.true
+    })
+  })
+
   describe('getVotingToken', () => {
     it('should return the voting token address successfully', async () => {
       const stubVotingToken = sandbox.stub().resolves('0xVotingTokenAddress')
