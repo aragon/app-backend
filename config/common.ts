@@ -37,7 +37,16 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     WHITELIST_TOKENS: utils.configParser(sourceConfig, 'array', 'WHITELIST_TOKENS', [
       { address: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E', network: NetworksEnum.ethereumMainnet },
     ]),
-
+    REALTIME: {
+      PROCESSING_TIMEOUT_MS: utils.configParser(sourceConfig, 'number', 'REALTIME_PROCESSING_TIMEOUT_MS', 60_000),
+      MAX_FAILURES: utils.configParser(sourceConfig, 'number', 'REALTIME_MAX_FAILURES', 5),
+      CIRCUIT_BREAKER_PAUSE_MS: utils.configParser(
+        sourceConfig,
+        'number',
+        'REALTIME_CIRCUIT_BREAKER_PAUSE_MS',
+        60 * 1000,
+      ),
+    },
     NODES: {
       ETHEREUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ALCHEMY_API_KEY', null),

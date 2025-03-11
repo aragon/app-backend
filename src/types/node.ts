@@ -37,3 +37,10 @@ export interface IProviderProxy {
   alchemy?: IAlchemyNodeConnection
   aragon?: INodeConnection
 }
+
+export interface IRealTimeConfig {
+  processingTimeoutMs: number
+  maxFailures: number
+  circuitBreakerPauseMs: number
+  batchWindowMs: number
+}

@@ -7,7 +7,7 @@ import { ZeroAddress } from 'ethers'
 import { expect } from 'chai'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
-import utils from '@helpers/utils'
+import logger from '@logger'
 
 describe('Helper: PluginDetector', () => {
   let sandbox: SinonSandbox
@@ -129,11 +129,14 @@ describe('Helper: PluginDetector', () => {
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().rejects(new Error('Failed to fetch bytecode')),
     } as any)
+    const loggerStub = sandbox.stub(logger, 'error')
 
     const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(IPluginInterfaceType.unknown)
     expect(result.proxy).to.be.false
     expect(result.implementationAddress).to.be.null
     expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(loggerStub.calledOnce).to.be.true
+    expect(loggerStub.calledWith('Error detecting plugin type' as any)).to.be.true
   })
 })
