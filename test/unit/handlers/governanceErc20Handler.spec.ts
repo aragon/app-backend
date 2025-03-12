@@ -926,10 +926,9 @@ describe('GovernanceErc20Handler', () => {
       const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
       const memberTransactionCreateStub = sandbox.spy(Models.MemberTransaction, 'create')
 
-      const updateMetricsStub = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
       const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const handleDaoMemberShipStub = sandbox.stub(GovernanceErc20Handler, '_handleDaoMemberShip').resolves()
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
@@ -947,26 +946,18 @@ describe('GovernanceErc20Handler', () => {
       expect(getBlockTimestampStub.calledOnceWith(info.blockNumber, info.network)).to.be.true
       expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
       expect(memberTransactionCreateStub.calledOnce).to.be.true
+      expect(handleDaoMemberShipStub.calledOnce).to.be.true
       expect(updateActivityStub.calledTwice).to.be.true
-      expect(updateActivityStub.args[1][0].pluginAddress).to.be.eq(plugin[1].address)
+      const calledAddresses = updateActivityStub.args.map(callArgs => callArgs[0].pluginAddress)
+      expect(calledAddresses).to.include(plugin[0].address)
+      expect(calledAddresses).to.include(plugin[1].address)
       expect(
-        addToDaoStub.calledWith({
-          memberAddress: parsedEvent.args.delegate,
-          daoAddress: plugin[0].daoAddress,
-          pluginAddress: plugin[0].address,
-          tokenAddress: plugin[0].tokenAddress,
-          network: info.network,
+        handleDaoMemberShipStub.calledOnceWith({
+          address: parsedEvent.args.delegate,
+          memberBalance: '1500',
+          memberVotingPower: '2000',
         }),
       ).to.be.true
-      expect(addToDaoStub.calledTwice).to.be.true
-      expect(
-        sendMessageStub.calledWith(EnumQueueName.daoMetrics, {
-          id: plugin[0].daoAddress,
-          params: { address: plugin[0].daoAddress, network: info.network },
-        }),
-      ).to.be.true
-      expect(sendMessageStub.calledTwice).to.be.true
-      expect(sendMessageStub.args[1][1].id).to.be.eq(plugin[1].daoAddress)
     })
 
     it('should handle incoming delegateVotesChanged event and not add member if to is zero address', async () => {
