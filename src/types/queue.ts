@@ -1,6 +1,7 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
 export enum EnumQueueName {
+  realtimeTransactions = 'realtime.transactions',
   allMetrics = 'all.metrics',
   daoTransactions = 'dao.transactions',
   daoAssets = 'dao.assets',
@@ -24,6 +25,12 @@ export interface IQueueDao {
   address: HexAddress
   network: NetworksEnum
   blockNumber?: number
+}
+
+export interface IQueueRealtimeTransactions {
+  addresses: HexAddress[]
+  network: NetworksEnum
+  transactionHash: string
 }
 
 export interface IQueuePlugin {

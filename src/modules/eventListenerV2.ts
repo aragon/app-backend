@@ -198,18 +198,25 @@ class EventListenerV2 {
       BottleneckModule.getNodeLimiter(this.network)!.schedule(async () =>
         provider.getLogs({
           fromBlock: '0x' + fromBlock.toString(16),
-          toBlock: 'latest',
+          toBlock: 7883564,
         }),
       ),
     )
 
     if (!logs || logs.length === 0) return
     const filteredLogs = await this.filterUnwantedEvents(logs)
+    const addresses = this.parseAddressForDeposits(filteredLogs)
+    if (addresses) {
+      await RabbitMQHelper.sendMessage(EnumQueueName.realtimeTransactions, {
+        id: `realtimeTransactions-${this.network}-${blockNumber}`,
+        params: { addresses, network: this.network },
+      })
 
-    await Promise.all([
-      this.checkAndHandleDeposits(logs),
-      filteredLogs.length > 0 ? this.sortAndHandleLogs(fromBlock, blockNumber, filteredLogs) : null,
-    ])
+      await this.processDaoReceivers(logs[0].transactionHash, addresses)
+    }
+    if (filteredLogs.length > 0) {
+      await this.sortAndHandleLogs(fromBlock, blockNumber, filteredLogs)
+    }
   }
 
   async sortAndHandleLogs(fromBlock: number, toBlock: number, filteredLogs: Log[]) {
@@ -249,8 +256,15 @@ class EventListenerV2 {
       tokenAddress: { $ne: null },
     })
 
-    const address = plugins.map((plugin: Plugin) => plugin.tokenAddress)
-    return logs.filter(log => address.includes(ethers.getAddress(log.address)))
+    const addressSet = new Set(plugins.map((plugin: Plugin) => ethers.getAddress(plugin.tokenAddress)))
+    const transferTopic = ethers.id('Transfer(address,address,uint256)')
+
+    return logs.filter(log => {
+      if (log.topics[0] === transferTopic) {
+        return addressSet.has(ethers.getAddress(log.address))
+      }
+      return true
+    })
   }
 
   private sortLogsByPriority(logs: Log[]) {
@@ -289,7 +303,7 @@ class EventListenerV2 {
     }
   }
 
-  async checkAndHandleDeposits(logs: Log[]) {
+  parseAddressForDeposits(logs: Log[]): string[] | undefined {
     const topicHash = [
       new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
       new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
@@ -315,9 +329,7 @@ class EventListenerV2 {
       }
     }
 
-    if (receiverAddresses.size > 0) {
-      await this.processDaoReceivers(logsToHandle[0].transactionHash, Array.from(receiverAddresses))
-    }
+    return Array.from(receiverAddresses)
   }
 
   private decodeTransferLogs(log: Log) {
