@@ -134,17 +134,15 @@ echo "Starting remote script execution..."
 set -e
 set -o pipefail
 
-
-
 echo ant \$NVM_AUTO_USE
 echo desp \$NVM_AUTO_USE
 
 install_dependencies() {
     echo "Installing dependencies..."
     cd "$REMOTE_DIR/$TARGET_DIR"
+
     if ! command -v nvm &> /dev/null; then
-        echo "nvm NOT installed. Installing"
-        #sometimes this fails due to permission, connect and
+        echo "nvm NOT installed. Installing..."
         curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
         if [ -z "$NVM_AUTO_USE" ]; then
             echo "export NVM_AUTO_USE=true" >> ~/.bashrc
@@ -156,27 +154,25 @@ install_dependencies() {
         echo "nvm already installed"
     fi
 
-     if [ -f "$REMOTE_DIR/$TARGET_DIR/.nvmrc" ]; then
-         NODE_VERSION=$(cat "$REMOTE_DIR/$TARGET_DIR/.nvmrc")
-         echo "Using Node.js version from .nvmrc: $NODE_VERSION"
-     else
-         echo "🚨 ERROR: .nvmrc file not found!"
-         exit 1
-     fi
+    # Read Node.js version dynamically from .nvmrc
+    NODE_VERSION=$(cat "$REMOTE_DIR/$TARGET_DIR/.nvmrc")
+    echo "Using Node.js version from .nvmrc: $NODE_VERSION"
 
-     nvm install "$NODE_VERSION"
-     nvm use "$NODE_VERSION"
-     node -v  # Debugging: Print the active Node.js version
+    nvm install "$NODE_VERSION"
+    nvm use "$NODE_VERSION"
+    node -v  # Debugging: Print the active Node.js version
 
-     if ! command -v yarn &> /dev/null; then
+    # Ensure Yarn is installed
+    if ! command -v yarn &> /dev/null; then
         echo "Yarn not found. Installing..."
         npm install -g yarn
-     fi
-     yarn install
-     export PATH="$(yarn global bin):$PATH"
+    fi
 
-     yarn global add pm2
-     echo "Installing PM2..."
+    # Ensure Yarn global bin is in PATH
+    export PATH="$(yarn global bin):$PATH"
+    echo "Updated PATH: $PATH"
+
+    yarn install
 }
 
 start_app_first_time() {
