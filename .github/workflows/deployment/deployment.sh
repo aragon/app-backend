@@ -168,7 +168,6 @@ start_app_first_time() {
     echo "Starting application with PM2..."
     pm2 kill || true
     pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" --update-env
-
 }
 
 main() {
