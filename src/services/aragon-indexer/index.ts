@@ -48,7 +48,7 @@ const AragonIndexerService: IService & { repeaters: any } = {
           processingTimeoutMs: config.REALTIME.PROCESSING_TIMEOUT_MS,
           maxFailures: config.REALTIME.MAX_FAILURES,
           circuitBreakerPauseMs: config.REALTIME.CIRCUIT_BREAKER_PAUSE_MS,
-          batchWindowMs: interval * 1000,
+          batchWindowMs: interval,
         })
 
         eventListener.subscribeEventsByNewBlock()
