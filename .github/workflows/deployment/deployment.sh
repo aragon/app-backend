@@ -99,6 +99,11 @@ remote_extract_files() {
     echo -e "\n\n Remote: Extracting remote $ARCHIVE_NAME..."
     ssh "$REMOTE_USER@$REMOTE_HOST" "tar -xf $REMOTE_DIR/$ARCHIVE_NAME -C $REMOTE_DIR ; rm $REMOTE_DIR/$ARCHIVE_NAME"
 
+    # Ensure `.nvmrc` exists after extraction
+    if ssh "$REMOTE_USER@$REMOTE_HOST" "[ ! -f $REMOTE_DIR/$TARGET_DIR/.nvmrc ]"; then
+        echo "🚨 ERROR: .nvmrc file is missing after extraction!"
+        exit 1
+    fi
 }
 
 
@@ -150,13 +155,26 @@ install_dependencies() {
     else
         echo "nvm already installed"
     fi
-    #source ~/.nvm/nvm.sh
-    nvm install
-    pwd
-    nvm use default
-    yarn install
-    yarn global add pm2
-    echo "Installing PM2..."
+
+     if [ -f "$REMOTE_DIR/$TARGET_DIR/.nvmrc" ]; then
+         NODE_VERSION=$(cat "$REMOTE_DIR/$TARGET_DIR/.nvmrc")
+         echo "Using Node.js version from .nvmrc: $NODE_VERSION"
+     else
+         echo "🚨 ERROR: .nvmrc file not found!"
+         exit 1
+     fi
+
+     nvm install "$NODE_VERSION"
+     nvm use "$NODE_VERSION"
+     node -v  # Debugging: Print the active Node.js version
+
+     if ! command -v yarn &> /dev/null; then
+        echo "Yarn not found. Installing..."
+        npm install -g yarn
+     fi
+     yarn install
+     yarn global add pm2
+     echo "Installing PM2..."
 }
 
 start_app_first_time() {
