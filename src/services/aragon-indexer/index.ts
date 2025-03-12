@@ -41,12 +41,14 @@ const AragonIndexerService: IService & { repeaters: any } = {
         })
         await crawler.crawl()
 
+        const interval = config.NODES[utils.networkToAragon(networkName)].INTERVAL_BLOCK_TIME * 1000
+
         // realtime after sync
         const eventListener = new EventListenerV2(networkName, configIndexer, {
           processingTimeoutMs: config.REALTIME.PROCESSING_TIMEOUT_MS,
           maxFailures: config.REALTIME.MAX_FAILURES,
           circuitBreakerPauseMs: config.REALTIME.CIRCUIT_BREAKER_PAUSE_MS,
-          batchWindowMs: config.NODES[utils.networkToAragon(networkName)].INTERVAL_BLOCK_TIME,
+          batchWindowMs: interval * 1000,
         })
 
         eventListener.subscribeEventsByNewBlock()
