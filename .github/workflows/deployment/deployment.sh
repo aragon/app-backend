@@ -173,6 +173,8 @@ install_dependencies() {
         npm install -g yarn
      fi
      yarn install
+     export PATH="$(yarn global bin):$PATH"
+
      yarn global add pm2
      echo "Installing PM2..."
 }
