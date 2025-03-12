@@ -99,11 +99,6 @@ remote_extract_files() {
     echo -e "\n\n Remote: Extracting remote $ARCHIVE_NAME..."
     ssh "$REMOTE_USER@$REMOTE_HOST" "tar -xf $REMOTE_DIR/$ARCHIVE_NAME -C $REMOTE_DIR ; rm $REMOTE_DIR/$ARCHIVE_NAME"
 
-    # Ensure `.nvmrc` exists after extraction
-    if ssh "$REMOTE_USER@$REMOTE_HOST" "[ ! -f $REMOTE_DIR/$TARGET_DIR/.nvmrc ]"; then
-        echo "🚨 ERROR: .nvmrc file is missing after extraction!"
-        exit 1
-    fi
 }
 
 
@@ -134,15 +129,17 @@ echo "Starting remote script execution..."
 set -e
 set -o pipefail
 
+
+
 echo ant \$NVM_AUTO_USE
 echo desp \$NVM_AUTO_USE
 
 install_dependencies() {
     echo "Installing dependencies..."
     cd "$REMOTE_DIR/$TARGET_DIR"
-
     if ! command -v nvm &> /dev/null; then
-        echo "nvm NOT installed. Installing..."
+        echo "nvm NOT installed. Installing"
+        #sometimes this fails due to permission, connect and
         curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
         if [ -z "$NVM_AUTO_USE" ]; then
             echo "export NVM_AUTO_USE=true" >> ~/.bashrc
@@ -153,36 +150,20 @@ install_dependencies() {
     else
         echo "nvm already installed"
     fi
-
-    # Read Node.js version dynamically from .nvmrc
-    NODE_VERSION=$(cat "$REMOTE_DIR/$TARGET_DIR/.nvmrc")
-    echo "Using Node.js version from .nvmrc: $NODE_VERSION"
-
-    nvm install "$NODE_VERSION"
-    nvm use "$NODE_VERSION"
-    node -v  # Debugging: Print the active Node.js version
-
-    # Ensure Yarn is installed
-    if ! command -v yarn &> /dev/null; then
-        echo "Yarn not found. Installing..."
-        npm install -g yarn
-    fi
-
-    # Ensure Yarn global bin is in PATH
-    export PATH="$(yarn global bin):$PATH"
-    echo "Updated PATH: $PATH"
-
+    #source ~/.nvm/nvm.sh
+    nvm install
+    pwd
+    nvm use default
     yarn install
+    yarn global add pm2
+    echo "Installing PM2..."
 }
 
 start_app_first_time() {
     echo "Starting application with PM2..."
-
-    # Ensure Yarn global bin path is in the PATH
-    export PATH="$(yarn global bin):$PATH"
-
     pm2 kill || true
     pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" --update-env
+
 }
 
 main() {
