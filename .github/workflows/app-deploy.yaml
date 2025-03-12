@@ -2,15 +2,18 @@ name: Deploy new version
 
 on:
   workflow_dispatch:
-  push:
+  pull_request:
     branches:
       - main
       - staging
       - development
+    types:
+      - closed
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
     steps:
       - uses: actions/checkout@v3
 
