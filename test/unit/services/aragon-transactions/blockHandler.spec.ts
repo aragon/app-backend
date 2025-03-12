@@ -7,6 +7,7 @@ import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import type Dao from '@models/schema/dao'
+import utils from "@helpers/utils";
 describe('AragonTransactions: BlockHandler', () => {
   let sandbox: SinonSandbox
 
@@ -48,6 +49,7 @@ describe('AragonTransactions: BlockHandler', () => {
 
       stubDaoFind.resolves([fakeDao1, fakeDao2])
       stubSendDaoMessages.resolves()
+      sandbox.stub(utils, 'wait').resolves()
 
       await BlockHandler.processReceiver('0xtransactionHash', ['0xdao1', '0xdao2'], NetworksEnum.ethereumMainnet)
 
