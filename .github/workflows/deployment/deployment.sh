@@ -181,6 +181,10 @@ install_dependencies() {
 
 start_app_first_time() {
     echo "Starting application with PM2..."
+
+    # Ensure Yarn global bin path is in the PATH
+    export PATH="$(yarn global bin):$PATH"
+
     pm2 kill || true
     pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" --update-env
 }
