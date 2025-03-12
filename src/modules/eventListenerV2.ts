@@ -198,7 +198,7 @@ class EventListenerV2 {
       BottleneckModule.getNodeLimiter(this.network)!.schedule(async () =>
         provider.getLogs({
           fromBlock: '0x' + fromBlock.toString(16),
-          toBlock: 7883564,
+          toBlock: 'latest',
         }),
       ),
     )
