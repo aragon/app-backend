@@ -17,7 +17,6 @@ import type Plugin from '@models/schema/plugin'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { ERC721 } from '@artifacts/ERC721'
-import type Dao from '@models/schema/dao'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
@@ -206,13 +205,11 @@ class EventListenerV2 {
     if (!logs || logs.length === 0) return
     const filteredLogs = await this.filterUnwantedEvents(logs)
     const addresses = this.parseAddressForDeposits(filteredLogs)
-    if (addresses) {
+    if (addresses?.length) {
       await RabbitMQHelper.sendMessage(EnumQueueName.realtimeTransactions, {
         id: `realtimeTransactions-${this.network}-${blockNumber}`,
-        params: { addresses, network: this.network },
+        params: { addresses, network: this.network, transactionHash: logs[logs.length - 1].transactionHash },
       })
-
-      await this.processDaoReceivers(logs[0].transactionHash, addresses)
     }
     if (filteredLogs.length > 0) {
       await this.sortAndHandleLogs(fromBlock, blockNumber, filteredLogs)
@@ -346,40 +343,6 @@ class EventListenerV2 {
       }
     }
     return decoded ? decoded.args.to : null
-  }
-
-  async processDaoReceivers(transactionHash: string, toAddresses: string[]) {
-    const daos = await Models.Dao.find({ address: { $in: toAddresses }, network: this.network })
-    if (!daos || daos.length === 0) return
-    logger.verbose(
-      transactionHash,
-      'New confirmed incoming transaction',
-      llo({ receiverAddresses: daos.map((dao: Dao) => dao.address) }),
-    )
-
-    await Promise.all(daos.map(async (dao: any) => await this.sendDaoMessages(dao)))
-  }
-
-  async sendDaoMessages(dao: Dao) {
-    try {
-      await Promise.all([
-        RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-          id: dao.address,
-          params: { address: dao.address, network: dao.network },
-        }),
-        RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
-          id: dao.address,
-          params: { address: dao.address, network: dao.network },
-        }),
-        RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: dao.address,
-          params: { address: dao.address, network: dao.network },
-        }),
-      ])
-      logger.info(`RabbitMQ messages sent for DAO: ${dao.address}`, llo({ dao }))
-    } catch (error) {
-      logger.error('Failed to send RabbitMQ messages', llo({ daoAddress: dao.address, error }))
-    }
   }
 }
 

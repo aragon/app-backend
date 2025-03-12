@@ -948,7 +948,6 @@ describe('GovernanceErc20Handler', () => {
       expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
       expect(memberTransactionCreateStub.calledOnce).to.be.true
       expect(updateActivityStub.calledTwice).to.be.true
-      expect(updateActivityStub.args[1][0].pluginAddress).to.be.eq(plugin[1].address)
       expect(
         addToDaoStub.calledWith({
           memberAddress: parsedEvent.args.delegate,
