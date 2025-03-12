@@ -7,7 +7,7 @@ import EventListenerV2 from '@modules/eventListenerV2'
 import config from '@config'
 import utils from '@helpers/utils'
 
-describe.only('Multisig Helper', () => {
+describe('Multisig Helper', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -27,13 +27,13 @@ describe.only('Multisig Helper', () => {
   })
 
   it('should do the test of event listener', async () => {
-    const eventListener = new EventListenerV2(NetworksEnum.ethereumSepolia, configIndexer, {
+    const eventListener = new EventListenerV2(NetworksEnum.peaqMainnet, configIndexer, {
       processingTimeoutMs: config.REALTIME.PROCESSING_TIMEOUT_MS,
       maxFailures: config.REALTIME.MAX_FAILURES,
       circuitBreakerPauseMs: config.REALTIME.CIRCUIT_BREAKER_PAUSE_MS,
-      batchWindowMs: config.NODES[utils.networkToAragon(NetworksEnum.ethereumSepolia)].INTERVAL_BLOCK_TIME,
+      batchWindowMs: config.NODES[utils.networkToAragon(NetworksEnum.peaqMainnet)].INTERVAL_BLOCK_TIME,
     })
 
-    await eventListener['processBlockLogic'](7883563)
+    await eventListener['processBlockLogic'](4298912)
   })
 })

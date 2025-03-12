@@ -8,13 +8,12 @@ import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import { ethers, Interface } from 'ethers'
-import EventListener from '@modules/eventListener'
-import DbTx from '@modules/dbTx'
 import Utils from '@helpers/utils'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import DbTx from '@modules/dbTx'
 
 describe('Module: EventListenerV2', () => {
   let sandbox: SinonSandbox
@@ -449,7 +448,10 @@ describe('Module: EventListenerV2', () => {
 
       const listener = new EventListenerV2(NetworksEnum.ethereumMainnet, configLogs, listenerConfig)
 
-      const logs = [{ topics: ['0xTopic2'] }, { topics: ['0xTopic1'] }] as any[]
+      const logs = [
+        { topics: ['0xTopic2'], transactionHash: '0xabc' },
+        { topics: ['0xTopic1'], transactionHash: '0x1231' },
+      ] as any[]
 
       const provider = {
         getLogs: sandbox.stub().resolves(logs),
@@ -457,11 +459,15 @@ describe('Module: EventListenerV2', () => {
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(provider as any)
       sandbox.stub(listener as any, 'getLastProcessedBlock').resolves(95)
+      sandbox
+        .stub(listener as any, 'parseAddressForDeposits')
+        .returns(['0x1234567890123456789012345678901234567890', '0x2345678901234567890123456789012345678901'])
 
       const filterStub = sandbox.stub(listener as any, 'filterUnwantedEvents').resolves(logs)
       const sortStub = sandbox.stub(listener as any, 'sortLogsByPriority').returns([...logs].reverse()) // Reverse to test order
       const handleEventStub = sandbox.stub(listener, 'handleEvent').resolves()
       const logVerboseStub = sandbox.stub(logger, 'verbose')
+      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await listener['processBlockLogic'](100)
 
@@ -469,7 +475,16 @@ describe('Module: EventListenerV2', () => {
       expect(sortStub.calledOnceWith(logs)).to.be.true
       expect(handleEventStub.calledTwice).to.be.true
       expect(logVerboseStub.calledWith('Processing logs' as any)).to.be.true
-
+      expect(rabbitMqStub.calledOnce).to.be.true
+      expect(rabbitMqStub.firstCall.args[0]).to.equal(EnumQueueName.realtimeTransactions)
+      expect(rabbitMqStub.firstCall.args[1]).to.deep.equal({
+        id: `realtimeTransactions-${NetworksEnum.ethereumMainnet}-100`,
+        params: {
+          addresses: ['0x1234567890123456789012345678901234567890', '0x2345678901234567890123456789012345678901'],
+          network: NetworksEnum.ethereumMainnet,
+          transactionHash: '0x1231',
+        },
+      })
       // Verify order of processing matches the sorted order
       expect(handleEventStub.firstCall.args[0]).to.equal(sortStub.returnValues[0][0])
       expect(handleEventStub.secondCall.args[0]).to.equal(sortStub.returnValues[0][1])
@@ -562,10 +577,11 @@ describe('Module: EventListenerV2', () => {
       sandbox.stub(Models.Plugin, 'find').resolves(plugins)
       //get random
 
+      const transferTopic = new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!
       const logs = [
-        { address: '0x1aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: ['0xTopic1'] },
-        { address: '0x2aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: ['0xTopic2'] },
-        { address: '0x3aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: ['0xTopic3'] },
+        { address: '0x1aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: [transferTopic] },
+        { address: '0x2aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: [transferTopic] },
+        { address: '0x3aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: [transferTopic] },
       ] as any[]
 
       const result = await listener['filterUnwantedEvents'](logs)
@@ -586,14 +602,18 @@ describe('Module: EventListenerV2', () => {
       sandbox.stub(Models.Plugin, 'find').resolves(plugins)
       sandbox.stub(ethers, 'getAddress').callsFake(addr => addr)
 
+      const trasferTopic = new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!
+
       const logs = [
-        { address: '0x5aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: ['0xTopic1'] },
-        { address: '0x6aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: ['0xTopic2'] },
+        { address: '0x5aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: [trasferTopic] },
+        { address: '0x6aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: [trasferTopic] },
+        { address: '0x7aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: ['0xTIpic'] },
       ] as any[]
 
       const result = await listener['filterUnwantedEvents'](logs)
 
-      expect(result.length).to.equal(0)
+      expect(result.length).to.equal(1)
+      expect(result[0].address).to.equal('0x7aca993f1e460e66a859576edf9fbeb7fa3ee236')
     })
   })
 
@@ -642,48 +662,6 @@ describe('Module: EventListenerV2', () => {
     })
   })
 
-  describe('saveProgress', () => {
-    it('should update the lastSync field in the database correctly', async () => {
-      const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
-
-      const updateStub = sandbox.stub()
-      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({
-        lastSync: 100,
-        update: updateStub.resolves(),
-      })
-
-      await listener.saveProgress(101, NetworksEnum.ethereumMainnet)
-
-      expect(updateStub.calledOnceWith({ lastSync: 101 })).to.be.true
-    })
-
-    it('should skip saving progress if lastSync is already up-to-date', async () => {
-      const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
-
-      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({
-        lastSync: 102,
-        update: sandbox.stub(),
-      })
-
-      const updateStub = sandbox.stub(Models.ConfigIndexer.prototype, 'update')
-
-      await listener.saveProgress(101, NetworksEnum.ethereumMainnet)
-
-      expect(updateStub.notCalled).to.be.true // No update should occur
-    })
-
-    it('should log an error if saveProgress fails', async () => {
-      const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
-      const logError = sandbox.stub(logger, 'error')
-
-      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').rejects(new Error('Database error'))
-
-      await listener.saveProgress(101, NetworksEnum.ethereumMainnet)
-
-      expect(logError.calledWithMatch('Error saving progress' as any)).to.be.true
-    })
-  })
-
   describe('checkAndHandleDeposits', () => {
     it('should identify and process NativeTokenDeposited events', async () => {
       const listener = new EventListenerV2(NetworksEnum.ethereumMainnet, [], listenerConfig)
@@ -700,13 +678,8 @@ describe('Module: EventListenerV2', () => {
         },
       ] as any[]
 
-      const processDaoReceiversStub = sandbox.stub(listener as any, 'processDaoReceivers').resolves()
-
-      await listener.checkAndHandleDeposits(logs)
-
-      expect(processDaoReceiversStub.calledOnce).to.be.true
-      expect(processDaoReceiversStub.firstCall.args[0]).to.equal('0xabcd')
-      expect(processDaoReceiversStub.firstCall.args[1]).to.deep.equal(['0x1234567890123456789012345678901234567890'])
+      const receives = listener.parseAddressForDeposits(logs)
+      expect(receives).to.deep.equal(['0x1234567890123456789012345678901234567890'])
     })
 
     it('should identify and process ERC20 Transfer events', async () => {
@@ -729,14 +702,10 @@ describe('Module: EventListenerV2', () => {
         .stub(listener as any, 'decodeTransferLogs')
         .returns('0x3456789012345678901234567890123456789012')
 
-      const processDaoReceiversStub = sandbox.stub(listener as any, 'processDaoReceivers').resolves()
+      const receives = listener.parseAddressForDeposits(logs)
 
-      await listener.checkAndHandleDeposits(logs)
-
+      expect(receives).to.deep.equal(['0x3456789012345678901234567890123456789012'])
       expect(decodeStub.calledOnce).to.be.true
-      expect(processDaoReceiversStub.calledOnce).to.be.true
-      expect(processDaoReceiversStub.firstCall.args[0]).to.equal('0xabcd')
-      expect(processDaoReceiversStub.firstCall.args[1]).to.deep.equal(['0x3456789012345678901234567890123456789012'])
     })
 
     it('should handle multiple events and deduplicate addresses', async () => {
@@ -769,19 +738,12 @@ describe('Module: EventListenerV2', () => {
         },
       ] as any[]
 
-      // Mock decodeTransferLogs to return the same address twice
       const decodeStub = sandbox.stub(listener as any, 'decodeTransferLogs')
       decodeStub.onFirstCall().returns('0x1234') // Duplicate of first address
       decodeStub.onSecondCall().returns('0xdef0') // New address
 
-      const processDaoReceiversStub = sandbox.stub(listener as any, 'processDaoReceivers').resolves()
-
-      await listener.checkAndHandleDeposits(logs)
-
-      expect(decodeStub.calledTwice).to.be.true
-      expect(processDaoReceiversStub.calledOnce).to.be.true
-      // Should only have unique addresses
-      expect(processDaoReceiversStub.firstCall.args[1]).to.have.members(['0x1234', '0xdef0'])
+      const receives = listener.parseAddressForDeposits(logs)
+      expect(receives).to.have.members(['0x1234', '0xdef0'])
     })
 
     it('should do nothing when no relevant events are found', async () => {
@@ -796,11 +758,8 @@ describe('Module: EventListenerV2', () => {
         },
       ] as any[]
 
-      const processDaoReceiversStub = sandbox.stub(listener as any, 'processDaoReceivers')
-
-      await listener.checkAndHandleDeposits(logs)
-
-      expect(processDaoReceiversStub.notCalled).to.be.true
+      const receives = listener.parseAddressForDeposits(logs)
+      expect(receives).to.deep.equal(undefined)
     })
   })
 
@@ -885,119 +844,59 @@ describe('Module: EventListenerV2', () => {
     })
   })
 
-  describe('processDaoReceivers', () => {
-    it('should find DAOs matching the receiver addresses and process them', async () => {
+  describe('saveProgress', () => {
+    it('should update the lastSync field in the database correctly', async () => {
       const listener = new EventListenerV2(NetworksEnum.ethereumMainnet, [], listenerConfig)
 
-      // Mock DAOs that match the receiver addresses
-      const mockDaos = [
-        { address: '0x1234', network: NetworksEnum.ethereumMainnet },
-        { address: '0x5678', network: NetworksEnum.ethereumMainnet },
-      ]
-
-      sandbox.stub(Models.Dao, 'find').resolves(mockDaos)
-      const logVerboseStub = sandbox.stub(logger, 'verbose')
-      const sendDaoMessagesStub = sandbox.stub(listener as any, 'sendDaoMessages').resolves()
-
-      await listener['processDaoReceivers']('0xabcd', ['0x1234', '0x5678', '0x9abc'])
-
-      expect(
-        Models.Dao.find.calledWith({
-          address: { $in: ['0x1234', '0x5678', '0x9abc'] },
-          network: NetworksEnum.ethereumMainnet,
-        }),
-      ).to.be.true
-      expect(logVerboseStub.calledOnce).to.be.true
-      expect(sendDaoMessagesStub.calledTwice).to.be.true
-      expect(sendDaoMessagesStub.firstCall.args[0]).to.deep.equal(mockDaos[0])
-      expect(sendDaoMessagesStub.secondCall.args[0]).to.deep.equal(mockDaos[1])
-    })
-
-    it('should do nothing if no matching DAOs are found', async () => {
-      const listener = new EventListenerV2(NetworksEnum.ethereumMainnet, [], listenerConfig)
-
-      // No matching DAOs
-      sandbox.stub(Models.Dao, 'find').resolves([])
-      const logVerboseStub = sandbox.stub(logger, 'verbose')
-      const sendDaoMessagesStub = sandbox.stub(listener as any, 'sendDaoMessages').resolves()
-
-      await listener['processDaoReceivers']('0xabcd', ['0x1234', '0x5678'])
-
-      expect(Models.Dao.find.calledOnce).to.have.true
-      expect(logVerboseStub.notCalled).to.be.true
-      expect(sendDaoMessagesStub.notCalled).to.be.true
-    })
-
-    it('should handle empty address array', async () => {
-      const listener = new EventListenerV2(NetworksEnum.ethereumMainnet, [], listenerConfig)
-
-      const daoFindStub = sandbox.stub(Models.Dao, 'find').resolves([])
-
-      await listener['processDaoReceivers']('0xabcd', [])
-
-      expect(daoFindStub.calledOnce).to.be.true
-      expect(daoFindStub.firstCall.args[0]).to.deep.equal({
-        address: { $in: [] },
-        network: NetworksEnum.ethereumMainnet,
-      })
-    })
-  })
-
-  describe('sendDaoMessages', () => {
-    it('should send all required RabbitMQ messages for a DAO', async () => {
-      const listener = new EventListenerV2(NetworksEnum.ethereumMainnet, [], listenerConfig)
-
-      const mockDao = {
-        address: '0x1234',
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const logInfoStub = sandbox.stub(logger, 'info')
-
-      await listener['sendDaoMessages'](mockDao as any)
-
-      expect(sendMessageStub.calledThrice).to.be.true
-
-      // Check first message (daoTransactions)
-      expect(sendMessageStub.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
-      expect(sendMessageStub.firstCall.args[1]).to.deep.equal({
-        id: '0x1234',
-        params: { address: '0x1234', network: NetworksEnum.ethereumMainnet },
+      const executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        return await fn({
+          session: { commitTransaction: sandbox.stub().resolves(), endSession: sandbox.stub().resolves() },
+        })
       })
 
-      // Check second message (daoAssets)
-      expect(sendMessageStub.secondCall.args[0]).to.equal(EnumQueueName.daoAssets)
-      expect(sendMessageStub.secondCall.args[1]).to.deep.equal({
-        id: '0x1234',
-        params: { address: '0x1234', network: NetworksEnum.ethereumMainnet },
+      const updateStub = sandbox.stub()
+      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({
+        lastSync: 100,
+        update: updateStub.resolves(),
       })
 
-      // Check third message (daoMetrics)
-      expect(sendMessageStub.thirdCall.args[0]).to.equal(EnumQueueName.daoMetrics)
-      expect(sendMessageStub.thirdCall.args[1]).to.deep.equal({
-        id: '0x1234',
-        params: { address: '0x1234', network: NetworksEnum.ethereumMainnet },
-      })
+      sandbox.stub(logger, 'info')
 
-      expect(logInfoStub.calledOnce).to.be.true
+      await listener.saveProgress(101, NetworksEnum.ethereumMainnet, 1231)
+
+      expect(executeTxFnStub.calledOnce).to.be.true
+      expect(updateStub.calledOnceWith({ lastSync: 101 })).to.be.true
     })
 
-    it('should handle error when sending messages fails', async () => {
+    it('should skip saving progress if lastSync is already up-to-date', async () => {
       const listener = new EventListenerV2(NetworksEnum.ethereumMainnet, [], listenerConfig)
 
-      const mockDao = {
-        address: '0x1234',
-        network: NetworksEnum.ethereumMainnet,
-      }
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        await fn({
+          session: { closeEnd: sandbox.stub().resolves() },
+        })
+      })
 
-      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ error'))
-      const logErrorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({
+        lastSync: 102,
+        update: sandbox.stub(),
+      })
 
-      await listener['sendDaoMessages'](mockDao as any)
+      const updateStub = sandbox.stub(Models.ConfigIndexer.prototype, 'update')
 
-      expect(logErrorStub.calledOnce).to.be.true
-      expect(logErrorStub.firstCall.args[0]).to.equal('Failed to send RabbitMQ messages')
+      await listener.saveProgress(101, NetworksEnum.ethereumMainnet, 1231)
+
+      expect(updateStub.notCalled).to.be.true // No update should occur
+    })
+
+    it('should log an error if saveProgress fails', async () => {
+      const listener = new EventListenerV2(NetworksEnum.ethereumMainnet, [], listenerConfig)
+      const logError = sandbox.stub(logger, 'error')
+      sandbox.stub(DbTx, 'executeTxFn').throws(new Error('Transaction error'))
+
+      await listener.saveProgress(101, NetworksEnum.ethereumMainnet, 1231)
+
+      expect(logError.calledWithMatch('Error saving progress' as any)).to.be.true
     })
   })
 })

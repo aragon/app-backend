@@ -1,6 +1,5 @@
 import logger from '@logger'
 import { EnumConnection, EnumQueueName, type IQueueRealtimeTransactions } from '@types'
-import { TaskSchedulerState } from '@state/taskSchedulerState'
 
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -19,9 +18,6 @@ const AragonTransactionsService = {
   },
 
   async stop() {
-    const scheduler = TaskSchedulerState.getInstance()
-    scheduler.stopTask('indexer')
-
     logger.info('IndexerService service stopped', llo({}))
   },
 }

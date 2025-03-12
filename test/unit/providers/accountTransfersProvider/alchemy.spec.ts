@@ -324,6 +324,15 @@ describe('Providers: AlchemyProvider', () => {
       expect(warnStub.calledOnce).to.be.true
     })
 
+    it('should return when proxytoken returns null', async () => {
+      const txLog = { ...baseTxLog, rawContract: { address: '0xTokenAddress' } }
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(dummyTimestamp)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null as any)
+      const result = await AlchemyProvider.formatTxLog(txLog as any, NetworksEnum.ethereumMainnet)
+      expect(result).to.be.undefined
+    })
+
     it('formats and returns transfer log correctly when all fields are provided', async () => {
       const txLog = { ...baseTxLog, rawContract: { address: '0xTokenAddress' } }
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(dummyTimestamp)
