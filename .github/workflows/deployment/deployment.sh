@@ -143,18 +143,13 @@ install_dependencies() {
     else
         echo "nvm already installed"
     fi
-
-     # Read Node.js version dynamically from .nvmrc
-     NODE_VERSION=$(cat "$REMOTE_DIR/$TARGET_DIR/.nvmrc")
-     echo "Using Node.js version from .nvmrc: $NODE_VERSION"
-
-     nvm install "$NODE_VERSION"
-     nvm use "$NODE_VERSION"
-     node -v  # Debugging: Print the active Node.js version
-
-     yarn install
-     yarn global add pm2
-     echo "Installing PM2..."
+    #source ~/.nvm/nvm.sh
+    nvm install
+    pwd
+    nvm use default
+    yarn install
+    yarn global add pm2
+    echo "Installing PM2..."
 }
 
 start_app_first_time() {
