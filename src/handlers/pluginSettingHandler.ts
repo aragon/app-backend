@@ -189,7 +189,7 @@ export const PluginSettingHandler = {
       await PluginSettingHandler.isSupported(relatedPlugin, info)
     }
 
-    return await relatedPlugin.reload()
+    return relatedPlugin
   },
 
   sppSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
