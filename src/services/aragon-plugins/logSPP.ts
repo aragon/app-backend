@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type IIndexerConfig, ISPPLogs } from '@types'
+import { type IEnumIndexerServiceStatic, type IIndexerConfig, ISPPLogs } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
@@ -20,7 +20,7 @@ export const LogSpp = {
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogSpp.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}` as IEnumIndexerServiceStatic,
       stopOnError: true,
     })
     await crawler.crawl()
