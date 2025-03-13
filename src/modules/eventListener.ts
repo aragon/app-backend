@@ -2,11 +2,14 @@ import { Interface, type Log, type LogDescription } from 'ethers'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import { type IIndexerConfig, type NetworksEnum } from '@types'
+import { EnumQueueName, type IIndexerConfig, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
 import DbTx from '@modules/dbTx'
+import Utils from '@helpers/utils'
+import { DAO } from '@artifacts/dao'
+import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+import { ERC721 } from '@artifacts/ERC721'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
@@ -15,6 +18,7 @@ class EventListener {
   public configLogs: IIndexerConfig[]
   public maxTopicsPerBatch = 4
   public isProcessingBlock = 0
+  public lastBlock = 0
 
   constructor(network: NetworksEnum, configLogs: IIndexerConfig[]) {
     this.network = network
@@ -91,34 +95,52 @@ class EventListener {
       return
     }
 
+    if (this.lastBlock + 1 !== blockNumber) {
+      logger.warn(
+        'Block Missed from on-chain',
+        llo({
+          currentBlock: blockNumber,
+          prevBlock: this.lastBlock,
+          network: this.network,
+        }),
+      )
+    }
+
     this.isProcessingBlock = blockNumber
+    this.lastBlock = blockNumber
 
     try {
-      const provider = ProviderModule.getAnyRpcProvider(this.network)
-      const blockHex = '0x' + Number(blockNumber).toString(16)
-
-      const filter = {
-        fromBlock: blockHex,
-        toBlock: blockHex,
+      if (this.network === NetworksEnum.peaqMainnet) {
+        await Utils.wait(1000 * 2)
       }
 
-      const logs = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(this.network).schedule(async () => provider.getLogs(filter)),
-      )
+      const blockReceipts = await Web3Helper.getBlockReceipts(this.network, blockNumber)
+      if (!blockReceipts || blockReceipts.length === 0) return
+
+      const priorityTopics = this.configLogs.map(config => config.topic)
+
+      const logs = blockReceipts.reduce((acc: any, receipt: any) => {
+        const logsToHandle = receipt.logs.filter((log: any) => {
+          return priorityTopics.includes(log.topics[0])
+        })
+        return acc.concat(logsToHandle)
+      }, [])
 
       if (!logs || logs.length === 0) {
         return
       }
 
-      const priorityTopics = this.configLogs.map(config => config.topic)
-      const sortedLogs = logs
-        .filter((log: Log) => priorityTopics.includes(log.topics[0]))
-        .sort((a: Log, b: Log) => priorityTopics.indexOf(a.topics[0]) - priorityTopics.indexOf(b.topics[0]))
-
-      if (sortedLogs.length === 0) {
-        logger.silly('No logs found for topics', llo({ blockNumber, network: this.network }))
-        return
+      const addresses = this.parseAddressForDeposits(logs)
+      if (addresses?.length) {
+        await RabbitMQHelper.sendMessage(EnumQueueName.realtimeTransactions, {
+          id: `realtimeTransactions-${this.network}-${blockNumber}`,
+          params: { addresses, network: this.network, transactionHash: logs[logs.length - 1].transactionHash },
+        })
       }
+
+      const sortedLogs = logs.sort(
+        (a: Log, b: Log) => priorityTopics.indexOf(a.topics[0]) - priorityTopics.indexOf(b.topics[0]),
+      )
 
       for (const log of sortedLogs) {
         await this.handleEvent(log)
@@ -152,6 +174,51 @@ class EventListener {
     } catch (error) {
       logger.error('Error saving progress - last block', llo({ error, blockNumber, network }))
     }
+  }
+
+  parseAddressForDeposits(logs: Log[]): string[] | undefined {
+    const topicHash = [
+      new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
+      new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
+    ]
+
+    const logsToHandle = logs.filter((log: Log) => {
+      return topicHash.includes(log.topics[0])
+    })
+
+    if (!logsToHandle || logsToHandle.length === 0) {
+      return
+    }
+
+    const receiverAddresses = new Set<string>()
+    for (const log of logsToHandle) {
+      if (log.topics[0] === topicHash[0]) {
+        receiverAddresses.add(log.address)
+      } else if (log.topics[0] === topicHash[1]) {
+        const decodedAddress = this.decodeTransferLogs(log)
+        if (decodedAddress) {
+          receiverAddresses.add(decodedAddress)
+        }
+      }
+    }
+
+    return Array.from(receiverAddresses)
+  }
+
+  private decodeTransferLogs(log: Log) {
+    const govTokenInterface = new Interface(GovernanceERC20.abi)
+    const erc721Interface = new Interface(ERC721.abi)
+    let decoded: any = null
+    try {
+      decoded = govTokenInterface.parseLog(log)
+    } catch (e) {
+      try {
+        decoded = erc721Interface.parseLog(log)
+      } catch (e) {
+        // skip
+      }
+    }
+    return decoded ? decoded.args.to : null
   }
 }
 
