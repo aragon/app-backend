@@ -12,6 +12,7 @@ import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
 import MultisigHelper from '@helpers/multisig'
+import { Multisig2 } from '@artifacts/Multisig2'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
 
@@ -24,6 +25,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:Plugi
 export const PluginSettingHandler = {
   handlePluginSettingByType: async (plugin: Plugin, txReceipt: TransactionReceipt, info: ILogInfo) => {
     let abi: any
+    let abi2: any
     let eventName: IEventLogPluginSettings
     let handler: (parsedEvent: LogDescription, info: ILogInfo) => Promise<Plugin | undefined>
     switch (plugin.interfaceType) {
@@ -34,6 +36,7 @@ export const PluginSettingHandler = {
         break
       case IPluginInterfaceType.multisig:
         abi = Multisig.abi
+        abi2 = Multisig2.abi
         eventName = IEventLogPluginSettings.MultisigSettingsUpdated
         handler = PluginSettingHandler.multisigSettingsUpdated
         break
@@ -46,8 +49,12 @@ export const PluginSettingHandler = {
         return
     }
 
-    const settingLogs = Web3Helper.findLogsByName(txReceipt, eventName, abi)
+    let settingLogs = Web3Helper.findLogsByName(txReceipt, eventName, abi)
+    if (settingLogs?.length === 0 && abi2) {
+      settingLogs = Web3Helper.findLogsByName(txReceipt, eventName, abi2)
+    }
     const settingLog = settingLogs?.find(log => log?.txLog?.address === plugin.address)
+
     if (settingLog) {
       const infoPluginSetup = Web3Helper.parseInfoLog(settingLog.txLog, eventName, info.network)
       const plugin = await handler(settingLog.parsed!, infoPluginSetup)
