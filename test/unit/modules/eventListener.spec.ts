@@ -9,7 +9,7 @@ import { Models } from '@dbModels'
 import Logger from '@logger'
 import DbTx from '@modules/dbTx'
 
-describe.only('Module: EventListener', () => {
+describe('Module: EventListener', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(async () => {
