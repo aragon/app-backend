@@ -67,6 +67,33 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(result).to.deep.equal({ address: '0xmultisig-plugin' })
     })
 
+    it.only('should process multisig v2 settings log', async () => {
+      const txReceipt = { logs: [{ topics: ['0xmultisig'], data: '0x01' }] } as any
+      const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.multisig } as any
+      const info = { network: NetworksEnum.ethereumMainnet } as any
+
+      sandbox
+        .stub(Web3Helper, 'findLogsByName')
+        .onFirstCall()
+        .returns([])
+        .onSecondCall()
+        .returns([
+          {
+            parsed: 'multisigLog',
+            txLog: { address: '0xplugin' },
+          } as any,
+        ])
+      sandbox.stub(Web3Helper, 'parseInfoLog').returns('multisigInfo' as any)
+      const multisigStub = sandbox
+        .stub(PluginSettingHandler, 'multisigSettingsUpdated')
+        .resolves({ address: '0xmultisig-plugin' } as any)
+
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+
+      expect(multisigStub.calledOnceWith('multisigLog' as any, 'multisigInfo' as any)).to.be.true
+      expect(result).to.deep.equal({ address: '0xmultisig-plugin' })
+    })
+
     it('should process spp settings log', async () => {
       const txReceipt = { logs: [{ topics: ['0xspp'], data: '0x03' }] } as any
       const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.spp } as any

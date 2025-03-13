@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
+import { IEventLogPluginType, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
@@ -28,7 +28,57 @@ describe('Integration: Plugin Setup SPP', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should handle DelegateVotesChanged event', async function () {
+  it('should handle multisig plugin different abi', async function () {
+    this.timeout(10000000)
+
+    const daoAddress = '0x56F406551b725072853317A11fc4EAF24B05037E'
+    const pluginAddress = '0x957f7145BA7B633165519C2f313a05E359cDc2E4'
+
+    const daoCreationTxHash = '0x69f1c90f66b5af323ae093bade7134f502bef5c10e313ceee4e694998a9815a3'
+    const daoRegisteredEvents = await UnitDepUtils.getData(
+      DAORegistry.abi,
+      'DAORegistered',
+      daoCreationTxHash,
+      NetworksEnum.ethereumSepolia,
+    )
+
+    for (const { event, logInfo } of daoRegisteredEvents) {
+      await DaoRegistryHandler.daoRegistered(event, logInfo)
+    }
+
+    const dao = await Models.Dao.findOne({ address: daoAddress })
+    expect(dao?.address).to.eq(daoAddress)
+
+    const multisigPluginPreparedEvents = await UnitDepUtils.getData(
+      PluginSetupProcessor.abi,
+      IEventLogPluginType.InstallationPrepared,
+      daoCreationTxHash,
+      NetworksEnum.ethereumSepolia,
+    )
+
+    for (const { event, logInfo } of multisigPluginPreparedEvents) {
+      await PluginSetupProcessorHandler.installationPrepared(event, logInfo)
+    }
+
+    const multisigPluginAppliedEvents = await UnitDepUtils.getData(
+      PluginSetupProcessor.abi,
+      IEventLogPluginType.InstallationApplied,
+      daoCreationTxHash,
+      NetworksEnum.ethereumSepolia,
+    )
+
+    for (const { event, logInfo } of multisigPluginAppliedEvents) {
+      await PluginSetupProcessorHandler.installationApplied(event, logInfo)
+    }
+
+    const plugin = await Models.Plugin.findOne({ address: pluginAddress })
+    expect(plugin?.address).to.eq(pluginAddress)
+    expect(plugin?.isSupported).to.be.true
+
+    console.log('ok')
+  })
+
+  it('should handle plugin installation token voting', async function () {
     this.timeout(10000000)
     const daoCreationTxHash = '0x2a47f99a78b147abb325eb14060b0ed4ba665d6a9d40d7c1a7d145e62c2f755f'
     const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
