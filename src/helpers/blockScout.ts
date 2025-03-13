@@ -26,7 +26,7 @@ const BlockScoutHelper = {
     }
     try {
       const response = await retryRequest(async () =>
-        BottleneckModule.getBlockScoutLimiter(network)!.schedule(async () =>
+        BottleneckModule.getBlockScoutLimiter(network).schedule(async () =>
           BlockScoutHelper.axiosInstance(network).get(`v2/${path}`, { params }),
         ),
       )
