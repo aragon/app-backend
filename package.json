@@ -21,8 +21,7 @@
     "format:fix": "prettier --write \"src/**/*.{ts,json}\" \"test/**/*.{ts,json}\" \"postman/**/*.json\" \"*.json\"",
     "test:dotonly": "dot-only-hunter test",
     "test:manual": "ts-node -r tsconfig-paths/register test/test.config.ts --manual",
-    "test:unit": "ts-node -r tsconfig-paths/register test/test.config.ts --unit",
-    "test:unit-dep": "ts-node -r tsconfig-paths/register test/test.config.ts --unit-dep",
+    "test:unit": "TS_NODE_TRANSPILE_ONLY=true ts-node -r tsconfig-paths/register test/test.config.ts --unit",
     "test:unit:coverage": "rm -rf coverage .nyc_output && nyc --debug --no-clean --temp-dir=.nyc_output/ yarn test:unit",
     "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 97.43 --branches 82 --functions 98 --lines 97.64",
     "docker:test:unit-dep": "docker-compose up -d --build unit-dep",
@@ -32,7 +31,11 @@
     "docker:services": "docker-compose up --build -d service-aragon-api service-aragon-indexer service-aragon-rates",
     "wait:rabbitmq": "bash test/lib/scripts/waitUp.sh rabbitmq 5672",
     "wait:db": "bash test/lib/scripts/waitUp.sh mongo1 27017 && bash test/lib/scripts/waitUp.sh mongo2 27017 && bash test/lib/scripts/waitUp.sh mongo3 27017",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:unit:parallel": "TS_NODE_TRANSPILE_ONLY=true ts-node -r tsconfig-paths/register test/test.config.ts --unit --parallel",
+    "test:unit:watch": "nodemon --exec 'npm run test:unit' --ext ts --watch src --watch test/unit",
+    "test:unit-dep": "TS_NODE_TRANSPILE_ONLY=true ts-node -r tsconfig-paths/register test/test.config.ts --unit-dep",
+    "test:grep": "TS_NODE_TRANSPILE_ONLY=true ts-node -r tsconfig-paths/register test/test.config.ts --unit --grep"
   },
   "repository": {
     "type": "git",
@@ -135,7 +138,7 @@
     "eslint-plugin-promise": "^6.1.1",
     "husky": "^9.1.7",
     "mocha": "^10.3.0",
-    "mongodb-memory-server": "^9.1.6",
+    "mongodb-memory-server": "^10.1.4",
     "nyc": "^15.1.0",
     "prettier": "^3.2.5",
     "proxyquire": "^2.1.3",
