@@ -7,7 +7,7 @@ import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { BlockHandler } from '@services/aragon-transactions/blockHandler'
 import type Dao from '@models/schema/dao'
-import utils from "@helpers/utils";
+import utils from '@helpers/utils'
 describe('AragonTransactions: BlockHandler', () => {
   let sandbox: SinonSandbox
 
