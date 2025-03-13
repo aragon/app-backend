@@ -24,7 +24,7 @@ export const AlchemyProvider: IAccountBalancesProvider = {
       const provider = ProviderModule.getProvider(network, IProviderType.ALCHEMY, IConnectionType.RPC)
 
       const response = await retryRequest(async () =>
-        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
+        BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () =>
           provider.send('alchemy_getTokenBalances', [address]),
         ),
       )
