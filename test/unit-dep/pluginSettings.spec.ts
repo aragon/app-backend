@@ -1,16 +1,13 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import {IEventLogMember, IEventLogPluginSettings, ITransferSide, NetworksEnum} from '@types'
-import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+import { IEventLogPluginSettings, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
-import utils from '@helpers/utils'
-import {PluginSettingHandler} from "@handlers/pluginSettingHandler";
-import {Multisig} from "@artifacts/Multisig";
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import { Multisig } from '@artifacts/Multisig'
 
-describe.only('Integ: PluginSettings', () => {
+describe('Integ: PluginSettings', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -21,7 +18,7 @@ describe.only('Integ: PluginSettings', () => {
     sandbox && sandbox.restore()
   })
 
-  it.only('should test moving delegation from an member to another', async function () {
+  it('should test moving delegation from an member to another', async function () {
     this.timeout(1600000) // Increase timeout for the test
     const network = NetworksEnum.ethereumSepolia
     const daoAddress = '0x59f1Cb40461387B6d4cad4F6fcF7505A1546ee21'
@@ -69,7 +66,7 @@ describe.only('Integ: PluginSettings', () => {
     const tx1 = await UnitDepUtils.getData(
       Multisig.abi,
       IEventLogPluginSettings.MultisigSettingsUpdated,
-      '0xb5be7c47b69cad71157ccef99adcb34336e168ea606b4fa92d5bae804de7bd1c',
+      '0x2c884b15e057fbf5318caf21b008e06154ecd80ab20537bc17296ddf29cf456f',
       network,
     )
 
@@ -77,8 +74,10 @@ describe.only('Integ: PluginSettings', () => {
       await PluginSettingHandler.multisigSettingsUpdated(event, logInfo)
     }
 
-    // test member created
-    // expect(await Models.Member.findByAddress(member1)).to.exist
-    console.log('ok')
+    const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+    const settings = await Models.Setting.findOne({ pluginAddress, network })
+    expect(plugin.isSupported).to.be.true
+    expect(settings.minApprovals).to.eq(1)
+    expect(settings.onlyListed).to.be.true
   })
 })
