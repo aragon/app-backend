@@ -84,7 +84,7 @@ describe('AragonDao:AllMetrics', () => {
       const stubProposalMetrics = sandbox.stub(ProposalMetrics, 'proposalTokenVotingMetrics').resolves()
       const stubFindPlugin = sandbox
         .stub(Models.Plugin, 'findByAddress')
-        .resolves({ interfaceType: IPluginInterfaceType.tokenVoting } as any)
+        .resolves({ interfaceType: IPluginInterfaceType.tokenVoting, isSupported: true } as any)
 
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onDocument({ pluginAddress: '0x123', proposalIndex: '1', network: NetworksEnum.ethereumMainnet })
@@ -110,7 +110,7 @@ describe('AragonDao:AllMetrics', () => {
       const stubProposalMetrics = sandbox.stub(ProposalMetrics, 'proposalMultisigMetrics').resolves()
       const stubFindPlugin = sandbox
         .stub(Models.Plugin, 'findByAddress')
-        .resolves({ interfaceType: IPluginInterfaceType.multisig } as any)
+        .resolves({ interfaceType: IPluginInterfaceType.multisig, isSupported: true } as any)
 
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onDocument({ pluginAddress: '0x456', proposalIndex: '2', network: NetworksEnum.ethereumMainnet })
