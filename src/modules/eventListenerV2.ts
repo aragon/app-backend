@@ -194,7 +194,7 @@ class EventListenerV2 {
     const fromBlock = lastProcessedBlock ? lastProcessedBlock + 1 : blockNumber
 
     const logs = await retryRequest(async () =>
-      BottleneckModule.getNodeLimiter(this.network)!.schedule(async () =>
+      BottleneckModule.getNodeLimiter(this.network).schedule(async () =>
         provider.getLogs({
           fromBlock: '0x' + fromBlock.toString(16),
           toBlock: 'latest',
