@@ -67,7 +67,7 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(result).to.deep.equal({ address: '0xmultisig-plugin' })
     })
 
-    it.only('should process multisig v2 settings log', async () => {
+    it('should process multisig v2 settings log', async () => {
       const txReceipt = { logs: [{ topics: ['0xmultisig'], data: '0x01' }] } as any
       const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.multisig } as any
       const info = { network: NetworksEnum.ethereumMainnet } as any
