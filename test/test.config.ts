@@ -57,7 +57,7 @@ async function runTests() {
   })
 
   // Global setup before all tests
-  mocha.suite.beforeAll(async function() {
+  mocha.suite.beforeAll(async function () {
     this.timeout(30000) // Allow longer timeout for initial setup
 
     console.log(`Running ${testFolder} tests...`)
@@ -77,7 +77,7 @@ async function runTests() {
   })
 
   // Before each test
-  mocha.suite.beforeEach(async function() {
+  mocha.suite.beforeEach(async function () {
     switch (testFolder) {
       case 'unit':
         await MockDB.drop()
@@ -91,7 +91,7 @@ async function runTests() {
   })
 
   // After all tests
-  mocha.suite.afterAll(async function() {
+  mocha.suite.afterAll(async function () {
     this.timeout(10000) // Allow time for cleanup
 
     switch (testFolder) {

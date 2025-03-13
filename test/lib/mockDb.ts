@@ -56,16 +56,14 @@ const MockDB = {
       },
     })
 
-
-
     await MockDB.replSet.start()
     const uri = MockDB.replSet.getUri()
     await ModelProxy.setMongoModels()
 
     await mongoose.connect(uri, MockDB.mongoOptions)
     mongoose.connection.on('connected', () => {
-      console.log(`Mongoose connected to ${uri}`);
-    });
+      console.log(`Mongoose connected to ${uri}`)
+    })
     mongoose.set('debug', config.MONGO_DB.DEBUGGER)
     MockDB.mongoUri = uri
     return uri
