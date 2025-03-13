@@ -175,6 +175,7 @@ export const ProxyToken = {
       return { tokenRate, tokenMetrics }
     }
 
+    // TODO: this should go into fetch rates and eventually rename it to fetchTokenDetails
     const tokenFullDetails = await BlockScoutHelper.getTokenFullDetails(tokenAddress, network)
 
     if (tokenFullDetails) {
