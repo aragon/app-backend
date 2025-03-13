@@ -22,7 +22,7 @@ const GovernanceErc20Helper = {
     try {
       const adjustedBlockNumber = await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
       const pastVotes = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
           contract.getPastVotes(memberAddress, adjustedBlockNumber),
         ),
       )
@@ -38,7 +38,7 @@ const GovernanceErc20Helper = {
 
     try {
       const pastVotes = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
           contract.getPastVotes(memberAddress, blockTimestamp),
         ),
       )
@@ -58,7 +58,7 @@ const GovernanceErc20Helper = {
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getVotes(memberAddress)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getVotes(memberAddress)),
       )
     } catch (error) {
       logger.error('Error getting votes', llo({ memberAddress, tokenAddress, network, error }))
@@ -73,9 +73,7 @@ const GovernanceErc20Helper = {
 
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
-          contract.getPastTotalSupply(adjustedBlockNumber),
-        ),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getPastTotalSupply(adjustedBlockNumber)),
       )
     } catch (error) {
       logger.error('Error getting pastTotalSupply', llo({ blockNumber, tokenAddress, network, error }))
@@ -88,7 +86,7 @@ const GovernanceErc20Helper = {
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.delegates(memberAddress)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.delegates(memberAddress)),
       )
     } catch (e) {
       logger.error('Error getting delegate', llo({ memberAddress, tokenAddress, network, error: e }))
