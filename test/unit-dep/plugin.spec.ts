@@ -12,6 +12,7 @@ import { expect } from 'chai'
 import BlockScoutHelper from '@helpers/blockScout'
 import { RateModule } from '@modules/rates'
 import logger from '@logger'
+import { PluginSlug } from '@helpers/pluginSlug'
 
 describe('Integration: Plugin Setup SPP', () => {
   let sandbox: SinonSandbox
@@ -26,6 +27,60 @@ describe('Integration: Plugin Setup SPP', () => {
 
   afterEach(() => {
     sandbox && sandbox.restore()
+  })
+
+  it('plugin slug', async function () {
+    this.timeout(10000000)
+
+    const network = NetworksEnum.ethereumSepolia
+    const daoAddress = '0x9b42704949b98CE4C3b7484D3Fe2694807768942'
+    const pluginAddress = '0x0b001495e87237c2Cd57F2E7CEE5962016BC5ca2'
+
+    const plugin = await Models.Plugin.create({
+      id: 'ethereum-sepolia-0x83a5a6df11c205990c24dc10ddb14af669578b9207511bac2a881a0ce84bb5d0-0x0b001495e87237c2Cd57F2E7CEE5962016BC5ca2',
+      transactionHash: '0x83a5a6df11c205990c24dc10ddb14af669578b9207511bac2a881a0ce84bb5d0',
+      blockNumber: 7686518,
+      blockTimestamp: 1739284548,
+      network,
+      address: pluginAddress,
+      implementationAddress: '0x4cCA57aC117Ae35bd0222f8dE52fc4f9c88eBa6f',
+      interfaceType: 'spp',
+      status: 'installed',
+      isSupported: true,
+      daoAddress,
+      tokenAddress: null,
+      pluginSetupRepoAddress: '0xE67b8E026d190876704292442A38163Ce6945d6b',
+      sender: '0x9b42704949b98CE4C3b7484D3Fe2694807768942',
+      release: '1',
+      build: '8',
+      subdomain: 'spp',
+      permissions: [],
+      uninstalled: {
+        status: false,
+        transactionHash: null,
+        blockNumber: null,
+        blockTimestamp: null,
+      },
+      isProcess: true,
+      isBody: false,
+      isSubPlugin: false,
+      metadataIpfs: 'ipfs://Qmc8ECxCFCZS7R5ruavYfiCUfRoXQ1gi1GKWDWZBifVSxZ',
+      name: 'End To End',
+      description: '',
+      processKey: 'ETE',
+      subPlugins: [
+        {
+          addresses: ['0xd7750B1B69aBD00bc1D02adEd842Ec65AfBe52a5'],
+          stageIndex: 0,
+        },
+      ],
+      links: [],
+      totalStages: 1,
+    })
+
+    await PluginSlug.generateSlug(plugin, plugin?.processKey)
+
+    console.log('ok')
   })
 
   it('should handle multisig plugin different abi', async function () {
