@@ -13,6 +13,7 @@ export const RefetchProposalsMetrics: IService = {
       model: Models.Proposal,
       onDocument: async (proposal: Proposal) => {
         const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
+        if (!plugin.isSupported) return
         if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
           await ProposalMetrics.proposalTokenVotingMetrics({
             pluginAddress: proposal.pluginAddress,
