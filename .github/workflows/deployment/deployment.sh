@@ -3,7 +3,6 @@
 # Set Bash options for better error handling
 set -eo
 
-
 # Variables
 set_vars(){
     REPO_BRANCH="${REPO_BRANCH:-develop}"
@@ -14,10 +13,7 @@ set_vars(){
     REMOTE_DIR="/home/${REMOTE_USER}"
     REMOTE_SCRIPT_NAME='remote_script.sh'
     #PEM_FILE="aragon-backend.pem"
-
 }
-
-
 echo "Starting deployment..."
 
 check_vars_exist() {
@@ -101,12 +97,9 @@ remote_extract_files() {
 
 }
 
-
-
 # Function copy in the remote the var files to the dir
 # This is just for testing when you have files locally, GitHub flow will retrieve the config and upload it in the .tar directly
 # You have to upload the files previously to the machine
-
 remote_restore_envfiles_remotely() {
     echo -e "\n\n Remote: Copying environment files previously updated (for manual testing). You must updated the files before manually to ($REMOTE_DIR/manual_envfiles/ )..."
     ssh "$REMOTE_USER@$REMOTE_HOST" << EOF
@@ -190,7 +183,6 @@ remote_execute_script() {
 
 
 # Main execution flow
-
 main_functions(){
     if [ -n "$IS_A_GITHUB_ACTION" ]; then
         echo "This script is being executed in a GitHub Actions environment."
@@ -278,7 +270,6 @@ main() {
 
 # Call the function to parse options
 main "$@"
-
 echo "Deployment complete."
 
 

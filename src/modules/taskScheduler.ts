@@ -223,7 +223,7 @@ class TaskScheduler {
       this.tasks[key].lock = true
       this.tasks[key].running = false
       if (this.tasks[key].intervalId !== null) {
-        clearInterval(this.tasks[key].intervalId!)
+        clearInterval(this.tasks[key].intervalId)
         this.tasks[key].intervalId = null
       }
       logger.info(`${key} task stopped`, llo({}))

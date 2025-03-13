@@ -66,7 +66,7 @@ const CovalentHelper = {
   _rpCall: async <T>(path: string): Promise<T> => {
     try {
       const response: any = await retryRequest(async () =>
-        BottleneckModule.getCovalentLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+        BottleneckModule.getCovalentLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
           CovalentHelper.axiosInstance.get(`${config.COVALENT.URI}${path}`),
         ),
       )

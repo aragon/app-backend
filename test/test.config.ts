@@ -82,26 +82,25 @@ async function runTests() {
 
   // Resolve and add test files
   const pattern = path.join(__dirname, testFolder, '**', '*.ts')
-  glob(pattern, (err, files) => {
-    if (err) {
-      console.error('Could not find test files', err)
-      return
-    }
 
+  try {
+    const files = await glob(pattern)
     files.forEach(file => mocha.addFile(file))
 
-    // Run the tests
     mocha.run(failures => {
       process.exitCode = failures ? 1 : 0
       if (failures) {
         console.error(failures)
         process.exit(1)
       } else {
-        console.log('All tests passed!') // eslint-disable-line no-console
+        console.log('All tests passed!')
         process.exit(0)
       }
     })
-  })
+  } catch (err) {
+    console.error('Could not find test files', err)
+    process.exit(1)
+  }
 }
 
 runTests().catch(error => {
