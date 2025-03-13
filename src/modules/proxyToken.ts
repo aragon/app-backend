@@ -41,7 +41,7 @@ export const ProxyToken = {
         return await ProxyToken.createNewToken(parsedTokenAddress, network, session)
       })
     } catch (error) {
-      logger.error('Error saveAndGetToken', llo({ error }))
+      logger.error('Error saveAndGetToken', llo({ error, tokenAddress, network }))
       return null
     }
   },

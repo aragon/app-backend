@@ -1,7 +1,6 @@
 import { type IContractAbi, type NetworksEnum } from '@types'
 import ProxyContract from '@helpers/proxyContract'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
-
 import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
 
 export const ContractInfo = {
