@@ -11,14 +11,10 @@ const MultisigHelper = {
   ): Promise<{ minApprovals: number; onlyListed: boolean } | undefined> => {
     const settings = await Web3Helper.getMultisigSettings(pluginAddress, network)
 
-    let minApprovals: any
     const onlyListed = settings?.onlyListed || false
+    const minApprovals: any = Number(settings?.minApprovals || 0)
 
-    if (settings && Object.prototype.hasOwnProperty.call((settings as any).toObject(), 'minApprovals')) {
-      minApprovals = Number(settings?.minApprovals)
-    }
-
-    if (minApprovals !== undefined) {
+    if (settings?.minApprovals) {
       return { minApprovals, onlyListed }
     }
 

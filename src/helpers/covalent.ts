@@ -112,7 +112,10 @@ const CovalentHelper = {
       assert(response.length > 0, 'Price data not complete')
 
       return CovalentHelper._parseToken(response[0], network, isNativeToken)
-    } catch (_) {
+    } catch (error: any) {
+      if (error?.response?.statusText === 'Payment Required') {
+        logger.error('Covalent payment error', llo({ tokenContractAddress, network, pastDays }))
+      }
       return false
     }
   },
