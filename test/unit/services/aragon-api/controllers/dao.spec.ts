@@ -19,6 +19,7 @@ describe('Controller: Dao', () => {
 
     rawDao = {
       ...(DaoList[0] as any),
+      id: `${DaoList[0].network}-${FakeDaoMemberMappings[0].daoAddress}`,
       address: FakeDaoMemberMappings[0].daoAddress,
     }
     await Models.Dao.create(rawDao)
