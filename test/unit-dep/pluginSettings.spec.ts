@@ -18,7 +18,7 @@ describe('Integ: PluginSettings', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should test moving delegation from an member to another', async function () {
+  it('should test plugin settings', async function () {
     this.timeout(1600000) // Increase timeout for the test
     const network = NetworksEnum.ethereumSepolia
     const daoAddress = '0x59f1Cb40461387B6d4cad4F6fcF7505A1546ee21'
