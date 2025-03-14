@@ -24,7 +24,7 @@ export const ProposalMetrics = {
           return
         }
 
-        if (proposal?.settings?.minApprovals === undefined) {
+        if (!proposal.settings?.minApprovals) {
           logger.warn('MinApprovals not found - multisig metrics', llo({ proposalIndex, pluginAddress, network }))
           return
         }

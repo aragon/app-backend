@@ -94,7 +94,7 @@ const RabbitMQHelper = {
               }
               channel.ack(msg)
             } catch (handlerErr) {
-              logger.error('Error in messageHandler', llo({ queueName, error: handlerErr }))
+              logger.error('Error in messageHandler', llo({ queueName, data, error: handlerErr }))
             }
           },
           { noAck: false },
