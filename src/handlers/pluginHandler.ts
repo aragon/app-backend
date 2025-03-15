@@ -527,7 +527,7 @@ export const PluginHandler = {
         PluginSetupProcessor.abi,
       )
 
-      if (uninstallationAppliedLogs.length) {
+      if (uninstallationAppliedLogs.length > 0) {
         return
       }
 
