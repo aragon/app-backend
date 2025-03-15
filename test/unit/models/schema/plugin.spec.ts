@@ -16,6 +16,7 @@ describe('Model: Plugin', () => {
     rawPlugin = {
       ...PluginList[0],
       interfaceType: IPluginInterfaceType.multisig,
+      hasTarget: true,
     }
   })
 
@@ -35,6 +36,7 @@ describe('Model: Plugin', () => {
       expect(plugin.transactionHash).to.equal(rawPlugin.transactionHash)
       expect(plugin.address).to.equal(rawPlugin.address)
       expect(plugin.network).to.equal(rawPlugin.network)
+      expect(plugin.hasTarget).to.be.true
     })
 
     it('should save without plugin id present', async () => {

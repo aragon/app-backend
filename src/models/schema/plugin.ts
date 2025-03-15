@@ -135,6 +135,9 @@ export default class Plugin extends Model {
   @prop({ type: () => PluginUninstalled, _id: false, default: {} })
   public uninstalled!: PluginUninstalled
 
+  @prop({ type: () => Boolean, default: false })
+  public hasTarget!: boolean
+
   // Flags
   @prop({ type: () => Boolean, default: false })
   public isProcess?: boolean
