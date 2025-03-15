@@ -103,7 +103,7 @@ class EventListener {
       }
 
       const logs = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(this.network)!.schedule(async () => provider.getLogs(filter)),
+        BottleneckModule.getNodeLimiter(this.network).schedule(async () => provider.getLogs(filter)),
       )
 
       if (!logs || logs.length === 0) {

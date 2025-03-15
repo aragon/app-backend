@@ -128,22 +128,10 @@ describe('Model: MemberMetrics', () => {
     expect(updatedMember.delegateReceivedCount).to.eq(0)
   })
 
-  it('should decreaseDelegateSentCount', async () => {
-    const member = await Models.MemberMetrics.create({ ...rawMemberMetrics, delegateSentCount: 1 })
-    const updatedMember = await member.decreaseDelegateSentCount(1)
-    expect(updatedMember.delegateSentCount).to.eq(0)
-  })
-
   it('should increaseDelegateReceivedCount', async () => {
     const member = await Models.MemberMetrics.create(rawMemberMetrics)
     const updatedMember = await member.increaseDelegateReceivedCount(1)
     expect(updatedMember.delegateReceivedCount).to.eq(2)
-  })
-
-  it('should increaseDelegateSentCount', async () => {
-    const member = await Models.MemberMetrics.create(rawMemberMetrics)
-    const updatedMember = await member.increaseDelegateSentCount(1)
-    expect(updatedMember.delegateSentCount).to.eq(6)
   })
 
   it('should increaseVoteCount', async () => {

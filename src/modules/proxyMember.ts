@@ -146,6 +146,56 @@ export const ProxyMember = {
     }
   },
 
+  updateDelegationMetrics: async ({
+    memberAddress,
+    pluginAddress,
+    tokenAddress,
+    network,
+  }: {
+    memberAddress: HexAddress
+    pluginAddress: HexAddress
+    tokenAddress: HexAddress
+    network: NetworksEnum
+  }): Promise<MemberMetrics | undefined> => {
+    const metrics = await ProxyMember.createMetrics({
+      address: memberAddress,
+      pluginAddress,
+      network,
+    })
+
+    if (!metrics) {
+      logger.error('Failed to create metrics', llo({ memberAddress, pluginAddress, tokenAddress, network }))
+      return
+    }
+
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        const delegateReceivedCount = await Models.MemberTransaction.getReceiveDelegationCount(
+          memberAddress,
+          tokenAddress,
+          network,
+          { session },
+        )
+        const logDb = await metrics.update({ delegateReceivedCount }, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Updated Member DAO metrics', { logId: logDb.id })
+        return logDb
+      })
+    } catch (error) {
+      logger.error(
+        'Error updating delegation metrics',
+        llo({
+          error,
+          memberAddress,
+          pluginAddress,
+          tokenAddress,
+          network,
+        }),
+      )
+    }
+  },
+
   updateMetricsByAction: async (
     metricAction: IMetricAction,
     {
@@ -170,9 +220,7 @@ export const ProxyMember = {
       [IMetricAction.increaseProposalCount]: metrics.increaseProposalCount,
       [IMetricAction.increaseVoteCount]: metrics.increaseVoteCount,
       [IMetricAction.increaseDelegateReceivedCount]: metrics.increaseDelegateReceivedCount,
-      [IMetricAction.increaseDelegateSentCount]: metrics.increaseDelegateSentCount,
       [IMetricAction.decreaseDelegateReceivedCount]: metrics.decreaseDelegateReceivedCount,
-      [IMetricAction.decreaseDelegateSentCount]: metrics.decreaseDelegateSentCount,
     }
 
     const metricUpdateFn = metricActionsMap[metricAction]

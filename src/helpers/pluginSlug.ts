@@ -55,7 +55,7 @@ export const PluginSlug = {
    * @param maxRetries - Maximum number of suffix increments before failing.
    * @returns A unique slug as a string or null if failed.
    */
-  _createSlugWithRetries: async (baseKey: string, plugin: Plugin, maxRetries = 20): Promise<string | null> => {
+  _createSlugWithRetries: async (baseKey: string, plugin: Plugin, maxRetries = 300): Promise<string | null> => {
     let candidateKey = baseKey
     let suffix = 0
 
@@ -89,7 +89,7 @@ export const PluginSlug = {
           // Duplicate key error, slug already exists within DAO and network
           suffix += 1
           candidateKey = `${baseKey}_${suffix}`
-          logger.info('Slug already exists, incrementing suffix', llo({ candidateKey, suffix }))
+          logger.warn('Slug already exists, incrementing suffix', llo({ candidateKey, suffix }))
         } else if (error.code === 112) {
           // concurrency error conflicts skip and retry
           logger.warn('Encountered error code 112, skipping', llo({ error }))

@@ -9,6 +9,7 @@ import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
 import DbOperations from '@models/utils/dbOperations'
+import MultisigHelper from '@helpers/multisig'
 
 describe('Indexer: PluginSettingHandler', () => {
   let sandbox: SinonSandbox
@@ -55,6 +56,33 @@ describe('Indexer: PluginSettingHandler', () => {
           txLog: { address: '0xplugin' },
         },
       ] as any)
+      sandbox.stub(Web3Helper, 'parseInfoLog').returns('multisigInfo' as any)
+      const multisigStub = sandbox
+        .stub(PluginSettingHandler, 'multisigSettingsUpdated')
+        .resolves({ address: '0xmultisig-plugin' } as any)
+
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+
+      expect(multisigStub.calledOnceWith('multisigLog' as any, 'multisigInfo' as any)).to.be.true
+      expect(result).to.deep.equal({ address: '0xmultisig-plugin' })
+    })
+
+    it('should process multisig v2 settings log', async () => {
+      const txReceipt = { logs: [{ topics: ['0xmultisig'], data: '0x01' }] } as any
+      const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.multisig } as any
+      const info = { network: NetworksEnum.ethereumMainnet } as any
+
+      sandbox
+        .stub(Web3Helper, 'findLogsByName')
+        .onFirstCall()
+        .returns([])
+        .onSecondCall()
+        .returns([
+          {
+            parsed: 'multisigLog',
+            txLog: { address: '0xplugin' },
+          } as any,
+        ])
       sandbox.stub(Web3Helper, 'parseInfoLog').returns('multisigInfo' as any)
       const multisigStub = sandbox
         .stub(PluginSettingHandler, 'multisigSettingsUpdated')
@@ -319,18 +347,61 @@ describe('Indexer: PluginSettingHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ daoAddress: '0xdao', tokenAddress: '0xtoken' } as any)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xdao',
+        tokenAddress: '0xtoken',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      } as any)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
       sandbox.stub(Models.Setting, 'findActive').resolves(false)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       sandbox.stub(DbOperations, 'createDocument').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+      const stubError = sandbox.stub(logger, 'error')
 
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
 
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
 
       expect(isSupportedStub.notCalled).to.be.true
+      expect(stubError.calledOnceWith('votingSettingsUpdated token not found' as any)).to.be.true
+    })
+
+    it('should not call isSupported if tokenDb is null', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 2n,
+          supportThreshold: 150n,
+          minParticipation: 222n,
+          minDuration: 1312312125n,
+          minProposerVotingPower: 10n,
+        },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xdao',
+        tokenAddress: '0xtoken',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      } as any)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      sandbox.stub(Models.Setting, 'findActive').resolves(false)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      sandbox.stub(DbOperations, 'createDocument').resolves()
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+      const stubError = sandbox.stub(logger, 'error')
+
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
+
+      await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(isSupportedStub.notCalled).to.be.true
+      expect(stubError.calledOnceWith('votingSettingsUpdated token not found' as any)).to.be.true
     })
   })
 
@@ -410,16 +481,21 @@ describe('Indexer: PluginSettingHandler', () => {
 
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
       const stubIsSupported = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+      const stubSettings = sandbox.stub(MultisigHelper, 'findSettings').resolves({
+        minApprovals: 1,
+        onlyListed: true,
+      })
 
       await PluginSettingHandler.multisigSettingsUpdated(parsedEvent as any, info as any)
 
       expect(stubFindByAddress.calledOnce).to.be.true
       expect(stubFindExistingLog.calledOnce).to.be.true
       expect(stubFindActive.calledOnce).to.be.true
+      expect(stubSettings.calledOnceWith(info.address, info.network)).to.be.true
       expect(
         stubFindActive.calledOnceWith({
           network: NetworksEnum.ethereumMainnet,
-          pluginAddress: '0x456',
+          pluginAddress: info.address,
         }),
       ).to.be.true
 
@@ -449,11 +525,16 @@ describe('Indexer: PluginSettingHandler', () => {
 
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      const stubSettings = sandbox.stub(MultisigHelper, 'findSettings').resolves({
+        minApprovals: 1,
+        onlyListed: true,
+      })
 
       await PluginSettingHandler.multisigSettingsUpdated(parsedEvent as any, info as any)
 
       expect(createDocumentStub.calledOnce).to.be.true
       expect(updateDocumentStub.calledTwice).to.be.true
+      expect(stubSettings.calledOnceWith(info.address, info.network)).to.be.true
       expect(
         updateDocumentStub.firstCall.calledWith(
           activeSetting,

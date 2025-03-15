@@ -16,7 +16,7 @@ describe('middlewares: util', () => {
   })
 
   it('noop', async () => {
-    const next = sinon.stub().resolves('next1')
+    const next = sandbox.stub().resolves('next1')
     const ctx = {} as any
 
     const res = await UtilMiddleware.noop(ctx, next)

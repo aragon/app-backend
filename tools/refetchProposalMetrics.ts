@@ -13,6 +13,7 @@ export const RefetchProposalsMetrics: IService = {
       model: Models.Proposal,
       onDocument: async (proposal: Proposal) => {
         const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
+        if (!plugin.isSupported) return
         if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
           await ProposalMetrics.proposalTokenVotingMetrics({
             pluginAddress: proposal.pluginAddress,
@@ -35,8 +36,8 @@ export const RefetchProposalsMetrics: IService = {
         // pluginAddress: '0x0673c13D48023efA609C20E5E351763B99Dd67DE',
         // proposalIndex: '1',
       },
-      batchSize: 500,
-      concurrency: 10,
+      batchSize: 2000,
+      concurrency: 100,
     })
 
     await crawler.crawl()

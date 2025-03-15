@@ -4,6 +4,7 @@ import { DAORegistry } from '@artifacts/daoRegistry'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginRepoRegistry } from '@artifacts/pluginRepoRegistry'
 import { Multisig } from '@artifacts/Multisig'
+import { Multisig2 } from '@artifacts/Multisig2'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { PluginRepoRegistryHandler } from '@src/handlers/pluginRepoRegistryHandler'
 import { MultisigHandler } from '@src/handlers/multisigHandler'
@@ -119,6 +120,10 @@ const IndexerEventConfig: IIndexerConfig[] = [
     config: [
       {
         abi: Multisig.abi,
+        handler: PluginSettingHandler.multisigSettingsUpdated,
+      },
+      {
+        abi: Multisig2.abi,
         handler: PluginSettingHandler.multisigSettingsUpdated,
       },
     ],

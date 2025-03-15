@@ -137,11 +137,12 @@ export default class Vote extends Model {
     network: NetworksEnum
     proposalIndex: string
   }) {
-    return await this.findOne(
+    const response = await this.findOne(
       { memberAddress, pluginAddress, proposalIndex, network },
       {},
       { sort: { blockNumber: -1 } },
     )
+    return response
   }
 
   static async findWithPagination({
@@ -406,6 +407,35 @@ export default class Vote extends Model {
       },
       data: data as any,
     }
+  }
+
+  static async countUniqueMemberVotesByPlugin(daoAddress: HexAddress, tOpts?: SaveOptions) {
+    const aggregate = this.aggregate([
+      {
+        $match: { daoAddress },
+      },
+      {
+        $group: {
+          _id: {
+            memberAddress: '$memberAddress',
+            pluginAddress: '$pluginAddress',
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          uniqueVotes: { $sum: 1 },
+        },
+      },
+    ])
+
+    if (tOpts?.session) {
+      aggregate.session(tOpts.session)
+    }
+
+    const results = await aggregate
+    return results.length > 0 ? results[0].uniqueVotes : 0
   }
 
   async update(params: Partial<Vote>, tOpts?: SaveOptions) {

@@ -135,7 +135,7 @@ class DecodeActions {
     }
 
     for (const pattern in actionHandlers) {
-      if (decoded.textSignature && decoded.textSignature.toLowerCase().includes(pattern.toLowerCase())) {
+      if (decoded.textSignature?.toLowerCase().includes(pattern.toLowerCase())) {
         const parsedAction = await actionHandlers[pattern](
           decoded,
           {
