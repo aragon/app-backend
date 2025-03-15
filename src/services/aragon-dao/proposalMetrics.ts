@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { Models } from '@dbModels'
-import { type IVoteAggregation } from '@types'
+import { type IVoteAggregation, type NetworksEnum } from '@types'
 import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:ProposalMetrics' })
@@ -13,7 +13,7 @@ export const ProposalMetrics = {
   }: {
     proposalIndex: string
     pluginAddress: string
-    network: string
+    network: NetworksEnum
   }) => {
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
@@ -24,20 +24,15 @@ export const ProposalMetrics = {
           return
         }
 
-        const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network }, { session })
-        let missingVotes = 0
         if (!proposal.settings?.minApprovals) {
-          logger.error(
-            'Proposal minApprovals not found - multisig metrics',
-            llo({ proposalIndex, pluginAddress, network }),
-          )
-          return
-        } else {
-          missingVotes =
-            votes.length >= proposal.settings.minApprovals
-              ? votes.length - proposal.settings.minApprovals
-              : proposal.settings.minApprovals - votes.length
+          logger.warn('MinApprovals not found - multisig metrics', llo({ proposalIndex, pluginAddress, network }))
         }
+
+        const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network }, { session })
+        const missingVotes =
+          votes.length >= proposal.settings.minApprovals
+            ? votes.length - proposal.settings.minApprovals
+            : proposal.settings.minApprovals - votes.length
 
         const rawMetrics = {
           // TODO: add this feature to know if approvalReached

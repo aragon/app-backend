@@ -116,7 +116,6 @@ describe('Manual: Delegate', () => {
     expect(member1Balance.votingPower).to.eq('2000000000000000000')
     expect(member1Balance.amount).to.eq('0')
     expect(member1Metrics.delegateReceivedCount).to.eq(1)
-    expect(member1Metrics.delegateSentCount).to.eq(0)
 
     // test member2 have a transaction, balance and correct metrics
     let member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
@@ -132,7 +131,6 @@ describe('Manual: Delegate', () => {
     expect(member2Balance.votingPower).to.eq('0')
     expect(member2Balance.amount).to.eq('0')
     expect(member2Metrics.delegateReceivedCount).to.eq(0)
-    expect(member2Metrics.delegateSentCount).to.eq(1)
 
     console.log('end tx1')
 
@@ -162,7 +160,6 @@ describe('Manual: Delegate', () => {
     expect(member1Balance.votingPower).to.eq('3000000000000000000')
     expect(member1Balance.amount).to.eq('0')
     expect(member1Metrics.delegateReceivedCount).to.eq(2)
-    expect(member1Metrics.delegateSentCount).to.eq(0)
 
     // test member3 have a transaction, balance and correct metrics
     let member3Txs = await Models.MemberTransaction.find({ address: member3 }).sort({ createdAt: -1 })
@@ -178,7 +175,6 @@ describe('Manual: Delegate', () => {
     expect(member3Balance.votingPower).to.eq('0')
     expect(member3Balance.amount).to.eq('0')
     expect(member3Metrics.delegateReceivedCount).to.eq(0)
-    expect(member3Metrics.delegateSentCount).to.eq(1)
 
     console.log('end tx2')
 
@@ -208,7 +204,6 @@ describe('Manual: Delegate', () => {
     expect(member1Balance.votingPower).to.eq('4000000000000000000')
     expect(member1Balance.amount).to.eq('0')
     expect(member1Metrics.delegateReceivedCount).to.eq(3)
-    expect(member1Metrics.delegateSentCount).to.eq(0)
 
     // test member4 have a transaction, balance and correct metrics
     let member4Txs = await Models.MemberTransaction.find({ address: member4 }).sort({ createdAt: -1 })
@@ -224,7 +219,6 @@ describe('Manual: Delegate', () => {
     expect(member4Balance.votingPower).to.eq('0')
     expect(member4Balance.amount).to.eq('0')
     expect(member4Metrics.delegateReceivedCount).to.eq(0)
-    expect(member4Metrics.delegateSentCount).to.eq(1)
 
     console.log('end tx3')
 
@@ -251,7 +245,6 @@ describe('Manual: Delegate', () => {
     expect(member1Balance.votingPower).to.eq('3000000000000000000')
     expect(member1Balance.amount).to.eq('0')
     expect(member1Metrics.delegateReceivedCount).to.eq(3)
-    expect(member1Metrics.delegateSentCount).to.eq(1)
 
     // test member2 have a transaction, balance and correct metrics
     member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
@@ -267,7 +260,6 @@ describe('Manual: Delegate', () => {
     expect(member2Balance.votingPower).to.eq('1000000000000000000')
     expect(member2Balance.amount).to.eq('0')
     expect(member2Metrics.delegateReceivedCount).to.eq(1)
-    expect(member2Metrics.delegateSentCount).to.eq(1)
 
     console.log('end tx4')
 
@@ -294,7 +286,6 @@ describe('Manual: Delegate', () => {
     expect(member1Balance.votingPower).to.eq('2000000000000000000')
     expect(member1Balance.amount).to.eq('0')
     expect(member1Metrics.delegateReceivedCount).to.eq(3)
-    expect(member1Metrics.delegateSentCount).to.eq(2)
 
     // test member2 have a transaction, balance and correct metrics
     member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
@@ -310,7 +301,6 @@ describe('Manual: Delegate', () => {
     expect(member2Balance.votingPower).to.eq('2000000000000000000')
     expect(member2Balance.amount).to.eq('0')
     expect(member2Metrics.delegateReceivedCount).to.eq(2)
-    expect(member2Metrics.delegateSentCount).to.eq(1)
 
     console.log('end tx5')
 

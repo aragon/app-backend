@@ -230,7 +230,6 @@ export interface IAggMemberMetricsProjectFields {
   lastActivity?: 1
   firstActivity?: 1
   delegateReceivedCount?: 1
-  delegateSentCount?: 1
   voteCount?: 1
   proposalCount?: 1
 }

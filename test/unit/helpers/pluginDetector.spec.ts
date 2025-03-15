@@ -7,7 +7,6 @@ import { ZeroAddress } from 'ethers'
 import { expect } from 'chai'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
-import utils from '@helpers/utils'
 
 describe('Helper: PluginDetector', () => {
   let sandbox: SinonSandbox
@@ -30,6 +29,7 @@ describe('Helper: PluginDetector', () => {
     const result = await PluginDetector.detectPluginType(ZeroAddress, NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(IPluginInterfaceType.unknown)
     expect(result.proxy).to.be.false
+    expect(result.hasTarget).to.be.false
     expect(result.implementationAddress).to.be.null
     expect(getImplementationAddressStub.notCalled).to.be.true
   })
@@ -37,12 +37,17 @@ describe('Helper: PluginDetector', () => {
   it('should detect tokenVoting plugin', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(PluginDetector.TOKEN_VOTING_FUNCTIONS)),
+      getCode: sandbox
+        .stub()
+        .resolves(
+          simulateBytecodeForFunctions([...PluginDetector.TOKEN_VOTING_FUNCTIONS, ...PluginDetector.HAS_TARGET]),
+        ),
     } as any)
 
     const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(IPluginInterfaceType.tokenVoting)
     expect(result.proxy).to.be.false
+    expect(result.hasTarget).to.be.true
     expect(getImplementationAddressStub.calledOnce).to.be.true
     expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
   })

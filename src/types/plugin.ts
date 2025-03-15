@@ -2,6 +2,12 @@ export interface IPluginInfo {
   type: IPluginInterfaceType
   proxy: boolean
   implementationAddress: string | null
+  hasTarget: boolean
+}
+
+export interface IMultiSigSettings {
+  onlyListed: boolean
+  minApprovals: bigint
 }
 
 export enum IPluginActionType {

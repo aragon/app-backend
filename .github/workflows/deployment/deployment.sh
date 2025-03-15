@@ -3,7 +3,6 @@
 # Set Bash options for better error handling
 set -eo
 
-
 # Variables
 set_vars(){
     REPO_BRANCH="${REPO_BRANCH:-develop}"
@@ -14,10 +13,7 @@ set_vars(){
     REMOTE_DIR="/home/${REMOTE_USER}"
     REMOTE_SCRIPT_NAME='remote_script.sh'
     #PEM_FILE="aragon-backend.pem"
-
 }
-
-
 echo "Starting deployment..."
 
 check_vars_exist() {
@@ -99,19 +95,11 @@ remote_extract_files() {
     echo -e "\n\n Remote: Extracting remote $ARCHIVE_NAME..."
     ssh "$REMOTE_USER@$REMOTE_HOST" "tar -xf $REMOTE_DIR/$ARCHIVE_NAME -C $REMOTE_DIR ; rm $REMOTE_DIR/$ARCHIVE_NAME"
 
-    # Ensure `.nvmrc` exists after extraction
-    if ssh "$REMOTE_USER@$REMOTE_HOST" "[ ! -f $REMOTE_DIR/$TARGET_DIR/.nvmrc ]"; then
-        echo "🚨 ERROR: .nvmrc file is missing after extraction!"
-        exit 1
-    fi
 }
-
-
 
 # Function copy in the remote the var files to the dir
 # This is just for testing when you have files locally, GitHub flow will retrieve the config and upload it in the .tar directly
 # You have to upload the files previously to the machine
-
 remote_restore_envfiles_remotely() {
     echo -e "\n\n Remote: Copying environment files previously updated (for manual testing). You must updated the files before manually to ($REMOTE_DIR/manual_envfiles/ )..."
     ssh "$REMOTE_USER@$REMOTE_HOST" << EOF
@@ -155,26 +143,13 @@ install_dependencies() {
     else
         echo "nvm already installed"
     fi
-
-     if [ -f "$REMOTE_DIR/$TARGET_DIR/.nvmrc" ]; then
-         NODE_VERSION=$(cat "$REMOTE_DIR/$TARGET_DIR/.nvmrc")
-         echo "Using Node.js version from .nvmrc: $NODE_VERSION"
-     else
-         echo "🚨 ERROR: .nvmrc file not found!"
-         exit 1
-     fi
-
-     nvm install "$NODE_VERSION"
-     nvm use "$NODE_VERSION"
-     node -v  # Debugging: Print the active Node.js version
-
-     if ! command -v yarn &> /dev/null; then
-        echo "Yarn not found. Installing..."
-        npm install -g yarn
-     fi
-     yarn install
-     yarn global add pm2
-     echo "Installing PM2..."
+    #source ~/.nvm/nvm.sh
+    nvm install
+    pwd
+    nvm use default
+    yarn install
+    yarn global add pm2
+    echo "Installing PM2..."
 }
 
 start_app_first_time() {
@@ -208,7 +183,6 @@ remote_execute_script() {
 
 
 # Main execution flow
-
 main_functions(){
     if [ -n "$IS_A_GITHUB_ACTION" ]; then
         echo "This script is being executed in a GitHub Actions environment."
@@ -296,7 +270,6 @@ main() {
 
 # Call the function to parse options
 main "$@"
-
 echo "Deployment complete."
 
 

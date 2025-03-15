@@ -5,10 +5,11 @@ import {
   IConnectionType,
   type ILogInfo,
   type IMetadata,
+  type IMultiSigSettings,
   type IProposalMetadata,
   IProviderType,
   ITransactionType,
-  type NetworksEnum,
+  NetworksEnum,
 } from '@types'
 import {
   AbiCoder,
@@ -190,7 +191,7 @@ const Web3Helper = {
     const contract = new Contract(tokenAddress, ERC721.abi, provider)
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.supportsInterface(interfaceId)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.supportsInterface(interfaceId)),
       )
     } catch (error) {
       return false
@@ -471,7 +472,7 @@ const Web3Helper = {
       try {
         const provider = ProviderModule.getAnyRpcProvider(network)
         return await retryRequest(async () =>
-          BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlockNumber()),
+          BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getBlockNumber()),
         )
       } catch (error) {
         logger.error('Error getBlockNumber', llo({ blockNumber, network, error }))
@@ -486,7 +487,7 @@ const Web3Helper = {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getBlock(blockNumber)),
       )
     } catch (error) {
       logger.error('Error getBlock', llo({ blockNumber, network, error }))
@@ -498,7 +499,7 @@ const Web3Helper = {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getLogs(filter)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getLogs(filter)),
       )
     } catch (error) {
       logger.error('Error getLogs', llo({ filter, network, error }))
@@ -511,7 +512,7 @@ const Web3Helper = {
       const provider = ProviderModule.getAnyRpcProvider(network)
 
       const block = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getBlock(blockNumber)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getBlock(blockNumber)),
       )
 
       return block?.timestamp ?? 0
@@ -544,7 +545,7 @@ const Web3Helper = {
       const blockTag = `0x${BigInt(blockNumber).toString(16)}`
 
       const response = await retryRequest(async () =>
-        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () => provider.call(params, blockTag)),
+        BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () => provider.call(params, blockTag)),
       )
 
       const balance = iface.decodeFunctionResult('balanceOf', response)[0]
@@ -559,20 +560,51 @@ const Web3Helper = {
     }
   },
 
+  async getChainAdjustedBlockNumber(arbBlock: number, network: NetworksEnum): Promise<number> {
+    if (network !== NetworksEnum.arbitrumMainnet) {
+      return arbBlock
+    }
+
+    try {
+      const blockTag = `0x${BigInt(arbBlock).toString(16)}`
+      const abi = ['function getL1BlockNumber() view returns (uint256)']
+      const address = '0x7eCfBaa8742fDf5756DAC92fbc8b90a19b8815bF' // static contract
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const iface = new Interface(abi)
+      const data = iface.encodeFunctionData('getL1BlockNumber', [])
+      const params = { to: address, data }
+      const response = await retryRequest(async () =>
+        BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () => provider.call(params, blockTag)),
+      )
+
+      const blockNumberOfL1 = iface.decodeFunctionResult('getL1BlockNumber', response)[0]
+      return Number(blockNumberOfL1)
+    } catch (e) {
+      logger.error('Error getBlockNumberOnArbitrum', llo({ arbBlock, network, error: e }))
+      return arbBlock
+    }
+  },
+
   async getBalance(address: HexAddress, network: NetworksEnum): Promise<string> {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
 
       const response = await retryRequest(async () =>
-        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
+        BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () =>
           provider.send('eth_getBalance', [address, 'latest']),
         ),
       )
 
       const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, network)
+
+      if (!token) {
+        logger.error('getBalance token not found', llo())
+        return '0'
+      }
+
       const balance = Web3Helper.handleAlchemyCrazyBalance(response, token?.decimals)
       // check if alchemy return strange balance
-      Web3Helper.alchemyCrazyBalanceOnError(address, token?.address!, network, response, token?.decimals!)
+      Web3Helper.alchemyCrazyBalanceOnError(address, token?.address, network, response, token?.decimals)
       return balance
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
@@ -585,7 +617,7 @@ const Web3Helper = {
       const provider = ProviderModule.getProvider(network, IProviderType.ALCHEMY, IConnectionType.RPC)
 
       const response = await retryRequest(async () =>
-        BottleneckModule.getAlchemyBalanceLimiter(network)!.schedule(async () =>
+        BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () =>
           provider.send('alchemy_getTokenBalances', [address]),
         ),
       )
@@ -639,7 +671,7 @@ const Web3Helper = {
       const nameHashed = namehash(ensName)
 
       const recordExists = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => ensContract.recordExists(nameHashed)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => ensContract.recordExists(nameHashed)),
       )
 
       return recordExists
@@ -661,7 +693,7 @@ const Web3Helper = {
 
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getTransaction(txHash)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getTransaction(txHash)),
       )
     } catch (error) {
       logger.error(
@@ -680,7 +712,7 @@ const Web3Helper = {
 
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getTransactionReceipt(txHash)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getTransactionReceipt(txHash)),
       )
     } catch (error) {
       logger.error(
@@ -709,7 +741,7 @@ const Web3Helper = {
 
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.underlying()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => tokenInstance.underlying()),
       )
     } catch (error) {
       logger.warn('Error getting underlying', llo({ error, address }))
@@ -724,13 +756,26 @@ const Web3Helper = {
 
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.totalSupply()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => tokenInstance.totalSupply()),
       )
     } catch (error) {
       logger.warn('Error getting token total supply', llo({ error, address }))
     }
 
     return 0n
+  },
+
+  async getMultisigSettings(address: HexAddress, network: NetworksEnum): Promise<IMultiSigSettings | undefined> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const multisigInstance = new Contract(address, Multisig.abi, provider)
+
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => multisigInstance.multisigSettings()),
+      )
+    } catch (error) {
+      logger.warn('Error getting multisig settings', llo({ error, address }))
+    }
   },
 
   async getTokenInfo(
@@ -752,7 +797,7 @@ const Web3Helper = {
 
     try {
       token.name = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.name()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => tokenInstance.name()),
       )
     } catch (error) {
       logger.warn('Error getting token info name', llo({ error, address }))
@@ -760,7 +805,7 @@ const Web3Helper = {
 
     try {
       token.symbol = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.symbol()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => tokenInstance.symbol()),
       )
     } catch (error) {
       logger.warn('Error getting token symbol - getTokenInfo', llo({ error, address }))
@@ -768,7 +813,7 @@ const Web3Helper = {
 
     try {
       const decimals = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.decimals()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => tokenInstance.decimals()),
       )
       token.decimals = Number(decimals)
     } catch (error) {
@@ -777,7 +822,7 @@ const Web3Helper = {
 
     try {
       const totalSupply = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.totalSupply()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => tokenInstance.totalSupply()),
       )
       token.totalSupply = BigInt(totalSupply).toString()
     } catch (error) {
@@ -819,7 +864,7 @@ const Web3Helper = {
     const contract = new Contract(tokenAddress, ERC20.abi, provider)
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.balanceOf(address)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.balanceOf(address)),
       )
     } catch (error) {
       return 0n
@@ -861,7 +906,7 @@ const Web3Helper = {
     let version: [number, number, number]
     try {
       version = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.protocolVersion()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.protocolVersion()),
       )
     } catch (error) {
       version = [1, 0, 0]
@@ -880,7 +925,7 @@ const Web3Helper = {
 
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
           contract.isListedAtBlock(memberAddress, blockNumber),
         ),
       )
@@ -894,7 +939,7 @@ const Web3Helper = {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
           provider.send('eth_getBlockReceipts', [`0x${blockNumber.toString(16)}`]),
         ),
       )
@@ -909,7 +954,7 @@ const Web3Helper = {
       const provider = ProviderModule.getAnyRpcProvider(network)
       const contract = new Contract(pluginAddress, Multisig.abi, provider)
       const response = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getTargetConfig()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getTargetConfig()),
       )
 
       return response.target
@@ -924,7 +969,7 @@ const Web3Helper = {
       const provider = ProviderModule.getAnyRpcProvider(Network)
       const contract = new Contract(pluginAddress, TokenVoting.abi, provider)
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(Network)!.schedule(async () => contract.getVotingToken()),
+        BottleneckModule.getNodeLimiter(Network).schedule(async () => contract.getVotingToken()),
       )
     } catch (error) {
       return null
@@ -936,7 +981,7 @@ const Web3Helper = {
       const provider = ProviderModule.getAnyRpcProvider(network)
       const contract = new Contract(pluginAddress, GaugeVoter.abi, provider)
       const response = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.escrow()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.escrow()),
       )
 
       return response
@@ -950,7 +995,7 @@ const Web3Helper = {
       const provider = ProviderModule.getAnyRpcProvider(network)
       const contract = new Contract(votingEscrowAddress, VotingEscrow.abi, provider)
       const response = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.lockNFT()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.lockNFT()),
       )
 
       return response
@@ -969,7 +1014,7 @@ const Web3Helper = {
 
     try {
       token.name = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.name()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => tokenInstance.name()),
       )
     } catch (error) {
       logger.warn('Error getting token info name', llo({ error, address: tokenAddress }))
@@ -977,7 +1022,7 @@ const Web3Helper = {
 
     try {
       token.symbol = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => tokenInstance.symbol()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => tokenInstance.symbol()),
       )
     } catch (error) {
       logger.warn('Error getting token symbol - getTokenNameAndSymbol', llo({ error, address: tokenAddress }))
