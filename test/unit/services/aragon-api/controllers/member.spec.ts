@@ -12,7 +12,7 @@ import DaoMemberMapping from '@models/schema/daoMemberMapping'
 import type Dao from '@models/schema/dao'
 import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
 import MemberBalance from '@models/schema/memberBalance'
-import { HexAddress } from '@types'
+import { HexAddress, IPluginInterfaceType } from '@types'
 import { NetworksEnum } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import ModelUtils from '@models/utils/models'
@@ -45,6 +45,7 @@ describe('Controller: Member', () => {
     rawMemberBalance = {
       ...(fakeMemberBalance as any),
       address: FakeMember.address,
+      tokenAddress: rawDaoMemberMapping.tokenAddress,
     }
 
     rawDaoMemberMapping.memberAddress = FakeMember.address
@@ -62,7 +63,8 @@ describe('Controller: Member', () => {
   })
 
   describe('getMembersWithPagination', () => {
-    it('should get members with pagination - all params', async () => {
+    // Test for when no pluginAddress and daoAddress are provided
+    it('should call findPaginatedMembersOnly when no pluginAddress and daoAddress', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -71,122 +73,16 @@ describe('Controller: Member', () => {
         sort: 'createdAt',
       }
 
-      const filterParams: any = {
-        daoAddress: rawDaoMemberMapping.daoAddress,
-        network: rawDaoMemberMapping.network,
-        pluginAddress: rawDaoMemberMapping.pluginAddress,
-        tokenAddress: rawDaoMemberMapping.tokenAddress,
-      }
+      const extraParams = {}
+      const pairParams = {}
 
-      const spyReq = sandbox.spy(Models.Member, 'findWithPagination')
-      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams)
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
+      const findPaginatedSpy = sandbox.spy(Models.Member, 'findPaginatedMembersOnly')
 
-      expect(spyReq.calledOnce).to.be.true
+      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
 
-      expect(
-        spyReq.calledWith({
-          extraParams: filterParams,
-          paginationParams: {
-            search: '',
-            pageSize: 10,
-            page: 1,
-            order: 'asc',
-            sort: 'createdAt',
-          },
-          extraQueryData: {
-            memberAddresses: ['0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'],
-          },
-        }),
-      ).to.be.true
-      //
-      expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].address).to.eq(rawMember.address)
-      expect(response.data[0].ens).to.eq('louis.eth')
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
-    })
-
-    it('should get members no params', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
-
-      const filterParams: any = {}
-
-      const spyReq = sandbox.spy(Models.Member, 'findWithPagination')
-
-      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams)
-
-      expect(spyReq.calledOnce).to.be.true
-      expect(
-        spyReq.calledWith({
-          extraParams: filterParams,
-          paginationParams: {
-            search: '',
-            pageSize: 10,
-            page: 1,
-            order: 'asc',
-            sort: 'createdAt',
-          },
-          extraQueryData: {
-            memberAddresses: [],
-          },
-        }),
-      ).to.be.true
-
-      expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].address).to.eq(rawMember.address)
-      expect(response.data[0].ens).to.eq('louis.eth')
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
-    })
-
-    it('should get members with pagination - daoId', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
-
-      const filterParams: any = {}
-      const pairParams: any = {
-        daoId: `${rawDaoMemberMapping.network}-${rawDaoMemberMapping.daoAddress}`,
-      }
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
-        daoAddress: rawDaoMemberMapping.daoAddress,
-        network: rawDaoMemberMapping.network,
-      })
-      const spyReq = sandbox.spy(Models.Member, 'findWithPagination')
-
-      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
-
-      expect(spyReq.calledOnce).to.be.true
-      expect(
-        spyReq.calledWith({
-          extraParams: {
-            daoAddress: rawDaoMemberMapping.daoAddress,
-            network: rawDaoMemberMapping.network,
-          },
-          paginationParams: {
-            search: '',
-            pageSize: 10,
-            page: 1,
-            order: 'asc',
-            sort: 'createdAt',
-          },
-          extraQueryData: {
-            memberAddresses: ['0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'],
-          },
-        }),
-      ).to.be.true
+      expect(findPaginatedSpy.calledOnce).to.be.true
+      expect(findPaginatedSpy.calledWith({ paginationParams })).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawMember.address)
@@ -196,7 +92,8 @@ describe('Controller: Member', () => {
       expect(response.metadata.totalRecords).to.eq(1)
     })
 
-    it('should get members with pagination - daoId not found', async () => {
+    // Test for tokenVoting plugin
+    it('should call MemberBalance.findAndPaginate when plugin interfaceType is tokenVoting', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -205,54 +102,110 @@ describe('Controller: Member', () => {
         sort: 'createdAt',
       }
 
-      const filterParams: any = {}
-      const pairParams: any = {
-        daoId: `xxx-xxx`,
-      }
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
-      const spyReq = sandbox.spy(Models.Member, 'findWithPagination')
-
-      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
-
-      expect(spyReq.calledOnce).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(1)
-    })
-
-    it('should return an empty paginated response if extraParams has values but no members found', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
-
-      const filterParams: any = {
+      const filterParams = {
         daoAddress: rawDaoMemberMapping.daoAddress,
         network: rawDaoMemberMapping.network,
         pluginAddress: rawDaoMemberMapping.pluginAddress,
         tokenAddress: rawDaoMemberMapping.tokenAddress,
       }
+      const pairParams = {}
 
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
-      sandbox.stub(PairDataModule, 'pairFromDaoMemberMapping').resolves([])
-      const paginateEmptyResponseStub = sandbox.stub(ModelUtils, 'paginateEmptyResponse').returns({
-        data: [],
-        metadata: {
-          page: 1,
-          pageSize: 10,
-          totalRecords: 0,
-          totalPages: 0,
-        },
-      })
+      const tokenVotingPlugin = {
+        interfaceType: IPluginInterfaceType.tokenVoting, // assuming IPluginInterfaceType.tokenVoting
+        tokenAddress: rawDaoMemberMapping.tokenAddress,
+      }
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(tokenVotingPlugin)
 
-      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams)
+      const memberBalanceSpy = sandbox.spy(Models.MemberBalance, 'findAndPaginate')
 
-      expect(paginateEmptyResponseStub.calledOnce).to.be.true
-      expect(response.data).to.deep.eq([])
+      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
+
+      expect(memberBalanceSpy.calledOnce).to.be.true
+      expect(
+        memberBalanceSpy.calledWith({
+          paginationParams,
+          extraParams: {
+            ...filterParams,
+            tokenAddress: tokenVotingPlugin.tokenAddress,
+          },
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].address).to.eq(rawMemberBalance.address)
       expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(0)
-      expect(response.metadata.totalRecords).to.eq(0)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    // Test for non-tokenVoting plugin
+    it('should call DaoMemberMapping.findAndPaginate when plugin interfaceType is not tokenVoting', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams = {
+        daoAddress: rawDaoMemberMapping.daoAddress,
+        network: rawDaoMemberMapping.network,
+        pluginAddress: rawDaoMemberMapping.pluginAddress,
+      }
+      const pairParams = {}
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
+      const nonTokenVotingPlugin = {
+        interfaceType: 'Multisig', // some other interface type
+      }
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(nonTokenVotingPlugin)
+
+      const daoMemberMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findAndPaginate')
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
+
+      expect(daoMemberMappingSpy.calledOnce).to.be.true
+      expect(
+        daoMemberMappingSpy.calledWith({
+          extraParams: filterParams,
+          paginationParams,
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].address).to.eq(rawDaoMemberMapping.memberAddress)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should throw an error when plugin is not found', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams = {
+        daoAddress: rawDaoMemberMapping.daoAddress,
+        network: rawDaoMemberMapping.network,
+        pluginAddress: 'nonExistentPluginAddress',
+      }
+      const pairParams = {}
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      try {
+        await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
+        // If we get here, the test should fail
+        expect.fail('Expected an error to be thrown')
+      } catch (err: any) {
+        expect(err.message).to.include('notFound')
+      }
     })
   })
 
