@@ -8,11 +8,10 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
+  IPluginInterfaceType,
 } from '@types'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
-import type DaoMemberMapping from '@models/schema/daoMemberMapping'
-import ModelUtils from '@models/utils/models'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
 
@@ -24,22 +23,26 @@ const MemberController = {
   ): Promise<IPaginatedResult<IMembersResponse>> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
-    const mapping = await PairDataModule.pairFromDaoMemberMapping({
-      daoAddress: extraParams.daoAddress,
-      pluginAddress: extraParams.pluginAddress,
-      network: extraParams.network,
-    })
-
-    const memberAddresses = mapping.map((w: DaoMemberMapping) => w.memberAddress)
-
-    if (Object.values(extraParams).filter(v => v).length > 0 && memberAddresses.length === 0) {
-      return ModelUtils.paginateEmptyResponse(paginationParams.limit!)
+    if (!extraParams.pluginAddress && !extraParams.daoAddress) {
+      return Models.Member.findPaginatedMembersOnly({ paginationParams })
     }
 
-    return await Models.Member.findWithPagination({
+    const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+    assertExposable(plugin, ErrorKeyEnum.notFound)
+
+    if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
+      return Models.MemberBalance.findAndPaginate({
+        paginationParams,
+        extraParams: {
+          ...extraParams,
+          tokenAddress: plugin.tokenAddress,
+        },
+      })
+    }
+
+    return Models.DaoMemberMapping.findAndPaginate({
       extraParams,
       paginationParams,
-      extraQueryData: { memberAddresses },
     })
   },
 
