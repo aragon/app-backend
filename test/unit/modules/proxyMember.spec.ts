@@ -29,7 +29,6 @@ describe('Modules:ProxyMember', () => {
       const getEnsWithUniversalResolverStub = sandbox
         .stub(EnsHelper, 'getEnsWithUniversalResolver')
         .resolves('louis.eth' as any)
-      sandbox.stub(Logger, 'verbose')
 
       const createdMember = await ProxyMember.createMember(parsedMemberAddress)
 
@@ -75,7 +74,6 @@ describe('Modules:ProxyMember', () => {
       const getEnsWithUniversalResolverStub = sandbox
         .stub(EnsHelper, 'getEnsWithUniversalResolver')
         .resolves('louis.eth' as any)
-      sandbox.stub(Logger, 'verbose')
 
       const [result1, result2, result3] = await Promise.all([
         ProxyMember.createMember(parsedMemberAddress),
@@ -99,7 +97,6 @@ describe('Modules:ProxyMember', () => {
 
       sandbox.stub(Models.MemberMetrics, 'findOne').resolves(null)
       const createStub = sandbox.stub(Models.MemberMetrics, 'create').resolves({ id: 'metrics-id' })
-      sandbox.stub(Logger, 'verbose')
 
       const result = await ProxyMember.createMetrics({ address, pluginAddress, network })
 
@@ -121,7 +118,6 @@ describe('Modules:ProxyMember', () => {
 
       sandbox.stub(Models.MemberMetrics, 'findOne').resolves(existingMetrics)
       const createStub = sandbox.stub(Models.MemberMetrics, 'create')
-      sandbox.stub(Logger, 'verbose')
 
       const result = await ProxyMember.createMetrics({ address, pluginAddress, network })
 
@@ -177,8 +173,6 @@ describe('Modules:ProxyMember', () => {
       const address = '0x123'
       const tokenAddress = '0xabc'
       const network = NetworksEnum.ethereumMainnet
-
-      sandbox.stub(Logger, 'verbose')
 
       const findByAddressAndTokenStub = sandbox.stub(Models.MemberBalance, 'findByAddressAndToken').resolves(null)
       const data = { address, tokenAddress, network }

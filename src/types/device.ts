@@ -3,4 +3,5 @@ export interface IDeviceInfo {
   name: string
   vendor: string
   ua: string
+  version: string
 }

@@ -426,8 +426,6 @@ describe('Modules: ProxyToken', () => {
         tokenMetrics: { totalHolders: 20, totalSupply: '1000' },
       })
 
-      sandbox.stub(logger, 'verbose')
-
       const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false, tOpts)
 
       expect(proxyTokenFetchDetailsStub.calledOnce).to.be.true
@@ -464,7 +462,6 @@ describe('Modules: ProxyToken', () => {
       const checkPluginMintAuthorizationIsDaoStub = sandbox
         .stub(ProxyToken, 'checkPluginMintAuthorizationIsDao')
         .resolves(false)
-      sandbox.stub(logger, 'verbose')
       const result = await ProxyToken.createNewToken(tokenAddress, network, tOpts)
 
       expect(proxyTokenFetchDetailsStub.calledOnce).to.be.true
@@ -503,7 +500,7 @@ describe('Modules: ProxyToken', () => {
       const checkPluginMintAuthorizationIsDaoStub = sandbox
         .stub(ProxyToken, 'checkPluginMintAuthorizationIsDao')
         .resolves(false)
-      sandbox.stub(logger, 'verbose')
+
       const result = await ProxyToken.createNewToken(tokenAddress, network, tOpts)
       expect(result.type).to.equal(ITokenType.ERC20)
       expect(proxyTokenFetchDetailsStub.calledOnce).to.be.true
