@@ -8,12 +8,12 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
-  IPluginInterfaceType,
 } from '@types'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
+import ModelUtils from '@models/utils/models'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -27,23 +27,33 @@ const MemberController = {
       return Models.Member.findPaginatedMembersOnly({ paginationParams })
     }
 
-    const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
-    assertExposable(plugin, ErrorKeyEnum.notFound)
-
-    if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
-      return Models.MemberBalance.findAndPaginate({
+    if (extraParams.daoAddress && !extraParams.pluginAddress) {
+      return Models.DaoMemberMapping.findAndPaginate({
+        extraParams,
         paginationParams,
-        extraParams: {
-          ...extraParams,
-          tokenAddress: plugin.tokenAddress,
-        },
       })
     }
 
-    return Models.DaoMemberMapping.findAndPaginate({
-      extraParams,
-      paginationParams,
-    })
+    if (extraParams.pluginAddress) {
+      const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+      assertExposable(plugin, ErrorKeyEnum.notFound)
+      if (plugin.tokenAddress) {
+        extraParams.tokenAddress = plugin.tokenAddress
+
+        return Models.MemberBalance.findAndPaginate({
+          paginationParams,
+          extraParams,
+        })
+      } else {
+        return Models.DaoMemberMapping.findAndPaginate({
+          extraParams,
+          paginationParams,
+        })
+      }
+    }
+
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    return ModelUtils.paginateEmptyResponse(request.limit)
   },
 
   getMemberByAddress: async (
