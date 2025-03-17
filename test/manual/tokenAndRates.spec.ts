@@ -16,7 +16,6 @@ describe.skip('Manual: Token and Rates', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    sandbox.stub(logger, 'verbose')
   })
 
   afterEach(() => {
