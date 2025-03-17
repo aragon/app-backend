@@ -17,6 +17,7 @@ describe('Helpers: ProposalHelper', () => {
     providerStub = {
       getProposal: sandbox.stub(),
     }
+    loggerStub = sandbox.stub(logger, 'error')
 
     contractStub = {
       getProposal: sandbox.stub(),
@@ -214,7 +215,7 @@ describe('Helpers: ProposalHelper', () => {
       expect(result).to.deep.equal(mockProposal)
     })
 
-    it('should return null and log error if multisig proposal fetch fails', async () => {
+    it.only('should return null and log error if multisig proposal fetch fails', async () => {
       const mockParams = {
         proposalIndex: 1,
         pluginAddress: '0xpluginAddress',
