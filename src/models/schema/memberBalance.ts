@@ -204,7 +204,10 @@ export default class MemberBalance extends Model {
 
     const query: any = [
       {
-        $match: filter,
+        $match: {
+          ...filter,
+          $or: [{ votingPower: { $gt: '0' } }, { amount: { $gt: '0' } }],
+        },
       },
     ]
     const mainQuery = [
@@ -251,8 +254,6 @@ export default class MemberBalance extends Model {
 
     const aggQuery = [
       ...query,
-      { $addFields: { ageNumeric: { $toInt: '$age' } } },
-      { $sort: { ageNumeric: 1 } },
       { $sort: request?.sort },
       { $skip: request?.skip },
       { $limit: request?.limit },

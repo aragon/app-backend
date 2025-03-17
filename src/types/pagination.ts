@@ -38,6 +38,7 @@ export interface IPairParams {
   ens?: string
   proposalIndex?: string
   proposalId?: string
+  tokenAddress?: HexAddress
 }
 
 export interface IProposalExtraParams {

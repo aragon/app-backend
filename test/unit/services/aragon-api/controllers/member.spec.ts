@@ -62,8 +62,7 @@ describe('Controller: Member', () => {
     sandbox?.restore()
   })
 
-  describe('getMembersWithPagination', () => {
-    // Test for when no pluginAddress and daoAddress are provided
+  describe.only('getMembersWithPagination', () => {
     it('should call findPaginatedMembersOnly when no pluginAddress and daoAddress', async () => {
       const paginationParams = {
         search: '',
@@ -92,8 +91,43 @@ describe('Controller: Member', () => {
       expect(response.metadata.totalRecords).to.eq(1)
     })
 
+    it('should call DaoMemberMapping.findAndPaginate when only daoAddress is provided', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const extraParams = {
+        daoAddress: rawDaoMemberMapping.daoAddress,
+        network: rawDaoMemberMapping.network,
+      }
+      const pairParams = {}
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      const daoMemberMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findAndPaginate')
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
+
+      expect(daoMemberMappingSpy.calledOnce).to.be.true
+      expect(
+        daoMemberMappingSpy.calledWith({
+          extraParams,
+          paginationParams,
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].address).to.eq(rawDaoMemberMapping.memberAddress)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
     // Test for tokenVoting plugin
-    it('should call MemberBalance.findAndPaginate when plugin interfaceType is tokenVoting', async () => {
+    it('should call MemberBalance.findAndPaginate when plugin has tokenAddress and interfaceType is tokenVoting', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -106,13 +140,12 @@ describe('Controller: Member', () => {
         daoAddress: rawDaoMemberMapping.daoAddress,
         network: rawDaoMemberMapping.network,
         pluginAddress: rawDaoMemberMapping.pluginAddress,
-        tokenAddress: rawDaoMemberMapping.tokenAddress,
       }
       const pairParams = {}
 
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
       const tokenVotingPlugin = {
-        interfaceType: IPluginInterfaceType.tokenVoting, // assuming IPluginInterfaceType.tokenVoting
+        interfaceType: IPluginInterfaceType.tokenVoting,
         tokenAddress: rawDaoMemberMapping.tokenAddress,
       }
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(tokenVotingPlugin)
@@ -140,7 +173,7 @@ describe('Controller: Member', () => {
     })
 
     // Test for non-tokenVoting plugin
-    it('should call DaoMemberMapping.findAndPaginate when plugin interfaceType is not tokenVoting', async () => {
+    it('should call DaoMemberMapping.findAndPaginate when plugin has no tokenAddress or interfaceType is not tokenVoting', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -158,7 +191,7 @@ describe('Controller: Member', () => {
 
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
       const nonTokenVotingPlugin = {
-        interfaceType: 'Multisig', // some other interface type
+        interfaceType: 'Multisig', // non-token voting interface type
       }
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(nonTokenVotingPlugin)
 
@@ -199,6 +232,7 @@ describe('Controller: Member', () => {
 
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+
       try {
         await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
         // If we get here, the test should fail
