@@ -17,7 +17,6 @@ describe('Helpers: ProposalHelper', () => {
     providerStub = {
       getProposal: sandbox.stub(),
     }
-    loggerStub = sandbox.stub(logger, 'error')
 
     contractStub = {
       getProposal: sandbox.stub(),

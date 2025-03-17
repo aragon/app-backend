@@ -10,7 +10,6 @@ describe('Helpers: Device', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    stubLogger = sandbox.stub(logger, 'error')
   })
 
   afterEach(() => {

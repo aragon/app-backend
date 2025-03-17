@@ -76,8 +76,6 @@ describe('Blockchain Transfer Log Crawler', () => {
       .onCall(3)
       .resolves(21872036)
 
-    sandbox.stub(logger, 'verbose')
-
     await DaoTransactions.onDocument(daoDb)
 
     const txs = await Models.Transaction.find({ daoAddress: daoAddress, network })
