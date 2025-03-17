@@ -123,19 +123,25 @@ const RabbitMQHelper = {
       release()
     }
 
+    if (opts.waitResponse) {
+      try {
+        const channelWrapper = RabbitMQ.getChannel(queueName)
+        return await RabbitMQHelper._sendMessageWithResponse(channelWrapper, queueName, payload, uniqueKey, opts)
+      } catch (err) {
+        logger.error('Error sendMessage with response', llo({ queueName, err }))
+        return null
+      }
+    }
+
     try {
       const channelWrapper = RabbitMQ.getChannel(queueName)
-      if (opts.waitResponse) {
-        return await RabbitMQHelper._sendMessageWithResponse(channelWrapper, queueName, payload, uniqueKey, opts)
-      }
       await channelWrapper.sendToQueue(queueName, payload, {
         persistent: true,
         contentType: 'application/json',
       })
-      // channelWrapper.ack(msg)
       return null
     } catch (err) {
-      logger.error('sendMessage error', llo({ queueName, err }))
+      logger.error('Error sendMessage', llo({ queueName, err }))
       return null
     }
   },
