@@ -52,12 +52,12 @@ describe('AragonDao:ProposalMetrics', () => {
       expect(loggerStub.calledOnceWith('Proposal not found - multisig metrics' as any)).to.be.true
     })
 
-    it('should log an verbose if `minApprovals` is missing in the proposal settings', async () => {
+    it('should log an error if `minApprovals` is missing in the proposal settings', async () => {
       const proposal = { id: 'proposal-id', settings: {} }
-
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Models.Vote, 'findVotes').resolves([])
       const loggerWarnStub = sandbox.stub(logger, 'warn')
+      const loggerStub = sandbox.stub(logger, 'error')
 
       await ProposalMetrics.proposalMultisigMetrics({
         proposalIndex: '1',
@@ -66,6 +66,7 @@ describe('AragonDao:ProposalMetrics', () => {
       })
 
       expect(loggerWarnStub.calledOnceWith('MinApprovals not found - multisig metrics' as any)).to.be.true
+      expect(loggerStub.calledWith('Error updating multisig metrics' as any)).to.be.true
     })
 
     it('should throw', async () => {

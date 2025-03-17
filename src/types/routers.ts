@@ -60,7 +60,6 @@ export interface IMembersResponse {
     firstActivity?: number
     lastActivity?: number
     delegateReceivedCount: number
-    delegateSentCount: number
     voteCount: number
     proposalCount: number
   }

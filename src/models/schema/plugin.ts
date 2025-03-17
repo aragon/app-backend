@@ -136,7 +136,7 @@ export default class Plugin extends Model {
   public uninstalled!: PluginUninstalled
 
   @prop({ type: () => Boolean, default: false })
-  public hasTarget!: string
+  public hasTarget!: boolean
 
   // Flags
   @prop({ type: () => Boolean, default: false })
@@ -193,7 +193,8 @@ export default class Plugin extends Model {
   }
 
   static getEntityId(params: IPluginIdParams) {
-    return `${params.network}-${params.transactionHash}-${params.address}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.address}`
+    return entityId
   }
 
   static async findExistingLog(params: IPluginIdParams, tOpts?: SaveOptions) {
