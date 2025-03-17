@@ -55,7 +55,7 @@ jobs:
           cat temp_env >> test/test.env
 
       - name: Install dependencies
-        run: yarn install --pure-lockfile
+        run: yarn install
 
       - name: Build & run unit-dep tests
         run: |
