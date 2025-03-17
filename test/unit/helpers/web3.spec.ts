@@ -871,7 +871,6 @@ describe('Helpers:Web3', () => {
         send: sandbox.stub().resolves(fakeResponse),
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
-      sandbox.stub(logger, 'verbose')
       sandbox.stub(ProxyToken, 'saveAndGetToken').returns({
         decimals: 18,
       } as any)
@@ -891,7 +890,6 @@ describe('Helpers:Web3', () => {
         send: sandbox.stub().resolves(fakeResponse),
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
-      sandbox.stub(logger, 'verbose')
       sandbox.stub(ProxyToken, 'saveAndGetToken').returns(false as any)
 
       const balance = await Web3Helper.getBalance(fakeAddress, fakeNetwork)
@@ -1704,7 +1702,6 @@ describe('Helpers:Web3', () => {
         send: sandbox.stub().resolves(fakeResponse),
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
-      sandbox.stub(logger, 'verbose')
 
       await Web3Helper.getBlockReceipts(fakeNetwork, 12321)
       expect(providerStub.send.calledOnce).to.be.true

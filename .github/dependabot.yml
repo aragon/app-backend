@@ -14,5 +14,5 @@ updates:
       - "cristianizzo"
       - "ccir105" # Added second assignee
     commit-message:
-      prefix: "chore(deps):"
+      prefix: "chore(deps)"
       include: "scope"
