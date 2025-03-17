@@ -4,7 +4,7 @@ import { beforeEach } from 'mocha'
 import { expect } from 'chai'
 import { v4 as uuidv4 } from 'uuid'
 
-describe('Indexer: DaoRegistryHandler', () => {
+describe('Dep: uuidv4', () => {
   let sandbox: SinonSandbox
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
