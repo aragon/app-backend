@@ -3,7 +3,6 @@ import {
   type ENS,
   HexAddress,
   ICollectionNames,
-  type IExtraQueryData,
   type IMemberExtraParams,
   type IMemberIdParams,
   type IMembersResponse,
