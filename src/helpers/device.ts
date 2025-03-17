@@ -11,18 +11,13 @@ const DeviceInfo = {
 
     try {
       assert(!!userAgent, 'userAgent empty', { userAgent })
-      const data: any = parser(userAgent)
+      const data: any = parser.UAParser(userAgent)
 
       info.ua = data.ua
-      info.type = 'web'
-      info.name = data.browser.name
-      info.vendor = 'web'
-
-      if (data?.device?.type) {
-        info.type = data.device.type
-        info.name = data.device.model
-        info.vendor = data.device.vendor
-      }
+      info.type = data?.device?.type ?? 'web'
+      info.name = data?.browser?.name || data?.device?.model || 'web'
+      info.vendor = data?.device?.vendor || 'web'
+      info.version = data?.browser?.version
     } catch (error) {
       logger.error('Impossible to get device info', llo({ error }))
     }
