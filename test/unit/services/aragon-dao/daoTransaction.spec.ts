@@ -60,7 +60,6 @@ describe('AragonDao: DaoTransactions', () => {
 
     it('should throw error', async () => {
       const stubLogger = sandbox.stub(Logger, 'error')
-      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Dao, 'findByAddress').rejects(new Error('fake-error'))
 
       await DaoTransactions.start({ daoAddress: '0x123', network: NetworksEnum.ethereumMainnet } as any)
