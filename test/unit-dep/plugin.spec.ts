@@ -66,7 +66,7 @@ describe('Integration: Plugin Setup SPP', () => {
       isSubPlugin: false,
       metadataIpfs: 'ipfs://Qmc8ECxCFCZS7R5ruavYfiCUfRoXQ1gi1GKWDWZBifVSxZ',
       name: 'End To End',
-      description: '',
+      description: null,
       processKey: 'ETE',
       subPlugins: [
         {
@@ -137,7 +137,6 @@ describe('Integration: Plugin Setup SPP', () => {
     this.timeout(10000000)
     const daoCreationTxHash = '0x2a47f99a78b147abb325eb14060b0ed4ba665d6a9d40d7c1a7d145e62c2f755f'
     const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-    sandbox.stub(logger, 'verbose')
     sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
       address: '0x00',
       decimals: 18,

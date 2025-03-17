@@ -37,7 +37,6 @@ describe('GovernanceErc20Handler', () => {
     })
     sandbox.stub(Web3Helper, 'parseAddress').callsFake((address: string) => address)
     sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').callsFake(async (_address: string) => 'test.eth')
-    sandbox.stub(logger, 'verbose')
   })
 
   afterEach(() => {
