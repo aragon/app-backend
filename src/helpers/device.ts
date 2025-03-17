@@ -15,7 +15,7 @@ const DeviceInfo = {
 
       info.ua = data.ua
       info.type = data?.device?.type ?? 'web'
-      info.name = data?.browser?.name || data?.device?.model || 'web'
+      info.name = data?.device?.model || data?.browser?.name || 'web'
       info.vendor = data?.device?.vendor || 'web'
       info.version = data?.browser?.version
     } catch (error) {
