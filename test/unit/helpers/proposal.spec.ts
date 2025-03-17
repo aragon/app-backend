@@ -215,7 +215,7 @@ describe('Helpers: ProposalHelper', () => {
       expect(result).to.deep.equal(mockProposal)
     })
 
-    it.only('should return null and log error if multisig proposal fetch fails', async () => {
+    it('should return null and log error if multisig proposal fetch fails', async () => {
       const mockParams = {
         proposalIndex: 1,
         pluginAddress: '0xpluginAddress',
