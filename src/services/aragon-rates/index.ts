@@ -7,7 +7,7 @@ import { FetchRates } from '@services/aragon-rates/fetchRates'
 const llo = logger.logMeta.bind(null, { service: 'service:RatesService' })
 
 const AragonRatesService: IService = {
-  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
+  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   start: async function () {
     logger.info('RatesService service sync start', llo({}))
