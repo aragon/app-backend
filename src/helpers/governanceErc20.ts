@@ -30,7 +30,7 @@ const GovernanceErc20Helper = {
         return BigInt(pastVotes || 0)?.toString()
       }
     } catch (error) {
-      logger.error(
+      logger.warn(
         'Error getting past votes - blockNumber',
         llo({ memberAddress, tokenAddress, blockNumber, blockTimestamp, network, error }),
       )
@@ -44,7 +44,7 @@ const GovernanceErc20Helper = {
       )
       return BigInt(pastVotes || 0)?.toString()
     } catch (error) {
-      logger.error(
+      logger.warn(
         'Error getting past votes - blockTimestamp',
         llo({ memberAddress, tokenAddress, blockNumber, blockTimestamp, network, error }),
       )
