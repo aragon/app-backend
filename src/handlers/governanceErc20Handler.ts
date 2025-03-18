@@ -81,6 +81,7 @@ export const GovernanceErc20Handler = {
           token?.isGovernance!,
           plugins,
           info,
+          isHistorical,
         )
       }
 
@@ -158,6 +159,7 @@ export const GovernanceErc20Handler = {
         token?.isGovernance!,
         plugins,
         info,
+        isHistorical,
       )
     } catch (error) {
       logger.error(`Transfer - ${transferType} transfer error`, llo({ error, info }))
@@ -170,6 +172,7 @@ export const GovernanceErc20Handler = {
     tokenIsGovernance: boolean,
     plugins: Plugin[],
     info: ILogInfo,
+    isHistorical?: boolean,
   ) => {
     let userBalance = 0n
     let votingPower = 0n
@@ -188,7 +191,6 @@ export const GovernanceErc20Handler = {
       )
     }
 
-    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
     await Promise.all([
       ...plugins.map(async (plugin: Plugin) => {
         const memberShipParams = {
@@ -208,17 +210,21 @@ export const GovernanceErc20Handler = {
           await ProxyMember.removeFromDao(memberShipParams)
         }
       }),
-      ...uniqueDaoList.map(async (daoAddress: string) => {
+    ])
+
+    if (!isHistorical) {
+      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+      uniqueDaoList.map(async (daoAddress: string) => {
         await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
           id: daoAddress,
           params: { address: daoAddress, network: info.network },
         })
-      }),
-    ])
+      })
+    }
   },
 
   // it triggers for each user the previous and new votingPower
-  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
     if (!plugins || plugins.length === 0) return
 
@@ -265,6 +271,7 @@ export const GovernanceErc20Handler = {
           true,
           plugins,
           info,
+          isHistorical,
         )
       }
 
@@ -285,6 +292,7 @@ export const GovernanceErc20Handler = {
         true,
         plugins,
         info,
+        isHistorical,
       )
 
       const { from, to, delegator } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)

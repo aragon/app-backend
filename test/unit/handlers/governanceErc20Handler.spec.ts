@@ -778,12 +778,19 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
 
       const errorStub = sandbox.stub(Logger, 'warn')
+      const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1' as any)
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
+      sandbox.stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt').resolves({
+        from: utils.zeroAddress,
+        to: utils.zeroAddress,
+        delegator: utils.zeroAddress,
+      })
 
       const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
 
       expect(errorStub.calledWith('Skip from and to address' as any)).to.be.true
       expect(handlerResponse).to.be.undefined
+      expect(getTokenBalanceAtBlockStub.calledOnce).to.be.true
       expect(createMemberStub.calledTwice).to.be.true
     })
 
