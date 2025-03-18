@@ -217,7 +217,7 @@ export const ProposalHandler = {
         blockNumber: newProposal.blockNumber,
       })
 
-      await Promise.all([
+      await Promise.allSettled([
         ProposalHandler.parseActions(newProposal),
         ProxyMember.updateMetricsByAction(IMetricAction.increaseProposalCount, {
           memberAddress: newProposal.creatorAddress,
@@ -288,7 +288,7 @@ export const ProposalHandler = {
         blockNumber: info.blockNumber,
       })
 
-      await Promise.all([
+      await Promise.allSettled([
         ProxyMember.updateMetricsByAction(IMetricAction.increaseVoteCount, {
           memberAddress: document.memberAddress!,
           pluginAddress: info.address,
@@ -401,7 +401,7 @@ export const ProposalHandler = {
         blockNumber: info.blockNumber,
       })
 
-      await Promise.all([
+      await Promise.allSettled([
         // Proposal metrics
         RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
           id: `${proposalIndex}-${info.address}`,
@@ -456,7 +456,7 @@ export const ProposalHandler = {
 
       if (!proposal) return
 
-      await Promise.all([
+      await Promise.allSettled([
         RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
           id: proposal.daoAddress,
           params: { address: proposal.daoAddress, network: info.network },
