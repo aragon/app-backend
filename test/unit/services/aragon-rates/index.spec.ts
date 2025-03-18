@@ -24,7 +24,11 @@ describe('AragonRates: index', () => {
     let schedulerStub = sandbox.createStubInstance(TaskSchedulerState)
     sandbox.stub(TaskSchedulerState, 'getInstance').returns(schedulerStub)
 
-    expect(RatesService.NEED_CONNECTIONS).to.deep.equal([EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN])
+    expect(RatesService.NEED_CONNECTIONS).to.deep.equal([
+      EnumConnection.MONGODB,
+      EnumConnection.BLOCKCHAIN,
+      EnumConnection.RABBITMQ,
+    ])
 
     const configBk = config.SERVICES.ARAGON_RATES.RATES_INTERVAL
     config.SERVICES.ARAGON_RATES.RATES_INTERVAL = 200
