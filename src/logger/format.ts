@@ -72,7 +72,7 @@ const Format: ILogFormat = {
     return Format.formatRecursiveError(info)
   }),
 
-  consoleFormat: winston.format((info: any, opts: { showDetails: any }) => {
+  consoleFormat: winston.format((info: any, opts: { showDetails: any } | any) => {
     const filteredInfo = Object.assign({}, info)
 
     delete filteredInfo.level // eslint-disable-line

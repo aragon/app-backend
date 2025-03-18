@@ -58,6 +58,9 @@ export default class MemberTransaction extends Model {
   @prop({ type: () => Number })
   public blockTimestamp!: number
 
+  @prop({ type: () => String, default: null })
+  public delegator!: HexAddress
+
   @prop({ type: () => String, required: true })
   public tokenAddress!: HexAddress
 
@@ -124,6 +127,64 @@ export default class MemberTransaction extends Model {
 
   static async findByAddress(address: HexAddress, network: NetworksEnum) {
     return await this.findOne({ address, network })
+  }
+
+  static async getReceiveDelegationCount(
+    memberAddress: HexAddress,
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    tOpts?: SaveOptions,
+  ): Promise<number> {
+    const aggQuery: any = [
+      {
+        $match: {
+          network,
+          tokenAddress,
+          address: memberAddress,
+          type: 'delegate',
+        },
+      },
+      {
+        $sort: {
+          blockNumber: 1,
+          transactionIndex: 1,
+          logIndex: 1,
+        },
+      },
+      // 3) Assign a count value: +1 for incoming, -1 for outgoing
+      {
+        $addFields: {
+          delegationCount: {
+            $cond: {
+              if: { $eq: ['$side', 'incoming'] },
+              then: 1,
+              else: -1,
+            },
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          receivedDelegationCount: { $sum: '$delegationCount' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          receivedDelegationCount: { $toInt: '$receivedDelegationCount' },
+        },
+      },
+    ]
+
+    const aggregate = this.aggregate(aggQuery)
+
+    if (tOpts?.session) {
+      aggregate.session(tOpts.session)
+    }
+
+    const response = await aggregate
+    return Number(response[0]?.receivedDelegationCount || 0)
   }
 
   static async findWithPagination({

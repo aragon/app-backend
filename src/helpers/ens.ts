@@ -18,7 +18,7 @@ const EnsHelper = {
       const packetBytes = hexlify(EnsHelper._addressToPacket(address))
 
       const result = await retryRequest(async () =>
-        BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+        BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
           contract.reverse(packetBytes),
         ),
       )

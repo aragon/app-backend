@@ -103,7 +103,7 @@ class EventListener {
       }
 
       const logs = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(this.network)!.schedule(async () => provider.getLogs(filter)),
+        BottleneckModule.getNodeLimiter(this.network).schedule(async () => provider.getLogs(filter)),
       )
 
       if (!logs || logs.length === 0) {
@@ -131,24 +131,27 @@ class EventListener {
 
   async saveProgress(blockNumber: number, network: NetworksEnum) {
     try {
-      await DbTx.executeTxFn(async ({ session }) => {
-        const existingConfig = await Models.ConfigIndexer.findExistingLog(
-          {
-            network,
-            service: `indexer-${network}`,
-          },
-          { session },
-        )
+      await DbTx.executeTxFn(
+        async ({ session }) => {
+          const existingConfig = await Models.ConfigIndexer.findExistingLog(
+            {
+              network,
+              service: `indexer-${network}`,
+            },
+            { session },
+          )
 
-        if (!existingConfig || existingConfig.lastSync >= blockNumber) {
-          return false
-        }
+          if (!existingConfig || existingConfig.lastSync >= blockNumber) {
+            return false
+          }
 
-        await existingConfig.update({ lastSync: blockNumber }, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('update last block', llo({ blockNumber, network }))
-      })
+          await existingConfig.update({ lastSync: blockNumber }, { session })
+          await session.commitTransaction()
+          await session.endSession()
+          logger.verbose('update last block', llo({ blockNumber, network }))
+        },
+        { stopRetry: true, throwOnStop: false },
+      )
     } catch (error) {
       logger.error('Error saving progress - last block', llo({ error, blockNumber, network }))
     }

@@ -1,4 +1,4 @@
-name: App deploy new version
+name: Deploy new version
 
 on:
   workflow_dispatch:
@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
-      
+
       - name: Load secrets
         id: op-server-secrets
         uses: 1password/load-secrets-action@v2
@@ -69,7 +69,6 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
           SERVER_USERNAME: ${{ env.OP_SERVER_USERNAME }}
           SERVER_URL: ${{ env.OP_SERVER_URL }}
-          
 
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
@@ -77,16 +76,16 @@ jobs:
           version: latest-beta
 
       - name: Download certfile
-        env: 
+        env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
           SERVER_CERT: ${{ env.OP_SERVER_CERT }}
         run: |
           mkdir ~/.ssh/ -p
           op read ${{ env.SERVER_CERT }} > ~/.ssh/id_rsa
-          chmod 400 ~/.ssh/id_rsa          
+          chmod 400 ~/.ssh/id_rsa
 
       - name: Download config files
-        env: 
+        env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS] }}
           OP_VAULT: temporal_backend2
           OP_VAULT_ITEM: configs_app_backend2_${{env.DEPLOY_ENV}}
@@ -125,11 +124,10 @@ jobs:
           	rm temp_file
           done < configs
 
-
       - name: Print masked secret and branch variable map
         run: |
           echo "Branch variable map: ${{ env.DEPLOY_ENV }}"
-      
+
       - name: Execute deployment script
         env:
           IS_A_GITHUB_ACTION: true
@@ -138,4 +136,17 @@ jobs:
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/id_rsa
           bash app-backend/.github/workflows/deployment/deployment.sh -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
-          
+      
+      - name: Reset envs
+        run: |
+              echo "OP_SERVER_USERNAME=" >> $GITHUB_ENV
+              echo "OP_SERVER_URL=" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=" >> $GITHUB_ENV
+
+              
+      - name: Dispatch E2E tests
+        uses: aragon/app-qa/.github/actions/dispatch@main
+        with:
+          opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP }}
+          environment: ${{ env.DEPLOY_ENV }}

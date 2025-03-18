@@ -44,7 +44,7 @@ describe('Module: blockchainLogCrawler', () => {
       onError: () => {},
     })
 
-    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     mockProvider.getBlockNumber
       .onFirstCall()
@@ -124,7 +124,7 @@ describe('Module: blockchainLogCrawler', () => {
       onError: sandbox.stub(),
     })
 
-    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
     const processLogsSpy = sandbox.spy(crawler, 'processLogs')
 
     await crawler.processLogs(unsortedLogs)
@@ -178,7 +178,7 @@ describe('Module: blockchainLogCrawler', () => {
       logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: sandbox.stub(),
     })
-    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     const stubSaveProgress = sandbox.stub(crawler, 'onSaveProgress').resolves()
     const processLogsSpy = sandbox.spy(crawler, 'processLogs')
@@ -232,7 +232,7 @@ describe('Module: blockchainLogCrawler', () => {
       ])
       .onSecondCall()
       .resolves([])
-    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     const updateAndCheckConditionsStub = sandbox
       .stub(crawler, 'updateAndCheckConditions')
@@ -277,7 +277,7 @@ describe('Module: blockchainLogCrawler', () => {
       onError: sandbox.stub(),
     })
 
-    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     await crawler.processLogs(logs)
 
@@ -320,7 +320,7 @@ describe('Module: blockchainLogCrawler', () => {
       logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: onErrorStub,
     })
-    sandbox.stub(ProviderModule, 'getProvider').returns(mockProvider as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     await crawler.processLogs(logs)
 
@@ -365,7 +365,7 @@ describe('Module: blockchainLogCrawler', () => {
         { transactionHash: '0x2', blockNumber: 102 },
       ])
 
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       ...mockProvider,
       send: retryStub,
     } as any)
@@ -396,7 +396,7 @@ describe('Module: blockchainLogCrawler', () => {
       .onSecondCall()
       .resolves([{ transactionHash: '0x1', blockNumber: 101 }])
 
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getBlockNumber: sandbox.stub().resolves(200),
       send: retryStub,
     } as any)
@@ -425,7 +425,7 @@ describe('Module: blockchainLogCrawler', () => {
 
     const retryStub = sandbox.stub().rejects(batchSizeError)
 
-    sandbox.stub(ProviderModule, 'getProvider').returns({
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getBlockNumber: sandbox.stub().resolves(300),
       send: retryStub,
     } as any)

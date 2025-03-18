@@ -305,4 +305,24 @@ describe('Model: Vote', () => {
     expect(vote?.pluginAddress).to.eq(voteDb.pluginAddress)
     expect(vote?.proposalIndex).to.eq(voteDb.proposalIndex)
   })
+
+  describe('countUniqueMemberVotesByPlugin', () => {
+    it('should return the count of unique member votes by plugin', async () => {
+      const aggregateStub = sandbox.stub(Models.Vote, 'aggregate').resolves([{ uniqueVotes: 5 }])
+
+      const result = await Models.Vote.countUniqueMemberVotesByPlugin('0xDaoAddress')
+
+      expect(aggregateStub.calledOnce).to.be.true
+      expect(result).to.equal(5)
+    })
+
+    it('should return 0 if there are no unique votes', async () => {
+      const aggregateStub = sandbox.stub(Models.Vote, 'aggregate').resolves([])
+
+      const result = await Models.Vote.countUniqueMemberVotesByPlugin('0xDaoAddress')
+
+      expect(aggregateStub.calledOnce).to.be.true
+      expect(result).to.equal(0)
+    })
+  })
 })

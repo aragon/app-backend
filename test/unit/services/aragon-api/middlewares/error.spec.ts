@@ -16,7 +16,7 @@ describe('middlewares: error', () => {
   })
 
   it('run', async () => {
-    const next = sinon.stub() as any
+    const next = sandbox.stub() as any
     const ctx = {} as any
 
     await ErrorMiddleware()(ctx, next)
@@ -25,7 +25,7 @@ describe('middlewares: error', () => {
   })
 
   it('catch', async () => {
-    const next = sinon.stub().rejects(new Error('coucou')) as any
+    const next = sandbox.stub().rejects(new Error('coucou')) as any
     const ctx = { requestInfo: {} } as any
 
     await ErrorMiddleware()(ctx, next)
@@ -45,7 +45,7 @@ describe('middlewares: error', () => {
     err.status = 100
     err.description = 'desc'
     err.exposeMeta = 'meta'
-    const next = sinon.stub().rejects(err) as any
+    const next = sandbox.stub().rejects(err) as any
     const ctx = { requestInfo: {} } as any
 
     await ErrorMiddleware()(ctx, next)
@@ -67,7 +67,7 @@ describe('middlewares: error', () => {
     err.status = 100
     err.description = 'desc'
     err.exposeMeta = 'meta'
-    const next = sinon.stub().rejects(err) as any
+    const next = sandbox.stub().rejects(err) as any
     const ctx = { requestInfo: {} } as any
 
     await ErrorMiddleware()(ctx, next)

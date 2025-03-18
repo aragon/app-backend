@@ -20,9 +20,13 @@ const BlockScoutHelper = {
   },
 
   _rpCall: async (path: string, params: object, network: NetworksEnum) => {
+    if (!BlockScoutHelper._parseNetworkToConfig(network)?.BLOCKSCOUT_API_URL) {
+      logger.warn('BlockScout API is not configured', llo({ network }))
+      return null
+    }
     try {
       const response = await retryRequest(async () =>
-        BottleneckModule.getBlockScoutLimiter(network)!.schedule(async () =>
+        BottleneckModule.getBlockScoutLimiter(network).schedule(async () =>
           BlockScoutHelper.axiosInstance(network).get(`v2/${path}`, { params }),
         ),
       )
@@ -213,7 +217,7 @@ const BlockScoutHelper = {
         apikey: BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_KEY,
       }
       const results = await BlockScoutHelper._rpCall(`addresses/${address}/transactions`, params, network)
-      if (results.items.length) {
+      if (results?.items?.length) {
         return results.items.map((item: any) => ({ txHash: item.hash, blockNumber: item.block_number }))
       }
     } catch (error) {

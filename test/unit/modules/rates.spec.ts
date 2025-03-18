@@ -37,6 +37,7 @@ describe('Modules:RateModule', () => {
 
       const result = await RateModule.fetchRateWithCovalent(ZeroAddress as any, NetworksEnum.ethereumMainnet)
 
+      expect(result.address).to.equal(ZeroAddress)
       expect(result.priceUsd).to.equal('1')
       expect(result.priceChangeOnDayUsd).to.equal('0.1')
       expect(result.logo).to.equal('fake-logo')

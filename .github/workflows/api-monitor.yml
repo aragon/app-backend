@@ -1,4 +1,4 @@
-name: AppBackend API Monitoring
+name: API Monitoring
 
 on:
   schedule:

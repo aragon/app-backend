@@ -36,13 +36,13 @@ const ProxyContractHelper = {
     )
 
     try {
-      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getImplementation())
+      return await BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getImplementation())
     } catch (error) {
       // ignore
     }
 
     try {
-      return await BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.implementation())
+      return await BottleneckModule.getNodeLimiter(network).schedule(async () => contract.implementation())
     } catch (error) {
       // ignore
     }
@@ -58,7 +58,7 @@ const ProxyContractHelper = {
   ): Promise<HexAddress | null> {
     try {
       const storageValue = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getStorageAt(address, slot)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getStorageAt(address, slot)),
       )
       const addressFromStorage = getAddress('0x' + storageValue.slice(-40))
       return addressFromStorage === ZeroAddress ? null : addressFromStorage
@@ -90,7 +90,7 @@ const ProxyContractHelper = {
 
       // Check minimal proxy pattern if other slots failed
       if (!implementationAddress) {
-        const code = await BottleneckModule.getNodeLimiter(network)!.schedule(async () => provider.getCode(address))
+        const code = await BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getCode(address))
         implementationAddress = ProxyContractHelper._getImplementationForMinimalProxy(code)
       }
 

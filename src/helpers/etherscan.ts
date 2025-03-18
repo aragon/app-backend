@@ -23,7 +23,7 @@ const EtherscanHelper = {
   _rpCall: async (params: object, network: NetworksEnum) => {
     try {
       const response = await retryRequest(async () =>
-        BottleneckModule.getEtherScanLimiter(network)!.schedule(async () =>
+        BottleneckModule.getEtherScanLimiter(network).schedule(async () =>
           EtherscanHelper.axiosInstance(network).get('', { params }),
         ),
       )

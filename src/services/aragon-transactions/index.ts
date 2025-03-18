@@ -32,6 +32,7 @@ const AragonTransactionsService: IExtendedService = {
       ProviderModule.subscribeToNewBlock(networkName, async (blockNumber: number) =>
         AragonTransactionsService.processNewBlock(blockNumber, networkName),
       )
+
       logger.verbose('Listening to new block events', llo({ network: networkName }))
     }
   },

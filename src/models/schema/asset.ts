@@ -267,11 +267,7 @@ export default class Asset extends Model {
       aggregate.session(tOpts.session)
     }
     const response = await aggregate
-    return {
-      tvlUsd: response[0]?.tvlUsd || 0,
-      daoAddress,
-      network,
-    }
+    return Number(response[0]?.tvlUsd || 0)
   }
 
   async update(params: Partial<Asset>, tOpts?: SaveOptions) {

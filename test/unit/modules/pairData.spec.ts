@@ -79,7 +79,6 @@ describe('Modules:PairDataModule', () => {
           pluginSubdomain: 'token-voting',
           tokenBalance: '100',
           metrics: {
-            delegateSentCount: 0,
             delegateReceivedCount: 0,
             voteCount: 0,
             proposalCount: 0,

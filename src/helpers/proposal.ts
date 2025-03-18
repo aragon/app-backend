@@ -51,7 +51,7 @@ const ProposalHelper = {
     const contract = new Contract(sppPluginAddress, StagedProposalProcessor.abi, provider)
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
           contract.getBodyProposalId(proposalIndex, stage, pluginAddress),
         ),
       )
@@ -73,7 +73,7 @@ const ProposalHelper = {
     const contract = new Contract(pluginAddress, StagedProposalProcessor.abi, provider)
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(proposalIndex)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getProposal(proposalIndex)),
       )
     } catch (error) {
       logger.error('Error getting proposal SPP', llo({ proposalIndex, pluginAddress, network, error }))
@@ -94,7 +94,7 @@ const ProposalHelper = {
     const contract = new Contract(pluginAddress, TokenVoting.abi, provider)
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(proposalIndex)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getProposal(proposalIndex)),
       )
     } catch (error) {
       logger.error('Error getting proposal tokenVoting', llo({ proposalIndex, pluginAddress, network, error }))
@@ -115,7 +115,7 @@ const ProposalHelper = {
     const contract = new Contract(pluginAddress, Multisig.abi, provider)
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network)!.schedule(async () => contract.getProposal(proposalIndex)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getProposal(proposalIndex)),
       )
     } catch (error) {
       logger.error('Error getting proposal multisig', llo({ proposalIndex, pluginAddress, network, error }))
