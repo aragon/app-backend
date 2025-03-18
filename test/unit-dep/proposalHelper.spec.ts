@@ -57,8 +57,8 @@ describe('ProposalHelper', () => {
 
   it('getProposalMultisig', async () => {
     const proposalIndex = '0'
-    const pluginAddress = '0xdF89c40bDB5F68201DcE5247963b085A0a59Cc61'
-    const network = NetworksEnum.ethereumMainnet
+    const pluginAddress = '0xE61C3E80F99cc1587D3456EAff9E110DFCD28c5E'
+    const network = NetworksEnum.ethereumSepolia
     const proposal: any = await ProposalHelper.getProposalMultisig({
       proposalIndex,
       pluginAddress,
