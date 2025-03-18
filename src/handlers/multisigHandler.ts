@@ -20,7 +20,7 @@ export const MultisigHandler = {
 
     const { members } = parsedEvent.args
     for (const memberAddress of members) {
-      await Promise.all([
+      await Promise.allSettled([
         ProxyMember.addToDao({
           memberAddress,
           daoAddress: pluginExisted.daoAddress,
@@ -48,7 +48,7 @@ export const MultisigHandler = {
 
     const { members } = parsedEvent.args
     for (const memberAddress of members) {
-      await Promise.all([
+      await Promise.allSettled([
         ProxyMember.removeFromDao({
           memberAddress,
           daoAddress: pluginExisted.daoAddress,

@@ -105,7 +105,7 @@ export const BlockHandler = {
 
   sendDaoMessages: async (dao: Dao) => {
     try {
-      await Promise.all([
+      await Promise.allSettled([
         RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
           id: dao.address,
           params: { address: dao.address, network: dao.network },
