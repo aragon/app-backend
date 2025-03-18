@@ -6,6 +6,7 @@ import { IProviderType, NetworksEnum } from '@types'
 import config from '@config'
 import { Network } from 'alchemy-sdk'
 import logger from '@logger'
+import proxyquire from 'proxyquire'
 
 describe('Module: provider', () => {
   let sandbox: SinonSandbox
@@ -151,6 +152,20 @@ describe('Module: provider', () => {
     })
 
     it('connectToNetwork should configure an Aragon connection', async () => {
+      const providerStub = { on: sandbox.stub(), websocket: { on: sandbox.stub() } }
+      const setupWSListenersStub = sandbox.stub()
+      const { default: ProviderModule } = proxyquire.noCallThru()('@modules/provider', {
+        ethers: {
+          WebSocketProvider: function () {
+            return providerStub
+          },
+          JsonRpcProvider: function () {
+            return providerStub
+          },
+        },
+      })
+      ProviderModule.setupWSListeners = setupWSListenersStub
+
       const network = NetworksEnum.ethereumMainnet
       const aragonConfig = {
         providerType: IProviderType.ARAGON,
@@ -160,17 +175,12 @@ describe('Module: provider', () => {
         confirmationBlocks: 12,
         intervalBlockTime: 15,
       }
-      // Stub providers
-      const fakeWsProvider = { on: sandbox.stub() }
-      const fakeRpcProvider = {}
-      sandbox.stub(require('ethers'), 'WebSocketProvider').returns(fakeWsProvider)
-      sandbox.stub(require('ethers'), 'JsonRpcProvider').returns(fakeRpcProvider)
-      const stubListeners = sandbox.stub(ProviderModule, 'setupWSListeners')
 
       await ProviderModule.connectToNetwork(network, aragonConfig)
+
       const proxy = ProviderModule.providerProxies[network]
       expect(proxy.aragon).to.exist
-      expect(stubListeners.calledOnce).to.be.true
+      expect(setupWSListenersStub.calledOnce).to.be.true
     })
   })
 

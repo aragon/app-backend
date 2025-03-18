@@ -61,7 +61,7 @@ describe('AragonDao:DaoMetrics', () => {
         uniqueVoters: 10,
       }
 
-      sandbox.stub(DaoMetrics, 'getDaoTvl').resolves(fakeMetrics.tvlUSD)
+      sandbox.stub(Models.Asset, 'getDaoTvl').resolves(fakeMetrics.tvlUSD)
       sandbox
         .stub(Models.Proposal, 'countDocuments')
         .onCall(0)
@@ -70,7 +70,7 @@ describe('AragonDao:DaoMetrics', () => {
         .resolves(fakeMetrics.proposalsExecuted)
       sandbox.stub(Models.DaoMemberMapping, 'countUniqueMembers').resolves(fakeMetrics.members)
       sandbox.stub(Models.Vote, 'countDocuments').resolves(fakeMetrics.votes)
-      sandbox.stub(DaoMetrics, 'countUniqueMemberVotesByPlugin').resolves(fakeMetrics.uniqueVoters)
+      sandbox.stub(Models.Vote, 'countUniqueMemberVotesByPlugin').resolves(fakeMetrics.uniqueVoters)
       const stubLogger = sandbox.stub(Logger, 'verbose')
 
       await DaoMetrics.onDocument(document)
@@ -92,52 +92,6 @@ describe('AragonDao:DaoMetrics', () => {
       await DaoMetrics.onDocument(document)
 
       expect(stubLogger.calledWith('Error DaoMetrics' as any)).to.be.true
-    })
-  })
-
-  describe('countUniqueMemberVotesByPlugin', () => {
-    it('should return the count of unique member votes by plugin', async () => {
-      const aggregateStub = sandbox.stub(Models.Vote, 'aggregate').resolves([{ uniqueVotes: 5 }])
-
-      const result = await DaoMetrics.countUniqueMemberVotesByPlugin('0xDaoAddress')
-
-      expect(aggregateStub.calledOnce).to.be.true
-      expect(result).to.equal(5)
-    })
-
-    it('should return 0 if there are no unique votes', async () => {
-      const aggregateStub = sandbox.stub(Models.Vote, 'aggregate').resolves([])
-
-      const result = await DaoMetrics.countUniqueMemberVotesByPlugin('0xDaoAddress')
-
-      expect(aggregateStub.calledOnce).to.be.true
-      expect(result).to.equal(0)
-    })
-  })
-
-  describe('getDaoTvl', () => {
-    it('should return the TVL for a DAO', async () => {
-      const getDaoTvlStub = sandbox.stub(Models.Asset, 'getDaoTvl').resolves({ tvlUsd: 1000 })
-
-      const result = await DaoMetrics.getDaoTvl({
-        address: '0xDaoAddress',
-        network: NetworksEnum.ethereumMainnet,
-      } as any)
-
-      expect(getDaoTvlStub.calledOnceWith('0xDaoAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(result).to.equal(1000)
-    })
-
-    it('should return 0 if no TVL is found', async () => {
-      const getDaoTvlStub = sandbox.stub(Models.Asset, 'getDaoTvl').resolves(null)
-
-      const result = await DaoMetrics.getDaoTvl({
-        address: '0xDaoAddress',
-        network: NetworksEnum.ethereumMainnet,
-      } as any)
-
-      expect(getDaoTvlStub.calledOnceWith('0xDaoAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(result).to.equal(0)
     })
   })
 })

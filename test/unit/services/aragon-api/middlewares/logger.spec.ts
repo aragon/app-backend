@@ -19,7 +19,7 @@ describe('middlewares: logger', () => {
 
   it('run', async () => {
     const loginfo = sandbox.stub(Logger, 'verbose')
-    const next = sinon.stub() as any
+    const next = sandbox.stub() as any
     const query = { a: 1, password: 'password' }
     const ctx = {
       request: {
@@ -66,7 +66,7 @@ describe('middlewares: logger', () => {
 
   it('should populate userAgentInfo when user-agent header is present', async () => {
     const deviceInfoStub = sandbox.stub(Device, 'getDeviceInfo').returns({ device: 'TestDevice' } as any)
-    const next = sinon.stub() as any
+    const next = sandbox.stub() as any
 
     const ctx: any = {
       request: {
@@ -99,7 +99,7 @@ describe('middlewares: logger', () => {
 
   it('should not populate userAgentInfo when user-agent header is not present', async () => {
     const deviceInfoStub = sandbox.stub(Device, 'getDeviceInfo')
-    const next = sinon.stub().resolves()
+    const next = sandbox.stub().resolves()
 
     const ctx: any = {
       request: {
@@ -132,7 +132,7 @@ describe('middlewares: logger', () => {
     const logStub = sandbox.stub(logger, 'error')
 
     // Define a fake `next` middleware
-    const next = sinon.stub().callsFake(() => {
+    const next = sandbox.stub().callsFake(() => {
       ctx.requestInfo.error = { exposeCustom_: false }
     })
 
@@ -164,7 +164,7 @@ describe('middlewares: logger', () => {
   it('should set log level to WARN if requestInfo.error is exposeCustom_', async () => {
     const logStub = sandbox.stub(logger, 'warn')
 
-    const next = sinon.stub().callsFake(() => {
+    const next = sandbox.stub().callsFake(() => {
       ctx.requestInfo.error = { exposeCustom_: true }
     })
 
@@ -195,7 +195,7 @@ describe('middlewares: logger', () => {
 
   it('should skip logging for OPTIONS requests', async () => {
     const logStub = sandbox.stub(logger, 'verbose')
-    const next = sinon.stub().resolves() // Ensure `next` is called
+    const next = sandbox.stub().resolves() // Ensure `next` is called
 
     const ctx: any = {
       request: {

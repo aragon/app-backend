@@ -37,9 +37,6 @@ export default class MemberMetrics extends Model {
   public delegateReceivedCount!: number
 
   @prop({ type: () => Number, default: 0 })
-  public delegateSentCount!: number
-
-  @prop({ type: () => Number, default: 0 })
   public voteCount!: number
 
   @prop({ type: () => Number, default: 0 })
@@ -108,17 +105,6 @@ export default class MemberMetrics extends Model {
 
   async increaseDelegateReceivedCount(increment: number = 1, tOpts?: SaveOptions) {
     this.delegateReceivedCount = (this.delegateReceivedCount || 0) + increment
-    return await this.save(tOpts)
-  }
-
-  async decreaseDelegateSentCount(decrease: number = 1, tOpts?: SaveOptions) {
-    if (this.delegateSentCount === 0) return this
-    this.delegateSentCount = (this.delegateSentCount || 0) - decrease
-    return await this.save(tOpts)
-  }
-
-  async increaseDelegateSentCount(increment: number = 1, tOpts?: SaveOptions) {
-    this.delegateSentCount = (this.delegateSentCount || 0) + increment
     return await this.save(tOpts)
   }
 

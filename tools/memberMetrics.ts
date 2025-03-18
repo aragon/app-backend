@@ -2,7 +2,6 @@ import { EnumConnection, IMetricAction, type IService, ITransferSide, ITransferT
 import { Models } from '@dbModels'
 import type Member from '@models/schema/member'
 import type Plugin from '@models/schema/plugin'
-import utils from '@helpers/utils'
 import logger from '@logger'
 import { ProxyMember } from '@modules/proxyMember'
 import DbOperations from '@models/utils/dbOperations'
@@ -40,47 +39,24 @@ export const ToolsMemberMetrics: IExtendedService = {
   },
 
   delegationCount: async (member: Member) => {
-    // delegate received
-    const receivedTxs = await Models.MemberTransaction.find({
+    const memberTxs = await Models.MemberTransaction.find({
       address: member.address,
-      side: ITransferSide.incoming,
+      delegator: member.address,
       type: ITransferType.delegate,
-      from: { $ne: utils.zeroAddress },
-      to: member.address,
-    })
-
-    for (const received of receivedTxs) {
-      const plugins = await Models.Plugin.find({ isSupported: true, tokenAddress: received.tokenAddress })
-
-      for (const plugin of plugins) {
-        await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
-          memberAddress: member.address,
-          pluginAddress: plugin.address,
-          network: plugin.network,
-        })
-        await ToolsMemberMetrics.setActivity(member, plugin, received.blockTimestamp)
-      }
-    }
-
-    // delegate sent
-    const sentTxs = await Models.MemberTransaction.find({
-      address: member.address,
       side: ITransferSide.outgoing,
-      type: ITransferType.delegate,
-      from: member.address,
-      to: { $ne: utils.zeroAddress },
     })
 
-    for (const sent of sentTxs) {
-      const plugins = await Models.Plugin.find({ isSupported: true, tokenAddress: sent.tokenAddress })
+    for (const transaction of memberTxs) {
+      const plugins = await Models.Plugin.find({ isSupported: true, tokenAddress: transaction.tokenAddress })
 
       for (const plugin of plugins) {
-        await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateSentCount, {
+        await ProxyMember.updateDelegationMetrics({
           memberAddress: member.address,
           pluginAddress: plugin.address,
+          tokenAddress: transaction.tokenAddress,
           network: plugin.network,
         })
-        await ToolsMemberMetrics.setActivity(member, plugin, sent.blockTimestamp)
+        await ToolsMemberMetrics.setActivity(member, plugin, transaction.blockTimestamp)
       }
     }
   },

@@ -31,7 +31,7 @@ describe('Manual: Indexer', () => {
     }
 
     const failingService = {
-      start: sinon.stub().rejects(new Error('Service failed')),
+      start: sandbox.stub().rejects(new Error('Service failed')),
     }
 
     const logFastTasks = [

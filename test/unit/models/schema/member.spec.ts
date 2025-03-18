@@ -139,7 +139,6 @@ describe('Model: Member', () => {
       expect(member.votingPower).to.be.eq(rawMemberBalance.votingPower)
       expect(member.metrics).to.be.exist
       expect(member.metrics?.delegateReceivedCount).to.be.eq(rawMemberMetrics.delegateReceivedCount)
-      expect(member.metrics?.delegateSentCount).to.be.eq(rawMemberMetrics.delegateSentCount)
     })
   })
 

@@ -18,7 +18,7 @@ const FourByte = {
   _rpCall: async <T>(path: string): Promise<T> => {
     try {
       const response = await retryRequest(async () =>
-        BottleneckModule.get4ByteLimiter(NetworksEnum.ethereumMainnet)!.schedule(async () =>
+        BottleneckModule.get4ByteLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
           FourByte.axiosInstance.get(`${config.FOUR_BYTE.URI}${path}`),
         ),
       )

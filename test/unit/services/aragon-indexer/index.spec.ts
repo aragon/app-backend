@@ -8,10 +8,11 @@ import EventListener from '@modules/eventListener'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import Utils from '@helpers/utils'
 import { NetworkHelper } from '@helpers/network'
-import { NetworksEnum } from '@types'
+import { EnumQueueName, NetworksEnum } from '@types'
 import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
 import proxyquire from 'proxyquire'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 describe('AragonIndexer: index', () => {
   let sandbox: SinonSandbox
@@ -47,12 +48,20 @@ describe('AragonIndexer: index', () => {
           }
         })
 
+      const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
       const SyncAllStub = { start: sandbox.stub().resolves() }
       const IndexerServiceProxy = proxyquire.noCallThru()('@services/aragon-indexer/index', {
         '@indexer/syncAll': { SyncAll: SyncAllStub },
       }).default
 
       await IndexerServiceProxy.start()
+
+      expect(
+        stubSendMessage.calledWithMatch(EnumQueueName.allMetrics as any, {
+          id: `${EnumQueueName.allMetrics}-${NetworksEnum.ethereumMainnet}`,
+          params: { network: NetworksEnum.ethereumMainnet },
+        }),
+      ).to.be.true
 
       expect(loggerStub.calledWith('IndexerService historical started' as any)).to.be.true
       expect(customInstall.calledOnce).to.be.true
@@ -87,10 +96,12 @@ describe('AragonIndexer: index', () => {
           }
         })
       sandbox.stub(TaskSchedulerState, 'getInstance').returns({ startTask: schedulerStub } as any)
+      const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       await IndexerService.start()
 
       expect(subscribeStub.calledOnce).to.be.true
+      expect(stubSendMessage.calledOnce).to.be.true
       expect(loggerErrorStub.calledTwice).to.be.true
       expect(loggerErrorStub.calledWith('Error Indexer' as any)).to.be.true
       expect(loggerErrorStub.calledWith('Error sync all plugins' as any)).to.be.true

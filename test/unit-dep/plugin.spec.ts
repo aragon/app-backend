@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
+import { IEventLogPluginType, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
@@ -12,6 +12,7 @@ import { expect } from 'chai'
 import BlockScoutHelper from '@helpers/blockScout'
 import { RateModule } from '@modules/rates'
 import logger from '@logger'
+import { PluginSlug } from '@helpers/pluginSlug'
 
 describe('Integration: Plugin Setup SPP', () => {
   let sandbox: SinonSandbox
@@ -28,12 +29,116 @@ describe('Integration: Plugin Setup SPP', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should handle DelegateVotesChanged event', async function () {
+  it('plugin slug', async function () {
+    this.timeout(10000000)
+
+    const network = NetworksEnum.ethereumSepolia
+    const daoAddress = '0x9b42704949b98CE4C3b7484D3Fe2694807768942'
+    const pluginAddress = '0x0b001495e87237c2Cd57F2E7CEE5962016BC5ca2'
+
+    const plugin = await Models.Plugin.create({
+      id: 'ethereum-sepolia-0x83a5a6df11c205990c24dc10ddb14af669578b9207511bac2a881a0ce84bb5d0-0x0b001495e87237c2Cd57F2E7CEE5962016BC5ca2',
+      transactionHash: '0x83a5a6df11c205990c24dc10ddb14af669578b9207511bac2a881a0ce84bb5d0',
+      blockNumber: 7686518,
+      blockTimestamp: 1739284548,
+      network,
+      address: pluginAddress,
+      implementationAddress: '0x4cCA57aC117Ae35bd0222f8dE52fc4f9c88eBa6f',
+      interfaceType: 'spp',
+      status: 'installed',
+      isSupported: true,
+      daoAddress,
+      tokenAddress: null,
+      pluginSetupRepoAddress: '0xE67b8E026d190876704292442A38163Ce6945d6b',
+      sender: '0x9b42704949b98CE4C3b7484D3Fe2694807768942',
+      release: '1',
+      build: '8',
+      subdomain: 'spp',
+      permissions: [],
+      uninstalled: {
+        status: false,
+        transactionHash: null,
+        blockNumber: null,
+        blockTimestamp: null,
+      },
+      isProcess: true,
+      isBody: false,
+      isSubPlugin: false,
+      metadataIpfs: 'ipfs://Qmc8ECxCFCZS7R5ruavYfiCUfRoXQ1gi1GKWDWZBifVSxZ',
+      name: 'End To End',
+      description: null,
+      processKey: 'ETE',
+      subPlugins: [
+        {
+          addresses: ['0xd7750B1B69aBD00bc1D02adEd842Ec65AfBe52a5'],
+          stageIndex: 0,
+        },
+      ],
+      links: [],
+      totalStages: 1,
+    })
+
+    await PluginSlug.generateSlug(plugin, plugin?.processKey)
+
+    console.log('ok')
+  })
+
+  it('should handle multisig plugin different abi', async function () {
+    this.timeout(10000000)
+
+    const daoAddress = '0x56F406551b725072853317A11fc4EAF24B05037E'
+    const pluginAddress = '0x957f7145BA7B633165519C2f313a05E359cDc2E4'
+
+    const daoCreationTxHash = '0x69f1c90f66b5af323ae093bade7134f502bef5c10e313ceee4e694998a9815a3'
+    const daoRegisteredEvents = await UnitDepUtils.getData(
+      DAORegistry.abi,
+      'DAORegistered',
+      daoCreationTxHash,
+      NetworksEnum.ethereumSepolia,
+    )
+
+    for (const { event, logInfo } of daoRegisteredEvents) {
+      await DaoRegistryHandler.daoRegistered(event, logInfo)
+    }
+
+    const dao = await Models.Dao.findOne({ address: daoAddress })
+    expect(dao?.address).to.eq(daoAddress)
+
+    const multisigPluginPreparedEvents = await UnitDepUtils.getData(
+      PluginSetupProcessor.abi,
+      IEventLogPluginType.InstallationPrepared,
+      daoCreationTxHash,
+      NetworksEnum.ethereumSepolia,
+    )
+
+    for (const { event, logInfo } of multisigPluginPreparedEvents) {
+      await PluginSetupProcessorHandler.installationPrepared(event, logInfo)
+    }
+
+    const multisigPluginAppliedEvents = await UnitDepUtils.getData(
+      PluginSetupProcessor.abi,
+      IEventLogPluginType.InstallationApplied,
+      daoCreationTxHash,
+      NetworksEnum.ethereumSepolia,
+    )
+
+    for (const { event, logInfo } of multisigPluginAppliedEvents) {
+      await PluginSetupProcessorHandler.installationApplied(event, logInfo)
+    }
+
+    const plugin = await Models.Plugin.findOne({ address: pluginAddress })
+    expect(plugin?.address).to.eq(pluginAddress)
+    expect(plugin?.isSupported).to.be.true
+
+    console.log('ok')
+  })
+
+  it('should handle plugin installation token voting', async function () {
     this.timeout(10000000)
     const daoCreationTxHash = '0x2a47f99a78b147abb325eb14060b0ed4ba665d6a9d40d7c1a7d145e62c2f755f'
     const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-    sandbox.stub(logger, 'verbose')
     sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
+      address: '0x00',
       decimals: 18,
       name: 'Wrapped Ether',
       symbol: 'WETH',

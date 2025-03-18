@@ -22,8 +22,8 @@ export const RefetchDaoMetrics: IService = {
         // pluginAddress: '0x0673c13D48023efA609C20E5E351763B99Dd67DE',
         // proposalIndex: '1',
       },
-      batchSize: 500,
-      concurrency: 10,
+      batchSize: 2000,
+      concurrency: 100,
     })
 
     await crawler.crawl()

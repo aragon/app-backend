@@ -53,7 +53,7 @@ module.exports = {
       script: 'yarn',
       args: 'service:aragon-plugins',
       exec_mode: 'fork',
-      instances: 2,
+      instances: 4,
       autorestart: true,
       env: {
         INSTANCE_ID: 'aragon-plugins',

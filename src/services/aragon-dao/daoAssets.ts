@@ -30,6 +30,103 @@ export const DaoAssets = {
     await DaoMetrics.start({ daoAddress: document.address, network: document.network })
   },
 
+  _handleNativeToken: async (document: Dao, ethBalance: string) => {
+    try {
+      const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, document.network)
+
+      if (!token) {
+        logger.error('assets token not found', llo({ logId: document?.id }))
+        return
+      }
+
+      await DbTx.executeTxFn(async ({ session }) => {
+        const existingEthAssetDb = await Models.Asset.findExistingLog(
+          {
+            daoAddress: document.address,
+            tokenAddress: utils.zeroAddress,
+            network: document.network,
+          },
+          { session },
+        )
+
+        const ethAssetData: Partial<Asset> = {
+          amount: ethBalance,
+          network: document.network,
+          daoAddress: document.address,
+          tokenAddress: utils.zeroAddress, // native token
+          amountUsd: Web3Helper.convertBalanceToUsd(ethBalance, token?.priceUsd || '0', token?.decimals || 0),
+        }
+
+        let logDb: any
+        if (existingEthAssetDb) {
+          logDb = await existingEthAssetDb.update(ethAssetData, { session })
+        } else {
+          logDb = await Models.Asset.create(ethAssetData, { session } as any)
+        }
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose(
+          existingEthAssetDb ? 'Update Native Asset' : 'New Native Asset',
+          llo({ logId: logDb?.id, network: logDb?.network }),
+        )
+      })
+    } catch (error) {
+      logger.error('error asset handle native token', llo({ logId: document?.id, error }))
+    }
+  },
+
+  _handleErc20Token: async (document: Dao, tokenBalance: IAlchemyTokenBalance) => {
+    try {
+      const isSyncableToken = await TokenUtils.isTokenSyncable(tokenBalance.contractAddress!, document.network)
+      if (!isSyncableToken) {
+        logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: tokenBalance.contractAddress }))
+        return
+      }
+      const tokenDb = await ProxyToken.saveAndGetToken(tokenBalance?.contractAddress!, document.network)
+
+      if (!tokenDb) {
+        logger.error('tokenBalances token not found', llo({ logId: document?.id }))
+        return
+      }
+
+      await DbTx.executeTxFn(async ({ session }) => {
+        const rawData: Partial<Asset> = {
+          amount: tokenBalance.tokenBalance,
+          network: document.network,
+          daoAddress: document.address,
+          tokenAddress: tokenBalance.contractAddress,
+          amountUsd: Web3Helper.convertBalanceToUsd(
+            tokenBalance.tokenBalance,
+            tokenDb?.priceUsd || '0',
+            tokenDb?.decimals || 0,
+          ),
+        }
+
+        const existingAssetDb = await Models.Asset.findExistingLog(
+          {
+            daoAddress: document.address,
+            tokenAddress: tokenBalance.contractAddress,
+            network: document.network,
+          },
+          { session },
+        )
+
+        let logDb: any
+        if (existingAssetDb) {
+          logDb = await existingAssetDb.update(rawData, { session })
+        } else {
+          logDb = await Models.Asset.create(rawData, { session } as any)
+        }
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose(existingAssetDb ? 'Update Token Asset' : 'New Token Asset', llo({ logId: logDb?.id }))
+        return logDb
+      })
+    } catch (error) {
+      logger.error('error asset handle erc20 token', llo({ logId: document?.id, error }))
+    }
+  },
+
   assets: async (document: Dao) => {
     try {
       const [ethBalance, tokenBalances] = await Promise.all([
@@ -38,81 +135,14 @@ export const DaoAssets = {
       ])
 
       if (Number(ethBalance) > 0) {
-        const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, document.network)
-
-        await DbTx.executeTxFn(async ({ session }) => {
-          const existingEthAssetDb = await Models.Asset.findExistingLog(
-            {
-              daoAddress: document.address,
-              tokenAddress: utils.zeroAddress,
-              network: document.network,
-            },
-            { session },
-          )
-
-          const ethAssetData: Partial<Asset> = {
-            amount: ethBalance,
-            network: document.network,
-            daoAddress: document.address,
-            tokenAddress: utils.zeroAddress, // native token
-            amountUsd: Web3Helper.convertBalanceToUsd(ethBalance, token?.priceUsd || '0', token?.decimals || 0),
-          }
-
-          let logDb: any
-          if (existingEthAssetDb) {
-            logDb = await existingEthAssetDb.update(ethAssetData, { session })
-          } else {
-            logDb = await Models.Asset.create(ethAssetData, { session } as any)
-          }
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose(
-            existingEthAssetDb ? 'Update Native Asset' : 'New Native Asset',
-            llo({ logId: logDb?.id, network: logDb?.network }),
-          )
-        })
+        await DaoAssets._handleNativeToken(document, ethBalance)
       }
 
       await Promise.all(
         tokenBalances
           .filter(token => Number(token.tokenBalance) > 0)
-          .map(async (token: IAlchemyTokenBalance) => {
-            const isSyncableToken = await TokenUtils.isTokenSyncable(token.contractAddress!, document.network)
-            if (!isSyncableToken) {
-              logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: token.contractAddress }))
-              return
-            }
-            const tokenDb = await ProxyToken.saveAndGetToken(token?.contractAddress!, document.network)
-            const rawData: Partial<Asset> = {
-              amount: token.tokenBalance,
-              network: document.network,
-              daoAddress: document.address,
-              tokenAddress: token.contractAddress,
-              amountUsd: Web3Helper.convertBalanceToUsd(
-                token.tokenBalance,
-                tokenDb?.priceUsd || '0',
-                tokenDb?.decimals || 0,
-              ),
-            }
-
-            const existingAssetDb = await Models.Asset.findExistingLog({
-              daoAddress: document.address,
-              tokenAddress: token.contractAddress,
-              network: document.network,
-            })
-
-            await DbTx.executeTxFn(async ({ session }) => {
-              let logDb: any
-              if (existingAssetDb) {
-                logDb = await existingAssetDb.update(rawData, { session })
-              } else {
-                logDb = await Models.Asset.create(rawData, { session } as any)
-              }
-              await session.commitTransaction()
-              await session.endSession()
-              logger.verbose(existingAssetDb ? 'Update Token Asset' : 'New Token Asset', llo({ logId: logDb?.id }))
-              return logDb
-            })
+          .map(async (tokenBalance: IAlchemyTokenBalance) => {
+            await DaoAssets._handleErc20Token(document, tokenBalance)
           }),
       )
 

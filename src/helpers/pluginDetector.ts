@@ -10,7 +10,7 @@ const llo = logger.logMeta.bind(null, { service: 'helper:PluginDetector' })
 const PluginDetector = {
   SPP_FUNCTIONS: ['getStages(uint256)'],
   TOKEN_VOTING_FUNCTIONS: ['getVotingToken()', 'totalVotingPower(uint256)'],
-  MULTISIG_FUNCTIONS: ['isMember(address)', 'isListed(address)'],
+  MULTISIG_FUNCTIONS: ['isMember(address)', 'isListed(address)', 'multisigSettings()'],
   ADMIN_FUNCTIONS: ['isMember(address)'],
   GAUGE_VOTER_FUNCTIONS: [
     'createGauge(address,string)',
@@ -22,6 +22,7 @@ const PluginDetector = {
     'epochVoteStart()',
     'epochVoteEnd()',
   ],
+  HAS_TARGET: ['getTargetConfig()'],
 
   _generateFunctionHash(functionSignature: string): string {
     return keccak256(Buffer.from(functionSignature)).slice(0, 10)
@@ -33,6 +34,7 @@ const PluginDetector = {
         type: IPluginInterfaceType.unknown,
         proxy: false,
         implementationAddress: null,
+        hasTarget: false,
       }
     }
 
@@ -49,6 +51,7 @@ const PluginDetector = {
       proxy: !!implementationAddress,
       implementationAddress: implementationAddress || null,
       type: IPluginInterfaceType.unknown,
+      hasTarget: false,
     }
 
     try {
@@ -76,6 +79,10 @@ const PluginDetector = {
         pluginDetails.type = IPluginInterfaceType.gauge
       } else {
         pluginDetails.type = IPluginInterfaceType.unknown
+      }
+
+      if (hasFunctions(PluginDetector.HAS_TARGET)) {
+        pluginDetails.hasTarget = true
       }
 
       return pluginDetails

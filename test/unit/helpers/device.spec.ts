@@ -33,6 +33,7 @@ describe('Helpers: Device', () => {
       type: 'mobile',
       ua: 'Mozilla/5.0 (Linux; Android 8.0; Pixel 2 Build/OPD3.170816.012) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Mobile Safari/537.36',
       vendor: 'Google',
+      version: '88.0.4324.182',
     })
     expect(stubLogger.calledOnce).to.be.false
   })
@@ -47,6 +48,7 @@ describe('Helpers: Device', () => {
       type: 'web',
       ua: ' Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36',
       vendor: 'web',
+      version: '88.0.4324.182',
     })
     expect(stubLogger.calledOnce).to.be.false
   })

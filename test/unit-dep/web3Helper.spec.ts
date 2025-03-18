@@ -137,6 +137,14 @@ describe('Web3Helper', () => {
     expect(version).to.eq('1.4.0')
   })
 
+  it('getMultisigSettings', async () => {
+    const pluginAddress = '0x3BBAa1762bDA9C3B028Cd016d0997C472f467534'
+    const network = NetworksEnum.ethereumSepolia
+    const settings = await Web3Helper.getMultisigSettings(pluginAddress, network)
+    expect(settings?.onlyListed).to.be.true
+    expect(settings?.minApprovals).to.eq(1n)
+  })
+
   it('isMultisigMemberAtBlock', async () => {
     const pluginAddress = '0x3BBAa1762bDA9C3B028Cd016d0997C472f467534'
     const memberAddress = '0x0bD654d08C5e0e5646096957acF5f8fb186F58Bd'

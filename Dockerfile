@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
 ENV NVM_DIR=/root/.nvm
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
 
-ENV NODE_VERSION=20.6.0
+ENV NODE_VERSION=20.8.1
 ENV PATH="$NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH"
 RUN source $NVM_DIR/nvm.sh \
     && nvm install $NODE_VERSION \
@@ -31,7 +31,7 @@ RUN yarn install
 
 COPY . /usr/src/app/
 
-FROM node:20.6.0-slim as release
+FROM node:20.8.1-slim as release
 SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update && apt-get install -y netcat-openbsd && rm -rf /var/lib/apt/lists/*

@@ -377,8 +377,8 @@ export const PluginSetupProcessorHandler = {
     }
 
     if (tokenAddress) {
-      await ProxyToken.saveAndGetToken(tokenAddress, info.network)
       await DbOperations.updateDocument(pluginDb, { tokenAddress }, info, 'Update Voting plugin token', llo)
+      await ProxyToken.saveAndGetToken(tokenAddress, info.network)
     }
   },
 }

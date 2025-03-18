@@ -71,6 +71,7 @@ describe('Indexer:Plugin', () => {
         type: IPluginInterfaceType.spp,
         proxy: true,
         implementationAddress: '0x00',
+        hasTarget: true,
       })
 
       const logVersboseStub = sandbox.stub(logger, 'verbose')
@@ -107,6 +108,7 @@ describe('Indexer:Plugin', () => {
         type: IPluginInterfaceType.tokenVoting,
         proxy: true,
         implementationAddress: '0x00',
+        hasTarget: false,
       })
 
       const logVersboseStub = sandbox.stub(logger, 'verbose')
@@ -187,6 +189,7 @@ describe('Indexer:Plugin', () => {
         type: IPluginInterfaceType.tokenVoting,
         proxy: true,
         implementationAddress: '0x00',
+        hasTarget: false,
       })
 
       const logVersboseStub = sandbox.stub(logger, 'verbose')
@@ -223,6 +226,7 @@ describe('Indexer:Plugin', () => {
         type: IPluginInterfaceType.spp,
         proxy: true,
         implementationAddress: '0x00',
+        hasTarget: false,
       })
 
       const logVersboseStub = sandbox.stub(logger, 'verbose')
@@ -303,6 +307,8 @@ describe('Indexer:Plugin', () => {
         interfaceType: IPluginInterfaceType.tokenVoting,
       })
 
+      const verboseStub = sandbox.stub(logger, 'verbose')
+
       const logPlugin = await Models.LogPluginSetupProcessor.findOne({ pluginAddress: rawPlugin.address })
 
       await PluginHandler.installPlugin(logPlugin)
@@ -313,6 +319,7 @@ describe('Indexer:Plugin', () => {
       })
       expect(createdPlugin).to.exist
       expect(createdPlugin.status).to.eq(IPluginStatus.installed)
+      expect(verboseStub.calledWith('Updated document - Installed plugin' as any)).to.be.true
     })
   })
 
@@ -323,6 +330,7 @@ describe('Indexer:Plugin', () => {
         type: IPluginInterfaceType.tokenVoting,
         proxy: true,
         implementationAddress: '0x00',
+        hasTarget: false,
       })
       await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[2])
       const eventUpdateApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[3])
@@ -377,11 +385,11 @@ describe('Indexer:Plugin', () => {
         type: IPluginInterfaceType.tokenVoting,
         proxy: true,
         implementationAddress: '0x00',
+        hasTarget: false,
       })
       await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[2])
       const eventUpdateApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[3])
       await PluginHandler._createPlugin(rawPlugin as any)
-
       const stubLogger = sandbox.stub(logger, 'error')
       sandbox.stub(PluginHandler, '_createPlugin').rejects(new Error('Error'))
 
@@ -393,6 +401,13 @@ describe('Indexer:Plugin', () => {
 
   describe('uninstallPlugin', () => {
     it('should uninstallPlugin', async () => {
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
       await PluginHandler._createPlugin(rawPlugin as any)
       await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[4])
       const eventUninstallApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[5])
@@ -419,6 +434,13 @@ describe('Indexer:Plugin', () => {
     })
 
     it('should skip is existingPlugin not found', async () => {
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
       await PluginHandler._createPlugin(rawPlugin as any)
       await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[4])
       const eventUninstallApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[5])
@@ -431,6 +453,12 @@ describe('Indexer:Plugin', () => {
     })
 
     it('should throw error', async () => {
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
       await PluginHandler._createPlugin(rawPlugin as any)
       await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[4])
       const eventUninstallApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[5])
@@ -459,7 +487,7 @@ describe('Indexer:Plugin', () => {
       })
     })
 
-    it('should not uninstall if the plugin build is more then 4 and if it has target config', async () => {
+    it('should not uninstall if the plugin has target config and its not the dao', async () => {
       const plugin = {
         status: 'active',
         address: '0xpluginAddr',
@@ -470,21 +498,40 @@ describe('Indexer:Plugin', () => {
       }
       sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
 
+      const pluginDetectorStub = sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: true,
+      })
+
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+
       const targetConfigStub = sandbox.stub(Web3Helper, 'getTargetConfig').resolves('0xtarget')
 
-      const getTransactionReceiptSpy = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+      const getTransactionReceiptSpy = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [],
+      } as any)
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
       } as any)
-      expect(getTransactionReceiptSpy.called).to.be.false
+      expect(getTransactionReceiptSpy.called).to.be.true
       expect(targetConfigStub.calledOnce).to.be.true
       expect(targetConfigStub.args[0][0]).to.be.eq(NetworksEnum.ethereumSepolia)
       expect(targetConfigStub.args[0][1]).to.be.eq('0xpluginAddr')
+      expect(updateDocumentStub.called).to.be.false
+      expect(pluginDetectorStub.calledOnce).to.be.true
     })
 
     it('should not uninstall a plugin if it is already uninstalled', async () => {
       const plugin = { status: IPluginStatus.uninstalled }
       const findOneStub = sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: true,
+      })
       const getTransactionReceiptSpy = sandbox.spy(Web3Helper, 'getTransactionReceipt')
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
@@ -497,6 +544,12 @@ describe('Indexer:Plugin', () => {
       const plugin = { status: 'active', id: 'pluginId' }
       sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
       const txReceipt = { logs: ['log1', 'log2'] }
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
       const findLogsStub = sandbox.stub(Web3Helper, 'findLogsByName').returns([
         {
@@ -521,6 +574,13 @@ describe('Indexer:Plugin', () => {
       const findLogsStub = sandbox.stub(Web3Helper, 'findLogsByName').returns([])
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
       sandbox.stub(PluginSlug, 'deleteSlug')
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
 
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
