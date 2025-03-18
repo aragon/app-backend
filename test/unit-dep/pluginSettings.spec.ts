@@ -54,7 +54,7 @@ describe('Integ: PluginSettings', () => {
       isSubPlugin: true,
       metadataIpfs: 'ipfs://QmeGZ8sdQETqrchKZeSbgAoRRpBCZbMmxNppBp8TqwC3Kq',
       name: 'Test',
-      description: '',
+      description: null,
       processKey: null,
       subPlugins: [],
       links: [],

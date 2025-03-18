@@ -84,7 +84,6 @@ describe('AragonRates: FetchRates', () => {
         }),
       )
 
-      sandbox.stub(logger, 'verbose')
       const onDocStub = sandbox.stub(FetchRates, 'onMainnetDocument')
       sandbox.stub(FetchRates, 'updateDaoMetrics')
       await FetchRates.start()
@@ -147,7 +146,6 @@ describe('AragonRates: FetchRates', () => {
 
       sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(fakeTokenUpdates)
       sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(true)
-      sandbox.stub(logger, 'verbose')
       await FetchRates.onMainnetDocument(tokenDb)
       const reloadedToken = await Models.Token.findOne({ address: tokenDb.address })
       expect(reloadedToken.skipFetchRate).to.be.true
@@ -166,7 +164,6 @@ describe('AragonRates: FetchRates', () => {
 
       sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(fakeTokenUpdates)
       sandbox.stub(ProxyToken, 'shouldSkipFetch').returns(false)
-      sandbox.stub(logger, 'verbose')
 
       await FetchRates.onMainnetDocument(tokenDb)
       const reloadedToken = await Models.Token.findOne({ address: tokenDb.address })
@@ -291,7 +288,6 @@ describe('AragonRates: FetchRates', () => {
         holders: 2,
         totalSupply: '2',
       }
-      sandbox.stub(logger, 'verbose')
       const stubTokenFullDetails = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(blockScoutInfo as any)
       await FetchRates.onTestnetDocument(tokenDb)
       expect(stubTokenFullDetails.calledOnce).to.be.true

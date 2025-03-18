@@ -79,9 +79,6 @@
     "dot-only-hunter": "^1.0.3",
     "dotenv": "^16.4.5",
     "ethers": "^6.11.1",
-    "graphql": "^16.8.1",
-    "graphql-request": "^6.1.0",
-    "graphql-scalars": "^1.22.5",
     "joi": "^17.12.2",
     "koa": "^2.15.0",
     "koa-bodyparser": "^4.4.1",
@@ -94,8 +91,8 @@
     "tsconfig-paths": "^4.2.0",
     "tsconfig-replace-paths": "^0.0.14",
     "typescript": "^5.3.3",
-    "ua-parser-js": "^1.0.37",
-    "uuid": "^9.0.1",
+    "ua-parser-js": "^2.0.3",
+    "uuid": "^11.1.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
