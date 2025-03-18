@@ -62,7 +62,28 @@ describe('Controller: Member', () => {
     sandbox?.restore()
   })
 
-  describe.only('getMembersWithPagination', () => {
+  describe('getMembersWithPagination', () => {
+    it('should throw an error when no network is provided', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const extraParams = {}
+      const pairParams = {}
+
+      try {
+        await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
+        // If we get here, the test should fail
+        expect.fail('Expected an error to be thrown')
+      } catch (err: any) {
+        expect(err.message).to.include('badParams')
+      }
+    })
+
     it('should call findPaginatedMembersOnly when no pluginAddress and daoAddress', async () => {
       const paginationParams = {
         search: '',
@@ -75,7 +96,9 @@ describe('Controller: Member', () => {
       const extraParams = {}
       const pairParams = {}
 
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
+        network: NetworksEnum.polygonMainnet,
+      })
       const findPaginatedSpy = sandbox.spy(Models.Member, 'findPaginatedMembersOnly')
 
       const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
@@ -137,7 +160,6 @@ describe('Controller: Member', () => {
       }
 
       const filterParams = {
-        daoAddress: rawDaoMemberMapping.daoAddress,
         network: rawDaoMemberMapping.network,
         pluginAddress: rawDaoMemberMapping.pluginAddress,
       }
@@ -183,7 +205,6 @@ describe('Controller: Member', () => {
       }
 
       const filterParams = {
-        daoAddress: rawDaoMemberMapping.daoAddress,
         network: rawDaoMemberMapping.network,
         pluginAddress: rawDaoMemberMapping.pluginAddress,
       }
