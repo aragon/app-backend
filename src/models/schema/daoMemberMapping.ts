@@ -139,13 +139,21 @@ export default class DaoMemberMapping extends Model {
       {
         $lookup: {
           from: ICollectionNames.Member,
-          localField: 'memberAddress',
-          foreignField: 'address',
+          let: { memberAddress: '$memberAddress' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$address', '$$memberAddress'] },
+              },
+            },
+          ],
           as: 'memberInfo',
         },
       },
       {
-        $unwind: '$memberInfo',
+        $addFields: {
+          memberInfo: { $arrayElemAt: ['$memberInfo', 0] },
+        },
       },
       ...(Object.keys(searchFilter).length ? [{ $match: searchFilter }] : []),
 
