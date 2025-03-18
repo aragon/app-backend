@@ -53,6 +53,10 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pr_title: 'chore: release-${{ env.VERSION }}'
           pr_body: 'This PR updates `staging` with release `${{ env.VERSION }}` from `main`.'
+      - name: Log PR Failure (if any)
+        if: failure()
+        run: |
+          echo "⚠️ Warning: Failed to create PR from `main` to `staging`, but continuing..."
 
   create-pr-development:
     needs: create-pr-staging
@@ -75,3 +79,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pr_title: 'chore: release-${{ env.VERSION }}'
           pr_body: 'This PR updates `development` with release `${{ env.VERSION }}` from `main`.'
+
+      - name: Log PR Failure (if any)
+        if: failure()
+        run: |
+          echo "⚠️ Warning: Failed to create PR from `staging` to `development`, but continuing..."
