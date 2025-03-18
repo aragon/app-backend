@@ -123,9 +123,9 @@ describe('Web3Helper', () => {
   })
 
   it('getERC20Balance', async () => {
-    const memberAddress = '0xF977814e90dA44bFA03b6295A0616a897441aceC'
-    const tokenAddress = '0xdAC17F958D2ee523a2206206994597C13D831ec7'
-    const network = NetworksEnum.ethereumMainnet
+    const memberAddress = '0x284803C34A3F049f787E2562e6F8C084bdBC3197'
+    const tokenAddress = '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'
+    const network = NetworksEnum.ethereumSepolia
     const value = (await Web3Helper.getERC20Balance(memberAddress, tokenAddress, network)) as bigint
     expect(value > 0n).to.be.true
   })
