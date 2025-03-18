@@ -172,6 +172,7 @@ export const PluginHandler = {
       {
         $unwind: {
           path: '$pluginRepo',
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
@@ -190,7 +191,9 @@ export const PluginHandler = {
           release: 1,
           build: 1,
           permissions: 1,
-          subdomain: '$pluginRepo.subdomain',
+          subdomain: {
+            $ifNull: ['$pluginRepo.subdomain', null],
+          },
         },
       },
 
@@ -469,13 +472,22 @@ export const PluginHandler = {
            * After the plugin is updated we have to copy the existing plugin token.
            * We need to be sure that both updated and current plugin is token voting
            */
-          const needUpdate =
+
+          const updateParams: any = {}
+          if (plugin.isSupported !== existingPlugin.isSupported) {
+            updateParams.isSupported = existingPlugin.isSupported
+          }
+
+          if (
             plugin.interfaceType === IPluginInterfaceType.tokenVoting &&
             existingPlugin.interfaceType === IPluginInterfaceType.tokenVoting &&
             !plugin.tokenAddress
+          ) {
+            updateParams.tokenAddress = existingPlugin.tokenAddress
+          }
 
-          if (needUpdate) {
-            await plugin.update({ tokenAddress: existingPlugin.tokenAddress }, { session })
+          if (Object.keys(updateParams).length > 0) {
+            await plugin.update(updateParams, { session })
           }
 
           const document = {
@@ -493,7 +505,7 @@ export const PluginHandler = {
           await session.endSession()
           logger.verbose('Updated document - Deprecated plugin', llo({ documentId: existingPlugin.id }))
 
-          if (needUpdate) {
+          if (Object.keys(updateParams).length > 0) {
             logger.verbose('Updated document - Add plugin token address', llo({ documentId: plugin.id }))
           }
         }

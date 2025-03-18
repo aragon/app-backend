@@ -1,4 +1,5 @@
 name: Release
+
 on:
   push:
     branches:
@@ -20,14 +21,18 @@ jobs:
           node-version-file: '.nvmrc'
 
       - name: Install Dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install
 
       - name: Run Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
 
-  sync-staging:
+      - name: Get latest release version
+        id: get_version
+        run: echo "VERSION=$(git describe --tags --abbrev=0 | sed 's/v//')" >> $GITHUB_ENV
+
+  create-pr-staging:
     needs: release
     runs-on: ubuntu-latest
     steps:
@@ -36,22 +41,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure Git User
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
+      - name: Get latest release version
+        id: get_version
+        run: echo "VERSION=$(git describe --tags --abbrev=0 | sed 's/v//')" >> $GITHUB_ENV
 
-      - name: Merge `main` into `staging`
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      - name: Create PR from `main` to `staging`
+        uses: repo-sync/pull-request@v2
+        with:
+          source_branch: 'main'
+          destination_branch: 'staging'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          pr_title: 'chore: release-${{ env.VERSION }}'
+          pr_body: 'This PR updates `staging` with release `${{ env.VERSION }}` from `main`.'
+      - name: Log PR Failure (if any)
+        if: failure()
         run: |
-          git fetch origin
-          git checkout staging || git checkout -b staging
-          git merge --no-ff main -m "chore: sync staging with main after release"
-          git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} staging
+          echo "⚠️ Warning: Failed to create PR from `main` to `staging`, but continuing..."
 
-  sync-development:
-    needs: sync-staging
+  create-pr-development:
+    needs: create-pr-staging
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -59,16 +67,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure Git User
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
+      - name: Get latest release version
+        id: get_version
+        run: echo "VERSION=$(git describe --tags --abbrev=0 | sed 's/v//')" >> $GITHUB_ENV
 
-      - name: Merge `main` into `development`
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      - name: Create PR from `main` to `development`
+        uses: repo-sync/pull-request@v2
+        with:
+          source_branch: 'main'
+          destination_branch: 'development'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          pr_title: 'chore: release-${{ env.VERSION }}'
+          pr_body: 'This PR updates `development` with release `${{ env.VERSION }}` from `main`.'
+
+      - name: Log PR Failure (if any)
+        if: failure()
         run: |
-          git fetch origin
-          git checkout development || git checkout -b development
-          git merge --no-ff main -m "chore: sync development with main after release"
-          git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} development
+          echo "⚠️ Warning: Failed to create PR from `staging` to `development`, but continuing..."
