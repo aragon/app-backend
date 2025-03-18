@@ -924,9 +924,10 @@ const Web3Helper = {
     const contract = new Contract(pluginAddress, Multisig.abi, provider)
 
     try {
+      const adjustedBlockNumber = await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () =>
-          contract.isListedAtBlock(memberAddress, blockNumber),
+          contract.isListedAtBlock(memberAddress, adjustedBlockNumber),
         ),
       )
     } catch (error) {
