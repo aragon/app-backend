@@ -326,6 +326,7 @@ describe('Indexer:Plugin', () => {
   describe('updatePlugin', () => {
     it('should updatePlugin', async () => {
       rawPlugin.tokenAddress = '0x00'
+      rawPlugin.isSupported = true
       sandbox.stub(PluginDetector, 'detectPluginType').resolves({
         type: IPluginInterfaceType.tokenVoting,
         proxy: true,
@@ -334,7 +335,8 @@ describe('Indexer:Plugin', () => {
       })
       await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[2])
       const eventUpdateApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[3])
-      await PluginHandler._createPlugin(rawPlugin as any)
+      const plugin = await PluginHandler._createPlugin(rawPlugin as any)
+      await plugin?.update({ isSupported: true })
       const spyCreatePlugin = sandbox.spy(PluginHandler, '_createPlugin')
 
       await PluginHandler.updatePlugin(eventUpdateApplied as any)
@@ -344,13 +346,15 @@ describe('Indexer:Plugin', () => {
       const createdPlugin = await Models.Plugin.findOne({
         address: ListLogPluginSetupProcessor[3].pluginAddress,
         status: IPluginStatus.installed,
+        isSupported: true,
       })
-      expect(createdPlugin).to.not.be.null
+      expect(createdPlugin).to.exist
       expect(createdPlugin.tokenAddress).to.eq(rawPlugin.tokenAddress)
 
       const deprecatedPlugin = await Models.Plugin.findOne({
         address: rawPlugin.address,
         status: IPluginStatus.deprecated,
+        isSupported: true,
       })
       expect(deprecatedPlugin).to.not.be.null
       expect(deprecatedPlugin.uninstalled.status).to.be.true
