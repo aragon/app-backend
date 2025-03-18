@@ -102,7 +102,7 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const loggerStub = sandbox.stub(logger, 'error')
+      const loggerStub = sandbox.stub(logger, 'warn')
 
       const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, 1, NetworksEnum.ethereumMainnet)
 

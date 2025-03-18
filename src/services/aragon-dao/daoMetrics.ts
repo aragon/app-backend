@@ -27,6 +27,7 @@ export const DaoMetrics = {
           {
             daoAddress: document.address,
             network: document.network,
+            isSubProposal: false,
           },
           { session },
         )
