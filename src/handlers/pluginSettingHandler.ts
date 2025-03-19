@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo, IPluginInterfaceType, ISettingStatus, IEventLogPluginSettings } from '@types'
+import { type ILogInfo, IPluginInterfaceType, ISettingStatus, IEventLogPluginSettings, IPluginStatus } from '@types'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import type Plugin from '@models/schema/plugin'
@@ -129,6 +129,22 @@ export const PluginSettingHandler = {
 
     if (tokenDb?.isGovernance) {
       await PluginSettingHandler.isSupported(relatedPlugin, info)
+
+      const sppPlugin = await Models.Plugin.findOne({
+        daoAddress: relatedPlugin.daoAddress,
+        network: relatedPlugin.network,
+        interfaceType: IPluginInterfaceType.spp,
+        status: IPluginStatus.installed,
+        'subPlugins.addresses': { $in: [pluginAddress] },
+      })
+
+      if (sppPlugin) {
+        const settings = await Models.Setting.findActive({
+          network: info.network,
+          pluginAddress: sppPlugin.address,
+        })
+        await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
+      }
     }
 
     return relatedPlugin
@@ -151,11 +167,6 @@ export const PluginSettingHandler = {
 
     if (existingLog) return
 
-    const activePluginSetting = await Models.Setting.findActive({
-      network: info.network,
-      pluginAddress,
-    })
-
     const findSettings = await MultisigHelper.findSettings(pluginAddress, network)
 
     const settingLog = {
@@ -173,6 +184,11 @@ export const PluginSettingHandler = {
 
     await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - multisigSettingsUpdated', llo)
 
+    const activePluginSetting = await Models.Setting.findActive({
+      network: info.network,
+      pluginAddress,
+    })
+
     if (activePluginSetting) {
       await DbOperations.updateDocument(
         activePluginSetting,
@@ -188,6 +204,22 @@ export const PluginSettingHandler = {
 
     if (findSettings !== undefined) {
       await PluginSettingHandler.isSupported(relatedPlugin, info)
+
+      const sppPlugin = await Models.Plugin.findOne({
+        daoAddress: relatedPlugin.daoAddress,
+        network: relatedPlugin.network,
+        interfaceType: IPluginInterfaceType.spp,
+        status: IPluginStatus.installed,
+        'subPlugins.addresses': { $in: [pluginAddress] },
+      })
+
+      if (sppPlugin) {
+        const settings = await Models.Setting.findActive({
+          network: info.network,
+          pluginAddress: sppPlugin.address,
+        })
+        await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
+      }
     }
 
     return relatedPlugin
