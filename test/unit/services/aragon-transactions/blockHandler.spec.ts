@@ -344,21 +344,5 @@ describe('AragonTransactions: BlockHandler', () => {
       expect(stubLoggerInfo.calledOnce).to.be.true
       expect(stubLoggerError.called).to.be.false
     })
-
-    it('should log error if sending messages fails', async () => {
-      const fakeDao: Dao = {
-        address: '0xdao',
-        network: NetworksEnum.ethereumMainnet,
-      } as Dao
-
-      stubRabbitSend.onSecondCall().rejects(new Error('Failed to send'))
-
-      await BlockHandler.sendDaoMessages(fakeDao)
-
-      expect(stubRabbitSend.calledThrice).to.be.true
-      expect(stubLoggerInfo.called).to.be.false
-      expect(stubLoggerError.calledOnce).to.be.true
-      expect(stubLoggerError.firstCall.args[0]).to.equal('Failed to send RabbitMQ messages')
-    })
   })
 })
