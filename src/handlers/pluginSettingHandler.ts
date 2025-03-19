@@ -145,7 +145,7 @@ export const PluginSettingHandler = {
         })
 
         if (sppSettings) {
-          await PluginSettingHandler.pairSppPlugins(relatedPlugin, sppSettings, info)
+          await PluginSettingHandler.pairSppPlugins(sppPlugin, sppSettings, info)
         }
       }
     }
@@ -222,7 +222,7 @@ export const PluginSettingHandler = {
           pluginAddress: sppPlugin.address,
         })
         if (sppSettings) {
-          await PluginSettingHandler.pairSppPlugins(relatedPlugin, sppSettings, info)
+          await PluginSettingHandler.pairSppPlugins(sppPlugin, sppSettings, info)
         }
       }
     }
@@ -425,11 +425,7 @@ export const PluginSettingHandler = {
     await Promise.all(
       settings.stages.flatMap(stage =>
         stage.plugins.map(async subPlugin => {
-          const relatedPlugin: Plugin | null = await retryResult(
-            () => Models.Plugin.findByAddress(subPlugin.address, info.network),
-            3, // retry 3 times to pair the plugins
-            100,
-          )
+          const relatedPlugin = await Models.Plugin.findByAddress(subPlugin.address, info.network)
 
           if (!relatedPlugin) {
             logger.error('Plugin not found - pairSppPlugins', llo({ ...info, address: subPlugin.address }))
