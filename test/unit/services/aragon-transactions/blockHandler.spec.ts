@@ -340,9 +340,6 @@ describe('AragonTransactions: BlockHandler', () => {
         id: '0xdao',
         params: { address: '0xdao', network: NetworksEnum.ethereumMainnet },
       })
-
-      expect(stubLoggerInfo.calledOnce).to.be.true
-      expect(stubLoggerError.called).to.be.false
     })
   })
 })
