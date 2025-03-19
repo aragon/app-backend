@@ -25,7 +25,7 @@ jobs:
 
       - name: Run Semantic Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
         run: npx semantic-release
 
       - name: Get latest release version
