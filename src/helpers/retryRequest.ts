@@ -54,6 +54,25 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
   throw new Error(`Request failed after ${maxRetries} retries`)
 }
 
+export async function retryResult<T>(fn: () => Promise<T>, retries: number, delay: number): Promise<T | null> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const result = await fn()
+      if (result !== undefined && result !== null) {
+        return result
+      }
+      logger.warn(`Retry attempt ${attempt} failed: received null or undefined result`, llo({ attempt }))
+    } catch (error) {
+      logger.error(`Retry attempt ${attempt} failed due to error:`, llo({ error, attempt }))
+    }
+
+    if (attempt < retries) {
+      await new Promise(resolve => setTimeout(resolve, delay * attempt))
+    }
+  }
+  return null
+}
+
 export function canBeRetried(error: any): boolean {
   return !!error?.reason?.includes('future lookup')
 }
