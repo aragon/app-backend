@@ -3,8 +3,7 @@ name: API Monitoring
 on:
   schedule:
     # - cron: '0 * * * *' # Run performance tests every hour
-    - cron: '0 0,12 * * *' # Runs performance tests at 12:00 AM and 12:00 PM
-    - cron: '0 0 * * 1' # Send success message every Monday at 00:00
+    - cron: '*/15 * * * *' # Runs every 15 mins
   workflow_dispatch:
 
 env:
@@ -66,62 +65,157 @@ jobs:
             exit 1
           fi
 
-      - name: Notify Discord on Failure
-        if: failure()
-        env:
-          FAILURES: ${{ env.FAILURES }}
+      - name: Push metrics to grafana
+        if: always()
         run: |
-          echo "Sending Discord failure notification..."
+          #!/bin/bash
+          set -x
 
-          # Create JSON payload
-          cat <<EOF > payload.json
-          {
-            "embeds": [{
-              "title": "❌ Backend API Monitoring Test Failed",
-              "color": 15158332,
-              "fields": [
-                { "name": "Repository", "value": "aragon/app-backend", "inline": false },
-                { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
-                { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-                { "name": "Environment", "value": "${{ matrix.host }} (${{ matrix.env_name }})", "inline": false },
-                { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
-              ],
-              "timestamp": "$(date --utc +%FT%TZ)"
-            }]
-          }
+          ############
+          # URL VARS #
+          ############
+          monitor_endpoint_url="https://monitor.aragon.in/victoria/api/v1/import/prometheus"
+          monitor_endpoint_apikey="SECRETVALUE_victoria_metrics_apikey"
+          monitor_metric_name="github_actions"
+          monitor_timestamp=$(date +%s000)
+
+          #######################
+          # Metric (Modify this)#
+          #######################
+
+          #Numeric metric Value. This one will be used for alerting
+          ## 0 ->   everything went correct
+          ## >0 ->  something went bad (probably it will trigger an alert)
+          case "${{ steps.postman-test.outcome }}" in
+            "success")
+              METRIC_VALUE=0
+              ;;
+            "failure")
+              METRIC_VALUE=1
+              ;;
+            "cancelled")
+              METRIC_VALUE=1
+              ;;
+            "skipped")
+              METRIC_VALUE=1
+              ;;
+            *)
+              METRIC_VALUE=1
+              ;;
+          esac
+
+
+          ############################
+          # File with all the labels #
+          ############################
+          cat << EOF > metrics_labels
+
+          # Monitor variables
+          monitor_version="v0.1" #Metric used to differentiate between several metric configs
+
+          # Github metadata
+          github_ref_name="${{ github.ref_name }}" #name of the branch
+          github_ref_sha="${{ github.sha }}" #hash of the branch used by workflow
+          github_workflow_ref="${{github.workflow_ref}}" ##full ref, with repo, workflow path..
+          github_event_name="${{ github.event_name }}" ##Tells you if it was launched using trigger, cron, pr...
+          github_runid="${{github.run_id}}" #Unique workflow run, changes on each execution
+          github_workflow_name="${{ github.workflow }}"
+
+          ########################################
+          # Labels to be specified (Modify this) #
+          ########################################
+
+          # Project Variables
+          environment="${{ matrix.env_name }}" # previ,dev,stg,prod
+          project="backend2" #app-next, backend2, infra...
+          subproject="api-monitoring" #To be able to make categories if needed
+
+          #Extras Labels
+          ## Here you can add all the labels you want to use
+          ## Remember to add them to the url. i.e:
+          test_result_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          test_error_message="API Monitoring failed"
+          env_host="${{ matrix.host }}"
+          
+
           EOF
 
-          # Send notification to Discord
-          curl -X POST -H "Content-Type: application/json" -d @payload.json https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
-          echo "Discord notification sent."
+          ########################################
+          # Pre-processing and sending the query #
+          ########################################
 
-      - name: Cleanup Temporary Files
-        run: rm -rf ./node_modules ./build ./tmp
+          sed -i 's/#.*//' metrics_labels #remove all commented lines and commentaries
+          sed -i 's/[[:space:]]*$//' metrics_labels # remove all trailing whitespaces from each line
+          sed -i '/^$/d' metrics_labels # remove empty lines
 
-  weekly_success:
-    if: github.event.schedule == '0 0 * * 1'
-    runs-on: ubuntu-latest
+          cat << EOF >curl_test
+          curl -X POST \
+            -H "X-API-Key: SECRETVALUE_victoria_metrics_apikey" \
+            -H "Content-Type: text/plain" \
+            "${monitor_endpoint_url}" \
+            -d "${monitor_metric_name}{$(awk -F= '/^[^#]/ {gsub(/"/, "", $2); printf "%s=\\\"%s\\\", \\\n", $1, $2}' metrics_labels)
+          } ${METRIC_VALUE}"
 
-    steps:
-      - name: Notify Discord Weekly Success Message
-        run: |
-          echo "Sending Discord weekly success notification..."
-          cat <<EOF > payload.json
-          {
-            "embeds": [{
-              "title": "✅ Weekly Report: Backend API Monitoring Tests Succeeded!",
-              "color": 3066993,
-              "fields": [
-                { "name": "Repository", "value": "aragon/app-backend", "inline": false },
-                { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
-                { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-                { "name": "Environment", "value": "${{ matrix.host }} (${{ matrix.env_name }})", "inline": false },
-                { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
-              ],
-              "timestamp": "$(date --utc +%FT%TZ)"
-            }]
-          }
           EOF
 
-          curl -X POST -H "Content-Type: application/json" -d @payload.json https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
-          echo "Discord weekly success notification sent."
+          bash curl_test
+
+  #     - name: Notify Discord on Failure
+  #       if: failure()
+  #       env:
+  #         FAILURES: ${{ env.FAILURES }}
+  #       run: |
+  #         echo "Sending Discord failure notification..."
+
+  #         # Create JSON payload
+  #         cat <<EOF > payload.json
+  #         {
+  #           "embeds": [{
+  #             "title": "❌ Backend API Monitoring Test Failed",
+  #             "color": 15158332,
+  #             "fields": [
+  #               { "name": "Repository", "value": "aragon/app-backend", "inline": false },
+  #               { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
+  #               { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
+  #               { "name": "Environment", "value": "${{ matrix.host }} (${{ matrix.env_name }})", "inline": false },
+  #               { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
+  #             ],
+  #             "timestamp": "$(date --utc +%FT%TZ)"
+  #           }]
+  #         }
+  #         EOF
+
+  #         # Send notification to Discord
+  #         curl -X POST -H "Content-Type: application/json" -d @payload.json https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
+  #         echo "Discord notification sent."
+
+  #     - name: Cleanup Temporary Files
+  #       run: rm -rf ./node_modules ./build ./tmp
+
+  # weekly_success:
+  #   if: github.event.schedule == '0 0 * * 1'
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #     - name: Notify Discord Weekly Success Message
+  #       run: |
+  #         echo "Sending Discord weekly success notification..."
+  #         cat <<EOF > payload.json
+  #         {
+  #           "embeds": [{
+  #             "title": "✅ Weekly Report: Backend API Monitoring Tests Succeeded!",
+  #             "color": 3066993,
+  #             "fields": [
+  #               { "name": "Repository", "value": "aragon/app-backend", "inline": false },
+  #               { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
+  #               { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
+  #               { "name": "Environment", "value": "${{ matrix.host }} (${{ matrix.env_name }})", "inline": false },
+  #               { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
+  #             ],
+  #             "timestamp": "$(date --utc +%FT%TZ)"
+  #           }]
+  #         }
+  #         EOF
+
+  #         curl -X POST -H "Content-Type: application/json" -d @payload.json https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
+  #         echo "Discord weekly success notification sent."
