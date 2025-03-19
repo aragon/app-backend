@@ -61,7 +61,7 @@ export async function retryResult<T>(fn: () => Promise<T>, retries: number, dela
       if (result !== undefined && result !== null) {
         return result
       }
-      logger.warn(`Retry attempt ${attempt} failed: received null or undefined result`, llo({ attempt }))
+      logger.warn(`Retry attempt ${attempt} failed not found`, llo({ attempt }))
     } catch (error) {
       logger.error(`Retry attempt ${attempt} failed due to error:`, llo({ error, attempt }))
     }
