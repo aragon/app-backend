@@ -386,7 +386,7 @@
 							"script": {
 								"id": "a124ddfa-f6c9-4bf1-b1ef-a12eb26ff22a",
 								"exec": [
-									"//test github integration"
+									""
 								],
 								"type": "text/javascript",
 								"packages": {}
