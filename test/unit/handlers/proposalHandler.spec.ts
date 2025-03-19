@@ -144,7 +144,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(stubPair.calledOnce).to.be.true
       expect(stubActions.calledOnce).to.be.true
       expect(stubMemberMetrics.calledOnce).to.be.true
-      expect(stubDaoMetrics.calledOnce).to.be.true
+      expect(stubDaoMetrics.calledTwice).to.be.true
     })
 
     it('should handle admin proposalCreated', async () => {
