@@ -145,7 +145,7 @@ export const PluginSettingHandler = {
         })
 
         if (sppSettings) {
-          await PluginSettingHandler.pairSppPlugins(relatedPlugin, sppSettings, info)
+          await PluginSettingHandler.pairSppPlugins(sppPlugin, sppSettings, info)
         }
       }
     }
@@ -222,7 +222,7 @@ export const PluginSettingHandler = {
           pluginAddress: sppPlugin.address,
         })
         if (sppSettings) {
-          await PluginSettingHandler.pairSppPlugins(relatedPlugin, sppSettings, info)
+          await PluginSettingHandler.pairSppPlugins(sppPlugin, sppSettings, info)
         }
       }
     }
