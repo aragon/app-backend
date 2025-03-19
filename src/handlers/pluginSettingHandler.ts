@@ -13,6 +13,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
 import MultisigHelper from '@helpers/multisig'
 import { Multisig2 } from '@artifacts/Multisig2'
+import { retryResult } from '@helpers/retryRequest'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
 
@@ -387,7 +388,12 @@ export const PluginSettingHandler = {
     await Promise.all(
       settings.stages.flatMap(stage =>
         stage.plugins.map(async subPlugin => {
-          const relatedPlugin = await Models.Plugin.findByAddress(subPlugin.address, info.network)
+          const relatedPlugin: Plugin | null = await retryResult(
+            () => Models.Plugin.findByAddress(subPlugin.address, info.network),
+            3, // retry 3 times to pair the plugins
+            100,
+          )
+
           if (!relatedPlugin) {
             logger.error('Plugin not found - pairSppPlugins', llo({ ...info, address: subPlugin.address }))
             return
@@ -396,9 +402,9 @@ export const PluginSettingHandler = {
           const rawSubPluginUpdate = {
             stageIndex: stage.stageIndex,
             parentPlugin: plugin.address,
-            isSubPlugin: true, // set this plugin as subPlugin
+            isSubPlugin: true,
             isBody: relatedPlugin.interfaceType !== IPluginInterfaceType.spp,
-            isProcess: true, // its always set to true for all plugin where we can create proposals
+            isProcess: true,
           }
 
           const log = { logId: relatedPlugin.id, info }
