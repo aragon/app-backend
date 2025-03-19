@@ -3,8 +3,7 @@ name: API Monitoring
 on:
   schedule:
     # - cron: '0 * * * *' # Run performance tests every hour
-    - cron: '0 0,12 * * *' # Runs performance tests at 12:00 AM and 12:00 PM
-    - cron: '0 0 * * 1' # Send success message every Monday at 00:00
+    - cron: '*/15 * * * *' # Runs every 15 mins
   workflow_dispatch:
 
 env:
