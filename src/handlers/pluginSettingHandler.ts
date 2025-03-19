@@ -13,7 +13,6 @@ import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
 import MultisigHelper from '@helpers/multisig'
 import { Multisig2 } from '@artifacts/Multisig2'
-import { retryResult } from '@helpers/retryRequest'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
 

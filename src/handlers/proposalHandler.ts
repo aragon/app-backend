@@ -217,19 +217,44 @@ export const ProposalHandler = {
         blockNumber: newProposal.blockNumber,
       })
 
-      await Promise.allSettled([
+      const allMessages: Promise<any>[] = [
         ProposalHandler.parseActions(newProposal),
         ProxyMember.updateMetricsByAction(IMetricAction.increaseProposalCount, {
           memberAddress: newProposal.creatorAddress,
           pluginAddress,
           network: info.network,
         }),
-        // Dao metrics
         RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
           id: newProposal.daoAddress,
           params: { address: newProposal.daoAddress, network: newProposal.network },
         }),
-      ])
+      ]
+
+      if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
+        allMessages.push(
+          RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+            id: `${newProposal.proposalIndex}-${info.address}`,
+            params: {
+              proposalIndex: newProposal.proposalIndex,
+              pluginAddress: info.address,
+              network: newProposal.network,
+            },
+          }),
+        )
+      } else if (relatedPlugin.interfaceType === IPluginInterfaceType.multisig) {
+        allMessages.push(
+          RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
+            id: `${newProposal.proposalIndex}-${info.address}`,
+            params: {
+              proposalIndex: newProposal.proposalIndex,
+              pluginAddress: info.address,
+              network: newProposal.network,
+            },
+          }),
+        )
+      }
+
+      await Promise.allSettled(allMessages)
     } catch (error) {
       logger.error('Error Create proposal', llo({ ...info, error, parsedEvent }))
       return undefined
