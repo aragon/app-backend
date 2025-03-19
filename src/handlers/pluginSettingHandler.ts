@@ -169,6 +169,11 @@ export const PluginSettingHandler = {
 
     if (existingLog) return
 
+    const activePluginSetting = await Models.Setting.findActive({
+      network: info.network,
+      pluginAddress,
+    })
+
     const findSettings = await MultisigHelper.findSettings(pluginAddress, network)
 
     const settingLog = {
@@ -185,11 +190,6 @@ export const PluginSettingHandler = {
     }
 
     await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - multisigSettingsUpdated', llo)
-
-    const activePluginSetting = await Models.Setting.findActive({
-      network: info.network,
-      pluginAddress,
-    })
 
     if (activePluginSetting) {
       await DbOperations.updateDocument(
