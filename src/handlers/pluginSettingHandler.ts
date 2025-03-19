@@ -139,11 +139,14 @@ export const PluginSettingHandler = {
       })
 
       if (sppPlugin) {
-        const settings = await Models.Setting.findActive({
+        const sppSettings = await Models.Setting.findActive({
           network: info.network,
           pluginAddress: sppPlugin.address,
         })
-        await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
+
+        if (sppSettings) {
+          await PluginSettingHandler.pairSppPlugins(relatedPlugin, sppSettings, info)
+        }
       }
     }
 
@@ -214,11 +217,13 @@ export const PluginSettingHandler = {
       })
 
       if (sppPlugin) {
-        const settings = await Models.Setting.findActive({
+        const sppSettings = await Models.Setting.findActive({
           network: info.network,
           pluginAddress: sppPlugin.address,
         })
-        await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
+        if (sppSettings) {
+          await PluginSettingHandler.pairSppPlugins(relatedPlugin, sppSettings, info)
+        }
       }
     }
 
