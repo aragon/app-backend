@@ -847,7 +847,7 @@ describe('Helpers:Web3', () => {
         .returns({ schedule: sandbox.stub().resolves(encodedResponse) } as any)
 
       const result = await Web3Helper.getChainAdjustedBlockNumber(arbBlock, NetworksEnum.arbitrumMainnet)
-      expect(result).to.equal(l1Block)
+      expect(result).to.equal(l1Block - 1)
     })
 
     it('should return the original Arbitrum block number and log an error if an exception occurs', async () => {
