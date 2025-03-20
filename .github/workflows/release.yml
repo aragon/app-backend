@@ -1,6 +1,7 @@
 name: Release
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -26,7 +27,7 @@ jobs:
       - name: Run Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
-        run: npx semantic-release
+        run: npx semantic-release --repository-url "https://github.com/aragon/app-backend.git"
 
       - name: Get latest release version
         id: get_version
