@@ -20,19 +20,17 @@ export const MultisigHandler = {
 
     const { members } = parsedEvent.args
     for (const memberAddress of members) {
-      await Promise.allSettled([
-        ProxyMember.addToDao({
-          memberAddress,
-          daoAddress: pluginExisted.daoAddress,
-          pluginAddress: address,
-          network,
-        }),
-        // Dao metrics
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: pluginExisted.daoAddress,
-          params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
-        }),
-      ])
+      await ProxyMember.addToDao({
+        memberAddress,
+        daoAddress: pluginExisted.daoAddress,
+        pluginAddress: address,
+        network,
+      })
+      // Dao metrics
+      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: pluginExisted.daoAddress,
+        params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
+      })
     }
   },
 
@@ -48,19 +46,17 @@ export const MultisigHandler = {
 
     const { members } = parsedEvent.args
     for (const memberAddress of members) {
-      await Promise.allSettled([
-        ProxyMember.removeFromDao({
-          memberAddress,
-          daoAddress: pluginExisted.daoAddress,
-          pluginAddress: address,
-          network,
-        }),
-        // Dao metrics
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: pluginExisted.daoAddress,
-          params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
-        }),
-      ])
+      await ProxyMember.removeFromDao({
+        memberAddress,
+        daoAddress: pluginExisted.daoAddress,
+        pluginAddress: address,
+        network,
+      })
+      // Dao metrics
+      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: pluginExisted.daoAddress,
+        params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
+      })
     }
   },
 }
