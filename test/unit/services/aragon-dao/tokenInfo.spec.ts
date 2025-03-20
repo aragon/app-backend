@@ -12,7 +12,7 @@ import BlockScoutHelper from '@helpers/blockScout'
 import utils from '@helpers/utils'
 import DbOperations from '@models/utils/dbOperations'
 
-describe.only('TokenDetailFetcherWithRetry Service', () => {
+describe('TokenDetailFetcherWithRetry Service', () => {
   let sandbox: SinonSandbox
   const tokenAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
   const network = NetworksEnum.ethereumSepolia
