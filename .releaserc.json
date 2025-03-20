@@ -11,6 +11,11 @@
         "assets": ["CHANGELOG.md", "package.json"],
         "message": "chore(release): ${nextRelease.version} 🚀"
       }
-    ]
+    ],
+    ["@semantic-release/github", {
+      "releaseName": "🚀 Release ${nextRelease.version}",
+      "releaseNotes": "${nextRelease.notes}",
+      "assets": []
+    }]
   ]
 }
