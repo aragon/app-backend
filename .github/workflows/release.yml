@@ -1,6 +1,10 @@
 name: Release
 
 on:
+  pull_request:
+    branches:
+      - main
+      - development
   workflow_dispatch:
   push:
     branches:
@@ -24,6 +28,9 @@ jobs:
 
       - name: Install Dependencies
         run: yarn install
+
+      - name: Debug GitHub Token
+        run: echo "Using GITHUB_TOKEN=${{ secrets.ARABOT_PAT }}"
 
       - name: Run Semantic Release
         env:
