@@ -3,7 +3,6 @@ name: Release
 on:
   pull_request:
     branches:
-      - main
       - development
   workflow_dispatch:
   push:
@@ -29,13 +28,17 @@ jobs:
       - name: Install Dependencies
         run: yarn install
 
-      - name: Debug GitHub Token
-        run: echo "Using GITHUB_TOKEN=${{ secrets.ARABOT_PAT }}"
-
-      - name: Run Semantic Release
+      - name: Run Semantic Release (Dry Run for PRs)
         env:
           GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
-        run: npx semantic-release --repository-url "https://github.com/aragon/app-backend.git"
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "Running in Dry Run Mode (PR to Development)"
+            npx semantic-release --dry-run --repository-url "https://github.com/aragon/app-backend.git"
+          else
+            echo "Running Full Release"
+            npx semantic-release --repository-url "https://github.com/aragon/app-backend.git"
+          fi
 
       - name: Get latest release version
         id: get_version
