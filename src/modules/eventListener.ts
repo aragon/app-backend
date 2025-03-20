@@ -134,11 +134,14 @@ class EventListener {
   }
 
   public async filterUnwantedEvents(logs: Log[]) {
-    const plugins = await Models.Plugin.find({
-      network: this.network,
-      interfaceType: IPluginInterfaceType.tokenVoting,
-      tokenAddress: { $ne: null },
-    })
+    const plugins = await Models.Plugin.find(
+      {
+        network: this.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: { $ne: null },
+      },
+      { tokenAddress: 1, _id: 0 },
+    )
 
     const addressSet = new Set(plugins.map((plugin: Plugin) => ethers.getAddress(plugin.tokenAddress)))
     const transferTopic = ethers.id('Transfer(address,address,uint256)')
