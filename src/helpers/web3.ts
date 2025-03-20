@@ -578,7 +578,7 @@ const Web3Helper = {
       )
 
       const blockNumberOfL1 = iface.decodeFunctionResult('getL1BlockNumber', response)[0]
-      return Number(blockNumberOfL1)
+      return Number(blockNumberOfL1) - 1
     } catch (e) {
       logger.error('Error getBlockNumberOnArbitrum', llo({ arbBlock, network, error: e }))
       return arbBlock
