@@ -1,7 +1,18 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, type IDaoMemberMappingData, ICollectionNames, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  ICollectionNames,
+  type IDaoMemberMappingData,
+  type IMemberExtraParams,
+  type IMembersResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
+import ModelUtils from '@models/utils/models'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.DaoMemberMapping
 
@@ -101,6 +112,102 @@ export default class DaoMemberMapping extends Model {
     tOpts?: SaveOptions,
   ) {
     return this.find({ pluginAddress, network }, null, tOpts)
+  }
+
+  static async findAndPaginate({
+    paginationParams = {},
+    extraParams = {},
+  }: {
+    paginationParams?: IPaginationParams
+    extraParams?: IMemberExtraParams
+  }): Promise<IPaginatedResult<IMembersResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+
+    const filter = {
+      ...(extraParams?.pluginAddress ? { pluginAddress: extraParams.pluginAddress } : {}),
+      ...(extraParams?.daoAddress ? { daoAddress: extraParams.daoAddress } : {}),
+      ...(extraParams.network ? { network: extraParams.network } : {}),
+    }
+
+    const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.ens', 'memberInfo.address'])
+
+    const currentPage = request.skip / request.limit + 1
+    const query: any = [
+      {
+        $match: filter,
+      },
+      {
+        $lookup: {
+          from: ICollectionNames.Member,
+          let: { memberAddress: '$memberAddress' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$address', '$$memberAddress'] },
+              },
+            },
+          ],
+          as: 'memberInfo',
+        },
+      },
+      {
+        $addFields: {
+          memberInfo: { $arrayElemAt: ['$memberInfo', 0] },
+        },
+      },
+      ...(Object.keys(searchFilter).length ? [{ $match: searchFilter }] : []),
+
+      AggregationQueryHelper.memberMetrics(
+        {
+          pluginAddress: '$pluginAddress',
+          network: '$network',
+          memberAddress: '$memberAddress',
+        },
+        'memberMetrics',
+        {
+          _id: 0,
+          lastActivity: 1,
+          firstActivity: 1,
+          delegateReceivedCount: 1,
+          voteCount: 1,
+          proposalCount: 1,
+        },
+      ),
+      {
+        $project: {
+          _id: 0,
+          address: '$memberInfo.address',
+          ens: '$memberInfo.ens',
+          avatar: '$memberInfo.avatar',
+          metrics: '$memberMetrics',
+        },
+      },
+    ]
+
+    const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery),
+      this.aggregate([...query, { $count: 'totalRecords' }]).then(results =>
+        results[0] ? results[0].totalRecords : 0,
+      ),
+    ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data: data as any,
+    }
   }
 
   async update(params: Partial<DaoMemberMapping>, tOpts?: SaveOptions) {
