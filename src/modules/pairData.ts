@@ -73,6 +73,7 @@ const PairDataModule = {
       daoAddress?: HexAddress
       memberAddress?: HexAddress
       pluginAddress?: HexAddress
+      tokenAddress?: HexAddress
       proposalIndex?: string
     },
   >(
@@ -101,6 +102,13 @@ const PairDataModule = {
       if (proposal) {
         extraParams.pluginAddress = proposal.pluginAddress
         extraParams.proposalIndex = proposal.proposalIndex
+      }
+    }
+
+    if (extraParams?.tokenAddress) {
+      const plugin = await Models.Plugin.findByTokenAddress(extraParams.tokenAddress, extraParams.network!)
+      if (plugin) {
+        extraParams.pluginAddress = plugin.address
       }
     }
 
