@@ -30,7 +30,7 @@ jobs:
 
       - name: Run Semantic Release (Dry Run for PRs)
         env:
-          GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "Running in Dry Run Mode (PR to Development)"
