@@ -217,13 +217,14 @@ export const ProposalHandler = {
         blockNumber: newProposal.blockNumber,
       })
 
+      await ProxyMember.updateMetricsByAction(IMetricAction.increaseProposalCount, {
+        memberAddress: newProposal.creatorAddress,
+        pluginAddress,
+        network: info.network,
+      })
+
       const allMessages: Promise<any>[] = [
         ProposalHandler.parseActions(newProposal),
-        ProxyMember.updateMetricsByAction(IMetricAction.increaseProposalCount, {
-          memberAddress: newProposal.creatorAddress,
-          pluginAddress,
-          network: info.network,
-        }),
         RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
           id: newProposal.daoAddress,
           params: { address: newProposal.daoAddress, network: newProposal.network },
