@@ -404,7 +404,6 @@ export const PluginHandler = {
           {
             network: pluginLog.network,
             address: pluginLog.pluginAddress,
-            status: IPluginStatus.preInstall,
           },
           null,
           { session },
@@ -412,6 +411,11 @@ export const PluginHandler = {
 
         if (!preInstalledPlugin) {
           logger.error('PreInstalledPlugin not found', llo({ pluginLog }))
+          return
+        }
+
+        if (preInstalledPlugin.status !== IPluginStatus.preInstall) {
+          logger.warn('Plugin not in preInstall status', llo({ pluginLog, pluginStatus: preInstalledPlugin.status }))
           return
         }
 

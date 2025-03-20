@@ -7,7 +7,10 @@ import { Models } from '@dbModels'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import DbTx from '@modules/dbTx'
-
+import { IPluginInterfaceType } from '@types'
+import type Plugin from '@models/schema/plugin'
+import { ethers } from 'ethers'
+import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
 class EventListener {
@@ -120,13 +123,39 @@ class EventListener {
         return
       }
 
-      for (const log of sortedLogs) {
+      const filteredLogs = await this.filterUnwantedEvents(sortedLogs)
+
+      for (const log of filteredLogs) {
         await this.handleEvent(log)
         await this.saveProgress(blockNumber, this.network)
       }
     } finally {
       this.isProcessingBlock = 0
     }
+  }
+
+  public async filterUnwantedEvents(logs: Log[]) {
+    const plugins = await Models.Plugin.find(
+      {
+        network: this.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: { $ne: null },
+      },
+      { tokenAddress: 1, _id: 0 },
+    )
+
+    const addressSet = new Set(plugins.map((plugin: Plugin) => ethers.getAddress(plugin.tokenAddress)))
+    const transferTopics = [
+      new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
+      new Interface(GovernanceERC20.abi).getEvent('DelegateVotesChanged')?.topicHash,
+    ]
+
+    return logs.filter(log => {
+      if (transferTopics.includes(log.topics[0])) {
+        return addressSet.has(ethers.getAddress(log.address))
+      }
+      return true
+    })
   }
 
   async saveProgress(blockNumber: number, network: NetworksEnum) {
