@@ -1,8 +1,19 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { type HexAddress, ICollectionNames, type IMemberBalanceIdParams, NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  ICollectionNames,
+  type IMemberBalanceIdParams,
+  type IMemberExtraParams,
+  type IMembersResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.MemberBalance
 
@@ -170,6 +181,112 @@ export default class MemberBalance extends Model {
     }
 
     return await this.save(tOpts)
+  }
+
+  static async findAndPaginate({
+    paginationParams = {},
+    extraParams = {},
+  }: {
+    paginationParams?: IPaginationParams
+    extraParams?: IMemberExtraParams
+  }): Promise<IPaginatedResult<IMembersResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+
+    const filter: any = {}
+
+    if (extraParams?.tokenAddress) {
+      filter.tokenAddress = extraParams.tokenAddress
+    }
+
+    const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.ens', 'memberInfo.address'])
+
+    const currentPage = request.skip / request.limit + 1
+
+    const query: any = [
+      {
+        $match: {
+          ...filter,
+          $or: [{ votingPower: { $gt: '0' } }, { amount: { $gt: '0' } }],
+        },
+      },
+    ]
+    const mainQuery = [
+      {
+        $lookup: {
+          from: ICollectionNames.Member,
+          localField: 'address',
+          foreignField: 'address',
+          as: 'memberInfo',
+        },
+      },
+      {
+        $unwind: '$memberInfo',
+      },
+      ...(Object.keys(searchFilter).length ? [{ $match: searchFilter }] : []),
+      AggregationQueryHelper.memberMetrics(
+        {
+          pluginAddress: extraParams?.pluginAddress,
+          network: extraParams?.network,
+          memberAddress: '$address',
+        },
+        'memberMetrics',
+        {
+          _id: 0,
+          lastActivity: 1,
+          firstActivity: 1,
+          delegateReceivedCount: 1,
+          voteCount: 1,
+          proposalCount: 1,
+        },
+      ),
+      {
+        $project: {
+          _id: 0,
+          address: '$memberInfo.address',
+          ens: '$memberInfo.ens',
+          avatar: '$memberInfo.avatar',
+          tokenBalance: '$amount',
+          votingPower: '$votingPower',
+          metrics: '$memberMetrics',
+        },
+      },
+    ]
+
+    const aggQuery = [
+      ...query,
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+      ...mainQuery,
+    ]
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery, {
+        collation: {
+          locale: 'en_US',
+          numericOrdering: true,
+        },
+      }),
+      this.aggregate([...query, { $count: 'totalRecords' }]).then(results =>
+        results[0] ? results[0].totalRecords : 0,
+      ),
+    ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data: data as any,
+    }
   }
 
   async updateVotingPower(amount: string, blockNumber: number, tOpts?: SaveOptions) {
