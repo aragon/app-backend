@@ -112,16 +112,16 @@ const RabbitMQHelper = {
   ): Promise<any> {
     const uniqueKey = `${queueName}-${payload.id}`
 
-    const release = await this.mutex.acquire()
-    try {
-      if (this.queuedMessages.has(uniqueKey)) {
-        logger.warn('Skipping duplicate message', llo({ uniqueKey }))
-        return
-      }
-      this.queuedMessages.add(uniqueKey)
-    } finally {
-      release()
-    }
+    // const release = await this.mutex.acquire()
+    // try {
+    //   if (this.queuedMessages.has(uniqueKey)) {
+    //     logger.warn('Skipping duplicate message', llo({ uniqueKey }))
+    //     return
+    //   }
+    //   this.queuedMessages.add(uniqueKey)
+    // } finally {
+    //   release()
+    // }
 
     if (opts.waitResponse) {
       try {
