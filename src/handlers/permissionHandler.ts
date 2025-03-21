@@ -35,6 +35,10 @@ export const PermissionHandler = {
         await PermissionHandler.handleForAdminPlugin(address, where, network, who)
       }
 
+      if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
+        await PluginHandler.installPluginOnPermissionGranted(where, who, info)
+      }
+
       const permissionEntity = {
         network,
         transactionHash: info.transactionHash,

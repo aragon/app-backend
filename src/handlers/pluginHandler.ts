@@ -581,6 +581,66 @@ export const PluginHandler = {
     }
   },
 
+  installPluginOnPermissionGranted: async (whereAddress: HexAddress, whoAddress: HexAddress, info: ILogInfo) => {
+    try {
+      const [daoDb, pluginDb, txReceipt] = await Promise.all([
+        Models.Dao.findByAddress(whereAddress, info.network),
+        Models.Plugin.findByAddress(whoAddress, info.network),
+        Web3Helper.getTransactionReceipt(info.transactionHash, info.network),
+      ])
+
+      if (!daoDb || !pluginDb || !txReceipt) {
+        return
+      }
+
+      const installationAppliedLogs = Web3Helper.findLogsByName(
+        txReceipt,
+        IEventLogPluginType.InstallationApplied,
+        PluginSetupProcessor.abi,
+      )
+
+      if (installationAppliedLogs.length > 0) {
+        return
+      }
+
+      if (pluginDb.status === IPluginStatus.installed) {
+        return
+      }
+
+      const pluginInfo = await PluginDetector.detectPluginType(pluginDb.address, info.network)
+      if (pluginInfo.hasTarget) {
+        const targetConfig = await Web3Helper.getTargetConfig(info.network, pluginDb.address)
+        if (targetConfig && targetConfig !== daoDb.address) {
+          return
+        }
+      }
+
+      const updatedDocument = {
+        status: IPluginStatus.installed,
+        uninstalled: {
+          status: false,
+          transactionHash: info.transactionHash,
+          blockNumber: info.blockNumber,
+          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+        },
+      }
+
+      const installedPlugin = await DbOperations.updateDocument(
+        pluginDb,
+        updatedDocument,
+        { logId: pluginDb.id, info },
+        'Installed plugin',
+        llo,
+      )
+
+      await PluginSlug.generateSlug(installedPlugin, installedPlugin.processKey)
+
+      return installedPlugin
+    } catch (error) {
+      logger.error('Error Install Plugin On Permission Granted', llo({ whereAddress, whoAddress, error }))
+    }
+  },
+
   uninstallPlugin: async (pluginLog: LogPluginSetupProcessor) => {
     try {
       const plugin = await PluginHandler._queryGetPlugin({
