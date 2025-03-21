@@ -487,10 +487,12 @@ describe('Indexer:Plugin', () => {
         blockNumber: 1212,
       } as any
 
-      const web3ReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+      const findLogsByNameStub = sandbox.stub(Web3Helper, 'findLogsByName')
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info)
-      expect(web3ReceiptStub.notCalled).to.be.true
       expect(findOneStub.calledOnce).to.be.true
+      expect(findLogsByNameStub.calledOnce).to.be.false
+      expect(receiptStub.calledOnce).to.be.true
     })
 
     it('should return if DAO does not exist', async () => {
@@ -506,9 +508,11 @@ describe('Indexer:Plugin', () => {
       const web3ReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
 
+      const findLogsByNameStub = sandbox.stub(Web3Helper, 'findLogsByName')
       expect(findDaoStub.calledOnce).to.be.true
       expect(findPluginStub.calledOnce).to.be.true
-      expect(web3ReceiptStub.notCalled).to.be.true
+      expect(web3ReceiptStub.calledOnce).to.be.true
+      expect(findLogsByNameStub.notCalled).to.be.true
     })
 
     it('should return if txReceipt is null', async () => {
@@ -530,8 +534,10 @@ describe('Indexer:Plugin', () => {
         blockNumber: 1234,
       }
 
+      const findLogsByNameStub = sandbox.stub(Web3Helper, 'findLogsByName')
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
 
+      expect(findLogsByNameStub.calledOnce).to.be.false
       expect(getTransactionReceiptStub.calledOnce).to.be.true
     })
 
@@ -751,6 +757,7 @@ describe('Indexer:Plugin', () => {
       const error = new Error('Database error')
       sandbox.stub(Models.Dao, 'findByAddress').rejects(error)
       const loggerErrorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').rejects(error)
 
       const info = {
         transactionHash: '0xtxhash',
