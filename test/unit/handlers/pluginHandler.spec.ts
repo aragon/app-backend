@@ -511,6 +511,30 @@ describe('Indexer:Plugin', () => {
       expect(web3ReceiptStub.notCalled).to.be.true
     })
 
+    it('should return if txReceipt is null', async () => {
+      const daoDb = { address: '0xdao', network: NetworksEnum.ethereumSepolia }
+      const pluginDb = {
+        address: '0xplugin',
+        network: NetworksEnum.ethereumSepolia,
+        status: 'pending',
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
+
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+
+      const info = {
+        transactionHash: '0xtxhash',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 1234,
+      }
+
+      await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
+
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+    })
+
     it('should return if InstallationApplied logs are present', async () => {
       const daoDb = { address: '0xdao', network: NetworksEnum.ethereumSepolia }
       const pluginDb = {

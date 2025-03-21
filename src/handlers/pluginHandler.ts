@@ -583,16 +583,18 @@ export const PluginHandler = {
 
   installPluginOnPermissionGranted: async (whereAddress: HexAddress, whoAddress: HexAddress, info: ILogInfo) => {
     try {
-      const daoDb = await Models.Dao.findByAddress(whereAddress, info.network)
-      const pluginDb = await Models.Plugin.findByAddress(whoAddress, info.network)
+      const [daoDb, pluginDb, txReceipt] = await Promise.all([
+        Models.Dao.findByAddress(whereAddress, info.network),
+        Models.Plugin.findByAddress(whoAddress, info.network),
+        Web3Helper.getTransactionReceipt(info.transactionHash, info.network),
+      ])
 
-      if (!daoDb || !pluginDb) {
+      if (!daoDb || !pluginDb || !txReceipt) {
         return
       }
 
-      const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
       const installationAppliedLogs = Web3Helper.findLogsByName(
-        txReceipt!,
+        txReceipt,
         IEventLogPluginType.InstallationApplied,
         PluginSetupProcessor.abi,
       )
