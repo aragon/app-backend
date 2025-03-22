@@ -832,7 +832,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{host}}/members?daoId=ethereum-sepolia-0x4CA708C01EeE6DC7D30Ef12985Eb1771EdFbd8A6",
+							"raw": "{{host}}/members?pluginAddress=0x5539cf04fEcC37c747F78D9200Adf7c8f17a9585&daoId=ethereum-sepolia-0x4CA708C01EeE6DC7D30Ef12985Eb1771EdFbd8A6",
 							"host": [
 								"{{host}}"
 							],
@@ -878,8 +878,7 @@
 								},
 								{
 									"key": "pluginAddress",
-									"value": "0x5539cf04fEcC37c747F78D9200Adf7c8f17a9585",
-									"disabled": true
+									"value": "0x5539cf04fEcC37c747F78D9200Adf7c8f17a9585"
 								},
 								{
 									"key": "tokenAddress",
