@@ -21,7 +21,7 @@ const AragonSyncService: IExtendedService = {
   start: async function () {
     logger.info('SyncService service sync start', llo({}))
 
-    const tasks = [[{ syncPlugins: AragonSyncService.execute }]]
+    const tasks = [[{ syncPlugins: { start: AragonSyncService.execute } }]]
 
     const taskOptions = {
       fn: () => [...tasks],
