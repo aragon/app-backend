@@ -64,6 +64,12 @@ yarn service:aragon-indexer
 yarn service:aragon-rates
 ```
 
+- Run Aragon Sync
+
+```bash
+yarn service:aragon-sync
+```
+
 ## Run with Docker
 
 - Run dependencies (mongoDb)
@@ -94,6 +100,12 @@ docker-compose up --build -d service-aragon-indexer
 
 ```bash
 docker-compose up --build -d service-aragon-rates
+```
+
+- Run only Aragon Sync
+
+```bash
+docker-compose up --build -d service-aragon-sync
 ```
 
 Access the Aragon App by opening [http://localhost:3000](http://localhost:3000) in your web browser.
