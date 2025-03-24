@@ -11,12 +11,10 @@ import ManualSyncProposalType from '@tools/manualSyncProposalType'
 import ManualSyncProposalTotalSupply from '@tools/manualSyncProposalTotalSupply'
 import ToolsRevertDbAtBlock from '@tools/revertDbAtBlock'
 import ToolsManualSyncProposalIndex from '@tools/manualSyncProposalIndex'
-import ToolsMigratePluginSlug from '@tools/migratePluginSlug'
 import ToolsMemberMetrics from '@tools/memberMetrics'
 import ToolsEnsFetch from '@tools/ensFetch'
 import ToolsFixSettingIssue from '@tools/fixBrokenPluginSetting'
 import ToolsCleanDb from '@tools/cleanDb'
-import ToolsSyncCustomPlugin from '@tools/syncCustomPlugin'
 import ToolsManualSyncToken from '@tools/manualFixTokenRate'
 import ToolsFixMissingVotes from '@tools/fixMissingVotes'
 import RefetchProposalsMetrics from '@tools/refetchProposalMetrics'
@@ -33,11 +31,9 @@ const llo = logger.logMeta.bind(null, { TOOL_RUN })
 
 const runners = {
   SyncMemberVP,
-  ToolsSyncCustomPlugin,
   ToolsCleanDb,
   ToolsEnsFetch,
   ToolsMemberMetrics,
-  ToolsMigratePluginSlug,
   ToolsMissingSlugs,
   ToolsManualSyncMultisigV2Settings,
   ManualSyncProposalTotalSupply,
