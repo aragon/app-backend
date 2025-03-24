@@ -35,6 +35,13 @@ services:
       - ./.env
     command: bash -c 'yarn service:aragon-rates'
 
+  service-aragon-sync:
+    build:
+      context: ./
+    env_file:
+      - ./.env
+    command: bash -c 'yarn service:aragon-sync'
+
   service-aragon-transactions:
     build:
       context: ./

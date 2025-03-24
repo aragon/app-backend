@@ -23,6 +23,7 @@
       "@api/*": ["./src/services/aragon-api/*"],
       "@indexer/*": ["./src/services/aragon-indexer/*"],
       "@rates/*": ["./src/services/aragon-rates/*"],
+      "@sync/*": ["./src/services/aragon-sync/*"],
       "@tools/*": ["./tools/*"],
       "@test/*": ["./test/*"],
       "@aragonContracts/*": ["./src/services/aragonContracts/*"],

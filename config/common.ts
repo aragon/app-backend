@@ -405,6 +405,11 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           6 * 60 * 60 * 1000,
         ), // 6 hours
       },
+
+      ARAGON_SYNC: {
+        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_SYNC_NAME', 'ARAGON-SYNC'),
+        SYNC_INTERVAL: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_SYNC_SYNC_INTERVAL', 10 * 60 * 1000), // 10 minutes
+      },
     },
 
     CRAWLER_CONFIG: {

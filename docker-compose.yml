@@ -55,6 +55,18 @@ services:
       - ./docker.env
     command: bash -c 'yarn wait:db & wait && yarn service:aragon-rates'
 
+  service-aragon-sync:
+    build:
+      context: ./
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+      - rabbitmq
+    env_file:
+      - ./docker.env
+    command: bash -c 'yarn wait:db & wait && yarn service:aragon-sync'
+
   service-aragon-transactions:
     build:
       context: ./
