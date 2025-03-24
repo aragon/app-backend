@@ -72,6 +72,17 @@ module.exports = {
       },
     },
     {
+      name: 'aragon-sync',
+      cwd: path.resolve(__dirname, ''),
+      script: 'yarn',
+      args: 'service:aragon-sync',
+      autorestart: false,
+      env: {
+        INSTANCE_ID: 'aragon-sync',
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-sync') }).parsed,
+      },
+    },
+    {
       name: 'aragon-tools',
       cwd: path.resolve(__dirname, ''),
       script: 'yarn',

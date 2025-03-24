@@ -155,6 +155,10 @@ export interface IConfig {
       NAME: string
       RATES_INTERVAL: number
     }
+    ARAGON_SYNC: {
+      NAME: string
+      SYNC_INTERVAL: number
+    }
   }
 
   CRAWLER_CONFIG: {
