@@ -89,3 +89,13 @@ export enum IDaoLogs {
   Granted = 'Granted',
   Revoked = 'Revoked',
 }
+
+export interface IInitailCrawlParams {
+  network: NetworksEnum
+  events: IIndexerConfig[]
+  fromBlock: number
+  toBlock: number
+  chunkSize?: number
+  errorLabel?: string
+  forceChunking?: boolean
+}
