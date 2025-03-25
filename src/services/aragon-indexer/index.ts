@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { EnumConnection, EnumQueueName, type IService } from '@types'
+import { EnumConnection, EnumQueueName, type IEnumIndexerService, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { NetworkHelper } from '@helpers/network'
 import configIndexer from '@indexer/configIndexer'
@@ -11,6 +11,8 @@ import { SyncAll } from '@indexer/syncAll'
 import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import { Models } from '@dbModels'
+import { InitialSync } from '@indexer/initialSync'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -31,21 +33,27 @@ const AragonIndexerService: IService & { repeaters: any } = {
       networks.map(async ({ networkName }) => {
         const configLogs = utils.filterArrayByProperty(configIndexer, 'enableHistorical')
 
+        const logService = `indexer-${networkName}` as IEnumIndexerService
+        const configIndexerDb = await Models.ConfigIndexer.findOne({ network: networkName, service: logService })
+
         const crawler = new BlockchainLogCrawler({
           onlyHistorical: true,
           network: networkName,
           events: configLogs,
           onError: async (error: any) => logger.error('Error Indexer', llo(error)),
-          logService: `indexer-${networkName}`,
+          logService,
           stopOnError: true,
         })
+
         await crawler.crawl()
 
-        // realtime after sync
         const eventListener = new EventListener(networkName, configIndexer)
         eventListener.subscribeEventsByNewBlock()
 
-        // resync all metrics by network
+        if (configIndexerDb) {
+          await InitialSync.start(networkName, configIndexerDb.lastSync)
+        }
+
         await RabbitMQHelper.sendMessage(EnumQueueName.allMetrics, {
           id: `${EnumQueueName.allMetrics}-${networkName}`,
           params: { network: networkName },
