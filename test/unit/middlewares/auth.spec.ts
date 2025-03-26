@@ -1,11 +1,11 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import {ErrorKeyEnum, IJwtTokenType} from '@types'
-import JwtHelper from "@helpers/jwt";
-import AuthMiddleware from "@middlewares/auth";
-import TwoFaHelper from "@helpers/2fa";
-import {Models} from "@dbModels";
+import { ErrorKeyEnum, IJwtTokenType } from '@types'
+import JwtHelper from '@helpers/jwt'
+import AuthMiddleware from '@middlewares/auth'
+import TwoFaHelper from '@helpers/2fa'
+import { Models } from '@dbModels'
 
 describe('auth: error', () => {
   let sandbox: SinonSandbox
@@ -52,7 +52,9 @@ describe('auth: error', () => {
         },
       }
       next = sandbox.spy()
-      findByValueStub = sandbox.stub(Models.Jwt, 'findByValue').resolves({ type: IJwtTokenType.admin, updateOnly: sinon.stub().resolves() })
+      findByValueStub = sandbox
+        .stub(Models.Jwt, 'findByValue')
+        .resolves({ type: IJwtTokenType.admin, updateOnly: sinon.stub().resolves() })
     })
 
     it('should allow access for a valid admin token', async () => {

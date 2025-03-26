@@ -6,7 +6,7 @@ import Koa from 'koa'
 import logger from '@logger'
 import config from '@config'
 
-describe.only('AragonAdminApi: app', () => {
+describe('AragonAdminApi: app', () => {
   let sandbox: SinonSandbox
   let listenStub: sinon.SinonStub
   let useStub: sinon.SinonStub
