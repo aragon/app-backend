@@ -5,6 +5,7 @@ import RabbitMQ from '@modules/rabbitMQ'
 import { EnumQueueName } from '@types'
 import utils from '@helpers/utils'
 import { ConfirmChannel } from 'amqplib'
+import logger from '@logger'
 
 describe('Helpers:RabbitMQ', () => {
   let sandbox: SinonSandbox
@@ -93,6 +94,39 @@ describe('Helpers:RabbitMQ', () => {
       const result = await RabbitMQHelper.sendMessage(queueName, payload)
       expect(result).to.be.null
       expect(fakeChannelWrapper.sendToQueue.calledOnce).to.be.true
+    })
+
+    it('should skip duplicate messages with the same id and process a new message with a different id', async () => {
+      const queueName = EnumQueueName.contractInfo
+      const payload = { id: 'msg-2' }
+      const payloadDifferent = { id: 'msg-3' }
+
+      const fakeChannelWrapper = {
+        sendToQueue: sandbox.stub().resolves(true),
+      }
+
+      // Stubs
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+      const stubLoggerWarn = sandbox.stub(logger, 'warn')
+
+      // Send the same message twice (in parallel) to simulate duplicates.
+      await Promise.all([
+        RabbitMQHelper.sendMessage(queueName, payload),
+        RabbitMQHelper.sendMessage(queueName, payload),
+      ])
+
+      // Only the first message should actually be queued
+      expect(fakeChannelWrapper.sendToQueue.calledOnce).to.be.true
+
+      // The code logs a warning when skipping a duplicate
+      expect(stubLoggerWarn.calledOnceWith('Skipping duplicate message' as any)).to.be.true
+
+      // Now send a new message (with same ID)
+      await RabbitMQHelper.sendMessage(queueName, payload)
+      // Now send a new message (with different ID)
+      await RabbitMQHelper.sendMessage(queueName, payloadDifferent)
+
+      expect(fakeChannelWrapper.sendToQueue.calledThrice).to.be.true
     })
   })
 
