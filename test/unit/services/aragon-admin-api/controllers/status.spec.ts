@@ -19,7 +19,7 @@ describe('Controller: StatusAdmin', () => {
   it('get status', async () => {
     const status = await StatusAdminController.getStatus()
 
-    expect(Object.keys(status).length).to.be.eq(7)
+    expect(Object.keys(status).length).to.be.eq(8)
     expect(status.status).to.eq('healthy')
     expect(status.appName).to.eq(config.APP_NAME)
     expect(status.service).to.eq(config.SERVICES.ARAGON_ADMIN_API.NAME)
