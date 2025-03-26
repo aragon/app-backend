@@ -31,7 +31,6 @@ export interface IRawNodeConfig {
 }
 
 export interface IConfig {
-  APP_NAME: string
   ENVIRONMENT: IEnumEnvironment
   NODE_ENV: IEnumNodeEnv
   TIMEZONE: string
@@ -139,11 +138,20 @@ export interface IConfig {
 
   SERVICES: {
     ARAGON_API: {
+      APP_NAME: string
       BASE_URL: string
       NAME: string
       PORT: number
       TIMEOUT: number
-      CORS: string[]
+    }
+    ARAGON_ADMIN_API: {
+      APP_NAME: string
+      BASE_URL: string
+      NAME: string
+      PORT: number
+      TIMEOUT: number
+      JWT_KEY: string
+      JWT_SECRET: string
     }
     ARAGON_INDEXER: {
       NAME: string
@@ -154,10 +162,6 @@ export interface IConfig {
     ARAGON_RATES: {
       NAME: string
       RATES_INTERVAL: number
-    }
-    ARAGON_SYNC: {
-      NAME: string
-      SYNC_INTERVAL: number
     }
   }
 

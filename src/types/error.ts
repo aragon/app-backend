@@ -43,4 +43,5 @@ export enum ErrorKeyEnum {
   daoNotFound = 'daoNotFound',
   pluginNotFound = 'pluginNotFound',
   proposalNotFound = 'proposalNotFound',
+  tokenExpired = 'tokenExpired',
 }

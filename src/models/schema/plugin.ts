@@ -108,9 +108,6 @@ export default class Plugin extends Model {
   @prop({ type: () => Boolean, default: false })
   public isSupported!: boolean
 
-  @prop({ type: () => Boolean, default: false })
-  public forceSync!: boolean
-
   @prop({ type: () => String, required: true })
   public daoAddress!: HexAddress
 

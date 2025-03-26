@@ -64,10 +64,10 @@ yarn service:aragon-indexer
 yarn service:aragon-rates
 ```
 
-- Run Aragon Sync
+- Run Aragon Admin API
 
 ```bash
-yarn service:aragon-sync
+yarn service:aragon-admin-api
 ```
 
 ## Run with Docker
@@ -102,10 +102,10 @@ docker-compose up --build -d service-aragon-indexer
 docker-compose up --build -d service-aragon-rates
 ```
 
-- Run only Aragon Sync
+- Run only Aragon Admin API
 
 ```bash
-docker-compose up --build -d service-aragon-sync
+docker-compose up --build -d service-aragon-admin-api
 ```
 
 Access the Aragon App by opening [http://localhost:3000](http://localhost:3000) in your web browser.
