@@ -6,7 +6,8 @@ import { type IStatusResponse } from '@types'
 const StatusController = {
   getStatus: (): IStatusResponse => ({
     status: 'healthy',
-    appName: config.SERVICES.ARAGON_API.NAME,
+    appName: config.APP_NAME,
+    service: config.SERVICES.ARAGON_API.NAME,
     nodeVersion: process.version,
     environment: config.ENVIRONMENT,
     supportedNetworks: config.SUPPORTED_NETWORKS,

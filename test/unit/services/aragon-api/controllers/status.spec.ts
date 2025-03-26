@@ -21,7 +21,8 @@ describe('Controller: Status', () => {
 
     expect(Object.keys(status).length).to.be.eq(7)
     expect(status.status).to.eq('healthy')
-    expect(status.appName).to.eq(config.SERVICES.ARAGON_API.APP_NAME)
+    expect(status.appName).to.eq(config.APP_NAME)
+    expect(status.appName).to.eq(config.SERVICES.ARAGON_API.NAME)
     expect(status.nodeVersion).to.eq(process.version)
     expect(status.environment).to.eq(config.ENVIRONMENT)
     expect(status.supportedNetworks).to.eq(config.SUPPORTED_NETWORKS)

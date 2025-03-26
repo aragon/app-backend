@@ -31,6 +31,7 @@ export interface IRawNodeConfig {
 }
 
 export interface IConfig {
+  APP_NAME: string
   ENVIRONMENT: IEnumEnvironment
   NODE_ENV: IEnumNodeEnv
   TIMEZONE: string
@@ -138,14 +139,12 @@ export interface IConfig {
 
   SERVICES: {
     ARAGON_API: {
-      APP_NAME: string
       BASE_URL: string
       NAME: string
       PORT: number
       TIMEOUT: number
     }
     ARAGON_ADMIN_API: {
-      APP_NAME: string
       BASE_URL: string
       NAME: string
       PORT: number
