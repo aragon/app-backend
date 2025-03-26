@@ -23,11 +23,3 @@ const TwoFaHelper = {
 }
 
 export default TwoFaHelper
-
-// const secret = TwoFaHelper.generateSecret()
-// // Save `secret.base32` securely
-//
-// const isValid = TwoFaHelper.verifyTOTP({
-//   secret: secret.base32,
-//   token: '123456', // code from authenticator app
-// })
