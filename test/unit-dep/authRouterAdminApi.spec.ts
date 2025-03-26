@@ -29,7 +29,7 @@ describe('AuthRouter Admin API', () => {
     const request = supertest(app.callback())
 
     // Test no auth endpoint
-    await request.post('/').expect(200)
+    await request.get('/').expect(200)
 
     // Generate a valid token with type admin
     const token = await AuthMiddleware.generateJwtAuth(IJwtTokenType.admin)
