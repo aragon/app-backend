@@ -21,6 +21,7 @@ describe('Router: StatusAdmin', () => {
       status: 'status',
       appName: 'appName',
       nodeVersion: 'nodeVersion',
+      service: 'appService',
       environment: 'environment',
       supportedNetworks: [NetworksEnum.ethereumMainnet],
       appVersionPackage: 'appVersionPackage',
