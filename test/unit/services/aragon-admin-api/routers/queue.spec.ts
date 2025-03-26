@@ -25,7 +25,7 @@ describe('Router: QueueAdmin', () => {
     const stubCtrl = sandbox.stub(QueueAdminController, 'queuePlugins').returns(true as any)
 
     const ctx: any = {
-      params
+      params,
     }
 
     await QueueAdminRouter.queueDaoPlugins(ctx)
@@ -45,7 +45,7 @@ describe('Router: QueueAdmin', () => {
     const stubCtrl = sandbox.stub(QueueAdminController, 'queueDaoTransactions').returns(true as any)
 
     const ctx: any = {
-      params
+      params,
     }
 
     await QueueAdminRouter.queueDaoTransactions(ctx)
@@ -65,7 +65,7 @@ describe('Router: QueueAdmin', () => {
     const stubCtrl = sandbox.stub(QueueAdminController, 'queueDaoAssets').returns(true as any)
 
     const ctx: any = {
-      params
+      params,
     }
 
     await QueueAdminRouter.queueDaoAssets(ctx)
@@ -85,7 +85,7 @@ describe('Router: QueueAdmin', () => {
     const stubCtrl = sandbox.stub(QueueAdminController, 'queueDaoMetrics').returns(true as any)
 
     const ctx: any = {
-      params
+      params,
     }
 
     await QueueAdminRouter.queueDaoMetrics(ctx)
@@ -106,7 +106,7 @@ describe('Router: QueueAdmin', () => {
     const stubCtrl = sandbox.stub(QueueAdminController, 'queueProposalMetrics').returns(true as any)
 
     const ctx: any = {
-      params
+      params,
     }
 
     await QueueAdminRouter.queueProposalMetrics(ctx)
