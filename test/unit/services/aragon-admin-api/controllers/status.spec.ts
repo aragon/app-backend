@@ -2,10 +2,10 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import config from '@config'
-import StatusController from '@services/aragon-api/controllers/status'
+import StatusAdminController from '@services/aragon-admin-api/controllers/status'
 import * as packageJson from '@package'
 
-describe('Controller: Status', () => {
+describe('Controller: StatusAdmin', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -17,12 +17,12 @@ describe('Controller: Status', () => {
   })
 
   it('get status', async () => {
-    const status = await StatusController.getStatus()
+    const status = await StatusAdminController.getStatus()
 
     expect(Object.keys(status).length).to.be.eq(8)
     expect(status.status).to.eq('healthy')
     expect(status.appName).to.eq(config.APP_NAME)
-    expect(status.service).to.eq(config.SERVICES.ARAGON_API.NAME)
+    expect(status.service).to.eq(config.SERVICES.ARAGON_ADMIN_API.NAME)
     expect(status.nodeVersion).to.eq(process.version)
     expect(status.environment).to.eq(config.ENVIRONMENT)
     expect(status.supportedNetworks).to.eq(config.SUPPORTED_NETWORKS)

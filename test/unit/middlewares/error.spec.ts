@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import ErrorMiddleware from '@services/aragon-api/middlewares/error'
+import ErrorMiddleware from '@middlewares/error'
 import { ErrorKeyEnum } from '@types'
 
 describe('middlewares: error', () => {
