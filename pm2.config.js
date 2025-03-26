@@ -72,14 +72,14 @@ module.exports = {
       },
     },
     {
-      name: 'aragon-sync',
+      name: 'aragon-admin-api',
       cwd: path.resolve(__dirname, ''),
       script: 'yarn',
-      args: 'service:aragon-sync',
+      args: 'service:aragon-admin-api',
       autorestart: false,
       env: {
-        INSTANCE_ID: 'aragon-sync',
-        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-sync') }).parsed,
+        INSTANCE_ID: 'aragon-admin-api',
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-admin-api') }).parsed,
       },
     },
     {

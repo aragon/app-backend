@@ -3,10 +3,10 @@ import dayjs from '@helpers/dayjs'
 import * as packageJson from '@package'
 import { type IStatusResponse } from '@types'
 
-const StatusController = {
+const StatusAdminController = {
   getStatus: (): IStatusResponse => ({
     status: 'healthy',
-    appName: config.SERVICES.ARAGON_API.NAME,
+    appName: config.SERVICES.ARAGON_ADMIN_API.APP_NAME,
     nodeVersion: process.version,
     environment: config.ENVIRONMENT,
     supportedNetworks: config.SUPPORTED_NETWORKS,
@@ -15,4 +15,4 @@ const StatusController = {
   }),
 }
 
-export default StatusController
+export default StatusAdminController

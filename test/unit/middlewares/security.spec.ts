@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import SecurityMiddleware from '@services/aragon-api/middlewares/security'
+import SecurityMiddleware from '@middlewares/security'
 
 describe('middlewares: security', () => {
   let sandbox: SinonSandbox

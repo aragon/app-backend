@@ -35,12 +35,12 @@ services:
       - ./.env
     command: bash -c 'yarn service:aragon-rates'
 
-  service-aragon-sync:
+  service-aragon-admin-api:
     build:
       context: ./
     env_file:
       - ./.env
-    command: bash -c 'yarn service:aragon-sync'
+    command: bash -c 'yarn service:aragon-admin-api'
 
   service-aragon-transactions:
     build:
