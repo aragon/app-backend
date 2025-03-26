@@ -1,11 +1,11 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import StatusRouter from '@services/aragon-api/routers/status'
-import StatusController from '@services/aragon-api/controllers/status'
+import StatusAdminRouter from '@services/aragon-admin-api/routers/status'
+import StatusAdminController from '@services/aragon-admin-api/controllers/status'
 import { NetworksEnum } from '@types'
 
-describe('Router: Status', () => {
+describe('Router: StatusAdmin', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -20,17 +20,17 @@ describe('Router: Status', () => {
     const fakeRes = {
       status: 'status',
       appName: 'appName',
-      service: 'appService',
       nodeVersion: 'nodeVersion',
+      service: 'appService',
       environment: 'environment',
       supportedNetworks: [NetworksEnum.ethereumMainnet],
       appVersionPackage: 'appVersionPackage',
       time: 'time',
     }
 
-    sandbox.stub(StatusController, 'getStatus').returns(fakeRes)
+    sandbox.stub(StatusAdminController, 'getStatus').returns(fakeRes)
     const ctx: any = {}
-    await StatusRouter.status(ctx)
+    await StatusAdminRouter.status(ctx)
 
     expect(ctx.body).to.eq(fakeRes)
   })
