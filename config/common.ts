@@ -3,6 +3,7 @@ import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum } from '@types'
 
 const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
+    APP_NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_APP_NAME', 'Aragon Backend'),
     ENVIRONMENT: utils.configParser(sourceConfig, 'string', 'ENVIRONMENT', 'local'),
     NODE_ENV: utils.configParser(sourceConfig, 'string', 'NODE_ENV', 'development'),
     TIMEZONE: utils.configParser(sourceConfig, 'string', 'TIMEZONE', 'Europe/London'),
@@ -371,22 +372,20 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     SERVICES: {
       ARAGON_API: {
-        APP_NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_APP_NAME', 'Aragon Backend'),
-        BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
         NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_NAME', 'ARAGON-API'),
+        BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
         PORT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_PORT', 3000),
         TIMEOUT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_TIMEOUT', 30), // seconds
       },
 
       ARAGON_ADMIN_API: {
-        APP_NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_APP_NAME', 'Aragon Admin Backend'),
+        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_ADMIN_API_NAME', 'ARAGON-ADMIN-API'),
         BASE_URL: utils.configParser(
           sourceConfig,
           'string',
           'SERVICES_ARAGON_ADMIN_API_BASE_URL',
           'http://localhost:3001',
         ),
-        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_ADMIN_API_NAME', 'ARAGON-ADMIN-API'),
         PORT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_ADMIN_API_PORT', 3001),
         TIMEOUT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_ADMIN_API_TIMEOUT', 30), // 30 seconds
         JWT_KEY: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_ADMIN_API_JWT_KEY', 'JWT'),
