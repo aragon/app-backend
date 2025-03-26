@@ -1,9 +1,9 @@
 import Utils from '@helpers/utils'
 import { EnumConnection, type IService } from '@types'
-import AdminApp from '@services/aragon-admin-api/app'
+import AdminApp from '@admin-api/app'
 
 const AragonAdminAPIService: IService = {
-  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
+  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.RABBITMQ],
 
   async start() {
     return await AdminApp()
