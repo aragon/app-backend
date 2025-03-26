@@ -7,7 +7,7 @@ import AuthMiddleware from '@middlewares/auth'
 import TwoFaHelper from '@helpers/2fa'
 import { Models } from '@dbModels'
 
-describe('auth: error', () => {
+describe('middlewares: auth', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -29,12 +29,12 @@ describe('auth: error', () => {
     })
   })
 
-  describe('generateJwtAth', () => {
+  describe('generateJwtAuth', () => {
     it('should generate a JWT authentication token', async () => {
       const secretStub = sandbox.stub(TwoFaHelper, 'generateSecret').returns({ base32: 'mocked_secret' } as any)
       const createStub = sandbox.stub(Models.Jwt, 'create').resolves({ value: 'mocked_secret' })
 
-      const token = await AuthMiddleware.generateJwtAth(IJwtTokenType.admin)
+      const token = await AuthMiddleware.generateJwtAuth(IJwtTokenType.admin)
 
       expect(secretStub.calledOnce).to.be.true
       expect(createStub.calledOnce).to.be.true

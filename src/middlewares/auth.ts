@@ -20,7 +20,7 @@ const AuthMiddleware = {
     )
   },
 
-  async generateJwtAth(type: IJwtTokenType, tOpts?: SaveOptions) {
+  async generateJwtAuth(type: IJwtTokenType, tOpts?: SaveOptions): Promise<string> {
     const secret = TwoFaHelper.generateSecret(20)
     const token = await Models.Jwt.create({ value: secret.base32, type: IJwtAuthType.auth }, tOpts)
     return AuthMiddleware._generateJWTLogin(token.value, null, type)

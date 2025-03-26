@@ -11,6 +11,7 @@ import { IPluginInterfaceType } from '@types'
 import type Plugin from '@models/schema/plugin'
 import { ethers } from 'ethers'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+
 const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 
 class EventListener {

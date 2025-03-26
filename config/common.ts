@@ -389,7 +389,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_ADMIN_API_NAME', 'ARAGON-ADMIN-API'),
         PORT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_ADMIN_API_PORT', 3001),
         TIMEOUT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_ADMIN_API_TIMEOUT', 30), // 30 seconds
-        JWT_KEY: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_ADMIN_API_JWT_KEY', 'JWT_ARAGON'),
+        JWT_KEY: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_ADMIN_API_JWT_KEY', 'JWT'),
         JWT_SECRET: utils.configParser(
           sourceConfig,
           'string',
