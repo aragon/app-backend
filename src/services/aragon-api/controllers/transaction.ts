@@ -6,6 +6,7 @@ import {
   type IPairParams,
   type ITransactionExtraParams,
   ITransactionIndexCheckType,
+  type ITransactionIndexingStatusResponse,
   type ITransactionResponse,
   type NetworksEnum,
 } from '@types'
@@ -34,8 +35,8 @@ const TransactionController = {
     txHash: string,
     action: ITransactionIndexCheckType,
     network: NetworksEnum,
-  ): Promise<{ isProcessed: boolean }> => {
-    const response: any = { isProcessed: false }
+  ): Promise<ITransactionIndexingStatusResponse> => {
+    const response: ITransactionIndexingStatusResponse = { isProcessed: false }
 
     try {
       const model = IndexCheckTypeToModel[action]
