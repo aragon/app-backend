@@ -11,6 +11,10 @@ import {
 } from '@types'
 import type Transaction from '@models/schema/transaction'
 import PairDataModule from '@modules/pairData'
+import { assert } from '@errors'
+import logger from '@logger'
+
+const llo = logger.logMeta.bind(null, { service: 'TransactionController' })
 
 const TransactionController = {
   getTransactionsWithPagination: async (
@@ -31,33 +35,42 @@ const TransactionController = {
     action: ITransactionIndexCheckType,
     network: NetworksEnum,
   ): Promise<{ isProcessed: boolean }> => {
-    const response = { isProcessed: false }
+    const response: any = { isProcessed: false }
 
     try {
       const model = IndexCheckTypeToModel[action]
-      let queryToCheck: any
-      switch (action) {
-        case ITransactionIndexCheckType.PROPOSAL_EXECUTE:
-          queryToCheck = {
-            'executed.transactionHash': txHash,
-            network,
-          }
-          break
-        case ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE:
-          queryToCheck = {
-            'stageExecutions.transactionHash': txHash,
-            network,
-          }
-          break
-        default:
-          queryToCheck = { transactionHash: txHash, network }
-          break
-      }
+      assert(!!model, 'action is required')
 
-      response.isProcessed = !!(await Models[model].findOne(queryToCheck))
+      const queryToCheck = TransactionController._getQueryForAction(action, txHash, network)
+      const data = await Models[model].findOne(queryToCheck)
+      response.isProcessed = Boolean(data)
+
+      if (data && action === ITransactionIndexCheckType.PROPOSAL_CREATE) {
+        const pluginSlug = await Models.PluginSlug.findOne({
+          pluginAddress: data.pluginAddress,
+          network: data.network,
+        })
+        if (!pluginSlug) {
+          logger.error('PluginSlug not found', llo({ pluginAddress: data.pluginAddress, network: data.network }))
+        }
+        response.slug = `${pluginSlug.slug}-${data.incrementalId}`
+      }
       return response
     } catch (error) {
       return response
+    }
+  },
+
+  _getQueryForAction(action: ITransactionIndexCheckType, txHash: string, network: NetworksEnum): Record<string, any> {
+    switch (action) {
+      case ITransactionIndexCheckType.PROPOSAL_CREATE:
+        return { transactionHash: txHash, network }
+      case ITransactionIndexCheckType.PROPOSAL_EXECUTE:
+        return { 'executed.transactionHash': txHash, network }
+      case ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE:
+        return { 'stageExecutions.transactionHash': txHash, network }
+      default:
+        return { transactionHash: txHash, network }
     }
   },
 }
