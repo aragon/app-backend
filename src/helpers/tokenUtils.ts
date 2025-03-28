@@ -32,9 +32,7 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
     return null
   }
 
-  const priceUsd =
-    firstValid(rawRate.decimals !== null ? rawRate.priceUsd : null, blockScoutInfo ? blockScoutInfo.priceUsd : null) ||
-    '0'
+  const priceUsd = rawRate?.decimals !== null ? rawRate.priceUsd : blockScoutInfo ? blockScoutInfo.priceUsd : '0'
 
   const priceChangeOnDayUsd =
     rawRate.decimals !== null && rawRate.priceChangeOnDayUsd !== '0' ? rawRate.priceChangeOnDayUsd : '0'
@@ -64,7 +62,7 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
   }
 
   return {
-    priceUsd,
+    priceUsd: priceUsd!,
     priceChangeOnDayUsd,
     holders,
     totalSupply,

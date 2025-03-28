@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type IEnumIndexerServiceStatic, type IIndexerConfig, IMultiSigLogs } from '@types'
+import { type IIndexerConfig, IMultiSigLogs } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
@@ -20,7 +20,7 @@ export const LogMultiSig = {
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogMultiSig.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}` as IEnumIndexerServiceStatic,
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
     await crawler.crawl()

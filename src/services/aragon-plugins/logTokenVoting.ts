@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type IEnumIndexerServiceStatic, IGovernanceErc20Logs, type IIndexerConfig, ITokenVotingLogs } from '@types'
+import { IGovernanceErc20Logs, type IIndexerConfig, ITokenVotingLogs } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
@@ -25,7 +25,7 @@ export const LogTokenVoting = {
       address: [plugin.address],
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}` as IEnumIndexerServiceStatic,
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
 
@@ -36,8 +36,7 @@ export const LogTokenVoting = {
       address: [plugin.tokenAddress],
       fromBlock: token?.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService:
-        `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}` as IEnumIndexerServiceStatic,
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}`,
       stopOnError: true,
     })
 
