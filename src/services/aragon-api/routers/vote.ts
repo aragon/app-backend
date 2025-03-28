@@ -63,6 +63,20 @@ const VoteRouter = {
     ctx.body = await VoteController.canVote(formattedValues)
   },
 
+  async canVote2(ctx: RouterContext) {
+    const params: ICanVoteParams = {
+      memberAddress: ctx.query.memberAddress as HexAddress,
+      pluginAddress: ctx.query.pluginAddress as HexAddress,
+      proposalIndex: ctx.query.proposalIndex?.toString()!,
+      network: ctx.query.network as NetworksEnum,
+    }
+
+    const formattedValues = await ValidationSchema.validateParams(VoteSchema.canVote, params)
+
+    const status = await VoteController.canVote(formattedValues)
+    ctx.body = { status }
+  },
+
   async getMemberVoteInfo(ctx: RouterContext) {
     const params: ICanVoteParams = {
       memberAddress: ctx.query.memberAddress as HexAddress,
@@ -95,6 +109,7 @@ const VoteRouter = {
      */
 
     router.get('/can-vote', VoteRouter.canVote)
+    router.get('/can-vote2', VoteRouter.canVote2)
 
     /**
      * @api {get} /member-vote-info Member Vote Info
