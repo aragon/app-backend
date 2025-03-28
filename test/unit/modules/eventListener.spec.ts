@@ -8,8 +8,6 @@ import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import Logger from '@logger'
 import DbTx from '@modules/dbTx'
-import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { ethers, Interface } from 'ethers'
 
 describe('Module: EventListener', () => {
   let sandbox: sinon.SinonSandbox
@@ -89,7 +87,7 @@ describe('Module: EventListener', () => {
     it('should log an error if event processing fails', async () => {
       const configLogs = [{ topic: '0xTopic1', config: [{ abi: [], handler: () => {} }] }]
       const listener = new EventListener(NetworksEnum.ethereumMainnet, configLogs as any)
-      sandbox.stub(logger, 'error')
+      const logError = sandbox.stub(logger, 'error')
       sandbox.stub(Web3Helper, 'parseLog').throws(new Error('Handler error'))
 
       const log = { topics: ['0xTopic1'], data: '0xData' } as any
@@ -153,7 +151,6 @@ describe('Module: EventListener', () => {
 
       sandbox.stub(Web3Helper, 'parseLog').returns({ name: 'TestEvent', args: {} } as any)
       sandbox.stub(Web3Helper, 'parseInfoLog').returns({} as any)
-      sandbox.stub(listener, 'filterUnwantedEvents').resolves([{ topics: ['0xTopic1'], data: '0xData' }] as any)
       const stubLogger = sandbox.stub(Logger, 'verbose')
       listener.lastBlock = 100
       await listener.handleOnNewBlock(101)
@@ -243,58 +240,6 @@ describe('Module: EventListener', () => {
       await listener.saveProgress(101, NetworksEnum.ethereumMainnet)
 
       expect(logError.calledWithMatch('Error saving progress' as any)).to.be.true
-    })
-  })
-
-  describe('filterUnwantedEvents', () => {
-    it('should filter logs based on plugin token addresses', async () => {
-      const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
-
-      const plugins = [
-        { tokenAddress: ethers.getAddress('0x1aca993f1e460e66a859576edf9fbeb7fa3ee236') },
-        { tokenAddress: ethers.getAddress('0x2aca993f1e460e66a859576edf9fbeb7fa3ee236') },
-      ]
-
-      sandbox.stub(Models.Plugin, 'find').resolves(plugins)
-      //get random
-
-      const transferTopic = new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!
-      const logs = [
-        { address: '0x1aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: [transferTopic] },
-        { address: '0x2aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: [transferTopic] },
-        { address: '0x3aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: [transferTopic] },
-      ] as any[]
-
-      const result = await listener['filterUnwantedEvents'](logs)
-
-      expect(result.length).to.equal(2)
-      expect(result[0].address).to.equal('0x1aca993f1e460e66a859576edf9fbeb7fa3ee236')
-      expect(result[1].address).to.equal('0x2aca993f1e460e66a859576edf9fbeb7fa3ee236')
-    })
-
-    it('should filter all logs if no matching addresses', async () => {
-      const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
-
-      const plugins = [
-        { tokenAddress: '0x1aca993f1e460e66a859576edf9fbeb7fa3ee236' },
-        { tokenAddress: '0x2aca993f1e460e66a859576edf9fbeb7fa3ee236' },
-      ]
-
-      sandbox.stub(Models.Plugin, 'find').resolves(plugins)
-      sandbox.stub(ethers, 'getAddress').callsFake(addr => addr)
-
-      const trasferTopic = new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!
-
-      const logs = [
-        { address: '0x5aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: [trasferTopic] },
-        { address: '0x6aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: [trasferTopic] },
-        { address: '0x7aca993f1e460e66a859576edf9fbeb7fa3ee236', topics: ['0xTIpic'] },
-      ] as any[]
-
-      const result = await listener['filterUnwantedEvents'](logs)
-
-      expect(result.length).to.equal(1)
-      expect(result[0].address).to.equal('0x7aca993f1e460e66a859576edf9fbeb7fa3ee236')
     })
   })
 })
