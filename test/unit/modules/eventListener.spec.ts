@@ -1,5 +1,4 @@
 import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import EventListener from '@modules/eventListener'
 import { NetworksEnum } from '@types'
@@ -13,7 +12,7 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { ethers, Interface } from 'ethers'
 
 describe('Module: EventListener', () => {
-  let sandbox: SinonSandbox
+  let sandbox: sinon.SinonSandbox
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -124,6 +123,17 @@ describe('Module: EventListener', () => {
       expect(logVerbose.calledOnceWith('Skipping block as another process is ongoing' as any)).to.be.true
     })
 
+    it('should log warning if block is missed', async () => {
+      const logVerbose = sandbox.stub(logger, 'warn')
+      const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
+      listener.lastBlock = 100
+      sandbox.stub(Web3Helper, 'getBlockReceipts').resolves([])
+
+      await listener.handleOnNewBlock(102)
+
+      expect(logVerbose.calledOnceWith('Block Missed from on-chain' as any)).to.be.true
+    })
+
     it('should process new block logs and update database correctly', async () => {
       const rawConfigIndexer = {
         network: NetworksEnum.ethereumMainnet,
@@ -131,25 +141,24 @@ describe('Module: EventListener', () => {
         lastSync: 0,
       }
       const configIndexerDoc = await Models.ConfigIndexer.create(rawConfigIndexer)
-
-      const mockProvider = {
-        getLogs: sandbox.stub().resolves([{ topics: ['0xTopic1'], data: '0xData' }]),
-      }
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider)
+      const getBlockReceiptStub = sandbox
+        .stub(Web3Helper, 'getBlockReceipts')
+        .resolves([{ logs: [{ topics: ['0xTopic1'], data: '0xData' }] }])
 
       const configLogs = [
         { topic: '0xTopic1', config: [{ abi: ['event TestEvent()'], handler: sandbox.stub().resolves() }] },
       ]
+
       const listener = new EventListener(NetworksEnum.ethereumMainnet, configLogs as any)
 
       sandbox.stub(Web3Helper, 'parseLog').returns({ name: 'TestEvent', args: {} } as any)
       sandbox.stub(Web3Helper, 'parseInfoLog').returns({} as any)
       sandbox.stub(listener, 'filterUnwantedEvents').resolves([{ topics: ['0xTopic1'], data: '0xData' }] as any)
       const stubLogger = sandbox.stub(Logger, 'verbose')
-
+      listener.lastBlock = 100
       await listener.handleOnNewBlock(101)
 
-      expect(mockProvider.getLogs.calledOnce).to.be.true
+      expect(getBlockReceiptStub.calledOnce).to.be.true
       expect(configLogs[0].config[0].handler.calledOnce).to.be.true
 
       const updatedDocument = await Models.ConfigIndexer.findById(configIndexerDoc._id)
@@ -160,29 +169,26 @@ describe('Module: EventListener', () => {
 
     it('should handle empty logs gracefully', async () => {
       const listener = new EventListener(NetworksEnum.ethereumMainnet, [])
-      const mockProvider = { getLogs: sandbox.stub().resolves([]) }
-
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider)
-      const logError = sandbox.stub(logger, 'error')
-
+      sandbox.stub(Web3Helper, 'getBlockReceipts').resolves([])
+      const handleEventStub = sandbox.stub(listener, 'handleEvent')
+      listener.lastBlock = 100
       await listener.handleOnNewBlock(101)
 
-      expect(mockProvider.getLogs.calledOnce).to.be.true
-      expect(logError.notCalled).to.be.true
+      expect(handleEventStub.notCalled).to.be.true
     })
 
     it('should skip logs with no matching topics', async () => {
       const listener = new EventListener(NetworksEnum.ethereumMainnet, [
         { topic: '0xTopic1', abi: [], handler: sandbox.stub() } as any,
       ])
-      const mockProvider = { getLogs: sandbox.stub().resolves([{ topics: ['0xUnknownTopic'], data: '0xData' }]) }
 
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider)
+      sandbox
+        .stub(Web3Helper, 'getBlockReceipts')
+        .resolves([{ logs: [{ topics: ['0xUnknownTopic'], data: '0xData' }] }])
+
       const logError = sandbox.stub(logger, 'error')
-
+      listener.lastBlock = 100
       await listener.handleOnNewBlock(101)
-
-      expect(mockProvider.getLogs.calledOnce).to.be.true
       expect(logError.notCalled).to.be.true
     })
   })
@@ -198,7 +204,7 @@ describe('Module: EventListener', () => {
       })
 
       const updateStub = sandbox.stub()
-      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({
+      sandbox.stub(Models.ConfigIndexer as any, 'findExistingLog').resolves({
         lastSync: 100,
         update: updateStub.resolves(),
       })
@@ -217,12 +223,12 @@ describe('Module: EventListener', () => {
         })
       })
 
-      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({
+      sandbox.stub(Models.ConfigIndexer as any, 'findExistingLog').resolves({
         lastSync: 102,
         update: sandbox.stub(),
       })
 
-      const updateStub = sandbox.stub(Models.ConfigIndexer.prototype, 'update')
+      const updateStub = sandbox.stub(Models.ConfigIndexer.prototype as any, 'update')
 
       await listener.saveProgress(101, NetworksEnum.ethereumMainnet)
 

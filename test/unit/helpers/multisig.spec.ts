@@ -22,7 +22,8 @@ describe('Helpers: Multisig', () => {
     const network = NetworksEnum.arbitrumMainnet
 
     it('should return settings when minApprovals is present', async () => {
-      const stubSettings = { minApprovals: '3', onlyListed: true }
+      const stubSettings: any = { minApprovals: '3', onlyListed: true }
+      stubSettings.toObject = () => stubSettings
       sandbox.stub(Web3Helper, 'getMultisigSettings').resolves(stubSettings as any)
 
       const result = await MultisigHelper.findSettings(pluginAddress, network)
@@ -30,7 +31,9 @@ describe('Helpers: Multisig', () => {
     })
 
     it('should default onlyListed to false if not provided', async () => {
-      const stubSettings = { minApprovals: '2' }
+      const stubSettings: any = { minApprovals: '2' }
+      stubSettings.toObject = () => stubSettings
+
       sandbox.stub(Web3Helper, 'getMultisigSettings').resolves(stubSettings as any)
 
       const result = await MultisigHelper.findSettings(pluginAddress, network)
@@ -38,7 +41,8 @@ describe('Helpers: Multisig', () => {
     })
 
     it('should log error and return undefined if minApprovals is missing', async () => {
-      const stubSettings = { onlyListed: true }
+      const stubSettings: any = { onlyListed: true }
+      stubSettings.toObject = () => stubSettings
       sandbox.stub(Web3Helper, 'getMultisigSettings').resolves(stubSettings as any)
       const stubLogger = sandbox.stub(logger, 'error')
 

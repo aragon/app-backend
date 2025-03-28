@@ -8,7 +8,7 @@ export const ToolsCleanDb: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
-    const networkToDelete = NetworksEnum.polygonMainnet
+    const networkToDelete = NetworksEnum.peaqMainnet
 
     try {
       // Iterate over all models in Models

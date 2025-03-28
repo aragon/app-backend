@@ -11,6 +11,7 @@ import BlockScoutHelper from '@helpers/blockScout'
 import TokenUtils from '@helpers/tokenUtils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { FakeAsset } from '@test/mock/fakeAsset'
+import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
 
 describe('AragonRates: FetchRates', () => {
   let sandbox: SinonSandbox
@@ -212,7 +213,7 @@ describe('AragonRates: FetchRates', () => {
         priceChangeOnDayUsd: '1',
         priceUsd: '1.1',
       })
-      const stubTokenFullDetails = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(null)
+      const stubTokenFullDetails = sandbox.stub(TokenDetailProvider, 'fetchBasicTokenInfo').resolves(null)
       const stubUpdate = sandbox.stub(tokenDb, 'update')
       await FetchRates.onTestnetDocument(tokenDb)
       expect(stubTokenFullDetails.calledOnce).to.be.true

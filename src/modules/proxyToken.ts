@@ -1,27 +1,16 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import {
-  EnumQueueName,
-  type HexAddress,
-  type IContractDeployInfo,
-  type ITokenMetrics,
-  type ITokenRate,
-  ITokenType,
-  type NetworksEnum,
-} from '@types'
+import { type HexAddress, type ITokenDetails, ITokenType, type NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Token from '@models/schema/token'
-import { RateModule } from '@modules/rates'
 import dayjs from '@helpers/dayjs'
 import CovalentHelper from '@helpers/covalent'
-import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import BlockScoutHelper from '@helpers/blockScout'
+import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -52,7 +41,7 @@ export const ProxyToken = {
         return await ProxyToken.createNewToken(parsedTokenAddress, network, session)
       })
     } catch (error) {
-      logger.error('Error saveAndGetToken', llo({ error, document }))
+      logger.error('Error saveAndGetToken', llo({ error, tokenAddress, network }))
       return null
     }
   },
@@ -68,16 +57,14 @@ export const ProxyToken = {
     let updates: Partial<Token> = {}
 
     if (shouldUpdate || forceUpdate) {
-      const { tokenRate, tokenMetrics } = await ProxyToken._fetchTokenDetails(
-        token.type,
-        token.isGovernance,
-        tokenAddress,
-        network,
-      )
+      const { tokenDetails, tokenMetrics } = await TokenDetailProvider.fetchTokenDetails(network, tokenAddress, {
+        type: token.type,
+        isGovernance: token.isGovernance,
+      })
 
       updates = {
-        priceUsd: tokenRate.priceUsd,
-        priceChangeOnDayUsd: tokenRate.priceChangeOnDayUsd,
+        priceUsd: tokenDetails.priceUsd,
+        priceChangeOnDayUsd: tokenDetails.priceChangeOnDayUsd,
         holders: tokenMetrics.totalHolders,
         totalSupply: tokenMetrics.totalSupply,
         lastUpdatedAt: dayjs.utc().toDate(),
@@ -94,23 +81,20 @@ export const ProxyToken = {
 
   createNewToken: async (tokenAddress: HexAddress, network: NetworksEnum, session?: ClientSession): Promise<Token> => {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
-    const tokenDetails = await ProxyToken._fetchTokenDetails(
-      tokenTypeInfo.type,
-      tokenTypeInfo.isGovernance,
-      tokenAddress,
-      network,
-    )
-    const { tokenRate, tokenMetrics } = tokenDetails
+    const { tokenDetails, tokenMetrics } = await TokenDetailProvider.fetchTokenDetails(network, tokenAddress, {
+      type: tokenTypeInfo.type,
+      isGovernance: tokenTypeInfo.isGovernance,
+    })
 
     const contractDeployInfo =
       tokenTypeInfo.isGovernance || Web3Helper.isWhitelistedToken(tokenAddress, network)
-        ? await ProxyToken.getContractCreationInfo(tokenAddress, network)
-        : { address: '', transactionHash: null, blockNumber: 0 }
+        ? await TokenDetailProvider.fetchContractCreation(tokenAddress, network)
+        : { address: tokenAddress, transactionHash: null, blockNumber: 0 }
 
     const rawTokenRate = {
-      ...tokenRate,
-      decimals: tokenRate.decimals ?? 0,
-      logo: tokenRate.logo || '',
+      ...tokenDetails,
+      decimals: tokenDetails.decimals ?? 0,
+      logo: tokenDetails.logo || null,
     }
 
     // Construct raw token data
@@ -137,20 +121,20 @@ export const ProxyToken = {
       mintableByDao: await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session),
       skipFetchRate: ProxyToken.shouldSkipFetch(
         {
-          ...tokenRate,
+          ...tokenDetails,
           holders: tokenMetrics.totalHolders,
           totalSupply: tokenMetrics.totalSupply,
           address: tokenAddress,
           type: tokenTypeInfo.type,
           network,
         },
-        tokenRate,
+        tokenDetails,
       ),
     }
 
     // Ensure correct token type
-    if (rawToken.type === ITokenType.unknown && tokenRate.type !== ITokenType.unknown) {
-      rawToken.type = tokenRate.type
+    if (rawToken.type === ITokenType.unknown && tokenDetails.type !== ITokenType.unknown) {
+      rawToken.type = tokenDetails.type
     }
 
     // Save token and commit transaction
@@ -160,61 +144,6 @@ export const ProxyToken = {
 
     logger.verbose('New Token Created', llo({ logId: savedToken.id }))
     return savedToken
-  },
-
-  async _fetchTokenDetails(
-    tokenType: ITokenType,
-    isGovernance: boolean,
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<{ tokenRate: ITokenRate; tokenMetrics: ITokenMetrics }> {
-    const tokenRate = await RateModule.fetchRate(tokenAddress, network)
-    let tokenMetrics: ITokenMetrics = { totalHolders: 0, totalSupply: '0' }
-
-    if (tokenType === ITokenType.native) {
-      return { tokenRate, tokenMetrics }
-    }
-
-    // TODO: this should go into fetch rates and eventually rename it to fetchTokenDetails
-    const tokenFullDetails = await BlockScoutHelper.getTokenFullDetails(tokenAddress, network)
-
-    if (tokenFullDetails) {
-      Object.assign(tokenRate, {
-        name: tokenFullDetails.name,
-        symbol: tokenFullDetails.symbol,
-        decimals: tokenFullDetails.decimals,
-        logo: tokenFullDetails.logo,
-        type: tokenFullDetails.type,
-        priceUsd: tokenFullDetails.priceUsd || tokenRate.priceUsd,
-      })
-      Object.assign(tokenMetrics, {
-        totalHolders: tokenFullDetails.holders,
-        totalSupply: tokenFullDetails.totalSupply,
-      })
-    } else if (isGovernance || Web3Helper.isWhitelistedToken(tokenAddress, network)) {
-      tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
-    }
-
-    if (tokenType === ITokenType.ERC20 && (tokenRate.decimals === null || !tokenRate.name || !tokenRate.symbol)) {
-      const onChainTokenInfo = await Web3Helper.getTokenInfo(tokenAddress, network)
-      Object.assign(tokenRate, onChainTokenInfo)
-    }
-
-    if (
-      (isGovernance || Web3Helper.isWhitelistedToken(tokenAddress, network)) &&
-      tokenMetrics.totalHolders === 0 &&
-      tokenMetrics.totalSupply === '0'
-    ) {
-      const totalSupply = await Web3Helper.getTokenTotalSupply(tokenAddress, network)
-      tokenMetrics.totalSupply = totalSupply.toString()
-
-      await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
-        id: `token-metrics${tokenAddress}`,
-        params: { address: tokenAddress, network },
-      })
-    }
-
-    return { tokenRate, tokenMetrics }
   },
 
   checkPluginMintAuthorizationIsDao: async (
@@ -236,31 +165,12 @@ export const ProxyToken = {
     return !!permissionConfig
   },
 
-  shouldSkipFetch: (token: Partial<Token>, tokenRate: ITokenRate): boolean =>
+  shouldSkipFetch: (token: Partial<Token>, tokenRate: ITokenDetails): boolean =>
     (!token.symbol ||
       token.isGovernance ||
       token.type === ITokenType.unknown ||
       CovalentHelper.skipTestNetworks.includes(token.network!)) &&
     tokenRate.priceUsd === '0',
-
-  getContractCreationInfo: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<IContractDeployInfo> => {
-    const contractInfo = await EtherscanHelper.fetchContractCreation({
-      contractAddress: tokenAddress,
-      network,
-    })
-
-    if (contractInfo?.length) {
-      const txHash = contractInfo[0].txHash
-      const txReceipt = await Web3Helper.getTransaction(txHash, network)
-      return {
-        blockNumber: txReceipt?.blockNumber || 0,
-        transactionHash: txHash,
-        address: tokenAddress,
-      }
-    }
-
-    return { blockNumber: 0, transactionHash: null, address: tokenAddress }
-  },
 
   analyzeIfScamToken: (name: string, symbol: string): boolean => {
     const regex =

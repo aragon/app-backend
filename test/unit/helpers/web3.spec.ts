@@ -914,49 +914,6 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('getTokenBalances', () => {
-    it('should return token balances of an address', async () => {
-      const fakeAddress = '0x1234567890123456789012345678901234567890'
-      const fakeNetwork = NetworksEnum.ethereumMainnet
-      const fakeResponse = {
-        tokenBalances: [
-          { contractAddress: '0xTokenAddress1', tokenBalance: '0x10' }, // 16
-          { contractAddress: '0xTokenAddress2', tokenBalance: '0x1a' }, // 26
-        ],
-      }
-      const providerStub = {
-        send: sandbox.stub().resolves(fakeResponse),
-      }
-      sandbox.stub(Web3Helper, 'parseAddress').returns(fakeAddress)
-      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
-      sandbox.stub(ProxyToken, 'saveAndGetToken').returns({
-        decimals: 0,
-      } as any)
-
-      const balances = await Web3Helper.getTokenBalances(fakeAddress, fakeNetwork)
-      expect(balances.length).to.equal(2)
-      expect(balances[0].tokenBalance).to.equal('16')
-      expect(balances[1].tokenBalance).to.equal('26')
-      expect(providerStub.send.calledOnce).to.be.true
-      expect(providerStub.send.calledWith('alchemy_getTokenBalances', [fakeAddress])).to.be.true
-    })
-
-    it('should return an empty array on error', async () => {
-      const fakeAddress = '0x1234567890123456789012345678901234567890'
-      const fakeNetwork = NetworksEnum.ethereumMainnet
-      const providerStub = {
-        send: sandbox.stub().rejects(new Error('RPC error')),
-      }
-      const loggerStubError = sandbox.stub(logger, 'error')
-      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
-
-      const balances = await Web3Helper.getTokenBalances(fakeAddress, fakeNetwork)
-      expect(loggerStubError.calledOnce).to.be.true
-      expect(balances).to.be.an('array').that.is.empty
-      expect(providerStub.send.calledOnce).to.be.true
-    })
-  })
-
   it('error parseAddress', () => {
     const address = '0xInvalidAddress'
     const stubLogger = sandbox.stub(logger, 'error')

@@ -5,8 +5,8 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
-import config from '@config'
 import utils from '@helpers/utils'
+import config from '@config'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -379,6 +379,39 @@ describe('Module: blockchainLogCrawler', () => {
   it('should reduce batch size and retry on batch size error', async () => {
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.ethereumMainnet,
+      fromBlock: 100,
+      toBlock: 200,
+      address: '0xAddress',
+      events: [],
+      stopOnError: false,
+      logService: null,
+      onError: () => {},
+    })
+
+    const batchSizeError = new Error('Log response size exceeded')
+    const retryStub = sandbox
+      .stub()
+      .onFirstCall()
+      .rejects(batchSizeError)
+      .onSecondCall()
+      .resolves([{ transactionHash: '0x1', blockNumber: 101 }])
+
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getBlockNumber: sandbox.stub().resolves(200),
+      send: retryStub,
+    } as any)
+
+    const originalBatchSize = crawler.crawlSetting.originalBatchSize
+
+    await crawler.crawl()
+
+    expect(crawler.crawlSetting.batchSize).to.be.lessThanOrEqual(originalBatchSize)
+    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
+  })
+
+  it('should reduce batch size and retry on batch size error on peac network', async () => {
+    const crawler = new BlockchainLogCrawler({
+      network: NetworksEnum.peaqMainnet,
       fromBlock: 100,
       toBlock: 200,
       address: '0xAddress',

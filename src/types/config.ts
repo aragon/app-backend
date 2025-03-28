@@ -28,6 +28,8 @@ export interface IRawNodeConfig {
   ETHERSCAN_API_URL: string
   BLOCKSCOUT_API_URL: string
   BLOCKSCOUT_API_KEY: string
+  SUBSCAN_API_KEY?: string
+  SUBSCAN_API_URL?: string
 }
 
 export interface IConfig {
@@ -39,6 +41,11 @@ export interface IConfig {
   PROXY: string | null
   ENS_DOMAIN: string
   CONFIRMATION_BLOCKS: number
+  REALTIME: {
+    PROCESSING_TIMEOUT_MS: number
+    MAX_FAILURES: number
+    CIRCUIT_BREAKER_PAUSE_MS: number
+  }
   NODES: {
     ETHEREUM_MAINNET: IRawNodeConfig
     ETHEREUM_SEPOLIA: IRawNodeConfig
@@ -47,6 +54,7 @@ export interface IConfig {
     ARBITRUM_MAINNET: IRawNodeConfig
     ZKSYNC_SEPOLIA: IRawNodeConfig
     ZKSYNC_MAINNET: IRawNodeConfig
+    PEAQ_MAINNET: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
