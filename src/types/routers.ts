@@ -290,3 +290,8 @@ export interface ITokenResponse {
   priceUsd: string
   lastUpdatedAt: string
 }
+
+export interface ITransactionIndexingStatusResponse {
+  isProcessed: boolean
+  slug?: string
+}
