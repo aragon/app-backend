@@ -207,7 +207,11 @@ export default class Plugin extends Model {
   }
 
   static async findByAddress(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    const supportedPlugin = await this.findOne({ address, network, isSupported: true }, null, tOpts)
+    const params: any = { address, isSupported: true }
+    if (network) {
+      params.network = network
+    }
+    const supportedPlugin = await this.findOne(params, null, tOpts)
     if (supportedPlugin) {
       return supportedPlugin
     }

@@ -84,7 +84,6 @@ describe('Indexer: ProposalHandler', () => {
         tokenAddress: '0xtoken-address',
       }
 
-      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
@@ -145,7 +144,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(stubPair.calledOnce).to.be.true
       expect(stubActions.calledOnce).to.be.true
       expect(stubMemberMetrics.calledOnce).to.be.true
-      expect(stubDaoMetrics.calledOnce).to.be.true
+      expect(stubDaoMetrics.calledTwice).to.be.true
     })
 
     it('should handle admin proposalCreated', async () => {
@@ -194,7 +193,6 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       sandbox.stub(DecodeActions.prototype, 'parseContractNetspec')
-      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
@@ -409,7 +407,6 @@ describe('Indexer: ProposalHandler', () => {
         proposalIndex: '1',
       }
 
-      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
@@ -598,7 +595,6 @@ describe('Indexer: ProposalHandler', () => {
         proposalIndex: '1',
       }
 
-      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
@@ -679,7 +675,6 @@ describe('Indexer: ProposalHandler', () => {
         deleteOne: sandbox.stub().resolves(),
       }
 
-      sandbox.stub(logger, 'verbose')
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
@@ -889,7 +884,6 @@ describe('Indexer: ProposalHandler', () => {
         },
       }
 
-      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -1115,7 +1109,6 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({ lastStageTransition: 1800000000 } as any)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any) // Ensure plugin is found
-      sandbox.stub(logger, 'verbose')
       // Execute the handler
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
@@ -1233,7 +1226,6 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({ lastStageTransition: 1800000000 } as any)
       sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1)
-      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 
@@ -1363,8 +1355,6 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
 
       const warnLoggerStub = sandbox.stub(logger, 'warn')
-      sandbox.stub(logger, 'error')
-      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
 

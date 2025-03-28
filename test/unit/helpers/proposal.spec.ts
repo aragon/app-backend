@@ -24,7 +24,6 @@ describe('Helpers: ProposalHelper', () => {
       getBodyProposalId: sandbox.stub(),
     }
 
-    // Mock ProviderModule.getProvider to return a mocked provider
     sandbox.stub(require('@modules/provider').default, 'getProvider').returns(providerStub)
   })
 

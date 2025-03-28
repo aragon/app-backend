@@ -400,11 +400,29 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     SERVICES: {
       ARAGON_API: {
-        BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
         NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_NAME', 'ARAGON-API'),
+        BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
         PORT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_PORT', 3000),
         TIMEOUT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_TIMEOUT', 30), // seconds
-        CORS: utils.configParser(sourceConfig, 'array', 'SERVICES_ARAGON_API_CORS_ORIGIN', []),
+      },
+
+      ARAGON_ADMIN_API: {
+        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_ADMIN_API_NAME', 'ARAGON-ADMIN-API'),
+        BASE_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_ADMIN_API_BASE_URL',
+          'http://localhost:3001',
+        ),
+        PORT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_ADMIN_API_PORT', 3001),
+        TIMEOUT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_ADMIN_API_TIMEOUT', 30), // 30 seconds
+        JWT_KEY: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_ADMIN_API_JWT_KEY', 'JWT'),
+        JWT_SECRET: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_ADMIN_API_JWT_SECRET',
+          'xMfW0oMoc/vI9FNbnQS1rQVjkHWjrJCirKveuZu7bGg=', // used for testing
+        ),
       },
 
       ARAGON_INDEXER: {

@@ -35,11 +35,7 @@ describe('Helpers: BlockScout', () => {
   describe('_rpCall', () => {
     it('should return null if network is not configured', async () => {
       const loggerStub = sandbox.stub(logger, 'warn')
-      const result = await BlockScoutHelper._rpCall(
-        'tokens/0x1234567890',
-        { apikey: 'valid-api-key' },
-        NetworksEnum.peaqMainnet,
-      )
+      const result = await BlockScoutHelper._rpCall('tokens/0x1234567890', { apikey: 'valid-api-key' }, 'test' as any)
       expect(result).to.be.null
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('BlockScout API is not configured' as any)).to.be.true

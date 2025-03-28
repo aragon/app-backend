@@ -14,7 +14,7 @@ import {
 } from '@types'
 import { ProposalActionType } from '@src/types'
 import { Models } from '@dbModels'
-import _ from 'lodash'
+import * as _ from 'lodash'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import ProxyContract from '@helpers/proxyContract'
 import { ProxyToken } from '@modules/proxyToken'

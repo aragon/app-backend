@@ -7,7 +7,9 @@
     </scripts>
     <node-interpreter value="project" />
     <package-manager value="yarn" />
-    <envs />
+    <envs>
+      <env name="TS_NODE_TRANSPILE_ONLY" value="true" />
+    </envs>
     <method v="2" />
   </configuration>
 </component>
