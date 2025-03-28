@@ -143,7 +143,14 @@ export interface IConfig {
       NAME: string
       PORT: number
       TIMEOUT: number
-      CORS: string[]
+    }
+    ARAGON_ADMIN_API: {
+      BASE_URL: string
+      NAME: string
+      PORT: number
+      TIMEOUT: number
+      JWT_KEY: string
+      JWT_SECRET: string
     }
     ARAGON_INDEXER: {
       NAME: string

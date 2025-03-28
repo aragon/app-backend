@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import LoggerMiddleware from '@services/aragon-api/middlewares/logger'
+import LoggerMiddleware from '@middlewares/logger'
 import Logger from '@logger'
 import Device from '@helpers/device'
 import logger from '@logger'

@@ -1,5 +1,5 @@
 import type Koa from 'koa'
-import { throwExposable } from '@helpers/errors'
+import { throwExposable } from '@errors'
 import { ErrorKeyEnum } from '@types'
 import { type IUtilMiddleware } from '@types'
 

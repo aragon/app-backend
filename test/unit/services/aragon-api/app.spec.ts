@@ -46,7 +46,7 @@ describe('AragonApi: app', () => {
     expect(onStub.calledOnce).to.be.true
     expect(appStub.calledOnceWith(port)).to.be.true
     expect(listenStub.returnValues[0].setTimeout.calledOnceWith(timeout * 1000)).to.be.true
-    expect(loggerInfoStub.calledWith('Listening', sinon.match({ port }))).to.be.true
+    expect(loggerInfoStub.calledWith('Listening', sandbox.match({ port }))).to.be.true
   })
 
   it('should handle unexpected API errors', async () => {
@@ -54,9 +54,9 @@ describe('AragonApi: app', () => {
 
     const app = await App()
 
-    const errorHandler = onStub.args[0][1] // Get the event listener for 'error'
+    const errorHandler = onStub.args[0][1]
     errorHandler(error)
 
-    expect(loggerErrorStub.calledOnceWith('Unexpected API error', sinon.match({ error }))).to.be.true
+    expect(loggerErrorStub.calledOnceWith('Unexpected API error', sandbox.match({ error }))).to.be.true
   })
 })
