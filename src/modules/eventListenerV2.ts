@@ -24,7 +24,7 @@ const llo = logger.logMeta.bind(null, { service: 'modules:EventListener' })
 class EventListenerV2 {
   public network: NetworksEnum
   public configLogs: IIndexerConfig[]
-  private latestBlockNumber: number | null = null
+  private readonly latestBlockNumber: number | null = null
   private batchTimeout?: NodeJS.Timeout
   private isProcessing = false
   private readonly batchWindowMs: number
@@ -34,7 +34,6 @@ class EventListenerV2 {
   private readonly circuitBreakerPauseMs: number
   private isPaused = false
   private pauseTimeout?: NodeJS.Timeout
-  private pendingProcess = false
 
   constructor(network: NetworksEnum, configLogs: IIndexerConfig[], options: IRealTimeConfig) {
     this.network = network
@@ -77,27 +76,21 @@ class EventListenerV2 {
 
   subscribeEventsByNewBlock() {
     logger.verbose('Start real-time listening with batching', llo({ network: this.network }))
-    ProviderModule.subscribeToNewBlock(this.network, this.handleOnNewBlock.bind(this))
-  }
 
-  async handleOnNewBlock(blockNumber: number) {
-    if (this.latestBlockNumber === null || blockNumber > this.latestBlockNumber) {
-      this.latestBlockNumber = blockNumber
-      this.scheduleBatchProcessing()
-    }
-  }
+    this.start()
 
-  private scheduleBatchProcessing() {
-    if (this.batchTimeout || this.isProcessing || this.isPaused) return
-
-    // Set a flag to indicate that processing is scheduled
-    this.pendingProcess = true
-
-    // Wait for the batch window before processing
-    this.batchTimeout = setTimeout(async () => {
-      await this.processLatestBlock()
-      this.batchTimeout = undefined
+    setInterval(() => {
+      this.start()
     }, this.batchWindowMs)
+  }
+
+  async start() {
+    if (this.isPaused) return
+    const blockNumber = await Web3Helper.getBlockNumber('latest', this.network)
+    const lastProcessedBlock = await this.getLastProcessedBlock()
+    if (lastProcessedBlock && blockNumber > lastProcessedBlock) {
+      await this.processLatestBlock(lastProcessedBlock + 1)
+    }
   }
 
   private async pauseProcessing(duration: number) {
@@ -123,31 +116,22 @@ class EventListenerV2 {
       this.isPaused = false
       this.failureCount = 0
       logger.info('Resuming event processing', llo({ network: this.network }))
-
-      // If we have a latest block, try processing it when resuming
-      if (this.latestBlockNumber !== null && this.pendingProcess) {
-        this.scheduleBatchProcessing()
-      }
     }, duration)
   }
 
-  private async processLatestBlock() {
-    if (this.isProcessing || this.isPaused || this.latestBlockNumber === null) return
+  private async processLatestBlock(lastProcessedBlock: number) {
+    if (this.isProcessing || this.isPaused) return
 
-    this.pendingProcess = false
     this.isProcessing = true
-    const blockToProcess = this.latestBlockNumber
     const startTime = Date.now()
-    let processingComplete = false
 
     try {
       const timeoutPromise = new Promise((_resolve, reject) =>
         setTimeout(() => reject(new Error('Block processing timeout')), this.processingTimeoutMs),
       )
 
-      await Promise.race([this.processBlockLogic(blockToProcess), timeoutPromise])
+      await Promise.race([this.processBlockLogic(lastProcessedBlock), timeoutPromise])
 
-      processingComplete = true
       this.failureCount = 0
     } catch (error) {
       this.failureCount++
@@ -160,43 +144,26 @@ class EventListenerV2 {
           failureCount: this.failureCount,
           maxFailures: this.maxFailures,
           processingTime: Date.now() - startTime,
-          blockNumber: blockToProcess,
+          blockNumber: lastProcessedBlock,
         }),
       )
-
-      // Mark the block as pending processing again
-      this.pendingProcess = true
-
       // Circuit breaker logic
       if (this.failureCount >= this.maxFailures) {
         await this.pauseProcessing(this.circuitBreakerPauseMs)
       }
     } finally {
-      if (processingComplete) {
-        await this.saveProgress(blockToProcess, this.network, startTime)
-      }
-
       this.isProcessing = false
-
-      // If a new block has arrived while processing or we need to retry,
-      // schedule the next processing
-      if ((this.latestBlockNumber > blockToProcess || this.pendingProcess) && !this.isPaused) {
-        this.scheduleBatchProcessing()
-      }
     }
   }
 
-  private async processBlockLogic(blockNumber: number) {
+  private async processBlockLogic(lastProcessedBlock: number) {
+    const startTime = Date.now()
     const provider = ProviderModule.getAnyRpcProvider(this.network)
-
-    // Get the last successfully processed block from database
-    const lastProcessedBlock = await this.getLastProcessedBlock()
-    const fromBlock = lastProcessedBlock ? lastProcessedBlock + 1 : blockNumber
 
     const logs = await retryRequest(async () =>
       BottleneckModule.getNodeLimiter(this.network).schedule(async () =>
         provider.getLogs({
-          fromBlock: '0x' + fromBlock.toString(16),
+          fromBlock: '0x' + lastProcessedBlock.toString(16),
           toBlock: 'latest',
         }),
       ),
@@ -207,29 +174,34 @@ class EventListenerV2 {
     const addresses = this.parseAddressForDeposits(filteredLogs)
     if (addresses?.length) {
       await RabbitMQHelper.sendMessage(EnumQueueName.realtimeTransactions, {
-        id: `realtimeTransactions-${this.network}-${blockNumber}`,
+        id: `realtimeTransactions-${this.network}-${lastProcessedBlock}`,
         params: { addresses, network: this.network, transactionHash: logs[logs.length - 1].transactionHash },
       })
     }
     if (filteredLogs.length > 0) {
-      await this.sortAndHandleLogs(fromBlock, blockNumber, filteredLogs)
+      await this.sortAndHandleLogs(lastProcessedBlock, lastProcessedBlock, filteredLogs)
     }
+
+    await this.saveProgress(logs[logs.length - 1].blockNumber, this.network, startTime)
   }
 
   async sortAndHandleLogs(fromBlock: number, toBlock: number, filteredLogs: Log[]) {
-    logger.verbose(
-      'Processing logs',
-      llo({
-        network: this.network,
-        fromBlock,
-        toBlock,
-        logCount: filteredLogs.length,
-      }),
-    )
+    const startTime = Date.now()
     const sortedLogs = this.sortLogsByPriority(filteredLogs)
     for (const log of sortedLogs) {
       await this.handleEvent(log)
     }
+
+    logger.verbose(
+      'Processing logs Finished',
+      llo({
+        network: this.network,
+        fromBlock,
+        toBlock,
+        totalTime: Date.now() - startTime,
+        logCount: filteredLogs.length,
+      }),
+    )
   }
 
   private async getLastProcessedBlock(): Promise<number | null> {
@@ -254,10 +226,13 @@ class EventListenerV2 {
     })
 
     const addressSet = new Set(plugins.map((plugin: Plugin) => ethers.getAddress(plugin.tokenAddress)))
-    const transferTopic = ethers.id('Transfer(address,address,uint256)')
+    const transferTopics = [
+      ethers.id('Transfer(address,address,uint256)'),
+      new Interface(GovernanceERC20.abi).getEvent('DelegateVotesChanged')?.topicHash!,
+    ]
 
     return logs.filter(log => {
-      if (log.topics[0] === transferTopic) {
+      if (transferTopics.includes(log.topics[0])) {
         return addressSet.has(ethers.getAddress(log.address))
       }
       return true
