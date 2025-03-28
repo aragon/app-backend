@@ -31,7 +31,7 @@ const AuthMiddleware = {
     assertExposable(!!tokenValue, ErrorKeyEnum.accessDenied)
 
     const token = ctx.state.token || (await Models.Jwt.findByValue(tokenValue))
-    assertExposable(!!token || token.type !== IJwtTokenType.admin, ErrorKeyEnum.accessDenied)
+    assertExposable(!!token || token?.type !== IJwtTokenType.admin, ErrorKeyEnum.accessDenied)
 
     // const tokenExpired = moment(token.updatedAt).isBefore(moment().subtract({ days: CONFIG.SERVICES.API.SESSION_EXPIRATION_DAY }))
     // if (tokenExpired) {
