@@ -3,7 +3,8 @@ import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
 import EnsHelper from '@helpers/ens'
 import Web3Helper from '@helpers/web3'
-import { type IAlchemyTokenBalance, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
+import { AlchemyProvider } from '@providers/accountAssetProvider/alchemyProvider'
 
 describe('Manual: Web3', () => {
   let sandbox: SinonSandbox
@@ -62,9 +63,9 @@ describe('Manual: Web3', () => {
     for (const testCase of testCases) {
       const { address, network } = testCase
       try {
-        const balances = await Web3Helper.getTokenBalances(address, network)
+        const balances = await AlchemyProvider.getAccountBalances(address, network)
 
-        balances.map((tk: IAlchemyTokenBalance) => {
+        balances.map((tk: any) => {
           console.log(
             `Balance for ${address} of ${tk.contractAddress} on ${network}:`,
             tk.originalBalance,

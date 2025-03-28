@@ -8,6 +8,7 @@ import TokenUtils from '@helpers/tokenUtils'
 import { RateModule } from '@modules/rates'
 import { expect } from 'chai'
 import logger from '@logger'
+import { AlchemyProvider } from '@providers/assetTransafersProvider/alchemyProvider'
 
 describe('Blockchain Transfer Log Crawler', () => {
   let sandbox: SinonSandbox
@@ -76,7 +77,9 @@ describe('Blockchain Transfer Log Crawler', () => {
       .onCall(3)
       .resolves(21872036)
 
-    await DaoTransactions.onDocument(daoDb)
+    sandbox.stub(logger, 'verbose')
+
+    await AlchemyProvider.getAssetTransfers(daoDb, DaoTransactions.saveTransaction)
 
     const txs = await Models.Transaction.find({ daoAddress: daoAddress, network })
     expect(txs).to.have.length(15)

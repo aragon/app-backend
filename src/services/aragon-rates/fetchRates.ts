@@ -9,8 +9,8 @@ import config from '@config'
 import { ProxyToken } from '@modules/proxyToken'
 
 import TokenUtils from '@helpers/tokenUtils'
-import BlockScoutHelper from '@helpers/blockScout'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
@@ -161,7 +161,7 @@ export const FetchRates = {
         totalSupply: '0',
       }
 
-      const blockScoutInfo = await BlockScoutHelper.getTokenFullDetails(token.address, token.network)
+      const blockScoutInfo = await TokenDetailProvider.fetchBasicTokenInfo(token)
 
       if (!blockScoutInfo?.holders || !blockScoutInfo?.totalSupply) return
       if (token.holders === blockScoutInfo.holders && token.totalSupply === blockScoutInfo.totalSupply) return
@@ -193,7 +193,11 @@ export const FetchRates = {
 
   async onMainnetDocument(token: Token) {
     try {
-      const rawTokenUpdate = await TokenUtils.fetchTokenUpdate(token)
+      // TODO: refactor this to use the same method as testnet
+      const rawTokenUpdate =
+        token.network === NetworksEnum.peaqMainnet
+          ? await TokenDetailProvider.fetchBasicTokenInfo(token)
+          : await TokenUtils.fetchTokenUpdate(token)
       if (!rawTokenUpdate) return
 
       if (
@@ -205,7 +209,7 @@ export const FetchRates = {
       }
 
       // check if to skip fetching rate
-      if (ProxyToken.shouldSkipFetch(token, rawTokenUpdate as any)) {
+      if (ProxyToken.shouldSkipFetch(token, rawTokenUpdate)) {
         Object.assign(rawTokenUpdate, {
           lastUpdatedAt: dayjs.utc().toDate(),
           skipFetchRate: true,

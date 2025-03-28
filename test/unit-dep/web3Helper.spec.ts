@@ -4,6 +4,7 @@ import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import CovalentHelper from '@helpers/covalent'
+import { AlchemyProvider } from '@providers/accountAssetProvider/alchemyProvider'
 
 describe('Web3Helper', () => {
   let sandbox: SinonSandbox
@@ -65,12 +66,11 @@ describe('Web3Helper', () => {
     sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({ totalSupply: '0', totalHolders: 0 } as any)
     sandbox.stub(CovalentHelper, 'getToken').resolves(null as any)
 
-    const tokenBalances = await Web3Helper.getTokenBalances(address, network)
+    const tokenBalances = await AlchemyProvider.getAccountBalances(address, network)
 
     expect(tokenBalances.length > 0).to.be.true
     expect(tokenBalances[0].contractAddress).to.exist
     expect(tokenBalances[0].tokenBalance).to.exist
-    expect(tokenBalances[0].originalBalance).to.exist
   })
 
   it('subdomainExists', async () => {

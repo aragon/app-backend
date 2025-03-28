@@ -2,9 +2,9 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
+  type IDBToken,
   type IPaginatedResult,
   type IPaginationParams,
-  type IToken,
   type ITokenExtraParams,
   type ITokenIdParams,
   type ITokenResponse,
@@ -63,7 +63,7 @@ export default class Token extends Model {
   public implementationAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public logo!: string
+  public logo!: string | null
 
   @prop({ type: () => Boolean, default: false })
   public skipFetchRate!: boolean
@@ -212,6 +212,6 @@ export default class Token extends Model {
   filterKeys() {
     const obj = this.toObject()
     const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'skipFetchRate', 'updatedAt')
-    return filtered as IToken
+    return filtered as IDBToken
   }
 }

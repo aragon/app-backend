@@ -37,7 +37,16 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     WHITELIST_TOKENS: utils.configParser(sourceConfig, 'array', 'WHITELIST_TOKENS', [
       { address: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E', network: NetworksEnum.ethereumMainnet },
     ]),
-
+    REALTIME: {
+      PROCESSING_TIMEOUT_MS: utils.configParser(sourceConfig, 'number', 'REALTIME_PROCESSING_TIMEOUT_MS', 60_000),
+      MAX_FAILURES: utils.configParser(sourceConfig, 'number', 'REALTIME_MAX_FAILURES', 5),
+      CIRCUIT_BREAKER_PAUSE_MS: utils.configParser(
+        sourceConfig,
+        'number',
+        'REALTIME_CIRCUIT_BREAKER_PAUSE_MS',
+        60 * 1000,
+      ),
+    },
     NODES: {
       ETHEREUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ALCHEMY_API_KEY', null),
@@ -242,6 +251,25 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'https://zksync.blockscout.com/api/',
         ),
         BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_BLOCKSCOUT_API_KEY', null),
+      },
+      PEAQ_MAINNET: {
+        ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ALCHEMY_API_KEY', null),
+        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ARAGON_WS', null),
+        ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ARAGON_RPC', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_FROM_BLOCK', 0),
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_CONFIRMATION_BLOCKS', 1),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_INTERVAL_BLOCK_TIME', 5),
+        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ETHERSCAN_API_KEY', null),
+        ETHERSCAN_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ETHERSCAN_API_URL', null),
+        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_URL', null),
+        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_KEY', null),
+        SUBSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_SUBSCAN_API_KEY', null),
+        SUBSCAN_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_PEAQ_MAINNET_SUBSCAN_API_URL',
+          'https://peaq.api.subscan.io/',
+        ),
       },
     },
 

@@ -1,8 +1,9 @@
 import {
+  type IAlchemyConfig,
   type IAlchemyNodeConnection,
   type IAragonNodeConfig,
   type IConnectionType,
-  type IAlchemyConfig,
+  type INodeConnection,
   type IProviderProxy,
   IProviderType,
   type IRawNodeConfig,
@@ -12,7 +13,7 @@ import { JsonRpcProvider, WebSocketProvider } from 'ethers'
 import { Alchemy, type AlchemySettings, Network } from 'alchemy-sdk'
 import config from '@config'
 import logger from '@logger'
-import { type INodeConnection } from '@src/types/node'
+import { WsProvider, ApiPromise } from '@polkadot/api'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
@@ -39,6 +40,7 @@ const ProviderModule = {
     ARBITRUM_MAINNET: NetworksEnum.arbitrumMainnet,
     ZKSYNC_SEPOLIA: NetworksEnum.zksyncSepolia,
     ZKSYNC_MAINNET: NetworksEnum.zksyncMainnet,
+    PEAQ_MAINNET: NetworksEnum.peaqMainnet,
   },
 
   // Converts a config key to a NetworksEnum.
@@ -114,11 +116,21 @@ const ProviderModule = {
       }
     } else if (nodeConfig.providerType === IProviderType.ARAGON) {
       const aragonConfig = nodeConfig as IAragonNodeConfig
-      const wsProvider = new WebSocketProvider(aragonConfig.wsEndpoint)
-      const rpcProvider = new JsonRpcProvider(aragonConfig.rpcEndpoint)
+
+      let wsProvider: WsProvider | WebSocketProvider | null = null
+      let apiProvider: ApiPromise | null = null
+      if (network === NetworksEnum.peaqMainnet) {
+        wsProvider = aragonConfig.wsEndpoint ? new WsProvider(aragonConfig.wsEndpoint) : null
+        apiProvider = await ApiPromise.create({ provider: wsProvider as any })
+      } else {
+        wsProvider = aragonConfig.wsEndpoint ? new WebSocketProvider(aragonConfig.wsEndpoint) : null
+      }
+
+      const rpcProvider = aragonConfig.rpcEndpoint ? new JsonRpcProvider(aragonConfig.rpcEndpoint) : null
       const aragonConnection: INodeConnection = {
         rpc: rpcProvider,
         ws: wsProvider,
+        api: apiProvider,
       }
       ProviderModule.providerProxies[network].aragon = aragonConnection
 
@@ -183,7 +195,13 @@ const ProviderModule = {
       // No provider type specified; try Aragon first, then Alchemy
       const providerProxy = ProviderModule.providerProxies[network]
       if (providerProxy?.aragon?.ws) {
-        providerProxy.aragon.ws.on('block', listener)
+        if (network === NetworksEnum.peaqMainnet) {
+          providerProxy.aragon.api.rpc.chain.subscribeNewHeads((lastHeader: any) =>
+            listener(lastHeader?.number?.toNumber()),
+          )
+        } else {
+          providerProxy.aragon.ws.on('block', listener)
+        }
       } else if (providerProxy?.alchemy?.ws) {
         providerProxy.alchemy.ws.on('block', listener)
       } else {
