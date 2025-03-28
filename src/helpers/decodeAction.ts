@@ -263,18 +263,17 @@ class DecodeActions {
       return null
     }
 
-    const [membersInfo, currentMembersInfo] = await Promise.all([
-      Promise.all(
-        decodedData.parameters[0].value.map(async (address: HexAddress) => {
-          const member = await ProxyMember.createMember(address)
-          return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
-        }),
-      ),
-      Models.DaoMemberMapping.findAllMembersOfPlugin({
-        pluginAddress: document.pluginAddress!,
-        network: document.network!,
+    const membersInfo = await Promise.all(
+      decodedData.parameters[0].value.map(async (address: HexAddress) => {
+        const member = await ProxyMember.createMember(address)
+        return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
       }),
-    ])
+    )
+
+    const currentMembersInfo = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+      pluginAddress: document.pluginAddress!,
+      network: document.network!,
+    })
 
     return {
       ...action,
@@ -294,18 +293,17 @@ class DecodeActions {
       return null
     }
 
-    const [membersInfo, currentMembersInfo] = await Promise.all([
-      Promise.all(
-        decodedData.parameters[0].value.map(async (address: HexAddress) => {
-          const member = await ProxyMember.createMember(address)
-          return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
-        }),
-      ),
-      Models.DaoMemberMapping.findAllMembersOfPlugin({
-        pluginAddress: document.pluginAddress!,
-        network: document.network!,
+    const membersInfo = await Promise.all(
+      decodedData.parameters[0].value.map(async (address: HexAddress) => {
+        const member = await ProxyMember.createMember(address)
+        return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
       }),
-    ])
+    )
+
+    const currentMembersInfo = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+      pluginAddress: document.pluginAddress!,
+      network: document.network!,
+    })
 
     return {
       ...action,

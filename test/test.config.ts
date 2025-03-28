@@ -11,16 +11,12 @@ import utils from '@helpers/utils'
 import ProviderModule from '@modules/provider'
 import MongoDB from '@modules/mongo'
 
-// Configure logger - use minimal logging during tests
-logger.transports[0].level = 'error' // Only log errors during test runs
-
-// Setup chai
+logger.transports[0].level = 'silly'
 chai.use(chaiAsPromised)
 declare const global: any
 global.chai = chai
 global.expect = chai.expect
 
-// Determine test folder based on CLI arguments
 let testFolder = ''
 if (argv.includes('--unit-dep')) {
   testFolder = 'unit-dep'
@@ -29,43 +25,26 @@ if (argv.includes('--unit-dep')) {
 } else if (argv.includes('--manual')) {
   testFolder = 'manual'
 } else {
-  console.error('Please provide a valid test type: --unit, --unit-dep, or --manual')
+  console.error('Please type the correct params')
   process.exit(1)
 }
 
-// Parse additional CLI flags
-const isParallel = argv.includes('--parallel')
-const grep = argv.find(arg => arg.startsWith('--grep='))?.split('=')[1]
-const bail = argv.includes('--bail')
-const fgrep = argv.find(arg => arg.startsWith('--fgrep='))?.split('=')[1]
-
 async function runTests() {
-  console.time('Total test execution time')
-
-  // Create Mocha instance with optimized configuration
   const mocha = new Mocha({
     ui: 'bdd',
-    timeout: 10000, // Reduced timeout for faster feedback
+    timeout: 60000,
     color: true,
     diff: true,
-    fullTrace: false, // Disable full trace for faster error reporting
-    bail: bail, // Exit on first test failure if --bail is passed
-    grep: grep ? new RegExp(grep) : undefined,
-    fgrep: fgrep,
-    parallel: isParallel, // Run tests in parallel if --parallel is passed
-    jobs: isParallel ? 4 : undefined, // Number of parallel jobs
+    fullTrace: true,
   })
 
-  // Global setup before all tests
-  mocha.suite.beforeAll(async function () {
-    this.timeout(30000) // Allow longer timeout for initial setup
-
-    console.log(`Running ${testFolder} tests...`)
-
+  // MockDB setup
+  console.log('Using MockDB...') // eslint-disable-line no-console
+  mocha.suite.beforeAll(async () => {
     switch (testFolder) {
       case 'unit':
         await MockDB.connect()
-        await utils.wait(100) // Reduced wait time
+        await utils.wait(500)
         break
       case 'unit-dep':
         await MongoDB.connect()
@@ -76,8 +55,7 @@ async function runTests() {
     }
   })
 
-  // Before each test
-  mocha.suite.beforeEach(async function () {
+  mocha.suite.beforeEach(async () => {
     switch (testFolder) {
       case 'unit':
         await MockDB.drop()
@@ -90,11 +68,10 @@ async function runTests() {
     }
   })
 
-  // After all tests
-  mocha.suite.afterAll(async function () {
-    this.timeout(10000) // Allow time for cleanup
-
+  mocha.suite.afterAll(async () => {
     switch (testFolder) {
+      case 'unit':
+        break
       case 'unit-dep':
         await ProviderModule.closeAllNetworks()
         break
@@ -103,44 +80,30 @@ async function runTests() {
     }
   })
 
-  // Find test files using optimized glob pattern
+  // Resolve and add test files
+  const pattern = path.join(__dirname, testFolder, '**', '*.ts')
+
   try {
-    const pattern = path.join(__dirname, testFolder, '**', '*.ts')
-    console.time('Test file discovery')
-    const files = await glob(pattern, { follow: false }) // Don't follow symlinks for faster discovery
-    console.timeEnd('Test file discovery')
-
-    if (files.length === 0) {
-      console.warn(`No test files found in ${testFolder} directory!`)
-      process.exit(0)
-    }
-
-    console.log(`Found ${files.length} test files to run`)
-
-    // Add files to Mocha
+    const files = await glob(pattern)
     files.forEach(file => mocha.addFile(file))
 
-    // Run the tests
     mocha.run(failures => {
-      console.timeEnd('Total test execution time')
-
       process.exitCode = failures ? 1 : 0
       if (failures) {
-        console.error(`${failures} test(s) failed`)
+        console.error(failures)
         process.exit(1)
       } else {
-        console.log('All tests passed')
+        console.log('All tests passed!')
         process.exit(0)
       }
     })
   } catch (err) {
-    console.error('Error running tests:', err)
+    console.error('Could not find test files', err)
     process.exit(1)
   }
 }
 
-// Run tests and handle any unhandled rejections
 runTests().catch(error => {
-  console.error('Unhandled rejection:', error)
+  console.error('Unhandled Rejection at: Promise', error)
   process.exit(1)
 })

@@ -32,24 +32,19 @@ export const BlockHandler = {
   },
 
   sendDaoMessages: async (dao: Dao) => {
-    try {
-      await Promise.all([
-        RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-          id: dao.address,
-          params: { address: dao.address, network: dao.network },
-        }),
-        RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
-          id: dao.address,
-          params: { address: dao.address, network: dao.network },
-        }),
-        RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: dao.address,
-          params: { address: dao.address, network: dao.network },
-        }),
-      ])
-      logger.info(`RabbitMQ messages sent for DAO: ${dao.address}`, llo({ dao }))
-    } catch (error) {
-      logger.error('Failed to send RabbitMQ messages', llo({ daoAddress: dao.address, error }))
-    }
+    await Promise.allSettled([
+      RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
+        id: dao.address,
+        params: { address: dao.address, network: dao.network },
+      }),
+      RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
+        id: dao.address,
+        params: { address: dao.address, network: dao.network },
+      }),
+      RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: dao.address,
+        params: { address: dao.address, network: dao.network },
+      }),
+    ])
   },
 }
