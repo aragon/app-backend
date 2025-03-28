@@ -57,15 +57,12 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Build unit-dep container
-        run: |
-          docker compose -f docker-compose.yml build unit-dep
-
-      - name: Run unit-dep tests
+      - name: Build & run unit-dep tests
         run: |
           docker compose -f docker-compose.yml up \
             --exit-code-from unit-dep \
-            --abort-on-container-exit
+            --abort-on-container-exit \
+            --build unit-dep
 
       - name: Teardown containers
         run: |
