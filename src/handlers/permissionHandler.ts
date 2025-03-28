@@ -35,6 +35,10 @@ export const PermissionHandler = {
         await PermissionHandler.handleForAdminPlugin(address, where, network, who)
       }
 
+      if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
+        await PluginHandler.installPluginOnPermissionGranted(where, who, info)
+      }
+
       const permissionEntity = {
         network,
         transactionHash: info.transactionHash,
@@ -133,36 +137,31 @@ export const PermissionHandler = {
     }
 
     if (!add) {
-      await Promise.all([
-        ProxyMember.removeFromDao({
-          memberAddress: where,
-          daoAddress: pluginExisted.daoAddress,
-          pluginAddress,
-          network,
-        }),
-        RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: pluginExisted.daoAddress,
-          params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
-        }),
-      ])
-
+      await ProxyMember.removeFromDao({
+        memberAddress: where,
+        daoAddress: pluginExisted.daoAddress,
+        pluginAddress,
+        network,
+      })
+      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: pluginExisted.daoAddress,
+        params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
+      })
       logger.info('Remove member from DAO', llo({ daoAddress, pluginAddress, network, where }))
 
       return
     }
 
-    await Promise.all([
-      ProxyMember.addToDao({
-        memberAddress: where,
-        daoAddress: pluginExisted.daoAddress,
-        pluginAddress,
-        network,
-      }),
-      RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-        id: pluginExisted.daoAddress,
-        params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
-      }),
-    ])
+    await ProxyMember.addToDao({
+      memberAddress: where,
+      daoAddress: pluginExisted.daoAddress,
+      pluginAddress,
+      network,
+    })
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: pluginExisted.daoAddress,
+      params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
+    })
 
     logger.info('Add member to DAO', llo({ daoAddress, pluginAddress, network, where }))
   },

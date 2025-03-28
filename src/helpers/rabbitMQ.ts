@@ -112,32 +112,41 @@ const RabbitMQHelper = {
   ): Promise<any> {
     const uniqueKey = `${queueName}-${payload.id}`
 
-    const release = await this.mutex.acquire()
-    try {
-      if (this.queuedMessages.has(uniqueKey)) {
-        logger.warn('Skipping duplicate message', llo({ uniqueKey }))
-        return
+    if (!opts.waitResponse) {
+      const release = await this.mutex.acquire()
+      try {
+        if (this.queuedMessages.has(uniqueKey)) {
+          logger.warn('Skipping duplicate message', llo({ uniqueKey }))
+          return
+        }
+        this.queuedMessages.add(uniqueKey)
+      } finally {
+        release()
       }
-      this.queuedMessages.add(uniqueKey)
-    } finally {
-      release()
+    }
+
+    if (opts.waitResponse) {
+      try {
+        const channelWrapper = RabbitMQ.getChannel(queueName)
+        return await RabbitMQHelper._sendMessageWithResponse(channelWrapper, queueName, payload, uniqueKey, opts)
+      } catch (err) {
+        logger.error('Error sendMessage with response', llo({ queueName, err }))
+        return null
+      }
     }
 
     try {
       const channelWrapper = RabbitMQ.getChannel(queueName)
-      if (opts.waitResponse) {
-        return await RabbitMQHelper._sendMessageWithResponse(channelWrapper, queueName, payload, uniqueKey, opts)
-      }
       await channelWrapper.sendToQueue(queueName, payload, {
         persistent: true,
         contentType: 'application/json',
       })
-      // channelWrapper.ack(msg)
-      return null
     } catch (err) {
-      logger.error('sendMessage error', llo({ queueName, err }))
-      return null
+      logger.error('Error sendMessage', llo({ queueName, err }))
     }
+
+    await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.queuedMessages.delete(uniqueKey))
+    return null
   },
 
   async _sendMessageWithResponse(
@@ -164,10 +173,8 @@ const RabbitMQHelper = {
               } catch (ackErr) {
                 logger.warn('Failed to ack ephemeral msg', llo({ queueName, ackErr }))
               }
-              const responseData = RabbitMQHelper.parseData(msg)
-              await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.queuedMessages.delete(uniqueKey))
               clearTimeout(timeoutId)
-              resolve(responseData)
+              resolve(RabbitMQHelper.parseData(msg))
             }
           })
           const publishOpts: Options.Publish = {
@@ -185,7 +192,6 @@ const RabbitMQHelper = {
                 logger.warn('Failed to cancel ephemeral consumer on timeout', llo({ queueName, cancelErr }))
               }
             }
-            await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.queuedMessages.delete(uniqueKey))
             logger.error('Failed to send message to queue', llo({ queueName, correlationId, payload }))
             resolve(null)
           }

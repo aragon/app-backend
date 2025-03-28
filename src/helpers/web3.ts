@@ -578,7 +578,7 @@ const Web3Helper = {
       )
 
       const blockNumberOfL1 = iface.decodeFunctionResult('getL1BlockNumber', response)[0]
-      return Number(blockNumberOfL1)
+      return Number(blockNumberOfL1) - 1
     } catch (e) {
       logger.error('Error getBlockNumberOnArbitrum', llo({ arbBlock, network, error: e }))
       return arbBlock
@@ -924,9 +924,10 @@ const Web3Helper = {
     const contract = new Contract(pluginAddress, Multisig.abi, provider)
 
     try {
+      const adjustedBlockNumber = await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () =>
-          contract.isListedAtBlock(memberAddress, blockNumber),
+          contract.isListedAtBlock(memberAddress, adjustedBlockNumber),
         ),
       )
     } catch (error) {

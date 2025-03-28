@@ -172,6 +172,7 @@ export const PluginHandler = {
       {
         $unwind: {
           path: '$pluginRepo',
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
@@ -190,7 +191,9 @@ export const PluginHandler = {
           release: 1,
           build: 1,
           permissions: 1,
-          subdomain: '$pluginRepo.subdomain',
+          subdomain: {
+            $ifNull: ['$pluginRepo.subdomain', null],
+          },
         },
       },
 
@@ -401,7 +404,6 @@ export const PluginHandler = {
           {
             network: pluginLog.network,
             address: pluginLog.pluginAddress,
-            status: IPluginStatus.preInstall,
           },
           null,
           { session },
@@ -409,6 +411,11 @@ export const PluginHandler = {
 
         if (!preInstalledPlugin) {
           logger.error('PreInstalledPlugin not found', llo({ pluginLog }))
+          return
+        }
+
+        if (preInstalledPlugin.status !== IPluginStatus.preInstall) {
+          logger.warn('Plugin not in preInstall status', llo({ pluginLog, pluginStatus: preInstalledPlugin.status }))
           return
         }
 
@@ -469,13 +476,22 @@ export const PluginHandler = {
            * After the plugin is updated we have to copy the existing plugin token.
            * We need to be sure that both updated and current plugin is token voting
            */
-          const needUpdate =
+
+          const updateParams: any = {}
+          if (plugin.isSupported !== existingPlugin.isSupported) {
+            updateParams.isSupported = existingPlugin.isSupported
+          }
+
+          if (
             plugin.interfaceType === IPluginInterfaceType.tokenVoting &&
             existingPlugin.interfaceType === IPluginInterfaceType.tokenVoting &&
             !plugin.tokenAddress
+          ) {
+            updateParams.tokenAddress = existingPlugin.tokenAddress
+          }
 
-          if (needUpdate) {
-            await plugin.update({ tokenAddress: existingPlugin.tokenAddress }, { session })
+          if (Object.keys(updateParams).length > 0) {
+            await plugin.update(updateParams, { session })
           }
 
           const document = {
@@ -493,7 +509,7 @@ export const PluginHandler = {
           await session.endSession()
           logger.verbose('Updated document - Deprecated plugin', llo({ documentId: existingPlugin.id }))
 
-          if (needUpdate) {
+          if (Object.keys(updateParams).length > 0) {
             logger.verbose('Updated document - Add plugin token address', llo({ documentId: plugin.id }))
           }
         }
@@ -562,6 +578,66 @@ export const PluginHandler = {
       return uninstalledPlugin
     } catch (error) {
       logger.error('Error Uninstall Plugin', llo({ pluginAddress, daoAddress, network, info, error }))
+    }
+  },
+
+  installPluginOnPermissionGranted: async (whereAddress: HexAddress, whoAddress: HexAddress, info: ILogInfo) => {
+    try {
+      const [daoDb, pluginDb, txReceipt] = await Promise.all([
+        Models.Dao.findByAddress(whereAddress, info.network),
+        Models.Plugin.findByAddress(whoAddress, info.network),
+        Web3Helper.getTransactionReceipt(info.transactionHash, info.network),
+      ])
+
+      if (!daoDb || !pluginDb || !txReceipt) {
+        return
+      }
+
+      const installationAppliedLogs = Web3Helper.findLogsByName(
+        txReceipt,
+        IEventLogPluginType.InstallationApplied,
+        PluginSetupProcessor.abi,
+      )
+
+      if (installationAppliedLogs.length > 0) {
+        return
+      }
+
+      if (pluginDb.status === IPluginStatus.installed) {
+        return
+      }
+
+      const pluginInfo = await PluginDetector.detectPluginType(pluginDb.address, info.network)
+      if (pluginInfo.hasTarget) {
+        const targetConfig = await Web3Helper.getTargetConfig(info.network, pluginDb.address)
+        if (targetConfig && targetConfig !== daoDb.address) {
+          return
+        }
+      }
+
+      const updatedDocument = {
+        status: IPluginStatus.installed,
+        uninstalled: {
+          status: false,
+          transactionHash: info.transactionHash,
+          blockNumber: info.blockNumber,
+          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+        },
+      }
+
+      const installedPlugin = await DbOperations.updateDocument(
+        pluginDb,
+        updatedDocument,
+        { logId: pluginDb.id, info },
+        'Installed plugin',
+        llo,
+      )
+
+      await PluginSlug.generateSlug(installedPlugin, installedPlugin.processKey)
+
+      return installedPlugin
+    } catch (error) {
+      logger.error('Error Install Plugin On Permission Granted', llo({ whereAddress, whoAddress, error }))
     }
   },
 

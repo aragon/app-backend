@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo, IPluginInterfaceType, ISettingStatus, IEventLogPluginSettings } from '@types'
+import { type ILogInfo, IPluginInterfaceType, ISettingStatus, IEventLogPluginSettings, IPluginStatus } from '@types'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import type Plugin from '@models/schema/plugin'
@@ -128,6 +128,25 @@ export const PluginSettingHandler = {
 
     if (tokenDb?.isGovernance) {
       await PluginSettingHandler.isSupported(relatedPlugin, info)
+
+      const sppPlugin = await Models.Plugin.findOne({
+        daoAddress: relatedPlugin.daoAddress,
+        network: relatedPlugin.network,
+        interfaceType: IPluginInterfaceType.spp,
+        status: IPluginStatus.installed,
+        'subPlugins.addresses': { $in: [pluginAddress] },
+      })
+
+      if (sppPlugin) {
+        const sppSettings = await Models.Setting.findActive({
+          network: info.network,
+          pluginAddress: sppPlugin.address,
+        })
+
+        if (sppSettings) {
+          await PluginSettingHandler.pairSppPlugins(sppPlugin, sppSettings, info)
+        }
+      }
     }
 
     return relatedPlugin
@@ -187,6 +206,24 @@ export const PluginSettingHandler = {
 
     if (findSettings !== undefined) {
       await PluginSettingHandler.isSupported(relatedPlugin, info)
+
+      const sppPlugin = await Models.Plugin.findOne({
+        daoAddress: relatedPlugin.daoAddress,
+        network: relatedPlugin.network,
+        interfaceType: IPluginInterfaceType.spp,
+        status: IPluginStatus.installed,
+        'subPlugins.addresses': { $in: [pluginAddress] },
+      })
+
+      if (sppPlugin) {
+        const sppSettings = await Models.Setting.findActive({
+          network: info.network,
+          pluginAddress: sppPlugin.address,
+        })
+        if (sppSettings) {
+          await PluginSettingHandler.pairSppPlugins(sppPlugin, sppSettings, info)
+        }
+      }
     }
 
     return relatedPlugin
@@ -388,6 +425,7 @@ export const PluginSettingHandler = {
       settings.stages.flatMap(stage =>
         stage.plugins.map(async subPlugin => {
           const relatedPlugin = await Models.Plugin.findByAddress(subPlugin.address, info.network)
+
           if (!relatedPlugin) {
             logger.error('Plugin not found - pairSppPlugins', llo({ ...info, address: subPlugin.address }))
             return
@@ -396,9 +434,9 @@ export const PluginSettingHandler = {
           const rawSubPluginUpdate = {
             stageIndex: stage.stageIndex,
             parentPlugin: plugin.address,
-            isSubPlugin: true, // set this plugin as subPlugin
+            isSubPlugin: true,
             isBody: relatedPlugin.interfaceType !== IPluginInterfaceType.spp,
-            isProcess: true, // its always set to true for all plugin where we can create proposals
+            isProcess: true,
           }
 
           const log = { logId: relatedPlugin.id, info }

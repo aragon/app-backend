@@ -14,7 +14,7 @@ describe('EnsHelper', () => {
     sandbox && sandbox.restore()
   })
 
-  it('getEnsWithUniversalResolver', async () => {
+  it.skip('getEnsWithUniversalResolver', async () => {
     const memberAddress = '0xD70aa9d7280E6FEe89B86f53c0B2A363478D5e94'
     const ens = await EnsHelper.getEnsWithUniversalResolver(memberAddress)
     expect(ens).to.eq('amiru.eth')

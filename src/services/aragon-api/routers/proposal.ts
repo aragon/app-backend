@@ -87,6 +87,19 @@ const ProposalRouter = {
     ctx.body = await ProposalController.canCreateProposal(formattedValues)
   },
 
+  canCreateProposal2: async function (ctx: RouterContext) {
+    const params: ICanCreateProposalParams = {
+      memberAddress: ctx.query.memberAddress as HexAddress,
+      pluginAddress: ctx.query.pluginAddress as HexAddress,
+      network: ctx.query.network as NetworksEnum,
+    }
+
+    const formattedValues = await ValidationSchema.validateParams(ProposalSchema.canCreateProposal, params)
+
+    const status = await ProposalController.canCreateProposal(formattedValues)
+    ctx.body = { status }
+  },
+
   canCastVote: async function (ctx: RouterContext) {
     const params = {
       proposalId: ctx.params.proposalId,
@@ -96,6 +109,18 @@ const ProposalRouter = {
     const formattedValues = await ValidationSchema.validateParams(ProposalSchema.canCastVote, params)
 
     ctx.body = await ProposalController.canCastVote(formattedValues)
+  },
+
+  canCastVote2: async function (ctx: RouterContext) {
+    const params = {
+      proposalId: ctx.params.proposalId,
+      userAddress: ctx.query.userAddress,
+    }
+
+    const formattedValues = await ValidationSchema.validateParams(ProposalSchema.canCastVote, params)
+
+    const status = await ProposalController.canCastVote(formattedValues)
+    ctx.body = { status }
   },
 
   router() {
@@ -118,12 +143,14 @@ const ProposalRouter = {
      */
 
     router.get('/can-create-proposal', ProposalRouter.canCreateProposal)
+    router.get('/can-create-proposal2', ProposalRouter.canCreateProposal2)
 
     /**
      * @api {get} / Check if the user is allowed to cast vote on a proposal
      */
 
     router.get('/:proposalId/can-vote', ProposalRouter.canCastVote)
+    router.get('/:proposalId/can-vote2', ProposalRouter.canCastVote2)
 
     /**
      * @api {get} /:id Get Proposal by Id

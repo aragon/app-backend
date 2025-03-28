@@ -326,6 +326,7 @@ describe('Indexer:Plugin', () => {
   describe('updatePlugin', () => {
     it('should updatePlugin', async () => {
       rawPlugin.tokenAddress = '0x00'
+      rawPlugin.isSupported = true
       sandbox.stub(PluginDetector, 'detectPluginType').resolves({
         type: IPluginInterfaceType.tokenVoting,
         proxy: true,
@@ -334,7 +335,8 @@ describe('Indexer:Plugin', () => {
       })
       await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[2])
       const eventUpdateApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[3])
-      await PluginHandler._createPlugin(rawPlugin as any)
+      const plugin = await PluginHandler._createPlugin(rawPlugin as any)
+      await plugin?.update({ isSupported: true })
       const spyCreatePlugin = sandbox.spy(PluginHandler, '_createPlugin')
 
       await PluginHandler.updatePlugin(eventUpdateApplied as any)
@@ -344,13 +346,15 @@ describe('Indexer:Plugin', () => {
       const createdPlugin = await Models.Plugin.findOne({
         address: ListLogPluginSetupProcessor[3].pluginAddress,
         status: IPluginStatus.installed,
+        isSupported: true,
       })
-      expect(createdPlugin).to.not.be.null
+      expect(createdPlugin).to.exist
       expect(createdPlugin.tokenAddress).to.eq(rawPlugin.tokenAddress)
 
       const deprecatedPlugin = await Models.Plugin.findOne({
         address: rawPlugin.address,
         status: IPluginStatus.deprecated,
+        isSupported: true,
       })
       expect(deprecatedPlugin).to.not.be.null
       expect(deprecatedPlugin.uninstalled.status).to.be.true
@@ -468,6 +472,303 @@ describe('Indexer:Plugin', () => {
       await PluginHandler.uninstallPlugin(eventUninstallApplied as any)
 
       expect(stubLogger.calledOnce).to.be.true
+    })
+  })
+
+  describe('installPluginOnPermissionGranted', () => {
+    it('should return if plugin does not exist', async () => {
+      const findOneStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const findLogsByNameStub = sandbox.stub(Web3Helper, 'findLogsByName')
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+      await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info)
+      expect(findOneStub.calledOnce).to.be.true
+      expect(findLogsByNameStub.calledOnce).to.be.false
+      expect(receiptStub.calledOnce).to.be.true
+    })
+
+    it('should return if DAO does not exist', async () => {
+      const findDaoStub = sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+      const findPluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({})
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        blockNumber: 1212,
+      }
+
+      const web3ReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+      await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
+
+      const findLogsByNameStub = sandbox.stub(Web3Helper, 'findLogsByName')
+      expect(findDaoStub.calledOnce).to.be.true
+      expect(findPluginStub.calledOnce).to.be.true
+      expect(web3ReceiptStub.calledOnce).to.be.true
+      expect(findLogsByNameStub.notCalled).to.be.true
+    })
+
+    it('should return if txReceipt is null', async () => {
+      const daoDb = { address: '0xdao', network: NetworksEnum.ethereumSepolia }
+      const pluginDb = {
+        address: '0xplugin',
+        network: NetworksEnum.ethereumSepolia,
+        status: 'pending',
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
+
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+
+      const info = {
+        transactionHash: '0xtxhash',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 1234,
+      }
+
+      const findLogsByNameStub = sandbox.stub(Web3Helper, 'findLogsByName')
+      await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
+
+      expect(findLogsByNameStub.calledOnce).to.be.false
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+    })
+
+    it('should return if InstallationApplied logs are present', async () => {
+      const daoDb = { address: '0xdao', network: NetworksEnum.ethereumSepolia }
+      const pluginDb = {
+        address: '0xplugin',
+        network: NetworksEnum.ethereumSepolia,
+        status: 'pending',
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
+
+      const txReceipt = { logs: ['log1', 'log2'] }
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
+
+      const findLogsStub = sandbox
+        .stub(Web3Helper, 'findLogsByName')
+        .returns([{ parsed: { name: 'InstallationApplied' } }] as any)
+
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      const info = {
+        transactionHash: '0xtxhash',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 1234,
+      }
+
+      await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
+
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(findLogsStub.calledOnce).to.be.true
+      expect(updateDocumentStub.notCalled).to.be.true
+    })
+
+    it('should return if plugin status is already installed', async () => {
+      const daoDb = { address: '0xdao', network: NetworksEnum.ethereumSepolia }
+      const pluginDb = {
+        address: '0xplugin',
+        network: NetworksEnum.ethereumSepolia,
+        status: IPluginStatus.installed,
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
+
+      const txReceipt = { logs: [] }
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
+      sandbox.stub(Web3Helper, 'findLogsByName').returns([])
+
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      const info = {
+        transactionHash: '0xtxhash',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 1234,
+      }
+
+      await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
+
+      expect(updateDocumentStub.notCalled).to.be.true
+    })
+
+    it('should return if plugin has target config and target is not the DAO', async () => {
+      const daoDb = { address: '0xdao', network: NetworksEnum.ethereumSepolia }
+      const pluginDb = {
+        address: '0xplugin',
+        network: NetworksEnum.ethereumSepolia,
+        status: 'pending',
+        daoAddress: '0xdao',
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
+
+      const txReceipt = { logs: [] }
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
+      sandbox.stub(Web3Helper, 'findLogsByName').returns([])
+
+      const pluginInfo = {
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0ximpl',
+        hasTarget: true,
+      }
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves(pluginInfo)
+      sandbox.stub(Web3Helper, 'getTargetConfig').resolves('0xotherdao')
+
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      const info = {
+        transactionHash: '0xtxhash',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 1234,
+      }
+
+      await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
+
+      expect(updateDocumentStub.notCalled).to.be.true
+    })
+
+    it('should successfully install plugin', async () => {
+      const daoDb = { address: '0xdao', network: NetworksEnum.ethereumSepolia }
+      const pluginDb = {
+        id: 'plugin-123',
+        address: '0xplugin',
+        network: NetworksEnum.ethereumSepolia,
+        status: 'pending',
+        processKey: 'processKey123',
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
+
+      const txReceipt = { logs: [] }
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
+      sandbox.stub(Web3Helper, 'findLogsByName').returns([])
+
+      const pluginInfo = {
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0ximpl',
+        hasTarget: false,
+      }
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves(pluginInfo)
+
+      const updatedPlugin = { ...pluginDb, status: IPluginStatus.installed }
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves(updatedPlugin)
+      const generateSlugStub = sandbox.stub(PluginSlug, 'generateSlug').resolves()
+
+      const info = {
+        transactionHash: '0xtxhash',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 1234,
+      }
+
+      const result = await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
+
+      expect(updateDocumentStub.calledOnce).to.be.true
+      expect(generateSlugStub.calledOnce).to.be.true
+      expect(generateSlugStub.calledWith(updatedPlugin, 'processKey123')).to.be.true
+
+      const expectedUpdate = {
+        status: IPluginStatus.installed,
+        uninstalled: {
+          status: false,
+          transactionHash: '0xtxhash',
+          blockNumber: 1234,
+          blockTimestamp: 1620000000,
+        },
+      }
+
+      expect(updateDocumentStub.args[0][1]).to.deep.equal(expectedUpdate)
+      expect(result).to.deep.equal(updatedPlugin)
+    })
+
+    it('should successfully install plugin with target when target is the DAO', async () => {
+      const daoDb = { address: '0xdao', network: NetworksEnum.ethereumSepolia }
+      const pluginDb = {
+        id: 'plugin-123',
+        address: '0xplugin',
+        network: NetworksEnum.ethereumSepolia,
+        status: 'pending',
+        processKey: 'processKey123',
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
+
+      const txReceipt = { logs: [] }
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
+      sandbox.stub(Web3Helper, 'findLogsByName').returns([])
+
+      const pluginInfo = {
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0ximpl',
+        hasTarget: true,
+      }
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves(pluginInfo)
+      sandbox.stub(Web3Helper, 'getTargetConfig').resolves('0xdao')
+
+      const updatedPlugin = { ...pluginDb, status: IPluginStatus.installed }
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves(updatedPlugin)
+      const generateSlugStub = sandbox.stub(PluginSlug, 'generateSlug').resolves()
+
+      const info = {
+        transactionHash: '0xtxhash',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 1234,
+      }
+
+      const result = await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
+
+      expect(updateDocumentStub.calledOnce).to.be.true
+      expect(generateSlugStub.calledOnce).to.be.true
+
+      const expectedUpdate = {
+        status: IPluginStatus.installed,
+        uninstalled: {
+          status: false,
+          transactionHash: '0xtxhash',
+          blockNumber: 1234,
+          blockTimestamp: 1620000000,
+        },
+      }
+
+      expect(updateDocumentStub.args[0][1]).to.deep.equal(expectedUpdate)
+      expect(result).to.deep.equal(updatedPlugin)
+    })
+
+    it('should handle errors and log them', async () => {
+      const error = new Error('Database error')
+      sandbox.stub(Models.Dao, 'findByAddress').rejects(error)
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').rejects(error)
+
+      const info = {
+        transactionHash: '0xtxhash',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 1234,
+      }
+
+      await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
+
+      expect(loggerErrorStub.calledOnce).to.be.true
+      expect(loggerErrorStub.args[0][0]).to.equal('Error Install Plugin On Permission Granted' as any)
     })
   })
 

@@ -1,8 +1,11 @@
 name: Release
+
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
+      - development
 
 jobs:
   release:
@@ -20,55 +23,13 @@ jobs:
           node-version-file: '.nvmrc'
 
       - name: Install Dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install
 
       - name: Run Semantic Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+          GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
+        run: npx semantic-release --repository-url "https://github.com/aragon/app-backend.git"
 
-  sync-staging:
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Configure Git User
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
-
-      - name: Merge `main` into `staging`
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          git fetch origin
-          git checkout staging || git checkout -b staging
-          git merge --no-ff main -m "chore: sync staging with main after release"
-          git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} staging
-
-  sync-development:
-    needs: sync-staging
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Configure Git User
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
-
-      - name: Merge `main` into `development`
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          git fetch origin
-          git checkout development || git checkout -b development
-          git merge --no-ff main -m "chore: sync development with main after release"
-          git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} development
+      - name: Get latest release version
+        id: get_version
+        run: echo "VERSION=$(git describe --tags --abbrev=0 | sed 's/v//')" >> $GITHUB_ENV
