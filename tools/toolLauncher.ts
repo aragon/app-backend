@@ -25,11 +25,14 @@ import IntegrityToolProposalCheck from '@tools/integrityCheck/proposalCheck'
 import SyncMemberVP from '@tools/syncMemberVP'
 import ToolsManualSyncMultisigV2Settings from '@tools/manualSyncMultisigV2Settings'
 import ToolsMissingSlugs from '@tools/missingSlugs'
+import CreateAdminToken from '@tools/createAdminToken'
+import Queue from '@tools/queue'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
 
 const runners = {
+  Queue,
   SyncMemberVP,
   ToolsCleanDb,
   ToolsEnsFetch,
@@ -53,7 +56,7 @@ const runners = {
   RefetchProposalsMetrics,
   ManualSyncNectorDao,
   RefetchDaoMetrics,
-
+  CreateAdminToken,
   IntegrityToolMemberCheck,
   IntegrityToolProposalCheck,
 }

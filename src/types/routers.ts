@@ -6,6 +6,7 @@ import { type ITransferSide, type ITransferType } from '@src/types/transfer'
 export interface IStatusResponse {
   status: string
   appName: string
+  service: string
   nodeVersion: string
   environment: string
   supportedNetworks: NetworksEnum[]
