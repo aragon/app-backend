@@ -29,7 +29,8 @@
       "@test/*": ["./test/*"],
       "@aragonContracts/*": ["./src/services/aragonContracts/*"],
       "@handlers/*": ["./src/handlers/*"],
-      "@plugins/*": ["./src/services/aragon-plugins/*"]
+      "@plugins/*": ["./src/services/aragon-plugins/*"],
+      "@providers/*": ["./src/providers/*"]
     },
     "esModuleInterop": true,
     "resolveJsonModule": true
