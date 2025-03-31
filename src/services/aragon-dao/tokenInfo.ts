@@ -37,7 +37,7 @@ export const TokenDetailFetcherWithRetry = {
           tokenInfo.tokenDb,
           {
             totalSupply: tokenInfo.tokenDetails.totalSupply,
-            holders: tokenInfo.tokenDetails.holders,
+            holders: tokenInfo.tokenDetails.totalHolders,
           },
           { address: tokenAddress, network },
           'Updated Token with pooling',
@@ -80,7 +80,7 @@ export const TokenDetailFetcherWithRetry = {
   },
 
   hasValidInfo(tokenDetails: any): boolean {
-    return !(tokenDetails.totalSupply === '0' && tokenDetails.holders === 0)
+    return !(tokenDetails.totalSupply && tokenDetails.totalSupply === '0' && tokenDetails.totalHolders === 0)
   },
 }
 

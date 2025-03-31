@@ -2,13 +2,14 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
-import { IAlchemyTokenBalance, NetworksEnum } from '@types'
+import { IProviderAsset, NetworksEnum } from '@types'
 import Logger from '@logger'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
 import TokenUtils from '@helpers/tokenUtils'
+import TokenBalancesProvider from '@providers/accountAssetProvider/providerFactory'
 
 describe('AragonDao:Assets', () => {
   let sandbox: SinonSandbox
@@ -220,16 +221,15 @@ describe('AragonDao:Assets', () => {
     it('should process DAO assets correctly', async () => {
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves('1')
       const stubGetTokens = sandbox
-        .stub(Web3Helper, 'getTokenBalances')
+        .stub(TokenBalancesProvider, 'getAccountBalances')
         .resolves([
-          { contractAddress: '0xToken', tokenBalance: '500' } as IAlchemyTokenBalance,
-          { contractAddress: '0xToken1', tokenBalance: '0' } as IAlchemyTokenBalance,
+          { contractAddress: '0xToken', tokenBalance: '500' } as IProviderAsset,
+          { contractAddress: '0xToken1', tokenBalance: '0' } as IProviderAsset,
         ])
       const stubHandleNative = sandbox.stub(DaoAssets, '_handleNativeToken').resolves()
       const stubHandleErc20 = sandbox.stub(DaoAssets, '_handleErc20Token').resolves()
 
       await DaoAssets.assets({ address: '0xDao', network: NetworksEnum.ethereumMainnet } as any)
-
       expect(stubGetBalance.calledOnce).to.be.true
       expect(stubGetTokens.calledOnce).to.be.true
       expect(stubHandleNative.calledOnce).to.be.true
@@ -239,8 +239,8 @@ describe('AragonDao:Assets', () => {
     it('should process _handleErc20Token when token balance not exist', async () => {
       const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves('0')
       const stubGetTokens = sandbox
-        .stub(Web3Helper, 'getTokenBalances')
-        .resolves([{ contractAddress: '0xToken', tokenBalance: '500' } as IAlchemyTokenBalance])
+        .stub(TokenBalancesProvider, 'getAccountBalances')
+        .resolves([{ contractAddress: '0xToken', tokenBalance: '500' } as IProviderAsset])
       const stubHandleNative = sandbox.stub(DaoAssets, '_handleNativeToken')
       const stubHandleErc20 = sandbox.stub(DaoAssets, '_handleErc20Token').resolves()
 
