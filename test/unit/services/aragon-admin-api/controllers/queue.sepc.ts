@@ -42,16 +42,15 @@ describe('Controller: QueueAdmin', () => {
 
   it('should queue proposal metrics successfully', async () => {
     const params = { proposalIndex: '1', pluginAddress: '0x456', network: 'mainnet' }
+    sandbox.stub(Models.Plugin, 'findOne').resolves({
+      address: '0x456',
+      network: 'mainnet',
+      interfaceType: IPluginInterfaceType.tokenVoting,
+      status: IPluginStatus.installed,
+    })
+
     sandbox
-      .stub(Models.Plugin, 'findOne')
-      .onFirstCall()
-      .resolves({
-        address: '0x456',
-        network: 'mainnet',
-        interfaceType: IPluginInterfaceType.tokenVoting,
-        status: IPluginStatus.installed,
-      })
-      .onSecondCall()
+      .stub(Models.Proposal, 'findOne')
       .resolves({ proposalIndex: '1', pluginAddress: '0x456', network: 'mainnet' })
 
     const result = await QueueAdminController.queueProposalMetrics(params)
