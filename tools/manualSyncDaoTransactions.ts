@@ -12,6 +12,7 @@ import logger from '@logger'
 import { NetworkHelper } from '@helpers/network'
 import DBCrawler from '@models/utils/crawler'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
+import { AlchemyProvider } from '@providers/assetTransafersProvider/alchemyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'tools:manualSyncDaoTransactions' })
 
@@ -103,7 +104,7 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
 
     logger.verbose('Previous block number cleard', llo({ dao: daoDb.daoAddress }))
 
-    const category = DaoTransactions.getCategories(daoDb.network)
+    const category = AlchemyProvider.getCategories(daoDb.network)
     const depositTxCrawler = new BlockchainTransferCrawler({
       network: daoDb.network,
       filter: {
@@ -113,7 +114,7 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
       },
       onTx: async (txLog: IAlchemyTransferResponse) => {
         await ToolsManualSyncDaoTransactions.fixOldTransactions(txLog, daoDb)
-        await DaoTransactions.saveTransaction(txLog, ITransactionType.deposit, daoDb)
+        await DaoTransactions.saveTransaction(txLog as any, ITransactionType.deposit, daoDb)
       },
 
       onError: async (error: any) => {
@@ -136,7 +137,7 @@ export const ToolsManualSyncDaoTransactions: IDaoTransactionsTools = {
       },
       onTx: async (txLog: IAlchemyTransferResponse) => {
         await ToolsManualSyncDaoTransactions.fixOldTransactions(txLog, daoDb)
-        return await DaoTransactions.saveTransaction(txLog, ITransactionType.withdraw, daoDb)
+        return await DaoTransactions.saveTransaction(txLog as any, ITransactionType.withdraw, daoDb)
       },
       onError: async (error: any) => {
         logger.error(
