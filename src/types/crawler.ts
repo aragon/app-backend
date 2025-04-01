@@ -1,6 +1,6 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import type { IEnumIndexerService, IEnumIndexerServiceStatic } from '@src/types/services'
-import type { ILogInfo } from '@src/types/eventLogs'
+import type { IFormattedLog, ILogInfo } from '@src/types/eventLogs'
 import { type Filter, type Log, type LogDescription } from 'ethers'
 
 export interface IIndexerConfigHandler {
@@ -15,6 +15,11 @@ export interface IIndexerConfig {
   config: IIndexerConfigHandler[]
 }
 
+export enum ICrawStrategy {
+  getLogs = 'getLogs',
+  getBlockReceipts = 'getBlockReceipts',
+}
+
 export interface ICrawlParam {
   network: NetworksEnum
   fromBlock?: number
@@ -23,13 +28,18 @@ export interface ICrawlParam {
   events: IIndexerConfig[]
   stopOnError: boolean
   onlyHistorical?: boolean
+  oneBlockPerTime?: boolean
+  filterLogs?: (logs: any) => Promise<any>
+  strategy?: ICrawStrategy
   logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
   onError: (error: Error, log?: Log) => void
   skipLogProcessing?: boolean
-  isCustomTopics?: boolean
+  isTopicObject?: boolean
+  batchSize?: number
 }
 
 export interface ICrawlSetting {
+  debugLogs: IFormattedLog[]
   shutdown: boolean
   crawling: boolean
   isOnError: boolean

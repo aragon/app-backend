@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
 import { NetworksEnum } from '@types'
-import { BlockHandler } from '@services/aragon-transactions/blockHandler'
+import { BlockHandler } from '@modules/blockHandler'
 
 describe.skip('Manual: Block Handler', () => {
   let sandbox: SinonSandbox
