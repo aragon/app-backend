@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { NetworksEnum } from '@types'
-import { BlockHandler } from '@services/aragon-transactions/blockHandler'
+import { BlockHandler } from '@modules/blockHandler'
 import Web3Helper from '@helpers/web3'
 import { expect } from 'chai'
 

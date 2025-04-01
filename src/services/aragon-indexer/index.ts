@@ -1,16 +1,16 @@
 import logger from '@logger'
-import { EnumConnection, EnumQueueName, type IService } from '@types'
+import { EnumConnection, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { NetworkHelper } from '@helpers/network'
 import configIndexer from '@indexer/configIndexer'
 import utils from '@helpers/utils'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import EventListener from '@modules/eventListener'
 import { SyncAll } from '@indexer/syncAll'
 
 import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import PoolingCrawler from '@modules/poolingCrawler'
+import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -22,49 +22,67 @@ const AragonIndexerService: IService & { repeaters: any } = {
     logger.info('IndexerService historical started', llo({}))
 
     const networks = NetworkHelper.supportedNetworks()
-
     await CustomInstall.install()
-
-    logger.info('CustomInstall end', llo({}))
 
     await Promise.all(
       networks.map(async ({ networkName }) => {
-        const configLogs = utils.filterArrayByProperty(configIndexer, 'enableHistorical')
+        const logService: any = `indexer-${networkName}`
 
-        const crawler = new BlockchainLogCrawler({
-          onlyHistorical: true,
+        const existingConfig = await Models.ConfigIndexer.findExistingLog({
           network: networkName,
-          events: configLogs,
-          onError: async (error: any) => logger.error('Error Indexer', llo(error)),
-          logService: `indexer-${networkName}`,
-          stopOnError: true,
+          service: logService!,
         })
-        await crawler.crawl()
+
+        // sync historical data
+        if (!existingConfig) {
+          logger.info('HistoricalCrawler start', llo({ networkName }))
+          const historicalCrawler = new BlockchainLogCrawler({
+            onlyHistorical: true,
+            network: networkName,
+            events: utils.filterArrayByProperty(configIndexer, 'enableHistorical'),
+            onError: async (error: any) => logger.error('Error Indexer', llo(error)),
+            logService,
+            stopOnError: true,
+          })
+          await historicalCrawler.crawl()
+          logger.info('HistoricalCrawler end', llo({ networkName }))
+        }
 
         // realtime after sync
-        const eventListener = new EventListener(networkName, configIndexer)
-        eventListener.subscribeEventsByNewBlock()
+        logger.info('PoolingCrawler start', llo({ networkName }))
 
-        // resync all metrics by network
-        await RabbitMQHelper.sendMessage(EnumQueueName.allMetrics, {
-          id: `${EnumQueueName.allMetrics}-${networkName}`,
-          params: { network: networkName },
-        })
+        const taskOptions = {
+          fn: () => [[{ poolingCrawler: PoolingCrawler, params: { logService, network: networkName } }]],
+          interval: utils.poolingTime(networkName),
+          checkInterval: utils.poolingTime(networkName) / 2,
+          runNow: true,
+          stopOnError: false,
+          onError: (error: any) => logger.error('Error pooling logs', llo({ networkName, error })),
+        }
+
+        const scheduler = TaskSchedulerState.getInstance()
+        await scheduler.startTask(logService, taskOptions)
+
+        // sync all metrics by network
+        logger.info('Sync all metrics start', llo({ networkName }))
+        // await RabbitMQHelper.sendMessage(EnumQueueName.allMetrics, {
+        //   id: `${EnumQueueName.allMetrics}-${networkName}`,
+        //   params: { network: networkName },
+        // })
       }),
     )
 
-    logger.info('IndexerService historical logs end', llo({}))
-
     // re-sync all installed plugins
-    const taskOptions = {
-      fn: () => [[{ syncAllPlugins: SyncAll }]],
-      interval: config.SERVICES.ARAGON_INDEXER.PLUGIN_INTERVAL,
-      runNow: true,
-      stopOnError: false,
-      onError: (error: any) => logger.error('Error sync all plugins', llo({ error })),
-    }
-
     if (config.SERVICES.ARAGON_INDEXER.SYNC_ALL) {
+      logger.info('Sync all plugins start', llo({}))
+
+      const taskOptions = {
+        fn: () => [[{ syncAllPlugins: SyncAll }]],
+        interval: 5 * 1000,
+        runNow: true,
+        stopOnError: false,
+        onError: (error: any) => logger.error('Error sync all plugins', llo({ error })),
+      }
       const scheduler = TaskSchedulerState.getInstance()
       await scheduler.startTask('allPlugins', taskOptions)
     }

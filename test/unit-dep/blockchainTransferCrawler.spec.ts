@@ -9,7 +9,7 @@ import { RateModule } from '@modules/rates'
 import { expect } from 'chai'
 import logger from '@logger'
 
-describe('Blockchain Transfer Log Crawler', () => {
+describe('BlockchainTransferCrawler', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
