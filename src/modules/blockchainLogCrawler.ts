@@ -171,7 +171,7 @@ class BlockchainLogCrawler {
   async getLogsByStrategy(currentBlock: number, latestBlock: number) {
     switch (this.crawlParams.strategy) {
       case ICrawStrategy.getBlockReceipts:
-        return this.getLogsByBlockReceipts(currentBlock)
+        return this.getLogsByBlockReceipts(currentBlock, latestBlock)
       case ICrawStrategy.getLogs:
         return this.getLogsWithoutTopics(currentBlock, latestBlock)
       case ICrawStrategy.getLogsByBatch:
