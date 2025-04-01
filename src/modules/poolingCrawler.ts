@@ -1,12 +1,13 @@
-import { Interface, type Log } from 'ethers'
+import { ethers, Interface, type Log } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { ERC721 } from '@artifacts/ERC721'
-import { IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
+import { ICrawStrategy, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
+import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'module:PoolingFilter' })
 
@@ -73,8 +74,9 @@ const PoolingCrawler = {
         .filter(Boolean) as string[]
 
     const tokenTransferReceiverAddresses = getDecodedTransferAddresses(transferLogs)
-    const nativeTransferReceiverAddresses = nativeTokenDepositedLogs.map(log => log.address)
-    const delegateVotesChangedTokenAddresses = delegateVotesChangedLogs.map(log => log.address)
+    const nativeTransferReceiverAddresses = nativeTokenDepositedLogs.map(log => ethers.getAddress(log.address))
+    const delegateVotesChangedTokenAddresses = delegateVotesChangedLogs.map(log => ethers.getAddress(log.address))
+    const transferTokenAddresses = transferLogs.map(log => ethers.getAddress(log.address))
 
     const [daoAddresses, tokenAddresses] = await Promise.all([
       Models.Dao.distinct('address', {
@@ -82,7 +84,7 @@ const PoolingCrawler = {
         network,
       }),
       Models.Plugin.distinct('tokenAddress', {
-        tokenAddress: { $in: [...delegateVotesChangedTokenAddresses] },
+        tokenAddress: { $in: [...new Set([...delegateVotesChangedTokenAddresses, ...transferTokenAddresses])] },
         status: IPluginStatus.installed,
         isSupported: true,
         interfaceType: IPluginInterfaceType.tokenVoting,
@@ -93,13 +95,15 @@ const PoolingCrawler = {
     const daoAddressesSet = new Set(daoAddresses)
     const tokenAddressesSet = new Set(tokenAddresses)
 
+    for (const daoAddress of [...daoAddressesSet]) {
+      await DaoRegistryHandler.nativeTransfer(null as any, { address: daoAddress, network } as any)
+    }
+    // handle if we have the daoAddress set directly
+
     return logs.filter(log => {
       const eventType = topicsToFilterOut.get(log.topics[0])
 
-      if (eventType === 'NativeTokenDeposited' && !daoAddressesSet.has(log.address)) {
-        return false
-      }
-      if (eventType === 'Transfer' && !daoAddressesSet.has(PoolingCrawler._decodeTransferLogs(log))) {
+      if (eventType === 'Transfer' && !tokenAddressesSet.has(log.address)) {
         return false
       }
       if (eventType === 'DelegateVotesChanged' && !tokenAddressesSet.has(log.address)) {
