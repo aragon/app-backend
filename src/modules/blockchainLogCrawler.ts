@@ -89,11 +89,24 @@ class BlockchainLogCrawler {
     const rawLogs: IFormattedLog[] = []
     let allLogs: Log[] = []
 
+    if (currentBlock === latestBlock) {
+      this.crawlSetting.crawling = false
+      return rawLogs
+    }
+
+    this.crawlParams.strategy = this.getStrategyBySituation(currentBlock, latestBlock)
+
+    let retryCount = 0
     while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
       this.crawlSetting.runCount++
 
+      if (retryCount >= 1 && this.crawlParams.strategy === ICrawStrategy.getLogs) {
+        this.crawlParams.strategy = ICrawStrategy.getLogsByBatch
+      }
+
       try {
         const result: any = await this.getLogsByStrategy(currentBlock, latestBlock)
+
         const toBlock = result.toBlock
         allLogs = result.logs
 
@@ -109,6 +122,7 @@ class BlockchainLogCrawler {
               ...this.parseCrawlerInfoLog(),
               blockNumber: toBlock,
               fromBlock: currentBlock,
+              strategy: this.crawlParams.strategy,
               toBlock,
               latestBlock,
               logsLen: 0,
@@ -127,6 +141,7 @@ class BlockchainLogCrawler {
         currentBlock = toBlock + 1
         if (currentBlock >= latestBlock) break
       } catch (error) {
+        retryCount++
         await this.handleErrors(error)
         if (this.crawlParams.stopOnError && this.crawlSetting.shutdown) break
       }
@@ -137,15 +152,28 @@ class BlockchainLogCrawler {
     }
 
     this.crawlSetting.crawling = false
-    logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
+    if (!this.crawlParams.filterLogs) {
+      logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
+    }
   }
 
-  async getLogsByStrategy(currentBlock: number, latestBlock: number) {
-    if (this.crawlParams.strategy === ICrawStrategy.getBlockReceipts) {
-      return this.getLogsByBlockReceipts(currentBlock)
-    }
+  /**
+   * Get logs based on the selected strategy
+   * Strategy can be getLogs, getLogsByBatch, or getLogsByBlockReceipts
+   * @param currentBlock
+   * @param latestBlock
+   */
 
-    return this.getLogsByBatch(currentBlock, latestBlock)
+  async getLogsByStrategy(currentBlock: number, latestBlock: number) {
+    switch (this.crawlParams.strategy) {
+      case ICrawStrategy.getBlockReceipts:
+        return this.getLogsByBlockReceipts(currentBlock)
+      case ICrawStrategy.getLogs:
+        return this.getLogsWithoutTopics(currentBlock, latestBlock)
+      case ICrawStrategy.getLogsByBatch:
+      default:
+        return this.getLogsByBatch(currentBlock, latestBlock)
+    }
   }
 
   async getLogsByBatch(currentBlock: number, latestBlock: number) {
@@ -163,6 +191,9 @@ class BlockchainLogCrawler {
             resultLogs = await this.crawlParams.filterLogs(resultLogs)
           }
           allLogs = allLogs.concat(resultLogs)
+          if (allLogs.length > 1) {
+            logger.info('Test')
+          }
         }
 
         const failedRequests = response.filter((resp: any) => resp.error)
@@ -200,6 +231,196 @@ class BlockchainLogCrawler {
     }
 
     return { logs: allLogs, toBlock }
+  }
+
+  getStrategyBySituation(fromBlock: number, toBlock: number) {
+    if (this.crawlParams.oneBlockPerTime) {
+      return ICrawStrategy.getBlockReceipts
+    }
+
+    // If we're only processing a single block, use receipts
+    if (toBlock - fromBlock === 0) {
+      return ICrawStrategy.getBlockReceipts
+    }
+
+    // If we're only processing a small range, use getLogs
+    // If we're processing a large range, use getLogsByBatch
+    // Fewer thresholds for faster block times
+    // If the average block time is less than 1 second, use 40
+
+    const avgBlockTimeSec = config.NODES[utils.networkToAragon(this.crawlParams.network)].INTERVAL_BLOCK_TIME
+    const blockRange = toBlock - fromBlock + 1
+
+    let timeBasedThreshold: number
+    if (avgBlockTimeSec <= 1) {
+      timeBasedThreshold = 40
+    } else if (avgBlockTimeSec < 5) {
+      timeBasedThreshold = 20
+    } else {
+      timeBasedThreshold = 5
+    }
+
+    const mediumRangeThreshold = Math.min(timeBasedThreshold, this.crawlSetting.batchSize / 2)
+
+    if (blockRange <= mediumRangeThreshold) {
+      return ICrawStrategy.getLogs
+    }
+
+    return ICrawStrategy.getLogsByBatch
+  }
+
+  /**
+   * Get logs without topic filtering, used for medium ranges
+   */
+  async getLogsWithoutTopics(currentBlock: number, latestBlock: number) {
+    const toBlock = Math.min(currentBlock + this.crawlSetting.batchSize, latestBlock)
+    let allLogs: Log[] = []
+
+    try {
+      const coreProvider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
+
+      const logs = await retryRequest(async () =>
+        coreProvider.getLogs({
+          fromBlock: currentBlock,
+          toBlock,
+          address: this.crawlParams.address,
+        }),
+      )
+
+      let resultLogs = logs.filter((log: any) => {
+        return this.crawlSetting.filter.topics!.includes(log.topics[0])
+      })
+
+      if (this.crawlParams.filterLogs && resultLogs.length > 0) {
+        resultLogs = await this.crawlParams.filterLogs(resultLogs)
+      }
+
+      allLogs = resultLogs
+    } catch (error: any) {
+      if (this.isBatchSizeError(error)) {
+        logger.warn(
+          'Batch size error in getLogs, will switch to batch strategy',
+          llo({
+            fromBlock: currentBlock,
+            toBlock,
+            error: error.message,
+          }),
+        )
+      }
+
+      throw error
+    }
+
+    if (this.crawlParams.filterLogs) {
+      allLogs = await this.crawlParams.filterLogs(allLogs)
+    }
+
+    return { logs: allLogs, toBlock }
+  }
+
+  /**
+   * Process block receipts, used for small ranges or when explicitly requested
+   */
+  async getLogsByBlockReceipts(currentBlock: number, endBlock?: number) {
+    const topics = this.crawlSetting?.filter?.topics!
+    const toBlock = endBlock || currentBlock
+    let allLogs: Log[] = []
+
+    try {
+      const provider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
+      const coreProvider = await provider.config.getProvider()
+
+      const BATCH_SIZE = 20
+      const batchRequests: any = []
+
+      for (let blockNum = currentBlock; blockNum <= toBlock; blockNum++) {
+        const blockHex = `0x${blockNum.toString(16)}`
+        batchRequests.push({
+          jsonrpc: '2.0',
+          id: `block-${blockNum}`,
+          method: 'eth_getBlockReceipts',
+          params: [blockHex],
+        })
+      }
+
+      const batchChunks: any = []
+      for (let i = 0; i < batchRequests.length; i += BATCH_SIZE) {
+        batchChunks.push(batchRequests.slice(i, i + BATCH_SIZE))
+      }
+
+      for (const chunk of batchChunks) {
+        try {
+          const response: any = await axios.post(coreProvider.connection.url, chunk, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 30000,
+          })
+
+          const validResponses = response.data.filter((resp: any) => !resp.error && resp.result)
+
+          for (const resp of validResponses) {
+            const blockReceipts = resp.result
+            if (!blockReceipts || blockReceipts.length === 0) continue
+
+            let logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
+
+            if (this.crawlParams.filterLogs) {
+              logs = await this.crawlParams.filterLogs(logs)
+            }
+
+            const blockLogs = logs.filter((log: any) => {
+              return topics.includes(log.topics[0])
+            })
+
+            allLogs = allLogs.concat(blockLogs)
+          }
+
+          if (batchChunks.length > 1) {
+            await utils.wait(200)
+          }
+        } catch (error: any) {
+          logger.warn('Error processing block receipts batch, trying individually', {
+            error: error.message,
+            chunkSize: chunk.length,
+          })
+
+          for (const request of chunk) {
+            try {
+              const blockHex = request.params[0]
+              const blockReceipts = await retryRequest(async () => provider.send('eth_getBlockReceipts', [blockHex]))
+
+              if (!blockReceipts || blockReceipts.length === 0) continue
+
+              let logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
+
+              if (this.crawlParams.filterLogs) {
+                logs = await this.crawlParams.filterLogs(logs)
+              }
+
+              const blockLogs = logs.filter((log: any) => {
+                return topics.includes(log.topics[0])
+              })
+
+              allLogs = allLogs.concat(blockLogs)
+            } catch (innerError) {
+              logger.warn(`Skipping block ${request.params[0]} due to error`, { error: innerError })
+            }
+          }
+        }
+      }
+
+      if (this.crawlParams.filterLogs) {
+        allLogs = await this.crawlParams.filterLogs(allLogs)
+      }
+
+      return { logs: allLogs, toBlock }
+    } catch (error: any) {
+      logger.error('error getLogsByBlockReceipts', { error, topics, currentBlock, toBlock })
+      await this.handleErrors(error)
+      if (this.crawlParams.filterLogs) {
+        allLogs = await this.crawlParams.filterLogs(allLogs)
+      }
+      return { logs: allLogs, toBlock: currentBlock }
+    }
   }
 
   async executeBatchRequest(topics: string[] | TopicFilter, currentBlock: number, toBlock: number) {
@@ -241,32 +462,6 @@ class BlockchainLogCrawler {
     }
   }
 
-  async getLogsByBlockReceipts(currentBlock: number) {
-    const topics = this.crawlSetting?.filter?.topics!
-    try {
-      const coreProvider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
-
-      const blockReceipts = await retryRequest(async () =>
-        coreProvider.send('eth_getBlockReceipts', [`0x${currentBlock.toString(16)}`]),
-      )
-      if (!blockReceipts || blockReceipts.length === 0) return []
-
-      let logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
-
-      if (this.crawlParams.filterLogs) {
-        logs = await this.crawlParams.filterLogs(logs)
-      }
-
-      const allLogs = logs.filter((log: any) => {
-        return topics.includes(log.topics[0])
-      })
-      return { logs: allLogs, toBlock: currentBlock }
-    } catch (error: any) {
-      logger.error('error getLogsByBlockReceipts', { error, topics, currentBlock })
-      await this.handleErrors(error)
-    }
-  }
-
   async updateAndCheckConditions(currentBlock: number, latestBlock: number): Promise<boolean> {
     return (
       this.crawlSetting.crawling &&
@@ -303,6 +498,8 @@ class BlockchainLogCrawler {
     for (const log of logs) {
       logIndex++
       try {
+        const startTIme = Date.now()
+
         const { handler, event, info } = this.formatLog(log)
         if (!event) {
           throw new Error('Error parse log in blockchainCrawler')
@@ -315,13 +512,16 @@ class BlockchainLogCrawler {
           this.crawlSetting.lastSync = log?.blockNumber
         }
         logger.verbose(
-          'Processing log',
+          'Processing Event',
           llo({
             ...this.parseCrawlerInfoLog(),
             blockNumber: Number(log.blockNumber),
             logsLen: logs.length,
             logIndex,
+            event: event.name,
+            strategy: this.crawlParams.strategy,
             fromBlock,
+            processedTime: Date.now() - startTIme,
             toBlock,
             latestBlock,
           }),

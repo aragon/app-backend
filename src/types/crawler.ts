@@ -18,6 +18,7 @@ export interface IIndexerConfig {
 export enum ICrawStrategy {
   getLogs = 'getLogs',
   getBlockReceipts = 'getBlockReceipts',
+  getLogsByBatch = 'getLogsByBatch',
 }
 
 export interface ICrawlParam {
