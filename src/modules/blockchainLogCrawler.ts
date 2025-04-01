@@ -135,7 +135,7 @@ class BlockchainLogCrawler {
         } else if (!this.crawlParams.skipLogProcessing) {
           await this.processLogs(sortedLogs, currentBlock, toBlock, latestBlock)
         } else {
-          await this.debugLogs(sortedLogs)
+          sortedLogs?.map(log => rawLogs.push(this.formatLog(log)))
         }
 
         if (this.crawlParams.logService) {
@@ -239,7 +239,9 @@ class BlockchainLogCrawler {
 
   getStrategyBySituation(fromBlock: number, toBlock: number) {
     if (this.crawlParams.oneBlockPerTime) {
-      return ICrawStrategy.getBlockReceipts
+      if (toBlock - fromBlock <= 5) {
+        return ICrawStrategy.getBlockReceipts
+      }
     }
 
     // If we're only processing a single block, use receipts
@@ -330,101 +332,50 @@ class BlockchainLogCrawler {
     const toBlock = endBlock || currentBlock
     let allLogs: Log[] = []
 
-    try {
-      const provider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
-      const coreProvider = await provider.config.getProvider()
+    const provider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
+    const coreProvider = await provider.config.getProvider()
 
-      const BATCH_SIZE = 20
-      const batchRequests: any = []
-
-      for (let blockNum = currentBlock; blockNum <= toBlock; blockNum++) {
-        const blockHex = `0x${blockNum.toString(16)}`
-        batchRequests.push({
-          jsonrpc: '2.0',
-          id: `block-${blockNum}`,
-          method: 'eth_getBlockReceipts',
-          params: [blockHex],
-        })
-      }
-
-      const batchChunks: any = []
-      for (let i = 0; i < batchRequests.length; i += BATCH_SIZE) {
-        batchChunks.push(batchRequests.slice(i, i + BATCH_SIZE))
-      }
-
-      for (const chunk of batchChunks) {
-        try {
-          const response: any = await axios.post(coreProvider.connection.url, chunk, {
-            headers: { 'Content-Type': 'application/json' },
-            timeout: 30000,
-          })
-
-          const validResponses = response.data.filter((resp: any) => !resp.error && resp.result)
-
-          for (const resp of validResponses) {
-            const blockReceipts = resp.result
-            if (!blockReceipts || blockReceipts.length === 0) continue
-
-            let logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
-
-            if (this.crawlParams.filterLogs) {
-              logs = await this.crawlParams.filterLogs(logs)
-            }
-
-            const blockLogs = logs.filter((log: any) => {
-              return topics.includes(log.topics[0])
-            })
-
-            allLogs = allLogs.concat(blockLogs)
-          }
-
-          if (batchChunks.length > 1) {
-            await utils.wait(200)
-          }
-        } catch (error: any) {
-          logger.warn('Error processing block receipts batch, trying individually', {
-            error: error.message,
-            chunkSize: chunk.length,
-          })
-
-          for (const request of chunk) {
-            try {
-              const blockHex = request.params[0]
-              const blockReceipts = await retryRequest(async () => provider.send('eth_getBlockReceipts', [blockHex]))
-
-              if (!blockReceipts || blockReceipts.length === 0) continue
-
-              let logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
-
-              if (this.crawlParams.filterLogs) {
-                logs = await this.crawlParams.filterLogs(logs)
-              }
-
-              const blockLogs = logs.filter((log: any) => {
-                return topics.includes(log.topics[0])
-              })
-
-              allLogs = allLogs.concat(blockLogs)
-            } catch (innerError) {
-              logger.warn(`Skipping block ${request.params[0]} due to error`, { error: innerError })
-            }
-          }
-        }
-      }
-
-      if (this.crawlParams.filterLogs) {
-        allLogs = await this.crawlParams.filterLogs(allLogs)
-      }
-
-      return { logs: allLogs, toBlock }
-    } catch (error: any) {
-      logger.error('error getLogsByBlockReceipts', { error, topics, currentBlock, toBlock })
-      await this.handleErrors(error)
-      if (this.crawlParams.filterLogs) {
-        allLogs = await this.crawlParams.filterLogs(allLogs)
-      }
-      return { logs: allLogs, toBlock: currentBlock }
+    const requests: any = []
+    for (let blockNum = currentBlock; blockNum <= toBlock; blockNum++) {
+      const blockHex = `0x${blockNum.toString(16)}`
+      requests.push({
+        jsonrpc: '2.0',
+        id: `block-${blockNum}`,
+        method: 'eth_getBlockReceipts',
+        params: [blockHex],
+      })
     }
+
+    try {
+      const response: any = await axios.post(coreProvider.connection.url, requests, {
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const validResponses = response.data.filter((resp: any) => !resp.error && resp.result)
+      for (const resp of validResponses) {
+        const blockReceipts = resp.result
+        if (!blockReceipts || blockReceipts.length === 0) continue
+
+        const logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
+
+        const blockLogs = logs.filter((log: any) => topics.includes(log.topics[0]))
+        allLogs = allLogs.concat(blockLogs)
+      }
+    } catch (batchError: any) {
+      logger.warn('Batch request failed, falling back to individual requests', {
+        error: batchError.message,
+        currentBlock,
+        toBlock,
+      })
+      this.crawlSetting.shutdown = true
+      this.crawlParams.onError(batchError)
+    }
+
+    if (this.crawlParams.filterLogs) {
+      allLogs = await this.crawlParams.filterLogs(allLogs)
+    }
+
+    return { logs: allLogs, toBlock }
   }
 
   async executeBatchRequest(topics: string[] | TopicFilter, currentBlock: number, toBlock: number) {
