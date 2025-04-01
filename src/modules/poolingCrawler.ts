@@ -2,7 +2,7 @@ import { ethers, Interface, type Log } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { ERC721 } from '@artifacts/ERC721'
-import { ICrawStrategy, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
@@ -10,6 +10,9 @@ import logger from '@logger'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'module:PoolingFilter' })
+
+const govTokenInterface = new Interface(GovernanceERC20.abi)
+const erc721Interface = new Interface(ERC721.abi)
 
 const PoolingCrawler = {
   instances: new Map<NetworksEnum, BlockchainLogCrawler>(),
@@ -115,8 +118,6 @@ const PoolingCrawler = {
   },
 
   _decodeTransferLogs: (log: Log) => {
-    const govTokenInterface = new Interface(GovernanceERC20.abi)
-    const erc721Interface = new Interface(ERC721.abi)
     let decoded: any = null
     try {
       decoded = govTokenInterface.parseLog(log)
