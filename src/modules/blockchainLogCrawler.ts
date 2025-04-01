@@ -599,11 +599,20 @@ class BlockchainLogCrawler {
   }
 
   calculateToBlock(currentBlock: number, latestBlock: number): number {
+    const minBlock = Math.min(
+      currentBlock + this.crawlSetting.batchSize - (this.crawlSetting.runCount > 1 ? 1 : 0),
+      latestBlock,
+    )
+
+    if (this.crawlParams.oneBlockPerTime && latestBlock - currentBlock > 10) {
+      return minBlock
+    }
+
     if (this.crawlParams.oneBlockPerTime || this.crawlParams.strategy === ICrawStrategy.getBlockReceipts) {
       return currentBlock
     }
 
-    return Math.min(currentBlock + this.crawlSetting.batchSize - (this.crawlSetting.runCount > 1 ? 1 : 0), latestBlock)
+    return minBlock
   }
 
   formatLog(log: Log): IFormattedLog {
