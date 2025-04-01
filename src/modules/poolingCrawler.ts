@@ -2,7 +2,7 @@ import { ethers, Interface, type Log } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { ERC721 } from '@artifacts/ERC721'
-import { IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
@@ -30,6 +30,7 @@ const PoolingCrawler = {
       logService,
       stopOnError: true,
       batchSize: 0.005,
+      oneBlockPerTime: NetworksEnum.peaqMainnet === network ? true : undefined,
     })
 
     this.instances.set(network, poolingCrawler)

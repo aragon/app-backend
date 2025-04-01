@@ -332,8 +332,7 @@ class BlockchainLogCrawler {
     const toBlock = endBlock || currentBlock
     let allLogs: Log[] = []
 
-    const provider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
-    const coreProvider = await provider.config.getProvider()
+    const url = await this.getProviderUrl()
 
     const requests: any = []
     for (let blockNum = currentBlock; blockNum <= toBlock; blockNum++) {
@@ -347,7 +346,7 @@ class BlockchainLogCrawler {
     }
 
     try {
-      const response: any = await axios.post(coreProvider.connection.url, requests, {
+      const response: any = await axios.post(url, requests, {
         headers: { 'Content-Type': 'application/json' },
       })
 
@@ -378,10 +377,19 @@ class BlockchainLogCrawler {
     return { logs: allLogs, toBlock }
   }
 
+  async getProviderUrl() {
+    const provider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
+    if (provider.config?.getProvider) {
+      const coreProvider = await provider.config.getProvider()
+      return coreProvider.connection.url
+    }
+
+    return config.NODES[utils.networkToAragon(this.crawlParams.network)].ARAGON_RPC
+  }
+
   async executeBatchRequest(topics: string[] | TopicFilter, currentBlock: number, toBlock: number) {
     try {
-      const provider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
-      const coreProvider = await provider.config.getProvider()
+      const url = await this.getProviderUrl()
 
       const idToTopicMap: Record<string, string> = {}
 
@@ -403,7 +411,7 @@ class BlockchainLogCrawler {
         }
       })
 
-      const response: any = await axios.post(coreProvider.connection.url, batchRequests, {
+      const response: any = await axios.post(url, batchRequests, {
         headers: { 'Content-Type': 'application/json' },
       })
 
