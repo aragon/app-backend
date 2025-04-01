@@ -239,7 +239,7 @@ class BlockchainLogCrawler {
     }
 
     // If we're only processing a single block, use receipts
-    if (toBlock - fromBlock === 0) {
+    if (toBlock - fromBlock === 1) {
       return ICrawStrategy.getBlockReceipts
     }
 
