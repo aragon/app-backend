@@ -84,6 +84,10 @@ class BlockchainLogCrawler {
       this.crawlSetting.filter.fromBlock = (await this.getServiceStartBlock()) || this.crawlSetting.filter.fromBlock
     }
 
+    if (this.crawlSetting.isOnError) {
+      this.crawlSetting.isOnError = false
+    }
+
     let currentBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.fromBlock, this.crawlParams.network)
     const latestBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.toBlock, this.crawlParams.network)
     const rawLogs: IFormattedLog[] = []
