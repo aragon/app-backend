@@ -7,10 +7,9 @@ import { expect } from 'chai'
 import logger from '@logger'
 import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
-import CovalentHelper from '@helpers/covalent'
-import BlockScoutHelper from '@helpers/blockScout'
 import utils from '@helpers/utils'
 import DbOperations from '@models/utils/dbOperations'
+import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
 
 describe('TokenDetailFetcherWithRetry Service', () => {
   let sandbox: SinonSandbox
@@ -52,7 +51,7 @@ describe('TokenDetailFetcherWithRetry Service', () => {
       const tokenDbMock = { ...rawToken, id: 'token-id' }
 
       // Mock metrics data
-      const metricsData = { totalSupply: '1000', holders: 10 }
+      const metricsData = { totalSupply: '1000', totalHolders: 10 }
 
       // Create stubs
       const logVerboseStub = sandbox.stub(logger, 'verbose')
@@ -75,7 +74,7 @@ describe('TokenDetailFetcherWithRetry Service', () => {
       expect(updateParams[0]).to.equal(tokenDbMock)
       expect(updateParams[1]).to.deep.equal({
         totalSupply: metricsData.totalSupply,
-        holders: metricsData.holders,
+        holders: metricsData.totalHolders,
       })
       expect(updateParams[2]).to.deep.equal({ address: tokenAddress, network })
     })
@@ -121,74 +120,16 @@ describe('TokenDetailFetcherWithRetry Service', () => {
     })
   })
 
-  describe('fetchBasicTokenInfo', () => {
-    it('should fetch token info from Covalent successfully', async () => {
-      const tokenDb = { ...rawToken, id: 'token-id' }
-      const covalentResponse = { totalSupply: '1000', totalHolders: 10 }
-
-      // Mock Covalent response
-      sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves(covalentResponse)
-
-      // Mock BlockScout (shouldn't be called)
-      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails')
-
-      const result = await TokenDetailFetcherWithRetry.fetchBasicTokenInfo(tokenDb)
-
-      expect(result).to.deep.equal({
-        totalSupply: covalentResponse.totalSupply,
-        holders: covalentResponse.totalHolders,
-      })
-      expect(blockScoutStub.notCalled).to.be.true
-    })
-
-    it('should fallback to BlockScout if Covalent returns empty values', async () => {
-      const tokenDb = { ...rawToken, id: 'token-id' }
-      const covalentResponse = { totalSupply: '0', totalHolders: 0 }
-      const blockScoutResponse = { totalSupply: '2000', holders: 20 }
-
-      // Mock Covalent returning empty data
-      sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves(covalentResponse)
-
-      // Mock BlockScout response
-      sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(blockScoutResponse as any)
-
-      const result = await TokenDetailFetcherWithRetry.fetchBasicTokenInfo(tokenDb)
-
-      expect(result).to.deep.equal({
-        totalSupply: blockScoutResponse.totalSupply,
-        holders: blockScoutResponse.holders,
-      })
-    })
-
-    it('should handle BlockScout returning null', async () => {
-      const tokenDb = { ...rawToken, id: 'token-id' }
-      const covalentResponse = { totalSupply: '0', totalHolders: 0 }
-
-      // Mock Covalent returning empty data
-      sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves(covalentResponse)
-
-      // Mock BlockScout returning null
-      sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(null)
-
-      const result = await TokenDetailFetcherWithRetry.fetchBasicTokenInfo(tokenDb)
-
-      expect(result).to.deep.equal({
-        totalSupply: '0',
-        holders: 0,
-      })
-    })
-  })
-
   describe('pollWithRetry', () => {
     it('should return valid metrics on first attempt', async () => {
       const tokenDbMock = { ...rawToken, id: 'token-id' }
-      const validMetrics = { totalSupply: '1000', holders: 10 }
+      const validMetrics = { totalSupply: '1000', totalHolders: 10 }
 
       // Mock token lookup
       sandbox.stub(Models.Token, 'findOne').resolves(tokenDbMock)
 
       // Mock fetchBasicTokenInfo
-      sandbox.stub(TokenDetailFetcherWithRetry, 'fetchBasicTokenInfo').resolves(validMetrics)
+      sandbox.stub(TokenDetailProvider, 'fetchBasicTokenInfo').resolves(validMetrics)
 
       // Mock hasValidInfo
       sandbox.stub(TokenDetailFetcherWithRetry, 'hasValidInfo').returns(true)
@@ -206,12 +147,12 @@ describe('TokenDetailFetcherWithRetry Service', () => {
 
     it('should retry until valid metrics are found', async () => {
       const tokenDbMock = { ...rawToken, id: 'token-id' }
-      const invalidMetrics = { totalSupply: '0', holders: 0 }
-      const validMetrics = { totalSupply: '1000', holders: 10 }
+      const invalidMetrics = { totalSupply: '0', totalHolders: 0 }
+      const validMetrics = { totalSupply: '1000', totalHolders: 10 }
 
       sandbox.stub(Models.Token, 'findOne').resolves(tokenDbMock)
 
-      const fetchInfoStub = sandbox.stub(TokenDetailFetcherWithRetry, 'fetchBasicTokenInfo')
+      const fetchInfoStub = sandbox.stub(TokenDetailProvider, 'fetchBasicTokenInfo')
       fetchInfoStub.onFirstCall().resolves(invalidMetrics)
       fetchInfoStub.onSecondCall().resolves(validMetrics)
 
@@ -246,9 +187,9 @@ describe('TokenDetailFetcherWithRetry Service', () => {
 
       sandbox.stub(logger, 'verbose')
       // Mock valid metrics on second attempt
-      sandbox.stub(TokenDetailFetcherWithRetry, 'fetchBasicTokenInfo').resolves({
+      sandbox.stub(TokenDetailProvider, 'fetchBasicTokenInfo').resolves({
         totalSupply: '1000',
-        holders: 10,
+        totalHolders: 10,
       })
 
       // Always return valid on second attempt
@@ -268,11 +209,11 @@ describe('TokenDetailFetcherWithRetry Service', () => {
 
     it('should timeout if no valid metrics are found within timeout period', async () => {
       const tokenDbMock = { ...rawToken, id: 'token-id' }
-      const invalidMetrics = { totalSupply: '0', holders: 0 }
+      const invalidMetrics = { totalSupply: '0', totalHolders: 0 }
 
       // Always find token but never get valid metrics
       sandbox.stub(Models.Token, 'findOne').resolves(tokenDbMock)
-      sandbox.stub(TokenDetailFetcherWithRetry, 'fetchBasicTokenInfo').resolves(invalidMetrics)
+      sandbox.stub(TokenDetailProvider, 'fetchBasicTokenInfo').resolves(invalidMetrics)
       sandbox.stub(TokenDetailFetcherWithRetry, 'hasValidInfo').returns(false)
 
       // Mock wait function
@@ -290,22 +231,22 @@ describe('TokenDetailFetcherWithRetry Service', () => {
 
   describe('hasValidInfo', () => {
     it('should return true for valid token details', () => {
-      const validDetails = { totalSupply: '1000', holders: 10 }
+      const validDetails = { totalSupply: '1000', totalHolders: 10 }
       expect(TokenDetailFetcherWithRetry.hasValidInfo(validDetails)).to.be.true
     })
 
     it('should return true if only totalSupply is valid', () => {
-      const partialDetails = { totalSupply: '1000', holders: 0 }
+      const partialDetails = { totalSupply: '1000', totalHolders: 0 }
       expect(TokenDetailFetcherWithRetry.hasValidInfo(partialDetails)).to.be.true
     })
 
     it('should return true if only totalHolders is valid', () => {
-      const partialDetails = { totalSupply: '0', holders: 10 }
+      const partialDetails = { totalSupply: '0', totalHolders: 10 }
       expect(TokenDetailFetcherWithRetry.hasValidInfo(partialDetails)).to.be.true
     })
 
     it('should return false if both totalSupply and totalHolders are invalid', () => {
-      const invalidDetails = { totalSupply: '0', holders: 0 }
+      const invalidDetails = { totalSupply: '0', totalHolders: 0 }
       expect(TokenDetailFetcherWithRetry.hasValidInfo(invalidDetails)).to.be.false
     })
   })

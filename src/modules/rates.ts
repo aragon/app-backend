@@ -1,9 +1,9 @@
-import { type HexAddress, type ITokenRate, ITokenType, type NetworksEnum } from '@types'
+import { type HexAddress, type ITokenDetails, ITokenType, type NetworksEnum } from '@types'
 import dayjs from '@helpers/dayjs'
 import CovalentHelper from '@helpers/covalent'
 
 export const RateModule = {
-  fetchRate: async (tokenAddress: HexAddress, network: NetworksEnum, pastDays?: number): Promise<ITokenRate> => {
+  fetchRate: async (tokenAddress: HexAddress, network: NetworksEnum, pastDays?: number): Promise<ITokenDetails> => {
     return await RateModule.fetchRateWithCovalent(tokenAddress, network, pastDays)
   },
 
@@ -11,7 +11,7 @@ export const RateModule = {
     tokenAddress: HexAddress,
     network: NetworksEnum,
     pastDays?: number,
-  ): Promise<ITokenRate> => {
+  ): Promise<ITokenDetails> => {
     const tokenRate: any = {
       address: tokenAddress,
       decimals: null,

@@ -32,15 +32,17 @@ export interface IAlchemyTransferOptions {
 export interface IAlchemyTransferResponse {
   blockNum: number // hex block number
   uniqueId: string
+  blockTimestamp?: number
+  block: number
   hash: HexAddress
   from: HexAddress
   to: HexAddress
-  value: number | null
+  value: number | null | string
   erc721TokenId: string | null
-  erc1155Metadata: IAlchemyERC1155Metadata[]
-  tokenId: string | null
-  asset: string | null
-  category: ITransactionCategory
+  erc1155Metadata?: IAlchemyERC1155Metadata[]
+  tokenId?: string | null
+  asset?: string | null
+  category?: ITransactionCategory | undefined
   rawContract: IAlchemyRawContract
 }
 
