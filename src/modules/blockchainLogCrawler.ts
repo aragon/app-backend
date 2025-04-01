@@ -181,7 +181,7 @@ class BlockchainLogCrawler {
   }
 
   async getLogsByBatch(currentBlock: number, latestBlock: number) {
-    let topics = this.crawlSetting?.filter?.topics
+    const topics = this.crawlSetting?.filter?.topics
     let toBlock = this.calculateToBlock(currentBlock, latestBlock)
     let success = false
     let allLogs: Log[] = []
@@ -195,16 +195,13 @@ class BlockchainLogCrawler {
             resultLogs = await this.crawlParams.filterLogs(resultLogs)
           }
           allLogs = allLogs.concat(resultLogs)
-          if (allLogs.length > 1) {
-            logger.info('Test')
-          }
         }
 
         const failedRequests = response.filter((resp: any) => resp.error)
         if (failedRequests.length === 0) {
           this.crawlSetting.nbTotal += allLogs.length
           this.crawlSetting.batchSize = this.crawlSetting.originalBatchSize
-          topics = this.crawlSetting?.filter?.topics // reset topics
+          // topics = this.crawlSetting?.filter?.topics // reset topics
           success = true
           break
         }
@@ -214,7 +211,7 @@ class BlockchainLogCrawler {
           if (this.crawlSetting.batchSize > 1) {
             this.crawlSetting.batchSize = Math.max(1, Math.floor(this.crawlSetting.batchSize / 3))
             toBlock = this.resizeToBlock(currentBlock, latestBlock)
-            topics = batchSizeErrors.flatMap((resp: any) => resp.topics) // re-try only for the missing topics
+            // topics = batchSizeErrors.flatMap((resp: any) => resp.topics) // re-try only for the missing topics
           } else {
             const error = batchSizeErrors[0].error
             logger.error('Batch size too small, stopping crawl', llo({ ...this.parseCrawlerInfoLog(), error }))
@@ -315,10 +312,6 @@ class BlockchainLogCrawler {
       }
 
       throw error
-    }
-
-    if (this.crawlParams.filterLogs) {
-      allLogs = await this.crawlParams.filterLogs(allLogs)
     }
 
     return { logs: allLogs, toBlock }
