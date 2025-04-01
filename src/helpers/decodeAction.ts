@@ -14,9 +14,8 @@ import {
 } from '@types'
 import { ProposalActionType } from '@src/types'
 import { Models } from '@dbModels'
-import _ from 'lodash'
+import * as _ from 'lodash'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
-import Etherscan from '@helpers/etherscan'
 import ProxyContract from '@helpers/proxyContract'
 import { ProxyToken } from '@modules/proxyToken'
 import Covalent from '@helpers/covalent'
@@ -47,6 +46,7 @@ import { ProxyMember } from '@modules/proxyMember'
 import BlockScoutHelper from '@helpers/blockScout'
 
 import { IBlockScoutAddressType } from '@src/types/blockScout'
+import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
 
 const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
 
@@ -645,19 +645,6 @@ class DecodeActions {
     }
   }
 
-  async _fetchContractSourceCode(contractAddress: string, network: NetworksEnum) {
-    let contractDetails = await Etherscan.fetchContractSourceCode({
-      contractAddress,
-      network,
-    })
-
-    if (!contractDetails) {
-      contractDetails = await BlockScoutHelper.getContractSourceCode(contractAddress, network)
-    }
-
-    return contractDetails
-  }
-
   async parseContractNetspec(functionName: string, rawAction: IRawAction, network: NetworksEnum) {
     let implementationAddress = await ProxyContract.getImplementationAddress(rawAction.to, network)
 
@@ -665,11 +652,11 @@ class DecodeActions {
       implementationAddress = rawAction.to
     }
 
-    const contractDetails = await this._fetchContractSourceCode(implementationAddress, network)
+    const contractDetails = await TokenDetailProvider.fetchContractSourceCode(implementationAddress, network)
 
     let proxyDetails: any = null
     if (implementationAddress !== rawAction.to) {
-      proxyDetails = await this._fetchContractSourceCode(rawAction.to, network)
+      proxyDetails = await TokenDetailProvider.fetchContractSourceCode(rawAction.to, network)
     }
 
     if (contractDetails && contractDetails.length > 0 && contractDetails[0].SourceCode !== '') {

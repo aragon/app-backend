@@ -6,6 +6,7 @@ import { expect } from 'chai'
 import ProxyContract from '@helpers/proxyContract'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import DecodeActions from '@helpers/decodeAction'
+import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
 
 describe('AragonDao: contractInfo', () => {
   let sandbox: SinonSandbox
@@ -64,7 +65,7 @@ describe('AragonDao: contractInfo', () => {
 
   describe('fetchVerifiedContractData', () => {
     it('should return null if contract details are empty', async () => {
-      let fetchContractSourceCodeStub = sandbox.stub(DecodeActions.prototype, '_fetchContractSourceCode').resolves([])
+      let fetchContractSourceCodeStub = sandbox.stub(TokenDetailProvider, 'fetchContractSourceCode').resolves([])
 
       let result = await ContractInfo.fetchVerifiedContractData(NetworksEnum.ethereumSepolia, '0xaddress')
 
@@ -75,7 +76,7 @@ describe('AragonDao: contractInfo', () => {
 
     it('should return null if contract source code is not verified', async () => {
       let fetchContractSourceCodeStub = sandbox
-        .stub(DecodeActions.prototype, '_fetchContractSourceCode')
+        .stub(TokenDetailProvider, 'fetchContractSourceCode')
         .resolves([{ SourceCode: '', ContractName: 'contractName', ABI: '[]' }])
 
       let result = await ContractInfo.fetchVerifiedContractData(NetworksEnum.ethereumSepolia, '0xaddress')
@@ -87,7 +88,8 @@ describe('AragonDao: contractInfo', () => {
 
     it('should return if the contract netspec returns empty', async () => {
       let fetchContractSourceCodeStub = sandbox
-        .stub(DecodeActions.prototype, '_fetchContractSourceCode')
+        .stub(TokenDetailProvider, 'fetchContractSourceCode')
+
         .resolves([{ SourceCode: 'sourceCode', ContractName: 'contractName', ABI: '[]' }])
 
       const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([])
@@ -105,7 +107,8 @@ describe('AragonDao: contractInfo', () => {
 
     it('should return contract data if everything is okay', async () => {
       let fetchContractSourceCodeStub = sandbox
-        .stub(DecodeActions.prototype, '_fetchContractSourceCode')
+        .stub(TokenDetailProvider, 'fetchContractSourceCode')
+
         .resolves([{ SourceCode: 'sourceCode', ContractName: 'contractName', ABI: '[]' }])
 
       const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([

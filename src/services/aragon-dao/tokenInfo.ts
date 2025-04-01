@@ -2,9 +2,7 @@ import { type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import Utils from '@helpers/utils'
-import BlockScoutHelper from '@helpers/blockScout'
-import CovalentHelper from '@helpers/covalent'
-
+import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
 import DbOperations from '@models/utils/dbOperations'
 
 const llo = logger.logMeta.bind(null, { service: 'tokenInfo' })
@@ -39,7 +37,7 @@ export const TokenDetailFetcherWithRetry = {
           tokenInfo.tokenDb,
           {
             totalSupply: tokenInfo.tokenDetails.totalSupply,
-            holders: tokenInfo.tokenDetails.holders,
+            holders: tokenInfo.tokenDetails.totalHolders,
           },
           { address: tokenAddress, network },
           'Updated Token with pooling',
@@ -50,28 +48,6 @@ export const TokenDetailFetcherWithRetry = {
     } catch (error) {
       logger.error('Error updating token metrics', llo({ tokenAddress, network, error }))
     }
-  },
-
-  async fetchBasicTokenInfo(tokenDb: any): Promise<any> {
-    const metricsInfo = {
-      totalSupply: '0',
-      holders: 0,
-    }
-
-    const tokenInfoCovalent = await CovalentHelper.getTokenSupplyAndHolders(tokenDb.address, tokenDb.network)
-
-    metricsInfo.totalSupply = tokenInfoCovalent.totalSupply
-    metricsInfo.holders = tokenInfoCovalent.totalHolders
-
-    if (metricsInfo.totalSupply === '0' && metricsInfo.holders === 0) {
-      const tokenFullDetails = await BlockScoutHelper.getTokenFullDetails(tokenDb.address, tokenDb.network)
-      if (tokenFullDetails) {
-        metricsInfo.totalSupply = tokenFullDetails.totalSupply!
-        metricsInfo.holders = tokenFullDetails.holders!
-      }
-    }
-
-    return metricsInfo
   },
 
   async pollWithRetry(
@@ -85,7 +61,7 @@ export const TokenDetailFetcherWithRetry = {
     while (Date.now() - startTime < timeoutMs) {
       const tokenDb = await Models.Token.findOne({ address: tokenAddress, network })
       if (tokenDb) {
-        const tokenDetails = await TokenDetailFetcherWithRetry.fetchBasicTokenInfo(tokenDb)
+        const tokenDetails = await TokenDetailProvider.fetchBasicTokenInfo(tokenDb)
         if (TokenDetailFetcherWithRetry.hasValidInfo(tokenDetails)) {
           logger.verbose('Token metrics fetched', llo({ tokenAddress, network, tokenDetails }))
           return {
@@ -104,7 +80,7 @@ export const TokenDetailFetcherWithRetry = {
   },
 
   hasValidInfo(tokenDetails: any): boolean {
-    return !(tokenDetails.totalSupply === '0' && tokenDetails.holders === 0)
+    return !(tokenDetails.totalSupply && tokenDetails.totalSupply === '0' && tokenDetails.totalHolders === 0)
   },
 }
 
