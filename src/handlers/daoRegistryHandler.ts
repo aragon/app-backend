@@ -55,7 +55,7 @@ export const DaoRegistryHandler = {
   },
 
   nativeTransfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const dao = await Models.Dao.findOne(info.address)
+    const dao = await Models.Dao.findByAddress(info.address, info.network)
     if (!dao) return
 
     await Promise.allSettled([
