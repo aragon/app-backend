@@ -11,7 +11,7 @@ class Task {
   public taskName!: string
 
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: null })
-  public params: any
+  public params?: any
 
   @prop({ type: () => Date })
   public startAt!: Date
