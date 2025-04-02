@@ -20,6 +20,7 @@ describe('Router: Status', () => {
     const fakeRes = {
       status: 'status',
       appName: 'appName',
+      service: 'appService',
       nodeVersion: 'nodeVersion',
       environment: 'environment',
       supportedNetworks: [NetworksEnum.ethereumMainnet],

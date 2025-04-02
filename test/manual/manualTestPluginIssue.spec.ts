@@ -21,9 +21,6 @@ describe.skip('ToolsFixSettingIssue', () => {
   })
 
   it('should fix the plugin issue', async function () {
-    console.log('test')
-  })
-  it('should fix the plugin issue', async function () {
     this.timeout(1600000) // Increase timeout for the test
 
     const transactionHash = '0xbc7aad6d368981b7a3351119c52b6fd178f7f1e9c784191cb29f871edbe16a39'

@@ -17,6 +17,9 @@ import type MemberBalance from '@models/schema/memberBalance'
 import type MemberTransaction from '@models/schema/memberTransaction'
 import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 import type MemberMetrics from '@models/schema/memberMetrics'
+import type DaoPermission from '@models/schema/daoPermission'
+import type Jwt from '@models/schema/jwt'
+import type PluginSlug from '@models/schema/pluginSlug'
 
 export enum ICollectionNames {
   Asset = 'Asset',
@@ -40,6 +43,7 @@ export enum ICollectionNames {
   Transaction = 'Transaction',
   Vote = 'Vote',
   DaoPermission = 'DaoPermission',
+  Jwt = 'Jwt',
 }
 
 export enum ITransactionIndexCheckType {
@@ -59,25 +63,28 @@ export const IndexCheckTypeToModel: Record<ITransactionIndexCheckType, ICollecti
 }
 
 export interface IMongoModel {
+  Asset: typeof Asset
+  ConfigIndexer: typeof ConfigIndexer
   Dao: typeof Dao
-  Token: typeof Token
+  DaoMemberMapping: typeof DaoMemberMapping
+  DaoPermission: typeof DaoPermission
+  Jwt: typeof Jwt
   LogMetadata: typeof LogMetadata
   LogPluginSetupProcessor: typeof LogPluginSetupProcessor
-  PluginRepo: typeof PluginRepo
   Member: typeof Member
   MemberBalance: typeof MemberBalance
   MemberMetrics: typeof MemberMetrics
   MemberTransaction: typeof MemberTransaction
-  DaoMemberMapping: typeof DaoMemberMapping
   Plugin: typeof Plugin
-  Setting: typeof Setting
-  Asset: typeof Asset
+  PluginRepo: typeof PluginRepo
+  PluginSlug: typeof PluginSlug
   Proposal: typeof Proposal
-  Transaction: typeof Transaction
-  ConfigIndexer: typeof ConfigIndexer
-  Vote: typeof Vote
-  TaskService: typeof TaskService
+  Setting: typeof Setting
   TaskRun: typeof TaskRun
+  TaskService: typeof TaskService
+  Token: typeof Token
+  Transaction: typeof Transaction
+  Vote: typeof Vote
 }
 
 export enum IEventLogPluginMembership {

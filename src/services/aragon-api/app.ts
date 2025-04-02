@@ -1,5 +1,5 @@
 import Koa from 'koa'
-import MainMiddleware from '@services/aragon-api/middlewares/index'
+import MainMiddleware from '@middlewares/index'
 import logger from '@logger'
 import config from '@config'
 import MainRouter from '@services/aragon-api/routers/index'
