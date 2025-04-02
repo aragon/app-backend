@@ -14,6 +14,7 @@ import type Transaction from '@models/schema/transaction'
 import PairDataModule from '@modules/pairData'
 import { assert } from '@errors'
 import logger from '@logger'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'TransactionController' })
 
@@ -43,10 +44,14 @@ const TransactionController = {
       assert(!!model, 'action is required')
 
       const queryToCheck = TransactionController._getQueryForAction(action, txHash, network)
-      const data = await Models[model].findOne(queryToCheck)
+      let data = await Models[model].findOne(queryToCheck)
       response.isProcessed = Boolean(data)
 
       if (data && action === ITransactionIndexCheckType.PROPOSAL_CREATE) {
+        // wait for multiple proposals to be created
+        await utils.wait(500)
+        data = await data.reload()
+
         const pluginAddress = data.parentProposal?.pluginAddress || data.pluginAddress
         const pluginSlug = await Models.PluginSlug.findOne({
           pluginAddress,
