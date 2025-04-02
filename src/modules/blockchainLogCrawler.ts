@@ -189,16 +189,18 @@ class BlockchainLogCrawler {
     while (!success) {
       try {
         const response = await this.executeBatchRequest(topics!, currentBlock, toBlock)
-        let resultLogs = response.filter((resp: any) => !resp.error).flatMap((resp: any) => resp.result)
-        if (resultLogs.length > 0) {
-          if (this.crawlParams.filterLogs) {
-            resultLogs = await this.crawlParams.filterLogs(resultLogs)
-          }
-          allLogs = allLogs.concat(resultLogs)
-        }
-
         const failedRequests = response.filter((resp: any) => resp.error)
+
         if (failedRequests.length === 0) {
+          this.crawlSetting.shutdown = false
+          let resultLogs = response.flatMap((resp: any) => resp.result)
+          if (resultLogs.length > 0) {
+            if (this.crawlParams.filterLogs) {
+              resultLogs = await this.crawlParams.filterLogs(resultLogs)
+            }
+            allLogs = allLogs.concat(resultLogs)
+          }
+
           this.crawlSetting.nbTotal += allLogs.length
           this.crawlSetting.batchSize = this.crawlSetting.originalBatchSize
           // topics = this.crawlSetting?.filter?.topics // reset topics
@@ -234,6 +236,11 @@ class BlockchainLogCrawler {
     return { logs: allLogs, toBlock }
   }
 
+  // If we're only processing a small range, use getLogs
+  // If we're processing a large range, use getLogsByBatch
+  // Fewer thresholds for faster block times
+  // If the average block time is less than 1 second, use 40
+
   getStrategyBySituation(fromBlock: number, toBlock: number) {
     if (this.crawlParams.oneBlockPerTime) {
       if (toBlock - fromBlock <= 5) {
@@ -245,11 +252,6 @@ class BlockchainLogCrawler {
     if (toBlock - fromBlock === 1) {
       return ICrawStrategy.getBlockReceipts
     }
-
-    // If we're only processing a small range, use getLogs
-    // If we're processing a large range, use getLogsByBatch
-    // Fewer thresholds for faster block times
-    // If the average block time is less than 1 second, use 40
 
     const avgBlockTimeSec = config.NODES[utils.networkToAragon(this.crawlParams.network)].INTERVAL_BLOCK_TIME
     const blockRange = toBlock - fromBlock + 1
