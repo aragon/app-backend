@@ -1,6 +1,5 @@
 import utils from '@helpers/utils'
 import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum } from '@types'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 
 const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
