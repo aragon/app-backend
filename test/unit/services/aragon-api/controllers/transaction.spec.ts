@@ -158,14 +158,13 @@ describe('Controller: Transaction', () => {
     it('should get transaction indexing status - proposal created and return slug when is sub-proposal', async () => {
       await Models.Proposal.create({
         ...ProposalList[0],
-        ...{ pluginAddress: 'x000' },
-        ...{ proposalIndex: '2' },
+        ...{ pluginAddress: 'x000', proposalIndex: '2', incrementalId: 2 },
         transactionHash: '0x126',
       })
 
       await Models.Proposal.create({
         ...ProposalList[0],
-        ...{ proposalIndex: '7' },
+        ...{ proposalIndex: '7', incrementalId: 7 },
         transactionHash: '0x126',
       })
 
@@ -191,7 +190,7 @@ describe('Controller: Transaction', () => {
       expect(spyPluginSlugReq.calledOnce).to.be.true
       expect(response).to.deep.eq({
         isProcessed: true,
-        slug: 'test-slug-0',
+        slug: 'test-slug-2',
       })
     })
 
