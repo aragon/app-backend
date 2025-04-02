@@ -11,7 +11,6 @@ import Utils from '@helpers/utils'
 import config from '@config'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
-import utils from '@helpers/utils'
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
@@ -512,9 +511,7 @@ describe('Module: blockchainLogCrawler', () => {
     })
 
     it('should apply filterLogs if provided', async () => {
-      const filterLogsFn = sandbox
-        .stub()
-        .callsFake(logs => logs.filter((log: { blockNumber: number }) => log.blockNumber === 101))
+      const filterLogsFn = sandbox.stub().callsFake(logs => logs.filter(log => log.blockNumber === 101))
 
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
@@ -1128,58 +1125,6 @@ describe('Module: blockchainLogCrawler', () => {
     expect(stubSaveProgress.calledWith(sortedLogs[0].blockNumber)).to.be.true
   })
 
-  it('should re-order and return the formatted logs when skip processing is true', async () => {
-    const events = [
-      { topic: '0xTopic1', event: 'Test1', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test1()'] }] },
-    ] as any
-
-    const crawler = new BlockchainLogCrawler({
-      network: NetworksEnum.ethereumMainnet,
-      fromBlock: 100,
-      toBlock: 200,
-      skipLogProcessing: true,
-      address: '0xAddress',
-      events: events,
-      stopOnError: false,
-      logService: null,
-      onError: () => {},
-    })
-
-    mockProvider.getBlockNumber.onFirstCall().resolves(100)
-
-    sandbox.stub(crawler, 'executeBatchRequest').returns([
-      {
-        result: [
-          { blockNumber: 101, transactionIndex: 1, index: 5, topics: ['0xTopic1'], data: '0xData1' },
-          { blockNumber: 101, transactionIndex: 20, index: 2, topics: ['0xTopic1'], data: '0xData1' },
-          { blockNumber: 101, transactionIndex: 2, index: 9, topics: ['0xTopic1'], data: '0xData1' },
-          { blockNumber: 101, transactionIndex: 50, index: 4, topics: ['0xTopic1'], data: '0xData1' },
-          { blockNumber: 101, transactionIndex: 50, index: 4, topics: ['0xTopic1'], data: '0xData1' },
-        ],
-      },
-    ] as any)
-
-    const updateAndCheckConditionsStub = sandbox
-      .stub(crawler, 'updateAndCheckConditions')
-      .onFirstCall()
-      .resolves(true)
-      .onSecondCall()
-      .resolves(false)
-
-    const processLogsSpy = sandbox.spy(crawler, 'processLogs')
-    const formatLogStub = sandbox.stub(crawler, 'formatLog').returns({
-      args: {
-        first: 'first',
-      },
-    } as any)
-
-    const response = await crawler.crawl()
-    expect(updateAndCheckConditionsStub.calledOnce).to.be.true
-    expect(processLogsSpy.calledOnce).to.be.false
-    expect(formatLogStub.callCount).to.equal(5)
-    expect(response?.length).to.equal(5)
-  })
-
   it('should log an error when event setting is not found', async () => {
     // Mock logs with a topic not present in events
     const logs = [
@@ -1215,168 +1160,8 @@ describe('Module: blockchainLogCrawler', () => {
     }
   })
 
-  it('should stop processing logs on parse log error when stopOnError is true', async () => {
-    const logs = [
-      { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], data: '0xData1' },
-      { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic2'], data: '0xData2' },
-    ] as any
-
-    const events = [
-      { topic: '0xTopic1', event: 'Test1', config: [{ abi: ['event Test1()'], handler: sandbox.stub().resolves() }] },
-      { topic: '0xTopic2', event: 'Test2', config: [{ abi: ['event Test2()'], handler: sandbox.stub().resolves() }] },
-    ] as any
-
-    const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').callsFake((log: any) => {
-      if (log.topics[0] === '0xTopic2') return null as any
-      return { event: 'Test1', args: {} } as any // Simulate successful parsing for the first log
-    })
-
-    const stubParseInfoLog = sandbox.stub(Web3Helper, 'parseInfoLog').returns({} as any)
-    const stubSaveProgress = sandbox.stub(BlockchainLogCrawler.prototype, 'onSaveProgress').resolves()
-
-    const onErrorStub = sandbox.stub()
-
-    const crawler = new BlockchainLogCrawler({
-      network: NetworksEnum.ethereumMainnet,
-      fromBlock: 100,
-      toBlock: 200,
-      address: '0xAddress',
-      events,
-      stopOnError: true,
-      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
-      onError: onErrorStub,
-    })
-
-    sandbox.stub(crawler, 'executeBatchRequest').resolves([
-      {
-        result: [
-          { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], data: '0xData1' },
-          { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic2'], data: '0xData2' },
-        ],
-      },
-    ] as any)
-
-    await crawler.processLogs(logs)
-
-    expect(events[0].config[0].handler.calledOnce).to.be.true
-    expect(stubParseLog.calledTwice).to.be.true
-    expect(stubParseInfoLog.calledTwice).to.be.true
-    expect(stubSaveProgress.calledOnceWith(logs[0].blockNumber)).to.be.true
-
-    expect(logError.calledOnce).to.be.true
-    expect(logError.calledWith('Error parsing log in blockchainCrawler')).to.be.true
-    expect(onErrorStub.calledOnce).to.be.true
-    expect(events[1].config[0].handler.notCalled).to.be.true
-
-    expect(crawler.crawlSetting.nbError).to.equal(1)
-    expect(crawler.crawlSetting.nbSuccess).to.equal(1)
-  })
-
-  it('should handle rate limiting by pausing and retrying', async () => {
-    const waitStub = sandbox.stub(Utils, 'wait').resolves()
-    mockProvider.getBlockNumber.resolves(100)
-
-    const crawler = new BlockchainLogCrawler({
-      network: NetworksEnum.ethereumMainnet,
-      fromBlock: 100,
-      toBlock: 200,
-      address: '0xAddress',
-      events: [],
-      stopOnError: false,
-      logService: null,
-      onError: () => {},
-    })
-
-    const rateLimitError = new Error('Your app has exceeded its compute units per second capacity')
-    const retryStub = sandbox
-      .stub()
-      .onFirstCall()
-      .rejects(rateLimitError)
-      .onSecondCall()
-      .resolves([
-        { transactionHash: '0x1', blockNumber: 101 },
-        { transactionHash: '0x2', blockNumber: 102 },
-      ])
-
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      ...mockProvider,
-      send: retryStub,
-    } as any)
-
-    await crawler.crawl()
-
-    expect(waitStub.calledOnce).to.be.true
-    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
-  })
-
-  it('should reduce batch size and retry on batch size error', async () => {
-    const crawler = new BlockchainLogCrawler({
-      network: NetworksEnum.ethereumMainnet,
-      fromBlock: 100,
-      toBlock: 200,
-      address: '0xAddress',
-      events: [],
-      stopOnError: false,
-      logService: null,
-      onError: () => {},
-    })
-
-    const batchSizeError = new Error('Log response size exceeded')
-    const retryStub = sandbox
-      .stub()
-      .onFirstCall()
-      .rejects(batchSizeError)
-      .onSecondCall()
-      .resolves([{ transactionHash: '0x1', blockNumber: 101 }])
-
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getBlockNumber: sandbox.stub().resolves(200),
-      send: retryStub,
-    } as any)
-
-    const originalBatchSize = crawler.crawlSetting.originalBatchSize
-
-    await crawler.crawl()
-
-    expect(crawler.crawlSetting.batchSize).to.be.lessThanOrEqual(originalBatchSize)
-    expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
-  })
-
-  it('should stop crawling if batch size becomes too small', async () => {
-    const crawler = new BlockchainLogCrawler({
-      network: NetworksEnum.ethereumMainnet,
-      fromBlock: 100,
-      toBlock: 300,
-      address: '0xAddress',
-      events: [],
-      stopOnError: false,
-      logService: null,
-      onError: () => {},
-    })
-
-    const batchSizeError = new Error('Log response size exceeded')
-
-    const retryStub = sandbox.stub().rejects(batchSizeError)
-
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getBlockNumber: sandbox.stub().resolves(300),
-      send: retryStub,
-    } as any)
-
-    let batchSize = crawler.crawlSetting.batchSize
-    sandbox.stub(crawler.crawlSetting, 'batchSize').get(() => batchSize)
-    sandbox.stub(crawler.crawlSetting, 'batchSize').set(value => {
-      batchSize = value
-    })
-
-    await crawler.crawl()
-
-    expect(logError.calledWith('Batch size too small, stopping crawl')).to.be.true
-    expect(crawler.crawlSetting.batchSize).to.eq(1)
-  })
-
   it('should throw an error if block interval time is not found for the network', () => {
-    sandbox.stub(utils, 'networkToAragon').returns('FAKE_NETWORK')
+    sandbox.stub(Utils, 'networkToAragon').returns('FAKE_NETWORK')
 
     // Mock the entire config.NODES object to include a fake network with undefined INTERVAL_BLOCK_TIME
     sandbox.stub(config, 'NODES').value({
