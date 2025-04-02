@@ -3,17 +3,15 @@ import {
   type IAlchemyNodeConnection,
   type IAragonNodeConfig,
   type IConnectionType,
-  type INodeConnection,
   type IProviderProxy,
   IProviderType,
   type IRawNodeConfig,
   NetworksEnum,
 } from '@types'
-import { JsonRpcProvider, WebSocketProvider } from 'ethers'
+import { JsonRpcProvider } from 'ethers'
 import { Alchemy, type AlchemySettings, Network } from 'alchemy-sdk'
 import config from '@config'
 import logger from '@logger'
-import { WsProvider, ApiPromise } from '@polkadot/api'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
@@ -110,32 +108,12 @@ const ProviderModule = {
       alchemyConnection.rpc = alchemyConnection.core
 
       ProviderModule.providerProxies[network].alchemy = alchemyConnection
-
-      if (alchemyConnection.ws && typeof alchemyConnection.ws.on === 'function') {
-        ProviderModule.setupWSListeners(alchemyConnection.ws, IProviderType.ALCHEMY, network)
-      }
     } else if (nodeConfig.providerType === IProviderType.ARAGON) {
       const aragonConfig = nodeConfig as IAragonNodeConfig
 
-      let wsProvider: WsProvider | WebSocketProvider | null = null
-      let apiProvider: ApiPromise | null = null
-      if (network === NetworksEnum.peaqMainnet) {
-        wsProvider = aragonConfig.wsEndpoint ? new WsProvider(aragonConfig.wsEndpoint) : null
-        apiProvider = await ApiPromise.create({ provider: wsProvider as any })
-      } else {
-        wsProvider = aragonConfig.wsEndpoint ? new WebSocketProvider(aragonConfig.wsEndpoint) : null
-      }
-
       const rpcProvider = aragonConfig.rpcEndpoint ? new JsonRpcProvider(aragonConfig.rpcEndpoint) : null
-      const aragonConnection: INodeConnection = {
+      ProviderModule.providerProxies[network].aragon = {
         rpc: rpcProvider,
-        ws: wsProvider,
-        api: apiProvider,
-      }
-      ProviderModule.providerProxies[network].aragon = aragonConnection
-
-      if (aragonConnection.ws && typeof aragonConnection.ws?.websocket?.on === 'function') {
-        ProviderModule.setupWSListeners(aragonConnection.ws.websocket, IProviderType.ARAGON, network)
       }
     }
   },
