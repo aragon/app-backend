@@ -46,14 +46,10 @@ describe('Module: blockchainLogCrawler', () => {
 
     sandbox.stub(crawler, 'executeBatchRequest').resolves([
       {
-        result: [
-          { transactionHash: '0x1', blockNumber: 101, transactionIndex: 1 },
-        ],
+        result: [{ transactionHash: '0x1', blockNumber: 101, transactionIndex: 1 }],
       },
       {
-        result: [
-          { transactionHash: '0x2', blockNumber: 102, transactionIndex: 2 },
-        ],
+        result: [{ transactionHash: '0x2', blockNumber: 102, transactionIndex: 2 }],
       },
     ] as any)
 
