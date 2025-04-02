@@ -16,8 +16,9 @@ export interface IIndexerConfig {
 }
 
 export enum ICrawStrategy {
-  getLogs = 'getLogs',
+  getLogsWithoutTopics = 'getLogsWithoutTopics',
   getBlockReceipts = 'getBlockReceipts',
+  getLogsByBatch = 'getLogsByBatch',
 }
 
 export interface ICrawlParam {
@@ -42,7 +43,6 @@ export interface ICrawlSetting {
   debugLogs: IFormattedLog[]
   shutdown: boolean
   crawling: boolean
-  isOnError: boolean
   batchSize: number
   originalBatchSize: number
   runCount: number

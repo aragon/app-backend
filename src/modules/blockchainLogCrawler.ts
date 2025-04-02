@@ -46,7 +46,6 @@ class BlockchainLogCrawler {
     this.crawlSetting = {
       shutdown: false,
       crawling: false,
-      isOnError: false,
       originalBatchSize: this.calculateBatchSize(opts.network),
       batchSize: this.calculateBatchSize(opts.network),
       runCount: 0,
@@ -89,11 +88,24 @@ class BlockchainLogCrawler {
     const rawLogs: IFormattedLog[] = []
     let allLogs: Log[] = []
 
+    if (currentBlock === latestBlock) {
+      this.crawlSetting.crawling = false
+      return rawLogs
+    }
+
+    this.crawlParams.strategy = this.getStrategyBySituation(currentBlock, latestBlock)
+
+    let retryCount = 0
     while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
       this.crawlSetting.runCount++
 
+      if (retryCount >= 1 && this.crawlParams.strategy === ICrawStrategy.getLogsWithoutTopics) {
+        this.crawlParams.strategy = ICrawStrategy.getLogsByBatch
+      }
+
       try {
         const result: any = await this.getLogsByStrategy(currentBlock, latestBlock)
+
         const toBlock = result.toBlock
         allLogs = result.logs
 
@@ -109,6 +121,7 @@ class BlockchainLogCrawler {
               ...this.parseCrawlerInfoLog(),
               blockNumber: toBlock,
               fromBlock: currentBlock,
+              strategy: this.crawlParams.strategy,
               toBlock,
               latestBlock,
               logsLen: 0,
@@ -117,7 +130,7 @@ class BlockchainLogCrawler {
         } else if (!this.crawlParams.skipLogProcessing) {
           await this.processLogs(sortedLogs, currentBlock, toBlock, latestBlock)
         } else {
-          await this.debugLogs(sortedLogs)
+          sortedLogs?.map(log => rawLogs.push(this.formatLog(log)))
         }
 
         if (this.crawlParams.logService) {
@@ -127,6 +140,7 @@ class BlockchainLogCrawler {
         currentBlock = toBlock + 1
         if (currentBlock >= latestBlock) break
       } catch (error) {
+        retryCount++
         await this.handleErrors(error)
         if (this.crawlParams.stopOnError && this.crawlSetting.shutdown) break
       }
@@ -137,19 +151,25 @@ class BlockchainLogCrawler {
     }
 
     this.crawlSetting.crawling = false
-    logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
+    if (!this.crawlParams.filterLogs) {
+      logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
+    }
   }
 
   async getLogsByStrategy(currentBlock: number, latestBlock: number) {
-    if (this.crawlParams.strategy === ICrawStrategy.getBlockReceipts) {
-      return this.getLogsByBlockReceipts(currentBlock)
+    switch (this.crawlParams.strategy) {
+      case ICrawStrategy.getBlockReceipts:
+        return this.getLogsByBlockReceipts(currentBlock, latestBlock)
+      case ICrawStrategy.getLogsWithoutTopics:
+        return this.getLogsWithoutTopics(currentBlock, latestBlock)
+      case ICrawStrategy.getLogsByBatch:
+      default:
+        return this.getLogsByBatch(currentBlock, latestBlock)
     }
-
-    return this.getLogsByBatch(currentBlock, latestBlock)
   }
 
   async getLogsByBatch(currentBlock: number, latestBlock: number) {
-    let topics = this.crawlSetting?.filter?.topics
+    const topics = this.crawlSetting?.filter?.topics
     let toBlock = this.calculateToBlock(currentBlock, latestBlock)
     let success = false
     let allLogs: Log[] = []
@@ -157,19 +177,25 @@ class BlockchainLogCrawler {
     while (!success) {
       try {
         const response = await this.executeBatchRequest(topics!, currentBlock, toBlock)
-        let resultLogs = response.filter((resp: any) => !resp.error).flatMap((resp: any) => resp.result)
-        if (resultLogs.length > 0) {
-          if (this.crawlParams.filterLogs) {
-            resultLogs = await this.crawlParams.filterLogs(resultLogs)
-          }
-          allLogs = allLogs.concat(resultLogs)
-        }
-
         const failedRequests = response.filter((resp: any) => resp.error)
+
         if (failedRequests.length === 0) {
+          this.crawlSetting.shutdown = false
+          let resultLogs = response.flatMap((resp: any) => resp.result)
+          if (resultLogs.length > 0) {
+            if (this.crawlParams.filterLogs) {
+              resultLogs = await this.crawlParams.filterLogs(resultLogs)
+            }
+            allLogs = allLogs.concat(resultLogs).map((log: any) => ({
+              ...log,
+              blockNumber: Number(log.blockNumber),
+              transactionIndex: Number(log.transactionIndex),
+              index: Number(log.logIndex),
+            }))
+          }
+
           this.crawlSetting.nbTotal += allLogs.length
           this.crawlSetting.batchSize = this.crawlSetting.originalBatchSize
-          topics = this.crawlSetting?.filter?.topics // reset topics
           success = true
           break
         }
@@ -179,7 +205,6 @@ class BlockchainLogCrawler {
           if (this.crawlSetting.batchSize > 1) {
             this.crawlSetting.batchSize = Math.max(1, Math.floor(this.crawlSetting.batchSize / 3))
             toBlock = this.resizeToBlock(currentBlock, latestBlock)
-            topics = batchSizeErrors.flatMap((resp: any) => resp.topics) // re-try only for the missing topics
           } else {
             const error = batchSizeErrors[0].error
             logger.error('Batch size too small, stopping crawl', llo({ ...this.parseCrawlerInfoLog(), error }))
@@ -202,17 +227,121 @@ class BlockchainLogCrawler {
     return { logs: allLogs, toBlock }
   }
 
+  async getLogsWithoutTopics(currentBlock: number, latestBlock: number) {
+    const toBlock = Math.min(currentBlock + this.crawlSetting.batchSize, latestBlock)
+    let allLogs: Log[] = []
+
+    try {
+      const coreProvider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
+
+      const logs = await retryRequest(async () =>
+        coreProvider.getLogs({
+          fromBlock: currentBlock,
+          toBlock,
+          address: this.crawlParams.address,
+        }),
+      )
+
+      let resultLogs = logs.filter((log: any) => {
+        return this.crawlSetting.filter.topics!.includes(log.topics[0])
+      })
+
+      if (this.crawlParams.filterLogs && resultLogs.length > 0) {
+        resultLogs = await this.crawlParams.filterLogs(resultLogs)
+      }
+
+      allLogs = resultLogs
+    } catch (error: any) {
+      if (this.isBatchSizeError(error)) {
+        logger.warn(
+          'Batch size error in getLogs, will switch to batch strategy',
+          llo({
+            fromBlock: currentBlock,
+            toBlock,
+            error: error.message,
+          }),
+        )
+      }
+
+      throw error
+    }
+
+    return { logs: allLogs, toBlock }
+  }
+
+  async getLogsByBlockReceipts(currentBlock: number, endBlock?: number) {
+    const topics = this.crawlSetting?.filter?.topics!
+    const toBlock = endBlock || currentBlock
+    let allLogs: Log[] = []
+
+    const url = await this.getProviderUrl()
+
+    const requests: any = []
+    for (let blockNum = currentBlock; blockNum <= toBlock; blockNum++) {
+      const blockHex = `0x${blockNum.toString(16)}`
+      requests.push({
+        jsonrpc: '2.0',
+        id: `block-${blockNum}`,
+        method: 'eth_getBlockReceipts',
+        params: [blockHex],
+      })
+    }
+
+    try {
+      const response: any = await axios.post(url, requests, {
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const validResponses = response.data.filter((resp: any) => !resp.error && resp.result)
+      for (const resp of validResponses) {
+        const blockReceipts = resp.result
+        if (!blockReceipts || blockReceipts.length === 0) continue
+
+        const logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
+
+        const blockLogs = logs.filter((log: any) => topics.includes(log.topics[0]))
+        allLogs = allLogs.concat(blockLogs).map((log: any) => ({
+          ...log,
+          blockNumber: Number(log.blockNumber),
+          transactionIndex: Number(log.transactionIndex),
+          index: Number(log.logIndex),
+        }))
+      }
+    } catch (batchError: any) {
+      logger.warn('Batch request failed, falling back to individual requests', {
+        error: batchError.message,
+        currentBlock,
+        toBlock,
+      })
+      this.crawlSetting.shutdown = true
+      this.crawlParams.onError(batchError)
+    }
+
+    if (this.crawlParams.filterLogs) {
+      allLogs = await this.crawlParams.filterLogs(allLogs)
+    }
+
+    return { logs: allLogs, toBlock }
+  }
+
+  async getProviderUrl() {
+    const provider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
+    if (provider.config?.getProvider) {
+      const coreProvider = await provider.config.getProvider()
+      return coreProvider.connection.url
+    }
+
+    return config.NODES[utils.networkToAragon(this.crawlParams.network)].ARAGON_RPC
+  }
+
   async executeBatchRequest(topics: string[] | TopicFilter, currentBlock: number, toBlock: number) {
     try {
-      const provider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
-      const coreProvider = await provider.config.getProvider()
+      const url = await this.getProviderUrl()
 
-      const idToTopicMap: Record<string, string> = {}
-
-      const batchRequests = topics.map(topicChunk => {
+      const topicChunk = utils.chunkArray(topics, 4)
+      const batchRequests = topicChunk.reduce((req: any, chunk: string[]) => {
         const requestId = Math.random().toString(36).substring(2, 15)
-        idToTopicMap[requestId] = topicChunk
-        return {
+        req.push({
           jsonrpc: '2.0',
           id: requestId,
           method: 'eth_getLogs',
@@ -221,60 +350,26 @@ class BlockchainLogCrawler {
               fromBlock: `0x${currentBlock.toString(16)}`,
               toBlock: `0x${toBlock.toString(16)}`,
               address: this.crawlParams.address,
-              topics: [topicChunk],
+              topics: [chunk],
             },
           ],
-        }
-      })
+        })
+        return req
+      }, [])
 
-      const response: any = await axios.post(coreProvider.connection.url, batchRequests, {
+      const response: any = await axios.post(url, batchRequests, {
         headers: { 'Content-Type': 'application/json' },
       })
 
-      return response.data.map((res: any) => ({
-        ...res,
-        topics: idToTopicMap[res.id],
-      }))
+      return response.data
     } catch (error: any) {
       logger.error('error executeBatchRequest', { error, topics, currentBlock, toBlock })
       throw error
     }
   }
 
-  async getLogsByBlockReceipts(currentBlock: number) {
-    const topics = this.crawlSetting?.filter?.topics!
-    try {
-      const coreProvider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
-
-      const blockReceipts = await retryRequest(async () =>
-        coreProvider.send('eth_getBlockReceipts', [`0x${currentBlock.toString(16)}`]),
-      )
-      if (!blockReceipts || blockReceipts.length === 0) return []
-
-      let logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
-
-      if (this.crawlParams.filterLogs) {
-        logs = await this.crawlParams.filterLogs(logs)
-      }
-
-      const allLogs = logs.filter((log: any) => {
-        return topics.includes(log.topics[0])
-      })
-      return { logs: allLogs, toBlock: currentBlock }
-    } catch (error: any) {
-      logger.error('error getLogsByBlockReceipts', { error, topics, currentBlock })
-      await this.handleErrors(error)
-    }
-  }
-
   async updateAndCheckConditions(currentBlock: number, latestBlock: number): Promise<boolean> {
-    return (
-      this.crawlSetting.crawling &&
-      !this.crawlSetting.isOnError &&
-      currentBlock >= 0 &&
-      latestBlock > 0 &&
-      currentBlock <= latestBlock
-    )
+    return this.crawlSetting.crawling && currentBlock >= 0 && latestBlock > 0 && currentBlock <= latestBlock
   }
 
   async handleErrors(error: any) {
@@ -286,26 +381,16 @@ class BlockchainLogCrawler {
     }
   }
 
-  async debugLogs(sortedLogs: Log[]): Promise<void> {
-    await Promise.all(
-      sortedLogs?.map((log: Log) => {
-        try {
-          const formatLog: IFormattedLog = this.formatLog(log)
-          this.crawlSetting.debugLogs.push(formatLog)
-        } catch (_) {}
-        return log
-      }),
-    )
-  }
-
   async processLogs(logs: Log[], fromBlock: number, toBlock: number, latestBlock: number): Promise<void> {
     let logIndex = 0
     for (const log of logs) {
       logIndex++
       try {
+        const startTIme = Date.now()
+
         const { handler, event, info } = this.formatLog(log)
         if (!event) {
-          throw new Error('Error parse log in blockchainCrawler')
+          continue
         }
 
         await handler(event, info, this.crawlParams.onlyHistorical)
@@ -315,13 +400,16 @@ class BlockchainLogCrawler {
           this.crawlSetting.lastSync = log?.blockNumber
         }
         logger.verbose(
-          'Processing log',
+          'Processing Event',
           llo({
             ...this.parseCrawlerInfoLog(),
             blockNumber: Number(log.blockNumber),
             logsLen: logs.length,
             logIndex,
+            event: event.name,
+            strategy: this.crawlParams.strategy,
             fromBlock,
+            processedTime: Date.now() - startTIme,
             toBlock,
             latestBlock,
           }),
@@ -333,7 +421,7 @@ class BlockchainLogCrawler {
         this.crawlParams.onError(error, log)
         this.crawlSetting.nbError++
         if (this.crawlParams.stopOnError) {
-          this.crawlSetting.isOnError = true
+          this.crawlSetting.shutdown = true
           break
         }
       }
@@ -391,6 +479,43 @@ class BlockchainLogCrawler {
     }
   }
 
+  // If we're only processing a small range, use getLogsByBatch without topics
+  // If we're processing a large range, use getLogsByBatch without topics
+  // Fewer thresholds for faster block times
+  // If the average block time is less than 1 second, use 40
+  getStrategyBySituation(fromBlock: number, toBlock: number) {
+    if (this.crawlParams.oneBlockPerTime) {
+      if (toBlock - fromBlock <= 5) {
+        return ICrawStrategy.getBlockReceipts
+      }
+    }
+
+    // If we're only processing a single block, use receipts
+    if (toBlock - fromBlock === 1) {
+      return ICrawStrategy.getBlockReceipts
+    }
+
+    const avgBlockTimeSec = config.NODES[utils.networkToAragon(this.crawlParams.network)].INTERVAL_BLOCK_TIME
+    const blockRange = toBlock - fromBlock + 1
+
+    let timeBasedThreshold: number
+    if (avgBlockTimeSec <= 1) {
+      timeBasedThreshold = 40
+    } else if (avgBlockTimeSec < 5) {
+      timeBasedThreshold = 20
+    } else {
+      timeBasedThreshold = 5
+    }
+
+    const mediumRangeThreshold = Math.min(timeBasedThreshold, this.crawlSetting.batchSize / 2)
+
+    if (blockRange <= mediumRangeThreshold) {
+      return ICrawStrategy.getLogsWithoutTopics
+    }
+
+    return ICrawStrategy.getLogsByBatch
+  }
+
   sortLogs(logs: Log[]): Log[] {
     return logs.sort((a, b) => {
       // First, sort by blockNumber in ascending order
@@ -436,11 +561,20 @@ class BlockchainLogCrawler {
   }
 
   calculateToBlock(currentBlock: number, latestBlock: number): number {
+    const minBlock = Math.min(
+      currentBlock + this.crawlSetting.batchSize - (this.crawlSetting.runCount > 1 ? 1 : 0),
+      latestBlock,
+    )
+
+    if (this.crawlParams.oneBlockPerTime && latestBlock - currentBlock > 10) {
+      return minBlock
+    }
+
     if (this.crawlParams.oneBlockPerTime || this.crawlParams.strategy === ICrawStrategy.getBlockReceipts) {
       return currentBlock
     }
 
-    return Math.min(currentBlock + this.crawlSetting.batchSize - (this.crawlSetting.runCount > 1 ? 1 : 0), latestBlock)
+    return minBlock
   }
 
   formatLog(log: Log): IFormattedLog {
