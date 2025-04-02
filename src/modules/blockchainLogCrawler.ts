@@ -220,7 +220,8 @@ class BlockchainLogCrawler {
         }
       } catch (error) {
         await this.handleErrors(error)
-        if (this.crawlParams.stopOnError && this.crawlSetting.shutdown) break
+        this.crawlSetting.shutdown = true
+        break
       }
     }
 
@@ -293,19 +294,23 @@ class BlockchainLogCrawler {
       })
 
       const validResponses = response.data.filter((resp: any) => !resp.error && resp.result)
-      for (const resp of validResponses) {
-        const blockReceipts = resp.result
-        if (!blockReceipts || blockReceipts.length === 0) continue
+      if (validResponses.length === response.data.length) {
+        for (const resp of validResponses) {
+          const blockReceipts = resp.result
+          if (!blockReceipts || blockReceipts.length === 0) continue
 
-        const logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
+          const logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
 
-        const blockLogs = logs.filter((log: any) => topics.includes(log.topics[0]))
-        allLogs = allLogs.concat(blockLogs).map((log: any) => ({
-          ...log,
-          blockNumber: Number(log.blockNumber),
-          transactionIndex: Number(log.transactionIndex),
-          index: Number(log.logIndex),
-        }))
+          const blockLogs = logs.filter((log: any) => topics.includes(log.topics[0]))
+          allLogs = allLogs.concat(blockLogs).map((log: any) => ({
+            ...log,
+            blockNumber: Number(log.blockNumber),
+            transactionIndex: Number(log.transactionIndex),
+            index: Number(log.logIndex),
+          }))
+        }
+      } else {
+        this.crawlSetting.shutdown = true
       }
     } catch (batchError: any) {
       logger.warn('Batch request failed, falling back to individual requests', {
