@@ -64,8 +64,7 @@ describe('AragonIndexer: index', () => {
       expect(loggerStub.calledWith('IndexerService historical started' as any)).to.be.true
       expect(customInstall.calledOnce).to.be.true
       expect(crawlStub.calledOnce).to.be.true
-      expect(schedulerStartStub.calledOnce).to.be.true
-      expect(loggerStub.calledWith('IndexerService historical logs end' as any)).to.be.true
+      expect(schedulerStartStub.calledTwice).to.be.true
       expect(SyncAllStub.start.calledOnce).to.be.true
     })
 
@@ -102,7 +101,7 @@ describe('AragonIndexer: index', () => {
       expect(loggerErrorStub.calledWith('Error sync all plugins' as any)).to.be.true
 
       expect(crawlStub.calledOnce).to.be.true
-      expect(schedulerStub.calledOnce).to.be.true
+      expect(schedulerStub.calledTwice).to.be.true
       expect(schedulerStartStub.notCalled).to.be.true
     })
   })
@@ -121,6 +120,7 @@ describe('AragonIndexer: index', () => {
 
   describe('historical crawlers', () => {
     it('should execute crawlers for historical logs', async () => {
+      const stubRabbitMQ = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const customInstall = sandbox.stub(CustomInstall, 'install').resolves()
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
       sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
@@ -129,7 +129,8 @@ describe('AragonIndexer: index', () => {
       await IndexerService.start()
 
       expect(customInstall.calledOnce).to.be.true
-      expect(crawlStub.calledOnce).to.be.true
+      expect(crawlStub.calledTwice).to.be.true
+      expect(stubRabbitMQ.calledOnce).to.be.true
     })
   })
 
@@ -145,8 +146,9 @@ describe('AragonIndexer: index', () => {
 
       await IndexerService.start()
 
-      expect(schedulerStub.calledOnce).to.be.true
-      expect(schedulerStub.args[0][0]).to.eq('allPlugins')
+      expect(schedulerStub.calledTwice).to.be.true
+      expect(schedulerStub.args[0][0]).to.eq('indexer-ethereum-mainnet')
+      expect(schedulerStub.args[1][0]).to.eq('allPlugins')
       config.SERVICES.ARAGON_INDEXER.SYNC_ALL = configBackup
     })
   })
