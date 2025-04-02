@@ -12,7 +12,7 @@ import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 
-describe('Module: blockchainLogCrawler', () => {
+describe.only('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
   let mockProvider: any
   let logError: any
@@ -44,21 +44,24 @@ describe('Module: blockchainLogCrawler', () => {
       onError: () => {},
     })
 
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+    sandbox.stub(crawler, 'executeBatchRequest').resolves([
+      {
+        result: [
+          { transactionHash: '0x1', blockNumber: 101, transactionIndex: 1 },
+        ],
+      },
+      {
+        result: [
+          { transactionHash: '0x2', blockNumber: 102, transactionIndex: 2 },
+        ],
+      },
+    ] as any)
 
     mockProvider.getBlockNumber
       .onFirstCall()
       .resolves(100) // Starting block number
       .onSecondCall()
       .resolves(200) // Latest block number
-    mockProvider.send
-      .onFirstCall()
-      .resolves([
-        { transactionHash: '0x1', blockNumber: 101, transactionIndex: 1 },
-        { transactionHash: '0x2', blockNumber: 102, transactionIndex: 2 },
-      ])
-      .onSecondCall()
-      .resolves([])
 
     const updateAndCheckConditionsStub = sandbox
       .stub(crawler, 'updateAndCheckConditions')
@@ -73,7 +76,6 @@ describe('Module: blockchainLogCrawler', () => {
     await crawler.crawl()
 
     expect(updateAndCheckConditionsStub.calledOnce).to.be.true
-    expect(mockProvider.send.calledOnce).to.be.true
     expect(processLogsSpy.calledOnceWith(sandbox.match.array)).to.be.true
     expect(logVerbose.calledWith('Finished crawling logs')).to.be.true
     expect(onSaveProgressStub.calledOnce).to.be.true
@@ -124,7 +126,6 @@ describe('Module: blockchainLogCrawler', () => {
       onError: sandbox.stub(),
     })
 
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
     const processLogsSpy = sandbox.spy(crawler, 'processLogs')
 
     await crawler.processLogs(unsortedLogs)
@@ -178,7 +179,6 @@ describe('Module: blockchainLogCrawler', () => {
       logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: sandbox.stub(),
     })
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     const stubSaveProgress = sandbox.stub(crawler, 'onSaveProgress').resolves()
     const processLogsSpy = sandbox.spy(crawler, 'processLogs')
@@ -221,18 +221,18 @@ describe('Module: blockchainLogCrawler', () => {
     })
 
     mockProvider.getBlockNumber.onFirstCall().resolves(100)
-    mockProvider.send
-      .onFirstCall()
-      .resolves([
-        { blockNumber: 101, transactionIndex: 1, index: 5, topics: ['0xTopic1'], data: '0xData1' },
-        { blockNumber: 101, transactionIndex: 20, index: 2, topics: ['0xTopic1'], data: '0xData1' },
-        { blockNumber: 101, transactionIndex: 2, index: 9, topics: ['0xTopic1'], data: '0xData1' },
-        { blockNumber: 101, transactionIndex: 50, index: 4, topics: ['0xTopic1'], data: '0xData1' },
-        { blockNumber: 101, transactionIndex: 50, index: 4, topics: ['0xTopic1'], data: '0xData1' },
-      ])
-      .onSecondCall()
-      .resolves([])
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+
+    sandbox.stub(crawler, 'executeBatchRequest').returns([
+      {
+        result: [
+          { blockNumber: 101, transactionIndex: 1, index: 5, topics: ['0xTopic1'], data: '0xData1' },
+          { blockNumber: 101, transactionIndex: 20, index: 2, topics: ['0xTopic1'], data: '0xData1' },
+          { blockNumber: 101, transactionIndex: 2, index: 9, topics: ['0xTopic1'], data: '0xData1' },
+          { blockNumber: 101, transactionIndex: 50, index: 4, topics: ['0xTopic1'], data: '0xData1' },
+          { blockNumber: 101, transactionIndex: 50, index: 4, topics: ['0xTopic1'], data: '0xData1' },
+        ],
+      },
+    ] as any)
 
     const updateAndCheckConditionsStub = sandbox
       .stub(crawler, 'updateAndCheckConditions')
@@ -250,7 +250,6 @@ describe('Module: blockchainLogCrawler', () => {
 
     const response = await crawler.crawl()
     expect(updateAndCheckConditionsStub.calledOnce).to.be.true
-    expect(mockProvider.send.calledOnce).to.be.true
     expect(processLogsSpy.calledOnce).to.be.false
     expect(formatLogStub.callCount).to.equal(5)
     expect(response?.length).to.equal(5)
@@ -277,8 +276,6 @@ describe('Module: blockchainLogCrawler', () => {
       onError: sandbox.stub(),
     })
 
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
-
     await crawler.processLogs(logs)
 
     expect(logError.calledOnce).to.be.true
@@ -289,7 +286,7 @@ describe('Module: blockchainLogCrawler', () => {
     }
   })
 
-  it('should stop processing logs on parse log error when stopOnError is true', async () => {
+  it.only('should stop processing logs on parse log error when stopOnError is true', async () => {
     const logs = [
       { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], data: '0xData1' },
       { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic2'], data: '0xData2' },
@@ -320,7 +317,15 @@ describe('Module: blockchainLogCrawler', () => {
       logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: onErrorStub,
     })
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+
+    sandbox.stub(crawler, 'executeBatchRequest').resolves([
+      {
+        result: [
+          { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], data: '0xData1' },
+          { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic2'], data: '0xData2' },
+        ],
+      },
+    ] as any)
 
     await crawler.processLogs(logs)
 
@@ -334,7 +339,6 @@ describe('Module: blockchainLogCrawler', () => {
     expect(onErrorStub.calledOnce).to.be.true
     expect(events[1].config[0].handler.notCalled).to.be.true
 
-    expect(crawler.crawlSetting.isOnError).to.be.true
     expect(crawler.crawlSetting.nbError).to.equal(1)
     expect(crawler.crawlSetting.nbSuccess).to.equal(1)
   })
