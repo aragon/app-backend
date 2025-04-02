@@ -164,6 +164,7 @@ describe('Controller: Transaction', () => {
 
       await Models.Proposal.create({
         ...ProposalList[0],
+        ...{ proposalIndex: '1' },
         transactionHash: '0x126',
       })
 
