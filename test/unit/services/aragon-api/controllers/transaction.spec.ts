@@ -154,6 +154,44 @@ describe('Controller: Transaction', () => {
       })
     })
 
+    it('should get transaction indexing status - proposal created and return slug when is sub-proposal', async () => {
+      await Models.Proposal.create({
+        ...ProposalList[0],
+        ...{ pluginAddress: 'x000' },
+        transactionHash: '0x123',
+      })
+
+      await Models.Proposal.create({
+        ...ProposalList[0],
+        transactionHash: '0x123',
+      })
+
+      await Models.PluginSlug.create({
+        daoAddress: ProposalList[0].daoAddress,
+        pluginAddress: ProposalList[0].pluginAddress,
+        network: ProposalList[0].network,
+        slug: 'test-slug',
+      })
+
+      const network = ProposalList[0].network
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ parentPlugin: ProposalList[0].pluginAddress })
+      const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
+      const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
+
+      const response = await TransactionController.getTransactionIndexingStatus(
+        '0x123',
+        ITransactionIndexCheckType.PROPOSAL_CREATE,
+        network!,
+      )
+
+      expect(spyProposalReq.calledOnce).to.be.true
+      expect(spyPluginSlugReq.calledOnce).to.be.true
+      expect(response).to.deep.eq({
+        isProcessed: true,
+        slug: 'test-slug-0',
+      })
+    })
+
     it('should get transaction indexing status - proposal created but plugin slug not found', async () => {
       const logError = sandbox.stub(logger, 'error')
 
@@ -165,6 +203,7 @@ describe('Controller: Transaction', () => {
       const network = ProposalList[0].network
       const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
       const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({})
 
       const response = await TransactionController.getTransactionIndexingStatus(
         '0x123',
