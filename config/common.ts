@@ -54,7 +54,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     NODES: {
       ETHEREUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_MAINNET_FROM_BLOCK', 16721812),
         POOLING_INTERVAL: utils.configParser(
@@ -97,7 +96,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ETHEREUM_SEPOLIA: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_SEPOLIA_FROM_BLOCK', 4415294),
         POOLING_INTERVAL: utils.configParser(
@@ -140,7 +138,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       POLYGON_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_FROM_BLOCK', 40830344),
         POOLING_INTERVAL: utils.configParser(
@@ -173,7 +170,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       BASE_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_FROM_BLOCK', 2094724),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
@@ -196,7 +192,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ARBITRUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_FROM_BLOCK', 2441204),
         POOLING_INTERVAL: utils.configParser(
@@ -239,7 +234,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ZKSYNC_SEPOLIA: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_FROM_BLOCK', 37460765), // zkSync ERA
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_POOLING_INTERVAL', 5 * 1000), // 5 seconds
@@ -262,7 +256,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ZKSYNC_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_FROM_BLOCK', 145462155),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds

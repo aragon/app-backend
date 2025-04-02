@@ -12,7 +12,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 
-describe('Module: blockchainLogCrawler', () => {
+describe.only('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
   let mockProvider: any
   let logError: any
@@ -1042,7 +1042,11 @@ describe('Module: blockchainLogCrawler', () => {
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
     const processLogsSpy = sandbox.spy(crawler, 'processLogs')
 
-    await crawler.processLogs(unsortedLogs, 100, 150, 200)
+    await crawler.processLogs(unsortedLogs, {
+      fromBlock: 100,
+      toBlock: 150,
+      latestBlock: 200,
+    })
 
     const processedLogs = processLogsSpy.args[0][0]
     expect(processedLogs.length).to.deep.equal(sortedLogs.length)
@@ -1097,7 +1101,11 @@ describe('Module: blockchainLogCrawler', () => {
     const stubSaveProgress = sandbox.stub(crawler, 'onSaveProgress').resolves()
     const processLogsSpy = sandbox.spy(crawler, 'processLogs')
 
-    await crawler.processLogs(unsortedLogs, 100, 150, 200)
+    await crawler.processLogs(unsortedLogs, {
+      fromBlock: 100,
+      toBlock: 150,
+      latestBlock: 200,
+    })
 
     const processedLogs = processLogsSpy.args[0][0]
     expect(processedLogs.length).to.deep.equal(sortedLogs.length)
@@ -1140,7 +1148,11 @@ describe('Module: blockchainLogCrawler', () => {
 
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
-    await crawler.processLogs(logs, 100, 150, 200)
+    await crawler.processLogs(logs, {
+      fromBlock: 100,
+      toBlock: 150,
+      latestBlock: 200,
+    })
 
     expect(logError.calledOnce).to.be.true
     expect(logError.calledWith('Error event setting not found in blockchainCrawler')).to.be.true
