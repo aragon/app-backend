@@ -29,7 +29,7 @@ const PoolingCrawler = {
       onError: async (error: any) => logger.error('Error Indexer', llo({ network, error })),
       logService,
       stopOnError: true,
-      batchSize: 0.005,
+      batchSize: 0.01,
       oneBlockPerTime: NetworksEnum.peaqMainnet === network ? true : undefined,
     })
 

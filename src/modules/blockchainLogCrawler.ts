@@ -18,6 +18,7 @@ import ProviderModule from '@modules/provider'
 import { retryRequest } from '@helpers/retryRequest'
 import Web3Helper from '@helpers/web3'
 import axios from 'axios'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventCrawler' })
 
@@ -198,7 +199,12 @@ class BlockchainLogCrawler {
             if (this.crawlParams.filterLogs) {
               resultLogs = await this.crawlParams.filterLogs(resultLogs)
             }
-            allLogs = allLogs.concat(resultLogs)
+            allLogs = allLogs.concat(resultLogs).map((log: any) => ({
+              ...log,
+              blockNumber: Number(log.blockNumber),
+              transactionIndex: Number(log.transactionIndex),
+              index: Number(log.logIndex),
+            }))
           }
 
           this.crawlSetting.nbTotal += allLogs.length
@@ -353,7 +359,12 @@ class BlockchainLogCrawler {
         const logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
 
         const blockLogs = logs.filter((log: any) => topics.includes(log.topics[0]))
-        allLogs = allLogs.concat(blockLogs)
+        allLogs = allLogs.concat(blockLogs).map((log: any) => ({
+          ...log,
+          blockNumber: Number(log.blockNumber),
+          transactionIndex: Number(log.transactionIndex),
+          index: Number(log.logIndex),
+        }))
       }
     } catch (batchError: any) {
       logger.warn('Batch request failed, falling back to individual requests', {
@@ -386,12 +397,10 @@ class BlockchainLogCrawler {
     try {
       const url = await this.getProviderUrl()
 
-      const idToTopicMap: Record<string, string> = {}
-
-      const batchRequests = topics.map(topicChunk => {
+      const topicChunk = Utils.chunkArray(topics, 4)
+      const batchRequests = topicChunk.reduce((req: any, chunk: string[]) => {
         const requestId = Math.random().toString(36).substring(2, 15)
-        idToTopicMap[requestId] = topicChunk
-        return {
+        req.push({
           jsonrpc: '2.0',
           id: requestId,
           method: 'eth_getLogs',
@@ -400,20 +409,18 @@ class BlockchainLogCrawler {
               fromBlock: `0x${currentBlock.toString(16)}`,
               toBlock: `0x${toBlock.toString(16)}`,
               address: this.crawlParams.address,
-              topics: [topicChunk],
+              topics: [chunk],
             },
           ],
-        }
-      })
+        })
+        return req
+      }, [])
 
       const response: any = await axios.post(url, batchRequests, {
         headers: { 'Content-Type': 'application/json' },
       })
 
-      return response.data.map((res: any) => ({
-        ...res,
-        topics: idToTopicMap[res.id],
-      }))
+      return response.data
     } catch (error: any) {
       logger.error('error executeBatchRequest', { error, topics, currentBlock, toBlock })
       throw error
