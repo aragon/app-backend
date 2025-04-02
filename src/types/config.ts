@@ -22,6 +22,7 @@ export interface IRawNodeConfig {
   ARAGON_WS: string
   ARAGON_RPC: string
   FROM_BLOCK: number
+  POOLING_INTERVAL: number
   CONFIRMATION_BLOCKS: number
   INTERVAL_BLOCK_TIME: number
   ETHERSCAN_API_KEY: string
@@ -138,6 +139,14 @@ export interface IConfig {
 
   RETRY_REQUEST: {
     COUNT: number
+  }
+
+  BLOCKCHAIN_LOG_CRAWLER: {
+    ONE_BLOCK_PER_TIME_MIN_THRESHOLD: number
+    DEFAULT_BATCH_SIZE: number
+    BLOCK_LOW_RANGE: number
+    BLOCK_MEDIUM_RANGE: number
+    BLOCK_HIGH_RANGE: number
   }
 
   SERVICES: {

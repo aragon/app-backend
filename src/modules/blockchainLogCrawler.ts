@@ -18,7 +18,6 @@ import ProviderModule from '@modules/provider'
 import { retryRequest } from '@helpers/retryRequest'
 import Web3Helper from '@helpers/web3'
 import axios from 'axios'
-import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventCrawler' })
 
@@ -157,13 +156,6 @@ class BlockchainLogCrawler {
     }
   }
 
-  /**
-   * Get logs based on the selected strategy
-   * Strategy can be getLogs, getLogsByBatch, or getLogsByBlockReceipts
-   * @param currentBlock
-   * @param latestBlock
-   */
-
   async getLogsByStrategy(currentBlock: number, latestBlock: number) {
     switch (this.crawlParams.strategy) {
       case ICrawStrategy.getBlockReceipts:
@@ -235,47 +227,6 @@ class BlockchainLogCrawler {
     return { logs: allLogs, toBlock }
   }
 
-  // If we're only processing a small range, use getLogs
-  // If we're processing a large range, use getLogsByBatch
-  // Fewer thresholds for faster block times
-  // If the average block time is less than 1 second, use 40
-
-  getStrategyBySituation(fromBlock: number, toBlock: number) {
-    if (this.crawlParams.oneBlockPerTime) {
-      if (toBlock - fromBlock <= 5) {
-        return ICrawStrategy.getBlockReceipts
-      }
-    }
-
-    // If we're only processing a single block, use receipts
-    if (toBlock - fromBlock === 1) {
-      return ICrawStrategy.getBlockReceipts
-    }
-
-    const avgBlockTimeSec = config.NODES[utils.networkToAragon(this.crawlParams.network)].INTERVAL_BLOCK_TIME
-    const blockRange = toBlock - fromBlock + 1
-
-    let timeBasedThreshold: number
-    if (avgBlockTimeSec <= 1) {
-      timeBasedThreshold = 40
-    } else if (avgBlockTimeSec < 5) {
-      timeBasedThreshold = 20
-    } else {
-      timeBasedThreshold = 5
-    }
-
-    const mediumRangeThreshold = Math.min(timeBasedThreshold, this.crawlSetting.batchSize / 2)
-
-    if (blockRange <= mediumRangeThreshold) {
-      return ICrawStrategy.getLogsWithoutTopics
-    }
-
-    return ICrawStrategy.getLogsByBatch
-  }
-
-  /**
-   * Get logs without topic filtering, used for medium ranges
-   */
   async getLogsWithoutTopics(currentBlock: number, latestBlock: number) {
     const toBlock = Math.min(currentBlock + this.crawlSetting.batchSize, latestBlock)
     let allLogs: Log[] = []
@@ -318,9 +269,6 @@ class BlockchainLogCrawler {
     return { logs: allLogs, toBlock }
   }
 
-  /**
-   * Process block receipts, used for small ranges or when explicitly requested
-   */
   async getLogsByBlockReceipts(currentBlock: number, endBlock?: number) {
     const topics = this.crawlSetting?.filter?.topics!
     const toBlock = endBlock || currentBlock
@@ -390,7 +338,7 @@ class BlockchainLogCrawler {
     try {
       const url = await this.getProviderUrl()
 
-      const topicChunk = Utils.chunkArray(topics, 4)
+      const topicChunk = utils.chunkArray(topics, 4)
       const batchRequests = topicChunk.reduce((req: any, chunk: string[]) => {
         const requestId = Math.random().toString(36).substring(2, 15)
         req.push({
@@ -431,18 +379,6 @@ class BlockchainLogCrawler {
       this.crawlSetting.shutdown = true
       this.crawlParams.onError(error)
     }
-  }
-
-  async debugLogs(sortedLogs: Log[]): Promise<void> {
-    await Promise.all(
-      sortedLogs?.map((log: Log) => {
-        try {
-          const formatLog: IFormattedLog = this.formatLog(log)
-          this.crawlSetting.debugLogs.push(formatLog)
-        } catch (_) {}
-        return log
-      }),
-    )
   }
 
   async processLogs(logs: Log[], fromBlock: number, toBlock: number, latestBlock: number): Promise<void> {
@@ -543,6 +479,43 @@ class BlockchainLogCrawler {
     }
   }
 
+  // If we're only processing a small range, use getLogsByBatch without topics
+  // If we're processing a large range, use getLogsByBatch without topics
+  // Fewer thresholds for faster block times
+  // If the average block time is less than 1 second, use 40
+  getStrategyBySituation(fromBlock: number, toBlock: number) {
+    if (this.crawlParams.oneBlockPerTime) {
+      if (toBlock - fromBlock <= config.BLOCKCHAIN_LOG_CRAWLER.ONE_BLOCK_PER_TIME_MIN_THRESHOLD) {
+        return ICrawStrategy.getBlockReceipts
+      }
+    }
+
+    // If we're only processing a single block, use receipts
+    if (toBlock - fromBlock === 1) {
+      return ICrawStrategy.getBlockReceipts
+    }
+
+    const avgBlockTimeSec = config.NODES[utils.networkToAragon(this.crawlParams.network)].INTERVAL_BLOCK_TIME
+    const blockRange = toBlock - fromBlock + 1
+
+    let timeBasedThreshold: number
+    if (avgBlockTimeSec <= 1) {
+      timeBasedThreshold = config.BLOCKCHAIN_LOG_CRAWLER.BLOCK_HIGH_RANGE
+    } else if (avgBlockTimeSec < 5) {
+      timeBasedThreshold = config.BLOCKCHAIN_LOG_CRAWLER.BLOCK_MEDIUM_RANGE
+    } else {
+      timeBasedThreshold = config.BLOCKCHAIN_LOG_CRAWLER.BLOCK_MEDIUM_RANGE
+    }
+
+    const mediumRangeThreshold = Math.min(timeBasedThreshold, this.crawlSetting.batchSize / 2)
+
+    if (blockRange <= mediumRangeThreshold) {
+      return ICrawStrategy.getLogsWithoutTopics
+    }
+
+    return ICrawStrategy.getLogsByBatch
+  }
+
   sortLogs(logs: Log[]): Log[] {
     return logs.sort((a, b) => {
       // First, sort by blockNumber in ascending order
@@ -568,7 +541,7 @@ class BlockchainLogCrawler {
 
   calculateBatchSize(network: NetworksEnum): number {
     // Constants for seconds in a 30-day month
-    const days = this.crawlParams.batchSize || 30
+    const days = this.crawlParams.batchSize || config.BLOCKCHAIN_LOG_CRAWLER.DEFAULT_BATCH_SIZE
     const SECONDS_IN_MONTH = days * 24 * 3600
 
     // Get the block interval time from the config
