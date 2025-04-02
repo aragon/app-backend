@@ -485,7 +485,7 @@ class BlockchainLogCrawler {
   // If the average block time is less than 1 second, use 40
   getStrategyBySituation(fromBlock: number, toBlock: number) {
     if (this.crawlParams.oneBlockPerTime) {
-      if (toBlock - fromBlock <= 5) {
+      if (toBlock - fromBlock <= config.BLOCKCHAIN_LOG_CRAWLER.ONE_BLOCK_PER_TIME_MIN_THRESHOLD) {
         return ICrawStrategy.getBlockReceipts
       }
     }
@@ -500,11 +500,11 @@ class BlockchainLogCrawler {
 
     let timeBasedThreshold: number
     if (avgBlockTimeSec <= 1) {
-      timeBasedThreshold = 40
+      timeBasedThreshold = config.BLOCKCHAIN_LOG_CRAWLER.BLOCK_HIGH_RANGE
     } else if (avgBlockTimeSec < 5) {
-      timeBasedThreshold = 20
+      timeBasedThreshold = config.BLOCKCHAIN_LOG_CRAWLER.BLOCK_MEDIUM_RANGE
     } else {
-      timeBasedThreshold = 5
+      timeBasedThreshold = config.BLOCKCHAIN_LOG_CRAWLER.BLOCK_MEDIUM_RANGE
     }
 
     const mediumRangeThreshold = Math.min(timeBasedThreshold, this.crawlSetting.batchSize / 2)
@@ -541,7 +541,7 @@ class BlockchainLogCrawler {
 
   calculateBatchSize(network: NetworksEnum): number {
     // Constants for seconds in a 30-day month
-    const days = this.crawlParams.batchSize || 30
+    const days = this.crawlParams.batchSize || config.BLOCKCHAIN_LOG_CRAWLER.DEFAULT_BATCH_SIZE
     const SECONDS_IN_MONTH = days * 24 * 3600
 
     // Get the block interval time from the config

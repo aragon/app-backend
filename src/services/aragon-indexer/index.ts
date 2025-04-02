@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { EnumConnection, type IService } from '@types'
+import { EnumConnection, EnumQueueName, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { NetworkHelper } from '@helpers/network'
 import configIndexer from '@indexer/configIndexer'
@@ -11,6 +11,7 @@ import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
 import PoolingCrawler from '@modules/poolingCrawler'
 import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -48,13 +49,20 @@ const AragonIndexerService: IService & { repeaters: any } = {
           logger.info('HistoricalCrawler end', llo({ networkName }))
         }
 
+        // sync all metrics by network
+        logger.info('Sync all metrics start', llo({ networkName }))
+        await RabbitMQHelper.sendMessage(EnumQueueName.allMetrics, {
+          id: `${EnumQueueName.allMetrics}-${networkName}`,
+          params: { network: networkName },
+        })
+
         // realtime after sync
         logger.info('PoolingCrawler start', llo({ networkName }))
 
         const taskOptions = {
           fn: () => [[{ poolingCrawler: PoolingCrawler, params: { logService, network: networkName } }]],
-          interval: utils.poolingTime(networkName),
-          checkInterval: utils.poolingTime(networkName) / 2,
+          interval: config.NODES[utils.networkToAragon(networkName)].POOLING_INTERVAL,
+          checkInterval: config.NODES[utils.networkToAragon(networkName)].POOLING_INTERVAL / 2,
           runNow: true,
           stopOnError: false,
           onError: (error: any) => logger.error('Error pooling logs', llo({ networkName, error })),
@@ -62,13 +70,6 @@ const AragonIndexerService: IService & { repeaters: any } = {
 
         const scheduler = TaskSchedulerState.getInstance()
         await scheduler.startTask(logService, taskOptions)
-
-        // sync all metrics by network
-        logger.info('Sync all metrics start', llo({ networkName }))
-        // await RabbitMQHelper.sendMessage(EnumQueueName.allMetrics, {
-        //   id: `${EnumQueueName.allMetrics}-${networkName}`,
-        //   params: { network: networkName },
-        // })
       }),
     )
 
