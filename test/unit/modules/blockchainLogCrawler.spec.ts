@@ -12,7 +12,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 
-describe.only('Module: blockchainLogCrawler', () => {
+describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
   let mockProvider: any
   let logError: any
