@@ -47,7 +47,6 @@ class BlockchainLogCrawler {
     this.crawlSetting = {
       shutdown: false,
       crawling: false,
-      isOnError: false,
       originalBatchSize: this.calculateBatchSize(opts.network),
       batchSize: this.calculateBatchSize(opts.network),
       runCount: 0,
@@ -83,10 +82,6 @@ class BlockchainLogCrawler {
     this.crawlSetting.crawling = true
     if (this.crawlParams.logService) {
       this.crawlSetting.filter.fromBlock = (await this.getServiceStartBlock()) || this.crawlSetting.filter.fromBlock
-    }
-
-    if (this.crawlSetting.isOnError) {
-      this.crawlSetting.isOnError = false
     }
 
     let currentBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.fromBlock, this.crawlParams.network)
@@ -209,7 +204,6 @@ class BlockchainLogCrawler {
 
           this.crawlSetting.nbTotal += allLogs.length
           this.crawlSetting.batchSize = this.crawlSetting.originalBatchSize
-          // topics = this.crawlSetting?.filter?.topics // reset topics
           success = true
           break
         }
@@ -219,7 +213,6 @@ class BlockchainLogCrawler {
           if (this.crawlSetting.batchSize > 1) {
             this.crawlSetting.batchSize = Math.max(1, Math.floor(this.crawlSetting.batchSize / 3))
             toBlock = this.resizeToBlock(currentBlock, latestBlock)
-            // topics = batchSizeErrors.flatMap((resp: any) => resp.topics) // re-try only for the missing topics
           } else {
             const error = batchSizeErrors[0].error
             logger.error('Batch size too small, stopping crawl', llo({ ...this.parseCrawlerInfoLog(), error }))
@@ -428,13 +421,7 @@ class BlockchainLogCrawler {
   }
 
   async updateAndCheckConditions(currentBlock: number, latestBlock: number): Promise<boolean> {
-    return (
-      this.crawlSetting.crawling &&
-      !this.crawlSetting.isOnError &&
-      currentBlock >= 0 &&
-      latestBlock > 0 &&
-      currentBlock <= latestBlock
-    )
+    return this.crawlSetting.crawling && currentBlock >= 0 && latestBlock > 0 && currentBlock <= latestBlock
   }
 
   async handleErrors(error: any) {
@@ -467,7 +454,7 @@ class BlockchainLogCrawler {
 
         const { handler, event, info } = this.formatLog(log)
         if (!event) {
-          throw new Error('Error parse log in blockchainCrawler')
+          continue
         }
 
         await handler(event, info, this.crawlParams.onlyHistorical)
@@ -498,7 +485,7 @@ class BlockchainLogCrawler {
         this.crawlParams.onError(error, log)
         this.crawlSetting.nbError++
         if (this.crawlParams.stopOnError) {
-          this.crawlSetting.isOnError = true
+          this.crawlSetting.shutdown = true
           break
         }
       }

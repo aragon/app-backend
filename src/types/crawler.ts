@@ -43,7 +43,6 @@ export interface ICrawlSetting {
   debugLogs: IFormattedLog[]
   shutdown: boolean
   crawling: boolean
-  isOnError: boolean
   batchSize: number
   originalBatchSize: number
   runCount: number
