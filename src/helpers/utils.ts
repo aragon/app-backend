@@ -33,13 +33,6 @@ const Utils = {
     return typeof avatar === 'string' ? avatar : null
   },
 
-  getProtocolPrefixes(ssl: boolean): { wsPrefix: string; httpPrefix: string } {
-    return {
-      wsPrefix: ssl ? 'wss://' : 'ws://',
-      httpPrefix: ssl ? 'https://' : 'http://',
-    }
-  },
-
   extractAdditionalParams: (
     knownParams: Record<string, any> = {},
     queryParams: Record<string, any> = {},

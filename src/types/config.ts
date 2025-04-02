@@ -19,7 +19,6 @@ interface ITokenData {
 
 export interface IRawNodeConfig {
   ALCHEMY_API_KEY: string
-  ARAGON_WS: string
   ARAGON_RPC: string
   FROM_BLOCK: number
   POOLING_INTERVAL: number

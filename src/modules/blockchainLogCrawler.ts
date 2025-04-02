@@ -128,7 +128,7 @@ class BlockchainLogCrawler {
             }),
           )
         } else if (!this.crawlParams.skipLogProcessing) {
-          await this.processLogs(sortedLogs, currentBlock, toBlock, latestBlock)
+          await this.processLogs(sortedLogs, { fromBlock: currentBlock, toBlock, latestBlock })
         } else {
           sortedLogs?.map(log => rawLogs.push(this.formatLog(log)))
         }
@@ -343,7 +343,7 @@ class BlockchainLogCrawler {
     try {
       const url = await this.getProviderUrl()
 
-      const topicChunk = utils.chunkArray(topics, 4)
+      const topicChunk = this.crawlParams.isTopicObject ? topics : utils.chunkArray(topics, 4)
       const batchRequests = topicChunk.reduce((req: any, chunk: string[]) => {
         const requestId = Math.random().toString(36).substring(2, 15)
         req.push({
@@ -386,7 +386,18 @@ class BlockchainLogCrawler {
     }
   }
 
-  async processLogs(logs: Log[], fromBlock: number, toBlock: number, latestBlock: number): Promise<void> {
+  async processLogs(
+    logs: Log[],
+    {
+      fromBlock,
+      toBlock,
+      latestBlock,
+    }: {
+      fromBlock?: number
+      toBlock?: number
+      latestBlock?: number
+    } = {},
+  ): Promise<void> {
     let logIndex = 0
     for (const log of logs) {
       logIndex++
