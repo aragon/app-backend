@@ -12,7 +12,7 @@ import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 
-describe.only('Module: blockchainLogCrawler', () => {
+describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
   let mockProvider: any
   let logError: any
@@ -286,7 +286,7 @@ describe.only('Module: blockchainLogCrawler', () => {
     }
   })
 
-  it.only('should stop processing logs on parse log error when stopOnError is true', async () => {
+  it('should stop processing logs on parse log error when stopOnError is true', async () => {
     const logs = [
       { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], data: '0xData1' },
       { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic2'], data: '0xData2' },
