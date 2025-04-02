@@ -11,6 +11,7 @@ export const IntegrityToolProposalCheck: any = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
   BAD_VOTE_PROPOSAL: [],
   BAD_PROPOSAL_PLUGIN: [],
+  MISSING_SLUG: [],
   ERROR_PROPOSAL_PLUGIN: [],
   start: async () => {
     const networks = NetworkHelper.supportedNetworks()
@@ -44,6 +45,7 @@ export const IntegrityToolProposalCheck: any = {
         BAD_VOTE_PROPOSAL: IntegrityToolProposalCheck.BAD_VOTE_PROPOSAL,
         BAD_PROPOSAL_PLUGIN: IntegrityToolProposalCheck.BAD_PROPOSAL_PLUGIN,
         ERROR_PROPOSAL_PLUGIN: IntegrityToolProposalCheck.ERROR_PROPOSAL_PLUGIN,
+        MISSING_SLUG: IntegrityToolProposalCheck.MISSING_SLUG,
       }),
     )
   },
@@ -129,6 +131,24 @@ export const IntegrityToolProposalCheck: any = {
       network: plugin.network,
     })
 
+    // check if plugin as slug
+    if (plugin.isSupported) {
+      const slug = await Models.PluginSlug.findOne({ pluginAddress: plugin.address, network: plugin.network })
+      if (!slug) {
+        IntegrityToolProposalCheck.MISSING_SLUG.push({
+          network: plugin.network,
+          type: 'slug',
+          address: plugin.address,
+        })
+        logger.error(
+          `❌ slug mismatch for ${plugin.address}`,
+          llo({ address: plugin.address, network: plugin.network }),
+        )
+      } else {
+        logger.info(`✅ slug match for ${plugin.address}`, llo({ address: plugin.address, network: plugin.network }))
+      }
+    }
+
     await IntegrityToolProposalCheck.handleResult(
       plugin,
       'multisig',
@@ -144,6 +164,24 @@ export const IntegrityToolProposalCheck: any = {
       pluginAddress: plugin.address,
       network: plugin.network,
     })
+
+    // check if plugin as slug
+    if (plugin.isSupported) {
+      const slug = await Models.PluginSlug.findOne({ pluginAddress: plugin.address, network: plugin.network })
+      if (!slug) {
+        IntegrityToolProposalCheck.MISSING_SLUG.push({
+          network: plugin.network,
+          type: 'slug',
+          address: plugin.address,
+        })
+        logger.error(
+          `❌ slug mismatch for ${plugin.address}`,
+          llo({ address: plugin.address, network: plugin.network }),
+        )
+      } else {
+        logger.info(`✅ slug match for ${plugin.address}`, llo({ address: plugin.address, network: plugin.network }))
+      }
+    }
 
     await IntegrityToolProposalCheck.handleResult(
       plugin,

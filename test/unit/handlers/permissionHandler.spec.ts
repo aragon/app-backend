@@ -138,6 +138,40 @@ describe('Indexer: Permission Handler', () => {
       expect(handleForAdminPlugin.calledOnce).to.be.true
       expect(loggerError.calledOnce).to.be.true
     })
+
+    it('should handle when execute permission is revoked', async () => {
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: ethers.id('EXECUTE_PERMISSION'),
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const verboseStub = sandbox.stub(logger, 'verbose')
+      const handleForAdminPlugin = sandbox.stub(PermissionHandler, 'handleForAdminPlugin')
+      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+      const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(verboseStub.calledOnce).to.be.true
+      expect(handleForAdminPlugin.calledOnce).to.be.false
+      expect(findExistingLog.called).to.be.true
+      expect(installPluginWithPermissionGrant.calledOnce).to.be.true
+      expect(installPluginWithPermissionGrant.args[0][0]).to.be.eq('where')
+      expect(installPluginWithPermissionGrant.args[0][1]).to.be.eq('who')
+      expect(installPluginWithPermissionGrant.args[0][2]).to.be.deep.eq(info)
+    })
   })
 
   describe('handleRevokeOnDao', () => {
