@@ -16,7 +16,7 @@ export interface IIndexerConfig {
 }
 
 export enum ICrawStrategy {
-  getLogs = 'getLogs',
+  getLogsWithoutTopics = 'getLogsWithoutTopics',
   getBlockReceipts = 'getBlockReceipts',
   getLogsByBatch = 'getLogsByBatch',
 }

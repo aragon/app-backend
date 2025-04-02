@@ -95,7 +95,7 @@ const QueueAdminController = {
 
     assertExposable(plugin, ErrorKeyEnum.notFound)
 
-    const proposal = await Models.Plugin.findOne({
+    const proposal = await Models.Proposal.findOne({
       proposalIndex: params.proposalIndex,
       pluginAddress: params.pluginAddress,
       network: params.network,

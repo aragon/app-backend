@@ -9,7 +9,7 @@ import { Interface, zeroPadValue } from 'ethers'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
 
-describe.only('BlockchainLogCrawler', () => {
+describe('BlockchainLogCrawler', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -20,7 +20,7 @@ describe.only('BlockchainLogCrawler', () => {
     sandbox && sandbox.restore()
   })
 
-  it.only('should simulate the transaction crawler of a dao', async function () {
+  it('should simulate the transaction crawler of a dao', async function () {
     this.timeout(100000000000)
     const networks = NetworkHelper.supportedNetworks()
 
