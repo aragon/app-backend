@@ -26,7 +26,7 @@ export interface IAragonNodeConfig extends Omit<IAlchemyConfig, 'alchemyApiKey'>
 
 export interface INodeConnection {
   rpc: any
-  ws: any
+  ws?: any
   api?: any
 }
 
