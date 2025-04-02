@@ -21,13 +21,6 @@ const Utils = {
 
   networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],
 
-  poolingTime: (network: NetworksEnum) => {
-    switch (network) {
-      default:
-        return 5 * 1000 // 5 seconds
-    }
-  },
-
   validateString(input: string | null | undefined): string | null {
     if (typeof input === 'string' && input.trim() !== '') {
       return input
