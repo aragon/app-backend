@@ -159,12 +159,13 @@ describe('Controller: Transaction', () => {
       await Models.Proposal.create({
         ...ProposalList[0],
         ...{ pluginAddress: 'x000' },
+        ...{ proposalIndex: '2' },
         transactionHash: '0x126',
       })
 
       await Models.Proposal.create({
         ...ProposalList[0],
-        ...{ proposalIndex: '1' },
+        ...{ proposalIndex: '7' },
         transactionHash: '0x126',
       })
 
