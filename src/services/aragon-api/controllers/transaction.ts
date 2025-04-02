@@ -47,12 +47,13 @@ const TransactionController = {
       response.isProcessed = Boolean(data)
 
       if (data && action === ITransactionIndexCheckType.PROPOSAL_CREATE) {
+        const pluginAddress = data.parentProposal?.pluginAddress || data.pluginAddress
         const pluginSlug = await Models.PluginSlug.findOne({
-          pluginAddress: data.pluginAddress,
+          pluginAddress,
           network: data.network,
         })
         if (!pluginSlug) {
-          logger.error('PluginSlug not found', llo({ pluginAddress: data.pluginAddress, network: data.network }))
+          logger.error('PluginSlug not found', llo({ pluginAddress, network: data.network }))
         }
         response.slug = `${pluginSlug.slug}-${data.incrementalId}`
       }
