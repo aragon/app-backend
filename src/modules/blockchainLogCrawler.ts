@@ -100,7 +100,7 @@ class BlockchainLogCrawler {
     while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
       this.crawlSetting.runCount++
 
-      if (retryCount >= 1 && this.crawlParams.strategy === ICrawStrategy.getLogs) {
+      if (retryCount >= 1 && this.crawlParams.strategy === ICrawStrategy.getLogsWithoutTopics) {
         this.crawlParams.strategy = ICrawStrategy.getLogsByBatch
       }
 
@@ -168,7 +168,7 @@ class BlockchainLogCrawler {
     switch (this.crawlParams.strategy) {
       case ICrawStrategy.getBlockReceipts:
         return this.getLogsByBlockReceipts(currentBlock, latestBlock)
-      case ICrawStrategy.getLogs:
+      case ICrawStrategy.getLogsWithoutTopics:
         return this.getLogsWithoutTopics(currentBlock, latestBlock)
       case ICrawStrategy.getLogsByBatch:
       default:
@@ -267,7 +267,7 @@ class BlockchainLogCrawler {
     const mediumRangeThreshold = Math.min(timeBasedThreshold, this.crawlSetting.batchSize / 2)
 
     if (blockRange <= mediumRangeThreshold) {
-      return ICrawStrategy.getLogs
+      return ICrawStrategy.getLogsWithoutTopics
     }
 
     return ICrawStrategy.getLogsByBatch

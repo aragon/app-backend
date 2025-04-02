@@ -2,7 +2,7 @@ import { ethers, Interface, type Log } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { ERC721 } from '@artifacts/ERC721'
-import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
@@ -11,8 +11,13 @@ import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'module:PoolingFilter' })
 
+const daoInterface = new Interface(DAO.abi)
 const govTokenInterface = new Interface(GovernanceERC20.abi)
 const erc721Interface = new Interface(ERC721.abi)
+
+const nativeTokenDepositedTopic = daoInterface.getEvent('NativeTokenDeposited')?.topicHash!
+const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
+const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChanged')?.topicHash!
 
 const PoolingCrawler = {
   instances: new Map<NetworksEnum, BlockchainLogCrawler>(),
@@ -30,7 +35,6 @@ const PoolingCrawler = {
       logService,
       stopOnError: true,
       batchSize: 0.01,
-      oneBlockPerTime: NetworksEnum.peaqMainnet === network ? true : undefined,
     })
 
     this.instances.set(network, poolingCrawler)
@@ -38,37 +42,28 @@ const PoolingCrawler = {
   },
 
   async filterLogs(logs: Log[], network: NetworksEnum) {
-    const topicsToFilterOut = new Map<string, 'Transfer' | 'NativeTokenDeposited' | 'DelegateVotesChanged'>([
-      [new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!, 'NativeTokenDeposited'],
-      [new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!, 'Transfer'],
-      [new Interface(GovernanceERC20.abi).getEvent('DelegateVotesChanged')?.topicHash!, 'DelegateVotesChanged'],
-    ])
+    const topicsToFilterOut = new Set([nativeTokenDepositedTopic, transferTopic, delegateVotesChangedTopic])
 
-    const { nativeTokenDepositedLogs, transferLogs, delegateVotesChangedLogs } = logs.reduce(
-      (acc, log) => {
-        if (log.topics.length === 0) return acc
-        switch (topicsToFilterOut.get(log.topics[0])) {
-          case 'NativeTokenDeposited':
-            acc.nativeTokenDepositedLogs.push(log)
-            break
-          case 'Transfer':
-            acc.transferLogs.push(log)
-            break
-          case 'DelegateVotesChanged':
-            acc.delegateVotesChangedLogs.push(log)
-            break
-        }
-        return acc
-      },
-      {
-        nativeTokenDepositedLogs: [] as Log[],
-        transferLogs: [] as Log[],
-        delegateVotesChangedLogs: [] as Log[],
-      },
-    )
+    let i = logs.length
+    const nativeTokenDepositedLogs: Log[] = []
+    const transferLogs: Log[] = []
+    const delegateVotesChangedLogs: Log[] = []
+
+    while (i--) {
+      const log = logs[i]
+      if (log.topics.length === 0 || !topicsToFilterOut.has(log.topics[0])) continue
+
+      if (log.topics[0] === nativeTokenDepositedTopic) {
+        nativeTokenDepositedLogs.push(log)
+      } else if (log.topics[0] === transferTopic) {
+        transferLogs.push(log)
+      } else {
+        delegateVotesChangedLogs.push(log)
+      }
+    }
 
     const transferLogCache = new Map<Log, string | null>()
-    const getDecodedTransferAddresses = (logs: Log[]) =>
+    const getDecodedTransferAddresses = (logs: Log[]): string[] =>
       logs
         .map(log =>
           transferLogCache.has(log)
@@ -99,21 +94,16 @@ const PoolingCrawler = {
     const daoAddressesSet = new Set(daoAddresses)
     const tokenAddressesSet = new Set(tokenAddresses)
 
-    for (const daoAddress of [...daoAddressesSet]) {
-      await DaoRegistryHandler.nativeTransfer(null as any, { address: daoAddress, network } as any)
-    }
-    // handle if we have the daoAddress set directly
+    await Promise.all(
+      [...daoAddressesSet].map(async daoAddress =>
+        DaoRegistryHandler.nativeTransfer(null as any, { address: daoAddress, network } as any),
+      ),
+    )
 
     return logs.filter(log => {
-      const eventType = topicsToFilterOut.get(log.topics[0])
-
-      if (eventType === 'Transfer' && !tokenAddressesSet.has(log.address)) {
-        return false
-      }
-      if (eventType === 'DelegateVotesChanged' && !tokenAddressesSet.has(log.address)) {
-        return false
-      }
-
+      if (!topicsToFilterOut.has(log.topics[0])) return true
+      if (log.topics[0] === transferTopic && !tokenAddressesSet.has(log.address)) return false
+      if (log.topics[0] === delegateVotesChangedTopic && !tokenAddressesSet.has(log.address)) return false
       return true
     })
   },
