@@ -158,7 +158,7 @@ describe('Controller: Transaction', () => {
     it('should get transaction indexing status - proposal created and return slug when is sub-proposal', async () => {
       await Models.Proposal.create({
         ...ProposalList[0],
-        ...{ pluginAddress: 'x000', proposalIndex: '2', incrementalId: 2 },
+        ...{ pluginAddress: '0x000', proposalIndex: '2', incrementalId: 2 },
         transactionHash: '0x126',
       })
 
