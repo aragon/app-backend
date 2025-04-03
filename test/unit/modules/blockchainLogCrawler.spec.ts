@@ -1058,6 +1058,7 @@ describe('Module: blockchainLogCrawler', () => {
       expect(event.config[0].handler.calledOnce).to.be.true
     }
   })
+
   it('should sort logs by transactionIndex and index within the same block', async () => {
     // Mock logs with the same blockNumber but different transactionIndex and index
     const unsortedLogs = [
@@ -1096,7 +1097,6 @@ describe('Module: blockchainLogCrawler', () => {
       logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: sandbox.stub(),
     })
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     const stubSaveProgress = sandbox.stub(crawler, 'onSaveProgress').resolves()
     const processLogsSpy = sandbox.spy(crawler, 'processLogs')
@@ -1145,8 +1145,6 @@ describe('Module: blockchainLogCrawler', () => {
       logService: null,
       onError: sandbox.stub(),
     })
-
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
     await crawler.processLogs(logs, {
       fromBlock: 100,
