@@ -105,7 +105,7 @@ describe('Controller: Transaction', () => {
       await Models.Proposal.create({
         ...ProposalList[0],
         executed: {
-          transactionHash: '0x123',
+          transactionHash: '0x124',
         },
       })
 
@@ -113,7 +113,7 @@ describe('Controller: Transaction', () => {
       const spyReq = sandbox.spy(Models.Proposal, 'findOne')
 
       const response = await TransactionController.getTransactionIndexingStatus(
-        '0x123',
+        '0x124',
         ITransactionIndexCheckType.PROPOSAL_EXECUTE,
         network!,
       )
@@ -126,7 +126,7 @@ describe('Controller: Transaction', () => {
     it('should get transaction indexing status - proposal created and return slug', async () => {
       await Models.Proposal.create({
         ...ProposalList[0],
-        transactionHash: '0x123',
+        transactionHash: '0x125',
       })
 
       await Models.PluginSlug.create({
@@ -139,9 +139,63 @@ describe('Controller: Transaction', () => {
       const network = ProposalList[0].network
       const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
       const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({})
 
       const response = await TransactionController.getTransactionIndexingStatus(
-        '0x123',
+        '0x125',
+        ITransactionIndexCheckType.PROPOSAL_CREATE,
+        network!,
+      )
+
+      expect(spyProposalReq.calledOnce).to.be.true
+      expect(spyPluginSlugReq.calledOnce).to.be.true
+      expect(response).to.deep.eq({
+        isProcessed: true,
+        slug: 'test-slug-0',
+      })
+    })
+
+    it('should get transaction indexing status - proposal created and return slug when is sub-proposal', async () => {
+      await Models.Proposal.create({
+        daoAddress: ProposalList[0].daoAddress,
+        proposalIndex: '0',
+        incrementalId: 0,
+        transactionHash: '0x126',
+        pluginAddress: ProposalList[0].pluginAddress,
+        network: ProposalList[0].network,
+        endDate: 1,
+        blockNumber: 1,
+        startDate: 1,
+        creatorAddress: '0xcreator',
+      })
+
+      await Models.Proposal.create({
+        daoAddress: ProposalList[0].daoAddress,
+        proposalIndex: '7',
+        incrementalId: 7,
+        blockNumber: 1,
+        pluginAddress: '0xplugin2',
+        transactionHash: '0x126',
+        network: ProposalList[0].network,
+        endDate: 1,
+        startDate: 1,
+        creatorAddress: '0xcreator',
+      })
+
+      await Models.PluginSlug.create({
+        daoAddress: ProposalList[0].daoAddress,
+        pluginAddress: ProposalList[0].pluginAddress,
+        network: ProposalList[0].network,
+        slug: 'test-slug',
+      })
+
+      const network = ProposalList[0].network
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ parentPlugin: ProposalList[0].pluginAddress })
+      const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
+      const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
+
+      const response = await TransactionController.getTransactionIndexingStatus(
+        '0x126',
         ITransactionIndexCheckType.PROPOSAL_CREATE,
         network!,
       )
@@ -159,15 +213,16 @@ describe('Controller: Transaction', () => {
 
       await Models.Proposal.create({
         ...ProposalList[0],
-        transactionHash: '0x123',
+        transactionHash: '0x127',
       })
 
       const network = ProposalList[0].network
       const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
       const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({})
 
       const response = await TransactionController.getTransactionIndexingStatus(
-        '0x123',
+        '0x127',
         ITransactionIndexCheckType.PROPOSAL_CREATE,
         network!,
       )
@@ -181,7 +236,7 @@ describe('Controller: Transaction', () => {
     })
 
     it('should get transaction indexing status - not found', async () => {
-      const txHash = '0x123'
+      const txHash = '0x128'
       const network = rawTransaction.network
       const spyReq = sandbox.spy(Models.Proposal, 'findOne')
 
@@ -216,37 +271,37 @@ describe('Controller: Transaction', () => {
     it('should return correct query for PROPOSAL_CREATE', () => {
       const query = TransactionController._getQueryForAction(
         ITransactionIndexCheckType.PROPOSAL_CREATE,
-        '0x123',
+        '0x128',
         NetworksEnum.ethereumMainnet,
       )
-      expect(query).to.deep.equal({ transactionHash: '0x123', network: NetworksEnum.ethereumMainnet })
+      expect(query).to.deep.equal({ transactionHash: '0x128', network: NetworksEnum.ethereumMainnet })
     })
 
     it('should return correct query for PROPOSAL_EXECUTE', () => {
       const query = TransactionController._getQueryForAction(
         ITransactionIndexCheckType.PROPOSAL_EXECUTE,
-        '0x123',
+        '0x129',
         NetworksEnum.ethereumMainnet,
       )
-      expect(query).to.deep.equal({ 'executed.transactionHash': '0x123', network: NetworksEnum.ethereumMainnet })
+      expect(query).to.deep.equal({ 'executed.transactionHash': '0x129', network: NetworksEnum.ethereumMainnet })
     })
 
     it('should return correct query for PROPOSAL_ADVANCE_STAGE', () => {
       const query = TransactionController._getQueryForAction(
         ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE,
-        '0x123',
+        '0x130',
         NetworksEnum.ethereumMainnet,
       )
-      expect(query).to.deep.equal({ 'stageExecutions.transactionHash': '0x123', network: NetworksEnum.ethereumMainnet })
+      expect(query).to.deep.equal({ 'stageExecutions.transactionHash': '0x130', network: NetworksEnum.ethereumMainnet })
     })
 
     it('should return default query for unknown action', () => {
       const query = TransactionController._getQueryForAction(
         'UNKNOWN_ACTION' as ITransactionIndexCheckType,
-        '0x123',
+        '0x131',
         NetworksEnum.ethereumMainnet,
       )
-      expect(query).to.deep.equal({ transactionHash: '0x123', network: NetworksEnum.ethereumMainnet })
+      expect(query).to.deep.equal({ transactionHash: '0x131', network: NetworksEnum.ethereumMainnet })
     })
   })
 })
