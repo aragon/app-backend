@@ -47,7 +47,13 @@ const TransactionController = {
       response.isProcessed = Boolean(data)
 
       if (data && action === ITransactionIndexCheckType.PROPOSAL_CREATE) {
-        const pluginAddress = data.parentProposal?.pluginAddress || data.pluginAddress
+        let pluginAddress = data.pluginAddress
+        const plugin = await Models.Plugin.findByAddress(pluginAddress, data.network)
+
+        if (plugin.parentPlugin) {
+          pluginAddress = plugin.parentPlugin
+        }
+
         const pluginSlug = await Models.PluginSlug.findOne({
           pluginAddress,
           network: data.network,
