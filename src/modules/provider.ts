@@ -39,6 +39,7 @@ const ProviderModule = {
     ARBITRUM_MAINNET: NetworksEnum.arbitrumMainnet,
     ZKSYNC_SEPOLIA: NetworksEnum.zksyncSepolia,
     ZKSYNC_MAINNET: NetworksEnum.zksyncMainnet,
+    PEAQ_MAINNET: NetworksEnum.peaqMainnet,
   },
 
   // Converts a config key to a NetworksEnum.
