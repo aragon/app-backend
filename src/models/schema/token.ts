@@ -32,6 +32,7 @@ const customName = ICollectionNames.Token
   },
 })
 @index({ id: 1 }, { unique: true })
+@index({ name: -1 })
 @index({ address: 1, network: 1 })
 @index({ lastUpdatedAt: 1, network: 1, skipFetchRate: 1 })
 export default class Token extends Model {
