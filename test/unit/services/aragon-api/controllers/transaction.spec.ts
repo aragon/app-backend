@@ -157,19 +157,29 @@ describe('Controller: Transaction', () => {
 
     it('should get transaction indexing status - proposal created and return slug when is sub-proposal', async () => {
       await Models.Proposal.create({
-        ...ProposalList[0],
+        daoAddress: ProposalList[0].daoAddress,
         proposalIndex: '0',
         incrementalId: 0,
         transactionHash: '0x126',
         pluginAddress: ProposalList[0].pluginAddress,
+        network: ProposalList[0].network,
+        endDate: 1,
+        blockNumber: 1,
+        startDate: 1,
+        creatorAddress: '0xcreator',
       })
 
       await Models.Proposal.create({
-        ...ProposalList[0],
+        daoAddress: ProposalList[0].daoAddress,
         proposalIndex: '7',
         incrementalId: 7,
+        blockNumber: 1,
         pluginAddress: '0xplugin2',
         transactionHash: '0x126',
+        network: ProposalList[0].network,
+        endDate: 1,
+        startDate: 1,
+        creatorAddress: '0xcreator',
       })
 
       await Models.PluginSlug.create({
