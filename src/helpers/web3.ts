@@ -37,6 +37,7 @@ import { Multisig } from '@artifacts/Multisig'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { TokenVoting } from '@artifacts/TokenVoting'
+import { type BlockTag } from 'ethers/src.ts/providers/provider'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -467,7 +468,7 @@ const Web3Helper = {
     return '0x' + number?.toString(16)
   },
 
-  async getBlockNumber(blockNumber: string | number | undefined, network: NetworksEnum): Promise<number> {
+  async getBlockNumber(blockNumber: string | number | undefined | BlockTag, network: NetworksEnum): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
         const provider = ProviderModule.getAnyRpcProvider(network)
