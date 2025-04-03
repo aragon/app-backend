@@ -54,6 +54,27 @@ export const DaoRegistryHandler = {
     })
   },
 
+  nativeTransfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const dao = await Models.Dao.findByAddress(info.address, info.network)
+    if (!dao) return
+
+    await Promise.allSettled([
+      RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
+        id: dao.address,
+        params: { address: dao.address, network: dao.network },
+      }),
+      RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
+        id: dao.address,
+        params: { address: dao.address, network: dao.network },
+      }),
+    ])
+
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: dao.address,
+      params: { address: dao.address, network: dao.network },
+    })
+  },
+
   /**
    * Initiate the new dao creation
    * @description

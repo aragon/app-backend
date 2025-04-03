@@ -3,7 +3,7 @@ import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum } from '@types'
 
 const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
-    APP_NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_APP_NAME', 'Aragon Backend'),
+    APP_NAME: utils.configParser(sourceConfig, 'string', 'APP_NAME', 'Aragon Backend'),
     ENVIRONMENT: utils.configParser(sourceConfig, 'string', 'ENVIRONMENT', 'local'),
     NODE_ENV: utils.configParser(sourceConfig, 'string', 'NODE_ENV', 'development'),
     TIMEZONE: utils.configParser(sourceConfig, 'string', 'TIMEZONE', 'Europe/London'),
@@ -38,12 +38,30 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       { address: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E', network: NetworksEnum.ethereumMainnet },
     ]),
 
+    BLOCKCHAIN_LOG_CRAWLER: {
+      ONE_BLOCK_PER_TIME_MIN_THRESHOLD: utils.configParser(
+        sourceConfig,
+        'number',
+        'BLOCKCHAIN_LOG_CRAWLER_ONE_BLOCK_PER_TIME_MIN_THRESHOLD',
+        5,
+      ),
+      DEFAULT_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_DEFAULT_BATCH_SIZE', 30),
+      BLOCK_LOW_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_LOW_RANGE', 5),
+      BLOCK_MEDIUM_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_MEDIUM_RANGE', 20),
+      BLOCK_HIGH_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_HIGH_RANGE', 40),
+    },
+
     NODES: {
       ETHEREUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_MAINNET_FROM_BLOCK', 16721812),
+        POOLING_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ETHEREUM_MAINNET_POOLING_INTERVAL',
+          7 * 1000,
+        ), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(
           sourceConfig,
           'number',
@@ -78,9 +96,14 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ETHEREUM_SEPOLIA: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_SEPOLIA_FROM_BLOCK', 4415294),
+        POOLING_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ETHEREUM_SEPOLIA_POOLING_INTERVAL',
+          7 * 1000,
+        ), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(
           sourceConfig,
           'number',
@@ -115,9 +138,14 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       POLYGON_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_FROM_BLOCK', 40830344),
+        POOLING_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_POLYGON_MAINNET_POOLING_INTERVAL',
+          5 * 1000,
+        ), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_INTERVAL_BLOCK_TIME', 2),
         ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ETHERSCAN_API_KEY', null),
@@ -142,9 +170,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       BASE_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_FROM_BLOCK', 2094724),
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 12),
         ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ETHERSCAN_API_KEY', null),
@@ -164,9 +192,14 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ARBITRUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_FROM_BLOCK', 2441204),
+        POOLING_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ARBITRUM_MAINNET_POOLING_INTERVAL',
+          5 * 1000,
+        ), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(
           sourceConfig,
           'number',
@@ -201,9 +234,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ZKSYNC_SEPOLIA: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_FROM_BLOCK', 37460765), // zkSync ERA
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_INTERVAL_BLOCK_TIME', 3),
         ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ETHERSCAN_API_KEY', null),
@@ -223,9 +256,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ZKSYNC_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ALCHEMY_API_KEY', null),
-        ARAGON_WS: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ARAGON_WS', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_FROM_BLOCK', 145462155),
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_INTERVAL_BLOCK_TIME', 5),
         ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ETHERSCAN_API_KEY', null),

@@ -14,19 +14,16 @@ export enum IProviderType {
 }
 
 export enum IConnectionType {
-  WS = 'ws', // must be lowercase
   RPC = 'rpc', // must be lowercase
   NFT = 'nft', // must be lowercase
 }
 
 export interface IAragonNodeConfig extends Omit<IAlchemyConfig, 'alchemyApiKey'> {
-  wsEndpoint: string
   rpcEndpoint: string
 }
 
 export interface INodeConnection {
   rpc: any
-  ws: any
 }
 
 export interface IAlchemyNodeConnection extends Alchemy {
