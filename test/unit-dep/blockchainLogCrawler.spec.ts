@@ -39,7 +39,6 @@ describe('BlockchainLogCrawler', () => {
           logService: `indexer-${networkName}`,
           stopOnError: true,
         })
-        await crawler.crawl()
 
         const configLogs2 = [
           {
