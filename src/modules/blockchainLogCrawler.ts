@@ -520,7 +520,7 @@ class BlockchainLogCrawler {
     } else if (avgBlockTimeSec < 5) {
       timeBasedThreshold = config.BLOCKCHAIN_LOG_CRAWLER.BLOCK_MEDIUM_RANGE
     } else {
-      timeBasedThreshold = config.BLOCKCHAIN_LOG_CRAWLER.BLOCK_MEDIUM_RANGE
+      timeBasedThreshold = config.BLOCKCHAIN_LOG_CRAWLER.BLOCK_LOW_RANGE
     }
 
     const mediumRangeThreshold = Math.min(timeBasedThreshold, this.crawlSetting.batchSize / 2)
