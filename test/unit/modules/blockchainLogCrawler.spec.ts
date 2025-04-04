@@ -11,6 +11,7 @@ import Utils from '@helpers/utils'
 import config from '@config'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
@@ -1019,14 +1020,14 @@ describe('Module: blockchainLogCrawler', () => {
       { topic: '0xTopic4', event: 'Test4', config: [{ abi: ['event Test4()'], handler: sandbox.stub().resolves() }] },
     ] as any
 
-    const parseLogStub = sandbox.stub(Web3Helper, 'parseLog').callsFake(
+    const parseLogStub = sandbox.stub(Web3Utils, 'parseLog').callsFake(
       (log, iface) =>
         ({
           event: iface.fragments[0].name,
           args: {},
         }) as any,
     )
-    const parseInfoLogStub = sandbox.stub(Web3Helper, 'parseInfoLog').returns({} as any)
+    const parseInfoLogStub = sandbox.stub(Web3Utils, 'parseInfoLog').returns({} as any)
 
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.ethereumMainnet,
@@ -1084,8 +1085,8 @@ describe('Module: blockchainLogCrawler', () => {
       { topic: '0xTopic4', event: 'Test4', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test4()'] }] },
     ] as any
 
-    const stubParseLog = sandbox.stub(Web3Helper, 'parseLog').callsFake(log => log as any)
-    const stubParseInfoLog = sandbox.stub(Web3Helper, 'parseInfoLog').resolves(true)
+    const stubParseLog = sandbox.stub(Web3Utils, 'parseLog').callsFake(log => log as any)
+    const stubParseInfoLog = sandbox.stub(Web3Utils, 'parseInfoLog').resolves(true)
 
     const crawler = new BlockchainLogCrawler({
       network: NetworksEnum.ethereumMainnet,

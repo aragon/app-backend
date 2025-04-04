@@ -18,6 +18,7 @@ import { ProxyMember } from '@modules/proxyMember'
 import BlockScoutHelper from '@helpers/blockScout'
 import EtherscanHelper from '@helpers/etherscan'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
@@ -1560,7 +1561,7 @@ describe('Helpers: DecodeActions', () => {
       const getMetadataAtBlockNumberStub = sandbox.stub(Models.LogMetadata, 'getMetadataAtBlockNumber').resolves({
         name: 'MockDao',
       })
-      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('https://link')
+      const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
       const ipfsFetchStubb = sandbox.stub(Ipfs, 'fetchMetadata').resolves({
         name: 'Updated Dao',
       })
@@ -1599,7 +1600,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
-      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(null)
+      const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns(null)
       const decodeActions = new DecodeActions()
       const result = await decodeActions._parseUpdateDaoMetadata(baseAction, action, document as any)
       expect(result).to.be.null
@@ -1633,7 +1634,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
-      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('https://link')
+      const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
       const ipfsFetchStubb = sandbox.stub(Ipfs, 'fetchMetadata').resolves(null)
       const decodeActions = new DecodeActions()
 
@@ -1671,7 +1672,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
-      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('https://link')
+      const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
       const ipfsFetchStubb = sandbox.stub(Ipfs, 'fetchMetadata').rejects(new Error('fake-error'))
 
       const decodeActions = new DecodeActions()
@@ -1774,7 +1775,7 @@ describe('Helpers: DecodeActions', () => {
         name: 'old',
       })
       sandbox.stub(IPFSModule, 'fetchMetadata').resolves(mockMetadata)
-      sandbox.stub(Web3Helper, 'extractMetadataUri').returns('https://link')
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
       const parseContractNetspecStub = sandbox.stub(actionDecode, 'parseContractNetspec').resolves({
         functionName: 'setMetadata(bytes)',
         notice: 'notice',

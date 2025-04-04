@@ -14,8 +14,8 @@ import dayjs from '@helpers/dayjs'
 import axios from 'axios'
 import logger from '@logger'
 import utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
 import { assert } from '@errors'
-import Web3Helper from '@helpers/web3'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 
@@ -129,7 +129,7 @@ const CovalentHelper = {
     const type = CovalentHelper.getTokenType(token)
 
     return {
-      address: isNativeToken ? utils.zeroAddress : Web3Helper.parseAddress(token.contract_address)!,
+      address: isNativeToken ? utils.zeroAddress : Web3Utils.parseAddress(token.contract_address)!,
       network,
       type,
       logo: token.logo_url,

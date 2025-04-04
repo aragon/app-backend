@@ -7,7 +7,6 @@ import dayjs from '@helpers/dayjs'
 import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
 import config from '@config'
 import { ProxyToken } from '@modules/proxyToken'
-
 import TokenUtils from '@helpers/tokenUtils'
 import BlockScoutHelper from '@helpers/blockScout'
 import RabbitMQHelper from '@helpers/rabbitMQ'

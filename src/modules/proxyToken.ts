@@ -11,6 +11,7 @@ import {
 } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
@@ -33,7 +34,7 @@ export const ProxyToken = {
   ): Promise<null | Token> => {
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        const parsedTokenAddress = Web3Helper.parseAddress(tokenAddress) || tokenAddress
+        const parsedTokenAddress = Web3Utils.parseAddress(tokenAddress) || tokenAddress
 
         // Check for existing token
         const existingToken = await Models.Token.findExistingLog(
@@ -103,7 +104,7 @@ export const ProxyToken = {
     const { tokenRate, tokenMetrics } = tokenDetails
 
     const contractDeployInfo =
-      tokenTypeInfo.isGovernance || Web3Helper.isWhitelistedToken(tokenAddress, network)
+      tokenTypeInfo.isGovernance || Web3Utils.isWhitelistedToken(tokenAddress, network)
         ? await ProxyToken.getContractCreationInfo(tokenAddress, network)
         : { address: '', transactionHash: null, blockNumber: 0 }
 
@@ -191,7 +192,7 @@ export const ProxyToken = {
         totalHolders: tokenFullDetails.holders,
         totalSupply: tokenFullDetails.totalSupply,
       })
-    } else if (isGovernance || Web3Helper.isWhitelistedToken(tokenAddress, network)) {
+    } else if (isGovernance || Web3Utils.isWhitelistedToken(tokenAddress, network)) {
       tokenMetrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
     }
 
@@ -201,7 +202,7 @@ export const ProxyToken = {
     }
 
     if (
-      (isGovernance || Web3Helper.isWhitelistedToken(tokenAddress, network)) &&
+      (isGovernance || Web3Utils.isWhitelistedToken(tokenAddress, network)) &&
       tokenMetrics.totalHolders === 0 &&
       tokenMetrics.totalSupply === '0'
     ) {

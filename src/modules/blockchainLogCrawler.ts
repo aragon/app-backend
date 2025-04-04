@@ -17,6 +17,7 @@ import utils from '@helpers/utils'
 import ProviderModule from '@modules/provider'
 import { retryRequest } from '@helpers/retryRequest'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import axios from 'axios'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventCrawler' })
@@ -614,7 +615,7 @@ class BlockchainLogCrawler {
     for (const configItem of eventSetting?.config!) {
       const iFace = new Interface(configItem.abi)
       try {
-        parsedEvent = Web3Helper.parseLog(log, iFace)
+        parsedEvent = Web3Utils.parseLog(log, iFace)
         if (parsedEvent) {
           matchingHandler = configItem.handler
           break
@@ -628,7 +629,7 @@ class BlockchainLogCrawler {
       logger.error('Error parsing log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog(), log }))
     }
 
-    const info = Web3Helper.parseInfoLog(log, eventSetting!.event, this.crawlParams.network)
+    const info = Web3Utils.parseInfoLog(log, eventSetting!.event, this.crawlParams.network)
 
     return {
       event: parsedEvent!,

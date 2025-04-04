@@ -3,12 +3,13 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Asset from '@models/schema/asset'
-import Web3Helper from '@helpers/web3'
 import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
-import type Dao from '@models/schema/dao'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import TokenUtils from '@helpers/tokenUtils'
+import ProxyWeb3 from '@modules/proxyWeb3'
+import Web3Utils from '@helpers/web3Utils'
+import type Dao from '@models/schema/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
@@ -54,7 +55,7 @@ export const DaoAssets = {
           network: document.network,
           daoAddress: document.address,
           tokenAddress: utils.zeroAddress, // native token
-          amountUsd: Web3Helper.convertBalanceToUsd(ethBalance, token?.priceUsd || '0', token?.decimals || 0),
+          amountUsd: Web3Utils.convertBalanceToUsd(ethBalance, token?.priceUsd || '0', token?.decimals || 0),
         }
 
         let logDb: any
@@ -95,7 +96,7 @@ export const DaoAssets = {
           network: document.network,
           daoAddress: document.address,
           tokenAddress: tokenBalance.contractAddress,
-          amountUsd: Web3Helper.convertBalanceToUsd(
+          amountUsd: Web3Utils.convertBalanceToUsd(
             tokenBalance.tokenBalance,
             tokenDb?.priceUsd || '0',
             tokenDb?.decimals || 0,
@@ -130,8 +131,8 @@ export const DaoAssets = {
   assets: async (document: Dao) => {
     try {
       const [ethBalance, tokenBalances] = await Promise.all([
-        Web3Helper.getBalance(document.address, document.network),
-        Web3Helper.getTokenBalances(document.address, document.network),
+        ProxyWeb3.getNativeBalance(document.address, document.network),
+        ProxyWeb3.getTokenBalances(document.address, document.network),
       ])
 
       if (Number(ethBalance) > 0) {

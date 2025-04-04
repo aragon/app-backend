@@ -5,7 +5,7 @@ import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import { retryRequest } from '@helpers/retryRequest'
 
-const llo = logger.logMeta.bind(null, { service: 'FourByte' })
+const llo = logger.logMeta.bind(null, { service: 'helpers:FourByte' })
 
 const FourByte = {
   axiosInstance: axios.create({

@@ -8,6 +8,7 @@ import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
 import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Manual: Plugin', () => {
   let sandbox: SinonSandbox
@@ -32,20 +33,20 @@ describe('Manual: Plugin', () => {
       NetworksEnum.ethereumMainnet,
     )
 
-    const installationPreparedLogs = Web3Helper.findLogsByName(
+    const installationPreparedLogs = Web3Utils.findLogsByName(
       txReceipt!,
       IEventLogPluginType.InstallationPrepared,
       PluginSetupProcessor.abi,
     )
 
-    const logInfo = Web3Helper.parseInfoLog(
+    const logInfo = Web3Utils.parseInfoLog(
       installationPreparedLogs[0].txLog,
       IEventLogPluginType.InstallationPrepared,
       NetworksEnum.ethereumMainnet,
     )
 
     const iFace = new Interface(PluginSetupProcessor.abi)
-    const event = Web3Helper.parseLog(installationPreparedLogs[0].txLog, iFace)!
+    const event = Web3Utils.parseLog(installationPreparedLogs[0].txLog, iFace)!
 
     await PluginSetupProcessorHandler.installationPrepared(event, logInfo)
   })

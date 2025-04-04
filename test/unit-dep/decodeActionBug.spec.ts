@@ -6,7 +6,7 @@ import { expect } from 'chai'
 import { ProxyToken } from '@modules/proxyToken'
 import CovalentHelper from '@helpers/covalent'
 
-describe('Unit-dep: Block Handler', () => {
+describe('Integ: decodeAction', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {

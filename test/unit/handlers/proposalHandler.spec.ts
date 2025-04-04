@@ -21,6 +21,7 @@ import DecodeActions from '@helpers/decodeAction'
 import DbOperations from '@models/utils/dbOperations'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import DbTx from '@modules/dbTx'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Indexer: ProposalHandler', () => {
   let sandbox: SinonSandbox
@@ -87,7 +88,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
-      sandbox.stub(Web3Helper, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
       sandbox.stub(IPFSModule, 'fetchMetadata').resolves(proposalMetadata)
       sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(1000n as any)
@@ -196,7 +197,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
-      sandbox.stub(Web3Helper, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
       sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({
@@ -1021,7 +1022,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const fetchMetadataStub = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeIpfsMetadata)
-      const parseMetadataStub = sandbox.stub(Web3Helper, 'parseProposalMetadata').returns(parsedMetadata)
+      const parseMetadataStub = sandbox.stub(Web3Utils, 'parseProposalMetadata').returns(parsedMetadata)
 
       const result = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
@@ -1034,7 +1035,7 @@ describe('Indexer: ProposalHandler', () => {
       const metadataUri = 'ipfs://test-metadata-uri'
 
       const fetchMetadataStub = sandbox.stub(IPFSModule, 'fetchMetadata').rejects(new Error('IPFS Error'))
-      const parseMetadataStub = sandbox.stub(Web3Helper, 'parseProposalMetadata')
+      const parseMetadataStub = sandbox.stub(Web3Utils, 'parseProposalMetadata')
 
       const result = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
@@ -2179,7 +2180,7 @@ describe('Indexer: ProposalHandler', () => {
       const decodedActions = [{ decoded: 'decodedData1' }, { decoded: 'decodedData2' }]
 
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
-      sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://metadata-uri')
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://metadata-uri')
       sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       sandbox.stub(DecodeActions.prototype, 'decodeData').resolves({ decoded: 'decodedData1' } as any)
@@ -2262,7 +2263,7 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
-      sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://metadata-uri')
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://metadata-uri')
       sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves({
         title: 'Updated Title',
         description: 'Updated Description',
