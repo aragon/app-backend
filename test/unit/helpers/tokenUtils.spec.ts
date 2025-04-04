@@ -73,7 +73,7 @@ describe('fetchTokenUpdate', () => {
     rateFetchStub.resolves({ decimals: null } as any)
     blockScoutStub.resolves({
       priceUsd: '150',
-      holders: 20,
+      totalHolders: 20,
       totalSupply: '2000',
     })
     covalentStub.resolves({ totalHolders: 0, totalSupply: '0' })

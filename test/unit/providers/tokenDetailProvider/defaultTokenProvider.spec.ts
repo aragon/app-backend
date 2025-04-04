@@ -66,7 +66,7 @@ describe('Module: DefaultTokenProvider', () => {
         logo: 'fake-logo',
         isGovernance: true,
         type: ITokenType.ERC20,
-        holders: 10,
+        totalHolders: 10,
         totalSupply: '100',
         priceUsd: '1',
       }
