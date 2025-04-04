@@ -49,7 +49,7 @@ export const FetchRates = {
       model: Models.Token,
       onDocument: FetchRates.onTestnetDocument,
       onError: (error: any, document: any) => {
-        logger.error('Error FetchRates', llo({ error, document }))
+        logger.error('Error FetchRates on testnet', llo({ error, document }))
       },
       where: {
         $and: [
@@ -187,7 +187,7 @@ export const FetchRates = {
         )
       })
     } catch (error) {
-      logger.error('Error FetchRates on testnet', llo({ error }))
+      logger.error('Error FetchRates on testnet', llo({ error, address: token.address, network: token.network }))
     }
   },
 
