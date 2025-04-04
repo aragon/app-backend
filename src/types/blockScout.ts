@@ -4,10 +4,10 @@ export interface ITokenFullDetails {
   symbol: string | null
   decimals: number
   totalSupply?: string
-  holders?: number
-  logo: string | null
+  totalHolders?: number
+  logo?: string | null
   type?: string
-  priceUsd: string
+  priceUsd?: string
 }
 
 export enum IBlockScoutAddressType {

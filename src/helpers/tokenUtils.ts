@@ -39,7 +39,7 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
 
   const holders =
     firstValid(
-      blockScoutInfo ? blockScoutInfo.holders : null,
+      blockScoutInfo ? blockScoutInfo.totalHolders : null,
       ((token.type === ITokenType.ERC20 && token.isGovernance) ||
         Web3Helper.isWhitelistedToken(token.address, token.network)) &&
         covalentInfo
