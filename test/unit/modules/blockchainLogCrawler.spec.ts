@@ -1431,6 +1431,7 @@ describe('Module: blockchainLogCrawler', () => {
       sandbox.stub(config, 'BLOCKCHAIN_LOG_CRAWLER').value({
         BLOCK_HIGH_RANGE: 40,
         BLOCK_MEDIUM_RANGE: 20,
+        BLOCK_LOW_RANGE: 10,
       })
 
       sandbox.stub(config, 'NODES').value({
@@ -1439,7 +1440,7 @@ describe('Module: blockchainLogCrawler', () => {
         },
       })
 
-      const strategy = crawler.getStrategyBySituation(100, 115) // Range of 15 blocks
+      const strategy = crawler.getStrategyBySituation(100, 104) // Range of 15 blocks
 
       expect(strategy).to.equal(ICrawStrategy.getLogsWithoutTopics)
     })
