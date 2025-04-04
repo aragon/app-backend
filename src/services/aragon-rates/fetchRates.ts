@@ -187,7 +187,7 @@ export const FetchRates = {
         )
       })
     } catch (error) {
-      logger.error('Error FetchRates on testnet', llo({ error, address: token.address, network: token.network }))
+      logger.error('Error FetchRates on testnet', llo({ error, tokenAddress: token.address, network: token.network }))
     }
   },
 
