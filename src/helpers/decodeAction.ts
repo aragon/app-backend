@@ -45,10 +45,10 @@ import { ERC1155 } from '@artifacts/ERC1155'
 import Utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import BlockScoutHelper from '@helpers/blockScout'
-
+import Web3Utils from '@helpers/web3Utils'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
 
-const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
+const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
 interface Signature {
   method: string
@@ -68,7 +68,7 @@ class DecodeActions {
   }
 
   public async decodeTransfer(action: IRawAction, document: Partial<Proposal>): Promise<any> {
-    if (Web3Helper.isNativeTokenAction(action)) {
+    if (Web3Utils.isNativeTokenAction(action)) {
       const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
       const token = _.pick(nativeToken, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
 
@@ -341,7 +341,7 @@ class DecodeActions {
       metadataOriginKey,
     )
 
-    const ipfsUrl = Web3Helper.extractMetadataUri(decodedData.parameters[0].value)
+    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[0].value)
     if (!ipfsUrl) {
       return null
     }

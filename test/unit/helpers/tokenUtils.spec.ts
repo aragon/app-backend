@@ -8,6 +8,7 @@ import Web3Helper from '@helpers/web3'
 import { ITokenType, NetworksEnum } from '@types'
 import type Token from '@models/schema/token'
 import { ProxyToken } from '@modules/proxyToken'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('fetchTokenUpdate', () => {
   let sandbox: SinonSandbox
@@ -115,7 +116,7 @@ describe('fetchTokenUpdate', () => {
     })
     blockScoutStub.resolves(null)
     covalentStub.resolves({ totalHolders: 30, totalSupply: '4000' })
-    sandbox.stub(Web3Helper, 'isWhitelistedToken').returns(true)
+    sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(true)
 
     const result = await TokenUtils.fetchTokenUpdate(whitelistedToken)
 

@@ -4,6 +4,7 @@ import { type IMetadata } from '@types'
 import { retry } from '@helpers/fetchRetry'
 import PinataHelper from '@helpers/pinata'
 import config from '@config'
+import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:IPFSModule' })
 
@@ -65,7 +66,7 @@ const IPFSModule = {
             }
 
             const data = await response.json()
-            return IPFSModule._parseDaoMetadata(data)
+            return Web3Utils.parseDaoMetadata(data)
           } finally {
             clearTimeout(timeoutId)
           }
@@ -105,34 +106,6 @@ const IPFSModule = {
     // This regex is for base32 encoded CIDv1
     const cidv1Regex = /^b[a-z2-7]{58}$/
     return cidv1Regex.test(cid)
-  },
-
-  _parseDaoMetadata(metadata: IMetadata): IMetadata {
-    if (!metadata.avatar || (metadata.avatar && typeof metadata.avatar !== 'string')) {
-      metadata.avatar = null
-    }
-
-    if (!metadata.description || (metadata.description && typeof metadata.description !== 'string')) {
-      metadata.description = null
-    }
-
-    if (!metadata.name || (metadata.name && typeof metadata.name !== 'string')) {
-      metadata.name = null
-    }
-
-    if (!metadata?.links) {
-      metadata.links = []
-    }
-
-    if (!metadata?.stageNames) {
-      metadata.stageNames = []
-    }
-
-    if (!metadata?.processKey) {
-      metadata.processKey = null
-    }
-
-    return metadata
   },
 }
 

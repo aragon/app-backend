@@ -3,6 +3,7 @@ import Web3Helper from '@helpers/web3'
 import { Interface, Log, type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import configIndexer from '@indexer/configIndexer'
+import Web3Utils from '@helpers/web3Utils'
 
 const UnitDepUtils = {
   getData: async (
@@ -13,13 +14,13 @@ const UnitDepUtils = {
   ): Promise<{ event: any; logInfo: any }[]> => {
     const txReceipt = await Web3Helper.getTransactionReceipt(txHash, network)
 
-    const eventLogs = Web3Helper.findLogsByName(txReceipt!, eventName, abi)
+    const eventLogs = Web3Utils.findLogsByName(txReceipt!, eventName, abi)
 
     const data: any = []
     for (const log of eventLogs) {
-      const logInfo = Web3Helper.parseInfoLog(log.txLog, eventName, network)
+      const logInfo = Web3Utils.parseInfoLog(log.txLog, eventName, network)
       const iFace = new Interface(abi)
-      const event = Web3Helper.parseLog(log.txLog, iFace)!
+      const event = Web3Utils.parseLog(log.txLog, iFace)!
       data.push({ event, logInfo })
     }
 
@@ -100,7 +101,7 @@ const UnitDepUtils = {
       for (const configItem of eventSetting?.config!) {
         const iFace = new Interface(configItem.abi)
         try {
-          parsedEvent = Web3Helper.parseLog(log, iFace)
+          parsedEvent = Web3Utils.parseLog(log, iFace)
           if (parsedEvent) {
             matchingHandler = configItem.handler
             break
@@ -111,7 +112,7 @@ const UnitDepUtils = {
       }
 
       if (parsedEvent) {
-        const info = Web3Helper.parseInfoLog(log, eventSetting!.event, network)
+        const info = Web3Utils.parseInfoLog(log, eventSetting!.event, network)
         parsedLogs.push({
           event: parsedEvent!,
           handler: matchingHandler,

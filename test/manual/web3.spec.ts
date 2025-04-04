@@ -4,6 +4,7 @@ import ProviderModule from '@modules/provider'
 import EnsHelper from '@helpers/ens'
 import Web3Helper from '@helpers/web3'
 import { type IAlchemyTokenBalance, NetworksEnum } from '@types'
+import ProxyWeb3 from '@modules/proxyWeb3'
 
 describe('Manual: Web3', () => {
   let sandbox: SinonSandbox
@@ -35,7 +36,7 @@ describe('Manual: Web3', () => {
     for (const testCase of testCases) {
       const { address, network } = testCase
       try {
-        const balance = await Web3Helper.getBalance(address, network)
+        const balance = await ProxyWeb3.getNativeBalance(address, network)
         console.log(`Balance for ${address} on ${network}:`, balance)
       } catch (error) {
         console.error(`Error fetching balance for ${address} on ${network}:`, error)

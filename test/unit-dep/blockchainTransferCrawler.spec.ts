@@ -7,7 +7,6 @@ import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import TokenUtils from '@helpers/tokenUtils'
 import { RateModule } from '@modules/rates'
 import { expect } from 'chai'
-import logger from '@logger'
 
 describe('BlockchainTransferCrawler', () => {
   let sandbox: SinonSandbox

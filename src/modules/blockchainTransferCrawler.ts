@@ -10,13 +10,13 @@ import {
   type NetworksEnum,
 } from '@types'
 import BottleneckModule from '@modules/bottleneck'
-import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import config from '@config'
 import DbTx from '@modules/dbTx'
 import utils from '@helpers/utils'
 import ProviderModule from '@modules/provider'
 import { retryRequest } from '@helpers/retryRequest'
+import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:BlockchainTransferCrawler' })
 
@@ -150,8 +150,8 @@ class BlockchainTransferCrawler {
             BottleneckModule.getNodeTransferLimiter(this.network).schedule(async () =>
               provider.send('alchemy_getAssetTransfers', [
                 {
-                  fromBlock: currentBlock !== 0 ? Web3Helper.convertToHexNumber(currentBlock) : undefined,
-                  toBlock: toBlock !== 0 ? Web3Helper.convertToHexNumber(toBlock) : 'latest',
+                  fromBlock: currentBlock !== 0 ? Web3Utils.convertToHexNumber(currentBlock) : undefined,
+                  toBlock: toBlock !== 0 ? Web3Utils.convertToHexNumber(toBlock) : 'latest',
                   fromAddress: this.filter.fromAddress,
                   toAddress: this.filter.toAddress,
                   category: this.filter.category,

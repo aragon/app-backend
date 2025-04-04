@@ -8,7 +8,7 @@ import EnsHelper from '@helpers/ens'
 import { IMetricAction, NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import DbTx from '@modules/dbTx'
-import Utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Modules:ProxyMember', () => {
   let sandbox: SinonSandbox
@@ -386,7 +386,7 @@ describe('Modules:ProxyMember', () => {
 
         const parsedMemberAddress = '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19'
         const member = { id: 'member-id', address: params.memberAddress }
-        const parseAddressStub = sandbox.stub(Web3Helper, 'parseAddress').returns(parsedMemberAddress)
+        const parseAddressStub = sandbox.stub(Web3Utils, 'parseAddress').returns(parsedMemberAddress)
         const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
         const findMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findMapping').resolves(null)
         const createMappingStub = sandbox.stub(Models.DaoMemberMapping, 'create').resolves({ id: 'mapping-id' })
@@ -416,7 +416,7 @@ describe('Modules:ProxyMember', () => {
         const session = {}
 
         const parseAddressStub = sandbox
-          .stub(Web3Helper, 'parseAddress')
+          .stub(Web3Utils, 'parseAddress')
           .withArgs(params.memberAddress)
           .returns(parsedMemberAddress)
         const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
@@ -442,7 +442,7 @@ describe('Modules:ProxyMember', () => {
           network: NetworksEnum.ethereumMainnet,
         }
 
-        const parseAddressStub = sandbox.stub(Web3Helper, 'parseAddress').withArgs(params.memberAddress).returns(null)
+        const parseAddressStub = sandbox.stub(Web3Utils, 'parseAddress').withArgs(params.memberAddress).returns(null)
         const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
         const loggerErrorStub = sandbox.stub(Logger, 'error')
 
@@ -467,7 +467,7 @@ describe('Modules:ProxyMember', () => {
         const loggerErrorStub = sandbox.stub(Logger, 'error')
 
         const parseAddressStub = sandbox
-          .stub(Web3Helper, 'parseAddress')
+          .stub(Web3Utils, 'parseAddress')
           .withArgs(params.memberAddress)
           .returns(parsedMemberAddress)
 
@@ -491,7 +491,7 @@ describe('Modules:ProxyMember', () => {
         const member = { id: 'member-id', address: params.memberAddress }
 
         const parseAddressStub = sandbox
-          .stub(Web3Helper, 'parseAddress')
+          .stub(Web3Utils, 'parseAddress')
           .withArgs(params.memberAddress)
           .returns(parsedMemberAddress)
         const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member as any)
@@ -519,7 +519,7 @@ describe('Modules:ProxyMember', () => {
         const member = { id: 'member-id', address: params.memberAddress }
 
         const parseAddressStub = sandbox
-          .stub(Web3Helper, 'parseAddress')
+          .stub(Web3Utils, 'parseAddress')
           .withArgs(params.memberAddress)
           .returns(parsedMemberAddress)
 
@@ -561,7 +561,7 @@ describe('Modules:ProxyMember', () => {
         }
 
         const parseAddressStub = sandbox
-          .stub(Web3Helper, 'parseAddress')
+          .stub(Web3Utils, 'parseAddress')
           .withArgs(params.memberAddress)
           .returns(parsedMemberAddress)
 
@@ -596,7 +596,7 @@ describe('Modules:ProxyMember', () => {
         const session = {}
 
         const parseAddressStub = sandbox
-          .stub(Web3Helper, 'parseAddress')
+          .stub(Web3Utils, 'parseAddress')
           .withArgs(params.memberAddress)
           .returns(parsedMemberAddress)
 
@@ -623,7 +623,7 @@ describe('Modules:ProxyMember', () => {
           network: NetworksEnum.ethereumMainnet,
         }
 
-        const parseAddressStub = sandbox.stub(Web3Helper, 'parseAddress').withArgs(params.memberAddress).returns(null)
+        const parseAddressStub = sandbox.stub(Web3Utils, 'parseAddress').withArgs(params.memberAddress).returns(null)
         const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
         const loggerErrorStub = sandbox.stub(Logger, 'error')
 
@@ -645,7 +645,7 @@ describe('Modules:ProxyMember', () => {
 
         const parsedMemberAddress = '0xValidMember'
         sandbox.stub(Models.DaoMemberMapping, 'findMapping').rejects(new Error('Database error'))
-        const parseAddressStub = sandbox.stub(Web3Helper, 'parseAddress').returns(parsedMemberAddress)
+        const parseAddressStub = sandbox.stub(Web3Utils, 'parseAddress').returns(parsedMemberAddress)
         const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(null)
         const loggerErrorStub = sandbox.stub(Logger, 'error')
 
@@ -675,7 +675,7 @@ describe('Modules:ProxyMember', () => {
         }
 
         const parseAddressStub = sandbox
-          .stub(Web3Helper, 'parseAddress')
+          .stub(Web3Utils, 'parseAddress')
           .withArgs(params.memberAddress)
           .returns(parsedMemberAddress)
 

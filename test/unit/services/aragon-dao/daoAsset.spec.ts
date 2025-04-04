@@ -6,9 +6,10 @@ import { IAlchemyTokenBalance, NetworksEnum } from '@types'
 import Logger from '@logger'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
 import TokenUtils from '@helpers/tokenUtils'
+import ProxyWeb3 from '@modules/proxyWeb3'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('AragonDao:Assets', () => {
   let sandbox: SinonSandbox
@@ -68,7 +69,7 @@ describe('AragonDao:Assets', () => {
         priceUsd: '1000',
         decimals: 18,
       } as any)
-      const stubConvert = sandbox.stub(Web3Helper, 'convertBalanceToUsd').returns('1000')
+      const stubConvert = sandbox.stub(Web3Utils, 'convertBalanceToUsd').returns('1000')
       const stubUpdate = sandbox.stub(Models.Asset.prototype, 'update').resolves()
       const stubCreate = sandbox.stub(Models.Asset, 'create').resolves()
 
@@ -87,7 +88,7 @@ describe('AragonDao:Assets', () => {
         priceUsd: '1000',
         decimals: 18,
       } as any)
-      const stubConvert = sandbox.stub(Web3Helper, 'convertBalanceToUsd').returns('1000')
+      const stubConvert = sandbox.stub(Web3Utils, 'convertBalanceToUsd').returns('1000')
       const stubUpdate = sandbox.stub(Models.Asset.prototype, 'update').resolves()
       sandbox.stub(Models.Asset, 'findExistingLog').resolves({ update: stubUpdate } as any)
 
@@ -139,7 +140,7 @@ describe('AragonDao:Assets', () => {
       const stubSaveToken = sandbox
         .stub(ProxyToken, 'saveAndGetToken')
         .resolves({ priceUsd: '10', decimals: 18 } as any)
-      const stubConvert = sandbox.stub(Web3Helper, 'convertBalanceToUsd').returns('5000')
+      const stubConvert = sandbox.stub(Web3Utils, 'convertBalanceToUsd').returns('5000')
       const stubUpdate = sandbox.stub(Models.Asset.prototype, 'update').resolves()
       const stubCreate = sandbox.stub(Models.Asset, 'create').resolves()
 
@@ -162,7 +163,7 @@ describe('AragonDao:Assets', () => {
       const stubSaveToken = sandbox
         .stub(ProxyToken, 'saveAndGetToken')
         .resolves({ priceUsd: '10', decimals: 18 } as any)
-      const stubConvert = sandbox.stub(Web3Helper, 'convertBalanceToUsd').returns('5000')
+      const stubConvert = sandbox.stub(Web3Utils, 'convertBalanceToUsd').returns('5000')
       const stubUpdate = sandbox.stub(Models.Asset.prototype, 'update').resolves()
       sandbox.stub(Models.Asset, 'findExistingLog').resolves({ update: stubUpdate } as any)
 
@@ -218,9 +219,9 @@ describe('AragonDao:Assets', () => {
 
   describe('assets', () => {
     it('should process DAO assets correctly', async () => {
-      const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves('1')
+      const stubGetBalance = sandbox.stub(ProxyWeb3, 'getNativeBalance').resolves('1')
       const stubGetTokens = sandbox
-        .stub(Web3Helper, 'getTokenBalances')
+        .stub(ProxyWeb3, 'getTokenBalances')
         .resolves([
           { contractAddress: '0xToken', tokenBalance: '500' } as IAlchemyTokenBalance,
           { contractAddress: '0xToken1', tokenBalance: '0' } as IAlchemyTokenBalance,
@@ -237,9 +238,9 @@ describe('AragonDao:Assets', () => {
     })
 
     it('should process _handleErc20Token when token balance not exist', async () => {
-      const stubGetBalance = sandbox.stub(Web3Helper, 'getBalance').resolves('0')
+      const stubGetBalance = sandbox.stub(ProxyWeb3, 'getNativeBalance').resolves('0')
       const stubGetTokens = sandbox
-        .stub(Web3Helper, 'getTokenBalances')
+        .stub(ProxyWeb3, 'getTokenBalances')
         .resolves([{ contractAddress: '0xToken', tokenBalance: '500' } as IAlchemyTokenBalance])
       const stubHandleNative = sandbox.stub(DaoAssets, '_handleNativeToken')
       const stubHandleErc20 = sandbox.stub(DaoAssets, '_handleErc20Token').resolves()
@@ -254,7 +255,7 @@ describe('AragonDao:Assets', () => {
 
     it('should log error when processing assets fails', async () => {
       const stubLogger = sandbox.stub(Logger, 'error')
-      sandbox.stub(Web3Helper, 'getBalance').rejects(new Error('Test Error'))
+      sandbox.stub(ProxyWeb3, 'getNativeBalance').rejects(new Error('Test Error'))
 
       await DaoAssets.assets({ address: '0xDao', network: NetworksEnum.ethereumMainnet } as any)
 

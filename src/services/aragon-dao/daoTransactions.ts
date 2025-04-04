@@ -19,6 +19,8 @@ import { ProxyToken } from '@modules/proxyToken'
 import { DAO } from '@artifacts/dao'
 import { Multisig } from '@artifacts/Multisig'
 import TokenUtils from '@helpers/tokenUtils'
+import AlchemyWeb3 from '@helpers/alchemyWeb3'
+import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
 
@@ -141,11 +143,11 @@ export const DaoTransactions = {
         return
       }
 
-      const proposalExecutionLog = Web3Helper.findLogsByName(transactionReceipt, 'Executed', DAO.abi)
+      const proposalExecutionLog = Web3Utils.findLogsByName(transactionReceipt, 'Executed', DAO.abi)
       if (proposalExecutionLog?.length > 0) {
         daoAddress = proposalExecutionLog[0].txLog.address
 
-        const proposalIdLog = Web3Helper.findLogsByName(transactionReceipt, 'ProposalExecuted', Multisig.abi)
+        const proposalIdLog = Web3Utils.findLogsByName(transactionReceipt, 'ProposalExecuted', Multisig.abi)
         pluginAddress = proposalIdLog[0].txLog.address
 
         if (proposalIdLog?.length > 0) {
@@ -166,7 +168,7 @@ export const DaoTransactions = {
       const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)
 
       // check if alchemy return strange balance
-      Web3Helper.alchemyCrazyBalanceOnError(daoAddress, token?.address!, dao.network, tx.value, token?.decimals!)
+      AlchemyWeb3.alchemyCrazyBalanceOnError(daoAddress, token?.address!, dao.network, tx.value, token?.decimals!)
 
       const rawTx: Partial<Transaction> = {
         transactionHash: tx.hash,
@@ -179,7 +181,7 @@ export const DaoTransactions = {
         pluginAddress,
         fromAddress: tx.from,
         toAddress: tx.to,
-        value: Web3Helper.handleAlchemyCrazyBalance(tx.value || 0, token?.decimals, tx),
+        value: AlchemyWeb3.handleAlchemyCrazyBalance(tx.value || 0, token?.decimals, tx),
         tokenId: tx.tokenId ? BigInt(tx.tokenId).toString() : undefined,
         erc721TokenId: tx.erc721TokenId ? BigInt(tx.erc721TokenId).toString() : undefined,
         erc1155Metadata: tx.erc1155Metadata?.map(w => ({

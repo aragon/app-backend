@@ -16,6 +16,7 @@ import ProviderModule from '@modules/provider'
 import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 import TokenUtils from '@helpers/tokenUtils'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('AragonDao: DaoTransactions', () => {
   let sandbox: sinon.SinonSandbox
@@ -248,7 +249,7 @@ describe('AragonDao: DaoTransactions', () => {
         const findTxReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
           logs: fakeLogs,
         } as any)
-        const findLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
+        const findLogsByName = sandbox.stub(Web3Utils, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
 
         const getTokenDetailsStub = sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
 
@@ -303,7 +304,7 @@ describe('AragonDao: DaoTransactions', () => {
           logs: fakeLogs,
         } as any)
 
-        const findLogsByName = sandbox.stub(Web3Helper, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
+        const findLogsByName = sandbox.stub(Web3Utils, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
 
         const getTokenDetailsStub = sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
 
@@ -344,7 +345,7 @@ describe('AragonDao: DaoTransactions', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
       sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
-      sandbox.stub(Web3Helper, 'findLogsByName').returns([] as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([] as any)
 
       await DaoTransactions.saveTransaction(tx as any, ITransactionType.deposit, daoRegistry as any)
 
@@ -374,7 +375,7 @@ describe('AragonDao: DaoTransactions', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
       sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
-      sandbox.stub(Web3Helper, 'findLogsByName').returns([] as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([] as any)
 
       await DaoTransactions.saveTransaction(tx as any, ITransactionType.deposit, daoRegistry as any)
 
@@ -427,7 +428,7 @@ describe('AragonDao: DaoTransactions', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
       sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: fakeLogs } as any)
-      sandbox.stub(Web3Helper, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       sandbox.stub(ProxyToken, 'analyzeIfScamToken').returns(false)
 
@@ -460,7 +461,7 @@ describe('AragonDao: DaoTransactions', () => {
     it('should handle invalid log data gracefully', async () => {
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
-      sandbox.stub(Web3Helper, 'findLogsByName').returns(null as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns(null as any)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         network: NetworksEnum.ethereumMainnet,
         address: '0x01',
@@ -480,7 +481,7 @@ describe('AragonDao: DaoTransactions', () => {
     })
 
     it('should handle transactions without tokens', async () => {
-      sandbox.stub(Web3Helper, 'findLogsByName').returns(null as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns(null as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)

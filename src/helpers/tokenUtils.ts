@@ -7,8 +7,9 @@ import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import Web3Utils from '@helpers/web3Utils'
 
-const llo = logger.logMeta.bind(null, { service: 'helper:tokenUtils' })
+const llo = logger.logMeta.bind(null, { service: 'helpers:tokenUtils' })
 
 const firstValid = <T>(...values: (T | null | undefined | '0' | 0)[]): T | null => {
   for (const v of values) {
@@ -41,7 +42,7 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
     firstValid(
       blockScoutInfo ? blockScoutInfo.holders : null,
       ((token.type === ITokenType.ERC20 && token.isGovernance) ||
-        Web3Helper.isWhitelistedToken(token.address, token.network)) &&
+        Web3Utils.isWhitelistedToken(token.address, token.network)) &&
         covalentInfo
         ? covalentInfo.totalHolders
         : null,
@@ -51,7 +52,7 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
     firstValid(
       blockScoutInfo ? blockScoutInfo.totalSupply : null,
       ((token.type === ITokenType.ERC20 && token.isGovernance) ||
-        Web3Helper.isWhitelistedToken(token.address, token.network)) &&
+        Web3Utils.isWhitelistedToken(token.address, token.network)) &&
         covalentInfo
         ? covalentInfo.totalSupply
         : null,

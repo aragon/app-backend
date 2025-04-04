@@ -4,8 +4,10 @@ import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import CovalentHelper from '@helpers/covalent'
+import Web3Utils from '@helpers/web3Utils'
+import ProxyWeb3 from "@modules/proxyWeb3";
 
-describe('Web3Helper', () => {
+describe('ProxyWeb3 && Web3Helper', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -19,7 +21,7 @@ describe('Web3Helper', () => {
   it('supportsInterface', async () => {
     const tokenAddress = '0x722905AF564B93D6175250Ca0316cB87Ff6F9c6A'
     const network = NetworksEnum.ethereumSepolia
-    const supportsERC721 = await Web3Helper.supportsInterface(tokenAddress, Web3Helper.ERC721_INTERFACE_ID, network)
+    const supportsERC721 = await Web3Helper.supportsInterface(tokenAddress, Web3Utils.ERC721_INTERFACE_ID, network)
     expect(supportsERC721).to.be.true
   })
 
@@ -33,7 +35,7 @@ describe('Web3Helper', () => {
     const blockNumber = 5963492
     const network = NetworksEnum.ethereumSepolia
     const block = await Web3Helper.getBlock(blockNumber, network)
-    expect(block.number).to.eq(blockNumber)
+    expect(block?.number).to.eq(blockNumber)
   })
 
   it('getBlockTimestamp', async () => {
@@ -52,10 +54,10 @@ describe('Web3Helper', () => {
     expect(value).to.eq('4')
   })
 
-  it('getBalance', async () => {
+  it('getNativeBalance', async () => {
     const address = '0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449'
     const network = NetworksEnum.ethereumMainnet
-    const value = await Web3Helper.getBalance(address, network)
+    const value = await ProxyWeb3.getNativeBalance(address, network)
     expect(value).to.eq('0.000118940004874')
   })
 
@@ -65,7 +67,7 @@ describe('Web3Helper', () => {
     sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({ totalSupply: '0', totalHolders: 0 } as any)
     sandbox.stub(CovalentHelper, 'getToken').resolves(null as any)
 
-    const tokenBalances = await Web3Helper.getTokenBalances(address, network)
+    const tokenBalances = await ProxyWeb3.getTokenBalances(address, network)
 
     expect(tokenBalances.length > 0).to.be.true
     expect(tokenBalances[0].contractAddress).to.exist
@@ -73,10 +75,10 @@ describe('Web3Helper', () => {
     expect(tokenBalances[0].originalBalance).to.exist
   })
 
-  it('subdomainExists', async () => {
+  it('ensSubdomainExists', async () => {
     const ensName = 'ai'
     const network = NetworksEnum.ethereumMainnet
-    const exists = await Web3Helper.subdomainExists(ensName, network)
+    const exists = await Web3Helper.ensSubdomainExists(ensName, network)
     expect(exists).to.be.true
   })
 

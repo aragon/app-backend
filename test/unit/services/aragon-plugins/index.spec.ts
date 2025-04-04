@@ -7,7 +7,6 @@ import { EnumQueueName, IPluginInterfaceType, ITokenType, NetworksEnum } from '@
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { Models } from '@dbModels'
 import { LogDao } from '@plugins/logDao'
-import config from '@config'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'

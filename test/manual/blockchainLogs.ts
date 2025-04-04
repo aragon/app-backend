@@ -7,12 +7,12 @@ import ProviderModule from '@modules/provider'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { Interface, type LogDescription } from 'ethers'
-import Web3Helper from '@helpers/web3'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Manual: BlockchainLogs', () => {
   let sandbox: SinonSandbox
@@ -116,8 +116,8 @@ describe('Manual: BlockchainLogs', () => {
 
     for (const txLog of logs) {
       const iFace = new Interface(StagedProposalProcessor.abi)
-      const event = Web3Helper.parseLog(txLog, iFace) as LogDescription
-      const info = Web3Helper.parseInfoLog(txLog, event.name, network)
+      const event = Web3Utils.parseLog(txLog, iFace) as LogDescription
+      const info = Web3Utils.parseInfoLog(txLog, event.name, network)
       await PluginSettingHandler.sppSettingsUpdated(event, info)
       console.log('done', txLog)
     }
@@ -146,8 +146,8 @@ describe('Manual: BlockchainLogs', () => {
 
     for (const txLog of logs) {
       const iFace = new Interface(TokenVoting.abi)
-      const event = Web3Helper.parseLog(txLog, iFace) as LogDescription
-      const info = Web3Helper.parseInfoLog(txLog, event.name, network)
+      const event = Web3Utils.parseLog(txLog, iFace) as LogDescription
+      const info = Web3Utils.parseInfoLog(txLog, event.name, network)
       await ProposalHandler.proposalCreated(event, info)
       console.log('done', txLog)
     }

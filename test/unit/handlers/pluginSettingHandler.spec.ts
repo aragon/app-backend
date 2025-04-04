@@ -10,6 +10,7 @@ import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
 import DbOperations from '@models/utils/dbOperations'
 import MultisigHelper from '@helpers/multisig'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Indexer: PluginSettingHandler', () => {
   let sandbox: SinonSandbox
@@ -32,9 +33,9 @@ describe('Indexer: PluginSettingHandler', () => {
       const info = { network: NetworksEnum.ethereumMainnet } as any
 
       sandbox
-        .stub(Web3Helper, 'findLogsByName')
+        .stub(Web3Utils, 'findLogsByName')
         .returns([{ parsed: 'votingLog', txLog: { address: '0xplugin' } }] as any)
-      sandbox.stub(Web3Helper, 'parseInfoLog').returns('votingInfo' as any)
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns('votingInfo' as any)
       const votingStub = sandbox
         .stub(PluginSettingHandler, 'votingSettingsUpdated')
         .resolves({ address: '0xvoting-plugin' } as any)
@@ -50,13 +51,13 @@ describe('Indexer: PluginSettingHandler', () => {
       const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.multisig } as any
       const info = { network: NetworksEnum.ethereumMainnet } as any
 
-      sandbox.stub(Web3Helper, 'findLogsByName').returns([
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([
         {
           parsed: 'multisigLog',
           txLog: { address: '0xplugin' },
         },
       ] as any)
-      sandbox.stub(Web3Helper, 'parseInfoLog').returns('multisigInfo' as any)
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns('multisigInfo' as any)
       const multisigStub = sandbox
         .stub(PluginSettingHandler, 'multisigSettingsUpdated')
         .resolves({ address: '0xmultisig-plugin' } as any)
@@ -73,7 +74,7 @@ describe('Indexer: PluginSettingHandler', () => {
       const info = { network: NetworksEnum.ethereumMainnet } as any
 
       sandbox
-        .stub(Web3Helper, 'findLogsByName')
+        .stub(Web3Utils, 'findLogsByName')
         .onFirstCall()
         .returns([])
         .onSecondCall()
@@ -83,7 +84,7 @@ describe('Indexer: PluginSettingHandler', () => {
             txLog: { address: '0xplugin' },
           } as any,
         ])
-      sandbox.stub(Web3Helper, 'parseInfoLog').returns('multisigInfo' as any)
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns('multisigInfo' as any)
       const multisigStub = sandbox
         .stub(PluginSettingHandler, 'multisigSettingsUpdated')
         .resolves({ address: '0xmultisig-plugin' } as any)
@@ -99,8 +100,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.spp } as any
       const info = { network: NetworksEnum.ethereumMainnet } as any
 
-      sandbox.stub(Web3Helper, 'findLogsByName').returns([{ parsed: 'sppLog', txLog: { address: '0xplugin' } }] as any)
-      sandbox.stub(Web3Helper, 'parseInfoLog').returns('sppInfo' as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([{ parsed: 'sppLog', txLog: { address: '0xplugin' } }] as any)
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns('sppInfo' as any)
       const sppStub = sandbox
         .stub(PluginSettingHandler, 'sppSettingsUpdated')
         .resolves({ address: '0xspp-plugin' } as any)
@@ -116,7 +117,7 @@ describe('Indexer: PluginSettingHandler', () => {
       const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.unknown } as any
       const info = { network: NetworksEnum.ethereumMainnet } as any
 
-      const stubFind = sandbox.stub(Web3Helper, 'findLogsByName')
+      const stubFind = sandbox.stub(Web3Utils, 'findLogsByName')
 
       const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
 

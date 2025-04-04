@@ -17,6 +17,7 @@ import dbTx from '@modules/dbTx'
 import logger from '@logger'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import BlockScout from '@helpers/blockScout'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox
@@ -291,7 +292,7 @@ describe('Modules: ProxyToken', () => {
         totalSupply: '0',
       })
 
-      const isWhiteListedTokenStub = sandbox.stub(Web3Helper, 'isWhitelistedToken').resolves(true)
+      const isWhiteListedTokenStub = sandbox.stub(Web3Utils, 'isWhitelistedToken').resolves(true)
 
       const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo')
 
@@ -327,7 +328,7 @@ describe('Modules: ProxyToken', () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
 
-      sandbox.stub(Web3Helper, 'parseAddress').returns(tokenAddress)
+      sandbox.stub(Web3Utils, 'parseAddress').returns(tokenAddress)
       sandbox.stub(Models.Token, 'findExistingLog').resolves(null)
       const stubCreate = sandbox.stub(ProxyToken, 'createNewToken').resolves({ address: tokenAddress } as any)
 
@@ -343,7 +344,7 @@ describe('Modules: ProxyToken', () => {
 
       const existingToken = { address: tokenAddress } as Token
 
-      sandbox.stub(Web3Helper, 'parseAddress').returns(tokenAddress)
+      sandbox.stub(Web3Utils, 'parseAddress').returns(tokenAddress)
       sandbox.stub(Models.Token, 'findExistingLog').resolves(existingToken)
       const stubUpdate = sandbox.stub(ProxyToken, 'updateTokenMetrics').resolves(existingToken)
 
