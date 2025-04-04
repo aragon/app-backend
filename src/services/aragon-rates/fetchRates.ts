@@ -228,7 +228,7 @@ export const FetchRates = {
         )
       })
     } catch (error) {
-      logger.error('Error FetchRates', llo({ error }))
+      logger.error('Error FetchRates', llo({ error, network: token.network, tokenAddress: token.address }))
     }
   },
 }
