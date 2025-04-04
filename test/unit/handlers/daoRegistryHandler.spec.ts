@@ -279,4 +279,22 @@ describe('Indexer: DaoRegistryHandler', () => {
 
     expect(stubRabbitMQ.calledThrice).to.be.true
   })
+
+  it('should return if dao not found', async () => {
+    sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+    const stubRabbitMQ = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+    const logInfo = {
+      network: NetworksEnum.ethereumMainnet,
+      transactionIndex: 1,
+      logIndex: 1,
+      blockNumber: 3,
+      transactionHash: '0x0123123',
+      address: '0x0000000000000000000000000000000000000000',
+      eventName: 'test',
+    }
+
+    await DaoRegistryHandler.nativeTransfer({} as any, logInfo)
+    expect(stubRabbitMQ.notCalled).to.be.true
+  })
 })
