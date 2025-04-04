@@ -49,7 +49,7 @@ export const ToolsManualSyncToken: IService = {
           symbol: tokenRate.symbol,
           decimals: tokenRate.decimals,
           logo: tokenRate.logo,
-          holders: tokenInfo.holders,
+          holders: tokenInfo.totalHolders,
           totalSupply: tokenInfo.totalSupply,
         })
 

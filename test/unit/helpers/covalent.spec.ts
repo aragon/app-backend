@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import CovalentHelper from '@helpers/covalent'
 import logger from '@logger'
 import config from '@config'
-import { IToken, ITokenType, NetworksEnum } from '@types'
+import { ITokenDetails, ITokenType, NetworksEnum } from '@types'
 import { TokenList } from '@test/mock/fakeCovalentTokens'
 import dayjs from '@helpers/dayjs'
 import utils from '@helpers/utils'
@@ -75,7 +75,7 @@ describe('Helpers: Covalent', () => {
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const network = NetworksEnum.ethereumMainnet
       const pastDays = 4
-      const token = (await CovalentHelper.getToken(address, network, pastDays)) as Partial<IToken>
+      const token = (await CovalentHelper.getToken(address, network, pastDays)) as Partial<ITokenDetails>
       expect(rpcCallStub.calledOnce).to.be.true
       expect(token.address).to.equal(address)
       expect(token.name).to.equal(fakeResponse.contract_name)
@@ -109,7 +109,7 @@ describe('Helpers: Covalent', () => {
       const loggerStub = sandbox.stub(logger, 'error')
 
       const address = '0x0000000000000000000000000000000000000000'
-      const token = (await CovalentHelper.getToken(address, NetworksEnum.ethereumMainnet)) as Partial<IToken>
+      const token = (await CovalentHelper.getToken(address, NetworksEnum.ethereumMainnet)) as Partial<ITokenDetails>
       expect(loggerStub.notCalled).to.be.true
       expect(rpcCallStub.calledOnce).to.be.true
 
@@ -126,7 +126,7 @@ describe('Helpers: Covalent', () => {
 
       const network = NetworksEnum.ethereumMainnet
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-      const result = (await CovalentHelper.getToken(address, network)) as Partial<IToken>
+      const result = (await CovalentHelper.getToken(address, network)) as Partial<ITokenDetails>
 
       expect(result).to.be.false
     })

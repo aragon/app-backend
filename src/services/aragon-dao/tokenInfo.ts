@@ -2,10 +2,9 @@ import { type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import Utils from '@helpers/utils'
-import BlockScoutHelper from '@helpers/blockScout'
-import CovalentHelper from '@helpers/covalent'
-
 import DbOperations from '@models/utils/dbOperations'
+import TokenDetailProvider from '@providers/tokenDetailProvider/providerFactory'
+import type Token from '@models/schema/token'
 
 const llo = logger.logMeta.bind(null, { service: 'tokenInfo' })
 
@@ -39,7 +38,7 @@ export const TokenDetailFetcherWithRetry = {
           tokenInfo.tokenDb,
           {
             totalSupply: tokenInfo.tokenDetails.totalSupply,
-            holders: tokenInfo.tokenDetails.holders,
+            holders: tokenInfo.tokenDetails.totalHolders,
           },
           { address: tokenAddress, network },
           'Updated Token with pooling',
@@ -52,24 +51,19 @@ export const TokenDetailFetcherWithRetry = {
     }
   },
 
-  async fetchBasicTokenInfo(tokenDb: any): Promise<any> {
+  async fetchBasicTokenInfo(tokenDb: Token): Promise<any> {
     const metricsInfo = {
       totalSupply: '0',
-      holders: 0,
+      totalHolders: 0,
     }
 
-    const tokenInfoCovalent = await CovalentHelper.getTokenSupplyAndHolders(tokenDb.address, tokenDb.network)
-
-    metricsInfo.totalSupply = tokenInfoCovalent.totalSupply
-    metricsInfo.holders = tokenInfoCovalent.totalHolders
-
-    if (metricsInfo.totalSupply === '0' && metricsInfo.holders === 0) {
-      const tokenFullDetails = await BlockScoutHelper.getTokenFullDetails(tokenDb.address, tokenDb.network)
-      if (tokenFullDetails) {
-        metricsInfo.totalSupply = tokenFullDetails.totalSupply!
-        metricsInfo.holders = tokenFullDetails.holders!
-      }
+    const tokenDetails = await TokenDetailProvider.fetchBasicTokenInfo(tokenDb)
+    if (!tokenDetails) {
+      return metricsInfo
     }
+
+    metricsInfo.totalSupply = tokenDetails.totalSupply || '0'
+    metricsInfo.totalHolders = tokenDetails.totalHolders || 0
 
     return metricsInfo
   },
@@ -104,7 +98,7 @@ export const TokenDetailFetcherWithRetry = {
   },
 
   hasValidInfo(tokenDetails: any): boolean {
-    return !(tokenDetails.totalSupply === '0' && tokenDetails.holders === 0)
+    return !(tokenDetails.totalSupply && tokenDetails.totalSupply === '0' && tokenDetails.totalHolders === 0)
   },
 }
 
