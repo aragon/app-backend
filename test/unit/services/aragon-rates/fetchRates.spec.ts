@@ -193,7 +193,7 @@ describe('AragonRates: FetchRates', () => {
       const stubError = sandbox.stub(logger, 'error')
       await FetchRates.onMainnetDocument(tokenDb)
 
-      expect(stubError.calledOnceWith('Error FetchRates' as any)).to.be.true
+      expect(stubError.calledOnceWith('Error FetchRates On MainnetDocument' as any)).to.be.true
     })
   })
 
