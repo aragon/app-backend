@@ -1,6 +1,6 @@
 import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
-import { type ITokenMetrics, ITokenType, type ITokenUpdate, type NetworksEnum } from '@types'
+import { ITokenType, type ITokenUpdate, type NetworksEnum } from '@types'
 import BlockScoutHelper from '@helpers/blockScout'
 import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
