@@ -25,7 +25,7 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
     token.type === ITokenType.native
       ? Promise.resolve(null)
       : BlockScoutHelper.getTokenFullDetails(token.address, token.network),
-    token.isGovernance
+    token.isGovernance || Web3Helper.isWhitelistedToken(token.address, token.network)
       ? CovalentHelper.getTokenSupplyAndHolders(token.address, token.network)
       : Promise.resolve({ totalSupply: '0', totalHolders: 0 }),
   ])
@@ -40,24 +40,10 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
     rawRate.decimals !== null && rawRate.priceChangeOnDayUsd !== '0' ? rawRate.priceChangeOnDayUsd : '0'
 
   const holders =
-    firstValid(
-      blockScoutInfo ? blockScoutInfo.holders : null,
-      ((token.type === ITokenType.ERC20 && token.isGovernance) ||
-        Web3Helper.isWhitelistedToken(token.address, token.network)) &&
-        covalentInfo
-        ? covalentInfo.totalHolders
-        : null,
-    ) || 0
-
+    firstValid(blockScoutInfo ? blockScoutInfo.holders : null, covalentInfo ? covalentInfo.totalHolders : null) || 0
   const totalSupply =
-    firstValid(
-      blockScoutInfo ? blockScoutInfo.totalSupply : null,
-      ((token.type === ITokenType.ERC20 && token.isGovernance) ||
-        Web3Helper.isWhitelistedToken(token.address, token.network)) &&
-        covalentInfo
-        ? covalentInfo.totalSupply
-        : null,
-    ) || '0'
+    firstValid(blockScoutInfo ? blockScoutInfo.totalSupply : null, covalentInfo ? covalentInfo.totalSupply : null) ||
+    '0'
 
   if (holders === 0 && totalSupply === '0' && token.isGovernance) {
     return null
