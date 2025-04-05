@@ -9,7 +9,7 @@ import { ITokenType, NetworksEnum } from '@types'
 import type Token from '@models/schema/token'
 import { ProxyToken } from '@modules/proxyToken'
 
-describe.only('fetchTokenUpdate', () => {
+describe('fetchTokenUpdate', () => {
   let sandbox: SinonSandbox
 
   const baseToken: Token = {
