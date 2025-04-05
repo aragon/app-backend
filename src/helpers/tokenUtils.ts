@@ -1,6 +1,6 @@
 import type Token from '@models/schema/token'
 import { RateModule } from '@modules/rates'
-import { ITokenType, type ITokenUpdate, type NetworksEnum } from '@types'
+import { type ITokenMetrics, ITokenType, type ITokenUpdate, type NetworksEnum } from '@types'
 import BlockScoutHelper from '@helpers/blockScout'
 import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
@@ -25,7 +25,9 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
     token.type === ITokenType.native
       ? Promise.resolve(null)
       : BlockScoutHelper.getTokenFullDetails(token.address, token.network),
-    CovalentHelper.getTokenSupplyAndHolders(token.address, token.network),
+    token.isGovernance
+      ? CovalentHelper.getTokenSupplyAndHolders(token.address, token.network)
+      : Promise.resolve({ totalSupply: '0', totalHolders: 0 }),
   ])
 
   if (rawRate?.decimals === null && !blockScoutInfo) {
@@ -57,7 +59,7 @@ async function fetchTokenUpdate(token: Token): Promise<ITokenUpdate | null> {
         : null,
     ) || '0'
 
-  if (priceUsd === '0' && holders === 0 && totalSupply === '0') {
+  if (holders === 0 && totalSupply === '0' && token.isGovernance) {
     return null
   }
 
