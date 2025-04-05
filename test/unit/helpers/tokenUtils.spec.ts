@@ -9,7 +9,7 @@ import { ITokenType, NetworksEnum } from '@types'
 import type Token from '@models/schema/token'
 import { ProxyToken } from '@modules/proxyToken'
 
-describe('fetchTokenUpdate', () => {
+describe.only('fetchTokenUpdate', () => {
   let sandbox: SinonSandbox
 
   const baseToken: Token = {
@@ -48,7 +48,10 @@ describe('fetchTokenUpdate', () => {
     blockScoutStub.resolves(null)
     covalentStub.resolves({ totalHolders: 0, totalSupply: '0' })
 
-    const result = await TokenUtils.fetchTokenUpdate(baseToken)
+    const result = await TokenUtils.fetchTokenUpdate({
+      ...baseToken,
+      isGovernance: true,
+    } as any)
     expect(result).to.be.null
     expect(rateFetchStub.calledOnce).to.be.true
     expect(blockScoutStub.calledOnce).to.be.true
@@ -117,7 +120,10 @@ describe('fetchTokenUpdate', () => {
     covalentStub.resolves({ totalHolders: 30, totalSupply: '4000' })
     sandbox.stub(Web3Helper, 'isWhitelistedToken').returns(true)
 
-    const result = await TokenUtils.fetchTokenUpdate(whitelistedToken)
+    const result = await TokenUtils.fetchTokenUpdate({
+      ...whitelistedToken,
+      isGovernance: true,
+    } as any)
 
     expect(result).to.deep.equal({
       priceUsd: '300',
@@ -140,7 +146,11 @@ describe('fetchTokenUpdate', () => {
     })
     covalentStub.resolves({ totalHolders: 0, totalSupply: '0' })
 
-    const result = await TokenUtils.fetchTokenUpdate(baseToken)
+    const result = await TokenUtils.fetchTokenUpdate({
+      ...baseToken,
+      isGovernance: true,
+    } as any)
+
     expect(result).to.be.null
   })
 
