@@ -39,11 +39,9 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
   },
 
   async fetchBasicTokenInfo({ address, network }): Promise<Partial<ISubScanTokenInfo>> {
-    const tokenInfo =
-      address === utils.zeroAddress
-        ? await SubscanApi.getNativeTokenInfo(network)
-        : await SubscanApi.getTokenFullDetails(address, network)
-    return tokenInfo
+    return address === utils.zeroAddress
+      ? await SubscanApi.getNativeTokenInfo(network)
+      : await SubscanApi.getTokenFullDetails(address, network)
   },
 
   async fetchTokenHolderAndSupply({ address, network }): Promise<ITokenMetrics> {
