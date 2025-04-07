@@ -107,7 +107,7 @@ describe('Helpers: BlockScout', () => {
         priceUsd: '1',
         decimals: 18,
         totalSupply: '1000000000000000000000',
-        holders: 1,
+        totalHolders: 1,
         logo: 'https://example.com/logo.png',
         type: ITokenType.ERC20,
       })
@@ -133,7 +133,7 @@ describe('Helpers: BlockScout', () => {
         decimals: 0,
         priceUsd: '1',
         totalSupply: '1000000000000000000000',
-        holders: 1,
+        totalHolders: 1,
         logo: 'https://example.com/logo.png',
         type: ITokenType.ERC721,
       })
@@ -158,7 +158,7 @@ describe('Helpers: BlockScout', () => {
         decimals: 18,
         priceUsd: '1',
         totalSupply: '1000000000000000000000',
-        holders: 1,
+        totalHolders: 1,
         logo: 'https://example.com/logo.png',
         type: ITokenType.ERC20,
       })
@@ -184,7 +184,7 @@ describe('Helpers: BlockScout', () => {
         decimals: 0,
         priceUsd: '1',
         totalSupply: '1000000000000000000000',
-        holders: 1,
+        totalHolders: 1,
         logo: 'https://example.com/logo.png',
         type: ITokenType.ERC1155,
       })
@@ -226,7 +226,7 @@ describe('Helpers: BlockScout', () => {
       const expectedResult = { transfers_count: 1, token_holders_count: 1 }
       const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
       const result = await BlockScoutHelper.getTokenCounters('0x1234567890', NetworksEnum.ethereumMainnet)
-      expect(result).to.deep.eq({ transfers: 1, holders: 1 })
+      expect(result).to.deep.eq({ transfers: 1, totalHolders: 1 })
       expect(rpCallStub.calledOnce).to.be.true
       expect(
         rpCallStub.calledWith(

@@ -121,10 +121,10 @@ export const DaoTransactions = {
       rawTx.token = {
         network,
         address: token.address,
-        symbol: token.symbol || '',
-        name: token?.name || '',
-        type: token.type || '',
-        logo: token.logo || '',
+        symbol: token.symbol,
+        name: token?.name,
+        type: token.type,
+        logo: token.logo,
         decimals: token.decimals,
         snapshot: {
           priceUsd: tx.rawContract?.priceUsd?.toString() || '0',

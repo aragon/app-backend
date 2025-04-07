@@ -56,7 +56,7 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
 
   async fetchAddressTxns({ address, network }: { address: string; network: NetworksEnum }): Promise<any> {
     const assetTransfers = await SubscanApi.getAssetTransfer(address, network)
-    return await Promise.all(
+    const parsedTransfers = await Promise.all(
       assetTransfers.map(async tx => {
         const contractAddress = tx.rawContract?.address || utils.zeroAddress
         const tokenInfo = await ProxyToken.saveAndGetToken(contractAddress, network)
@@ -102,6 +102,8 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
         return transferLog
       }),
     )
+
+    return parsedTransfers.filter(Boolean)
   },
 
   fetchTokenPrice: async ({ token, network, pastDays }: any): Promise<any> => {

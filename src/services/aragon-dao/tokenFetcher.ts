@@ -32,7 +32,7 @@ const TokenFetcher = {
     try {
       const plugin = await Models.Plugin.findByTokenAddress(document.address, document.network)
       if (!plugin) {
-        logger.verbose('No plugin found for token during re-fetch.', llo({ document }))
+        logger.warn('No plugin found for token during re-fetch.', llo({ document }))
         await DbOperations.updateDocument(
           document,
           { refetch: false },
@@ -56,7 +56,7 @@ const TokenFetcher = {
       })
 
       if (tokenData.totalSupply === '0' || tokenData.totalHolders === 0) {
-        logger.verbose('Token data not found during refetch', llo({ tokenData, document }))
+        logger.warn('Token data not found during refetch', llo({ tokenData, document }))
         return
       }
 
