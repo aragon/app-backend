@@ -13,7 +13,7 @@ import ProxyWeb3Provider from "@modules/proxyProvider"
 import dayjs from '@helpers/dayjs'
 import DbTx from '@modules/dbTx'
 
-describe.only('AragonRates: FetchRates', () => {
+describe('AragonRates: FetchRates', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
