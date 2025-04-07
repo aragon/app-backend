@@ -9,7 +9,7 @@ import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
 import TokenUtils from '@helpers/tokenUtils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { FakeAsset } from '@test/mock/fakeAsset'
-import ProxyWeb3Provider from "@modules/proxyProvider"
+import ProxyWeb3Provider from '@modules/proxyProvider'
 import dayjs from '@helpers/dayjs'
 import DbTx from '@modules/dbTx'
 
@@ -112,8 +112,8 @@ describe('AragonRates: FetchRates', () => {
         await callback({
           session: {
             commitTransaction: async () => {},
-            endSession: async () => {}
-          }
+            endSession: async () => {},
+          },
         })
       })
     })
@@ -122,7 +122,7 @@ describe('AragonRates: FetchRates', () => {
       const fetchTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves(null)
       const fetchTokenHolderAndSupplyStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves({
         totalHolders: 2,
-        totalSupply: '2'
+        totalSupply: '2',
       })
 
       const skipFetchStub = sandbox.stub(TokenUtils, 'shouldSkipFetch')
@@ -132,15 +132,17 @@ describe('AragonRates: FetchRates', () => {
       expect(skipFetchStub.notCalled).to.be.true
       expect(fetchTokenPriceStub.calledOnce).to.be.true
       expect(fetchTokenHolderAndSupplyStub.calledOnce).to.be.true
-      expect(fetchTokenPriceStub.calledWithMatch({
-        address: tokenDb.address,
-        network: tokenDb.network,
-      })).to.be.true
+      expect(
+        fetchTokenPriceStub.calledWithMatch({
+          address: tokenDb.address,
+          network: tokenDb.network,
+        }),
+      ).to.be.true
     })
 
     it('should return early if fetchTokenHolderAndSupply returns null', async () => {
       const fetchTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({
-        priceUsd: '1.2'
+        priceUsd: '1.2',
       })
       const fetchTokenHolderAndSupplyStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(null)
 
@@ -155,7 +157,7 @@ describe('AragonRates: FetchRates', () => {
 
     it('should return early if token data is identical to fetched update', async () => {
       const priceUpdate = {
-        priceUsd: '1.1'
+        priceUsd: '1.1',
       }
 
       const holdersUpdate = {
@@ -173,7 +175,7 @@ describe('AragonRates: FetchRates', () => {
 
     it('should update token with skipFetchRate if shouldSkipFetch returns true', async () => {
       const priceUpdate = {
-        priceUsd: '1.2'
+        priceUsd: '1.2',
       }
 
       const holdersUpdate = {
@@ -194,18 +196,20 @@ describe('AragonRates: FetchRates', () => {
       await FetchRates.onMainnetDocument(tokenDb)
 
       expect(skipFetchStub.calledOnce).to.be.true
-      expect(updateStub.calledWith({
-        holders: 2,
-        totalSupply: '2',
-        priceUsd: '1.2',
-        lastUpdatedAt: mockDate,
-        skipFetchRate: true
-      })).to.be.true
+      expect(
+        updateStub.calledWith({
+          holders: 2,
+          totalSupply: '2',
+          priceUsd: '1.2',
+          lastUpdatedAt: mockDate,
+          skipFetchRate: true,
+        }),
+      ).to.be.true
     })
 
     it('should update token with fetched data when shouldSkipFetch returns false', async () => {
       const priceUpdate = {
-        priceUsd: '1.2'
+        priceUsd: '1.2',
       }
 
       const holdersUpdate = {
@@ -226,12 +230,14 @@ describe('AragonRates: FetchRates', () => {
       await FetchRates.onMainnetDocument(tokenDb)
 
       expect(skipFetchStub.calledOnce).to.be.true
-      expect(updateStub.calledWith({
-        holders: 2,
-        totalSupply: '2',
-        priceUsd: '1.2',
-        lastUpdatedAt: mockDate
-      })).to.be.true
+      expect(
+        updateStub.calledWith({
+          holders: 2,
+          totalSupply: '2',
+          priceUsd: '1.2',
+          lastUpdatedAt: mockDate,
+        }),
+      ).to.be.true
     })
 
     it('should log error when an exception occurs', async () => {
@@ -266,8 +272,8 @@ describe('AragonRates: FetchRates', () => {
         await callback({
           session: {
             commitTransaction: async () => {},
-            endSession: async () => {}
-          }
+            endSession: async () => {},
+          },
         })
       })
     })
@@ -340,11 +346,13 @@ describe('AragonRates: FetchRates', () => {
 
       await FetchRates.onTestnetDocument(tokenDb)
 
-      expect(updateStub.calledWith({
-        holders: 2,
-        totalSupply: '2',
-        lastUpdatedAt: mockDate
-      })).to.be.true
+      expect(
+        updateStub.calledWith({
+          holders: 2,
+          totalSupply: '2',
+          lastUpdatedAt: mockDate,
+        }),
+      ).to.be.true
     })
 
     it('should log error when an exception occurs', async () => {
