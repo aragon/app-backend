@@ -4,20 +4,17 @@ import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { ITokenType, NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
-import { RateModule } from '@modules/rates'
+import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
 import { ProxyToken } from '@modules/proxyToken'
 import CovalentHelper from '@helpers/covalent'
-import Web3Helper from '@helpers/web3'
-import EtherscanHelper from '@helpers/etherscan'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
-import dbTx from '@modules/dbTx'
 import logger from '@logger'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import BlockScout from '@helpers/blockScout'
-import Web3Utils from '@helpers/web3Utils'
+import TokenUtils from '@helpers/tokenUtils'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox
@@ -47,550 +44,544 @@ describe('Modules: ProxyToken', () => {
     sandbox?.restore()
   })
 
-  describe('fetchTokenDetails', () => {
-    let tokenRate: any
-    beforeEach(() => {
-      tokenRate = {
-        priceUsd: '1',
-        address: '0x123',
-        isGovernance: false,
-        network: NetworksEnum.ethereumMainnet,
-        type: ITokenType.ERC20,
-      }
-    })
-
-    it('should fetch token details when token is native', async () => {
-      tokenRate.type = ITokenType.native
-      tokenRate.isGovernance = false
-
-      const ratesStub = sandbox.stub(RateModule, 'fetchRate').resolves(tokenRate)
-
-      const result = await ProxyToken._fetchTokenDetails(
-        tokenRate.type,
-        tokenRate.isGovernance,
-        tokenRate.address,
-        tokenRate.network,
-      )
-
-      expect(ratesStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('1')
-      expect(result.tokenMetrics.totalHolders).to.equal(0)
-      expect(result.tokenMetrics.totalSupply).to.equal('0')
-    })
-
-    it('should fetch token details when token is not native', async () => {
-      const ratesStub = sandbox.stub(RateModule, 'fetchRate').resolves(tokenRate)
-      const tokenFullDetails = {
-        name: 'test',
-        symbol: 'TST',
-        decimals: 18,
-        logo: 'fake-logo',
-        isGovernance: true,
-        type: ITokenType.ERC20,
-        holders: 10,
-        totalSupply: '100',
-        priceUsd: '1',
-      }
-
-      const tokenFullDetailsStub = sandbox.stub(BlockScout, 'getTokenFullDetails').resolves(tokenFullDetails as any)
-
-      const result = await ProxyToken._fetchTokenDetails(
-        tokenRate.type,
-        tokenRate.isGovernance,
-        tokenRate.address,
-        tokenRate.network,
-      )
-
-      expect(ratesStub.calledOnce).to.be.true
-      expect(tokenFullDetailsStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('1')
-      expect(result.tokenRate.name).to.equal('test')
-      expect(result.tokenRate.symbol).to.equal('TST')
-      expect(result.tokenRate.decimals).to.equal(18)
-      expect(result.tokenRate.logo).to.equal('fake-logo')
-      expect(result.tokenMetrics.totalHolders).to.equal(10)
-      expect(result.tokenMetrics.totalSupply).to.equal('100')
-    })
-
-    it('should fetch token details when token is not native and tokenFullDetails is null', async () => {
-      tokenRate.type = ITokenType.ERC20
-      tokenRate.isGovernance = true
-
-      const ratesStub = sandbox.stub(RateModule, 'fetchRate').resolves(tokenRate)
-      const tokenFullDetailsStub = sandbox.stub(BlockScout, 'getTokenFullDetails').resolves(null as any)
-      const covalentMetrics = {
-        totalHolders: 10,
-        totalSupply: '100',
-      }
-      const covalentMetricsStub = sandbox
-        .stub(CovalentHelper, 'getTokenSupplyAndHolders')
-        .resolves(covalentMetrics as any)
-
-      const result = await ProxyToken._fetchTokenDetails(
-        tokenRate.type,
-        tokenRate.isGovernance,
-        tokenRate.address,
-        tokenRate.network,
-      )
-
-      expect(ratesStub.calledOnce).to.be.true
-      expect(tokenFullDetailsStub.calledOnce).to.be.true
-      expect(covalentMetricsStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('1')
-      expect(result.tokenMetrics.totalHolders).to.equal(10)
-      expect(result.tokenMetrics.totalSupply).to.equal('100')
-    })
-
-    it('should not fetch details when token is not erc20 and it is nft with no decimals', async () => {
-      tokenRate.isGovernance = true
-      tokenRate.type = ITokenType.ERC721
-      tokenRate.name = 'Test'
-      tokenRate.symbol = 'TST'
-      tokenRate.decimals = 0
-      tokenRate.priceUsd = '0'
-
-      const ratesStub = sandbox.stub(RateModule, 'fetchRate').resolves(tokenRate)
-
-      const tokenFullDetailsStub = sandbox.stub(BlockScout, 'getTokenFullDetails').resolves(null)
-
-      const covalentTokenMetricsStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
-        totalHolders: 10,
-        totalSupply: '100',
-      })
-
-      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo')
-
-      const result = await ProxyToken._fetchTokenDetails(
-        tokenRate.type,
-        tokenRate.isGovernance,
-        tokenRate.address,
-        tokenRate.network,
-      )
-
-      expect(ratesStub.calledOnce).to.be.true
-      expect(tokenFullDetailsStub.calledOnce).to.be.true
-      expect(onChainTokenInfoStub.calledOnce).to.be.false
-      expect(covalentTokenMetricsStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('0')
-      expect(result.tokenRate.name).to.equal('Test')
-      expect(result.tokenRate.symbol).to.equal('TST')
-      expect(result.tokenRate.decimals).to.equal(0)
-      expect(result.tokenMetrics.totalHolders).to.equal(10)
-      expect(result.tokenMetrics.totalSupply).to.equal('100')
-    })
-
-    it('should fetch token details when token rate is missing name, symbol, or decimals', async () => {
-      tokenRate.isGovernance = true
-      tokenRate.type = ITokenType.ERC20
-      tokenRate.name = null
-      tokenRate.symbol = null
-      tokenRate.decimals = null
-      tokenRate.priceUsd = '0'
-
-      const ratesStub = sandbox.stub(RateModule, 'fetchRate').resolves(tokenRate)
-
-      const tokenFullDetailsStub = sandbox.stub(BlockScout, 'getTokenFullDetails').resolves(null)
-
-      const covalentTokenMetricsStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
-        totalHolders: 10,
-        totalSupply: '100',
-      })
-
-      const onChainTokenInfo = {
-        name: 'test',
-        symbol: 'TST',
-        decimals: 18,
-        logo: 'fake-logo',
-      }
-      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo').resolves(onChainTokenInfo as any)
-
-      const result = await ProxyToken._fetchTokenDetails(
-        tokenRate.type,
-        tokenRate.isGovernance,
-        tokenRate.address,
-        tokenRate.network,
-      )
-
-      expect(ratesStub.calledOnce).to.be.true
-      expect(tokenFullDetailsStub.calledOnce).to.be.true
-      expect(onChainTokenInfoStub.calledOnce).to.be.true
-      expect(covalentTokenMetricsStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('0')
-      expect(result.tokenRate.name).to.equal('test')
-      expect(result.tokenRate.symbol).to.equal('TST')
-      expect(result.tokenRate.decimals).to.equal(18)
-      expect(result.tokenRate.logo).to.equal('fake-logo')
-      expect(result.tokenMetrics.totalHolders).to.equal(10)
-      expect(result.tokenMetrics.totalSupply).to.equal('100')
-    })
-
-    it('should fetch token details when token is GovernanceERC20 and tokenMetrics are missing', async () => {
-      tokenRate.type = ITokenType.ERC20
-      tokenRate.isGovernance = true
-      tokenRate.priceUsd = '0'
-      tokenRate.name = null
-      tokenRate.decimals = null
-
-      const ratesStub = sandbox.stub(RateModule, 'fetchRate').resolves(tokenRate)
-
-      const tokenFullDetailsStub = sandbox.stub(BlockScout, 'getTokenFullDetails').resolves(null)
-
-      const covalentTokenMetricsStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
-        totalHolders: 0,
-        totalSupply: '0',
-      })
-
-      const onChainTokenInfo = {
-        name: 'test',
-        symbol: 'TST',
-        decimals: 18,
-        logo: 'fake-logo',
-      }
-      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo').resolves(onChainTokenInfo as any)
-
-      const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(10n)
-
-      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-
-      const result = await ProxyToken._fetchTokenDetails(
-        tokenRate.type,
-        tokenRate.isGovernance,
-        tokenRate.address,
-        tokenRate.network,
-      )
-
-      expect(ratesStub.calledOnce).to.be.true
-      expect(tokenFullDetailsStub.calledOnce).to.be.true
-      expect(onChainTokenInfoStub.calledOnce).to.be.true
-      expect(covalentTokenMetricsStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('0')
-      expect(result.tokenRate.name).to.equal('test')
-      expect(result.tokenRate.symbol).to.equal('TST')
-      expect(result.tokenRate.decimals).to.equal(18)
-      expect(result.tokenRate.logo).to.equal('fake-logo')
-      expect(result.tokenMetrics.totalHolders).to.equal(0)
-      expect(result.tokenMetrics.totalSupply).to.equal('10')
-      expect(rabbitMQStub.calledOnce).to.be.true
-      expect(web3TokenTotalSupplyStub.calledOnce).to.be.true
-    })
-
-    it('should fetch token details when token is in whitelisted', async () => {
-      tokenRate.priceUsd = '0'
-      tokenRate.name = 'test'
-      tokenRate.symbol = 'TST'
-      tokenRate.decimals = 0
-      tokenRate.type = ITokenType.ERC721
-
-      const ratesStub = sandbox.stub(RateModule, 'fetchRate').resolves(tokenRate)
-
-      const tokenFullDetailsStub = sandbox.stub(BlockScout, 'getTokenFullDetails').resolves(null)
-
-      const covalentTokenMetricsStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
-        totalHolders: 0,
-        totalSupply: '0',
-      })
-
-      const isWhiteListedTokenStub = sandbox.stub(Web3Utils, 'isWhitelistedToken').resolves(true)
-
-      const onChainTokenInfoStub = sandbox.stub(Web3Helper, 'getTokenInfo')
-
-      const web3TokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(10n)
-
-      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-
-      const result = await ProxyToken._fetchTokenDetails(
-        tokenRate.type,
-        tokenRate.isGovernance,
-        tokenRate.address,
-        tokenRate.network,
-      )
-
-      expect(ratesStub.calledOnce).to.be.true
-      expect(tokenFullDetailsStub.calledOnce).to.be.true
-      expect(onChainTokenInfoStub.calledOnce).to.be.false
-      expect(covalentTokenMetricsStub.calledOnce).to.be.true
-      expect(result.tokenRate.priceUsd).to.equal('0')
-      expect(result.tokenRate.name).to.equal('test')
-      expect(result.tokenRate.symbol).to.equal('TST')
-      expect(result.tokenRate.decimals).to.equal(0)
-      expect(result.tokenMetrics.totalHolders).to.equal(0)
-      expect(result.tokenMetrics.totalSupply).to.equal('10')
-      expect(rabbitMQStub.calledOnce).to.be.true
-      expect(web3TokenTotalSupplyStub.calledOnce).to.be.true
-      expect(isWhiteListedTokenStub.called).to.be.true
-    })
-  })
-
   describe('saveAndGetToken', () => {
-    it('should save and get token', async () => {
+    it('should return existing token and update if needed', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
-
-      sandbox.stub(Web3Utils, 'parseAddress').returns(tokenAddress)
-      sandbox.stub(Models.Token, 'findExistingLog').resolves(null)
-      const stubCreate = sandbox.stub(ProxyToken, 'createNewToken').resolves({ address: tokenAddress } as any)
-
-      const result = await ProxyToken.saveAndGetToken(tokenAddress, network)
-
-      expect(result?.address).to.equal(tokenAddress)
-      expect(stubCreate?.calledOnce).to.be.true
-    })
-
-    it('should update existing token metrics', async () => {
-      const tokenAddress = '0x123456789abcdef'
-      const network = NetworksEnum.ethereumMainnet
-
-      const existingToken = { address: tokenAddress } as Token
+      const existingToken = {
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+        lastUpdatedAt: dayjs().subtract(8, 'hours').toDate(),
+        skipFetchRate: false,
+      } as unknown as Token
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(tokenAddress)
       sandbox.stub(Models.Token, 'findExistingLog').resolves(existingToken)
-      const stubUpdate = sandbox.stub(ProxyToken, 'updateTokenMetrics').resolves(existingToken)
+      const updateTokenMetricsStub = sandbox.stub(ProxyToken, 'updateTokenMetrics').resolves(existingToken)
 
       const result = await ProxyToken.saveAndGetToken(tokenAddress, network)
 
-      expect(result?.address).to.equal(tokenAddress)
-      expect(stubUpdate?.calledOnce).to.be.true
+      expect(updateTokenMetricsStub.calledWith(existingToken, tokenAddress, network, false)).to.be.true
+      expect(result).to.equal(existingToken)
     })
 
-    it('should handle parallel requests and create the token only once', async () => {
-      const tokenAddress = '0xD8981e488Dc62bc0f7aE6ce4bec09db0786aC2Db'
+    it('should create new token when no existing token is found', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const newToken = {
+        id: 'new-token-123',
+        address: tokenAddress,
+        network,
+      } as unknown as Token
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(tokenAddress)
+      sandbox.stub(Models.Token, 'findExistingLog').resolves(null)
+      const createNewTokenStub = sandbox.stub(ProxyToken, 'createNewToken').resolves(newToken)
+
+      const result = await ProxyToken.saveAndGetToken(tokenAddress, network)
+
+      expect(createNewTokenStub.calledWith(tokenAddress, network)).to.be.true
+      expect(result).to.equal(newToken)
+    })
+
+    it('should handle errors and return null', async () => {
+      const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
 
-      sandbox.stub(ProxyToken, '_fetchTokenDetails').resolves({
-        tokenRate: { priceUsd: '1' } as any,
-        tokenMetrics: { totalHolders: 10, totalSupply: '11' },
-      })
+      sandbox.stub(Web3Utils, 'parseAddress').throws(new Error('Invalid address'))
+      const loggerErrorStub = sandbox.stub(logger, 'error')
 
-      sandbox.stub(TokenDetector, 'detectTokenType').resolves({
-        type: ITokenType.ERC20,
-        isGovernance: true,
-        implementationAddress: null,
-      } as any)
+      const result = await ProxyToken.saveAndGetToken(tokenAddress, network)
 
-      sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
-        blockNumber: 100,
-        transactionHash: '0x000',
+      expect(loggerErrorStub.calledWith('Error saveAndGetToken' as any)).to.be.true
+      expect(result).to.be.null
+    })
+
+    it('should pass forceUpdate parameter correctly', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const existingToken = {
+        id: 'token-123',
         address: tokenAddress,
-      } as any)
-      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+        network,
+      } as unknown as Token
 
-      const verboseStub = sandbox.stub(logger, 'verbose')
+      sandbox.stub(Web3Utils, 'parseAddress').returns(tokenAddress)
+      sandbox.stub(Models.Token, 'findExistingLog').resolves(existingToken)
+      const updateTokenMetricsStub = sandbox.stub(ProxyToken, 'updateTokenMetrics').resolves(existingToken)
 
-      const [result1, result2, result3] = await Promise.all([
-        ProxyToken.saveAndGetToken(tokenAddress, network),
-        ProxyToken.saveAndGetToken(tokenAddress, network),
-        ProxyToken.saveAndGetToken(tokenAddress, network),
-        ProxyToken.saveAndGetToken(tokenAddress, network),
-        ProxyToken.saveAndGetToken(tokenAddress, network),
-        ProxyToken.saveAndGetToken(tokenAddress, network),
-        ProxyToken.saveAndGetToken(tokenAddress, network),
-      ])
+      const result = await ProxyToken.saveAndGetToken(tokenAddress, network, true)
 
-      expect(result1?.address).to.eq(tokenAddress)
-      expect(result2?.address).to.eq(tokenAddress)
-      expect(result3?.address).to.eq(tokenAddress)
-
-      const tokensInDb = await Models.Token.find({ address: tokenAddress, network })
-
-      expect(tokensInDb.length).to.equal(1)
-      expect(result1?.address).to.equal(tokenAddress)
-      expect(result2?.address).to.equal(tokenAddress)
-      expect(result3?.address).to.equal(tokenAddress)
-      expect(result1?.id).to.equal(tokensInDb[0].id)
-      expect(result2?.id).to.equal(tokensInDb[0].id)
-      expect(result3?.id).to.equal(tokensInDb[0].id)
-
-      expect(verboseStub.calledOnce).to.be.true
-      expect(verboseStub.calledWith('New Token Created' as any)).to.be.true
+      expect(updateTokenMetricsStub.calledWith(existingToken, tokenAddress, network, true)).to.be.true
+      expect(result).to.equal(existingToken)
     })
   })
 
   describe('updateTokenMetrics', () => {
-    it('should update token metrics if necessary', async () => {
-      const tOpts = await dbTx.transactionOptions()
-      tOpts.startTransaction()
-
+    it('should not update if token was recently updated and forceUpdate is false', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
-      const token = await Models.Token.create({
-        skipFetchRate: false,
-        network,
+
+      const token = {
+        id: 'token-123',
         address: tokenAddress,
-        type: ITokenType.ERC20,
-        isGovernance: true,
+        network,
+        skipFetchRate: false,
+        lastUpdatedAt: dayjs().subtract(1, 'hour').toDate(),
+        update: sandbox.stub(),
+      } as any
+
+      const fetchBasicTokenInfoStub = sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo')
+
+      const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
+
+      expect(fetchBasicTokenInfoStub.called).to.be.false
+      expect(token.update.called).to.be.false
+      expect(result).to.equal(token)
+    })
+
+    it('should update if token was not recently updated', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const token = {
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+        skipFetchRate: false,
+        lastUpdatedAt: dayjs().subtract(10, 'hour').toDate(),
+        update: sandbox.stub(),
+      } as any
+
+      const tokenDetails = { priceUsd: '1234.56' }
+      const tokenMetrics = { totalHolders: 1000, totalSupply: '1000000000000000000000' }
+
+      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves({
+        tokenDetails,
+        tokenMetrics,
       })
 
-      const proxyTokenFetchDetailsStub = sandbox.stub(ProxyToken, '_fetchTokenDetails').resolves({
-        tokenRate: { priceUsd: '1' } as any,
-        tokenMetrics: { totalHolders: 20, totalSupply: '1000' },
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+
+      const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
+
+      expect(token.update.calledOnce).to.be.true
+      expect(token.update.firstCall.args[0]).to.deep.include({
+        priceUsd: '1234.56',
+        holders: 1000,
+        totalSupply: '1000000000000000000000',
+      })
+      expect(loggerVerboseStub.calledWith('Updated Token Metrics' as any)).to.be.true
+      expect(result).to.equal(token)
+    })
+
+    it('should update if forceUpdate is true even if token was recently updated', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const token = {
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+        skipFetchRate: false,
+        lastUpdatedAt: dayjs().subtract(1, 'hour').toDate(),
+        update: sandbox.stub(),
+      } as any
+
+      const tokenDetails = { priceUsd: '1234.56' }
+      const tokenMetrics = { totalHolders: 1000, totalSupply: '1000000000000000000000' }
+
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves({
+        tokenDetails,
+        tokenMetrics,
       })
 
-      const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false, tOpts)
+      const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, true)
 
-      expect(proxyTokenFetchDetailsStub.calledOnce).to.be.true
-      expect(result.priceUsd).to.equal('1')
-      expect(result.totalSupply).to.equal('1000')
+      expect(token.update.calledOnce).to.be.true
+      expect(result).to.equal(token)
+    })
+
+    it('should not update if token.skipFetchRate is true and forceUpdate is false', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const token = {
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+        skipFetchRate: true,
+        lastUpdatedAt: dayjs().subtract(10, 'hour').toDate(),
+        update: sandbox.stub(),
+      } as any
+
+      const fetchBasicTokenInfoStub = sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo')
+
+      const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
+
+      expect(fetchBasicTokenInfoStub.called).to.be.false
+      expect(token.update.called).to.be.false
+      expect(result).to.equal(token)
     })
   })
 
   describe('createNewToken', () => {
-    it('should create new token', async () => {
+    it('should create a new token with all fields populated', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
 
-      const tOpts = await dbTx.transactionOptions()
-      tOpts.startTransaction()
-
-      const proxyTokenFetchDetailsStub = sandbox.stub(ProxyToken, '_fetchTokenDetails').resolves({
-        tokenRate: { priceUsd: '1' } as any,
-        tokenMetrics: { totalHolders: 20, totalSupply: '1000' },
-      })
-
-      const tokenDetectorStub = sandbox.stub(TokenDetector, 'detectTokenType').resolves({
+      const tokenTypeInfo = {
         type: ITokenType.ERC20,
         isGovernance: true,
+        hasDelegate: true,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
         implementationAddress: null,
-      } as any)
+        hasUnderlying: true,
+      }
 
-      const getContractCreationInfoStub = sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
-        blockNumber: 100,
-        transactionHash: '0x000',
+      const tokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        decimals: 18,
+        logo: 'test-logo',
+        type: ITokenType.ERC20,
+        totalHolders: 5000,
+        totalSupply: '5000000000000000000000',
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo)
+      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(true)
+      sandbox.stub(Web3Helper, 'getUnderlying').resolves('0xunderlying')
+      sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(true)
+      sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({
+        blockNumber: 123456,
+        transactionHash: '0xtransactionhash',
         address: tokenAddress,
       })
+      sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
+        totalHolders: 5000,
+        totalSupply: '5000000000000000000000',
+      })
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({
+        priceUsd: '2.5',
+      })
+      sandbox.stub(TokenUtils, 'firstValid').returns('2.5')
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
 
-      const checkPluginMintAuthorizationIsDaoStub = sandbox
-        .stub(ProxyToken, 'checkPluginMintAuthorizationIsDao')
-        .resolves(false)
-      const result = await ProxyToken.createNewToken(tokenAddress, network, tOpts)
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'new-token-123',
+        address: tokenAddress,
+        network,
+      })
 
-      expect(proxyTokenFetchDetailsStub.calledOnce).to.be.true
-      expect(tokenDetectorStub.calledOnce).to.be.true
-      expect(getContractCreationInfoStub.calledOnce).to.be.true
-      expect(checkPluginMintAuthorizationIsDaoStub.calledOnce).to.be.true
-      expect(result.priceUsd).to.equal('1')
-      expect(result.totalSupply).to.equal('1000')
-      expect(result.transactionHash).to.equal('0x000')
-      expect(result.blockNumber).to.equal(100)
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(createStub.calledOnce).to.be.true
+      expect(loggerVerboseStub.calledWith('New Token Created' as any)).to.be.true
+
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.network).to.equal(network)
+      expect(createArgs.address).to.equal(tokenAddress)
+      expect(createArgs.name).to.equal('Test Token')
+      expect(createArgs.symbol).to.equal('TEST')
+      expect(createArgs.decimals).to.equal(18)
+      expect(createArgs.logo).to.equal('test-logo')
+      expect(createArgs.type).to.equal(ITokenType.ERC20)
+      expect(createArgs.isGovernance).to.equal(true)
+      expect(createArgs.mintableByDao).to.equal(true)
+      expect(createArgs.underlying).to.equal('0xunderlying')
+      expect(createArgs.blockNumber).to.equal(123456)
+      expect(createArgs.transactionHash).to.equal('0xtransactionhash')
+      expect(createArgs.priceUsd).to.equal('2.5')
+      expect(createArgs.skipFetchRate).to.equal(false)
     })
 
-    it('should handle when token type is unknown', async () => {
+    it('should handle tokens with unknown type', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
 
-      const tOpts = await dbTx.transactionOptions()
-      tOpts.startTransaction()
-
-      const proxyTokenFetchDetailsStub = sandbox.stub(ProxyToken, '_fetchTokenDetails').resolves({
-        tokenRate: { priceUsd: '1', type: ITokenType.ERC20 } as any,
-        tokenMetrics: { totalHolders: 20, totalSupply: '1000' },
-      })
-
-      const tokenDetectorStub = sandbox.stub(TokenDetector, 'detectTokenType').resolves({
+      const tokenTypeInfo = {
         type: ITokenType.unknown,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: false,
+        hasSymbol: false,
+        hasDecimals: false,
+        hasTotalSupply: false,
+        proxy: false,
         implementationAddress: null,
-      } as any)
+        hasUnderlying: false,
+      }
 
-      const getContractCreationInfoStub = sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
-        blockNumber: 100,
-        transactionHash: '0x000',
+      const tokenDetails = {
+        name: null,
+        symbol: null,
+        decimals: null,
+        logo: null,
+        type: ITokenType.unknown,
+        totalHolders: 0,
+        totalSupply: '0',
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo)
+      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(tokenDetails)
+
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(false)
+      sandbox.stub(Web3Helper, 'getTokenName').resolves('Token Name')
+      sandbox.stub(Web3Helper, 'getTokenSymbol').resolves('TKN')
+      sandbox.stub(Web3Helper, 'getTokenDecimals').resolves(18)
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(10000n)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({
+        priceUsd: '0',
+      })
+      sandbox.stub(TokenUtils, 'firstValid').returns('0')
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(true)
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'new-token-123',
         address: tokenAddress,
+        network,
       })
 
-      const checkPluginMintAuthorizationIsDaoStub = sandbox
-        .stub(ProxyToken, 'checkPluginMintAuthorizationIsDao')
-        .resolves(false)
+      await ProxyToken.createNewToken(tokenAddress, network)
 
-      const result = await ProxyToken.createNewToken(tokenAddress, network, tOpts)
-      expect(result.type).to.equal(ITokenType.ERC20)
-      expect(proxyTokenFetchDetailsStub.calledOnce).to.be.true
-      expect(tokenDetectorStub.calledOnce).to.be.true
-      expect(getContractCreationInfoStub.calledOnce).to.be.false
-      expect(checkPluginMintAuthorizationIsDaoStub.calledOnce).to.be.true
-      expect(result.priceUsd).to.equal('1')
+      expect(createStub.calledOnce).to.be.true
+
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.network).to.equal(network)
+      expect(createArgs.address).to.equal(tokenAddress)
+      expect(createArgs.name).to.equal(null)
+      expect(createArgs.type).to.be.eq(ITokenType.unknown)
+    })
+
+    it('should return null if token is not syncable', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      const tokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        decimals: 18,
+        type: ITokenType.ERC20,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(tokenDetails)
+
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
+
+      const result = await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(result).to.be.null
+    })
+
+    it('should handle native tokens differently', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.native,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: false,
+        hasBalanceOfERC777: false,
+        hasName: false,
+        hasSymbol: false,
+        hasDecimals: false,
+        hasTotalSupply: false,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+      }
+
+      const tokenDetails = {
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+        logo: 'eth-logo',
+        type: ITokenType.native,
+        totalHolders: 0,
+        totalSupply: '0',
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo)
+      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(tokenDetails)
+
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({
+        priceUsd: '1500',
+      })
+      sandbox.stub(TokenUtils, 'firstValid').returns('1500')
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'new-token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      const getTokenNameStub = sandbox.stub(Web3Helper, 'getTokenName')
+      const getTokenSymbolStub = sandbox.stub(Web3Helper, 'getTokenSymbol')
+      const getTokenDecimalsStub = sandbox.stub(Web3Helper, 'getTokenDecimals')
+      const getTokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply')
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(createStub.calledOnce).to.be.true
+
+      // For native tokens, Web3Helper methods should not be called
+      expect(getTokenNameStub.called).to.be.false
+      expect(getTokenSymbolStub.called).to.be.false
+      expect(getTokenDecimalsStub.called).to.be.false
+      expect(getTokenTotalSupplyStub.called).to.be.false
+
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.type).to.equal(ITokenType.native)
     })
   })
 
   describe('checkPluginMintAuthorizationIsDao', () => {
-    it('should return when plugin is not found', async () => {
+    it('should return false if no plugin is found', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
       sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(null)
-      const result = await ProxyToken.checkPluginMintAuthorizationIsDao('0xtoken', NetworksEnum.ethereumMainnet)
+
+      const result = await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network)
+
       expect(result).to.be.false
     })
-    it('should return true if token is mintable by DAO', async () => {
-      const findByTokenAddressStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves({
-        daoAddress: '0x00',
-        address: '0xplugin',
-        tokenAddress: '0xtoken',
+
+    it('should return false if plugin has no MINT permission for the DAO', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const daoAddress = '0xdaoaddress'
+
+      const plugin = {
+        daoAddress,
+        tokenAddress,
         permissions: [
           {
-            who: '0x00',
-            permissionId: ethers.id(IPermission.MINT_PERMISSION),
-            where: '0xtoken',
+            permissionId: 'not-mint-permission',
+            where: tokenAddress,
+            who: daoAddress,
           },
         ],
-      })
+      }
 
-      const result = await ProxyToken.checkPluginMintAuthorizationIsDao('0xtoken', NetworksEnum.ethereumMainnet)
-      expect(findByTokenAddressStub.calledOnce).to.be.true
-      expect(result).to.be.true
-    })
-  })
+      sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
 
-  describe('shouldSkipFetch', () => {
-    it('should return true if token is GovernanceERC20 with price 0', () => {
-      const token = { type: ITokenType.ERC20, isGovernance: true }
-      const tokenRate = { priceUsd: '0' }
-
-      const result = ProxyToken.shouldSkipFetch(token as any, tokenRate as any)
-
-      expect(result).to.be.true
-    })
-
-    it('should return false if token price is non-zero', () => {
-      const token = { type: ITokenType.ERC20 }
-      const tokenRate = { priceUsd: '1' }
-
-      const result = ProxyToken.shouldSkipFetch(token as any, tokenRate as any)
+      const result = await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network)
 
       expect(result).to.be.false
     })
-  })
 
-  describe('getContractCreationInfo', () => {
-    it('should return contract creation info', async () => {
+    it('should return true if plugin has MINT permission for the DAO', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
+      const daoAddress = '0xdaoaddress'
 
-      sandbox.stub(EtherscanHelper, 'fetchContractCreation').resolves([{ txHash: '0xabc', address: tokenAddress }])
-      sandbox.stub(Web3Helper, 'getTransaction').resolves({ blockNumber: 123 })
+      const mintPermissionId = ethers.id(IPermission.MINT_PERMISSION)
 
-      const result = await ProxyToken.getContractCreationInfo(tokenAddress, network)
+      const plugin = {
+        daoAddress,
+        tokenAddress,
+        permissions: [
+          {
+            permissionId: mintPermissionId,
+            where: tokenAddress,
+            who: daoAddress,
+          },
+        ],
+      }
 
-      expect(result.transactionHash).to.equal('0xabc')
-      expect(result.blockNumber).to.equal(123)
-    })
+      sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
 
-    it('should return contract creation info', async () => {
-      const tokenAddress = '0x123456789abcdef'
-      const network = NetworksEnum.ethereumMainnet
+      const result = await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network)
 
-      sandbox.stub(EtherscanHelper, 'fetchContractCreation').resolves(null as any)
-      const stubGetTx = sandbox.stub(Web3Helper, 'getTransaction')
-
-      const result = await ProxyToken.getContractCreationInfo(tokenAddress, network)
-
-      expect(result.blockNumber).to.equal(0)
-      expect(result.transactionHash).to.equal(null)
-      expect(result.address).to.equal(tokenAddress)
-      expect(stubGetTx.notCalled).to.be.true
-    })
-
-    it('should check if token is scam or not', async () => {
-      const name = 'CLAIM REWARDS ON DEBRIDGETHER.COM'
-      const symbol = 'BRIDGE'
-
-      const result = ProxyToken.analyzeIfScamToken(name, symbol)
       expect(result).to.be.true
+    })
+
+    it('should return false if permission is for a different token', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const differentTokenAddress = '0xdifferenttoken'
+      const network = NetworksEnum.ethereumMainnet
+      const daoAddress = '0xdaoaddress'
+
+      const mintPermissionId = ethers.id(IPermission.MINT_PERMISSION)
+
+      const plugin = {
+        daoAddress,
+        tokenAddress,
+        permissions: [
+          {
+            permissionId: mintPermissionId,
+            where: differentTokenAddress,
+            who: daoAddress,
+          },
+        ],
+      }
+
+      sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
+
+      const result = await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network)
+
+      expect(result).to.be.false
+    })
+
+    it('should return false if permission is for a different entity', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const daoAddress = '0xdaoaddress'
+      const differentEntity = '0xdifferententity'
+
+      const mintPermissionId = ethers.id(IPermission.MINT_PERMISSION)
+
+      const plugin = {
+        daoAddress,
+        tokenAddress,
+        permissions: [
+          {
+            permissionId: mintPermissionId,
+            where: tokenAddress,
+            who: differentEntity,
+          },
+        ],
+      }
+
+      sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
+
+      const result = await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network)
+
+      expect(result).to.be.false
     })
   })
 })

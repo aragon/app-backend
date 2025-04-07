@@ -11,6 +11,7 @@ import {
   type ISubScanTokenBalance,
   type ISubScanTokenInfo,
   ITokenType,
+  ITransactionCategory,
   type NetworksEnum,
 } from '@types'
 import { ethers } from 'ethers'
@@ -108,7 +109,7 @@ const SubscanApiHelper = {
     blockTimestamp: transfer.block_timestamp,
     value: transfer.amount,
     hash: transfer.hash,
-    category: 'external',
+    category: ITransactionCategory.External,
   }),
 
   _parseErc20Transfer: async (transfer: any, network: NetworksEnum): Promise<ISubScanAssetTransfer> => {
@@ -122,7 +123,7 @@ const SubscanApiHelper = {
       blockTimestamp: txDetails.block_timestamp,
       value: transfer.value,
       hash: transfer.hash,
-      category: 'erc20',
+      category: ITransactionCategory.ERC20,
       rawContract: {
         value: transfer.value,
         address: ethers.getAddress(transfer.contract),
@@ -419,15 +420,15 @@ const SubscanApiHelper = {
     return tokenResponse
   },
 
-  getCurrentPrice: async (network: NetworksEnum): Promise<string> => {
+  getCurrentPrice: async (network: NetworksEnum, pastDays = 1): Promise<string> => {
     const path = 'price/history'
-    const todayDate = new Date().toISOString().split('T')[0]
+    const backDate = dayjs().subtract(Math.round(pastDays), 'days').format('YYYY-MM-DD')
     const params = {
-      start: todayDate,
-      end: todayDate,
+      start: backDate,
+      end: dayjs().format('YYYY-MM-DD'),
       format: 'day',
+      row: 1,
     }
-
     try {
       const response = await SubscanApiHelper._rpCall(path, params, network)
       if (response?.data?.list) {
