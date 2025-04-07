@@ -7,10 +7,10 @@ import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
 import { ITokenType, NetworksEnum } from '@types'
 import type Token from '@models/schema/token'
-import { ProxyToken } from '@modules/proxyToken'
-import Web3Utils from '@helpers/web3Utils'
+import { Models } from '@dbModels'
+import logger from '@logger'
 
-describe('fetchTokenUpdate', () => {
+describe('TokenUtils', () => {
   let sandbox: SinonSandbox
 
   const baseToken: Token = {
@@ -19,183 +19,227 @@ describe('fetchTokenUpdate', () => {
     type: ITokenType.ERC20,
   } as any
 
-  let rateFetchStub: sinon.SinonStub
-  let blockScoutStub: sinon.SinonStub
-  let covalentStub: sinon.SinonStub
-
-  const rawRate = {
-    name: 'Token',
-    symbol: 'TKN',
-    type: ITokenType.ERC20,
-    decimals: 18,
-    priceUsd: '100',
-  }
-
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-
-    rateFetchStub = sandbox.stub(RateModule, 'fetchRate')
-    blockScoutStub = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails')
-    covalentStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders')
+    sandbox.stub(logger, 'error').returns(undefined as any)
+    sandbox.stub(logger, 'logMeta').returns({})
   })
 
   afterEach(() => {
     sandbox.restore()
   })
 
-  it('should return null if rawRate.decimals is null and blockScoutInfo is null', async () => {
-    rateFetchStub.resolves({ decimals: null } as any)
-    blockScoutStub.resolves(null)
-    covalentStub.resolves({ totalHolders: 0, totalSupply: '0' })
+  describe('firstValid', () => {
+    it('should return the first valid value', () => {
+      expect(TokenUtils.firstValid(null, undefined, '0', 0, 'valid')).to.equal('valid')
+      expect(TokenUtils.firstValid('first', 'second')).to.equal('first')
+      expect(TokenUtils.firstValid(null, undefined, '0', 0, 42)).to.equal(42)
+    })
 
-    const result = await TokenUtils.fetchTokenUpdate(baseToken)
-    expect(result).to.be.null
-    expect(rateFetchStub.calledOnce).to.be.true
-    expect(blockScoutStub.calledOnce).to.be.true
-    expect(covalentStub.calledOnce).to.be.true
-  })
-
-  it('should use rawRate data for price if rawRate.decimals is not null', async () => {
-    rateFetchStub.resolves(rawRate as any)
-    blockScoutStub.resolves(null)
-    covalentStub.resolves({ totalHolders: 10, totalSupply: '1000' })
-
-    const result = await TokenUtils.fetchTokenUpdate(baseToken)
-    expect(result).to.deep.equal({
-      priceUsd: '100',
-      holders: 0,
-      totalSupply: '0',
+    it('should return null if no valid values are provided', () => {
+      expect(TokenUtils.firstValid(null, undefined, '0', 0)).to.be.null
     })
   })
 
-  it('should fallback to blockScout for price when rawRate.decimals is null', async () => {
-    rateFetchStub.resolves({ decimals: null } as any)
-    blockScoutStub.resolves({
-      priceUsd: '150',
-      holders: 20,
-      totalSupply: '2000',
+  describe('shouldSkipFetch', () => {
+    it('should return true when token is governance', () => {
+      const token = { ...baseToken, isGovernance: true, symbol: 'GOV' }
+      const tokenRate = { priceUsd: '0' }
+      expect(TokenUtils.shouldSkipFetch(token, tokenRate)).to.be.true
     })
-    covalentStub.resolves({ totalHolders: 0, totalSupply: '0' })
 
-    const result = await TokenUtils.fetchTokenUpdate(baseToken)
-    expect(result).to.deep.equal({
-      priceUsd: '150',
-      holders: 20,
-      totalSupply: '2000',
+    it('should return true when token type is unknown', () => {
+      const token = { ...baseToken, type: ITokenType.unknown, symbol: 'UNK' }
+      const tokenRate = { priceUsd: '0' }
+      expect(TokenUtils.shouldSkipFetch(token, tokenRate)).to.be.true
     })
-  })
 
-  it('should fallback to covalent for holders and totalSupply if blockScout is missing and token qualifies (GovernanceERC20)', async () => {
-    const governanceToken = { ...baseToken, type: ITokenType.ERC20, isGovernance: true } as any
-    rateFetchStub.resolves({
-      decimals: 18,
-      priceUsd: '200',
+    it('should return true when token is from skip test networks', () => {
+      const token = { ...baseToken, network: NetworksEnum.ethereumSepolia, symbol: 'TEST' }
+      CovalentHelper.skipTestNetworks = [NetworksEnum.ethereumSepolia]
+      const tokenRate = { priceUsd: '0' }
+      expect(TokenUtils.shouldSkipFetch(token, tokenRate)).to.be.true
     })
-    blockScoutStub.resolves(null)
-    covalentStub.resolves({ totalHolders: 25, totalSupply: '3000' })
 
-    const result = await TokenUtils.fetchTokenUpdate(governanceToken)
-    expect(result).to.deep.equal({
-      priceUsd: '200',
-      holders: 25,
-      totalSupply: '3000',
+    it('should return false when token rate is not zero', () => {
+      const token = { ...baseToken, isGovernance: true, symbol: 'GOV' }
+      const tokenRate = { priceUsd: '0.1' }
+      expect(TokenUtils.shouldSkipFetch(token, tokenRate)).to.be.false
     })
-  })
 
-  it('should fallback to covalent for holders and totalSupply if blockScout is missing and token qualifies (whitelisted token)', async () => {
-    const whitelistedToken = { ...baseToken, type: ITokenType.ERC20 } as any
-    rateFetchStub.resolves({
-      decimals: 18,
-      priceUsd: '300',
+    it('should return true when token has no symbol', () => {
+      const token = { ...baseToken, symbol: null }
+      const tokenRate = { priceUsd: '0' }
+      expect(TokenUtils.shouldSkipFetch(token, tokenRate)).to.be.true
     })
-    blockScoutStub.resolves(null)
-    covalentStub.resolves({ totalHolders: 30, totalSupply: '4000' })
-    sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(true)
 
-    const result = await TokenUtils.fetchTokenUpdate(whitelistedToken)
-
-    expect(result).to.deep.equal({
-      priceUsd: '300',
-      holders: 30,
-      totalSupply: '4000',
+    it('should return false for normal token with price', () => {
+      const token = { ...baseToken, symbol: 'TKN' }
+      const tokenRate = { priceUsd: '10' }
+      expect(TokenUtils.shouldSkipFetch(token, tokenRate)).to.be.false
     })
   })
 
-  it('should return null if all merged fields are default values', async () => {
-    rateFetchStub.resolves({
-      decimals: 18,
-      priceUsd: '0',
+  describe('analyzeIfScamToken', () => {
+    it('should identify scam tokens with URLs in name', () => {
+      expect(TokenUtils.analyzeIfScamToken('Visit https://claim.rewards.com', 'TKN')).to.be.true
+      expect(TokenUtils.analyzeIfScamToken('Join www.airdrop.com now', 'TKN')).to.be.true
+      expect(TokenUtils.analyzeIfScamToken('Free Bonus at tokens.com', 'TKN')).to.be.true
     })
-    blockScoutStub.resolves({
-      priceUsd: '0',
-      holders: 0,
-      totalSupply: '0',
-    })
-    covalentStub.resolves({ totalHolders: 0, totalSupply: '0' })
 
-    const result = await TokenUtils.fetchTokenUpdate(baseToken)
-    expect(result).to.be.null
+    it('should identify scam tokens with URLs in symbol', () => {
+      expect(TokenUtils.analyzeIfScamToken('Token', 'VISIT-claim.io')).to.be.true
+      expect(TokenUtils.analyzeIfScamToken('Token', 'JOIN-www.rewards.io')).to.be.true
+    })
+
+    it('should identify scam tokens with keywords across name and symbol', () => {
+      expect(TokenUtils.analyzeIfScamToken('Visit tokens.com', 'CLAIM')).to.be.true
+      expect(TokenUtils.analyzeIfScamToken('Free Token', 'visit.io')).to.be.true
+    })
+
+    it('should handle null or undefined inputs', () => {
+      expect(TokenUtils.analyzeIfScamToken(null as any, 'TKN')).to.be.false
+      expect(TokenUtils.analyzeIfScamToken('Token', null as any)).to.be.false
+      expect(TokenUtils.analyzeIfScamToken(null as any, null as any)).to.be.false
+    })
+
+    it('should return false for legitimate token names', () => {
+      expect(TokenUtils.analyzeIfScamToken('Ethereum', 'ETH')).to.be.false
+      expect(TokenUtils.analyzeIfScamToken('Bitcoin', 'BTC')).to.be.false
+      expect(TokenUtils.analyzeIfScamToken('Staking Token', 'STK')).to.be.false
+    })
   })
 
   describe('isTokenSyncable', () => {
-    let isTokenScamStub: sinon.SinonStub
+    let findOneStub: sinon.SinonStub
+    let blockScoutStub: sinon.SinonStub
+    let web3HelperStub: sinon.SinonStub
+    let analyzeIfScamTokenStub: sinon.SinonStub
 
     beforeEach(() => {
-      isTokenScamStub = sandbox.stub(ProxyToken, 'analyzeIfScamToken').returns(false)
+      findOneStub = sandbox.stub(Models.Token, 'findOne')
+      blockScoutStub = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails')
+      web3HelperStub = sandbox.stub(Web3Helper, 'getTokenNameAndSymbol')
+      analyzeIfScamTokenStub = sandbox.stub(TokenUtils, 'analyzeIfScamToken')
     })
 
-    it('should return true if Web3Helper returns valid token details', async () => {
-      sandbox.stub(Web3Helper, 'getTokenNameAndSymbol').resolves({
-        name: 'TokenName',
-        symbol: 'TKN',
-      } as any)
+    it('should return true if token exists in the database', async () => {
+      findOneStub.resolves({ address: '0x123', network: NetworksEnum.ethereumMainnet })
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
 
-      expect(result).to.be.equal(true)
-      expect(blockScoutStub.notCalled).to.be.true
+      expect(result).to.be.true
+      expect(blockScoutStub.called).to.be.false
+      expect(web3HelperStub.called).to.be.false
     })
 
-    it('should return true if BlockScoutHelper returns valid token details', async () => {
-      sandbox.stub(Web3Helper, 'getTokenNameAndSymbol').resolves({
-        name: undefined,
-        symbol: 'Te',
-      } as any)
-
+    it('should return true if BlockScoutHelper returns valid non-scam token details', async () => {
+      findOneStub.resolves(null)
       blockScoutStub.resolves({
-        type: 'ERC-20',
+        type: ITokenType.ERC20,
         name: 'TokenName',
-        symbol: 'TKN',
-      } as any)
+        symbol: 'TKN'
+      })
+      analyzeIfScamTokenStub.returns(false)
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
 
-      expect(result).to.be.eq(true)
+      expect(result).to.be.true
+      expect(analyzeIfScamTokenStub.calledWith('TokenName', 'TKN')).to.be.true
+      expect(web3HelperStub.called).to.be.false
     })
 
-    it('should return false if both Web3Helper and BlockScoutHelper return invalid token details', async () => {
-      sandbox.stub(Web3Helper, 'getTokenNameAndSymbol').resolves({
-        name: undefined,
-        symbol: undefined,
-      } as any)
+    it('should return false if BlockScoutHelper returns scam token details', async () => {
+      findOneStub.resolves(null)
+      blockScoutStub.resolves({
+        type: ITokenType.ERC20,
+        name: 'Claim Free Tokens at scam.com',
+        symbol: 'SCAM'
+      })
+      analyzeIfScamTokenStub.returns(true)
 
-      blockScoutStub.resolves(null)
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.false
+      expect(web3HelperStub.called).to.be.false
     })
 
-    it('should return false if Web3Helper returns missing details and BlockScout returns unknown type', async () => {
-      sandbox.stub(Web3Helper, 'getTokenNameAndSymbol').resolves({
-        name: '',
-        symbol: '',
-      } as any)
+    it('should return false if BlockScoutHelper returns unknown token type', async () => {
+      findOneStub.resolves(null)
       blockScoutStub.resolves({
         type: ITokenType.unknown,
-      } as any)
-      sandbox.stub(BlockScoutHelper, 'parseTokenType').returns(ITokenType.unknown)
+        name: 'TokenName',
+        symbol: 'TKN'
+      })
+
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
       expect(result).to.be.false
+    })
+
+    it('should try Web3Helper if BlockScoutHelper returns no details', async () => {
+      findOneStub.resolves(null)
+      blockScoutStub.resolves(null)
+      web3HelperStub.resolves({
+        name: 'TokenName',
+        symbol: 'TKN'
+      })
+      analyzeIfScamTokenStub.returns(false)
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.true
+      expect(analyzeIfScamTokenStub.calledWith('TokenName', 'TKN')).to.be.true
+    })
+
+    it('should return false if Web3Helper returns scam token details', async () => {
+      findOneStub.resolves(null)
+      blockScoutStub.resolves(null)
+      web3HelperStub.resolves({
+        name: 'Claim Rewards',
+        symbol: 'scam.io'
+      })
+      analyzeIfScamTokenStub.returns(true)
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.false
+    })
+
+    it('should return false if neither BlockScoutHelper nor Web3Helper returns valid details', async () => {
+      findOneStub.resolves(null)
+      blockScoutStub.resolves(null)
+      web3HelperStub.resolves({
+        name: undefined,
+        symbol: undefined
+      })
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.false
+    })
+
+    it('should return false and log error when an exception occurs', async () => {
+      findOneStub.throws(new Error('Database connection error'))
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.false
+    })
+
+    it('should handle null values from BlockScoutHelper properly', async () => {
+      findOneStub.resolves(null)
+      blockScoutStub.resolves({
+        type: ITokenType.ERC20,
+        name: null,
+        symbol: null
+      })
+      analyzeIfScamTokenStub.returns(false)
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.true
+      expect(analyzeIfScamTokenStub.calledWith('', '')).to.be.true
     })
   })
 })

@@ -104,10 +104,17 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
     )
   },
 
-  fetchTokenPrice: async ({ network, pastDays }: any): Promise<any> => {
-    const price = await SubscanApi.getCurrentPrice(network, pastDays || 30)
+  fetchTokenPrice: async ({ token, network, pastDays }: any): Promise<any> => {
+    if (token === utils.zeroAddress) {
+      const price = await SubscanApi.getCurrentPrice(network, pastDays || 30)
+      return {
+        priceUsd: price || '0',
+      }
+    }
+
+    const tokenInfo = await SubscanApi.getTokenFullDetails(token, network)
     return {
-      priceUsd: price || '0',
+      priceUsd: tokenInfo.priceUsd || '0',
     }
   },
 }
