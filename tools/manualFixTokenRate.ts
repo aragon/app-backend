@@ -41,7 +41,6 @@ export const ToolsManualSyncToken: IService = {
         const skipFetchRate = tokenRate.priceUsd === '0'
         await token.update({
           priceUsd: tokenRate.priceUsd,
-          priceChangeOnDayUsd: tokenRate.priceChangeOnDayUsd,
           type: token.type === ITokenType.unknown ? tokenRate.type : token.type,
           skipFetchRate,
           lastUpdatedAt: tokenRate.lastUpdatedAt,

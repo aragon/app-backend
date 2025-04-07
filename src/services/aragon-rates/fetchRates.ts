@@ -6,10 +6,9 @@ import type Token from '@models/schema/token'
 import dayjs from '@helpers/dayjs'
 import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
 import config from '@config'
-import { ProxyToken } from '@modules/proxyToken'
 import TokenUtils from '@helpers/tokenUtils'
-import BlockScoutHelper from '@helpers/blockScout'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
@@ -160,13 +159,16 @@ export const FetchRates = {
         totalSupply: '0',
       }
 
-      const blockScoutInfo = await BlockScoutHelper.getTokenFullDetails(token.address, token.network)
+      const blockScoutInfo = await ProxyWeb3Provider.fetchBasicTokenInfo({
+        address: token.address,
+        network: token.network,
+      })
 
-      if (!blockScoutInfo?.holders || !blockScoutInfo?.totalSupply) return
-      if (token.holders === blockScoutInfo.holders && token.totalSupply === blockScoutInfo.totalSupply) return
+      if (!blockScoutInfo?.totalHolders || !blockScoutInfo?.totalSupply) return
+      if (token.holders === blockScoutInfo.totalHolders && token.totalSupply === blockScoutInfo.totalSupply) return
 
       Object.assign(rawTokenUpdate, {
-        holders: blockScoutInfo.holders,
+        holders: blockScoutInfo.totalHolders,
         totalSupply: blockScoutInfo.totalSupply,
       })
 
@@ -192,19 +194,26 @@ export const FetchRates = {
 
   async onMainnetDocument(token: Token) {
     try {
-      const rawTokenUpdate = await TokenUtils.fetchTokenUpdate(token)
+      // TODO: refactor this to use the same method as testnet
+      const rawTokenUpdate =
+        token.network === NetworksEnum.peaqMainnet
+          ? await ProxyWeb3Provider.fetchBasicTokenInfo({
+              address: token.address,
+              network: token.network,
+            })
+          : await TokenUtils.fetchTokenUpdate(token)
       if (!rawTokenUpdate) return
 
       if (
         token.priceUsd === rawTokenUpdate.priceUsd &&
-        token.holders === rawTokenUpdate.holders &&
+        token.holders === rawTokenUpdate.totalHolders &&
         token.totalSupply === rawTokenUpdate.totalSupply
       ) {
         return
       }
 
       // check if to skip fetching rate
-      if (ProxyToken.shouldSkipFetch(token, rawTokenUpdate as any)) {
+      if (TokenUtils.shouldSkipFetch(token, rawTokenUpdate)) {
         Object.assign(rawTokenUpdate, {
           lastUpdatedAt: dayjs.utc().toDate(),
           skipFetchRate: true,

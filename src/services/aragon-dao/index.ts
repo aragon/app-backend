@@ -20,7 +20,6 @@ import { ContractInfo } from '@services/aragon-dao/contractInfo'
 import { VoteInfo } from '@services/aragon-dao/voteInfo'
 import { MemberInfo } from '@services/aragon-dao/memberInfo'
 import ActionDecoder from '@services/aragon-dao/actionDecoder'
-import TokenInfo from '@services/aragon-dao/tokenInfo'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
@@ -83,10 +82,10 @@ const AragonDaoService: IService = {
       return await ActionDecoder.decode({ from, to, data, value, network })
     })
 
-    await RabbitMQHelper.process(EnumQueueName.tokenInfo, async (job: any) => {
-      const { address, network } = job.params as IQueueContractInfo
-      await TokenInfo.update(address, network)
-    })
+    // await RabbitMQHelper.process(EnumQueueName.tokenInfo, async (job: any) => {
+    //   const { address, network } = job.params as IQueueContractInfo
+    //   await TokenInfo.update(address, network)
+    // })
 
     logger.info('AragonDaoService service started', llo({}))
   },

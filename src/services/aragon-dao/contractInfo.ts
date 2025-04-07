@@ -17,7 +17,7 @@ export const ContractInfo = {
 
     const functions = [...(mainData?.functions || []), ...(implementationData?.functions || [])]
 
-    const name = implementationData?.name || mainData?.name || ''
+    const name = implementationData?.name || mainData?.name || null
 
     return {
       implementationAddress: isProxy ? implementationAddress : null,

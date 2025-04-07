@@ -7,7 +7,7 @@ import logger from '@logger'
 import BigNumber from 'bignumber.js'
 import config from '@config'
 import Web3Utils from '@helpers/web3Utils'
-import Web3Helper from "@helpers/web3";
+import Web3Helper from '@helpers/web3'
 
 describe('Helpers:Web3Utils', () => {
   let sandbox: SinonSandbox

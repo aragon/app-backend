@@ -36,7 +36,6 @@ describe('Modules: ProxyToken', () => {
       decimals: 18,
       holders: 10,
       totalSupply: '100',
-      priceChangeOnDayUsd: '1',
       priceUsd: '1',
       lastUpdatedAt: dayjs.utc().toDate() as any,
     }
@@ -53,7 +52,6 @@ describe('Modules: ProxyToken', () => {
     beforeEach(() => {
       tokenRate = {
         priceUsd: '1',
-        priceChangeOnDayUsd: '1',
         address: '0x123',
         isGovernance: false,
         network: NetworksEnum.ethereumMainnet,
@@ -359,7 +357,7 @@ describe('Modules: ProxyToken', () => {
       const network = NetworksEnum.ethereumMainnet
 
       sandbox.stub(ProxyToken, '_fetchTokenDetails').resolves({
-        tokenRate: { priceUsd: '1', priceChangeOnDayUsd: '1' } as any,
+        tokenRate: { priceUsd: '1' } as any,
         tokenMetrics: { totalHolders: 10, totalSupply: '11' },
       })
 
@@ -423,7 +421,7 @@ describe('Modules: ProxyToken', () => {
       })
 
       const proxyTokenFetchDetailsStub = sandbox.stub(ProxyToken, '_fetchTokenDetails').resolves({
-        tokenRate: { priceUsd: '1', priceChangeOnDayUsd: '0.1' } as any,
+        tokenRate: { priceUsd: '1' } as any,
         tokenMetrics: { totalHolders: 20, totalSupply: '1000' },
       })
 
@@ -444,7 +442,7 @@ describe('Modules: ProxyToken', () => {
       tOpts.startTransaction()
 
       const proxyTokenFetchDetailsStub = sandbox.stub(ProxyToken, '_fetchTokenDetails').resolves({
-        tokenRate: { priceUsd: '1', priceChangeOnDayUsd: '0.1' } as any,
+        tokenRate: { priceUsd: '1' } as any,
         tokenMetrics: { totalHolders: 20, totalSupply: '1000' },
       })
 
@@ -483,7 +481,7 @@ describe('Modules: ProxyToken', () => {
       tOpts.startTransaction()
 
       const proxyTokenFetchDetailsStub = sandbox.stub(ProxyToken, '_fetchTokenDetails').resolves({
-        tokenRate: { priceUsd: '1', priceChangeOnDayUsd: '0.1', type: ITokenType.ERC20 } as any,
+        tokenRate: { priceUsd: '1', type: ITokenType.ERC20 } as any,
         tokenMetrics: { totalHolders: 20, totalSupply: '1000' },
       })
 

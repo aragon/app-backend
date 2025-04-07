@@ -5,7 +5,7 @@ import { NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import CovalentHelper from '@helpers/covalent'
 import Web3Utils from '@helpers/web3Utils'
-import ProxyWeb3 from "@modules/proxyWeb3";
+import Web3Provider from '@modules/proxyProvider/web3Provider'
 
 describe('ProxyWeb3 && Web3Helper', () => {
   let sandbox: SinonSandbox
@@ -57,7 +57,7 @@ describe('ProxyWeb3 && Web3Helper', () => {
   it('getNativeBalance', async () => {
     const address = '0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449'
     const network = NetworksEnum.ethereumMainnet
-    const value = await ProxyWeb3.getNativeBalance(address, network)
+    const value = await Web3Provider.getNativeBalance(address, network)
     expect(value).to.eq('0.000118940004874')
   })
 
@@ -67,7 +67,7 @@ describe('ProxyWeb3 && Web3Helper', () => {
     sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({ totalSupply: '0', totalHolders: 0 } as any)
     sandbox.stub(CovalentHelper, 'getToken').resolves(null as any)
 
-    const tokenBalances = await ProxyWeb3.getTokenBalances(address, network)
+    const tokenBalances = await Web3Provider.getTokenBalances(address, network)
 
     expect(tokenBalances.length > 0).to.be.true
     expect(tokenBalances[0].contractAddress).to.exist

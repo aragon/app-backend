@@ -31,7 +31,6 @@ describe('TokenDetailFetcherWithRetry Service', () => {
       decimals: 18,
       totalSupply: '0',
       holders: 0,
-      priceChangeOnDayUsd: '1',
       priceUsd: '1',
       lastUpdatedAt: dayjs.utc().toDate() as any,
     }

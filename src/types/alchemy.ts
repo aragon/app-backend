@@ -7,12 +7,6 @@ export interface IWebSocketProvider extends WebSocketProvider {
   processQueue: any
 }
 
-export interface IAlchemyTokenBalance {
-  contractAddress?: HexAddress | undefined
-  tokenBalance: string
-  originalBalance: any
-}
-
 export enum ITransactionCategory {
   External = 'external',
   Internal = 'internal',

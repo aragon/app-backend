@@ -1,11 +1,11 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import AlchemyWeb3 from '@helpers/alchemyWeb3'
+import Alchemy from '@helpers/alchemy'
 import { NetworksEnum } from '@types'
 import logger from '@logger'
 
-describe('Helpers:AlchemyWeb3', () => {
+describe('Helpers:AlchemyHelper', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -18,19 +18,19 @@ describe('Helpers:AlchemyWeb3', () => {
 
   describe('handleAlchemyCrazyBalance', () => {
     it('handleAlchemyCrazyBalance', () => {
-      expect(AlchemyWeb3.handleAlchemyCrazyBalance('7.326e+22', 18)).to.equal('73260.0')
-      expect(AlchemyWeb3.handleAlchemyCrazyBalance('0', 18)).to.equal('0')
-      expect(AlchemyWeb3.handleAlchemyCrazyBalance('50000000000000000', 18)).to.equal('50000000000000000')
-      expect(AlchemyWeb3.handleAlchemyCrazyBalance('0.01', 18)).to.equal('0.01')
-      expect(AlchemyWeb3.handleAlchemyCrazyBalance(0.01, 18)).to.equal('0.01')
-      expect(AlchemyWeb3.handleAlchemyCrazyBalance('1.73462724372438', 18)).to.equal('1.73462724372438')
-      expect(AlchemyWeb3.handleAlchemyCrazyBalance(1.73462724372438, 18)).to.equal('1.73462724372438')
-      expect(AlchemyWeb3.handleAlchemyCrazyBalance(4.2e-16, 18)).to.equal('0.000000000000000420')
-      expect(AlchemyWeb3.handleAlchemyCrazyBalance('4.2e-16', 18)).to.equal('0.000000000000000420')
+      expect(Alchemy.handleAlchemyCrazyBalance('7.326e+22', 18)).to.equal('73260.0')
+      expect(Alchemy.handleAlchemyCrazyBalance('0', 18)).to.equal('0')
+      expect(Alchemy.handleAlchemyCrazyBalance('50000000000000000', 18)).to.equal('50000000000000000')
+      expect(Alchemy.handleAlchemyCrazyBalance('0.01', 18)).to.equal('0.01')
+      expect(Alchemy.handleAlchemyCrazyBalance(0.01, 18)).to.equal('0.01')
+      expect(Alchemy.handleAlchemyCrazyBalance('1.73462724372438', 18)).to.equal('1.73462724372438')
+      expect(Alchemy.handleAlchemyCrazyBalance(1.73462724372438, 18)).to.equal('1.73462724372438')
+      expect(Alchemy.handleAlchemyCrazyBalance(4.2e-16, 18)).to.equal('0.000000000000000420')
+      expect(Alchemy.handleAlchemyCrazyBalance('4.2e-16', 18)).to.equal('0.000000000000000420')
       expect(
-        AlchemyWeb3.handleAlchemyCrazyBalance('0x0000000000000000000000000000000000000000000000000000000000124f80', 18),
+        Alchemy.handleAlchemyCrazyBalance('0x0000000000000000000000000000000000000000000000000000000000124f80', 18),
       ).to.equal('0.0000000000012')
-      expect(AlchemyWeb3.handleAlchemyCrazyBalance('43943983483908340948.438934780934834409', 18)).to.equal(
+      expect(Alchemy.handleAlchemyCrazyBalance('43943983483908340948.438934780934834409', 18)).to.equal(
         '43943983483908340948.438934780934834409',
       )
     })
@@ -44,7 +44,7 @@ describe('Helpers:AlchemyWeb3', () => {
 
       const errorLoggerStub = sandbox.stub(logger, 'error')
 
-      AlchemyWeb3.alchemyCrazyBalanceOnError(address, tokenAddress, network, amount, decimals)
+      Alchemy.alchemyCrazyBalanceOnError(address, tokenAddress, network, amount, decimals)
 
       expect(errorLoggerStub.calledOnceWith('Error alchemyCrazyBalance wrong format' as any)).to.be.true
     })
@@ -58,7 +58,7 @@ describe('Helpers:AlchemyWeb3', () => {
 
       const errorLoggerStub = sandbox.stub(logger, 'error')
 
-      AlchemyWeb3.alchemyCrazyBalanceOnError(address, tokenAddress, network, amount, decimals)
+      Alchemy.alchemyCrazyBalanceOnError(address, tokenAddress, network, amount, decimals)
 
       expect(errorLoggerStub.notCalled).to.be.true
     })
@@ -72,7 +72,7 @@ describe('Helpers:AlchemyWeb3', () => {
 
       const errorLoggerStub = sandbox.stub(logger, 'error')
 
-      AlchemyWeb3.alchemyCrazyBalanceOnError(address, tokenAddress, network, amount, decimals)
+      Alchemy.alchemyCrazyBalanceOnError(address, tokenAddress, network, amount, decimals)
 
       expect(errorLoggerStub.notCalled).to.be.true
     })
@@ -86,7 +86,7 @@ describe('Helpers:AlchemyWeb3', () => {
 
       const errorLoggerStub = sandbox.stub(logger, 'error')
 
-      AlchemyWeb3.alchemyCrazyBalanceOnError(address, tokenAddress, network, amount, decimals)
+      Alchemy.alchemyCrazyBalanceOnError(address, tokenAddress, network, amount, decimals)
 
       expect(errorLoggerStub.notCalled).to.be.true
     })

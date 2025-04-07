@@ -3,9 +3,9 @@ import { ethers } from 'ethers'
 import logger from '@logger'
 import utils from '@helpers/utils'
 
-const llo = logger.logMeta.bind(null, { service: 'helpers:AlchemyWeb3' })
+const llo = logger.logMeta.bind(null, { service: 'helpers:AlchemyHelper' })
 
-const AlchemyWeb3 = {
+const AlchemyHelper = {
   alchemyCrazyBalanceOnError: (
     address: string,
     tokenAddress: string,
@@ -41,4 +41,4 @@ const AlchemyWeb3 = {
   },
 }
 
-export default AlchemyWeb3
+export default AlchemyHelper
