@@ -48,6 +48,196 @@ const SubscanApiHelper = {
     }
   },
 
+  getAssetTransfer: async (address: HexAddress, network: NetworksEnum): Promise<ISubScanAssetTransfer[]> => {
+    const substrateAddress = await SubscanApiHelper.getAccountInfoByKey(address, network)
+    if (!substrateAddress) return []
+
+    const nativeTransfers = await SubscanApiHelper._fetchAllPaginatedItems(
+      'transfers',
+      { address: substrateAddress, row: 100 },
+      network,
+      'api/v2/scan/transfers',
+    )
+
+    const erc20Transfers = await SubscanApiHelper._fetchAllPaginatedItems(
+      'evm/token/transfer',
+      { address, row: 100, category: 'erc20' },
+      network,
+    )
+
+    const parsedNative = nativeTransfers.map(SubscanApiHelper._parseNativeTransfer)
+    const parsedErc20 = await Promise.all(
+      erc20Transfers.map(async tx => SubscanApiHelper._parseErc20Transfer(tx, network)),
+    )
+
+    return [...parsedNative, ...parsedErc20].sort((a, b) => b.blockNum - a.blockNum)
+  },
+
+  _fetchAllPaginatedItems: async (
+    path: string,
+    baseParams: any,
+    network: NetworksEnum,
+    replacedPath?: string,
+    extractListFn: (res: any) => any[] = res => res?.data?.list || [],
+    extractTotalFn: (res: any) => number = res => res?.data?.count || 0,
+  ) => {
+    const pageSize = baseParams.row || 100
+    let page = 0
+    let allItems: any[] = []
+
+    while (true) {
+      const params = { ...baseParams, page, row: pageSize }
+      const res = await SubscanApiHelper._rpCall(path, params, network, replacedPath)
+      const list = extractListFn(res)
+      const total = extractTotalFn(res)
+
+      allItems = allItems.concat(list)
+      if (allItems.length >= total || list.length === 0) break
+
+      page++
+    }
+
+    return allItems
+  },
+
+  _parseNativeTransfer: (transfer: any): ISubScanAssetTransfer => ({
+    blockNum: transfer.block_num,
+    from: ethers.getAddress(transfer.from_account_display.evm_address || ethers.ZeroAddress),
+    to: ethers.getAddress(transfer.to_account_display?.evm_address || ethers.ZeroAddress),
+    uniqueId: transfer.transfer_id,
+    blockTimestamp: transfer.block_timestamp,
+    value: transfer.amount,
+    hash: transfer.hash,
+    category: 'external',
+  }),
+
+  _parseErc20Transfer: async (transfer: any, network: NetworksEnum): Promise<ISubScanAssetTransfer> => {
+    const txDetails = await SubscanApiHelper.getTransactionInfoByHash(transfer.hash, network)
+
+    return {
+      blockNum: txDetails.block_num,
+      from: ethers.getAddress(transfer.from),
+      to: ethers.getAddress(transfer.to),
+      uniqueId: transfer.id,
+      blockTimestamp: txDetails.block_timestamp,
+      value: transfer.value,
+      hash: transfer.hash,
+      category: 'erc20',
+      rawContract: {
+        value: transfer.value,
+        address: ethers.getAddress(transfer.contract),
+        decimals: transfer.decimals,
+        name: transfer.name,
+        symbol: transfer.symbol,
+        priceUsd: transfer.price || '0',
+      },
+    }
+  },
+
+  getAccountInfoByKey: async (address: HexAddress, network: NetworksEnum): Promise<string | undefined> => {
+    const path = 'search'
+    const params = {
+      key: address,
+    }
+
+    try {
+      const response = await SubscanApiHelper._rpCall(path, params, network)
+      if (response?.data?.account.substrate_account?.address) {
+        return response.data.account.substrate_account.address
+      }
+    } catch (error) {
+      logger.warn('SubscanApi getAccountInfoByKey', llo({ error, address }))
+    }
+  },
+
+  oldGetAssetTransfer: async (address: HexAddress, network: NetworksEnum): Promise<ISubScanAssetTransfer[]> => {
+    // Convert to Substrate Address
+    const substrateAddress = await SubscanApiHelper.getAccountInfoByKey(address, network)
+    if (!substrateAddress) {
+      return []
+    }
+
+    const nativeTransferEndpoint = 'transfers'
+    const nativeQueryParams = {
+      page: 0,
+      row: 100,
+      address: substrateAddress,
+    }
+
+    let allTransfers: ISubScanAssetTransfer[] = []
+
+    try {
+      const response = await SubscanApiHelper._rpCall(
+        nativeTransferEndpoint,
+        nativeQueryParams,
+        network,
+        'api/v2/scan/transfers',
+      )
+
+      if (response?.data?.transfers) {
+        allTransfers = response.data.transfers.map((transfer: any) => ({
+          blockNum: transfer.block_num,
+          from: ethers.getAddress(transfer.from_account_display.evm_address || ethers.ZeroAddress),
+          to: ethers.getAddress(transfer.to_account_display?.evm_address || ethers.ZeroAddress),
+          uniqueId: transfer.transfer_id,
+          blockTimestamp: transfer.block_timestamp,
+          value: transfer.amount,
+          hash: transfer.hash,
+          category: 'external',
+          decimals: 18,
+        }))
+      }
+    } catch (error) {
+      logger.warn('SubscanApi fetchAssetTransfers (native)', { error, address })
+    }
+
+    // ERC20 Transfers
+    const erc20QueryParams = {
+      address,
+      row: 100,
+      page: 0,
+      category: 'erc20',
+    }
+
+    const erc20TransferEndpoint = 'evm/token/transfer'
+
+    try {
+      const response = await SubscanApiHelper._rpCall(erc20TransferEndpoint, erc20QueryParams, network)
+
+      if (response?.data?.list) {
+        const tokenTransferDetails: ISubScanAssetTransfer[] = await Promise.all(
+          response.data.list.map(async (transfer: any) => {
+            const txDetails = await SubscanApiHelper.getTransactionInfoByHash(transfer.hash, network)
+            return {
+              blockNum: txDetails.block_num,
+              from: ethers.getAddress(transfer.from),
+              to: ethers.getAddress(transfer.to),
+              uniqueId: transfer.id,
+              blockTimestamp: txDetails.block_timestamp,
+              value: transfer.value,
+              hash: transfer.hash,
+              category: 'erc20',
+              rawContract: {
+                value: transfer.value,
+                address: ethers.getAddress(transfer.contract),
+                decimals: transfer.decimals,
+                name: transfer.name,
+                symbol: transfer.symbol,
+                priceUsd: '0',
+              },
+            }
+          }),
+        )
+
+        allTransfers = allTransfers.concat(tokenTransferDetails).sort((a, b) => b.blockNum - a.blockNum)
+      }
+    } catch (error) {
+      logger.warn('SubscanApi fetchAssetTransfers (ERC20)', { error, address })
+    }
+
+    return allTransfers
+  },
+
   getContractSourceCode: async (address: string, network: NetworksEnum) => {
     const path = 'evm/contract'
     const params = {
@@ -176,110 +366,6 @@ const SubscanApiHelper = {
       tokenBalance: ethers.formatUnits(token.tokenBalance, token.decimals),
       contractAddress: ethers.getAddress(token.contractAddress),
     }))
-  },
-
-  getAccountInfoByKey: async (address: HexAddress, network: NetworksEnum): Promise<string | undefined> => {
-    const path = 'search'
-    const params = {
-      key: address,
-    }
-
-    try {
-      const response = await SubscanApiHelper._rpCall(path, params, network)
-      if (response?.data?.account.substrate_account?.address) {
-        return response.data.account.substrate_account.address
-      }
-    } catch (error) {
-      logger.warn('SubscanApi getAccountInfoByKey', llo({ error, address }))
-    }
-  },
-
-  getAssetTransfer: async (address: HexAddress, network: NetworksEnum): Promise<ISubScanAssetTransfer[]> => {
-    // Convert to Substrate Address
-    const substrateAddress = await SubscanApiHelper.getAccountInfoByKey(address, network)
-    if (!substrateAddress) {
-      return []
-    }
-
-    const nativeTransferEndpoint = 'transfers'
-    const nativeQueryParams = {
-      page: 0,
-      row: 100,
-      address: substrateAddress,
-    }
-
-    let allTransfers: ISubScanAssetTransfer[] = []
-
-    try {
-      const response = await SubscanApiHelper._rpCall(
-        nativeTransferEndpoint,
-        nativeQueryParams,
-        network,
-        'api/v2/scan/transfers',
-      )
-
-      if (response?.data?.transfers) {
-        allTransfers = response.data.transfers.map((transfer: any) => ({
-          blockNum: transfer.block_num,
-          from: ethers.getAddress(transfer.from_account_display.evm_address || ethers.ZeroAddress),
-          to: ethers.getAddress(transfer.to_account_display?.evm_address || ethers.ZeroAddress),
-          uniqueId: transfer.transfer_id,
-          blockTimestamp: transfer.block_timestamp,
-          value: transfer.amount,
-          hash: transfer.hash,
-          category: 'external',
-          decimals: 18,
-        }))
-      }
-    } catch (error) {
-      logger.warn('SubscanApi fetchAssetTransfers (native)', { error, address })
-    }
-
-    // ERC20 Transfers
-    const erc20QueryParams = {
-      address,
-      row: 100,
-      page: 0,
-      category: 'erc20',
-    }
-
-    const erc20TransferEndpoint = 'evm/token/transfer'
-
-    try {
-      const response = await SubscanApiHelper._rpCall(erc20TransferEndpoint, erc20QueryParams, network)
-
-      if (response?.data?.list) {
-        const tokenTransferDetails: ISubScanAssetTransfer[] = await Promise.all(
-          response.data.list.map(async (transfer: any) => {
-            const txDetails = await SubscanApiHelper.getTransactionInfoByHash(transfer.hash, network)
-            return {
-              blockNum: txDetails.block_num,
-              from: ethers.getAddress(transfer.from),
-              to: ethers.getAddress(transfer.to),
-              uniqueId: transfer.id,
-              blockTimestamp: txDetails.block_timestamp,
-              value: transfer.value,
-              hash: transfer.hash,
-              category: 'erc20',
-              rawContract: {
-                value: transfer.value,
-                address: ethers.getAddress(transfer.contract),
-                decimals: transfer.decimals,
-                name: transfer.name,
-                symbol: transfer.symbol,
-                priceUsd: '0',
-              },
-            }
-          }),
-        )
-
-        allTransfers = allTransfers.concat(tokenTransferDetails).sort((a, b) => b.blockNum - a.blockNum)
-      }
-    } catch (error) {
-      logger.warn('SubscanApi fetchAssetTransfers (ERC20)', { error, address })
-    }
-
-    return allTransfers
   },
 
   getTransactionInfoByHash: async (txHash: string, network: NetworksEnum) => {
