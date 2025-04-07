@@ -107,7 +107,7 @@ describe('Helpers: BlockScout', () => {
         priceUsd: '1',
         decimals: 18,
         totalSupply: '1000000000000000000000',
-        holders: 1,
+        totalHolders: 1,
         logo: 'https://example.com/logo.png',
         type: ITokenType.ERC20,
       })
@@ -133,7 +133,7 @@ describe('Helpers: BlockScout', () => {
         decimals: 0,
         priceUsd: '1',
         totalSupply: '1000000000000000000000',
-        holders: 1,
+        totalHolders: 1,
         logo: 'https://example.com/logo.png',
         type: ITokenType.ERC721,
       })
@@ -158,7 +158,7 @@ describe('Helpers: BlockScout', () => {
         decimals: 18,
         priceUsd: '1',
         totalSupply: '1000000000000000000000',
-        holders: 1,
+        totalHolders: 1,
         logo: 'https://example.com/logo.png',
         type: ITokenType.ERC20,
       })
@@ -184,7 +184,7 @@ describe('Helpers: BlockScout', () => {
         decimals: 0,
         priceUsd: '1',
         totalSupply: '1000000000000000000000',
-        holders: 1,
+        totalHolders: 1,
         logo: 'https://example.com/logo.png',
         type: ITokenType.ERC1155,
       })

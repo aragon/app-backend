@@ -154,23 +154,21 @@ export const FetchRates = {
 
   async onTestnetDocument(token: Token) {
     try {
-      const rawTokenUpdate = {
-        holders: 0,
-        totalSupply: '0',
-      }
-
-      const blockScoutInfo = await ProxyWeb3Provider.fetchBasicTokenInfo({
+      const tokenMetrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
         address: token.address,
         network: token.network,
       })
 
-      if (!blockScoutInfo?.totalHolders || !blockScoutInfo?.totalSupply) return
-      if (token.holders === blockScoutInfo.totalHolders && token.totalSupply === blockScoutInfo.totalSupply) return
+      if (!tokenMetrics?.totalHolders || !tokenMetrics?.totalSupply) {
+        return
+      }
 
-      Object.assign(rawTokenUpdate, {
-        holders: blockScoutInfo.totalHolders,
-        totalSupply: blockScoutInfo.totalSupply,
-      })
+      if (token.holders === tokenMetrics.totalHolders && token.totalSupply === tokenMetrics.totalSupply) return
+
+      const rawTokenUpdate = {
+        holders: tokenMetrics.totalHolders,
+        totalSupply: tokenMetrics.totalSupply,
+      }
 
       await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await token.update(
@@ -194,25 +192,31 @@ export const FetchRates = {
 
   async onMainnetDocument(token: Token) {
     try {
-      // TODO: refactor this to use the same method as testnet
-      const rawTokenUpdate =
-        token.network === NetworksEnum.peaqMainnet
-          ? await ProxyWeb3Provider.fetchBasicTokenInfo({
-              address: token.address,
-              network: token.network,
-            })
-          : await TokenUtils.fetchTokenUpdate(token)
-      if (!rawTokenUpdate) return
+      const tokenUpdate = await ProxyWeb3Provider.fetchTokenPrice({
+        address: token.address,
+        network: token.network,
+      })
+
+      const tokenMetrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
+        address: token.address,
+        network: token.network,
+      })
+      if (!tokenMetrics || !tokenUpdate) return
+
+      const rawTokenUpdate = {
+        holders: tokenMetrics.totalHolders,
+        totalSupply: tokenMetrics.totalSupply,
+        priceUsd: tokenUpdate.priceUsd,
+      }
 
       if (
         token.priceUsd === rawTokenUpdate.priceUsd &&
-        token.holders === rawTokenUpdate.totalHolders &&
+        token.holders === rawTokenUpdate.holders &&
         token.totalSupply === rawTokenUpdate.totalSupply
       ) {
         return
       }
 
-      // check if to skip fetching rate
       if (TokenUtils.shouldSkipFetch(token, rawTokenUpdate)) {
         Object.assign(rawTokenUpdate, {
           lastUpdatedAt: dayjs.utc().toDate(),

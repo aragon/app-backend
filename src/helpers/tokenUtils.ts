@@ -1,4 +1,4 @@
-import { type HexAddress, type ITokenDetails, ITokenType, type NetworksEnum } from '@types'
+import { type HexAddress, ITokenType, ITransactionCategory, NetworksEnum } from '@types'
 import BlockScoutHelper from '@helpers/blockScout'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
@@ -18,7 +18,7 @@ const TokenUtils = {
     return null
   },
 
-  shouldSkipFetch: (token: Partial<Token>, tokenRate: ITokenDetails): boolean =>
+  shouldSkipFetch: (token: Partial<Token>, tokenRate: { priceUsd: string }): boolean =>
     (!token.symbol ||
       token.isGovernance ||
       token.type === ITokenType.unknown ||
@@ -52,6 +52,28 @@ const TokenUtils = {
     } catch (e) {
       logger.error('Error checking if token is syncable', llo({ tokenAddress, network, error: e }))
       return false
+    }
+  },
+
+  getCategories: (network: NetworksEnum) => {
+    const category = [
+      ITransactionCategory.ERC20,
+      ITransactionCategory.ERC721,
+      ITransactionCategory.ERC1155,
+      ITransactionCategory.Internal,
+      ITransactionCategory.External,
+    ]
+
+    switch (network) {
+      case NetworksEnum.ethereumSepolia:
+        return category.filter(cat => cat !== ITransactionCategory.Internal)
+      case NetworksEnum.baseMainnet:
+      case NetworksEnum.zksyncSepolia:
+      case NetworksEnum.arbitrumMainnet:
+      case NetworksEnum.zksyncMainnet:
+        return category.filter(cat => cat !== ITransactionCategory.Internal)
+      default:
+        return category
     }
   },
 }

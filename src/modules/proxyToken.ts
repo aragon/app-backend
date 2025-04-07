@@ -7,13 +7,11 @@ import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type Token from '@models/schema/token'
 import dayjs from '@helpers/dayjs'
-import CovalentHelper from '@helpers/covalent'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import TokenUtils from '@helpers/tokenUtils'
-import { RateModule } from '@modules/rates'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -116,52 +114,60 @@ export const ProxyToken = {
       lastUpdatedAt: dayjs.utc().toDate(),
     }
 
-    if (rawToken.type === ITokenType.unknown && tokenTypeInfo.type !== ITokenType.unknown) {
-      rawToken.type = tokenTypeInfo.type
-    }
+    if (tokenTypeInfo.type !== ITokenType.native) {
+      if (rawToken.type === ITokenType.unknown && tokenTypeInfo.type !== ITokenType.unknown) {
+        rawToken.type = tokenTypeInfo.type
+      }
 
-    if (!rawToken.name && tokenTypeInfo.hasName) {
-      rawToken.name = await Web3Helper.getTokenName(tokenAddress, network)
-    }
+      if (!rawToken.name && tokenTypeInfo.hasName) {
+        rawToken.name = await Web3Helper.getTokenName(tokenAddress, network)
+      }
 
-    if (!rawToken.symbol && tokenTypeInfo.hasSymbol) {
-      rawToken.symbol = await Web3Helper.getTokenSymbol(tokenAddress, network)
-    }
+      if (!rawToken.symbol && tokenTypeInfo.hasSymbol) {
+        rawToken.symbol = await Web3Helper.getTokenSymbol(tokenAddress, network)
+      }
 
-    const isTokenSyncable = await TokenUtils.isTokenSyncable(tokenAddress, network)
-    if (!isTokenSyncable) {
-      return null
-    }
+      const isTokenSyncable = await TokenUtils.isTokenSyncable(tokenAddress, network)
+      if (!isTokenSyncable) {
+        return null
+      }
 
-    if (!rawToken.decimals && tokenTypeInfo.hasDecimals) {
-      rawToken.decimals = await Web3Helper.getTokenDecimals(tokenAddress, network)
-    }
+      if (!rawToken.decimals && tokenTypeInfo.hasDecimals) {
+        rawToken.decimals = await Web3Helper.getTokenDecimals(tokenAddress, network)
+      }
 
-    if (!rawToken.totalSupply && tokenTypeInfo.hasTotalSupply) {
-      const totalSupply = await Web3Helper.getTokenTotalSupply(tokenAddress, network)
-      rawToken.totalSupply = totalSupply.toString()
-    }
+      if (!rawToken.totalSupply && tokenTypeInfo.hasTotalSupply) {
+        const totalSupply = await Web3Helper.getTokenTotalSupply(tokenAddress, network)
+        rawToken.totalSupply = totalSupply.toString()
+      }
 
-    if (tokenTypeInfo.hasUnderlying) {
-      rawToken.underlying = await Web3Helper.getUnderlying(tokenAddress, network)
-    }
+      if (tokenTypeInfo.hasUnderlying) {
+        rawToken.underlying = await Web3Helper.getUnderlying(tokenAddress, network)
+      }
 
-    if (rawToken.isGovernance || Web3Utils.isWhitelistedToken(tokenAddress, network)) {
-      const infoCreation = await ProxyWeb3Provider.fetchContractCreation({ address: tokenAddress, network })
-      rawToken.blockNumber = infoCreation.blockNumber
-      rawToken.transactionHash = infoCreation.transactionHash
-    }
+      if (rawToken.isGovernance || Web3Utils.isWhitelistedToken(tokenAddress, network)) {
+        const infoCreation = await ProxyWeb3Provider.fetchContractCreation({ address: tokenAddress, network })
+        rawToken.blockNumber = infoCreation.blockNumber
+        rawToken.transactionHash = infoCreation.transactionHash
+      }
 
-    if (!rawToken.holders && rawToken.holders === 0) {
-      const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
-      rawToken.holders = metrics?.totalHolders
-      rawToken.totalSupply = metrics?.totalSupply
-      if (rawToken.totalSupply === '0' && rawToken.isGovernance) {
-        rawToken.refetch = true
+      if (rawToken.type !== ITokenType.unknown && !rawToken.holders && rawToken.holders === 0) {
+        const metrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
+          address: tokenAddress,
+          network,
+        })
+        rawToken.holders = metrics?.totalHolders
+        rawToken.totalSupply = metrics?.totalSupply
+        if (rawToken.totalSupply === '0' && rawToken.isGovernance) {
+          rawToken.refetch = true
+        }
       }
     }
 
-    const tokenRate = await RateModule.fetchRate(tokenAddress, network)
+    const tokenRate = await ProxyWeb3Provider.fetchTokenPrice({
+      address: tokenAddress,
+      network,
+    })
     rawToken.priceUsd = TokenUtils.firstValid(tokenRate.priceUsd, tokenDetails?.priceUsd) || '0'
     rawToken.skipFetchRate = TokenUtils.shouldSkipFetch(rawToken, tokenRate)
 

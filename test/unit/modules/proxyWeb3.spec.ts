@@ -33,7 +33,10 @@ describe('Module: ProxyWeb3', () => {
         decimals: 18,
       } as any)
 
-      const balance = await Web3Provider.getNativeBalance(fakeAddress, fakeNetwork)
+      const balance = await Web3Provider.getNativeBalance({
+        address: fakeAddress,
+        network: fakeNetwork,
+      } as any)
       expect(balance).to.equal('2.0') // Check if conversion from wei to ether is correct
       expect(providerStub.send.calledOnce).to.be.true
       expect(providerStub.send.calledWith('eth_getBalance', [fakeAddress, 'latest'])).to.be.true
@@ -50,7 +53,11 @@ describe('Module: ProxyWeb3', () => {
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       sandbox.stub(ProxyToken, 'saveAndGetToken').returns(false as any)
 
-      const balance = await Web3Provider.getNativeBalance(fakeAddress, fakeNetwork)
+      const balance = await Web3Provider.getNativeBalance({
+        address: fakeAddress,
+        network: fakeNetwork,
+      } as any)
+
       expect(balance).to.equal('0') // Check if conversion from wei to ether is correct
       expect(providerStub.send.calledOnce).to.be.true
       expect(providerStub.send.calledWith('eth_getBalance', [fakeAddress, 'latest'])).to.be.true
@@ -64,7 +71,10 @@ describe('Module: ProxyWeb3', () => {
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       const errorLoggerStub = sandbox.stub(logger, 'error')
-      const balance = await Web3Provider.getNativeBalance(fakeAddress, fakeNetwork)
+      const balance = await Web3Provider.getNativeBalance({
+        address: fakeAddress,
+        network: fakeNetwork,
+      } as any)
       expect(balance).to.equal('0')
 
       expect(errorLoggerStub.calledOnce).to.be.true
@@ -91,7 +101,10 @@ describe('Module: ProxyWeb3', () => {
         decimals: 0,
       } as any)
 
-      const balances = await Web3Provider.getTokenBalances(fakeAddress, fakeNetwork)
+      const balances = await Web3Provider.getTokenBalances({
+        address: fakeAddress,
+        network: fakeNetwork,
+      } as any)
       expect(balances.length).to.equal(2)
       expect(balances[0].tokenBalance).to.equal('16')
       expect(balances[1].tokenBalance).to.equal('26')
@@ -108,7 +121,10 @@ describe('Module: ProxyWeb3', () => {
       const loggerStubError = sandbox.stub(logger, 'error')
       sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
 
-      const balances = await Web3Provider.getTokenBalances(fakeAddress, fakeNetwork)
+      const balances = await Web3Provider.getTokenBalances({
+        address: fakeAddress,
+        network: fakeNetwork,
+      } as any)
       expect(loggerStubError.calledOnce).to.be.true
       expect(balances).to.be.an('array').that.is.empty
       expect(providerStub.send.calledOnce).to.be.true

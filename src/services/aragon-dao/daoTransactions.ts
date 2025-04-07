@@ -1,26 +1,15 @@
-import {
-  type HexAddress,
-  type IAlchemyTransferResponse,
-  IEnumIndexerService,
-  ITransactionCategory,
-  ITransactionType,
-  NetworksEnum,
-} from '@types'
+import { type HexAddress, type ITransactionType, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
-import type Dao from '@models/schema/dao'
 import type Transaction from '@models/schema/transaction'
-import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import Web3Helper from '@helpers/web3'
-import { RateModule } from '@modules/rates'
-import utils from '@helpers/utils'
-import { ProxyToken } from '@modules/proxyToken'
 import { DAO } from '@artifacts/dao'
 import { Multisig } from '@artifacts/Multisig'
-import TokenUtils from '@helpers/tokenUtils'
-import AlchemyHelper from '@helpers/alchemy'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 import Web3Utils from '@helpers/web3Utils'
+import { ProxyToken } from '@modules/proxyToken'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
 
@@ -37,7 +26,22 @@ export const DaoTransactions = {
       const daoDb = await Models.Dao.findByAddress(daoAddress, network)
       if (!daoDb) return
 
-      await DaoTransactions.onDocument(daoDb)
+      const txns = await ProxyWeb3Provider.fetchAddressTxns({
+        address: daoDb.address,
+        network: daoDb.network,
+        blockNumber: daoDb.blockNumber,
+      })
+
+      if (!txns?.length) {
+        logger.verbose('No transactions found', llo({ daoId: daoDb.id, daoAddress }))
+        return
+      }
+
+      await Promise.all(
+        txns.map(async (tx: any) => {
+          await DaoTransactions.saveTransaction(tx, tx.type, daoDb.address, daoDb.network)
+        }),
+      )
 
       const duration = Date.now() - startTime
       logger.verbose('End DaoTransactions', llo({ daoId: daoDb.id, daoAddress, duration: `${duration}ms` }))
@@ -46,79 +50,7 @@ export const DaoTransactions = {
     }
   },
 
-  getCategories: (network: NetworksEnum) => {
-    const category = [
-      ITransactionCategory.ERC20,
-      ITransactionCategory.ERC721,
-      ITransactionCategory.ERC1155,
-      ITransactionCategory.Internal,
-      ITransactionCategory.External,
-    ]
-
-    switch (network) {
-      case NetworksEnum.ethereumSepolia:
-        return category.filter(cat => cat !== ITransactionCategory.Internal)
-      case NetworksEnum.baseMainnet:
-      case NetworksEnum.zksyncSepolia:
-      case NetworksEnum.arbitrumMainnet:
-      case NetworksEnum.zksyncMainnet:
-        return category.filter(cat => cat !== ITransactionCategory.Internal)
-      default:
-        return category
-    }
-  },
-
-  onDocument: async (dao: Dao) => {
-    const category = DaoTransactions.getCategories(dao.network)
-    // txs to daoAddress
-    const depositTxCrawler = new BlockchainTransferCrawler({
-      network: dao.network,
-      filter: {
-        toAddress: dao.address,
-        fromBlock: dao.blockNumber,
-        category,
-      },
-      onTx: async (txLog: IAlchemyTransferResponse) =>
-        DaoTransactions.saveTransaction(txLog, ITransactionType.deposit, dao),
-      onError: async (error: any) => {
-        logger.error(
-          'Error deposit transfer',
-          llo({ error, type: ITransactionType.withdraw, daoId: dao.id, network: dao.network }),
-        )
-      },
-      logService: `deposit-${dao.address}-${IEnumIndexerService.depositTxs}` as any,
-      stopOnError: true,
-    })
-    await depositTxCrawler.crawl()
-
-    // txs from daoAddress
-    const withdrawTxCrawler = new BlockchainTransferCrawler({
-      network: dao.network,
-      filter: {
-        fromAddress: dao.address,
-        fromBlock: dao.blockNumber,
-        category,
-      },
-      onTx: async (txLog: IAlchemyTransferResponse) =>
-        DaoTransactions.saveTransaction(txLog, ITransactionType.withdraw, dao),
-      onError: async (error: any) => {
-        logger.error(
-          'Error withdraw transfer',
-          llo({ error, type: ITransactionType.withdraw, daoId: dao.id, network: dao.network }),
-        )
-      },
-      logService: `withdraw-${dao.address}-${IEnumIndexerService.withdrawTxs}` as any,
-      stopOnError: true,
-    })
-    await withdrawTxCrawler.crawl()
-  },
-
-  saveTransaction: async (tx: IAlchemyTransferResponse, type: ITransactionType, dao: Dao) => {
-    const transactionReceipt = await Web3Helper.getTransactionReceipt(tx.hash, dao.network)
-    if (!transactionReceipt) {
-      return
-    }
-
+  saveTransaction: async (tx: any, type: ITransactionType, daoAddress: HexAddress, network: NetworksEnum) => {
     try {
       /**
        * If the transaction is a proposal execution
@@ -127,13 +59,12 @@ export const DaoTransactions = {
        * - ProposalExecuted (The proposalIndex is the topic of the log)
        */
 
-      let daoAddress = dao.address
       let pluginAddress: string | undefined
       let proposalIndex: string | undefined
 
       const existingLog = await Models.Transaction.findExistingLog({
         transactionHash: tx.hash,
-        network: dao.network,
+        network,
         category: tx.category,
         uniqueId: tx.uniqueId,
       })
@@ -143,48 +74,41 @@ export const DaoTransactions = {
         return
       }
 
-      const proposalExecutionLog = Web3Utils.findLogsByName(transactionReceipt, 'Executed', DAO.abi)
-      if (proposalExecutionLog?.length > 0) {
-        daoAddress = proposalExecutionLog[0].txLog.address
+      const transactionReceipt = await Web3Helper.getTransactionReceipt(tx.hash, network)
 
-        const proposalIdLog = Web3Utils.findLogsByName(transactionReceipt, 'ProposalExecuted', Multisig.abi)
-        pluginAddress = proposalIdLog[0].txLog.address
+      if (transactionReceipt) {
+        const proposalExecutionLog = Web3Utils.findLogsByName(transactionReceipt, 'Executed', DAO.abi)
+        if (proposalExecutionLog?.length) {
+          daoAddress = proposalExecutionLog[0].txLog.address
 
-        if (proposalIdLog?.length > 0) {
-          proposalIndex = proposalIdLog[0].txLog.topics[1].toString()
+          const proposalIdLog = Web3Utils.findLogsByName(transactionReceipt, 'ProposalExecuted', Multisig.abi)
+          pluginAddress = proposalIdLog[0].txLog.address
+
+          if (proposalIdLog?.length) {
+            proposalIndex = proposalIdLog[0].txLog.topics[1].toString()
+          }
         }
       }
 
-      if (tx.rawContract?.address) {
-        const isTokenSyncable = await TokenUtils.isTokenSyncable(tx.rawContract?.address, dao.network)
-        if (!isTokenSyncable) {
-          logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: tx.rawContract?.address }))
-          return
-        }
-      }
-
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(Number(tx.blockNum), dao.network)
       const tokenAddress = tx.rawContract?.address || utils.zeroAddress
-      const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)
-
-      // check if alchemy return strange balance
-      AlchemyHelper.alchemyCrazyBalanceOnError(daoAddress, token?.address!, dao.network, tx.value, token?.decimals!)
+      const token = await ProxyToken.saveAndGetToken(tokenAddress, network)
+      if (!token) return
 
       const rawTx: Partial<Transaction> = {
         transactionHash: tx.hash,
         uniqueId: tx.uniqueId,
         blockNumber: Number(tx.blockNum),
-        blockTimestamp,
-        network: dao.network,
+        blockTimestamp: tx.blockTimestamp,
+        network,
         type,
         daoAddress,
         pluginAddress,
         fromAddress: tx.from,
         toAddress: tx.to,
-        value: AlchemyHelper.handleAlchemyCrazyBalance(tx.value || 0, token?.decimals, tx),
+        value: tx.value?.toString() || '0',
         tokenId: tx.tokenId ? BigInt(tx.tokenId).toString() : undefined,
         erc721TokenId: tx.erc721TokenId ? BigInt(tx.erc721TokenId).toString() : undefined,
-        erc1155Metadata: tx.erc1155Metadata?.map(w => ({
+        erc1155Metadata: tx.erc1155Metadata?.map((w: any) => ({
           tokenId: BigInt(w.tokenId)?.toString(),
           value: w.value?.toString(),
         })),
@@ -192,27 +116,20 @@ export const DaoTransactions = {
         proposalIndex,
       }
 
-      if (token?.address) {
-        rawTx.tokenAddress = token.address
-        // historical price
-        const daysDifference = utils.calculateDaysDifference(rawTx.blockTimestamp! * 1000)
-        const tokenRate = await RateModule.fetchRate(token.address, dao.network, daysDifference)
-        const priceUsd = Number(tokenRate?.priceUsd || 0)
-        rawTx.amountUsd = DaoTransactions.calculateAmountUsd(Number(rawTx.value || 0), priceUsd)
+      rawTx.tokenAddress = token.address
 
-        rawTx.token = {
-          network: token.network,
-          address: token.address,
-          symbol: token.symbol!,
-          name: token.name!,
-          type: token.type,
-          logo: token.logo!,
-          decimals: token.decimals,
-          snapshot: {
-            priceUsd: priceUsd.toString(),
-            priceUpdatedAt: blockTimestamp,
-          },
-        }
+      rawTx.token = {
+        network,
+        address: token.address,
+        symbol: token.symbol,
+        name: token?.name,
+        type: token.type,
+        logo: token.logo,
+        decimals: token.decimals,
+        snapshot: {
+          priceUsd: tx.rawContract?.priceUsd?.toString() || '0',
+          priceUpdatedAt: tx.rawContract?.priceUpdatedAt,
+        },
       }
 
       return await DbTx.executeTxFn(async ({ session }) => {
@@ -223,12 +140,7 @@ export const DaoTransactions = {
         return logDb
       })
     } catch (error) {
-      logger.error('Error saveTransaction', llo({ error, logId: dao.id, txHash: tx.hash }))
+      logger.error('Error saveTransaction', llo({ error, logId: `${daoAddress}-${network}`, txHash: tx.hash }))
     }
-  },
-
-  calculateAmountUsd: (rawValue: number, ratePriceUsd: number): string => {
-    const amountUsd = Number(rawValue) * Number(ratePriceUsd)
-    return isNaN(amountUsd) ? '0' : amountUsd.toLocaleString('en', { maximumFractionDigits: 2, useGrouping: false })
   },
 }
