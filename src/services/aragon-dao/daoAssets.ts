@@ -78,12 +78,12 @@ export const DaoAssets = {
 
   _handleErc20Token: async (document: Dao, tokenBalance: IWeb3TokenBalance) => {
     try {
-      const isSyncableToken = await TokenUtils.isTokenSyncable(tokenBalance.contractAddress!, document.network)
+      const isSyncableToken = await TokenUtils.isTokenSyncable(tokenBalance.contractAddress, document.network)
       if (!isSyncableToken) {
         logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: tokenBalance.contractAddress }))
         return
       }
-      const tokenDb = await ProxyToken.saveAndGetToken(tokenBalance?.contractAddress!, document.network)
+      const tokenDb = await ProxyToken.saveAndGetToken(tokenBalance.contractAddress, document.network)
 
       if (!tokenDb) {
         logger.error('tokenBalances token not found', llo({ logId: document?.id }))

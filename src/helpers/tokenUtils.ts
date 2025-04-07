@@ -1,4 +1,4 @@
-import { type HexAddress, type ITokenDetails, ITokenType, type NetworksEnum } from '@types'
+import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
 import BlockScoutHelper from '@helpers/blockScout'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
@@ -18,7 +18,7 @@ const TokenUtils = {
     return null
   },
 
-  shouldSkipFetch: (token: Partial<Token>, tokenRate: ITokenDetails): boolean =>
+  shouldSkipFetch: (token: Partial<Token>, tokenRate: { priceUsd: string }): boolean =>
     (!token.symbol ||
       token.isGovernance ||
       token.type === ITokenType.unknown ||

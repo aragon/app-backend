@@ -1,5 +1,13 @@
 import logger from '@logger'
-import { type IWeb3Provider } from '@types'
+import {
+  type IAlchemyTransferResponse,
+  IEnumIndexerService,
+  ITransactionCategory,
+  ITransactionType,
+  type IWeb3Provider,
+  type IWeb3TokenBalance,
+  NetworksEnum,
+} from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
 import Alchemy from '@helpers/alchemy'
@@ -7,13 +15,16 @@ import Web3Utils from '@helpers/web3Utils'
 import BlockScoutHelper from '@helpers/blockScout'
 import Web3Helper from '@helpers/web3'
 import EtherscanHelper from '@helpers/etherscan'
+import CovalentHelper from '@helpers/covalent'
+import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
+import { RateModule } from '@modules/rates'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
-const Web3Provider: IWeb3Provider = {
+const Web3Provider: IWeb3Provider & { _getCategories: any } = {
   getNativeBalance: async ({ address, network }) => {
     const balance = await Web3Helper.getNativeBalance(address, network)
-    if (!balance) {
+    if (!Number(balance)) {
       return '0'
     }
 
@@ -25,26 +36,20 @@ const Web3Provider: IWeb3Provider = {
     }
 
     const parsedBalance = Alchemy.handleAlchemyCrazyBalance(balance, token?.decimals)
-    Alchemy.alchemyCrazyBalanceOnError(address, token?.address, network, parsedBalance, token?.decimals)
+    Alchemy.alchemyCrazyBalanceOnError(address, token?.address, network, balance, token?.decimals)
     return parsedBalance
   },
 
   getTokenBalances: async ({ address, network }) => {
     const tokensBalance = await Web3Helper.getTokenBalances(address, network)
 
-    return await Promise.all(
-      tokensBalance
-        .filter((token: any) => token.tokenBalance !== utils.emptyData)
-        .map(async (tokenBalance: any) => {
-          const token = await ProxyToken.saveAndGetToken(tokenBalance.contractAddress, network)
+    return (
+      await Promise.all(
+        tokensBalance.map(async (tokenBalance: IWeb3TokenBalance) => {
+          if (tokenBalance.tokenBalance === utils.emptyData) return null
 
-          Alchemy.alchemyCrazyBalanceOnError(
-            tokenBalance.contractAddress,
-            token?.address!,
-            network,
-            tokenBalance.tokenBalance,
-            token?.decimals!,
-          )
+          const token = await ProxyToken.saveAndGetToken(tokenBalance.contractAddress, network)
+          if (!token) return null
 
           return {
             contractAddress: Web3Utils.parseAddress(tokenBalance.contractAddress) || tokenBalance.contractAddress,
@@ -52,7 +57,8 @@ const Web3Provider: IWeb3Provider = {
             originalBalance: tokenBalance.tokenBalance,
           }
         }),
-    )
+      )
+    ).filter(Boolean) as IWeb3TokenBalance[]
   },
 
   fetchContractCreation: async ({ address, network }) => {
@@ -89,7 +95,116 @@ const Web3Provider: IWeb3Provider = {
 
   fetchBasicTokenInfo: async ({ address, network }) => {
     const tokenDetails = await BlockScoutHelper.getTokenFullDetails(address, network)
+    if (!tokenDetails) {
+      return await CovalentHelper.getToken(address, network)
+    }
     return tokenDetails
+  },
+
+  fetchTokenHolderAndSupply: async ({ address, network }) => {
+    const covalentHolders = await CovalentHelper.getTokenSupplyAndHolders(address, network)
+    if (covalentHolders) {
+      return covalentHolders
+    }
+
+    const blockScoutHolders = await BlockScoutHelper.getTokenFullDetails(address, network)
+    if (blockScoutHolders) {
+      return {
+        totalHolders: blockScoutHolders.totalHolders,
+        totalSupply: blockScoutHolders.totalSupply,
+      }
+    }
+
+    return {
+      totalHolders: 0,
+      totalSupply: '0',
+    }
+  },
+
+  _getCategories: (network: NetworksEnum) => {
+    const category = [
+      ITransactionCategory.ERC20,
+      ITransactionCategory.ERC721,
+      ITransactionCategory.ERC1155,
+      ITransactionCategory.Internal,
+      ITransactionCategory.External,
+    ]
+
+    switch (network) {
+      case NetworksEnum.ethereumSepolia:
+        return category.filter(cat => cat !== ITransactionCategory.Internal)
+      case NetworksEnum.baseMainnet:
+      case NetworksEnum.zksyncSepolia:
+      case NetworksEnum.arbitrumMainnet:
+      case NetworksEnum.zksyncMainnet:
+        return category.filter(cat => cat !== ITransactionCategory.Internal)
+      default:
+        return category
+    }
+  },
+
+  fetchAddressTxns: async ({ address, network, blockNumber }) => {
+    const category = Web3Provider._getCategories(network)
+    const txLogs: any[] = []
+    const depositTxCrawler = new BlockchainTransferCrawler({
+      network,
+      filter: {
+        toAddress: address,
+        fromBlock: blockNumber,
+        category,
+      },
+      onTx: async (txLog: IAlchemyTransferResponse) => {
+        const timestamp = await Web3Helper.getBlockTimestamp(txLog.blockNum, network)
+        txLogs.push({
+          ...txLog,
+          type: ITransactionType.deposit,
+          blockTimestamp: timestamp,
+          address,
+          network,
+        })
+      },
+      onError: async (error: any) => {
+        logger.error('Error deposit transfer', llo({ error, type: ITransactionType.deposit, dao: address, network }))
+      },
+      logService: `deposit-${address}-${IEnumIndexerService.depositTxs}` as any,
+      stopOnError: true,
+    })
+
+    // txs from daoAddress
+    const withdrawTxCrawler = new BlockchainTransferCrawler({
+      network,
+      filter: {
+        toAddress: address,
+        fromBlock: blockNumber,
+        category,
+      },
+      onTx: async (txLog: IAlchemyTransferResponse) => {
+        const timestamp = await Web3Helper.getBlockTimestamp(txLog.blockNum, network)
+        txLogs.push({
+          ...txLog,
+          type: ITransactionType.withdraw,
+          blockTimestamp: timestamp,
+          address,
+          network,
+        })
+      },
+      onError: async (error: any) => {
+        logger.error('Error withdraw transfer', llo({ error, type: ITransactionType.withdraw, address, network }))
+      },
+      logService: `withdraw-${address}-${IEnumIndexerService.withdrawTxs}` as any,
+      stopOnError: true,
+    })
+
+    await Promise.all([depositTxCrawler.crawl(), withdrawTxCrawler.crawl()])
+
+    return txLogs.sort((a, b) => {
+      if (a.blockNum !== b.blockNum) return a.blockNum - b.blockNum
+      return a.blockNum - b.blockNum
+    })
+  },
+
+  fetchTokenPrice: async ({ network, address, pastDays }: any): Promise<any> => {
+    return await RateModule.fetchRate(address, network, pastDays)
   },
 }
 

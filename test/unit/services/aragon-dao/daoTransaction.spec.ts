@@ -2,21 +2,16 @@ import * as sinon from 'sinon'
 import { expect } from 'chai'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import { Models } from '@dbModels'
-import DBCrawler from '@models/utils/crawler'
-import Logger from '@logger'
 import logger from '@logger'
-import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
-import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
-import type Dao from '@models/schema/dao'
-import { fakeAlchemyTransfer } from '@test/mock/fakeAlchemyTransfer'
+import DbTx from '@modules/dbTx'
 import Web3Helper from '@helpers/web3'
-import { RateModule } from '@modules/rates'
-import { UnitTestUtils } from '@test/lib/utils'
-import ProviderModule from '@modules/provider'
-import utils from '@helpers/utils'
-import { ProxyToken } from '@modules/proxyToken'
-import TokenUtils from '@helpers/tokenUtils'
 import Web3Utils from '@helpers/web3Utils'
+import { DAO } from '@artifacts/dao'
+import { Multisig } from '@artifacts/Multisig'
+import ProxyWeb3Provider from '@modules/proxyProvider'
+import { ProxyToken } from '@modules/proxyToken'
+import utils from '@helpers/utils'
+import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 
 describe('AragonDao: DaoTransactions', () => {
   let sandbox: sinon.SinonSandbox
@@ -29,568 +24,607 @@ describe('AragonDao: DaoTransactions', () => {
     sandbox?.restore()
   })
 
-  describe('start', async () => {
-    it('should start the AggregatorTransactions', async () => {
-      const stubLogger = sandbox.stub(Logger, 'verbose')
-      const stubFindByAddress = sandbox.stub(Models.Dao, 'findByAddress').resolves({
-        id: 'test-dao',
+  describe('start', () => {
+    it('should process transactions successfully', async () => {
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+      const mockDao = {
+        id: 'test-dao-id',
         address: '0x123',
         network: NetworksEnum.ethereumMainnet,
-      } as any)
-      const stubOnDocument = sandbox.stub(DaoTransactions, 'onDocument').resolves()
-      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl')
+        blockNumber: 1000,
+      }
 
-      await DaoTransactions.start({ daoAddress: '0x123', network: NetworksEnum.ethereumMainnet })
+      const mockTxns = [
+        { hash: 'tx1', type: 'deposit' },
+        { hash: 'tx2', type: 'withdraw' },
+      ]
 
-      expect(stubFindByAddress.calledOnce).to.be.true
-      expect(stubOnDocument.calledOnce).to.be.true
-      expect(stubLogger.calledWith('End DaoTransactions' as any)).to.be.true
-      expect(crawlerStub.notCalled).to.be.true
+      const findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
+      const fetchAddressTxnsStub = sandbox.stub(ProxyWeb3Provider, 'fetchAddressTxns').resolves(mockTxns)
+      const saveTransactionStub = sandbox.stub(DaoTransactions, 'saveTransaction').resolves()
+
+      // Execute
+      await DaoTransactions.start({
+        daoAddress: '0x123',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      // Verify
+      expect(findByAddressStub.calledOnce).to.be.true
+      expect(fetchAddressTxnsStub.calledOnce).to.be.true
+      expect(
+        fetchAddressTxnsStub.calledWith({
+          address: mockDao.address,
+          network: mockDao.network,
+          blockNumber: mockDao.blockNumber,
+        }),
+      ).to.be.true
+
+      expect(saveTransactionStub.calledTwice).to.be.true
+      expect(verboseLoggerStub.calledWith('Start DaoTransactions' as any)).to.be.true
+      expect(verboseLoggerStub.calledWith('End DaoTransactions' as any)).to.be.true
     })
 
     it('should exit gracefully if DAO is not found', async () => {
-      const stubFindByAddress = sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
-      const stubLogger = sandbox.stub(Logger, 'verbose')
+      // Setup stubs
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+      const findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+      const fetchAddressTxnsStub = sandbox.stub(ProxyWeb3Provider, 'fetchAddressTxns')
 
-      await DaoTransactions.start({ daoAddress: '0x123', network: NetworksEnum.ethereumMainnet })
-
-      expect(stubFindByAddress.calledOnce).to.be.true
-      expect(stubLogger.calledWithMatch('Start DaoTransactions' as any)).to.be.true
-      expect(stubLogger.calledWithMatch('End DaoTransactions' as any)).to.be.false // Should not log end
-    })
-
-    it('should throw error', async () => {
-      const stubLogger = sandbox.stub(Logger, 'error')
-      sandbox.stub(Models.Dao, 'findByAddress').rejects(new Error('fake-error'))
-
-      await DaoTransactions.start({ daoAddress: '0x123', network: NetworksEnum.ethereumMainnet } as any)
-
-      expect(stubLogger.calledWith('Error start DaoTransactions' as any)).to.be.true
-    })
-  })
-
-  describe('getCategories', () => {
-    it('should return correct number of categories for ethereumMainnet', () => {
-      const result = DaoTransactions.getCategories(NetworksEnum.ethereumMainnet)
-      expect(result).to.be.an('array').with.lengthOf(5)
-      expect(result).to.include.members([
-        ITransactionCategory.ERC20,
-        ITransactionCategory.ERC721,
-        ITransactionCategory.ERC1155,
-        ITransactionCategory.Internal,
-        ITransactionCategory.External,
-      ])
-    })
-
-    it('should return correct number of categories for arbitrumMainnet', () => {
-      const result = DaoTransactions.getCategories(NetworksEnum.arbitrumMainnet)
-      expect(result).to.be.an('array').with.lengthOf(4)
-      expect(result).to.include.members([
-        ITransactionCategory.ERC20,
-        ITransactionCategory.ERC721,
-        ITransactionCategory.ERC1155,
-        ITransactionCategory.External,
-      ])
-      expect(result).to.not.include(ITransactionCategory.Internal)
-    })
-
-    it('should return correct number of categories for baseMainnet', () => {
-      const result = DaoTransactions.getCategories(NetworksEnum.baseMainnet)
-      expect(result).to.be.an('array').with.lengthOf(4)
-      expect(result).to.include.members([
-        ITransactionCategory.ERC20,
-        ITransactionCategory.ERC721,
-        ITransactionCategory.ERC1155,
-        ITransactionCategory.External,
-      ])
-      expect(result).to.not.include(ITransactionCategory.Internal)
-    })
-
-    it('should return correct number of categories for zksyncSepolia', () => {
-      const result = DaoTransactions.getCategories(NetworksEnum.zksyncSepolia)
-      expect(result).to.be.an('array').with.lengthOf(4)
-      expect(result).to.include.members([
-        ITransactionCategory.ERC20,
-        ITransactionCategory.ERC721,
-        ITransactionCategory.ERC1155,
-        ITransactionCategory.External,
-      ])
-      expect(result).to.not.include(ITransactionCategory.Internal)
-    })
-
-    it('should return default categories for an unsupported network', () => {
-      const result = DaoTransactions.getCategories('unsupportedNetwork' as NetworksEnum)
-      expect(result).to.include.members([
-        ITransactionCategory.ERC20,
-        ITransactionCategory.ERC721,
-        ITransactionCategory.ERC1155,
-        ITransactionCategory.Internal,
-        ITransactionCategory.External,
-      ])
-    })
-  })
-
-  describe('onDocument', async () => {
-    it('should call onDocument and create deposit and withdraw transactions', async () => {
-      const daoRegistry: Partial<Dao> = {
-        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      // Execute
+      await DaoTransactions.start({
+        daoAddress: '0x123',
         network: NetworksEnum.ethereumMainnet,
-      }
-
-      const txLog: any = {
-        hash: '0x123',
-        category: ITransactionCategory.ERC20,
-        uniqueId: 'unique-id',
-        from: '0xfrom',
-        to: '0xto',
-        value: 1000,
-        blockNum: 1,
-      }
-
-      const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
-      fakeProviders.send = sandbox.stub().resolves({ transfers: [txLog] })
-      sandbox.stub(ProviderModule, 'getProvider').callsFake((network: NetworksEnum) => fakeProviders[network])
-
-      const crawlStub = sandbox.stub(BlockchainTransferCrawler.prototype, 'crawl').callsFake(async function (
-        this: any,
-      ) {
-        await this.onTx(txLog)
-      })
-      const saveTransactionStub = sandbox.stub(DaoTransactions, 'saveTransaction').resolves()
-      await DaoTransactions.onDocument(daoRegistry as Dao)
-
-      expect(crawlStub.calledTwice).to.be.true
-      expect(saveTransactionStub.calledTwice).to.be.true
-      expect(saveTransactionStub.calledWith(txLog, ITransactionType.deposit, daoRegistry)).to.be.true
-      expect(saveTransactionStub.calledWith(txLog, ITransactionType.withdraw, daoRegistry)).to.be.true
-    })
-
-    it('should call onDocument and handle errors', async () => {
-      const daoRegistry: Partial<Dao> = {
-        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
-      fakeProviders.send = sandbox.stub().resolves({ transfers: [] }) // No transfers
-      sandbox.stub(ProviderModule, 'getProvider').callsFake((network: NetworksEnum) => fakeProviders[network])
-
-      const crawlStub = sandbox.stub(BlockchainTransferCrawler.prototype, 'crawl').callsFake(async function (
-        this: any,
-      ) {
-        await this.onError(new Error('fake-error'))
       })
 
-      const stubLoggerError = sandbox.stub(Logger, 'error')
-      await DaoTransactions.onDocument(daoRegistry as Dao)
+      // Verify
+      expect(findByAddressStub.calledOnce).to.be.true
+      expect(fetchAddressTxnsStub.notCalled).to.be.true
+      expect(verboseLoggerStub.calledWith('Start DaoTransactions' as any)).to.be.true
+      expect(verboseLoggerStub.calledWith('End DaoTransactions' as any)).to.be.false
+    })
 
-      expect(crawlStub.calledTwice, 'crawl should be called twice for deposit and withdraw').to.be.true
-      expect(stubLoggerError.calledTwice, 'Logger.error should be called twice for deposit and withdraw errors').to.be
-        .true
-      expect(
-        stubLoggerError.firstCall.calledWithMatch('Error deposit transfer' as any),
-        'Logger.error should be called for deposit transfer error',
-      ).to.be.true
-      expect(
-        stubLoggerError.secondCall.calledWithMatch('Error withdraw transfer' as any),
-        'Logger.error should be called for withdraw transfer error',
-      ).to.be.true
+    it('should log a message when no transactions are found', async () => {
+      // Setup stubs
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+      const mockDao = {
+        id: 'test-dao-id',
+        address: '0x123',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1000,
+      }
+
+      const findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
+      const fetchAddressTxnsStub = sandbox.stub(ProxyWeb3Provider, 'fetchAddressTxns').resolves([])
+      const saveTransactionStub = sandbox.stub(DaoTransactions, 'saveTransaction')
+
+      // Execute
+      await DaoTransactions.start({
+        daoAddress: '0x123',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      // Verify
+      expect(findByAddressStub.calledOnce).to.be.true
+      expect(fetchAddressTxnsStub.calledOnce).to.be.true
+      expect(saveTransactionStub.notCalled).to.be.true
+      expect(verboseLoggerStub.calledWith('No transactions found' as any)).to.be.true
+    })
+
+    it('should handle errors gracefully', async () => {
+      // Setup stubs
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+      const findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress').rejects(new Error('Database error'))
+
+      sandbox.stub(logger, 'verbose')
+      // Execute
+      await DaoTransactions.start({
+        daoAddress: '0x123',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      // Verify
+      expect(findByAddressStub.calledOnce).to.be.true
+      expect(errorLoggerStub.calledOnce).to.be.true
+      expect(errorLoggerStub.calledWithMatch('Error start DaoTransactions' as any)).to.be.true
     })
   })
 
   describe('saveTransaction', () => {
-    const tests = [fakeAlchemyTransfer[1], fakeAlchemyTransfer[2], fakeAlchemyTransfer[3], fakeAlchemyTransfer[4]]
-
-    tests.forEach((tx: any, index: number) => {
-      it(`should saveTransaction for ${tx.category}`, async () => {
-        const daoRegistry: Partial<Dao> = {
-          id: 'daoRegistryId',
-          address: tx.to,
-          network: NetworksEnum.ethereumMainnet,
-        }
-
-        const expectedTransaction: any = {
-          transactionHash: tx.hash,
-          blockNumber: parseInt(tx.blockNum, 16),
-          network: daoRegistry.network,
-          type: ITransactionType.deposit,
-          daoAddress: daoRegistry.address,
-          fromAddress: tx.from,
-          toAddress: tx.to,
-          value: tx.value ? tx.value.toString() : undefined,
-          tokenId: tx.tokenId,
-          erc721TokenId: tx.erc721TokenId,
-          erc1155Metadata: tx.erc1155Metadata,
-          tokenAddress: tx.rawContract?.address ? tx.rawContract.address : utils.zeroAddress,
-          category: tx.category,
-        }
-
-        expectedTransaction.token = {
-          type: ITokenType.ERC20,
-          address: tx.rawContract?.address ? tx.rawContract.address : utils.zeroAddress,
-          logo: null,
-          name: 'Sepolia Avalanche',
-          symbol: 'SAVL',
+    it('should save a new transaction successfully', async () => {
+      // Setup
+      const mockTx = {
+        hash: '0xabc123',
+        uniqueId: 'unique123',
+        blockNum: '0x100',
+        blockTimestamp: 1623456789,
+        category: 'erc20',
+        from: '0xsender',
+        to: '0xreceiver',
+        value: '1000000000000000000',
+        rawContract: {
+          address: '0xtoken',
+          symbol: 'TKN',
+          name: 'Token',
+          type: 'ERC20',
+          logo: 'logo-url',
           decimals: 18,
-        }
-
-        const fakeLogs = [
-          {
-            address: daoRegistry.address,
-            data: '0x01',
-            topics: ['0x01', 1, '0x01', '0x01'],
-          },
-        ]
-
-        const loggerStub = sandbox.stub(Logger, 'verbose')
-        const stubToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(expectedTransaction.token as any)
-        const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
-        const fetchRateStub = sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
-        const findTxReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
-          logs: fakeLogs,
-        } as any)
-        const findLogsByName = sandbox.stub(Web3Utils, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
-
-        const getTokenDetailsStub = sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
-
-        await DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any)
-
-        const existingTxDb = await Models.Transaction.findExistingLog({
-          transactionHash: tx.hash,
-          category: tx.category,
-          network: daoRegistry.network,
-          uniqueId: tx.uniqueId,
-        })
-
-        expect(findTxReceiptStub.calledOnce).to.be.true
-        expect(findLogsByName.calledTwice).to.be.true
-
-        expect(existingTxDb.proposalIndex).to.be.eq('1')
-
-        expect(loggerStub.calledOnce).to.be.true
-        expect(loggerStub.calledOnceWith('New Transaction' as any)).to.be.true
-        expect(fetchRateStub.calledOnce).to.be.true
-
-        expect(existingTxDb.transactionHash).to.equal(expectedTransaction.transactionHash)
-        expect(stubToken.calledOnce).to.be.true
-        expect(existingTxDb?.token?.address).to.equal(expectedTransaction?.token?.address)
-        expect(getBlockTimestampStub.calledOnce).to.be.true
-
-        if (index > 1) {
-          expect(getTokenDetailsStub.calledOnce).to.be.true
-        }
-      })
-    })
-
-    describe('handle invalid and scam tokens', () => {
-      const tests = [fakeAlchemyTransfer[3], fakeAlchemyTransfer[4]]
-
-      it('should handle token is valid but a and scam token', async () => {
-        const daoRegistry: Partial<Dao> = {
-          id: 'daoRegistryId',
-          address: tests[0].to,
-          network: NetworksEnum.ethereumMainnet,
-        }
-
-        const fakeLogs = [
-          {
-            address: daoRegistry.address,
-            data: '0x01',
-            topics: ['0x01', 1, '0x01', '0x01'],
-          },
-        ]
-
-        const findTxReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
-          logs: fakeLogs,
-        } as any)
-
-        const findLogsByName = sandbox.stub(Web3Utils, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
-
-        const getTokenDetailsStub = sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
-
-        const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
-
-        const loggerStub = sandbox.stub(Logger, 'warn')
-
-        await DaoTransactions.saveTransaction(tests[0] as any, ITransactionType.deposit, daoRegistry as any)
-
-        expect(findTxReceiptStub.calledOnce).to.be.true
-        expect(findLogsByName.calledOnce).to.be.false
-        expect(getTokenDetailsStub.calledOnce).to.be.true
-        expect(getBlockTimestampStub.calledOnce).to.be.false
-        expect(loggerStub.calledOnce).to.be.true
-      })
-    })
-
-    it('should log an error when saveTransaction fails', async () => {
-      const daoRegistry: Partial<Dao> = {
-        id: 'daoRegistryId',
-        address: '0x01',
-        network: NetworksEnum.ethereumMainnet,
-      }
-      const tx = {
-        transactionHash: '0x0',
-      }
-
-      const stubLogger = sandbox.stub(Logger, 'error')
-      sandbox.stub(Models.Transaction, 'findExistingLog').rejects(new Error('fake-error'))
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        network: daoRegistry.network,
-        address: '0x01',
-        decimals: 18,
-        name: 'test',
-        symbol: 'tst',
-        type: ITokenType.ERC20,
-      } as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
-      sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
-      sandbox.stub(Web3Utils, 'findLogsByName').returns([] as any)
-
-      await DaoTransactions.saveTransaction(tx as any, ITransactionType.deposit, daoRegistry as any)
-
-      expect(stubLogger.calledOnceWith('Error saveTransaction' as any)).to.be.true
-    })
-
-    it('should return if already exist', async () => {
-      const daoRegistry: Partial<Dao> = {
-        id: 'daoRegistryId',
-        address: '0x01',
-        network: NetworksEnum.ethereumMainnet,
-      }
-      const tx = {
-        transactionHash: '0x0',
-      }
-
-      const stubLogger = sandbox.stub(Logger, 'verbose')
-      sandbox.stub(Models.Transaction, 'findExistingLog').resolves({} as any)
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        network: daoRegistry.network,
-        address: '0x01',
-        decimals: 18,
-        name: 'test',
-        symbol: 'tst',
-        type: ITokenType.ERC20,
-      } as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
-      sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
-      sandbox.stub(Web3Utils, 'findLogsByName').returns([] as any)
-
-      await DaoTransactions.saveTransaction(tx as any, ITransactionType.deposit, daoRegistry as any)
-
-      expect(stubLogger.calledOnceWith('Transaction already saved' as any)).to.be.true
-    })
-
-    it(`should saveTransaction in parallel`, async () => {
-      const tx = fakeAlchemyTransfer[1] as any
-      const daoRegistry: Partial<Dao> = {
-        id: 'daoRegistryId',
-        address: tx.to,
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      const expectedTransaction: any = {
-        transactionHash: tx.hash,
-        blockNumber: parseInt(tx.blockNum, 16),
-        network: daoRegistry.network,
-        type: ITransactionType.deposit,
-        daoAddress: daoRegistry.address,
-        fromAddress: tx.from,
-        toAddress: tx.to,
-        value: tx.value ? tx.value.toString() : undefined,
-        tokenId: tx.tokenId,
-        erc721TokenId: tx.erc721TokenId,
-        erc1155Metadata: tx.erc1155Metadata,
-        tokenAddress: tx.rawContract?.address ? tx.rawContract.address : utils.zeroAddress,
-        category: tx.category,
-      }
-
-      expectedTransaction.token = {
-        type: ITokenType.ERC20,
-        address: tx.rawContract?.address ? tx.rawContract.address : utils.zeroAddress,
-        logo: null,
-        name: 'Sepolia Avalanche',
-        symbol: 'SAVL',
-        decimals: 18,
-      }
-
-      const fakeLogs = [
-        {
-          address: daoRegistry.address,
-          data: '0x01',
-          topics: ['0x01', 1, '0x01', '0x01'],
+          priceUsd: 2.5,
+          priceUpdatedAt: 1623456700,
         },
-      ]
+      }
+
+      const mockDao = {
+        address: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const mockToken = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0xtoken',
+        symbol: 'TKN',
+        name: 'Token',
+        type: 'ERC20',
+        logo: 'logo-url',
+        decimals: 18,
+      }
+
+      // Stubs
+      const findExistingLogStub = sandbox.stub(Models.Transaction, 'findExistingLog').resolves(null)
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [
+          {
+            address: '0xdao',
+            topics: ['0xtopic1', '0xtopic2'],
+          },
+        ],
+      } as any)
+
+      const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName')
+      findLogsByNameStub.withArgs(sinon.match.any, 'Executed', DAO.abi).returns([
+        {
+          txLog: { address: '0xdao' },
+        },
+      ] as any)
+      findLogsByNameStub.withArgs(sinon.match.any, 'ProposalExecuted', Multisig.abi).returns([
+        {
+          txLog: { address: '0xplugin', topics: ['0xtopic1', '0xproposalIndex'] },
+        },
+      ] as any)
+
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
+
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
+
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(findLogsByNameStub.calledTwice).to.be.true
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(verboseLoggerStub.calledWithMatch('New Transaction' as any as any)).to.be.true
+
+      const dbTxs = await Models.Transaction.find({})
+      expect(dbTxs.length).to.equal(1)
+      expect(dbTxs[0].transactionHash).to.equal(mockTx.hash)
+      expect(dbTxs[0].uniqueId).to.equal(mockTx.uniqueId)
+      expect(dbTxs[0].blockNumber).to.equal(Number(mockTx.blockNum))
+      expect(dbTxs[0].blockTimestamp).to.equal(mockTx.blockTimestamp)
+      expect(dbTxs[0].network).to.equal(mockDao.network)
+      expect(dbTxs[0].type).to.equal(ITransactionType.deposit)
+      expect(dbTxs[0].daoAddress).to.equal('0xdao')
+      expect(dbTxs[0].pluginAddress).to.equal('0xplugin')
+      expect(dbTxs[0].fromAddress).to.equal(mockTx.from)
+      expect(dbTxs[0].toAddress).to.equal(mockTx.to)
+      expect(dbTxs[0].value).to.equal(mockTx.value)
+    })
+
+    it('should skip if transaction already exists', async () => {
+      const mockTx = {
+        hash: '0xabc123',
+        uniqueId: 'unique123',
+        category: 'erc20',
+        from: '0xsender',
+        to: '0xreceiver',
+      }
+
+      const mockDao = {
+        address: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      // Stubs
+      const findExistingLogStub = sandbox.stub(Models.Transaction, 'findExistingLog').resolves({
+        id: 'existing-tx-id',
+      })
+
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      // Execute
+      await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
+
+      // Verify
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.notCalled).to.be.true
+      expect(saveAndGetTokenStub.notCalled).to.be.true
+      expect(verboseLoggerStub.calledWithMatch('Transaction already saved' as any)).to.be.true
+    })
+
+    it('should handle when token is not found', async () => {
+      // Setup
+      const mockTx = {
+        hash: '0xabc123',
+        uniqueId: 'unique123',
+        category: 'erc20',
+        from: '0xsender',
+        to: '0xreceiver',
+        rawContract: {
+          address: '0xtoken',
+        },
+      }
+
+      const mockDao = {
+        address: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      // Stubs
+      const findExistingLogStub = sandbox.stub(Models.Transaction, 'findExistingLog').resolves(null)
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [],
+      } as any)
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+      const dbTxStub = sandbox.stub(DbTx, 'executeTxFn')
+
+      // Execute
+      await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
+
+      // Verify
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(dbTxStub.notCalled).to.be.true
+    })
+
+    it('should handle transaction without raw contract data', async () => {
+      // Setup
+      const mockTx = {
+        hash: '0xabc123',
+        uniqueId: 'unique123',
+        blockNum: '0x100',
+        blockTimestamp: 1623456789,
+        category: 'erc20',
+        from: '0xsender',
+        to: '0xreceiver',
+        value: '1000000000000000000',
+      }
+
+      const mockDao = {
+        address: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const mockToken = {
+        network: NetworksEnum.ethereumMainnet,
+        address: utils.zeroAddress,
+        symbol: 'ETH',
+        name: 'Ethereum',
+        type: ITokenType.native,
+        logo: null,
+        decimals: 18,
+      }
+
+      // Stubs
+      const findExistingLogStub = sandbox.stub(Models.Transaction, 'findExistingLog').resolves(null)
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [],
+      } as any)
+
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([])
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
+
+      await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
+
+      // Verify
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(saveAndGetTokenStub.calledWith(utils.zeroAddress, mockDao.network)).to.be.true
+    })
+
+    it('should handle error during transaction save', async () => {
+      // Setup
+      const mockTx = {
+        hash: '0xabc123',
+        uniqueId: 'unique123',
+        category: 'erc20',
+        from: '0xsender',
+        to: '0xreceiver',
+      }
+
+      const mockDao = {
+        address: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      // Stubs
+      const findExistingLogStub = sandbox
+        .stub(Models.Transaction, 'findExistingLog')
+        .rejects(new Error('Database error'))
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+
+      // Execute
+      await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
+
+      // Verify
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(errorLoggerStub.calledOnce).to.be.true
+    })
+
+    it('should handle transaction with ERC721 token data', async () => {
+      // Setup
+      const mockTx = {
+        hash: '0xabc123',
+        uniqueId: 'unique123',
+        blockNum: '0x100',
+        blockTimestamp: 1623456789,
+        category: ITransactionCategory.ERC721,
+        from: '0xsender',
+        to: '0xreceiver',
+        tokenId: '123',
+        erc721TokenId: '123',
+        rawContract: {
+          address: '0xnft',
+          symbol: 'NFT',
+          name: 'Non-Fungible Token',
+          type: ITokenType.ERC721,
+          logo: 'nft-logo-url',
+          decimals: 0,
+          priceUsd: 0,
+          priceUpdatedAt: 1623456700,
+        },
+      }
+
+      const mockDao = {
+        address: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
 
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(expectedTransaction.token as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
-      sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: fakeLogs } as any)
-      sandbox.stub(Web3Utils, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
-      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
-      sandbox.stub(ProxyToken, 'analyzeIfScamToken').returns(false)
 
-      const [result1, result2, result3] = (await Promise.all([
-        DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any),
-        DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any),
-        DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any),
-      ])) as any
-
-      expect(result1.transactionHash).to.equal(tx.hash)
-      expect(result2.transactionHash).to.equal(tx.hash)
-      expect(result3.transactionHash).to.equal(tx.hash)
-
-      const items = await Models.Transaction.countDocuments()
-      expect(items).to.equal(1)
-    })
-
-    it('should skip saving transaction if receipt is null', async () => {
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
-      const loggerStub = sandbox.stub(Logger, 'verbose')
-
-      const tx = { hash: '0x123', blockNum: '0x1' } as any
-      const daoRegistry = { address: '0x123', network: NetworksEnum.ethereumMainnet } as Dao
-
-      await DaoTransactions.saveTransaction(tx, ITransactionType.deposit, daoRegistry)
-
-      expect(loggerStub.calledWithMatch('New Transaction' as any)).to.be.false
-    })
-
-    it('should handle invalid log data gracefully', async () => {
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
-      sandbox.stub(Web3Utils, 'findLogsByName').returns(null as any)
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+      const mockToken = {
         network: NetworksEnum.ethereumMainnet,
-        address: '0x01',
-        decimals: 18,
-        name: 'test',
-        symbol: 'tst',
-        type: ITokenType.ERC20,
+        address: '0xnft',
+        symbol: 'NFT',
+        name: 'Non-Fungible Token',
+        type: ITokenType.ERC721,
+        logo: 'nft-logo-url',
+        decimals: 0,
+      }
+
+      // Stubs
+      const findExistingLogStub = sandbox.stub(Models.Transaction, 'findExistingLog').resolves(null)
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [],
       } as any)
-      const loggerStub = sandbox.stub(Logger, 'error')
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([])
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
 
-      const tx = { hash: '0x123', blockNum: '0x1' } as any
-      const daoRegistry = { address: '0x123', network: NetworksEnum.ethereumMainnet } as Dao
+      await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
 
-      await DaoTransactions.saveTransaction(tx, ITransactionType.deposit, daoRegistry)
-
-      expect(loggerStub.calledWithMatch('Error saveTransaction' as any)).to.be.true
+      // Verify
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
+      const dbTxs = await Models.Transaction.find({})
+      expect(dbTxs.length).to.equal(1)
+      expect(dbTxs[0].transactionHash).to.equal(mockTx.hash)
+      expect(dbTxs[0].uniqueId).to.equal(mockTx.uniqueId)
+      expect(dbTxs[0].blockNumber).to.equal(Number(mockTx.blockNum))
+      expect(dbTxs[0].erc721TokenId).to.equal(mockTx.erc721TokenId)
     })
 
-    it('should handle transactions without tokens', async () => {
-      sandbox.stub(Web3Utils, 'findLogsByName').returns(null as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
-      const loggerStub = sandbox.stub(Logger, 'verbose')
+    it('should handle transaction with ERC1155 metadata', async () => {
+      // Setup
+      const mockTx = {
+        hash: '0xabc123',
+        uniqueId: 'unique123',
+        blockNum: '0x100',
+        blockTimestamp: 1623456789,
+        category: ITransactionCategory.ERC1155,
+        from: '0xsender',
+        to: '0xreceiver',
+        erc1155Metadata: [
+          { tokenId: '1', value: '5' },
+          { tokenId: '2', value: '10' },
+        ],
+        rawContract: {
+          address: '0xerc1155',
+          symbol: 'MT',
+          name: 'Multi Token',
+          type: ITokenType.ERC1155,
+          logo: 'mt-logo-url',
+          decimals: 0,
+          priceUsd: 0,
+          priceUpdatedAt: 1623456700,
+        },
+      }
 
-      const tx = {
-        uniqueId: '0xuniq',
-        hash: '0x123',
-        blockNum: '0x1',
-        category: ITransactionCategory.ERC20,
-        from: '0x',
-        to: '0x',
-      } as any
-      const daoRegistry = { address: '0x123', network: NetworksEnum.ethereumMainnet } as Dao
+      const mockDao = {
+        address: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
 
-      await DaoTransactions.saveTransaction(tx, ITransactionType.deposit, daoRegistry)
+      const mockToken = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0xerc1155',
+        symbol: 'MT',
+        name: 'Multi Token',
+        type: ITokenType.ERC1155,
+        logo: 'mt-logo-url',
+        decimals: 0,
+      }
 
-      expect(loggerStub.calledOnceWith('New Transaction' as any)).to.be.true
-    })
-  })
+      sandbox.stub(logger, 'verbose')
 
-  describe('calculateAmountUsd', () => {
-    it('should correctly calculate USD amount for valid inputs', () => {
-      const amount = 100
-      const priceUsd = 2.5
-      const expectedUsd = '250' // 100 * 2.5
+      // Stubs
+      const findExistingLogStub = sandbox.stub(Models.Transaction, 'findExistingLog').resolves(null)
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [],
+      } as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([])
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
 
-      const result = DaoTransactions.calculateAmountUsd(amount, priceUsd)
+      // Execute
+      await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
 
-      expect(result).to.equal(expectedUsd)
-    })
+      // Verify
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
 
-    it('should return 0 when amount is zero', () => {
-      const amount = 0
-      const priceUsd = 5
-      const expectedUsd = '0'
+      const dbTxs = await Models.Transaction.find({})
+      expect(dbTxs.length).to.equal(1)
 
-      const result = DaoTransactions.calculateAmountUsd(amount, priceUsd)
-
-      expect(result).to.equal(expectedUsd)
-    })
-
-    it('should return 0 when priceUsd is zero', () => {
-      const amount = 100
-      const priceUsd = 0
-      const expectedUsd = '0'
-
-      const result = DaoTransactions.calculateAmountUsd(amount, priceUsd)
-
-      expect(result).to.equal(expectedUsd)
-    })
-
-    it('should return NaN when amount is not a valid number', () => {
-      const amount = 'invalid'
-      const priceUsd = 10
-
-      const result = DaoTransactions.calculateAmountUsd(amount as any, priceUsd)
-
-      expect(result).to.eq('0')
-    })
-
-    it('should handle very large numbers without precision loss', () => {
-      const amount = '1000000000000000000' // 1e18
-      const priceUsd = 1000000 // 1e6
-      const expectedUsd = '1000000000000000000000000' // 1e24
-
-      const result = DaoTransactions.calculateAmountUsd(amount as any, priceUsd)
-
-      expect(result).to.equal(expectedUsd)
+      expect(dbTxs[0].transactionHash).to.equal(mockTx.hash)
+      expect(dbTxs[0].uniqueId).to.equal(mockTx.uniqueId)
+      expect(dbTxs[0].erc1155Metadata.map((a: any) => ({ tokenId: a.tokenId, value: a.value }))).to.deep.equal([
+        { tokenId: '1', value: '5' },
+        { tokenId: '2', value: '10' },
+      ])
     })
 
-    it('should correctly calculate USD amount with decimal precision', () => {
-      const amount = 123.456
-      const priceUsd = 7.89
-      const expectedUsd = 123.456 * 7.89 // Approximately 974.06784
+    it('should process BigInt values correctly', async () => {
+      // Setup
+      const mockTx = {
+        hash: '0xabc123',
+        uniqueId: 'unique123',
+        blockNum: '0x100',
+        blockTimestamp: 1623456789,
+        category: ITransactionCategory.ERC721,
+        from: '0xsender',
+        to: '0xreceiver',
+        tokenId: '0x7b', // Hex representation of 123
+        erc721TokenId: '0x7b', // Hex representation of 123
+        rawContract: {
+          address: '0xnft',
+          symbol: 'NFT',
+          name: 'Non-Fungible Token',
+          type: ITokenType.ERC721,
+          decimals: 0,
+        },
+      }
 
-      const result = DaoTransactions.calculateAmountUsd(amount, priceUsd)
+      sandbox.stub(logger, 'verbose')
 
-      expect(Number(result)).to.be.closeTo(expectedUsd, 1)
+      const mockDao = {
+        address: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const mockToken = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0xnft',
+        symbol: 'NFT',
+        name: 'Non-Fungible Token',
+        type: ITokenType.ERC721,
+        decimals: 0,
+      }
+
+      const findExistingLogStub = sandbox.stub(Models.Transaction, 'findExistingLog').resolves(null)
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [],
+      } as any)
+      const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName').returns([])
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
+
+      // Execute
+      await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
+
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(findLogsByNameStub.calledOnce).to.be.true
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
     })
 
-    it('should handle negative amount by returning negative USD value', () => {
-      const amount = -50
-      const priceUsd = 4
-      const expectedUsd = '-200' // -50 * 4
+    it('should extract proposal information from transaction logs', async () => {
+      // Setup
+      const mockTx = {
+        hash: '0xabc123',
+        uniqueId: 'unique123',
+        blockNum: '0x100',
+        blockTimestamp: 1623456789,
+        category: ITransactionCategory.External,
+        from: '0xsender',
+        to: '0xreceiver',
+      }
 
-      const result = DaoTransactions.calculateAmountUsd(amount, priceUsd)
+      const mockDao = {
+        address: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
 
-      expect(result).to.equal(expectedUsd)
-    })
+      const mockToken = {
+        network: NetworksEnum.ethereumMainnet,
+        address: utils.zeroAddress,
+        symbol: 'ETH',
+        name: 'Ethereum',
+        type: ITokenType.native,
+        decimals: 18,
+      }
 
-    it('should handle negative priceUsd by returning negative USD value', () => {
-      const amount = 50
-      const priceUsd = -4
-      const expectedUsd = '-200' // 50 * -4
+      // Stubs
+      const findExistingLogStub = sandbox.stub(Models.Transaction, 'findExistingLog').resolves(null)
 
-      const result = DaoTransactions.calculateAmountUsd(amount, priceUsd)
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [
+          {
+            address: '0xdao',
+            topics: ['0xtopic1', '0xtopic2'],
+          },
+          {
+            address: '0xplugin',
+            topics: ['0xtopic3', '0xproposal456'],
+          },
+        ],
+      } as any)
 
-      expect(result).to.equal(expectedUsd)
-    })
+      const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName')
+      findLogsByNameStub.withArgs(sinon.match.any, 'Executed', DAO.abi).returns([
+        {
+          txLog: { address: '0xexecutedAddress' },
+        },
+      ] as any)
+      findLogsByNameStub.withArgs(sinon.match.any, 'ProposalExecuted', Multisig.abi).returns([
+        {
+          txLog: { address: '0xpluginAddress', topics: ['0xtopic', '0x456'] },
+        },
+      ] as any)
 
-    it('should handle both negative amount and priceUsd by returning positive USD value', () => {
-      const amount = -50
-      const priceUsd = -4
-      const expectedUsd = '200' // -50 * -4
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
+      // Execute
+      await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
 
-      const result = DaoTransactions.calculateAmountUsd(amount, priceUsd)
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(findLogsByNameStub.calledTwice).to.be.true
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
 
-      expect(result).to.equal(expectedUsd)
+      const dbTxs = await Models.Transaction.find({})
+      expect(dbTxs.length).to.equal(1)
+      expect(dbTxs[0].transactionHash).to.equal(mockTx.hash)
+      expect(dbTxs[0].uniqueId).to.equal(mockTx.uniqueId)
+      expect(dbTxs[0].blockNumber).to.equal(Number(mockTx.blockNum))
+      expect(dbTxs[0].blockTimestamp).to.equal(mockTx.blockTimestamp)
+      expect(dbTxs[0].network).to.equal(mockDao.network)
+      expect(dbTxs[0].type).to.equal(ITransactionType.deposit)
+      expect(dbTxs[0].daoAddress).to.equal('0xexecutedAddress')
+      expect(dbTxs[0].pluginAddress).to.equal('0xpluginAddress')
+      expect(dbTxs[0].fromAddress).to.equal(mockTx.from)
+      expect(dbTxs[0].toAddress).to.equal(mockTx.to)
+      expect(dbTxs[0].proposalIndex).to.equal('0x456')
+      expect(dbTxs[0].tokenAddress).to.equal(utils.zeroAddress)
     })
   })
 })
