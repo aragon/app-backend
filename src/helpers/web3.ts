@@ -562,8 +562,8 @@ const Web3Helper = {
       symbol: null,
     }
 
-    token.name = Web3Helper.getTokenName(tokenAddress, network)
-    token.symbol = Web3Helper.getTokenSymbol(tokenAddress, network)
+    token.name = await Web3Helper.getTokenName(tokenAddress, network)
+    token.symbol = await Web3Helper.getTokenSymbol(tokenAddress, network)
 
     return token
   },

@@ -75,7 +75,7 @@ describe('BlockchainTransferCrawler', () => {
       .onCall(3)
       .resolves(21872036)
 
-    await DaoTransactions.onDocument(daoDb)
+    // await DaoTransactions.onDocument(daoDb)
 
     const txs = await Models.Transaction.find({ daoAddress: daoAddress, network })
     expect(txs).to.have.length(15)

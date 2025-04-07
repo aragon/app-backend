@@ -149,6 +149,9 @@ export interface IConfig {
   }
 
   SERVICES: {
+    ARAGON_DAO: {
+      TOKEN_FETCH_INTERVAL: number
+    }
     ARAGON_API: {
       BASE_URL: string
       NAME: string

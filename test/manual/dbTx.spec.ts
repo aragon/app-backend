@@ -105,9 +105,9 @@ describe('Manual: DbTx', () => {
     sandbox.stub(Web3Utils, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
 
     const [result1, result2, result3] = (await Promise.all([
-      DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any),
-      DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any),
-      DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any),
+      DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry.address!, daoRegistry.network!),
+      DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry.address!, daoRegistry.network!),
+      DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry.address!, daoRegistry.network!),
     ])) as any
 
     expect(result1).to.exist

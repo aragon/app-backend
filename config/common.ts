@@ -423,6 +423,14 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     SERVICES: {
+      ARAGON_DAO: {
+        TOKEN_FETCH_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_DAO_TOKEN_FETCH_INTERVAL',
+          1000 * 30, // 30 seconds
+        ),
+      },
       ARAGON_API: {
         NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_NAME', 'ARAGON-API'),
         BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
