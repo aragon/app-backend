@@ -1,4 +1,4 @@
-import { type HexAddress, type IAlchemyTokenBalance, type NetworksEnum } from '@types'
+import { type HexAddress, type IWeb3TokenBalance, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
@@ -7,9 +7,9 @@ import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import TokenUtils from '@helpers/tokenUtils'
-import ProxyWeb3 from '@modules/proxyWeb3'
 import Web3Utils from '@helpers/web3Utils'
 import type Dao from '@models/schema/dao'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
@@ -76,7 +76,7 @@ export const DaoAssets = {
     }
   },
 
-  _handleErc20Token: async (document: Dao, tokenBalance: IAlchemyTokenBalance) => {
+  _handleErc20Token: async (document: Dao, tokenBalance: IWeb3TokenBalance) => {
     try {
       const isSyncableToken = await TokenUtils.isTokenSyncable(tokenBalance.contractAddress!, document.network)
       if (!isSyncableToken) {
@@ -131,8 +131,8 @@ export const DaoAssets = {
   assets: async (document: Dao) => {
     try {
       const [ethBalance, tokenBalances] = await Promise.all([
-        ProxyWeb3.getNativeBalance(document.address, document.network),
-        ProxyWeb3.getTokenBalances(document.address, document.network),
+        ProxyWeb3Provider.getNativeBalance({ address: document.address, network: document.network }),
+        ProxyWeb3Provider.getTokenBalances({ address: document.address, network: document.network }),
       ])
 
       if (Number(ethBalance) > 0) {
@@ -142,7 +142,7 @@ export const DaoAssets = {
       await Promise.all(
         tokenBalances
           .filter(token => Number(token.tokenBalance) > 0)
-          .map(async (tokenBalance: IAlchemyTokenBalance) => {
+          .map(async (tokenBalance: IWeb3TokenBalance) => {
             await DaoAssets._handleErc20Token(document, tokenBalance)
           }),
       )

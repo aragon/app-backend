@@ -22,7 +22,7 @@ export interface IContractAbi {
   // Address of the implementation contract
   implementationAddress: string | null
   // Name of the contract
-  name: string
+  name: string | null
   // Functions of the contract
   functions: IContractAbiFunction[]
 

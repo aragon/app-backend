@@ -19,7 +19,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import { DAO } from '@artifacts/dao'
 import { Multisig } from '@artifacts/Multisig'
 import TokenUtils from '@helpers/tokenUtils'
-import AlchemyWeb3 from '@helpers/alchemyWeb3'
+import AlchemyHelper from '@helpers/alchemy'
 import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
@@ -168,7 +168,7 @@ export const DaoTransactions = {
       const token = await ProxyToken.saveAndGetToken(tokenAddress, dao.network)
 
       // check if alchemy return strange balance
-      AlchemyWeb3.alchemyCrazyBalanceOnError(daoAddress, token?.address!, dao.network, tx.value, token?.decimals!)
+      AlchemyHelper.alchemyCrazyBalanceOnError(daoAddress, token?.address!, dao.network, tx.value, token?.decimals!)
 
       const rawTx: Partial<Transaction> = {
         transactionHash: tx.hash,
@@ -181,7 +181,7 @@ export const DaoTransactions = {
         pluginAddress,
         fromAddress: tx.from,
         toAddress: tx.to,
-        value: AlchemyWeb3.handleAlchemyCrazyBalance(tx.value || 0, token?.decimals, tx),
+        value: AlchemyHelper.handleAlchemyCrazyBalance(tx.value || 0, token?.decimals, tx),
         tokenId: tx.tokenId ? BigInt(tx.tokenId).toString() : undefined,
         erc721TokenId: tx.erc721TokenId ? BigInt(tx.erc721TokenId).toString() : undefined,
         erc1155Metadata: tx.erc1155Metadata?.map(w => ({
@@ -203,10 +203,10 @@ export const DaoTransactions = {
         rawTx.token = {
           network: token.network,
           address: token.address,
-          symbol: token.symbol,
-          name: token.name,
+          symbol: token.symbol!,
+          name: token.name!,
           type: token.type,
-          logo: token.logo,
+          logo: token.logo!,
           decimals: token.decimals,
           snapshot: {
             priceUsd: priceUsd.toString(),

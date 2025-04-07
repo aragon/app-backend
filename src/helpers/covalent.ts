@@ -124,8 +124,6 @@ const CovalentHelper = {
     const validPrices = token.prices?.filter(price => price.price !== null)
 
     const mostRecentPrice = validPrices?.[0]?.price ?? 0
-    const dayBeforePrice = validPrices?.[1]?.price ?? mostRecentPrice
-    const priceChangeOnDayUsd = mostRecentPrice - dayBeforePrice
     const type = CovalentHelper.getTokenType(token)
 
     return {
@@ -137,7 +135,6 @@ const CovalentHelper = {
       symbol: token.contract_ticker_symbol,
       decimals: token.contract_decimals || type === ITokenType.ERC20 ? 18 : 0,
       priceUsd: mostRecentPrice.toString(),
-      priceChangeOnDayUsd,
       lastUpdatedAt: dayjs().utc().toDate(),
     }
   },

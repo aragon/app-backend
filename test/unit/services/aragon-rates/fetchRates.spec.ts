@@ -77,7 +77,6 @@ describe('AragonRates: FetchRates', () => {
             decimals: 18,
             holders: 1,
             totalSupply: '1',
-            priceChangeOnDayUsd: '1',
             priceUsd: '1.1',
             lastUpdatedAt: new Date(Date.now() - 1000 * 60 * 60 * 7),
           })
@@ -104,7 +103,6 @@ describe('AragonRates: FetchRates', () => {
         decimals: 18,
         holders: 1,
         totalSupply: '1',
-        priceChangeOnDayUsd: '1',
         priceUsd: '1.1',
       })
     })
@@ -127,7 +125,6 @@ describe('AragonRates: FetchRates', () => {
         priceUsd: '1.1',
         holders: 1,
         totalSupply: '1',
-        priceChangeOnDayUsd: '1',
       }
 
       sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(fakeTokenUpdates)
@@ -141,7 +138,6 @@ describe('AragonRates: FetchRates', () => {
         priceUsd: '1.2',
         holders: 2,
         totalSupply: '2',
-        priceChangeOnDayUsd: '2',
       }
 
       sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(fakeTokenUpdates)
@@ -159,7 +155,6 @@ describe('AragonRates: FetchRates', () => {
         priceUsd: '1.2',
         holders: 2,
         totalSupply: '2',
-        priceChangeOnDayUsd: '2',
       }
 
       sandbox.stub(TokenUtils, 'fetchTokenUpdate').resolves(fakeTokenUpdates)
@@ -186,7 +181,6 @@ describe('AragonRates: FetchRates', () => {
         decimals: 18,
         holders: 1,
         totalSupply: '1',
-        priceChangeOnDayUsd: '1',
         priceUsd: '1.1',
       })
       sandbox.stub(TokenUtils, 'fetchTokenUpdate').rejects(new Error('error'))
@@ -209,7 +203,6 @@ describe('AragonRates: FetchRates', () => {
         decimals: 18,
         holders: 1,
         totalSupply: '1',
-        priceChangeOnDayUsd: '1',
         priceUsd: '1.1',
       })
       const stubTokenFullDetails = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(null)
@@ -230,7 +223,6 @@ describe('AragonRates: FetchRates', () => {
         decimals: 18,
         holders: 1,
         totalSupply: '1',
-        priceChangeOnDayUsd: '1',
         priceUsd: '1.1',
       })
       const blockScoutInfo = {
@@ -255,7 +247,6 @@ describe('AragonRates: FetchRates', () => {
         decimals: 18,
         holders: 1,
         totalSupply: '1',
-        priceChangeOnDayUsd: '1',
         priceUsd: '1.1',
       })
       const blockScoutInfo = {
@@ -281,7 +272,6 @@ describe('AragonRates: FetchRates', () => {
         decimals: 18,
         holders: 1,
         totalSupply: '1',
-        priceChangeOnDayUsd: '1',
         priceUsd: '1.1',
       })
       const blockScoutInfo = {
@@ -310,7 +300,6 @@ describe('AragonRates: FetchRates', () => {
         decimals: 18,
         holders: 1,
         totalSupply: '1',
-        priceChangeOnDayUsd: '1',
         priceUsd: '1.1',
       })
       sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').rejects(new Error('error'))

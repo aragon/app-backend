@@ -29,7 +29,6 @@ describe('fetchTokenUpdate', () => {
     type: ITokenType.ERC20,
     decimals: 18,
     priceUsd: '100',
-    priceChangeOnDayUsd: '5',
   }
 
   beforeEach(() => {
@@ -64,7 +63,6 @@ describe('fetchTokenUpdate', () => {
     const result = await TokenUtils.fetchTokenUpdate(baseToken)
     expect(result).to.deep.equal({
       priceUsd: '100',
-      priceChangeOnDayUsd: '5',
       holders: 0,
       totalSupply: '0',
     })
@@ -82,7 +80,6 @@ describe('fetchTokenUpdate', () => {
     const result = await TokenUtils.fetchTokenUpdate(baseToken)
     expect(result).to.deep.equal({
       priceUsd: '150',
-      priceChangeOnDayUsd: '0',
       holders: 20,
       totalSupply: '2000',
     })
@@ -93,7 +90,6 @@ describe('fetchTokenUpdate', () => {
     rateFetchStub.resolves({
       decimals: 18,
       priceUsd: '200',
-      priceChangeOnDayUsd: '10',
     })
     blockScoutStub.resolves(null)
     covalentStub.resolves({ totalHolders: 25, totalSupply: '3000' })
@@ -101,7 +97,6 @@ describe('fetchTokenUpdate', () => {
     const result = await TokenUtils.fetchTokenUpdate(governanceToken)
     expect(result).to.deep.equal({
       priceUsd: '200',
-      priceChangeOnDayUsd: '10',
       holders: 25,
       totalSupply: '3000',
     })
@@ -112,7 +107,6 @@ describe('fetchTokenUpdate', () => {
     rateFetchStub.resolves({
       decimals: 18,
       priceUsd: '300',
-      priceChangeOnDayUsd: '20',
     })
     blockScoutStub.resolves(null)
     covalentStub.resolves({ totalHolders: 30, totalSupply: '4000' })
@@ -122,7 +116,6 @@ describe('fetchTokenUpdate', () => {
 
     expect(result).to.deep.equal({
       priceUsd: '300',
-      priceChangeOnDayUsd: '20',
       holders: 30,
       totalSupply: '4000',
     })
@@ -132,7 +125,6 @@ describe('fetchTokenUpdate', () => {
     rateFetchStub.resolves({
       decimals: 18,
       priceUsd: '0',
-      priceChangeOnDayUsd: '0',
     })
     blockScoutStub.resolves({
       priceUsd: '0',
