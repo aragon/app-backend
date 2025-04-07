@@ -226,7 +226,7 @@ describe('Helpers: BlockScout', () => {
       const expectedResult = { transfers_count: 1, token_holders_count: 1 }
       const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(expectedResult)
       const result = await BlockScoutHelper.getTokenCounters('0x1234567890', NetworksEnum.ethereumMainnet)
-      expect(result).to.deep.eq({ transfers: 1, totalHolders: 1 })
+      expect(result).to.deep.eq({ transfers: 1, holders: 1 })
       expect(rpCallStub.calledOnce).to.be.true
       expect(
         rpCallStub.calledWith(
