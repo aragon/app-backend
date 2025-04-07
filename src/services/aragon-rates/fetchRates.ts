@@ -192,7 +192,7 @@ export const FetchRates = {
 
   async onMainnetDocument(token: Token) {
     try {
-      const tokenUpdate = await ProxyWeb3Provider.fetchBasicTokenInfo({
+      const tokenUpdate = await ProxyWeb3Provider.fetchTokenPrice({
         address: token.address,
         network: token.network,
       })
