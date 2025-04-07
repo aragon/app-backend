@@ -153,7 +153,10 @@ export const ProxyToken = {
       }
 
       if (rawToken.type !== ITokenType.unknown && !rawToken.holders && rawToken.holders === 0) {
-        const metrics = await CovalentHelper.getTokenSupplyAndHolders(tokenAddress, network)
+        const metrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
+          address: tokenAddress,
+          network,
+        })
         rawToken.holders = metrics?.totalHolders
         rawToken.totalSupply = metrics?.totalSupply
         if (rawToken.totalSupply === '0' && rawToken.isGovernance) {

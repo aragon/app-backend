@@ -2,11 +2,9 @@ import logger from '@logger'
 import {
   type IAlchemyTransferResponse,
   IEnumIndexerService,
-  ITransactionCategory,
   ITransactionType,
   type IWeb3Provider,
   type IWeb3TokenBalance,
-  NetworksEnum,
 } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
@@ -18,10 +16,11 @@ import EtherscanHelper from '@helpers/etherscan'
 import CovalentHelper from '@helpers/covalent'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { RateModule } from '@modules/rates'
+import TokenUtils from '@helpers/tokenUtils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
-const Web3Provider: IWeb3Provider & { _getCategories: any } = {
+const Web3Provider: IWeb3Provider = {
   getNativeBalance: async ({ address, network }) => {
     const balance = await Web3Helper.getNativeBalance(address, network)
     if (!Number(balance)) {
@@ -121,30 +120,8 @@ const Web3Provider: IWeb3Provider & { _getCategories: any } = {
     }
   },
 
-  _getCategories: (network: NetworksEnum) => {
-    const category = [
-      ITransactionCategory.ERC20,
-      ITransactionCategory.ERC721,
-      ITransactionCategory.ERC1155,
-      ITransactionCategory.Internal,
-      ITransactionCategory.External,
-    ]
-
-    switch (network) {
-      case NetworksEnum.ethereumSepolia:
-        return category.filter(cat => cat !== ITransactionCategory.Internal)
-      case NetworksEnum.baseMainnet:
-      case NetworksEnum.zksyncSepolia:
-      case NetworksEnum.arbitrumMainnet:
-      case NetworksEnum.zksyncMainnet:
-        return category.filter(cat => cat !== ITransactionCategory.Internal)
-      default:
-        return category
-    }
-  },
-
   fetchAddressTxns: async ({ address, network, blockNumber }) => {
-    const category = Web3Provider._getCategories(network)
+    const category = TokenUtils.getCategories(network)
     const txLogs: any[] = []
     const depositTxCrawler = new BlockchainTransferCrawler({
       network,
