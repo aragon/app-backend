@@ -1,7 +1,6 @@
 import { expect } from 'chai'
 import sinon, { SinonSandbox } from 'sinon'
 import TokenUtils from '@helpers/tokenUtils'
-import { RateModule } from '@modules/rates'
 import BlockScoutHelper from '@helpers/blockScout'
 import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
@@ -138,7 +137,7 @@ describe('TokenUtils', () => {
       blockScoutStub.resolves({
         type: ITokenType.ERC20,
         name: 'TokenName',
-        symbol: 'TKN'
+        symbol: 'TKN',
       })
       analyzeIfScamTokenStub.returns(false)
 
@@ -154,7 +153,7 @@ describe('TokenUtils', () => {
       blockScoutStub.resolves({
         type: ITokenType.ERC20,
         name: 'Claim Free Tokens at scam.com',
-        symbol: 'SCAM'
+        symbol: 'SCAM',
       })
       analyzeIfScamTokenStub.returns(true)
 
@@ -169,7 +168,7 @@ describe('TokenUtils', () => {
       blockScoutStub.resolves({
         type: ITokenType.unknown,
         name: 'TokenName',
-        symbol: 'TKN'
+        symbol: 'TKN',
       })
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
@@ -182,7 +181,7 @@ describe('TokenUtils', () => {
       blockScoutStub.resolves(null)
       web3HelperStub.resolves({
         name: 'TokenName',
-        symbol: 'TKN'
+        symbol: 'TKN',
       })
       analyzeIfScamTokenStub.returns(false)
 
@@ -197,7 +196,7 @@ describe('TokenUtils', () => {
       blockScoutStub.resolves(null)
       web3HelperStub.resolves({
         name: 'Claim Rewards',
-        symbol: 'scam.io'
+        symbol: 'scam.io',
       })
       analyzeIfScamTokenStub.returns(true)
 
@@ -211,7 +210,7 @@ describe('TokenUtils', () => {
       blockScoutStub.resolves(null)
       web3HelperStub.resolves({
         name: undefined,
-        symbol: undefined
+        symbol: undefined,
       })
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
@@ -232,7 +231,7 @@ describe('TokenUtils', () => {
       blockScoutStub.resolves({
         type: ITokenType.ERC20,
         name: null,
-        symbol: null
+        symbol: null,
       })
       analyzeIfScamTokenStub.returns(false)
 
