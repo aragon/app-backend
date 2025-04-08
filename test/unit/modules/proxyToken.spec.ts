@@ -157,10 +157,8 @@ describe('Modules: ProxyToken', () => {
       const tokenDetails = { priceUsd: '1234.56' }
       const tokenMetrics = { totalHolders: 1000, totalSupply: '1000000000000000000000' }
 
-      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves({
-        tokenDetails,
-        tokenMetrics,
-      })
+      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(tokenDetails)
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(tokenMetrics)
 
       const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
