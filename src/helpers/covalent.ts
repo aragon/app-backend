@@ -133,7 +133,7 @@ const CovalentHelper = {
       logo: token.logo_url,
       name: token.contract_name,
       symbol: token.contract_ticker_symbol,
-      decimals: token.contract_decimals || type === ITokenType.ERC20 ? 18 : 0,
+      decimals: token.contract_decimals || (type === ITokenType.ERC20 ? 18 : 0),
       priceUsd: mostRecentPrice.toString(),
       lastUpdatedAt: dayjs().utc().toDate(),
     }
