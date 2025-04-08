@@ -65,6 +65,7 @@ const TokenFetcher = {
         {
           totalSupply: tokenData.totalSupply,
           holders: tokenData.totalHolders,
+          refetch: false,
         },
         {
           logId: document.id,

@@ -6,7 +6,7 @@ import logger from '@logger'
 import { NetworksEnum, ITokenType } from '@types'
 import utils from '@helpers/utils'
 
-describe.only('Helpers:Subscan', () => {
+describe('Helpers:Subscan', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -356,13 +356,13 @@ describe.only('Helpers:Subscan', () => {
       const result = await Subscan.getAssetTransfer('0x1234567890', NetworksEnum.peaqMainnet)
       expect(result[0]).to.deep.include({
         blockNum: 180,
-        from: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-        to: "0x0000000000000000000000000000000000000000",
-        uniqueId: "id1",
-        blockTimestamp:"timestamp1",
-        value:"50",
-        hash:"txHash1",
-        category:"external"
+        from: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        to: '0x0000000000000000000000000000000000000000',
+        uniqueId: 'id1',
+        blockTimestamp: 'timestamp1',
+        value: '50',
+        hash: 'txHash1',
+        category: 'external',
       })
       expect(result[1]).to.deep.eq({
         blockNum: 150,
@@ -400,8 +400,9 @@ describe.only('Helpers:Subscan', () => {
       const error = new Error('RPC Call Failed')
       sandbox.stub(Subscan, '_rpCall').rejects(error)
 
-      await expect(Subscan.getAssetTransfer('0x1234567890', NetworksEnum.peaqMainnet))
-        .to.be.rejectedWith('RPC Call Failed')
+      await expect(Subscan.getAssetTransfer('0x1234567890', NetworksEnum.peaqMainnet)).to.be.rejectedWith(
+        'RPC Call Failed',
+      )
       expect(getAccountInfoByKeyStub.calledOnce).to.be.true
     })
   })
@@ -489,10 +490,10 @@ describe.only('Helpers:Subscan', () => {
         rpCallStub.calledWith(
           'price/history',
           {
-            "start": "2025-04-07",
-            "end": "2025-04-08",
-            "format": "day",
-            "row": 1
+            start: '2025-04-07',
+            end: '2025-04-08',
+            format: 'day',
+            row: 1,
           },
           NetworksEnum.peaqMainnet,
         ),

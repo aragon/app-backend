@@ -2,6 +2,7 @@ import SubscanApi from '@helpers/subscanApi'
 import {
   type ISubScanTokenInfo,
   type ITokenMetrics,
+  ITokenType,
   ITransactionCategory,
   ITransactionType,
   type IWeb3Provider,
@@ -104,15 +105,15 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
     return parsedTransfers.filter(Boolean)
   },
 
-  fetchTokenPrice: async ({ token, network, pastDays }: any): Promise<any> => {
-    if (token === utils.zeroAddress) {
+  fetchTokenPrice: async ({ address, network, pastDays }: any): Promise<any> => {
+    if (address === utils.zeroAddress) {
       const price = await SubscanApi.getCurrentPrice(network, pastDays || 30)
       return {
         priceUsd: price || '0',
       }
     }
 
-    const tokenInfo = await SubscanApi.getTokenFullDetails(token, network)
+    const tokenInfo = await SubscanApi.getTokenFullDetails(address, network)
     return {
       priceUsd: tokenInfo.priceUsd || '0',
     }
@@ -131,6 +132,11 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
         name: fallbackDetails.name || '',
         type: 'token',
       }
+    }
+
+    return {
+      name: null,
+      type: ITokenType.unknown,
     }
   },
 }

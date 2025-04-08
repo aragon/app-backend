@@ -1440,14 +1440,13 @@ describe('Helpers: DecodeActions', () => {
 
       const covalentTokenInfo = sandbox.stub(Covalent, 'getTokenSupplyAndHolders')
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
-        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        ens: 'abc.eth',
-      } as any)
+      const loggerStub = sandbox.stub(Logger, 'error')
+
+      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(null)
 
       const tokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock')
       const result = await decodeActions._parseMintAction(baseAction, action, document as any)
-
+      expect(loggerStub.calledOnce).to.be.true
       expect(createMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.false
