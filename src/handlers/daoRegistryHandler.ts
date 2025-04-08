@@ -3,6 +3,7 @@ import { EnumQueueName, type HexAddress, type ILogInfo } from '@types'
 import { type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import ProxyContractHelper from '@helpers/proxyContract'
 import { DAO } from '@artifacts/dao'
 import { MetadataHandler } from '@src/handlers/metadataHandler'
@@ -11,7 +12,7 @@ import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:DaoRegistryHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:DaoRegistryHandler' })
 
 export const DaoRegistryHandler = {
   daoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -25,7 +26,7 @@ export const DaoRegistryHandler = {
     if (existingLog) return
 
     const implementationAddress = await ProxyContractHelper.getImplementationAddress(daoAddress, network)
-    const isValid = await Web3Helper.subdomainExists(parsedEvent.args.subdomain, network)
+    const isValid = await Web3Helper.ensSubdomainExists(parsedEvent.args.subdomain, network)
 
     const document = {
       network,
@@ -37,7 +38,7 @@ export const DaoRegistryHandler = {
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
       address: daoAddress,
       implementationAddress: implementationAddress!,
-      ens: isValid ? Web3Helper.parseSubdomainToEns(parsedEvent.args.subdomain) : null,
+      ens: isValid ? Web3Utils.parseSubdomainToEns(parsedEvent.args.subdomain) : null,
       subdomain: Utils.validateString(parsedEvent.args.subdomain),
       version: await Web3Helper.getDaoOsVersion(daoAddress, network),
       creatorAddress: parsedEvent.args.creator,
@@ -113,14 +114,14 @@ export const DaoRegistryHandler = {
   },
 
   _metadataHandler: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
-    const metadataLogs = Web3Helper.findLogsByName(txReceipt, 'MetadataSet', DAO.abi)
+    const metadataLogs = Web3Utils.findLogsByName(txReceipt, 'MetadataSet', DAO.abi)
 
     if (!metadataLogs || metadataLogs?.length === 0) {
       logger.warn('MetadataSet not found', llo(info))
       return
     }
 
-    const infoMetadata = Web3Helper.parseInfoLog(metadataLogs[0].txLog, 'MetadataSet', info.network)
+    const infoMetadata = Web3Utils.parseInfoLog(metadataLogs[0].txLog, 'MetadataSet', info.network)
     await MetadataHandler.metadataSet(metadataLogs[0].parsed!, infoMetadata)
   },
 }

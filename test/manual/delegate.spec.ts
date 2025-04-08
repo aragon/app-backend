@@ -8,11 +8,12 @@ import Web3Helper from '@helpers/web3'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { Models } from '@dbModels'
 import { expect } from 'chai'
+import Web3Utils from '@helpers/web3Utils'
 
 const getData = async (txHash: string, network: NetworksEnum): Promise<{ event: any; logInfo: any }[]> => {
   const txReceipt = await Web3Helper.getTransactionReceipt(txHash, network)
 
-  const delegationVotesChangedLogs = Web3Helper.findLogsByName(
+  const delegationVotesChangedLogs = Web3Utils.findLogsByName(
     txReceipt!,
     IEventLogMember.DelegateVotesChanged,
     GovernanceERC20.abi,
@@ -20,9 +21,9 @@ const getData = async (txHash: string, network: NetworksEnum): Promise<{ event: 
 
   const data: any = []
   for (const log of delegationVotesChangedLogs) {
-    const logInfo = Web3Helper.parseInfoLog(log.txLog, 'DelegateVotesChanged', network)
+    const logInfo = Web3Utils.parseInfoLog(log.txLog, 'DelegateVotesChanged', network)
     const iFace = new Interface(GovernanceERC20.abi)
-    const event = Web3Helper.parseLog(log.txLog, iFace)!
+    const event = Web3Utils.parseLog(log.txLog, iFace)!
     data.push({ event, logInfo })
   }
 
@@ -352,20 +353,20 @@ describe('Manual: Delegate', () => {
       NetworksEnum.ethereumSepolia,
     )
 
-    const delegationVotesChangedLogs = Web3Helper.findLogsByName(
+    const delegationVotesChangedLogs = Web3Utils.findLogsByName(
       txReceipt!,
       IEventLogMember.DelegateVotesChanged,
       GovernanceERC20.abi,
     )
 
-    const logInfo = Web3Helper.parseInfoLog(
+    const logInfo = Web3Utils.parseInfoLog(
       delegationVotesChangedLogs[0].txLog,
       'DelegateVotesChanged',
       NetworksEnum.ethereumSepolia,
     )
 
     const iFace = new Interface(GovernanceERC20.abi)
-    const event = Web3Helper.parseLog(delegationVotesChangedLogs[0].txLog, iFace)!
+    const event = Web3Utils.parseLog(delegationVotesChangedLogs[0].txLog, iFace)!
 
     await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
   })

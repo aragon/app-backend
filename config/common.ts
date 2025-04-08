@@ -276,6 +276,25 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ),
         BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
+      PEAQ_MAINNET: {
+        ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ALCHEMY_API_KEY', null),
+        ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ARAGON_RPC', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_FROM_BLOCK', 0),
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_CONFIRMATION_BLOCKS', 1),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_INTERVAL_BLOCK_TIME', 5),
+        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ETHERSCAN_API_KEY', null),
+        ETHERSCAN_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ETHERSCAN_API_URL', null),
+        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_URL', null),
+        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_KEY', null),
+        SUBSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_SUBSCAN_API_KEY', null),
+        SUBSCAN_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_PEAQ_MAINNET_SUBSCAN_API_URL',
+          'https://peaq.api.subscan.io/',
+        ),
+      },
     },
 
     BOTTLENECK: {
@@ -404,6 +423,14 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     SERVICES: {
+      ARAGON_DAO: {
+        TOKEN_FETCH_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_DAO_TOKEN_FETCH_INTERVAL',
+          1000 * 15, // 30 seconds
+        ),
+      },
       ARAGON_API: {
         NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_NAME', 'ARAGON-API'),
         BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
