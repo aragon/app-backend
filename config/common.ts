@@ -280,7 +280,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ALCHEMY_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_FROM_BLOCK', 0),
-        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_INTERVAL_BLOCK_TIME', 5),
         ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ETHERSCAN_API_KEY', null),
