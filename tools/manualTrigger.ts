@@ -4,7 +4,6 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import utils from '@helpers/utils'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
-import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -13,14 +12,23 @@ export const ToolsManualTrigger: IService = {
 
   start: async () => {
     await ProviderModule.connectToAllNetworks()
-    const network = NetworksEnum.peaqMainnet
+    const network = NetworksEnum.ethereumSepolia
 
-    const address = '0xc554355ED7c1b435434a68EF54Aa24c229f36f1F'
+    const fromBlock = 7149126
+    const toBlock = 'latest'
+    const configLogs = utils.filterArrayByProperty(configIndexer, 'enableHistorical')
 
-    await DaoTransactions.start({
-      daoAddress: address,
+    const logCrawler = new BlockchainLogCrawler({
+      fromBlock,
+      toBlock,
+      events: configLogs,
       network,
+      onError: async (error: any) => logger.error('Error Indexer', llo(error)),
+      logService: `indexer-${network}`,
+      stopOnError: true,
     })
+
+    await logCrawler.crawl()
   },
 
   stop: async () => {},
