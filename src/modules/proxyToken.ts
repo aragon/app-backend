@@ -58,7 +58,12 @@ export const ProxyToken = {
     let updates: Partial<Token> = {}
 
     if (shouldUpdate || forceUpdate) {
-      const { tokenDetails, tokenMetrics } = await ProxyWeb3Provider.fetchBasicTokenInfo({
+      const tokenDetails = await ProxyWeb3Provider.fetchBasicTokenInfo({
+        address: tokenAddress,
+        network,
+      })
+
+      const tokenMetrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
         address: tokenAddress,
         network,
       })
