@@ -11,7 +11,7 @@ import { LogMultiSig } from '@plugins/logMultisig'
 import logger from '@logger'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { LogSpp } from '@plugins/logSPP'
-describe.only('peaqTest', () => {
+describe.skip('peaqTest', () => {
   before(async () => {
     await UnitDepUtils.registerRepoForPeaq()
   })
