@@ -1,10 +1,11 @@
-import { type HexAddress, ITokenType, ITransactionCategory, NetworksEnum } from '@types'
+import { type HexAddress, type ITokenDetails, ITokenType, type NetworksEnum } from '@types'
 import BlockScoutHelper from '@helpers/blockScout'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import type Token from '@models/schema/token'
 import CovalentHelper from '@helpers/covalent'
+import ProxyProvider from "@modules/proxyProvider";
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:tokenUtils' })
 
@@ -40,9 +41,12 @@ const TokenUtils = {
     try {
       const dbToken = await Models.Token.findOne({ address: tokenAddress, network })
       if (dbToken) return true
-      const blockScoutDetails = await BlockScoutHelper.getTokenFullDetails(tokenAddress, network)
-      if (blockScoutDetails && blockScoutDetails.type !== ITokenType.unknown) {
-        return !TokenUtils.analyzeIfScamToken(blockScoutDetails.name! || '', blockScoutDetails.symbol! || '')
+      const tokenInfo = await ProxyProvider.fetchBasicTokenInfo({
+        address: tokenAddress,
+        network,
+      })
+      if (tokenInfo && tokenInfo.type !== ITokenType.unknown) {
+        return !TokenUtils.analyzeIfScamToken(tokenInfo.name! || '', tokenInfo.symbol! || '')
       }
       const web3TokenDetails = await Web3Helper.getTokenNameAndSymbol(tokenAddress, network)
       if (web3TokenDetails.name && web3TokenDetails.symbol) {
@@ -52,28 +56,6 @@ const TokenUtils = {
     } catch (e) {
       logger.error('Error checking if token is syncable', llo({ tokenAddress, network, error: e }))
       return false
-    }
-  },
-
-  getCategories: (network: NetworksEnum) => {
-    const category = [
-      ITransactionCategory.ERC20,
-      ITransactionCategory.ERC721,
-      ITransactionCategory.ERC1155,
-      ITransactionCategory.Internal,
-      ITransactionCategory.External,
-    ]
-
-    switch (network) {
-      case NetworksEnum.ethereumSepolia:
-        return category.filter(cat => cat !== ITransactionCategory.Internal)
-      case NetworksEnum.baseMainnet:
-      case NetworksEnum.zksyncSepolia:
-      case NetworksEnum.arbitrumMainnet:
-      case NetworksEnum.zksyncMainnet:
-        return category.filter(cat => cat !== ITransactionCategory.Internal)
-      default:
-        return category
     }
   },
 }
