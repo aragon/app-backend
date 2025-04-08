@@ -10,6 +10,7 @@ export enum IWeb3ProxyMethod {
   fetchTokenHolderAndSupply = 'fetchTokenHolderAndSupply',
   fetchAddressTxns = 'fetchAddressTxns',
   fetchTokenPrice = 'fetchTokenPrice',
+  searchDetailsOfContract = 'searchDetailsOfContract',
 }
 
 export interface IWeb3Provider {
