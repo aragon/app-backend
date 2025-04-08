@@ -55,7 +55,12 @@ const TokenFetcher = {
         network,
       })
 
-      if (tokenData.totalSupply === '0' || tokenData.totalHolders === 0) {
+      if (
+        !tokenData.totalSupply ||
+        tokenData.totalSupply === '0' ||
+        tokenData.totalHolders == null ||
+        tokenData.totalHolders <= 0
+      ) {
         logger.warn('Token data not found during refetch', llo({ tokenData, document }))
         return
       }
@@ -71,6 +76,7 @@ const TokenFetcher = {
           logId: document.id,
           network: document.network,
           refetch: false,
+          ...tokenData,
         },
         'Token Fetcher Updated',
         llo,
