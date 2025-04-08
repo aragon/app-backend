@@ -5,7 +5,7 @@ import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import ProxyContract from '@helpers/proxyContract'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
-import ProxyWeb3Provider from "@modules/proxyProvider";
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 describe('AragonDao: contractInfo', () => {
   let sandbox: SinonSandbox
@@ -69,10 +69,12 @@ describe('AragonDao: contractInfo', () => {
       let result = await ContractInfo.fetchVerifiedContractData(NetworksEnum.ethereumSepolia, '0xaddress')
 
       expect(fetchContractSourceCodeStub.calledOnce).to.be.true
-      expect(fetchContractSourceCodeStub.calledWith({
-        network: NetworksEnum.ethereumSepolia,
-        address: '0xaddress',
-      })).to.be.true
+      expect(
+        fetchContractSourceCodeStub.calledWith({
+          network: NetworksEnum.ethereumSepolia,
+          address: '0xaddress',
+        }),
+      ).to.be.true
       expect(result).to.be.null
     })
 
@@ -84,10 +86,12 @@ describe('AragonDao: contractInfo', () => {
       let result = await ContractInfo.fetchVerifiedContractData(NetworksEnum.ethereumSepolia, '0xaddress')
 
       expect(fetchContractSourceCodeStub.calledOnce).to.be.true
-      expect(fetchContractSourceCodeStub.calledWith({
-        network: NetworksEnum.ethereumSepolia,
-        address: '0xaddress',
-      })).to.be.true
+      expect(
+        fetchContractSourceCodeStub.calledWith({
+          network: NetworksEnum.ethereumSepolia,
+          address: '0xaddress',
+        }),
+      ).to.be.true
       expect(result).to.be.null
     })
 
@@ -101,10 +105,12 @@ describe('AragonDao: contractInfo', () => {
       let result = await ContractInfo.fetchVerifiedContractData(NetworksEnum.ethereumSepolia, '0xaddress')
 
       expect(fetchContractSourceCodeStub.calledOnce).to.be.true
-      expect(fetchContractSourceCodeStub.calledWith({
-        network: NetworksEnum.ethereumSepolia,
-        address: '0xaddress',
-      })).to.be.true
+      expect(
+        fetchContractSourceCodeStub.calledWith({
+          network: NetworksEnum.ethereumSepolia,
+          address: '0xaddress',
+        }),
+      ).to.be.true
       expect(parseNetspecStub.calledOnce).to.be.true
       expect(parseNetspecStub.args[0][0]).to.be.eq('sourceCode')
       expect(parseNetspecStub.args[0][1]).to.be.eq('contractName')
@@ -130,10 +136,12 @@ describe('AragonDao: contractInfo', () => {
       let result = await ContractInfo.fetchVerifiedContractData(NetworksEnum.ethereumSepolia, '0xaddress')
 
       expect(fetchContractSourceCodeStub.calledOnce).to.be.true
-      expect(fetchContractSourceCodeStub.calledWith({
-        network: NetworksEnum.ethereumSepolia,
-        address: '0xaddress',
-      })).to.be.true
+      expect(
+        fetchContractSourceCodeStub.calledWith({
+          network: NetworksEnum.ethereumSepolia,
+          address: '0xaddress',
+        }),
+      ).to.be.true
       expect(parseNetspecStub.calledOnce).to.be.true
       expect(parseNetspecStub.args[0][0]).to.be.eq('sourceCode')
       expect(parseNetspecStub.args[0][1]).to.be.eq('contractName')

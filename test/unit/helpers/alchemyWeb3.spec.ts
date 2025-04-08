@@ -4,6 +4,8 @@ import { expect } from 'chai'
 import Alchemy from '@helpers/alchemy'
 import { NetworksEnum } from '@types'
 import logger from '@logger'
+import { ethers } from 'ethers'
+import utils from '@helpers/utils'
 
 describe('Helpers:AlchemyHelper', () => {
   let sandbox: SinonSandbox
@@ -33,6 +35,21 @@ describe('Helpers:AlchemyHelper', () => {
       expect(Alchemy.handleAlchemyCrazyBalance('43943983483908340948.438934780934834409', 18)).to.equal(
         '43943983483908340948.438934780934834409',
       )
+    })
+
+    it('should handle error for scientific notation with toLocaleString', () => {
+      // Arrange
+      sandbox.stub(utils, 'isScientificNumber').returns(true)
+      sandbox.stub(Number.prototype, 'toLocaleString').throws(new Error('Locale error'))
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      // Act
+      const result = Alchemy.handleAlchemyCrazyBalance('1e20', 18, 'testTransaction')
+
+      // Assert
+      expect(result).to.equal('0')
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.firstCall.args[0]).to.equal('Error in conversion')
     })
 
     it('should log an error when amount is a string without "0x"', () => {
