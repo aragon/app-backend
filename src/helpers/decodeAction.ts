@@ -46,7 +46,6 @@ import { ProxyMember } from '@modules/proxyMember'
 import Web3Utils from '@helpers/web3Utils'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
 import ProxyWeb3Provider from '@modules/proxyProvider'
-import ProxyProvider from '@modules/proxyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
@@ -74,7 +73,7 @@ class DecodeActions {
 
       const member = await ProxyMember.createMember(action.to)
       const dao = await Models.Dao.findByAddress(document.daoAddress, document.network)
-      const toInfo = await ProxyProvider.searchDetailsOfContract({
+      const toInfo = await ProxyWeb3Provider.searchDetailsOfContract({
         address: action.to,
         network: document.network!,
       })
@@ -195,7 +194,7 @@ class DecodeActions {
     const receiver = decodedData.parameters[0].value
     const tokenAddress = action.to
 
-    const tokenDetails = await ProxyProvider.searchDetailsOfContract({
+    const tokenDetails = await ProxyWeb3Provider.searchDetailsOfContract({
       address: tokenAddress,
       network: document.network!,
     })

@@ -54,6 +54,9 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
   fetchTokenPrice: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchTokenPrice)(params)
   },
+  searchDetailsOfContract: async function (params) {
+    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.searchDetailsOfContract)(params)
+  },
 }
 
 export default ProxyWeb3Provider
