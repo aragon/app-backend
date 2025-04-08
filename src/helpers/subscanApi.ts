@@ -58,6 +58,7 @@ const SubscanApiHelper = {
       { address: substrateAddress, row: 100 },
       network,
       'api/v2/scan/transfers',
+      res => res?.data?.transfers || [],
     )
 
     const erc20Transfers = await SubscanApiHelper._fetchAllPaginatedItems(

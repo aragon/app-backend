@@ -4,7 +4,7 @@ import TokenUtils from '@helpers/tokenUtils'
 import BlockScoutHelper from '@helpers/blockScout'
 import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
-import { ITokenType, NetworksEnum } from '@types'
+import {ITokenType, ITransactionCategory, NetworksEnum} from '@types'
 import type Token from '@models/schema/token'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -239,6 +239,67 @@ describe('TokenUtils', () => {
 
       expect(result).to.be.true
       expect(analyzeIfScamTokenStub.calledWith('', '')).to.be.true
+    })
+  })
+
+  describe('getCategories', () => {
+    it('should return correct number of categories for ethereumMainnet', () => {
+      const result = TokenUtils.getCategories(NetworksEnum.ethereumMainnet)
+      expect(result).to.be.an('array').with.lengthOf(5)
+      expect(result).to.include.members([
+        ITransactionCategory.ERC20,
+        ITransactionCategory.ERC721,
+        ITransactionCategory.ERC1155,
+        ITransactionCategory.Internal,
+        ITransactionCategory.External,
+      ])
+    })
+
+    it('should return correct number of categories for arbitrumMainnet', () => {
+      const result = TokenUtils.getCategories(NetworksEnum.arbitrumMainnet)
+      expect(result).to.be.an('array').with.lengthOf(4)
+      expect(result).to.include.members([
+        ITransactionCategory.ERC20,
+        ITransactionCategory.ERC721,
+        ITransactionCategory.ERC1155,
+        ITransactionCategory.External,
+      ])
+      expect(result).to.not.include(ITransactionCategory.Internal)
+    })
+
+    it('should return correct number of categories for baseMainnet', () => {
+      const result = TokenUtils.getCategories(NetworksEnum.baseMainnet)
+      expect(result).to.be.an('array').with.lengthOf(4)
+      expect(result).to.include.members([
+        ITransactionCategory.ERC20,
+        ITransactionCategory.ERC721,
+        ITransactionCategory.ERC1155,
+        ITransactionCategory.External,
+      ])
+      expect(result).to.not.include(ITransactionCategory.Internal)
+    })
+
+    it('should return correct number of categories for zksyncSepolia', () => {
+      const result = TokenUtils.getCategories(NetworksEnum.zksyncSepolia)
+      expect(result).to.be.an('array').with.lengthOf(4)
+      expect(result).to.include.members([
+        ITransactionCategory.ERC20,
+        ITransactionCategory.ERC721,
+        ITransactionCategory.ERC1155,
+        ITransactionCategory.External,
+      ])
+      expect(result).to.not.include(ITransactionCategory.Internal)
+    })
+
+    it('should return default categories for an unsupported network', () => {
+      const result = TokenUtils.getCategories('unsupportedNetwork' as NetworksEnum)
+      expect(result).to.include.members([
+        ITransactionCategory.ERC20,
+        ITransactionCategory.ERC721,
+        ITransactionCategory.ERC1155,
+        ITransactionCategory.Internal,
+        ITransactionCategory.External,
+      ])
     })
   })
 })
