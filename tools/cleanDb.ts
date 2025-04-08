@@ -16,7 +16,7 @@ export const ToolsCleanDb: IService = {
         // Ensure the model has a deleteMany method
         const dbModel = model as any
         if (typeof dbModel.deleteMany === 'function') {
-          const result = await dbModel.deleteMany({ network: networkToDelete, blockNumber: { $lt: 0 } })
+          const result = await dbModel.deleteMany({ network: networkToDelete })
           logger.verbose(
             `Deleted ${result.deletedCount} documents from ${modelName} where network is ${networkToDelete}`,
             llo(),
