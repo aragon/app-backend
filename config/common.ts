@@ -428,7 +428,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           sourceConfig,
           'number',
           'SERVICES_ARAGON_DAO_TOKEN_FETCH_INTERVAL',
-          1000 * 30, // 30 seconds
+          1000 * 15, // 30 seconds
         ),
       },
       ARAGON_API: {
