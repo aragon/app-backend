@@ -1,11 +1,9 @@
 import { type HexAddress, ITokenType, ITransactionCategory, NetworksEnum } from '@types'
-import BlockScoutHelper from '@helpers/blockScout'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import type Token from '@models/schema/token'
 import CovalentHelper from '@helpers/covalent'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 import ProxyProvider from '@modules/proxyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:tokenUtils' })
