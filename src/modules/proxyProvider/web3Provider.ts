@@ -183,6 +183,9 @@ const Web3Provider: IWeb3Provider = {
   fetchTokenPrice: async ({ network, address, pastDays }: any): Promise<any> => {
     return await RateModule.fetchRate(address, network, pastDays)
   },
+  searchDetailsOfContract: async ({ address, network }) => {
+    return await BlockScoutHelper.searchDetails(address, network)
+  },
 }
 
 export default Web3Provider

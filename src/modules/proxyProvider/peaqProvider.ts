@@ -117,6 +117,22 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
       priceUsd: tokenInfo.priceUsd || '0',
     }
   },
+
+  searchDetailsOfContract: async ({ address, network }) => {
+    const sourceCode = await SubscanApi.getContractSourceCode(address, network)
+    if (Array.isArray(sourceCode) && sourceCode.length === 1) {
+      return {
+        name: sourceCode[0]?.ContractName || null,
+      }
+    }
+    const fallbackDetails = await SubscanApi.getTokenFullDetails(address, network)
+    if (fallbackDetails) {
+      return {
+        name: fallbackDetails.name || '',
+        type: 'token',
+      }
+    }
+  },
 }
 
 export default PeaqProvider

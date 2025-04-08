@@ -43,6 +43,7 @@ export interface IWeb3Provider {
     network: NetworksEnum
     pastDays?: number
   }) => Promise<any>
+  searchDetailsOfContract: ({ address, network }: { address: string; network: NetworksEnum }) => Promise<any>
 }
 
 export interface IWeb3TokenBalance {
