@@ -1205,4 +1205,102 @@ describe('Helpers:Web3', () => {
       expect(stubLogger.callCount).to.eq(2)
     })
   })
+
+  describe('getTokenDecimals', () => {
+    it('should return token decimals', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubDecimals = sandbox.stub().resolves(18)
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { decimals: stubDecimals }
+          },
+          getAddress: () => '0xTokenAddress',
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+      const result = await MockedWeb3Helper.getTokenDecimals('0xTokenAddress', NetworksEnum.ethereumMainnet)
+      expect(result).to.equal(18)
+      expect(stubDecimals.calledOnce).to.be.true
+    })
+
+    it('should fails return token decimals', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubDecimals = sandbox.stub().rejects(new Error('Test Error'))
+      const stubLogger = sandbox.stub(logger, 'warn')
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { decimals: stubDecimals }
+          },
+          getAddress: () => '0xTokenAddress',
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+      const result = await MockedWeb3Helper.getTokenDecimals('0xTokenAddress', NetworksEnum.ethereumMainnet)
+      expect(result).to.equal(0)
+      expect(stubDecimals.calledOnce).to.be.true
+      expect(stubLogger.callCount).to.eq(1)
+    })
+  })
+
+  describe('getLockTokenAddress', () => {
+    it('should return the lock token address successfully', async () => {
+      const stubLockToken = sandbox.stub().resolves('0xLockTokenAddress')
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { lockNFT: stubLockToken }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakePluginAddress = '0xPluginAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.getLockTokenAddress(fakePluginAddress, fakeNetwork)
+
+      expect(result).to.equal('0xLockTokenAddress')
+      expect(stubLockToken.calledOnce).to.be.true
+    })
+
+    it('should return null if fetching lock token address fails', async () => {
+      const stubLockToken = sandbox.stub().rejects(new Error('fake-error'))
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const MockedWeb3Helper = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { lockNFT: stubLockToken }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      }).default
+
+      const fakePluginAddress = '0xPluginAddress'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.getLockTokenAddress(fakePluginAddress, fakeNetwork)
+
+      expect(result).to.be.null
+      expect(stubLockToken.calledOnce).to.be.true
+    })
+  })
 })
