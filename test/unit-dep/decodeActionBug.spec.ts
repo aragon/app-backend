@@ -73,7 +73,7 @@ describe('Integ: decodeAction', () => {
         name: 'MDS TEST TOKEN',
         symbol: 'MDST',
         decimals: 18,
-        logo: '',
+        logo: null,
         priceUsd: '0',
       })
 
