@@ -5,6 +5,8 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import type Token from '@models/schema/token'
 import CovalentHelper from '@helpers/covalent'
+import ProxyWeb3Provider from '@modules/proxyProvider'
+import ProxyProvider from '@modules/proxyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:tokenUtils' })
 
@@ -40,9 +42,12 @@ const TokenUtils = {
     try {
       const dbToken = await Models.Token.findOne({ address: tokenAddress, network })
       if (dbToken) return true
-      const blockScoutDetails = await BlockScoutHelper.getTokenFullDetails(tokenAddress, network)
-      if (blockScoutDetails && blockScoutDetails.type !== ITokenType.unknown) {
-        return !TokenUtils.analyzeIfScamToken(blockScoutDetails.name! || '', blockScoutDetails.symbol! || '')
+      const tokenInfo = await ProxyProvider.fetchBasicTokenInfo({
+        address: tokenAddress,
+        network,
+      })
+      if (tokenInfo && tokenInfo.type !== ITokenType.unknown) {
+        return !TokenUtils.analyzeIfScamToken(tokenInfo.name! || '', tokenInfo.symbol! || '')
       }
       const web3TokenDetails = await Web3Helper.getTokenNameAndSymbol(tokenAddress, network)
       if (web3TokenDetails.name && web3TokenDetails.symbol) {
