@@ -82,7 +82,6 @@ describe('TokenFetcher', () => {
         },
       ]
 
-
       const stubOnDocument = sandbox.stub(TokenFetcher, 'onDocument')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         for (const token of tokens) {
