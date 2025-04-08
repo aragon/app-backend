@@ -15,7 +15,7 @@ import { IPermission } from '@src/types/permission'
 import { PluginHandler } from '@handlers/pluginHandler'
 import DbTx from '@modules/dbTx'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PermissionHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:PermissionHandler' })
 
 export const PermissionHandler = {
   /**

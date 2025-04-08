@@ -14,6 +14,7 @@ import Web3Helper from '@helpers/web3'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import DbTx from '@modules/dbTx'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -487,7 +488,7 @@ describe('Indexer:Plugin', () => {
         blockNumber: 1212,
       } as any
 
-      const findLogsByNameStub = sandbox.stub(Web3Helper, 'findLogsByName')
+      const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName')
       const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info)
       expect(findOneStub.calledOnce).to.be.true
@@ -508,7 +509,7 @@ describe('Indexer:Plugin', () => {
       const web3ReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
 
-      const findLogsByNameStub = sandbox.stub(Web3Helper, 'findLogsByName')
+      const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName')
       expect(findDaoStub.calledOnce).to.be.true
       expect(findPluginStub.calledOnce).to.be.true
       expect(web3ReceiptStub.calledOnce).to.be.true
@@ -534,7 +535,7 @@ describe('Indexer:Plugin', () => {
         blockNumber: 1234,
       }
 
-      const findLogsByNameStub = sandbox.stub(Web3Helper, 'findLogsByName')
+      const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName')
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
 
       expect(findLogsByNameStub.calledOnce).to.be.false
@@ -556,7 +557,7 @@ describe('Indexer:Plugin', () => {
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
 
       const findLogsStub = sandbox
-        .stub(Web3Helper, 'findLogsByName')
+        .stub(Web3Utils, 'findLogsByName')
         .returns([{ parsed: { name: 'InstallationApplied' } }] as any)
 
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
@@ -587,7 +588,7 @@ describe('Indexer:Plugin', () => {
 
       const txReceipt = { logs: [] }
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
-      sandbox.stub(Web3Helper, 'findLogsByName').returns([])
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([])
 
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
 
@@ -616,7 +617,7 @@ describe('Indexer:Plugin', () => {
 
       const txReceipt = { logs: [] }
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
-      sandbox.stub(Web3Helper, 'findLogsByName').returns([])
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([])
 
       const pluginInfo = {
         type: IPluginInterfaceType.tokenVoting,
@@ -656,7 +657,7 @@ describe('Indexer:Plugin', () => {
 
       const txReceipt = { logs: [] }
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
-      sandbox.stub(Web3Helper, 'findLogsByName').returns([])
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([])
 
       const pluginInfo = {
         type: IPluginInterfaceType.tokenVoting,
@@ -712,7 +713,7 @@ describe('Indexer:Plugin', () => {
 
       const txReceipt = { logs: [] }
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
-      sandbox.stub(Web3Helper, 'findLogsByName').returns([])
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([])
 
       const pluginInfo = {
         type: IPluginInterfaceType.tokenVoting,
@@ -852,7 +853,7 @@ describe('Indexer:Plugin', () => {
         hasTarget: false,
       })
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
-      const findLogsStub = sandbox.stub(Web3Helper, 'findLogsByName').returns([
+      const findLogsStub = sandbox.stub(Web3Utils, 'findLogsByName').returns([
         {
           parsed: { name: 'UninstallationApplied', txLog: { pluginId: 'pluginId' } },
         } as any,
@@ -872,7 +873,7 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
       const txReceipt = { logs: [] }
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
-      const findLogsStub = sandbox.stub(Web3Helper, 'findLogsByName').returns([])
+      const findLogsStub = sandbox.stub(Web3Utils, 'findLogsByName').returns([])
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
       sandbox.stub(PluginSlug, 'deleteSlug')
 

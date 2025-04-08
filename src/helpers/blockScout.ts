@@ -57,20 +57,19 @@ const BlockScoutHelper = {
     const path = `tokens/${address}`
 
     try {
-      const tokenDetails: any = {}
       const response = await BlockScoutHelper._rpCall(path, params, network)
       if (response?.address) {
-        tokenDetails.address = response.address
-        tokenDetails.name = response.name
-        tokenDetails.symbol = response.symbol
-        tokenDetails.decimals = response.decimals
-        tokenDetails.totalSupply = response.total_supply
-        tokenDetails.holders = response.holders
-        tokenDetails.logo = response.icon_url
-        tokenDetails.priceUsd = response.exchange_rate
-        tokenDetails.type = BlockScoutHelper.parseTokenType(response.type)
-
-        return tokenDetails
+        return {
+          address: response.address,
+          name: response.name,
+          symbol: response.symbol,
+          decimals: response.decimals,
+          totalSupply: response.total_supply,
+          totalHolders: response.holders,
+          logo: response.icon_url,
+          priceUsd: response.exchange_rate,
+          type: BlockScoutHelper.parseTokenType(response.type),
+        }
       }
     } catch (error) {
       logger.warn('Error getTokenDetails', llo({ error }))

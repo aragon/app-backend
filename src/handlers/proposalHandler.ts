@@ -27,8 +27,9 @@ import ProposalHelper from '@helpers/proposal'
 import { TokenVoting } from '@src/aragonContracts'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { assert } from '@errors'
+import Web3Utils from '@helpers/web3Utils'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
 export const ProposalHandler = {
   findIncrementalId: async (proposal: Partial<Proposal>): Promise<number> => {
     try {
@@ -96,7 +97,7 @@ export const ProposalHandler = {
         }
 
         info.interfaceType = relatedPlugin.interfaceType
-        const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
+        const metadataUri = Web3Utils.extractMetadataUri(parsedEvent?.args.metadata)!
         const proposalIndex = parsedEvent.args?.proposalId?.toString()
         const existingLog = await Models.Proposal.findExistingLog({
           transactionHash: info.transactionHash,
@@ -506,7 +507,7 @@ export const ProposalHandler = {
   fetchProposalMetadata: async (metadataUri: string): Promise<IProposalMetadata | null> => {
     try {
       const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 4 })
-      return Web3Helper.parseProposalMetadata(ipfsMetadata!)
+      return Web3Utils.parseProposalMetadata(ipfsMetadata!)
     } catch (error) {
       return null
     }
@@ -890,7 +891,7 @@ export const ProposalHandler = {
           return
         }
 
-        const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
+        const metadataUri = Web3Utils.extractMetadataUri(parsedEvent?.args.metadata)!
         const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
         const rawUpdate: Partial<Proposal> = {

@@ -114,7 +114,6 @@ export default class Asset extends Model {
             hasDelegate: 1,
             underlying: 1,
             decimals: 1,
-            priceChangeOnDayUsd: 1,
             priceUsd: 1,
             mintableByDao: 1,
           },

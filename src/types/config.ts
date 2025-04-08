@@ -28,6 +28,8 @@ export interface IRawNodeConfig {
   ETHERSCAN_API_URL: string
   BLOCKSCOUT_API_URL: string
   BLOCKSCOUT_API_KEY: string
+  SUBSCAN_API_KEY?: string
+  SUBSCAN_API_URL?: string
 }
 
 export interface IConfig {
@@ -47,6 +49,7 @@ export interface IConfig {
     ARBITRUM_MAINNET: IRawNodeConfig
     ZKSYNC_SEPOLIA: IRawNodeConfig
     ZKSYNC_MAINNET: IRawNodeConfig
+    PEAQ_MAINNET: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
@@ -146,6 +149,9 @@ export interface IConfig {
   }
 
   SERVICES: {
+    ARAGON_DAO: {
+      TOKEN_FETCH_INTERVAL: number
+    }
     ARAGON_API: {
       BASE_URL: string
       NAME: string

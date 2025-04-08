@@ -14,6 +14,5 @@ export const FakeToken = {
   decimals: 6,
   holders: 703908,
   totalSupply: '1665145923655059',
-  priceChangeOnDayUsd: '0.0000016928400000000012',
   priceUsd: '0.00006659919',
 }
