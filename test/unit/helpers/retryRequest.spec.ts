@@ -125,8 +125,8 @@ describe('Helpers:RetryRequest', () => {
       const warnStub = sandbox.stub(Logger, 'warn')
 
       // Important: stub BEFORE the function is called
-      sandbox.stub(RetryRequest, 'isErrorRelatedToServerIssue').callsFake((error) => {
-        return error === serverError;
+      sandbox.stub(RetryRequest, 'isErrorRelatedToServerIssue').callsFake(error => {
+        return error === serverError
       })
 
       const response = await RetryRequest.retryRequest(requestFunction, { maxRetries: 2 })
@@ -153,8 +153,8 @@ describe('Helpers:RetryRequest', () => {
       const warnStub = sandbox.stub(Logger, 'warn')
 
       // Important: stub BEFORE the function is called
-      sandbox.stub(RetryRequest, 'isErrorRelatedToServerIssue').callsFake((error) => {
-        return error === timeoutError;
+      sandbox.stub(RetryRequest, 'isErrorRelatedToServerIssue').callsFake(error => {
+        return error === timeoutError
       })
 
       const response = await RetryRequest.retryRequest(requestFunction, { maxRetries: 2 })
@@ -240,9 +240,7 @@ describe('Helpers:RetryRequest', () => {
 
     it('should retry when result is null', async () => {
       const expectedResult = { data: 'success' }
-      const fn = sandbox.stub()
-        .onFirstCall().resolves(null)
-        .onSecondCall().resolves(expectedResult)
+      const fn = sandbox.stub().onFirstCall().resolves(null).onSecondCall().resolves(expectedResult)
 
       const warnStub = sandbox.stub(Logger, 'warn')
       const result = await RetryRequest.retryResult(fn, 3, 10)
@@ -255,9 +253,7 @@ describe('Helpers:RetryRequest', () => {
 
     it('should retry when result is undefined', async () => {
       const expectedResult = { data: 'success' }
-      const fn = sandbox.stub()
-        .onFirstCall().resolves(undefined)
-        .onSecondCall().resolves(expectedResult)
+      const fn = sandbox.stub().onFirstCall().resolves(undefined).onSecondCall().resolves(expectedResult)
 
       const warnStub = sandbox.stub(Logger, 'warn')
       const result = await RetryRequest.retryResult(fn, 3, 10)
@@ -271,9 +267,7 @@ describe('Helpers:RetryRequest', () => {
     it('should retry when an error occurs', async () => {
       const expectedResult = { data: 'success' }
       const error = new Error('Test error')
-      const fn = sandbox.stub()
-        .onFirstCall().rejects(error)
-        .onSecondCall().resolves(expectedResult)
+      const fn = sandbox.stub().onFirstCall().rejects(error).onSecondCall().resolves(expectedResult)
 
       const errorStub = sandbox.stub(Logger, 'error')
       const result = await RetryRequest.retryResult(fn, 3, 10)
