@@ -4,7 +4,6 @@ import { expect } from 'chai'
 import Alchemy from '@helpers/alchemy'
 import { NetworksEnum } from '@types'
 import logger from '@logger'
-import { ethers } from 'ethers'
 import utils from '@helpers/utils'
 
 describe('Helpers:AlchemyHelper', () => {
