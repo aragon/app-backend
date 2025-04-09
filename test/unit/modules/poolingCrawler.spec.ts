@@ -1,17 +1,15 @@
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { ethers, Interface } from 'ethers'
+import { Interface } from 'ethers'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import logger from '@logger'
 import { NetworksEnum } from '@types'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import PoolingCrawler from '@modules/poolingCrawler'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { DAO } from '@artifacts/dao'
 import utils from '@helpers/utils'
-import * as process from 'process'
 describe('Module: PoolingCrawler', () => {
   let sandbox: SinonSandbox
 
