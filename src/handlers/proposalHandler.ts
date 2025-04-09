@@ -36,6 +36,7 @@ export const ProposalHandler = {
       assert(!!proposal.pluginAddress, 'pluginAddress is required')
       assert(!!proposal.network, 'network is required')
       assert(!!proposal.proposalIndex, 'proposalIndex is required')
+      assert(!!proposal.blockNumber, 'blockNumber is required')
 
       const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
       assert(!!plugin, 'plugin not found')
@@ -44,9 +45,20 @@ export const ProposalHandler = {
         return Number(proposal.proposalIndex)
       }
 
+      const lastSavedProposal = await Models.Proposal.findOne({
+        pluginAddress: proposal.pluginAddress,
+        network: proposal.network,
+        blockNumber: { $lt: proposal.blockNumber },
+      })
+        .sort({ incrementalId: -1 })
+        .limit(1)
+        .lean()
+        .exec()
+
       const crawler = new BlockchainLogCrawler({
         skipLogProcessing: true,
-        fromBlock: plugin.blockNumber,
+        fromBlock: lastSavedProposal ? lastSavedProposal.blockNumber : plugin.blockNumber,
+        toBlock: proposal.blockNumber,
         logService: null,
         network: proposal.network!,
         address: proposal.pluginAddress,
@@ -68,7 +80,20 @@ export const ProposalHandler = {
       })
 
       const logs = await crawler.crawl()
-      const proposalIds = logs?.map((log: any) => log.event.args.proposalId.toString())
+
+      if (!logs || logs.length === 0) {
+        logger.error('Error findIncrementalId - no logs found', llo({ proposal }))
+        return -1
+      }
+
+      const sortedLogs = logs.sort((a, b) => {
+        if (a.info.blockNumber !== b.info.blockNumber) {
+          return a.info.blockNumber - b.info.blockNumber
+        }
+        return a.info.logIndex - b.info.logIndex
+      })
+
+      const proposalIds = sortedLogs?.map((log: any) => log.event.args.proposalId.toString())
 
       const proposalIndex = proposalIds?.findIndex((id: string) => id === proposal.proposalIndex)
 
@@ -77,7 +102,11 @@ export const ProposalHandler = {
         return -1
       }
 
-      return proposalIndex!
+      if (lastSavedProposal) {
+        return lastSavedProposal.incrementalId + proposalIndex
+      }
+
+      return proposalIndex
     } catch (error) {
       logger.error('Error findIncrementalId', llo({ error, proposal }))
       return -1
@@ -198,6 +227,7 @@ export const ProposalHandler = {
           pluginAddress,
           network: info.network,
           proposalIndex,
+          blockNumber: info.blockNumber,
         })
 
         const newProposal = await Models.Proposal.create(document, { session })
