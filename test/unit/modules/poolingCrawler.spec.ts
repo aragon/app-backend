@@ -17,8 +17,6 @@ describe('Module: PoolingCrawler', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    logVerbose = sandbox.stub(logger, 'verbose')
-    logError = sandbox.stub(logger, 'error')
   })
 
   afterEach(() => {
