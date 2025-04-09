@@ -5,7 +5,7 @@ import axios from 'axios'
 import logger from '@logger'
 import { NetworksEnum, ITokenType } from '@types'
 import utils from '@helpers/utils'
-import dayjs from "@helpers/dayjs";
+import dayjs from '@helpers/dayjs'
 
 describe('Helpers:Subscan', () => {
   let sandbox: SinonSandbox
