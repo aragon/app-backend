@@ -2601,5 +2601,63 @@ describe('Indexer: ProposalHandler', () => {
 
       expect(result).to.equal(3)
     })
+
+    it('should return the correct index if found in logs and call handler once', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        blockNumber: 100,
+        address: '0xPlugin',
+      })
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        const eventLogs = [
+          { event: { args: { proposalId: BigInt('12345678901234567890') } }, info: { blockNumber: 110, logIndex: 0 } },
+          { event: { args: { proposalId: BigInt('99999999999999999999') } }, info: { blockNumber: 110, logIndex: 1 } },
+        ] as any
+
+        for (const log of eventLogs) {
+          await this.crawlParams.events[0].config[0].handler(log, {})
+        }
+
+        return eventLogs
+      })
+
+      const result = await ProposalHandler.findIncrementalId({
+        pluginAddress: '0xPlugin',
+        network: NetworksEnum.ethereumSepolia,
+        proposalIndex: '99999999999999999999',
+        blockNumber: 120,
+      } as any)
+
+      expect(result).to.be.eq(1)
+      expect(crawlStub.calledOnce).to.be.true
+    })
+
+    it('should log an error if an error occurs in the crawl process (onError)', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        blockNumber: 100,
+        address: '0xPlugin',
+      })
+
+      const error = new Error('Test error from crawler')
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
+        this: BlockchainLogCrawler,
+      ): Promise<any> {
+        if ((this as any).crawlParams.onError) {
+          await (this as any).crawlParams.onError(error, { proposalIndex: '99999999999999999999' })
+        }
+      })
+
+      await ProposalHandler.findIncrementalId({
+        pluginAddress: '0xPlugin',
+        network: NetworksEnum.ethereumSepolia,
+        proposalIndex: '99999999999999999999',
+        blockNumber: 120,
+      } as any)
+
+      expect(loggerErrorStub.calledWith('Error findIncrementalId' as any)).to.be.true
+      expect(crawlStub.calledOnce).to.be.true
+    })
   })
 })
