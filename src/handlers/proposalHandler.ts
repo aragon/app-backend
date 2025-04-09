@@ -45,15 +45,11 @@ export const ProposalHandler = {
         return Number(proposal.proposalIndex)
       }
 
-      const lastSavedProposal = await Models.Proposal.findOne({
-        pluginAddress: proposal.pluginAddress,
-        network: proposal.network,
-        blockNumber: { $lt: proposal.blockNumber },
-      })
-        .sort({ incrementalId: -1 })
-        .limit(1)
-        .lean()
-        .exec()
+      const lastSavedProposal = await Models.Proposal.findLastSavedProposal(
+        proposal.pluginAddress!,
+        proposal.network!,
+        proposal.blockNumber,
+      )
 
       const crawler = new BlockchainLogCrawler({
         skipLogProcessing: true,
@@ -103,6 +99,18 @@ export const ProposalHandler = {
       }
 
       if (lastSavedProposal) {
+        const calculatedIncrementalId = Number(lastSavedProposal.incrementalId) + proposalIndex
+        const existingProposal = await Models.Proposal.findOne({
+          incrementalId: calculatedIncrementalId,
+          pluginAddress: proposal.pluginAddress,
+          network: proposal.network,
+        })
+
+        if (existingProposal) {
+          logger.error('Error findIncrementalId - incrementalId already used', llo({ existingProposal }))
+          return -1
+        }
+
         return lastSavedProposal.incrementalId + proposalIndex
       }
 

@@ -16,6 +16,7 @@ import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import { Stages } from '@models/schema/setting'
+import { Models } from '@dbModels'
 
 const customName = ICollectionNames.Proposal
 
@@ -352,6 +353,23 @@ export default class Proposal extends Model {
     tOpts?: SaveOptions,
   ) {
     return await this.findOne({ proposalIndex, pluginAddress, network }, null, tOpts)
+  }
+
+  static async findLastSavedProposal(
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    blockNumber?: number,
+    tOpts?: SaveOptions,
+  ) {
+    return Models.Proposal.findOne({
+      pluginAddress,
+      network,
+      blockNumber: { $lt: blockNumber },
+    })
+      .sort({ incrementalId: -1 })
+      .limit(1)
+      .lean()
+      .exec(tOpts)
   }
 
   static async findByProposalIncrementalId(
