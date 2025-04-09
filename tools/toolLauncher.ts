@@ -1,7 +1,6 @@
 import Runner from '@modules/runner'
 import logger from '@logger'
 import ManualSyncDaoAssets from '@tools/manualSyncDaoAssets'
-import ManualSyncDaoTransactions from '@tools/manualSyncDaoTransactions'
 import ManualSyncPluginEvents from '@tools/manualSyncPluginEvents'
 import ManualSyncProposals from '@tools/manualSyncProposals'
 import ManualSyncTokens from '@tools/manualSyncTokens'
@@ -41,7 +40,6 @@ const runners = {
   ToolsManualSyncMultisigV2Settings,
   ManualSyncProposalTotalSupply,
   ManualSyncDaoAssets,
-  ManualSyncDaoTransactions,
   ManualSyncPluginEvents,
   ManualSyncProposals,
   ManualSyncTokens,

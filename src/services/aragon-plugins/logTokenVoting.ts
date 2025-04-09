@@ -34,7 +34,7 @@ export const LogTokenVoting = {
       network: plugin.network,
       events: [...configGovLogs],
       address: [plugin.tokenAddress],
-      fromBlock: token?.blockNumber,
+      fromBlock: token?.blockNumber || plugin?.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
       logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}`,
       stopOnError: true,
