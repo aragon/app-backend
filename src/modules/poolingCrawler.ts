@@ -2,12 +2,14 @@ import { ethers, Interface, type Log } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { ERC721 } from '@artifacts/ERC721'
-import { IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import utils from '@helpers/utils'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'module:PoolingFilter' })
 
@@ -94,17 +96,19 @@ const PoolingCrawler = {
     const daoAddressesSet = new Set(daoAddresses)
     const tokenAddressesSet = new Set(tokenAddresses)
 
-    await Promise.all(
-      [...daoAddressesSet].map(async daoAddress =>
-        DaoRegistryHandler.nativeTransfer(null as any, { address: daoAddress, network } as any),
-      ),
-    )
+    process.nextTick(async () => {
+      if (network === NetworksEnum.peaqMainnet) await utils.wait(config.NODES.PEAQ_MAINNET.INTERVAL_BLOCK_TIME * 1000)
+      await Promise.all(
+        [...daoAddressesSet].map(async daoAddress =>
+          DaoRegistryHandler.nativeTransfer(null as any, { address: daoAddress, network } as any),
+        ),
+      )
+    })
 
     return logs.filter(log => {
       if (!topicsToFilterOut.has(log.topics[0])) return true
       if (log.topics[0] === transferTopic && !tokenAddressesSet.has(log.address)) return false
-      if (log.topics[0] === delegateVotesChangedTopic && !tokenAddressesSet.has(log.address)) return false
-      return true
+      return !(log.topics[0] === delegateVotesChangedTopic && !tokenAddressesSet.has(log.address))
     })
   },
 

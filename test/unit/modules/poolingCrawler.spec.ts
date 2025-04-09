@@ -1,24 +1,20 @@
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { ethers, Interface } from 'ethers'
+import { Interface } from 'ethers'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import logger from '@logger'
 import { NetworksEnum } from '@types'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import PoolingCrawler from '@modules/poolingCrawler'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { DAO } from '@artifacts/dao'
+import utils from '@helpers/utils'
 describe('Module: PoolingCrawler', () => {
   let sandbox: SinonSandbox
-  let logVerbose: any
-  let logError: any
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    logVerbose = sandbox.stub(logger, 'verbose')
-    logError = sandbox.stub(logger, 'error')
   })
 
   afterEach(() => {
@@ -93,7 +89,11 @@ describe('Module: PoolingCrawler', () => {
 
       const nativeTransferStub = sandbox.stub(DaoRegistryHandler, 'nativeTransfer').resolves()
 
+      sandbox.stub(utils, 'wait')
+
       const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet)
+
+      await new Promise(resolve => setTimeout(resolve, 1000))
 
       expect(nativeTransferStub.calledOnce).to.be.true
 

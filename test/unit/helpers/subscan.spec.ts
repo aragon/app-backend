@@ -5,6 +5,7 @@ import axios from 'axios'
 import logger from '@logger'
 import { NetworksEnum, ITokenType } from '@types'
 import utils from '@helpers/utils'
+import dayjs from '@helpers/dayjs'
 
 describe('Helpers:Subscan', () => {
   let sandbox: SinonSandbox
@@ -484,14 +485,15 @@ describe('Helpers:Subscan', () => {
       const responseData = { data: { list: [{ price: '0.5' }, { price: '1' }] } }
       const rpCallStub = sandbox.stub(Subscan, '_rpCall').resolves(responseData)
       const result = await Subscan.getCurrentPrice(NetworksEnum.peaqMainnet)
+      const backDate = dayjs().subtract(Math.round(1), 'days').format('YYYY-MM-DD')
       expect(result).to.eq('1')
       expect(rpCallStub.calledOnce).to.be.true
       expect(
         rpCallStub.calledWith(
           'price/history',
           {
-            start: '2025-04-07',
-            end: '2025-04-08',
+            start: backDate,
+            end: dayjs().format('YYYY-MM-DD'),
             format: 'day',
             row: 1,
           },
