@@ -10,8 +10,8 @@ import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import PoolingCrawler from '@modules/poolingCrawler'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { DAO } from '@artifacts/dao'
-import utils from "@helpers/utils";
-import * as process from "process";
+import utils from '@helpers/utils'
+import * as process from 'process'
 describe('Module: PoolingCrawler', () => {
   let sandbox: SinonSandbox
 
