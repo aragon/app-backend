@@ -123,7 +123,7 @@ describe('Indexer: ProposalHandler', () => {
         pluginAddress: '0xplugin-address',
         network,
         proposalIndex: '1',
-        blockNumber: 100
+        blockNumber: 100,
       })
 
       expect(
