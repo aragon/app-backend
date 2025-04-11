@@ -123,6 +123,7 @@ export const ProposalHandler = {
 
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
+      let startTime = Date.now()
       const pluginAddress = info.address
 
       const { newProposal, relatedPlugin } = await DbTx.executeTxFn(async ({ session }) => {
@@ -147,7 +148,8 @@ export const ProposalHandler = {
 
         const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
         const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
-
+        const metadataFetchTime = Date.now()
+        logger.verbose('Proposal metadata fetched', llo({ metadataFetchTime: metadataFetchTime - startTime }))
         let rawSettings: any = null
 
         if (settings) {
@@ -231,12 +233,26 @@ export const ProposalHandler = {
           }
         }
 
+        const proposalReadyProcessingTime = Date.now()
+
+        logger.verbose(
+          'Proposal Ready to be created',
+          llo({ ...info, proposalIndex, processingTime: proposalReadyProcessingTime - metadataFetchTime }),
+        )
+
         document.incrementalId = await ProposalHandler.findIncrementalId({
           pluginAddress,
           network: info.network,
           proposalIndex,
           blockNumber: info.blockNumber,
         })
+
+        startTime = Date.now()
+
+        logger.verbose(
+          'Incremental Id Fetched',
+          llo({ ...info, proposalIndex, processingTime: startTime - proposalReadyProcessingTime }),
+        )
 
         const newProposal = await Models.Proposal.create(document, { session })
         await session.commitTransaction()
@@ -295,6 +311,7 @@ export const ProposalHandler = {
       }
 
       await Promise.allSettled(allMessages)
+      logger.verbose('Proposal Creation Processing time', llo({ ...info, processingTime: Date.now() - startTime }))
     } catch (error) {
       logger.error('Error Create proposal', llo({ ...info, error, parsedEvent }))
       return undefined
