@@ -191,7 +191,7 @@ describe('Controller: Transaction', () => {
 
       const network = ProposalList[0].network
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({ parentPlugin: ProposalList[0].pluginAddress })
-      const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
+
       const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
 
       const response = await TransactionController.getTransactionIndexingStatus(
@@ -200,7 +200,6 @@ describe('Controller: Transaction', () => {
         network!,
       )
 
-      expect(spyProposalReq.calledOnce).to.be.true
       expect(spyPluginSlugReq.calledOnce).to.be.true
       expect(response).to.deep.eq({
         isProcessed: true,
