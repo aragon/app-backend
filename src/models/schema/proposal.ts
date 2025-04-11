@@ -276,6 +276,9 @@ export default class Proposal extends Model {
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
   public actions!: any[]
 
+  @prop({ type: () => Boolean, default: false })
+  public decoding!: boolean
+
   @prop({ type: () => Media, _id: false })
   public media!: Media
 

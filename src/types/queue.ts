@@ -14,6 +14,7 @@ export enum EnumQueueName {
   memberBalance = 'member.balance',
   contractDecoder = 'contract.decoder',
   tokenInfo = 'token.info',
+  proposalActions = 'proposal.actions',
 }
 
 export interface IQueueAllMetrics {
