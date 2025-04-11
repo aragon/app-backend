@@ -123,7 +123,7 @@ export const ProposalHandler = {
 
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      let startTime = Date.now()
+      let baseTime = Date.now()
       const pluginAddress = info.address
 
       const { newProposal, relatedPlugin } = await DbTx.executeTxFn(async ({ session }) => {
@@ -148,8 +148,8 @@ export const ProposalHandler = {
 
         const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
         const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
-        const metadataFetchTime = Date.now()
-        logger.verbose('Proposal metadata fetched', llo({ metadataFetchTime: metadataFetchTime - startTime }))
+        logger.verbose('Proposal metadata fetched', llo({ metadataFetchTime: Date.now() - baseTime }))
+        baseTime = Date.now()
         let rawSettings: any = null
 
         if (settings) {
@@ -201,6 +201,7 @@ export const ProposalHandler = {
             value: w.value,
             data: w.data,
           })),
+          decoding: true,
         }
 
         // in case startDate is 0 we need to fetch it from the contract
@@ -233,12 +234,12 @@ export const ProposalHandler = {
           }
         }
 
-        const proposalReadyProcessingTime = Date.now()
-
         logger.verbose(
           'Proposal Ready to be created',
-          llo({ ...info, proposalIndex, processingTime: proposalReadyProcessingTime - metadataFetchTime }),
+          llo({ ...info, proposalIndex, processingTime: Date.now() - baseTime }),
         )
+
+        baseTime = Date.now()
 
         document.incrementalId = await ProposalHandler.findIncrementalId({
           pluginAddress,
@@ -247,12 +248,9 @@ export const ProposalHandler = {
           blockNumber: info.blockNumber,
         })
 
-        startTime = Date.now()
+        logger.verbose('Incremental Id Fetched', llo({ ...info, proposalIndex, processingTime: Date.now() - baseTime }))
 
-        logger.verbose(
-          'Incremental Id Fetched',
-          llo({ ...info, proposalIndex, processingTime: startTime - proposalReadyProcessingTime }),
-        )
+        baseTime = Date.now()
 
         const newProposal = await Models.Proposal.create(document, { session })
         await session.commitTransaction()
@@ -279,12 +277,19 @@ export const ProposalHandler = {
       })
 
       const allMessages: Promise<any>[] = [
-        ProposalHandler.parseActions(newProposal),
+        RabbitMQHelper.sendMessage(EnumQueueName.proposalActions, {
+          id: newProposal.id,
+          params: { id: newProposal.id, network: newProposal.network },
+        }),
         RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
           id: newProposal.daoAddress,
           params: { address: newProposal.daoAddress, network: newProposal.network },
         }),
       ]
+
+      logger.verbose('Proposal Actions parsed', llo({ ...info, processingTime: Date.now() - baseTime }))
+
+      baseTime = Date.now()
 
       if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
         allMessages.push(
@@ -311,7 +316,7 @@ export const ProposalHandler = {
       }
 
       await Promise.allSettled(allMessages)
-      logger.verbose('Proposal Creation Processing time', llo({ ...info, processingTime: Date.now() - startTime }))
+      logger.verbose('Proposal Creation Processing time', llo({ ...info, processingTime: Date.now() - baseTime }))
     } catch (error) {
       logger.error('Error Create proposal', llo({ ...info, error, parsedEvent }))
       return undefined
@@ -801,7 +806,7 @@ export const ProposalHandler = {
 
       return await DbOperations.updateDocument(
         proposal,
-        { actions: rawActions },
+        { actions: rawActions, decoding: false },
         { logId: proposal.id },
         'Update proposalAction',
         llo,
