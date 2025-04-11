@@ -2,8 +2,8 @@ import DecodeActions from '@helpers/decodeAction'
 import { type IRawAction } from '@types'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
-import Proposal from '@models/schema/proposal'
 import { ProposalHandler } from '@handlers/proposalHandler'
+import { Models } from '@dbModels'
 
 const ActionDecode = {
   decode: async (action: IRawAction) => {
@@ -31,7 +31,7 @@ const ActionDecode = {
     return decodedData
   },
   proposalActionDecoder: async (id: string) => {
-    const proposal = await Proposal.findByEntityId(id)
+    const proposal = await Models.Proposal.findByEntityId(id)
     if (!proposal) {
       return null
     }
