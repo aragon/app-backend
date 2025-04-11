@@ -210,7 +210,6 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
 
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      const stubActions = sandbox.spy(ProposalHandler, 'parseActions')
       const stubMemberMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity')
@@ -249,8 +248,9 @@ describe('Indexer: ProposalHandler', () => {
       ).to.be.true
 
       expect(stubPair.calledOnce).to.be.true
-      expect(stubActions.calledOnce).to.be.true
-      expect(stubDaoMetrics.calledOnce).to.be.true
+      expect(stubDaoMetrics.calledTwice).to.be.true
+      expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.proposalActions)
+      expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.daoMetrics)
     })
 
     it('Plugin not found', async () => {
@@ -1802,6 +1802,7 @@ describe('Indexer: ProposalHandler', () => {
         updateDocumentSpy.calledOnceWith(
           fakeProposal,
           {
+            decoding: false,
             actions: [
               { decoded: 'decodedData' }, // From decodeData
               { decoded: 'decodedTransfer' }, // From decodeTransfer
