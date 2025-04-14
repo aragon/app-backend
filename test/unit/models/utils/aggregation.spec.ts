@@ -229,6 +229,7 @@ describe('AggregationQueryHelper', () => {
                 resources: 1,
                 executed: 1,
                 actions: 1,
+                decoding: 1,
                 media: 1,
                 metrics: 1,
                 settings: 1,
