@@ -638,6 +638,7 @@ export default class Proposal extends Model {
           resources: 1,
           executed: 1,
           actions: 1,
+          decoding: 1,
           stageExecutions: 1,
           media: 1,
           settings: {
@@ -938,6 +939,7 @@ export default class Proposal extends Model {
           resources: 1,
           executed: 1,
           actions: 1,
+          decoding: 1,
           media: 1,
           stageExecutions: 1,
           settings: {
