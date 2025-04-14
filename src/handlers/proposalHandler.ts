@@ -123,7 +123,6 @@ export const ProposalHandler = {
 
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      let baseTime = Date.now()
       const pluginAddress = info.address
 
       const { newProposal, relatedPlugin } = await DbTx.executeTxFn(async ({ session }) => {
@@ -148,8 +147,7 @@ export const ProposalHandler = {
 
         const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
         const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
-        logger.verbose('Proposal metadata fetched', llo({ metadataFetchTime: Date.now() - baseTime }))
-        baseTime = Date.now()
+
         let rawSettings: any = null
 
         if (settings) {
@@ -234,23 +232,12 @@ export const ProposalHandler = {
           }
         }
 
-        logger.verbose(
-          'Proposal Ready to be created',
-          llo({ ...info, proposalIndex, processingTime: Date.now() - baseTime }),
-        )
-
-        baseTime = Date.now()
-
         document.incrementalId = await ProposalHandler.findIncrementalId({
           pluginAddress,
           network: info.network,
           proposalIndex,
           blockNumber: info.blockNumber,
         })
-
-        logger.verbose('Incremental Id Fetched', llo({ ...info, proposalIndex, processingTime: Date.now() - baseTime }))
-
-        baseTime = Date.now()
 
         const newProposal = await Models.Proposal.create(document, { session })
         await session.commitTransaction()
@@ -287,10 +274,6 @@ export const ProposalHandler = {
         }),
       ]
 
-      logger.verbose('Proposal Actions parsed', llo({ ...info, processingTime: Date.now() - baseTime }))
-
-      baseTime = Date.now()
-
       if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
         allMessages.push(
           RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
@@ -316,7 +299,6 @@ export const ProposalHandler = {
       }
 
       await Promise.allSettled(allMessages)
-      logger.verbose('Proposal Creation Processing time', llo({ ...info, processingTime: Date.now() - baseTime }))
     } catch (error) {
       logger.error('Error Create proposal', llo({ ...info, error, parsedEvent }))
       return undefined
